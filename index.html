@@ -615,10 +615,26 @@
                 const data = await response.json();
                 console.log('Suppliers API Response:', data);
                 
-                // Handle direct array response
-                suppliers = Array.isArray(data) ? data : (data.suppliers || []);
+                // Handle three cases:
+                // 1. Already an array: [{...}, {...}]
+                // 2. Single object: {...} → wrap in array
+                // 3. Object with suppliers property: {suppliers: [...]}
+                if (Array.isArray(data)) {
+                    suppliers = data;
+                } else if (data && typeof data === 'object') {
+                    // If it's a single object (has supplier_name), wrap it in array
+                    if (data.supplier_name) {
+                        suppliers = [data];
+                    } else {
+                        // Otherwise check for suppliers property
+                        suppliers = data.suppliers || [];
+                    }
+                } else {
+                    suppliers = [];
+                }
                 
                 console.log('Suppliers after processing:', suppliers);
+                console.log('Number of suppliers:', suppliers.length);
             } catch (error) {
                 console.error('Error loading suppliers:', error);
                 showToast('Failed to load suppliers', 'error');
