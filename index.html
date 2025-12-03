@@ -585,9 +585,9 @@
             webhooks: {
                 getMRFs: 'https://pengr3.app.n8n.cloud/webhook/get-mrfs',
                 getSuppliers: 'https://pengr3.app.n8n.cloud/webhook/get-suppliers',
-                saveProgress: 'https://script.google.com/macros/s/AKfycbwJV9qIeg__Y55RR1hHmc8Jg-cjUTjg17P4NgGIz8m-8tmWtUZaAxRrSUkERBuaCT5xEw/exec',
+                saveProgress: 'https://pengr3.app.n8n.cloud/webhook/save-mrf-progress',
                 generatePR: 'https://pengr3.app.n8n.cloud/webhook/generate-pr',
-                addSupplier: 'https://script.google.com/macros/s/AKfycbwJV9qIeg__Y55RR1hHmc8Jg-cjUTjg17P4NgGIz8m-8tmWtUZaAxRrSUkERBuaCT5xEw/exec'
+                addSupplier: 'https://pengr3.app.n8n.cloud/webhook/add-supplier'
             }
         };
 
@@ -823,12 +823,10 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        action: 'save_progress',
                         mrf_id: currentMRF.mrf_id,
                         items: items,
                         delivery_address: deliveryAddress,
-                        notes: notes,
-                        status: 'In Progress'
+                        notes: notes
                     })
                 });
 
@@ -978,7 +976,6 @@
             event.preventDefault();
             
             const supplierData = {
-                action: 'add_supplier',
                 supplier_name: document.getElementById('newSupplierName').value.trim(),
                 contact_person: document.getElementById('newContactPerson').value.trim(),
                 email: document.getElementById('newEmail').value.trim(),
