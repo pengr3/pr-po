@@ -816,8 +816,14 @@
             let total = 0;
             
             items.forEach((item, index) => {
-                const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
-                total += item.qty * unitCost;
+                const qty = item.qty || item.quantity || 0;
+                const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+                const unitCost = unitCostInput ? (parseFloat(unitCostInput.value) || 0) : 0;
+                const subtotal = qty * unitCost;
+                
+                if (!isNaN(subtotal)) {
+                    total += subtotal;
+                }
             });
             
             document.getElementById('grandTotal').textContent = `₱ ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
@@ -1038,11 +1044,12 @@
                     // Reload suppliers list
                     await loadSuppliers();
                     
-                    // Re-render items table if an MRF is selected (with slight delay to ensure suppliers loaded)
+                    console.log('Suppliers after adding new one:', suppliers);
+                    console.log('New supplier name:', supplierData.supplier_name);
+                    
+                    // Re-render items table if an MRF is selected
                     if (currentMRF) {
-                        setTimeout(() => {
-                            renderItemsTable(currentMRF);
-                        }, 300);
+                        renderItemsTable(currentMRF);
                     }
                 } else {
                     showToast('❌ ' + (result.message || 'Failed to add supplier'), 'error');
