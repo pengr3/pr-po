@@ -758,35 +758,49 @@
             const items = JSON.parse(mrf.items_json);
             const tbody = document.getElementById('itemsTableBody');
             
-            tbody.innerHTML = items.map((item, index) => `
+            tbody.innerHTML = items.map((item, index) => {
+                // Handle both field name formats
+                const itemName = item.item || item.item_name || 'Unknown';
+                const itemQty = item.qty || item.quantity || 0;
+                const itemUnit = item.unit || '';
+                const savedCost = item.unit_cost || 0;
+                const savedSupplier = item.supplier || '';
+                
+                return `
                 <tr>
-                    <td>${item.item}</td>
-                    <td>${item.qty}</td>
-                    <td>${item.unit}</td>
+                    <td>${itemName}</td>
+                    <td>${itemQty}</td>
+                    <td>${itemUnit}</td>
                     <td>
                         <input type="number" 
                                class="unit-cost" 
                                data-index="${index}" 
                                step="0.01" 
                                min="0"
+                               value="${savedCost}"
                                placeholder="0.00"
                                oninput="calculateSubtotal(${index})">
                     </td>
                     <td>
                         <select class="supplier-select" data-index="${index}">
                             <option value="">Select Supplier</option>
-                            ${suppliers.map(s => `<option value="${s.supplier_name}">${s.supplier_name}</option>`).join('')}
+                            ${suppliers.map(s => `<option value="${s.supplier_name}" ${s.supplier_name === savedSupplier ? 'selected' : ''}>${s.supplier_name}</option>`).join('')}
                         </select>
                     </td>
-                    <td class="subtotal-cell" id="subtotal-${index}">₱ 0.00</td>
+                    <td class="subtotal-cell" id="subtotal-${index}">₱ ${(itemQty * savedCost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                 </tr>
-            `).join('');
+                `;
+            }).join('');
+            
+            // Calculate grand total after rendering
+            calculateGrandTotal();
         }
 
         // Calculate subtotal for a row
         function calculateSubtotal(index) {
             const items = JSON.parse(currentMRF.items_json);
-            const qty = items[index].qty;
+            const item = items[index];
+            const qty = item.qty || item.quantity || 0;
             const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
             const unitCost = parseFloat(unitCostInput.value) || 0;
             const subtotal = qty * unitCost;
@@ -816,6 +830,8 @@
             const items = collectItemsData();
             const deliveryAddress = document.getElementById('deliveryAddress').value;
             const notes = document.getElementById('procurementNotes').value;
+            
+            const currentMrfId = currentMRF.mrf_id; // Save ID before refresh
 
             showLoading(true);
 
@@ -835,7 +851,18 @@
                 
                 if (result.success) {
                     showToast('Progress saved successfully', 'success');
+                    
+                    // Refresh MRF list
                     await refreshMRFs();
+                    
+                    // Find and update currentMRF with fresh data
+                    currentMRF = mrfData.find(m => m.mrf_id === currentMrfId);
+                    
+                    // Re-render items table with updated data
+                    if (currentMRF) {
+                        renderMRFInfo(currentMRF);
+                        renderItemsTable(currentMRF);
+                    }
                 } else {
                     throw new Error(result.message || 'Save failed');
                 }
@@ -918,12 +945,12 @@
                 const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
                 
                 return {
-                    item_name: item.item,
-                    quantity: item.qty,
+                    item: item.item || item.item_name,  // Handle both field names
+                    qty: item.qty || item.quantity,      // Handle both field names
                     unit: item.unit,
                     unit_cost: unitCost,
                     supplier: supplier,
-                    subtotal: item.qty * unitCost
+                    subtotal: (item.qty || item.quantity) * unitCost
                 };
             });
         }
@@ -1011,9 +1038,11 @@
                     // Reload suppliers list
                     await loadSuppliers();
                     
-                    // Re-render items table if an MRF is selected
+                    // Re-render items table if an MRF is selected (with slight delay to ensure suppliers loaded)
                     if (currentMRF) {
-                        renderItemsTable(currentMRF);
+                        setTimeout(() => {
+                            renderItemsTable(currentMRF);
+                        }, 300);
                     }
                 } else {
                     showToast('❌ ' + (result.message || 'Failed to add supplier'), 'error');
