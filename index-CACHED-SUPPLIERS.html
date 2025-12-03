@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRF Processing Dashboard | CLMC Engineering</title>
+    <link rel="icon" href="data:,">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1a73e8;
+            --danger: #ea4335;
+            --warning: #fbbc04;
+            --success: #34a853;
+            --gray-50: #f8f9fa;
+            --gray-100: #e8eaed;
+            --gray-200: #dadce0;
+            --gray-700: #5f6368;
+            --gray-900: #202124;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--gray-50);
+            color: var(--gray-900);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .header .company {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1920px;
+            margin: 0 auto;
+            height: calc(100vh - 100px);
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 1rem 1.5rem;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header h2 {
+            font-size: 1.125rem;
+            font-weight: 500;
+        }
+
+        .panel-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .reminders-widget {
+            background: #fff3cd;
+            border-left: 4px solid var(--warning);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+        }
+
+        .reminders-widget h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .reminder-item {
+            font-size: 0.813rem;
+            color: #856404;
+            padding: 0.25rem 0;
+        }
+
+        .mrf-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .mrf-card {
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mrf-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.15);
+        }
+
+        .mrf-card.active {
+            border-color: var(--primary);
+            background: #e8f0fe;
+        }
+
+        .mrf-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .mrf-id {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .urgency-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .urgency-badge.OVERDUE {
+            background: var(--danger);
+            color: white;
+        }
+
+        .urgency-badge.URGENT {
+            background: #ff6d00;
+            color: white;
+        }
+
+        .urgency-badge.SOON {
+            background: var(--warning);
+            color: #856404;
+        }
+
+        .urgency-badge.OK {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .mrf-details {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+        }
+
+        .mrf-details div {
+            margin: 0.25rem 0;
+        }
+
+        .no-selection {
+            text-align: center;
+            color: var(--gray-700);
+            padding: 3rem 2rem;
+        }
+
+        .no-selection svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .cost-encoder {
+            display: none;
+        }
+
+        .cost-encoder.active {
+            display: block;
+        }
+
+        .mrf-info-card {
+            background: var(--gray-50);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+        }
+
+        .mrf-info-row {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .mrf-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .mrf-info-label {
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .items-table th {
+            background: var(--gray-100);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .items-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .items-table tr:hover {
+            background: var(--gray-50);
+        }
+
+        .items-table input,
+        .items-table select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        .items-table input:focus,
+        .items-table select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        .subtotal-cell {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .total-row {
+            background: var(--gray-100);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--gray-200);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1557b0;
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-200);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-50);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2c7a3f;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1001;
+        }
+
+        .toast.active {
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 MRF Processing Dashboard</h1>
+        <div class="company">CLMC Engineering Services</div>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel: Pending MRFs -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Pending MRFs</h2>
+                <button class="btn btn-secondary btn-sm" onclick="refreshMRFs()">🔄 Refresh</button>
+            </div>
+            <div class="panel-body">
+                <!-- Reminders Widget -->
+                <div class="reminders-widget" id="remindersWidget" style="display: none;">
+                    <h3>⚠️ Upcoming Deadlines</h3>
+                    <div id="remindersList"></div>
+                </div>
+
+                <!-- MRF List -->
+                <div class="mrf-list" id="mrfList">
+                    <div style="text-align: center; padding: 2rem; color: #999;">
+                        Loading MRFs...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Cost Encoder -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Cost Encoding</h2>
+                <div id="currentMrfId" style="color: var(--primary); font-weight: 600;"></div>
+            </div>
+            <div class="panel-body">
+                <!-- No Selection State -->
+                <div class="no-selection" id="noSelection">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M12,3A1,1 0 0,1 13,4A1,1 0 0,1 12,5A1,1 0 0,1 11,4A1,1 0 0,1 12,3M7,7H17V5H19V19H5V5H7V7M17,11H7V9H17V11M15,15H7V13H15V15Z"/>
+                    </svg>
+                    <h3>Select an MRF to begin processing</h3>
+                    <p>Click on any pending MRF from the list to start encoding costs</p>
+                </div>
+
+                <!-- Cost Encoder (hidden by default) -->
+                <div class="cost-encoder" id="costEncoder">
+                    <!-- MRF Information Card -->
+                    <div class="mrf-info-card" id="mrfInfoCard"></div>
+
+                    <!-- Items Cost Table -->
+                    <div style="margin-bottom: 1rem; display: flex; justify-content: flex-end;">
+                        <button onclick="openSupplierModal()" class="btn" style="background: #10b981; color: white;">
+                            ➕ Add New Supplier
+                        </button>
+                    </div>
+
+                    <table class="items-table" id="itemsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">Item Name</th>
+                                <th style="width: 10%;">Qty</th>
+                                <th style="width: 10%;">Unit</th>
+                                <th style="width: 15%;">Unit Cost (₱)</th>
+                                <th style="width: 20%;">Supplier</th>
+                                <th style="width: 15%;">Subtotal (₱)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody"></tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="5" style="text-align: right; padding-right: 1rem;">TOTAL:</td>
+                                <td id="grandTotal">₱ 0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <!-- Notes Section -->
+                    <div style="margin-top: 1.5rem;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Delivery Address: <span style="color: var(--danger);">*</span></label>
+                        <textarea id="deliveryAddress" rows="3" required placeholder="Enter full delivery address including building/floor, street, city..." style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: 4px; font-family: inherit; font-size: 0.875rem;"></textarea>
+                    </div>
+
+                    <div style="margin-top: 1rem;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Procurement Notes:</label>
+                        <textarea id="procurementNotes" rows="3" style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: 4px; font-family: inherit; font-size: 0.875rem;" placeholder="Add any special delivery instructions or notes..."></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="saveProgress()">💾 Save Progress</button>
+                        <button class="btn btn-success" onclick="generatePR()" id="generatePRBtn">📄 Generate PR</button>
+                        <button class="btn btn-primary" onclick="downloadPRPreview()" id="previewBtn" disabled>👁️ Preview PR</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div>Processing...</div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- Supplier Enrollment Modal -->
+    <div id="supplierModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; border-radius: 8px; padding: 2rem; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; color: #1f2937;">➕ Add New Supplier</h2>
+                <button onclick="closeSupplierModal()" style="background: none; border: none; font-size: 2rem; cursor: pointer; color: #999; line-height: 1;">&times;</button>
+            </div>
+            
+            <form id="supplierForm" onsubmit="addSupplier(event)">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #374151;">
+                        Supplier Name <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="newSupplierName" required placeholder="e.g., ABC Hardware Supply"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 0.95rem;">
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #374151;">
+                        Contact Person <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="text" id="newContactPerson" required placeholder="e.g., Juan Dela Cruz"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 0.95rem;">
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #374151;">
+                        Email <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="email" id="newEmail" required placeholder="e.g., contact@supplier.com"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 0.95rem;">
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem; color: #374151;">
+                        Phone <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="tel" id="newPhone" required placeholder="e.g., 0912-345-6789"
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 0.95rem;">
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button type="button" onclick="closeSupplierModal()" 
+                            style="padding: 0.75rem 1.5rem; border: 1px solid #d1d5db; background: white; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            style="padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        ✓ Add Supplier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Webhook URLs
+        const CONFIG = {
+            webhooks: {
+                getMRFs: 'https://pengr3.app.n8n.cloud/webhook/get-mrfs',
+                getSuppliers: 'https://pengr3.app.n8n.cloud/webhook/get-suppliers',
+                saveProgress: 'https://pengr3.app.n8n.cloud/webhook/save-mrf-progress',
+                generatePR: 'https://pengr3.app.n8n.cloud/webhook/generate-pr',
+                addSupplier: 'https://pengr3.app.n8n.cloud/webhook/add-supplier'
+            }
+        };
+
+        let currentMRF = null;
+        let suppliers = [];
+        let mrfData = [];
+
+        // Initialize dashboard
+        async function init() {
+            // Load suppliers from localStorage cache first (instant)
+            loadSuppliersFromCache();
+            
+            // Load MRFs (always fresh)
+            await refreshMRFs();
+            
+            // Load suppliers from server in background (only if cache is empty or old)
+            const lastSupplierLoad = localStorage.getItem('suppliers_last_loaded');
+            const now = Date.now();
+            const oneHour = 60 * 60 * 1000;
+            
+            // Only reload suppliers if cache is older than 1 hour or doesn't exist
+            if (!lastSupplierLoad || (now - parseInt(lastSupplierLoad)) > oneHour) {
+                await loadSuppliers(true); // true = update cache
+            }
+        }
+        
+        // Load suppliers from localStorage cache
+        function loadSuppliersFromCache() {
+            const cached = localStorage.getItem('suppliers_cache');
+            if (cached) {
+                try {
+                    suppliers = JSON.parse(cached);
+                    console.log('Loaded suppliers from cache:', suppliers.length);
+                } catch (e) {
+                    console.error('Failed to parse suppliers cache:', e);
+                    suppliers = [];
+                }
+            }
+        }
+
+        // Load suppliers from database
+        async function loadSuppliers(updateCache = false) {
+            try {
+                const response = await fetch(CONFIG.webhooks.getSuppliers);
+                const data = await response.json();
+                console.log('Suppliers API Response:', data);
+                console.log('Is Array?', Array.isArray(data));
+                console.log('Length:', Array.isArray(data) ? data.length : 'N/A');
+                
+                // Handle three cases:
+                // 1. Already an array: [{...}, {...}]
+                // 2. Single object: {...} → wrap in array
+                // 3. Object with suppliers property: {suppliers: [...]}
+                if (Array.isArray(data)) {
+                    suppliers = data;
+                } else if (data && typeof data === 'object') {
+                    // If it's a single object (has supplier_name), wrap it in array
+                    if (data.supplier_name) {
+                        suppliers = [data];
+                    } else {
+                        // Otherwise check for suppliers property
+                        suppliers = data.suppliers || [];
+                    }
+                } else {
+                    suppliers = [];
+                }
+                
+                console.log('Suppliers after processing:', suppliers);
+                console.log('Number of suppliers:', suppliers.length);
+                console.log('Supplier names:', suppliers.map(s => s.supplier_name));
+                
+                // Update cache if requested
+                if (updateCache) {
+                    localStorage.setItem('suppliers_cache', JSON.stringify(suppliers));
+                    localStorage.setItem('suppliers_last_loaded', Date.now().toString());
+                    console.log('Updated suppliers cache');
+                }
+            } catch (error) {
+                console.error('Error loading suppliers:', error);
+                showToast('Failed to load suppliers', 'error');
+            }
+        }
+
+        // Refresh MRF list
+        async function refreshMRFs() {
+            try {
+                const response = await fetch(CONFIG.webhooks.getMRFs);
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                // Handle direct array response
+                mrfData = Array.isArray(data) ? data : (data.mrfs || []);
+                
+                console.log('mrfData after processing:', mrfData);
+                renderMRFList(mrfData);
+                updateReminders(mrfData);
+            } catch (error) {
+                console.error('Error loading MRFs:', error);
+                showToast('Failed to load MRFs', 'error');
+            }
+        }
+
+        // Render MRF list
+        function renderMRFList(mrfs) {
+            console.log('renderMRFList called with:', mrfs);
+            console.log('Number of MRFs:', mrfs.length);
+            
+            const mrfList = document.getElementById('mrfList');
+            console.log('mrfList element:', mrfList);
+            
+            if (mrfs.length === 0) {
+                mrfList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">No pending MRFs</div>';
+                return;
+            }
+
+            mrfList.innerHTML = mrfs.map(mrf => `
+                <div class="mrf-card" onclick="selectMRF('${mrf.mrf_id}')">
+                    <div class="mrf-header">
+                        <span class="mrf-id">${mrf.mrf_id}</span>
+                        <span class="urgency-badge ${mrf.urgency_level}">${mrf.urgency_level}</span>
+                    </div>
+                    <div class="mrf-details">
+                        <div><strong>Project:</strong> ${mrf.project_name}</div>
+                        <div><strong>Requestor:</strong> ${mrf.requestor_name}</div>
+                        <div><strong>Deadline:</strong> ${formatDate(mrf.date_needed)} (${mrf.days_until_deadline} days)</div>
+                        <div><strong>Status:</strong> ${mrf.status}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Update reminders widget
+        function updateReminders(mrfs) {
+            const urgentMRFs = mrfs.filter(m => 
+                m.days_until_deadline <= 7 && m.days_until_deadline > 0
+            );
+
+            const remindersWidget = document.getElementById('remindersWidget');
+            const remindersList = document.getElementById('remindersList');
+
+            if (urgentMRFs.length > 0) {
+                remindersWidget.style.display = 'block';
+                remindersList.innerHTML = urgentMRFs.map(m => 
+                    `<div class="reminder-item">🔔 ${m.mrf_id} - ${m.project_name} (${m.days_until_deadline} days left)</div>`
+                ).join('');
+            } else {
+                remindersWidget.style.display = 'none';
+            }
+        }
+
+        // Select MRF for processing
+        function selectMRF(mrfId) {
+            currentMRF = mrfData.find(m => m.mrf_id === mrfId);
+            
+            // Highlight selected card
+            document.querySelectorAll('.mrf-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // Show cost encoder
+            document.getElementById('noSelection').style.display = 'none';
+            document.getElementById('costEncoder').classList.add('active');
+            document.getElementById('currentMrfId').textContent = mrfId;
+
+            // Render MRF info and items
+            renderMRFInfo(currentMRF);
+            renderItemsTable(currentMRF);
+        }
+
+        // Render MRF information card
+        function renderMRFInfo(mrf) {
+            const infoCard = document.getElementById('mrfInfoCard');
+            infoCard.innerHTML = `
+                <div class="mrf-info-row">
+                    <div class="mrf-info-label">MRF ID:</div>
+                    <div>${mrf.mrf_id}</div>
+                </div>
+                <div class="mrf-info-row">
+                    <div class="mrf-info-label">Project:</div>
+                    <div>${mrf.project_name}</div>
+                </div>
+                <div class="mrf-info-row">
+                    <div class="mrf-info-label">Requestor:</div>
+                    <div>${mrf.requestor_name}</div>
+                </div>
+                <div class="mrf-info-row">
+                    <div class="mrf-info-label">Date Needed:</div>
+                    <div>${formatDate(mrf.date_needed)}</div>
+                </div>
+                <div class="mrf-info-row">
+                    <div class="mrf-info-label">Justification:</div>
+                    <div>${mrf.justification}</div>
+                </div>
+                <div class="mrf-info-row">
+                    <div class="mrf-info-label">Delivery Address:</div>
+                    <div id="deliveryAddressDisplay">${mrf.delivery_address || 'Not specified'}</div>
+                </div>
+            `;
+        }
+
+        // Render items table with cost inputs
+        function renderItemsTable(mrf) {
+            console.log('renderItemsTable called');
+            console.log('Current suppliers array:', suppliers);
+            console.log('Number of suppliers available:', suppliers.length);
+            console.log('Supplier names available:', suppliers.map(s => s.supplier_name));
+            
+            const items = JSON.parse(mrf.items_json);
+            const tbody = document.getElementById('itemsTableBody');
+            
+            tbody.innerHTML = items.map((item, index) => {
+                // Handle both field name formats
+                const itemName = item.item || item.item_name || 'Unknown';
+                const itemQty = item.qty || item.quantity || 0;
+                const itemUnit = item.unit || '';
+                const savedCost = item.unit_cost || 0;
+                const savedSupplier = item.supplier || '';
+                
+                console.log(`Item ${index}: Rendering dropdown with ${suppliers.length} suppliers`);
+                
+                return `
+                <tr>
+                    <td>${itemName}</td>
+                    <td>${itemQty}</td>
+                    <td>${itemUnit}</td>
+                    <td>
+                        <input type="number" 
+                               class="unit-cost" 
+                               data-index="${index}" 
+                               step="0.01" 
+                               min="0"
+                               value="${savedCost}"
+                               placeholder="0.00"
+                               oninput="calculateSubtotal(${index})">
+                    </td>
+                    <td>
+                        <select class="supplier-select" data-index="${index}">
+                            <option value="">Select Supplier</option>
+                            ${suppliers.map(s => `<option value="${s.supplier_name}" ${s.supplier_name === savedSupplier ? 'selected' : ''}>${s.supplier_name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="subtotal-cell" id="subtotal-${index}">₱ ${(itemQty * savedCost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                </tr>
+                `;
+            }).join('');
+            
+            // Calculate grand total after rendering
+            calculateGrandTotal();
+        }
+
+        // Calculate subtotal for a row
+        function calculateSubtotal(index) {
+            const items = JSON.parse(currentMRF.items_json);
+            const item = items[index];
+            const qty = item.qty || item.quantity || 0;
+            const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+            const unitCost = parseFloat(unitCostInput.value) || 0;
+            const subtotal = qty * unitCost;
+            
+            document.getElementById(`subtotal-${index}`).textContent = `₱ ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+            
+            calculateGrandTotal();
+        }
+
+        // Calculate grand total
+        function calculateGrandTotal() {
+            const items = JSON.parse(currentMRF.items_json);
+            let total = 0;
+            
+            items.forEach((item, index) => {
+                const qty = item.qty || item.quantity || 0;
+                const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+                const unitCost = unitCostInput ? (parseFloat(unitCostInput.value) || 0) : 0;
+                const subtotal = qty * unitCost;
+                
+                if (!isNaN(subtotal)) {
+                    total += subtotal;
+                }
+            });
+            
+            document.getElementById('grandTotal').textContent = `₱ ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+        }
+
+        // Save progress
+        async function saveProgress() {
+            if (!currentMRF) return;
+
+            const items = collectItemsData();
+            const deliveryAddress = document.getElementById('deliveryAddress').value;
+            const notes = document.getElementById('procurementNotes').value;
+            
+            const currentMrfId = currentMRF.mrf_id; // Save ID before refresh
+
+            showLoading(true);
+
+            try {
+                const response = await fetch(CONFIG.webhooks.saveProgress, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mrf_id: currentMRF.mrf_id,
+                        items: items,
+                        delivery_address: deliveryAddress,
+                        notes: notes
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Progress saved successfully', 'success');
+                    
+                    // Refresh MRF list
+                    await refreshMRFs();
+                    
+                    // Find and update currentMRF with fresh data
+                    currentMRF = mrfData.find(m => m.mrf_id === currentMrfId);
+                    
+                    // Re-render items table with updated data
+                    if (currentMRF) {
+                        renderMRFInfo(currentMRF);
+                        renderItemsTable(currentMRF);
+                    }
+                } else {
+                    throw new Error(result.message || 'Save failed');
+                }
+            } catch (error) {
+                console.error('Error saving progress:', error);
+                showToast('Failed to save progress: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Generate PR
+        async function generatePR() {
+            if (!currentMRF) return;
+
+            const items = collectItemsData();
+            
+            // Validate all items have cost and supplier
+            const incomplete = items.filter(item => !item.unit_cost || !item.supplier);
+            if (incomplete.length > 0) {
+                showToast(`Please complete cost and supplier for all items (${incomplete.length} remaining)`, 'error');
+                return;
+            }
+
+            // Validate delivery address
+            const deliveryAddress = document.getElementById('deliveryAddress').value;
+            if (!deliveryAddress) {
+                showToast('Please select a delivery address', 'error');
+                document.getElementById('deliveryAddress').focus();
+                return;
+            }
+
+            const notes = document.getElementById('procurementNotes').value;
+
+            showLoading(true);
+
+            try {
+                const response = await fetch(CONFIG.webhooks.generatePR, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mrf_id: currentMRF.mrf_id,
+                        items_with_costs: items,
+                        delivery_address: deliveryAddress,
+                        notes: notes
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('PR generated successfully!', 'success');
+                    
+                    // Show PR details
+                    alert(`PR Generated!\n\nPR ID: ${result.pr_id}\nTotal Cost: ₱${result.total_cost.toLocaleString('en-PH')}\nSuppliers: ${result.suppliers.join(', ')}\n\nDocument saved to Google Drive.`);
+                    
+                    await refreshMRFs();
+                    
+                    // Clear selection
+                    currentMRF = null;
+                    document.getElementById('noSelection').style.display = 'block';
+                    document.getElementById('costEncoder').classList.remove('active');
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error generating PR:', error);
+                showToast('Failed to generate PR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Collect items data from table
+        function collectItemsData() {
+            const items = JSON.parse(currentMRF.items_json);
+            
+            return items.map((item, index) => {
+                const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+                const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
+                
+                return {
+                    item: item.item || item.item_name,  // Handle both field names
+                    qty: item.qty || item.quantity,      // Handle both field names
+                    unit: item.unit,
+                    unit_cost: unitCost,
+                    supplier: supplier,
+                    subtotal: (item.qty || item.quantity) * unitCost
+                };
+            });
+        }
+
+        // Download PR preview
+        function downloadPRPreview() {
+            // This would trigger a separate workflow to generate preview
+            showToast('Preview generation coming soon', 'success');
+        }
+
+        // Utility functions
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString('en-PH', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('active', show);
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.className = `toast ${type} active`;
+            
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+
+        // ===== SUPPLIER ENROLLMENT FUNCTIONS =====
+
+        // Open supplier modal
+        function openSupplierModal() {
+            document.getElementById('supplierModal').style.display = 'flex';
+        }
+
+        // Close supplier modal
+        function closeSupplierModal() {
+            document.getElementById('supplierModal').style.display = 'none';
+            document.getElementById('supplierForm').reset();
+        }
+
+        // Add new supplier
+        async function addSupplier(event) {
+            event.preventDefault();
+            
+            const supplierData = {
+                supplier_name: document.getElementById('newSupplierName').value.trim(),
+                contact_person: document.getElementById('newContactPerson').value.trim(),
+                email: document.getElementById('newEmail').value.trim(),
+                phone: document.getElementById('newPhone').value.trim()
+            };
+            
+            // Validate
+            if (!supplierData.supplier_name || !supplierData.contact_person || !supplierData.email || !supplierData.phone) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            try {
+                const response = await fetch(CONFIG.webhooks.addSupplier, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(supplierData)
+                });
+                
+                const result = await response.json();
+                
+                showLoading(false);
+                
+                if (result.success) {
+                    closeSupplierModal();
+                    showToast(`✅ Supplier "${supplierData.supplier_name}" added successfully!`, 'success');
+                    
+                    // Reload suppliers list from server and update cache
+                    await loadSuppliers(true);
+                    
+                    console.log('Suppliers after adding new one:', suppliers);
+                    console.log('Supplier names:', suppliers.map(s => s.supplier_name));
+                    console.log('New supplier should be:', supplierData.supplier_name);
+                    
+                    // Re-render items table if an MRF is selected
+                    if (currentMRF) {
+                        renderItemsTable(currentMRF);
+                    }
+                } else {
+                    showToast('❌ ' + (result.message || 'Failed to add supplier'), 'error');
+                }
+                
+            } catch (error) {
+                showLoading(false);
+                showToast('❌ Failed to add supplier. Please check your connection.', 'error');
+                console.error('Error adding supplier:', error);
+            }
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('supplierModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeSupplierModal();
+                }
+            });
+        });
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
