@@ -492,14 +492,7 @@
                     <!-- Notes Section -->
                     <div style="margin-top: 1.5rem;">
                         <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Delivery Address: <span style="color: var(--danger);">*</span></label>
-                        <select id="deliveryAddress" style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: 4px; font-family: inherit; font-size: 0.875rem;">
-                            <option value="">Select delivery location</option>
-                            <option value="CLMC Engineering Services - Main Warehouse, Taguig">CLMC Main Warehouse - Taguig</option>
-                            <option value="Stefanini Philippines Office">Stefanini Philippines Office</option>
-                            <option value="Phirst Park Homes Inc - Project Site">Phirst Park Homes - Project Site</option>
-                            <option value="Client Site - To be specified">Client Site - To be specified</option>
-                            <option value="Other">Other (Specify in notes)</option>
-                        </select>
+                        <textarea id="deliveryAddress" rows="3" required placeholder="Enter full delivery address including building/floor, street, city..." style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-200); border-radius: 4px; font-family: inherit; font-size: 0.875rem;"></textarea>
                     </div>
 
                     <div style="margin-top: 1rem;">
@@ -587,12 +580,12 @@
     </div>
 
     <script>
-        // Configuration - n8n Webhook URLs
+        // Configuration - Webhook URLs
         const CONFIG = {
             webhooks: {
                 getMRFs: 'https://pengr3.app.n8n.cloud/webhook/get-mrfs',
                 getSuppliers: 'https://pengr3.app.n8n.cloud/webhook/get-suppliers',
-                saveProgress: 'https://pengr3.app.n8n.cloud/webhook/save-mrf-progress',
+                saveProgress: 'https://script.google.com/macros/s/AKfycbwJV9qIeg__Y55RR1hHmc8Jg-cjUTjg17P4NgGIz8m-8tmWtUZaAxRrSUkERBuaCT5xEw/exec',
                 generatePR: 'https://pengr3.app.n8n.cloud/webhook/generate-pr',
                 addSupplier: 'https://script.google.com/macros/s/AKfycbwJV9qIeg__Y55RR1hHmc8Jg-cjUTjg17P4NgGIz8m-8tmWtUZaAxRrSUkERBuaCT5xEw/exec'
             }
@@ -830,8 +823,9 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        action: 'save_progress',
                         mrf_id: currentMRF.mrf_id,
-                        items_with_costs: items,
+                        items: items,
                         delivery_address: deliveryAddress,
                         notes: notes,
                         status: 'In Progress'
@@ -844,11 +838,11 @@
                     showToast('Progress saved successfully', 'success');
                     await refreshMRFs();
                 } else {
-                    throw new Error(result.message);
+                    throw new Error(result.message || 'Save failed');
                 }
             } catch (error) {
                 console.error('Error saving progress:', error);
-                showToast('Failed to save progress', 'error');
+                showToast('Failed to save progress: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -984,6 +978,7 @@
             event.preventDefault();
             
             const supplierData = {
+                action: 'add_supplier',
                 supplier_name: document.getElementById('newSupplierName').value.trim(),
                 contact_person: document.getElementById('newContactPerson').value.trim(),
                 email: document.getElementById('newEmail').value.trim(),
