@@ -599,19 +599,18 @@
         // Initialize dashboard
         async function init() {
             // Load suppliers from localStorage cache first (instant)
-            loadSuppliersFromCache();
+            const cachedSuppliers = loadSuppliersFromCache();
             
             // Load MRFs (always fresh)
             await refreshMRFs();
             
-            // Load suppliers from server in background (only if cache is empty or old)
-            const lastSupplierLoad = localStorage.getItem('suppliers_last_loaded');
-            const now = Date.now();
-            const oneHour = 60 * 60 * 1000;
-            
-            // Only reload suppliers if cache is older than 1 hour or doesn't exist
-            if (!lastSupplierLoad || (now - parseInt(lastSupplierLoad)) > oneHour) {
+            // Only load suppliers from server if cache is empty
+            // (New suppliers are loaded when explicitly added via addSupplier function)
+            if (!cachedSuppliers || suppliers.length === 0) {
+                console.log('No suppliers in cache, loading from server...');
                 await loadSuppliers(true); // true = update cache
+            } else {
+                console.log('Using cached suppliers, skipping API call');
             }
         }
         
@@ -622,11 +621,14 @@
                 try {
                     suppliers = JSON.parse(cached);
                     console.log('Loaded suppliers from cache:', suppliers.length);
+                    return true;
                 } catch (e) {
                     console.error('Failed to parse suppliers cache:', e);
                     suppliers = [];
+                    return false;
                 }
             }
+            return false;
         }
 
         // Load suppliers from database
@@ -660,11 +662,10 @@
                 console.log('Number of suppliers:', suppliers.length);
                 console.log('Supplier names:', suppliers.map(s => s.supplier_name));
                 
-                // Update cache if requested
+                // Update cache if requested (cache persists indefinitely until cleared)
                 if (updateCache) {
                     localStorage.setItem('suppliers_cache', JSON.stringify(suppliers));
-                    localStorage.setItem('suppliers_last_loaded', Date.now().toString());
-                    console.log('Updated suppliers cache');
+                    console.log('Updated suppliers cache - will persist until manually cleared or new supplier added');
                 }
             } catch (error) {
                 console.error('Error loading suppliers:', error);
