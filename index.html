@@ -339,16 +339,32 @@
             border-radius: 4px;
         }
 
-        .items-table {
-            width: 100%;
-            margin-top: 1rem;
-        }
+        .items-table {.items-table {
+    width: 100%;
+    margin-top: 1rem;
+    table-layout: fixed;
+}
 
-        .items-table input,
-        .items-table select {
-            width: 100%;
-            padding: 0.5rem;
-        }
+.items-table th:nth-child(1) { width: 20%; } /* Item */
+.items-table th:nth-child(2) { width: 12%; } /* Category */
+.items-table th:nth-child(3) { width: 8%; }  /* Qty */
+.items-table th:nth-child(4) { width: 8%; }  /* Unit */
+.items-table th:nth-child(5) { width: 15%; } /* Cost */
+.items-table th:nth-child(6) { width: 20%; } /* Supplier */
+.items-table th:nth-child(7) { width: 17%; } /* Subtotal */
+
+.items-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.items-table input,
+.items-table select {
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
     </style>
 </head>
 <body>
