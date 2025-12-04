@@ -34,7 +34,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
             background: white;
             border-radius: 12px;
@@ -100,26 +100,20 @@
             font-size: 0.875rem;
         }
 
-        .required {
-            color: var(--danger);
-            margin-left: 0.25rem;
-        }
-
         input[type="text"],
         input[type="date"],
-        select,
-        textarea {
+        textarea,
+        select {
             padding: 0.75rem;
             border: 1px solid var(--gray-300);
             border-radius: 6px;
-            font-size: 0.95rem;
-            font-family: inherit;
-            transition: border-color 0.2s;
+            font-size: 0.875rem;
+            transition: all 0.2s;
         }
 
         input:focus,
-        select:focus,
-        textarea:focus {
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
@@ -130,49 +124,62 @@
             min-height: 80px;
         }
 
-        /* Items Table */
-        .items-section {
-            background: var(--gray-50);
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
+        .radio-group {
+            display: flex;
+            gap: 2rem;
+            margin-top: 0.5rem;
         }
 
-        .items-table-wrapper {
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .radio-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .radio-option label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .table-container {
             overflow-x: auto;
             margin: 1rem 0;
         }
 
-        .items-table {
+        table {
             width: 100%;
             border-collapse: collapse;
-            background: white;
-            border-radius: 6px;
-            overflow: hidden;
-        }
-
-        .items-table th {
-            background: var(--gray-800);
-            color: white;
-            padding: 0.75rem;
-            text-align: left;
-            font-weight: 600;
             font-size: 0.875rem;
         }
 
-        .items-table td {
+        th {
+            background: var(--gray-100);
             padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 2px solid var(--gray-300);
+        }
+
+        td {
+            padding: 0.5rem;
             border-bottom: 1px solid var(--gray-200);
         }
 
-        .items-table tbody tr:hover {
-            background: var(--gray-50);
-        }
-
-        .items-table input,
-        .items-table select {
-            padding: 0.5rem;
+        td input,
+        td select {
             width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            font-size: 0.875rem;
         }
 
         .btn {
@@ -181,11 +188,8 @@
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            font-size: 0.95rem;
             transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 0.875rem;
         }
 
         .btn-primary {
@@ -196,7 +200,16 @@
         .btn-primary:hover {
             background: var(--primary-dark);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-800);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
         }
 
         .btn-success {
@@ -212,20 +225,11 @@
             background: var(--danger);
             color: white;
             padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
         }
 
         .btn-danger:hover {
             background: #dc2626;
-        }
-
-        .btn-secondary {
-            background: var(--gray-200);
-            color: var(--gray-700);
-            margin-top: 1rem;
-        }
-
-        .btn-secondary:hover {
-            background: var(--gray-300);
         }
 
         .form-actions {
@@ -240,7 +244,7 @@
         .alert {
             padding: 1rem;
             border-radius: 6px;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             display: none;
         }
 
@@ -251,25 +255,25 @@
         .alert-success {
             background: #d1fae5;
             color: #065f46;
-            border-left: 4px solid var(--success);
+            border: 1px solid #6ee7b7;
         }
 
         .alert-error {
             background: #fee2e2;
             color: #991b1b;
-            border-left: 4px solid var(--danger);
+            border: 1px solid #fca5a5;
         }
 
         .alert-warning {
             background: #fef3c7;
             color: #92400e;
-            border-left: 4px solid var(--warning);
+            border: 1px solid #fcd34d;
         }
 
         .loading {
             display: none;
             text-align: center;
-            padding: 2rem;
+            padding: 3rem;
         }
 
         .loading.show {
@@ -277,11 +281,11 @@
         }
 
         .spinner {
-            border: 3px solid var(--gray-200);
-            border-top: 3px solid var(--primary);
+            border: 4px solid var(--gray-200);
+            border-top: 4px solid var(--primary);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem;
         }
@@ -291,17 +295,23 @@
             100% { transform: rotate(360deg); }
         }
 
+        .custom-unit {
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .custom-unit.show {
+            display: block;
+        }
+
         @media (max-width: 768px) {
             .form-grid {
                 grid-template-columns: 1fr;
             }
 
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .form-content {
-                padding: 1.5rem;
+            .radio-group {
+                flex-direction: column;
+                gap: 1rem;
             }
         }
     </style>
@@ -309,8 +319,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📝 Material Request Form (MRF)</h1>
-            <p>CLMC - Procurement System</p>
+            <h1>Material Request Form (MRF)</h1>
+            <p>CLMC Engineering Services</p>
         </div>
 
         <div class="form-content">
@@ -319,95 +329,133 @@
             <div id="alertError" class="alert alert-error"></div>
             <div id="alertWarning" class="alert alert-warning"></div>
 
-            <!-- Loading Spinner -->
+            <!-- Loading State -->
             <div id="loading" class="loading">
                 <div class="spinner"></div>
                 <p>Submitting your request...</p>
             </div>
 
+            <!-- Form -->
             <form id="mrfForm">
-                <!-- Project Information -->
+                <!-- Request Type Section -->
                 <div class="form-section">
-                    <h2 class="section-title">Project Information</h2>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Project Name <span class="required">*</span></label>
-                            <input type="text" id="projectName" required placeholder="e.g., Phirst Park Homes - Tower A">
-                        </div>
-                        <div class="form-group">
-                            <label>Requestor Name <span class="required">*</span></label>
-                            <input type="text" id="requestorName" required placeholder="e.g., Engr. Juan Dela Cruz">
-                        </div>
-                        <div class="form-group">
-                            <label>Date Needed <span class="required">*</span></label>
-                            <input type="date" id="dateNeeded" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Delivery Address <span class="required">*</span></label>
-                            <select id="deliveryAddress" required>
-                                <option value="">Select delivery location</option>
-                                <option value="CLMC Engineering Services - Main Warehouse, Taguig">CLMC Main Warehouse - Taguig</option>
-                                <option value="Stefanini Philippines Office">Stefanini Philippines Office</option>
-                                <option value="Phirst Park Homes Inc - Project Site">Phirst Park Homes - Project Site</option>
-                                <option value="Client Site - To be specified">Client Site - To be specified</option>
-                                <option value="Other">Other (Specify in justification)</option>
-                            </select>
-                        </div>
-                        <div class="form-group full-width">
-                            <label>Justification / Purpose <span class="required">*</span></label>
-                            <textarea id="justification" required placeholder="Briefly explain why these materials are needed..."></textarea>
+                    <h2 class="section-title">Request Type</h2>
+                    <div class="form-group full-width">
+                        <label>Select Request Type *</label>
+                        <div class="radio-group">
+                            <div class="radio-option">
+                                <input type="radio" id="typeMaterial" name="requestType" value="material" checked>
+                                <label for="typeMaterial">Material Request (generates PR/PO)</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="typeService" name="requestType" value="service">
+                                <label for="typeService">Delivery/Hauling/Transportation (no PR/PO)</label>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Items Section -->
+                <!-- Basic Information -->
                 <div class="form-section">
-                    <h2 class="section-title">Requested Items</h2>
-                    <div class="items-section">
-                        <div class="items-table-wrapper">
-                            <table class="items-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 45%;">Item Description</th>
-                                        <th style="width: 15%;">Quantity</th>
-                                        <th style="width: 20%;">Unit</th>
-                                        <th style="width: 20%;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="itemsTableBody">
-                                    <tr>
-                                        <td><input type="text" placeholder="e.g., Circuit Breaker 20A" required></td>
-                                        <td><input type="number" min="1" placeholder="1" required></td>
-                                        <td>
-                                            <select required>
-                                                <option value="">Select</option>
-                                                <option value="pcs">pcs</option>
-                                                <option value="boxes">boxes</option>
-                                                <option value="meters">meters</option>
-                                                <option value="kg">kg</option>
-                                                <option value="liters">liters</option>
-                                                <option value="sets">sets</option>
-                                                <option value="rolls">rolls</option>
-                                                <option value="bags">bags</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <button type="button" class="btn btn-danger" onclick="removeItem(this)">Remove</button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <h2 class="section-title">Basic Information</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="projectName">Project Name *</label>
+                            <input type="text" id="projectName" required>
                         </div>
-                        <button type="button" class="btn btn-secondary" onclick="addItem()">+ Add Another Item</button>
+                        <div class="form-group">
+                            <label for="requestorName">Your Name *</label>
+                            <input type="text" id="requestorName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="dateNeeded">Date Needed *</label>
+                            <input type="date" id="dateNeeded" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Information -->
+                <div class="form-section">
+                    <h2 class="section-title">Delivery Information</h2>
+                    <div class="form-group full-width">
+                        <label for="deliveryAddress">Delivery Address *</label>
+                        <textarea id="deliveryAddress" rows="3" placeholder="Enter complete delivery address (e.g., 3rd Floor, Building A, 123 Main St, BGC, Taguig City 1634)" required></textarea>
+                    </div>
+                </div>
+
+                <!-- Items Requested -->
+                <div class="form-section">
+                    <h2 class="section-title">Items Requested</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">Item Description *</th>
+                                    <th style="width: 10%;">Quantity *</th>
+                                    <th style="width: 15%;">Unit *</th>
+                                    <th style="width: 20%;">Category *</th>
+                                    <th style="width: 10%;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsTableBody">
+                                <tr>
+                                    <td><input type="text" class="item-name" required></td>
+                                    <td><input type="number" class="item-qty" min="1" required></td>
+                                    <td>
+                                        <select class="item-unit" onchange="toggleCustomUnit(this)" required>
+                                            <option value="">Select Unit</option>
+                                            <option value="pcs">pcs</option>
+                                            <option value="boxes">boxes</option>
+                                            <option value="bags">bags</option>
+                                            <option value="lot">lot</option>
+                                            <option value="gallons">gallons</option>
+                                            <option value="bottles">bottles</option>
+                                            <option value="bundle">bundle</option>
+                                            <option value="cans">cans</option>
+                                            <option value="trucks">trucks</option>
+                                            <option value="ride">ride</option>
+                                            <option value="sheets">sheets</option>
+                                            <option value="yards">yards</option>
+                                            <option value="pail">pail</option>
+                                            <option value="others">Others (specify)</option>
+                                        </select>
+                                        <input type="text" class="custom-unit-input" placeholder="Specify unit" style="display: none; margin-top: 0.5rem;">
+                                    </td>
+                                    <td>
+                                        <select class="item-category" required>
+                                            <option value="">Select Category</option>
+                                            <option value="CIVIL">CIVIL</option>
+                                            <option value="ELECTRICAL">ELECTRICAL</option>
+                                            <option value="HVAC">HVAC</option>
+                                            <option value="PLUMBING">PLUMBING</option>
+                                            <option value="TOOLS & EQUIPMENTS">TOOLS & EQUIPMENTS</option>
+                                            <option value="SAFETY">SAFETY</option>
+                                            <option value="OTHERS">OTHERS</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-danger" onclick="removeItem(this)">Remove</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="addItem()">➕ Add Another Item</button>
+                </div>
+
+                <!-- Justification -->
+                <div class="form-section">
+                    <h2 class="section-title">Justification</h2>
+                    <div class="form-group full-width">
+                        <label for="justification">Reason for Request *</label>
+                        <textarea id="justification" rows="4" placeholder="Please explain why these items/services are needed..." required></textarea>
                     </div>
                 </div>
 
                 <!-- Form Actions -->
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="resetForm()">Reset Form</button>
-                    <button type="submit" class="btn btn-primary">
-                        <span>📤</span> Submit MRF
-                    </button>
+                    <button type="submit" class="btn btn-success">Submit Request</button>
                 </div>
             </form>
         </div>
@@ -434,7 +482,6 @@
         // Generate MRF ID
         async function generateMRFId() {
             const year = new Date().getFullYear();
-            const month = String(new Date().getMonth() + 1).padStart(2, '0');
             
             // Get last MRF
             const mrfsRef = collection(db, 'mrfs');
@@ -458,27 +505,48 @@
         // Set minimum date to today
         document.getElementById('dateNeeded').min = new Date().toISOString().split('T')[0];
 
+        // Toggle custom unit input
+        window.toggleCustomUnit = function(selectElement) {
+            const row = selectElement.closest('tr');
+            const customInput = row.querySelector('.custom-unit-input');
+            
+            if (selectElement.value === 'others') {
+                customInput.style.display = 'block';
+                customInput.required = true;
+            } else {
+                customInput.style.display = 'none';
+                customInput.required = false;
+                customInput.value = '';
+            }
+        };
+
         // Add new item row
-        function addItem() {
+        window.addItem = function() {
             const tbody = document.getElementById('itemsTableBody');
             const newRow = tbody.rows[0].cloneNode(true);
             
             // Clear values
-            newRow.querySelectorAll('input').forEach(input => input.value = '');
-            newRow.querySelector('select').selectedIndex = 0;
+            newRow.querySelectorAll('input').forEach(input => {
+                input.value = '';
+                if (input.classList.contains('custom-unit-input')) {
+                    input.style.display = 'none';
+                    input.required = false;
+                }
+            });
+            newRow.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
             
             tbody.appendChild(newRow);
-        }
+        };
 
         // Remove item row
-        function removeItem(button) {
+        window.removeItem = function(button) {
             const tbody = document.getElementById('itemsTableBody');
             if (tbody.rows.length > 1) {
                 button.closest('tr').remove();
             } else {
                 showAlert('warning', 'You must have at least one item in the request.');
             }
-        }
+        };
 
         // Collect items from table
         function collectItems() {
@@ -486,12 +554,20 @@
             const items = [];
             
             for (let row of tbody.rows) {
-                const item = row.cells[0].querySelector('input').value.trim();
-                const qty = parseInt(row.cells[1].querySelector('input').value);
-                const unit = row.cells[2].querySelector('select').value;
+                const itemName = row.querySelector('.item-name').value.trim();
+                const qty = parseInt(row.querySelector('.item-qty').value);
+                const unitSelect = row.querySelector('.item-unit');
+                const customUnitInput = row.querySelector('.custom-unit-input');
+                const unit = unitSelect.value === 'others' ? customUnitInput.value.trim() : unitSelect.value;
+                const category = row.querySelector('.item-category').value;
                 
-                if (item && qty && unit) {
-                    items.push({ item, qty, unit });
+                if (itemName && qty && unit && category) {
+                    items.push({ 
+                        item: itemName, 
+                        qty, 
+                        unit,
+                        category 
+                    });
                 }
             }
             
@@ -544,7 +620,7 @@
         }
 
         // Reset form
-        function resetForm() {
+        window.resetForm = function() {
             if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
                 document.getElementById('mrfForm').reset();
                 
@@ -554,19 +630,26 @@
                     tbody.deleteRow(1);
                 }
                 
+                // Hide custom unit inputs
+                document.querySelectorAll('.custom-unit-input').forEach(input => {
+                    input.style.display = 'none';
+                    input.required = false;
+                });
+                
                 showAlert('success', 'Form has been reset.');
             }
-        }
+        };
 
         // Handle form submission
         document.getElementById('mrfForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Collect form data
+            const requestType = document.querySelector('input[name="requestType"]:checked').value;
             const projectName = document.getElementById('projectName').value.trim();
             const requestorName = document.getElementById('requestorName').value.trim();
             const dateNeeded = document.getElementById('dateNeeded').value;
-            const deliveryAddress = document.getElementById('deliveryAddress').value;
+            const deliveryAddress = document.getElementById('deliveryAddress').value.trim();
             const justification = document.getElementById('justification').value.trim();
             const items = collectItems();
             
@@ -575,16 +658,6 @@
                 showAlert('error', 'Please add at least one item to your request.');
                 return;
             }
-            
-            // Prepare data
-            const mrfData = {
-                project_name: projectName,
-                requestor_name: requestorName,
-                date_needed: dateNeeded,
-                delivery_address: deliveryAddress,
-                justification: justification,
-                items: items
-            };
             
             // Show loading
             showLoading(true);
@@ -596,11 +669,12 @@
                 // Prepare Firestore document
                 const mrfDoc = {
                     mrf_id: mrfId,
+                    request_type: requestType,
                     project_name: projectName,
                     requestor_name: requestorName,
                     date_needed: dateNeeded,
                     date_submitted: new Date().toISOString().split('T')[0],
-                    delivery_address: deliveryAddress || '',
+                    delivery_address: deliveryAddress,
                     justification: justification,
                     items_json: JSON.stringify(items),
                     status: 'Pending',
@@ -611,7 +685,9 @@
                 await addDoc(collection(db, 'mrfs'), mrfDoc);
                 
                 showLoading(false);
-                showAlert('success', `✅ MRF submitted successfully! Your MRF ID is: ${mrfId}. The procurement team has been notified.`);
+                
+                const typeLabel = requestType === 'material' ? 'Material Request' : 'Delivery/Hauling/Transportation Request';
+                showAlert('success', `✅ ${typeLabel} submitted successfully! Your MRF ID is: ${mrfId}. The procurement team has been notified.`);
                 
                 // Reset form after 3 seconds
                 setTimeout(() => {
@@ -620,6 +696,10 @@
                     while (tbody.rows.length > 1) {
                         tbody.deleteRow(1);
                     }
+                    document.querySelectorAll('.custom-unit-input').forEach(input => {
+                        input.style.display = 'none';
+                        input.required = false;
+                    });
                 }, 3000);
                 
             } catch (error) {
