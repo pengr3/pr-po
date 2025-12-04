@@ -499,13 +499,19 @@
             
             // Real-time listener
             onSnapshot(suppliersRef, (snapshot) => {
-                suppliersData = [];
-                snapshot.forEach((doc) => {
-                    suppliersData.push({ id: doc.id, ...doc.data() });
-                });
-                renderSuppliersTable();
-                console.log('Suppliers updated:', suppliersData.length);
-            });
+    suppliersData = [];
+    snapshot.forEach((doc) => {
+        suppliersData.push({ id: doc.id, ...doc.data() });
+    });
+    renderSuppliersTable();
+    
+    // Update MRF details if one is selected
+    if (currentMRF) {
+        renderMRFDetails(currentMRF);
+    }
+    
+    console.log('Suppliers updated:', suppliersData.length);
+});
         }
 
         // Load MRFs with real-time updates
@@ -841,6 +847,7 @@
 
                 showToast('✅ Supplier updated successfully', 'success');
                 editingSupplier = null;
+                renderSuppliersTable();
             } catch (error) {
                 console.error('Error updating supplier:', error);
                 showToast('❌ Failed to update supplier', 'error');
