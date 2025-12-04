@@ -514,7 +514,7 @@
         // Load MRFs with real-time updates
         async function loadMRFs() {
             const mrfsRef = collection(db, 'mrfs');
-            const q = query(mrfsRef, where('status', '==', 'Pending'));
+            const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress']));
             
             onSnapshot(q, (snapshot) => {
                 const mrfs = [];
