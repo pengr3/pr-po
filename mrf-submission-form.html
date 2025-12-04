@@ -413,9 +413,47 @@
         </div>
     </div>
 
-    <script>
-        // Configuration
-        const WEBHOOK_URL = 'https://pengr3.app.n8n.cloud/webhook/submit-mrf';
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlHcmPmkCk6CKsRbfpHpCheHb2GcLz0Oc",
+            authDomain: "clmc-procurement.firebaseapp.com",
+            projectId: "clmc-procurement",
+            storageBucket: "clmc-procurement.firebasestorage.app",
+            messagingSenderId: "946184501660",
+            appId: "1:946184501660:web:6559c5de405e72100ab059"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Generate MRF ID
+        async function generateMRFId() {
+            const year = new Date().getFullYear();
+            const month = String(new Date().getMonth() + 1).padStart(2, '0');
+            
+            // Get last MRF
+            const mrfsRef = collection(db, 'mrfs');
+            const q = query(mrfsRef, orderBy('date_submitted', 'desc'), limit(1));
+            const snapshot = await getDocs(q);
+            
+            let nextNum = 1;
+            if (!snapshot.empty) {
+                const lastMRF = snapshot.docs[0].data();
+                if (lastMRF.mrf_id) {
+                    const match = lastMRF.mrf_id.match(/MRF-\d{4}-(\d+)/);
+                    if (match) {
+                        nextNum = parseInt(match[1]) + 1;
+                    }
+                }
+            }
+            
+            return `MRF-${year}-${String(nextNum).padStart(3, '0')}`;
+        }
 
         // Set minimum date to today
         document.getElementById('dateNeeded').min = new Date().toISOString().split('T')[0];
@@ -552,32 +590,37 @@
             showLoading(true);
             
             try {
-                // Submit to webhook
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(mrfData)
-                });
+                // Generate MRF ID
+                const mrfId = await generateMRFId();
+                
+                // Prepare Firestore document
+                const mrfDoc = {
+                    mrf_id: mrfId,
+                    project_name: projectName,
+                    requestor_name: requestorName,
+                    date_needed: dateNeeded,
+                    date_submitted: new Date().toISOString().split('T')[0],
+                    delivery_address: deliveryAddress || '',
+                    justification: justification,
+                    items_json: JSON.stringify(items),
+                    status: 'Pending',
+                    created_at: new Date().toISOString()
+                };
+                
+                // Submit to Firebase
+                await addDoc(collection(db, 'mrfs'), mrfDoc);
                 
                 showLoading(false);
+                showAlert('success', `✅ MRF submitted successfully! Your MRF ID is: ${mrfId}. The procurement team has been notified.`);
                 
-                if (response.ok) {
-                    const result = await response.json();
-                    showAlert('success', `✅ MRF submitted successfully! Your MRF ID is: ${result.mrf_id || 'Pending'}. The procurement team has been notified.`);
-                    
-                    // Reset form after 3 seconds
-                    setTimeout(() => {
-                        document.getElementById('mrfForm').reset();
-                        const tbody = document.getElementById('itemsTableBody');
-                        while (tbody.rows.length > 1) {
-                            tbody.deleteRow(1);
-                        }
-                    }, 3000);
-                } else {
-                    throw new Error('Submission failed');
-                }
+                // Reset form after 3 seconds
+                setTimeout(() => {
+                    document.getElementById('mrfForm').reset();
+                    const tbody = document.getElementById('itemsTableBody');
+                    while (tbody.rows.length > 1) {
+                        tbody.deleteRow(1);
+                    }
+                }, 3000);
                 
             } catch (error) {
                 showLoading(false);
