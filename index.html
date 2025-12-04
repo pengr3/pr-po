@@ -356,7 +356,7 @@
         <div class="header">
             <div class="header-content">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                    <img src="pr-po/CLMC Registered Logo.png at main · pengr3/pr-po" style="height: 50px;">
+                   <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;">
                     <div class="header-title">
                         <h1>Procurement Dashboard</h1>
                         <p>CLMC Procurement</p>
@@ -561,7 +561,7 @@
         }
 
         return `
-            <div class="mrf-item" onclick="selectMRF('${mrf.id}')" style="border-left: 4px solid ${urgencyColor};">
+            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" style="border-left: 4px solid ${urgencyColor};">
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">${mrf.mrf_id}</div>
                 <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
                 <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
@@ -576,24 +576,24 @@
 }
 
         // Select MRF
-        window.selectMRF = async function(mrfId) {
-            const mrfsRef = collection(db, 'mrfs');
-            const snapshot = await getDocs(mrfsRef);
-            
-            snapshot.forEach((doc) => {
-                if (doc.id === mrfId) {
-                    currentMRF = { id: doc.id, ...doc.data() };
+            window.selectMRF = async function(mrfId, element) {
+                const mrfsRef = collection(db, 'mrfs');
+                const snapshot = await getDocs(mrfsRef);
+    
+                snapshot.forEach((doc) => {
+                    if (doc.id === mrfId) {
+                        currentMRF = { id: doc.id, ...doc.data() };
                 }
             });
 
-            if (currentMRF) {
-                renderMRFDetails(currentMRF);
-                
-                // Update selected state
-                document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
-                event.target.closest('.mrf-item').classList.add('selected');
-            }
-        };
+    if (currentMRF) {
+        renderMRFDetails(currentMRF);
+        
+        // Update selected state
+        document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+    }
+};
 
         // Render MRF details
         function renderMRFDetails(mrf) {
