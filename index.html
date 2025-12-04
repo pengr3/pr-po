@@ -384,7 +384,10 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">MRF Details</h3>
-                        <button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>
+                        <div style="display: flex; gap: 0.5rem;" id="mrfActions">
+                            <button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>
+                            <button class="btn btn-success" id="generatePRBtn" onclick="generatePR()" style="display: none;">📄 Generate PR</button>
+                        </div>
                     </div>
                     <div id="mrfDetails">
                         <div style="text-align: center; padding: 3rem; color: #999;">
@@ -499,25 +502,19 @@
             
             // Real-time listener
             onSnapshot(suppliersRef, (snapshot) => {
-    suppliersData = [];
-    snapshot.forEach((doc) => {
-        suppliersData.push({ id: doc.id, ...doc.data() });
-    });
-    renderSuppliersTable();
-    
-    // Update MRF details if one is selected
-    if (currentMRF) {
-        renderMRFDetails(currentMRF);
-    }
-    
-    console.log('Suppliers updated:', suppliersData.length);
-});
+                suppliersData = [];
+                snapshot.forEach((doc) => {
+                    suppliersData.push({ id: doc.id, ...doc.data() });
+                });
+                renderSuppliersTable();
+                console.log('Suppliers updated:', suppliersData.length);
+            });
         }
 
         // Load MRFs with real-time updates
         async function loadMRFs() {
             const mrfsRef = collection(db, 'mrfs');
-            const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress']));
+            const q = query(mrfsRef, where('status', '==', 'Pending'));
             
             onSnapshot(q, (snapshot) => {
                 const mrfs = [];
@@ -571,11 +568,26 @@
         function renderMRFDetails(mrf) {
             const items = JSON.parse(mrf.items_json);
             
+            // Show/hide Generate PR button based on request type
+            const generatePRBtn = document.getElementById('generatePRBtn');
+            if (mrf.request_type === 'service') {
+                generatePRBtn.style.display = 'none';
+            } else {
+                generatePRBtn.style.display = 'block';
+            }
+            
+            const requestTypeLabel = mrf.request_type === 'service' ? 
+                'Delivery/Hauling/Transportation' : 'Material Request';
+            
             const details = `
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">MRF ID</div>
                         <div style="font-weight: 600;">${mrf.mrf_id}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Request Type</div>
+                        <div style="font-weight: 600;">${requestTypeLabel}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
@@ -589,6 +601,10 @@
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Needed</div>
                         <div>${new Date(mrf.date_needed).toLocaleDateString()}</div>
                     </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
+                        <div>${mrf.status}</div>
+                    </div>
                 </div>
 
                 <div style="margin-bottom: 1rem;">
@@ -600,6 +616,7 @@
                     <thead>
                         <tr>
                             <th>Item</th>
+                            <th>Category</th>
                             <th>Qty</th>
                             <th>Unit</th>
                             <th>Unit Cost (₱)</th>
@@ -611,6 +628,7 @@
                         ${items.map((item, index) => `
                             <tr>
                                 <td>${item.item || item.item_name}</td>
+                                <td>${item.category || 'N/A'}</td>
                                 <td>${item.qty || item.quantity}</td>
                                 <td>${item.unit}</td>
                                 <td>
@@ -639,7 +657,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="5" style="text-align: right; font-weight: 600;">TOTAL:</td>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">TOTAL:</td>
                             <td id="grandTotal" style="font-weight: 600;">₱ 0.00</td>
                         </tr>
                     </tfoot>
@@ -712,6 +730,116 @@
             } catch (error) {
                 console.error('Error saving progress:', error);
                 showToast('❌ Failed to save progress', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Generate PR
+        window.generatePR = async function() {
+            if (!currentMRF) return;
+
+            const items = JSON.parse(currentMRF.items_json);
+            
+            // Validate all items have costs and suppliers
+            for (let i = 0; i < items.length; i++) {
+                const unitCostInput = document.querySelector(`input.unit-cost[data-index="${i}"]`);
+                const supplierSelect = document.querySelector(`select.supplier-select[data-index="${i}"]`);
+                
+                const unitCost = parseFloat(unitCostInput?.value) || 0;
+                const supplier = supplierSelect?.value || '';
+                
+                if (unitCost === 0) {
+                    showToast(`❌ Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
+                    return;
+                }
+                
+                if (!supplier) {
+                    showToast(`❌ Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
+                    return;
+                }
+            }
+
+            if (!confirm('Generate Purchase Request? This will create a PR document with the current costs and suppliers.')) {
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                // Collect final items data
+                const prItems = items.map((item, index) => {
+                    const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+                    const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
+                    
+                    return {
+                        item: item.item || item.item_name,
+                        category: item.category || 'N/A',
+                        qty: item.qty || item.quantity,
+                        unit: item.unit,
+                        unit_cost: unitCost,
+                        supplier: supplier,
+                        subtotal: (item.qty || item.quantity) * unitCost
+                    };
+                });
+
+                // Calculate total
+                const total = prItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+                // Generate PR ID
+                const year = new Date().getFullYear();
+                const prsRef = collection(db, 'prs');
+                const q = query(prsRef, orderBy('date_generated', 'desc'), limit(1));
+                const snapshot = await getDocs(q);
+                
+                let nextNum = 1;
+                if (!snapshot.empty) {
+                    const lastPR = snapshot.docs[0].data();
+                    if (lastPR.pr_id) {
+                        const match = lastPR.pr_id.match(/PR-\d{4}-(\d+)/);
+                        if (match) {
+                            nextNum = parseInt(match[1]) + 1;
+                        }
+                    }
+                }
+                
+                const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
+
+                // Create PR document
+                const prDoc = {
+                    pr_id: prId,
+                    mrf_id: currentMRF.mrf_id,
+                    mrf_doc_id: currentMRF.id,
+                    project_name: currentMRF.project_name,
+                    requestor_name: currentMRF.requestor_name,
+                    delivery_address: document.getElementById('deliveryAddress').value,
+                    items_json: JSON.stringify(prItems),
+                    total_amount: total,
+                    status: 'Pending',
+                    date_generated: new Date().toISOString().split('T')[0],
+                    created_at: new Date().toISOString()
+                };
+
+                await addDoc(collection(db, 'prs'), prDoc);
+
+                // Update MRF status
+                const mrfRef = doc(db, 'mrfs', currentMRF.id);
+                await updateDoc(mrfRef, {
+                    status: 'PR Generated',
+                    pr_id: prId,
+                    items_json: JSON.stringify(prItems),
+                    updated_at: new Date().toISOString()
+                });
+
+                showToast(`✅ PR ${prId} generated successfully!`, 'success');
+                
+                // Refresh MRF data
+                currentMRF.status = 'PR Generated';
+                renderMRFDetails(currentMRF);
+
+            } catch (error) {
+                console.error('Error generating PR:', error);
+                showToast('❌ Failed to generate PR', 'error');
             } finally {
                 showLoading(false);
             }
@@ -847,7 +975,6 @@
 
                 showToast('✅ Supplier updated successfully', 'success');
                 editingSupplier = null;
-                renderSuppliersTable();
             } catch (error) {
                 console.error('Error updating supplier:', error);
                 showToast('❌ Failed to update supplier', 'error');
