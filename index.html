@@ -527,22 +527,48 @@
         }
 
         // Render MRF list
-        function renderMRFList(mrfs) {
-            const mrfList = document.getElementById('mrfList');
-            
-            if (mrfs.length === 0) {
-                mrfList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">No pending MRFs</div>';
-                return;
-            }
+       function renderMRFList(mrfs) {
+    const mrfList = document.getElementById('mrfList');
+    
+    if (mrfs.length === 0) {
+        mrfList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">No pending MRFs</div>';
+        return;
+    }
 
-            mrfList.innerHTML = mrfs.map(mrf => `
-                <div class="mrf-item" onclick="selectMRF('${mrf.id}')">
-                    <div style="font-weight: 600; margin-bottom: 0.25rem;">${mrf.mrf_id}</div>
-                    <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
-                    <div style="font-size: 0.75rem; color: #999; margin-top: 0.25rem;">${new Date(mrf.date_submitted).toLocaleDateString()}</div>
-                </div>
-            `).join('');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    mrfList.innerHTML = mrfs.map(mrf => {
+        const dateNeeded = new Date(mrf.date_needed);
+        dateNeeded.setHours(0, 0, 0, 0);
+        const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
+        
+        let urgencyColor, urgencyBg;
+        if (daysRemaining <= 3) {
+            urgencyColor = '#dc2626';
+            urgencyBg = '#fee2e2';
+        } else if (daysRemaining <= 10) {
+            urgencyColor = '#f59e0b';
+            urgencyBg = '#fef3c7';
+        } else {
+            urgencyColor = '#059669';
+            urgencyBg = '#d1fae5';
         }
+
+        return `
+            <div class="mrf-item" onclick="selectMRF('${mrf.id}')" style="border-left: 4px solid ${urgencyColor};">
+                <div style="font-weight: 600; margin-bottom: 0.25rem;">${mrf.mrf_id}</div>
+                <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
+                    <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
+                    <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
+                        ${daysRemaining} days
+                    </span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
         // Select MRF
         window.selectMRF = async function(mrfId) {
@@ -707,10 +733,11 @@
                     item: item.item || item.item_name,
                     qty: item.qty || item.quantity,
                     unit: item.unit,
+                    category: item.category || 'N/A',  // Add this line
                     unit_cost: unitCost,
                     supplier: supplier,
                     subtotal: (item.qty || item.quantity) * unitCost
-                };
+                    };
             });
 
             const deliveryAddress = document.getElementById('deliveryAddress').value;
