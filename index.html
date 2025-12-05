@@ -99,7 +99,6 @@
             display: block;
         }
 
-        /* MRF Section */
         .dashboard-grid {
             display: grid;
             grid-template-columns: 350px 1fr;
@@ -128,13 +127,13 @@
             font-weight: 600;
         }
 
-           .mrf-list {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-                max-height: 70vh;
-                overflow-y: auto;
-                overflow-x: hidden;  /* Add this line */
+        .mrf-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 70vh;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .mrf-item {
@@ -157,14 +156,6 @@
             transform: translateX(4px);
         }
 
-        /* Suppliers Section */
-        .suppliers-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
         .btn {
             padding: 0.5rem 1rem;
             border: none;
@@ -172,6 +163,9 @@
             cursor: pointer;
             font-size: 0.875rem;
             transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .btn-primary {
@@ -216,63 +210,32 @@
             color: var(--gray-700);
         }
 
-        .actions {
-            display: flex;
-            gap: 0.5rem;
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
         }
 
-        .icon-btn {
-            padding: 0.25rem 0.5rem;
-            background: transparent;
-            border: 1px solid var(--gray-300);
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.875rem;
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
         }
 
-        .icon-btn:hover {
-            background: var(--gray-50);
+        .status-badge.approved {
+            background: #d4edda;
+            color: #155724;
         }
 
-        .form-group {
-            margin-bottom: 1rem;
+        .status-badge.rejected {
+            background: #f8d7da;
+            color: #721c24;
         }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid var(--gray-300);
-            border-radius: 4px;
-            font-size: 0.875rem;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .add-form {
-            background: var(--gray-50);
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 2rem;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 0.5rem;
-            justify-content: flex-end;
+        .status-badge.pr-generated {
+            background: #d1ecf1;
+            color: #0c5460;
         }
 
         .toast {
@@ -333,13 +296,6 @@
             to { transform: rotate(360deg); }
         }
 
-        .edit-row input {
-            width: 100%;
-            padding: 0.25rem;
-            border: 1px solid var(--gray-300);
-            border-radius: 4px;
-        }
-
         .items-table {
             width: 100%;
             margin-top: 1rem;
@@ -350,31 +306,53 @@
             width: 100%;
             padding: 0.5rem;
         }
+
+        .pr-history-table {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .icon-btn:hover {
+            background: var(--gray-50);
+        }
     </style>
 </head>
 <body>
-    <!-- Header -->
-        <div class="header">
-            <div class="header-content">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                   <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;">
-                    <div class="header-title">
-                        <h1>Procurement Dashboard</h1>
-                        <p>CLMC Procurement</p>
-                    </div>
-                </div>
-                <div class="tabs">
-                    <button class="tab-btn active" onclick="switchTab('mrfs')">MRF Processing</button>
-                    <button class="tab-btn" onclick="switchTab('suppliers')">Supplier Management</button>
+    <div class="header">
+        <div class="header-content">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
+                <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;">
+                <div class="header-title">
+                    <h1>Procurement Dashboard</h1>
+                    <p>CLMC Procurement</p>
                 </div>
             </div>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('mrfs')">MRF Processing</button>
+                <button class="tab-btn" onclick="switchTab('pr-history')">PR History</button>
+                <button class="tab-btn" onclick="switchTab('suppliers')">Supplier Management</button>
+            </div>
         </div>
+    </div>
 
     <div class="container">
         <!-- MRF Processing Section -->
         <section id="mrfs-section" class="section active">
             <div class="dashboard-grid">
-                <!-- MRF List -->
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Pending MRFs</h3>
@@ -386,7 +364,6 @@
                     </div>
                 </div>
 
-                <!-- MRF Details -->
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">MRF Details</h3>
@@ -404,40 +381,70 @@
             </div>
         </section>
 
+        <!-- PR History Section -->
+        <section id="pr-history-section" class="section">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Purchase Request History</h2>
+                    <button class="btn btn-secondary" onclick="refreshPRHistory()">🔄 Refresh</button>
+                </div>
+
+                <table class="pr-history-table">
+                    <thead>
+                        <tr>
+                            <th>PR ID</th>
+                            <th>Date Generated</th>
+                            <th>Project</th>
+                            <th>Supplier</th>
+                            <th>Total Amount</th>
+                            <th>Prepared By</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="prHistoryBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 2rem;">
+                                Loading PR history...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- Supplier Management Section -->
         <section id="suppliers-section" class="section">
             <div class="card">
-                <div class="suppliers-header">
+                <div class="card-header">
                     <h2>Supplier Management</h2>
                     <button class="btn btn-primary" onclick="toggleAddForm()">➕ Add Supplier</button>
                 </div>
 
-                <!-- Add Supplier Form -->
-                <div id="addSupplierForm" class="add-form" style="display: none;">
+                <div id="addSupplierForm" class="add-form" style="display: none; background: var(--gray-50); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                     <h3 style="margin-bottom: 1rem;">Add New Supplier</h3>
-                    <div class="form-group">
-                        <label>Supplier Name *</label>
-                        <input type="text" id="newSupplierName" required>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Supplier Name *</label>
+                        <input type="text" id="newSupplierName" required style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;">
                     </div>
-                    <div class="form-group">
-                        <label>Contact Person *</label>
-                        <input type="text" id="newContactPerson" required>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Contact Person *</label>
+                        <input type="text" id="newContactPerson" required style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;">
                     </div>
-                    <div class="form-group">
-                        <label>Email *</label>
-                        <input type="email" id="newEmail" required>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Email *</label>
+                        <input type="email" id="newEmail" required style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;">
                     </div>
-                    <div class="form-group">
-                        <label>Phone *</label>
-                        <input type="text" id="newPhone" required>
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; font-weight: 500;">Phone *</label>
+                        <input type="text" id="newPhone" required style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 0.875rem;">
                     </div>
-                    <div class="form-actions">
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                         <button class="btn btn-secondary" onclick="toggleAddForm()">Cancel</button>
                         <button class="btn btn-success" onclick="addSupplier()">Add Supplier</button>
                     </div>
                 </div>
 
-                <!-- Suppliers Table -->
                 <table>
                     <thead>
                         <tr>
@@ -460,20 +467,19 @@
         </section>
     </div>
 
-    <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
-
-    <!-- Loading Overlay -->
     <div id="loading" class="loading">
         <div class="spinner"></div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase and PDF Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyAlHcmPmkCk6CKsRbfpHpCheHb2GcLz0Oc",
             authDomain: "clmc-procurement.firebaseapp.com",
@@ -483,41 +489,36 @@
             appId: "1:946184501660:web:6559c5de405e72100ab059"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Global variables
         window.db = db;
-        window.firestore = { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot };
+        window.firestore = { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit };
+        
         let currentMRF = null;
         let suppliersData = [];
         let editingSupplier = null;
+        let prHistory = [];
 
-        // Initialize
         init();
 
         async function init() {
             await loadSuppliers();
             await loadMRFs();
+            await loadPRHistory();
         }
 
-        // Load suppliers with real-time updates
         async function loadSuppliers() {
             const suppliersRef = collection(db, 'suppliers');
-            
-            // Real-time listener
             onSnapshot(suppliersRef, (snapshot) => {
                 suppliersData = [];
                 snapshot.forEach((doc) => {
                     suppliersData.push({ id: doc.id, ...doc.data() });
                 });
                 renderSuppliersTable();
-                console.log('Suppliers updated:', suppliersData.length);
             });
         }
 
-        // Load MRFs with real-time updates
         async function loadMRFs() {
             const mrfsRef = collection(db, 'mrfs');
             const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress']));
@@ -528,88 +529,93 @@
                     mrfs.push({ id: doc.id, ...doc.data() });
                 });
                 renderMRFList(mrfs);
-                console.log('MRFs updated:', mrfs.length);
             });
         }
 
-        // Render MRF list
-       function renderMRFList(mrfs) {
-    const mrfList = document.getElementById('mrfList');
-    
-    if (mrfs.length === 0) {
-        mrfList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">No pending MRFs</div>';
-        return;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    mrfList.innerHTML = mrfs.map(mrf => {
-        const dateNeeded = new Date(mrf.date_needed);
-        dateNeeded.setHours(0, 0, 0, 0);
-        const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
-        
-        let urgencyColor, urgencyBg;
-        if (daysRemaining <= 3) {
-            urgencyColor = '#dc2626';
-            urgencyBg = '#fee2e2';
-        } else if (daysRemaining <= 10) {
-            urgencyColor = '#f59e0b';
-            urgencyBg = '#fef3c7';
-        } else {
-            urgencyColor = '#059669';
-            urgencyBg = '#d1fae5';
+        async function loadPRHistory() {
+            const prsRef = collection(db, 'prs');
+            const q = query(prsRef, orderBy('date_generated', 'desc'));
+            
+            onSnapshot(q, (snapshot) => {
+                prHistory = [];
+                snapshot.forEach((doc) => {
+                    prHistory.push({ id: doc.id, ...doc.data() });
+                });
+                renderPRHistory();
+            });
         }
 
-        return `
-            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" style="border-left: 4px solid ${urgencyColor};">
-                <div style="font-weight: 600; margin-bottom: 0.25rem;">${mrf.mrf_id}</div>
-                <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
-                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
-                    <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
-                    <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
-                        ${daysRemaining} days
-                    </span>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
+        function renderMRFList(mrfs) {
+            const mrfList = document.getElementById('mrfList');
+            
+            if (mrfs.length === 0) {
+                mrfList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">No pending MRFs</div>';
+                return;
+            }
 
-        // Select MRF
-            window.selectMRF = async function(mrfId, element) {
-                const mrfsRef = collection(db, 'mrfs');
-                const snapshot = await getDocs(mrfsRef);
-    
-                snapshot.forEach((doc) => {
-                    if (doc.id === mrfId) {
-                        currentMRF = { id: doc.id, ...doc.data() };
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            mrfList.innerHTML = mrfs.map(mrf => {
+                const dateNeeded = new Date(mrf.date_needed);
+                dateNeeded.setHours(0, 0, 0, 0);
+                const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
+                
+                let urgencyColor, urgencyBg;
+                if (daysRemaining <= 3) {
+                    urgencyColor = '#dc2626';
+                    urgencyBg = '#fee2e2';
+                } else if (daysRemaining <= 10) {
+                    urgencyColor = '#f59e0b';
+                    urgencyBg = '#fef3c7';
+                } else {
+                    urgencyColor = '#059669';
+                    urgencyBg = '#d1fae5';
+                }
+
+                return `
+                    <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" style="border-left: 4px solid ${urgencyColor};">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">${mrf.mrf_id}</div>
+                        <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
+                            <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
+                            <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
+                                ${daysRemaining} days
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.selectMRF = async function(mrfId, element) {
+            const mrfsRef = collection(db, 'mrfs');
+            const snapshot = await getDocs(mrfsRef);
+            
+            snapshot.forEach((doc) => {
+                if (doc.id === mrfId) {
+                    currentMRF = { id: doc.id, ...doc.data() };
                 }
             });
 
-    if (currentMRF) {
-        renderMRFDetails(currentMRF);
-        
-        // Update selected state
-        document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
-        element.classList.add('selected');
-    }
-};
+            if (currentMRF) {
+                renderMRFDetails(currentMRF);
+                document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
+                element.classList.add('selected');
+            }
+        };
 
-        // Render MRF details
         function renderMRFDetails(mrf) {
             const items = JSON.parse(mrf.items_json);
-            
-            // Show/hide Generate PR button based on request type
             const generatePRBtn = document.getElementById('generatePRBtn');
+            
             if (mrf.request_type === 'service') {
                 generatePRBtn.style.display = 'none';
             } else {
                 generatePRBtn.style.display = 'block';
             }
             
-            const requestTypeLabel = mrf.request_type === 'service' ? 
-                'Delivery/Hauling/Transportation' : 'Material Request';
+            const requestTypeLabel = mrf.request_type === 'service' ? 'Delivery/Hauling/Transportation' : 'Material Request';
             
             const details = `
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
@@ -700,7 +706,6 @@
             calculateGrandTotal();
         }
 
-        // Calculate subtotal
         window.calculateSubtotal = function(index) {
             const items = JSON.parse(currentMRF.items_json);
             const qty = items[index].qty || items[index].quantity || 0;
@@ -711,7 +716,6 @@
             calculateGrandTotal();
         };
 
-        // Calculate grand total
         function calculateGrandTotal() {
             const items = JSON.parse(currentMRF.items_json);
             let total = 0;
@@ -726,7 +730,6 @@
             document.getElementById('grandTotal').textContent = `₱ ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
         }
 
-        // Save progress
         window.saveProgress = async function() {
             if (!currentMRF) return;
 
@@ -739,15 +742,14 @@
                     item: item.item || item.item_name,
                     qty: item.qty || item.quantity,
                     unit: item.unit,
-                    category: item.category || 'N/A',  // Add this line
+                    category: item.category || 'N/A',
                     unit_cost: unitCost,
                     supplier: supplier,
                     subtotal: (item.qty || item.quantity) * unitCost
-                    };
+                };
             });
 
             const deliveryAddress = document.getElementById('deliveryAddress').value;
-
             showLoading(true);
 
             try {
@@ -768,13 +770,11 @@
             }
         };
 
-        // Generate PR
         window.generatePR = async function() {
             if (!currentMRF) return;
 
             const items = JSON.parse(currentMRF.items_json);
             
-            // Validate all items have costs and suppliers
             for (let i = 0; i < items.length; i++) {
                 const unitCostInput = document.querySelector(`input.unit-cost[data-index="${i}"]`);
                 const supplierSelect = document.querySelector(`select.supplier-select[data-index="${i}"]`);
@@ -793,14 +793,13 @@
                 }
             }
 
-            if (!confirm('Generate Purchase Request? This will create a PR document with the current costs and suppliers.')) {
+            if (!confirm('Generate Purchase Request(s)? This will create PR documents grouped by supplier.')) {
                 return;
             }
 
             showLoading(true);
 
             try {
-                // Collect final items data
                 const prItems = items.map((item, index) => {
                     const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
                     const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
@@ -816,10 +815,15 @@
                     };
                 });
 
-                // Calculate total
-                const total = prItems.reduce((sum, item) => sum + item.subtotal, 0);
+                // Group items by supplier
+                const itemsBySupplier = {};
+                prItems.forEach(item => {
+                    if (!itemsBySupplier[item.supplier]) {
+                        itemsBySupplier[item.supplier] = [];
+                    }
+                    itemsBySupplier[item.supplier].push(item);
+                });
 
-                // Generate PR ID
                 const year = new Date().getFullYear();
                 const prsRef = collection(db, 'prs');
                 const q = query(prsRef, orderBy('date_generated', 'desc'), limit(1));
@@ -835,38 +839,47 @@
                         }
                     }
                 }
-                
-                const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
 
-                // Create PR document
-                const prDoc = {
-                    pr_id: prId,
-                    mrf_id: currentMRF.mrf_id,
-                    mrf_doc_id: currentMRF.id,
-                    project_name: currentMRF.project_name,
-                    requestor_name: currentMRF.requestor_name,
-                    delivery_address: document.getElementById('deliveryAddress').value,
-                    items_json: JSON.stringify(prItems),
-                    total_amount: total,
-                    status: 'Pending',
-                    date_generated: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
-                };
+                // Generate one PR per supplier
+                const generatedPRs = [];
+                for (const [supplier, supplierItems] of Object.entries(itemsBySupplier)) {
+                    const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
+                    nextNum++;
 
-                await addDoc(collection(db, 'prs'), prDoc);
+                    const total = supplierItems.reduce((sum, item) => sum + item.subtotal, 0);
 
-                // Update MRF status
+                    const prDoc = {
+                        pr_id: prId,
+                        mrf_id: currentMRF.mrf_id,
+                        mrf_doc_id: currentMRF.id,
+                        project_name: currentMRF.project_name,
+                        requestor_name: currentMRF.requestor_name,
+                        delivery_address: document.getElementById('deliveryAddress').value,
+                        supplier_name: supplier,
+                        items_json: JSON.stringify(supplierItems),
+                        total_amount: total,
+                        finance_status: 'Pending Review',
+                        date_generated: new Date().toISOString().split('T')[0],
+                        prepared_by: currentMRF.requestor_name,
+                        created_at: new Date().toISOString()
+                    };
+
+                    await addDoc(prsRef, prDoc);
+                    generatedPRs.push(prId);
+
+                    // Generate PDF
+                    await generatePRPDF(prDoc);
+                }
+
                 const mrfRef = doc(db, 'mrfs', currentMRF.id);
                 await updateDoc(mrfRef, {
                     status: 'PR Generated',
-                    pr_id: prId,
+                    pr_ids: generatedPRs,
                     items_json: JSON.stringify(prItems),
                     updated_at: new Date().toISOString()
                 });
 
-                showToast(`✅ PR ${prId} generated successfully!`, 'success');
-                
-                // Refresh MRF data
+                showToast(`✅ Generated ${generatedPRs.length} PR(s) successfully!`, 'success');
                 currentMRF.status = 'PR Generated';
                 renderMRFDetails(currentMRF);
 
@@ -878,12 +891,114 @@
             }
         };
 
-        // Render suppliers table
+        async function generatePRPDF(prData) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Add company logo and header
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('C Lacsamana Management and Construction Corporation', 105, 15, { align: 'center' });
+            
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'normal');
+            doc.text('133 Pinatubo St., Mandaluyong City, Metro Manila', 105, 20, { align: 'center' });
+            doc.text('Tel: 09178182993', 105, 25, { align: 'center' });
+            doc.text('Email: cgl@consultclm.com', 105, 30, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('PURCHASE REQUEST FORM (PR)', 105, 45, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Document No.: ${prData.pr_id}`, 20, 60);
+            doc.text(`MRF Reference: ${prData.mrf_id}`, 20, 66);
+            doc.text(`Date: ${prData.date_generated}`, 20, 72);
+            doc.text(`Project: ${prData.project_name}`, 20, 78);
+            doc.text(`Delivery Address: ${prData.delivery_address}`, 20, 84);
+            doc.text(`Supplier: ${prData.supplier_name}`, 20, 90);
+            
+            const items = JSON.parse(prData.items_json);
+            const tableData = items.map((item, index) => [
+                index + 1,
+                item.item,
+                item.qty,
+                item.unit,
+                `₱${item.unit_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}`,
+                `₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`
+            ]);
+            
+            doc.autoTable({
+                startY: 100,
+                head: [['No.', 'Item Description', 'Qty', 'Unit', 'Unit Cost', 'Total Cost']],
+                body: tableData,
+                foot: [['', '', '', '', 'TOTAL AMOUNT:', `₱${prData.total_amount.toLocaleString('en-PH', {minimumFractionDigits: 2})}`]],
+                theme: 'grid',
+                headStyles: { fillColor: [232, 234, 237] },
+                footStyles: { fillColor: [232, 234, 237], fontStyle: 'bold' }
+            });
+            
+            const finalY = doc.lastAutoTable.finalY + 20;
+            doc.text(`Requested By: ${prData.requestor_name}`, 20, finalY);
+            doc.text(`Prepared By: ${prData.prepared_by}`, 20, finalY + 15);
+            doc.text('Approved By: ___________________________', 20, finalY + 30);
+            doc.text('Date Approved: ___________________________', 20, finalY + 45);
+            
+            doc.save(`${prData.pr_id}.pdf`);
+        }
+
+        function renderPRHistory() {
+            const tbody = document.getElementById('prHistoryBody');
+            
+            if (prHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No PR history yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = prHistory.map(pr => `
+                <tr>
+                    <td><strong>${pr.pr_id}</strong></td>
+                    <td>${pr.date_generated}</td>
+                    <td>${pr.project_name}</td>
+                    <td>${pr.supplier_name}</td>
+                    <td><strong>₱${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                    <td>${pr.prepared_by}</td>
+                    <td><span class="status-badge ${pr.finance_status.toLowerCase().replace(' ', '-')}">${pr.finance_status}</span></td>
+                    <td class="actions">
+                        <button class="icon-btn" onclick="downloadPR('${pr.id}')">📥 Download</button>
+                        ${pr.finance_status === 'Rejected' ? `<button class="icon-btn" onclick="viewRejectionReason('${pr.id}')">👁️ View Reason</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.downloadPR = async function(prId) {
+            const pr = prHistory.find(p => p.id === prId);
+            if (pr) {
+                await generatePRPDF(pr);
+            }
+        };
+
+        window.viewRejectionReason = function(prId) {
+            const pr = prHistory.find(p => p.id === prId);
+            if (pr && pr.rejection_reason) {
+                alert(`Rejection Reason:\n\n${pr.rejection_reason}`);
+            }
+        };
+
+        window.refreshPRHistory = async function() {
+            showLoading(true);
+            await loadPRHistory();
+            showLoading(false);
+            showToast('✅ PR history refreshed', 'success');
+        };
+
         function renderSuppliersTable() {
             const tbody = document.getElementById('suppliersTableBody');
             
             if (suppliersData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No suppliers yet. Add your first supplier!</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No suppliers yet</td></tr>';
                 return;
             }
 
@@ -891,10 +1006,10 @@
                 if (editingSupplier === supplier.id) {
                     return `
                         <tr class="edit-row">
-                            <td><input type="text" value="${supplier.supplier_name}" id="edit-name"></td>
-                            <td><input type="text" value="${supplier.contact_person}" id="edit-contact"></td>
-                            <td><input type="email" value="${supplier.email}" id="edit-email"></td>
-                            <td><input type="text" value="${supplier.phone}" id="edit-phone"></td>
+                            <td><input type="text" value="${supplier.supplier_name}" id="edit-name" style="width: 100%; padding: 0.25rem; border: 1px solid var(--gray-300); border-radius: 4px;"></td>
+                            <td><input type="text" value="${supplier.contact_person}" id="edit-contact" style="width: 100%; padding: 0.25rem; border: 1px solid var(--gray-300); border-radius: 4px;"></td>
+                            <td><input type="email" value="${supplier.email}" id="edit-email" style="width: 100%; padding: 0.25rem; border: 1px solid var(--gray-300); border-radius: 4px;"></td>
+                            <td><input type="text" value="${supplier.phone}" id="edit-phone" style="width: 100%; padding: 0.25rem; border: 1px solid var(--gray-300); border-radius: 4px;"></td>
                             <td class="actions">
                                 <button class="btn btn-success" onclick="saveEdit('${supplier.id}')">Save</button>
                                 <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
@@ -918,26 +1033,11 @@
             }).join('');
         }
 
-        // Toggle add form
         window.toggleAddForm = function() {
             const form = document.getElementById('addSupplierForm');
-            if (form.style.display === 'none') {
-                form.style.display = 'block';
-            } else {
-                form.style.display = 'none';
-                clearAddForm();
-            }
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
         };
 
-        // Clear add form
-        function clearAddForm() {
-            document.getElementById('newSupplierName').value = '';
-            document.getElementById('newContactPerson').value = '';
-            document.getElementById('newEmail').value = '';
-            document.getElementById('newPhone').value = '';
-        }
-
-        // Add supplier
         window.addSupplier = async function() {
             const supplier_name = document.getElementById('newSupplierName').value.trim();
             const contact_person = document.getElementById('newContactPerson').value.trim();
@@ -962,6 +1062,10 @@
 
                 showToast(`✅ Supplier "${supplier_name}" added successfully!`, 'success');
                 toggleAddForm();
+                document.getElementById('newSupplierName').value = '';
+                document.getElementById('newContactPerson').value = '';
+                document.getElementById('newEmail').value = '';
+                document.getElementById('newPhone').value = '';
             } catch (error) {
                 console.error('Error adding supplier:', error);
                 showToast('❌ Failed to add supplier', 'error');
@@ -970,19 +1074,16 @@
             }
         };
 
-        // Edit supplier
         window.editSupplier = function(supplierId) {
             editingSupplier = supplierId;
             renderSuppliersTable();
         };
 
-        // Cancel edit
         window.cancelEdit = function() {
             editingSupplier = null;
             renderSuppliersTable();
         };
 
-        // Save edit
         window.saveEdit = async function(supplierId) {
             const supplier_name = document.getElementById('edit-name').value.trim();
             const contact_person = document.getElementById('edit-contact').value.trim();
@@ -1016,7 +1117,6 @@
             }
         };
 
-        // Delete supplier
         window.deleteSupplier = async function(supplierId, supplierName) {
             if (!confirm(`Are you sure you want to delete supplier "${supplierName}"?`)) {
                 return;
@@ -1035,18 +1135,14 @@
             }
         };
 
-        // Tab switching
         window.switchTab = function(tab) {
-            // Update tab buttons
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
 
-            // Show/hide sections
             document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
             document.getElementById(`${tab}-section`).classList.add('active');
         };
 
-        // Show toast
         function showToast(message, type) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -1058,7 +1154,6 @@
         }
         window.showToast = showToast;
 
-        // Show/hide loading
         function showLoading(show) {
             document.getElementById('loading').classList.toggle('show', show);
         }
