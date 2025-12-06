@@ -891,8 +891,186 @@
         // Initialize dashboard
         init();
 
+
+        let trData = [];
+
+        // Refresh TRs
+        async function refreshTRs() {
+            try {
+                const response = await fetch(CONFIG.webhooks.getTRs);
+                const data = await response.json();
+                trData = data.trs || [];
+                renderTRTable(trData);
+                updateTRStats(trData);
+            } catch (error) {
+                console.error('Error loading TRs:', error);
+                showToast('Failed to load Transport Requests', 'error');
+            }
+        }
+
+        // Render TR table
+        function renderTRTable(trs) {
+            const tbody = document.getElementById('trTableBody');
+            
+            if (trs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #999;">No pending Transport Requests</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = trs.map(tr => `
+                <tr>
+                    <td><strong>${tr.tr_id}</strong></td>
+                    <td>${tr.mrf_id}</td>
+                    <td>${tr.project_name}</td>
+                    <td>${tr.requestor_name}</td>
+                    <td>${formatDate(tr.date_submitted)}</td>
+                    <td><span class="status-badge ${tr.status.toLowerCase().replace(' ', '-')}">${tr.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewTRDetails('${tr.tr_id}')">View</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Update TR stats
+        function updateTRStats(trs) {
+            const pending = trs.filter(t => t.status === 'Pending Finance Approval');
+            const approved = trs.filter(t => t.status === 'Approved');
+            
+            document.getElementById('pendingTRCount').textContent = pending.length;
+            document.getElementById('approvedTRCount').textContent = approved.length;
+        }
+
+        // View TR details
+        function viewTRDetails(trId) {
+            const tr = trData.find(t => t.tr_id === trId);
+            if (!tr) return;
+
+            const items = JSON.parse(tr.items_json);
+
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <div class="info-grid">
+                    <div class="info-label">TR ID:</div>
+                    <div>${tr.tr_id}</div>
+                    <div class="info-label">MRF ID:</div>
+                    <div>${tr.mrf_id}</div>
+                    <div class="info-label">Project:</div>
+                    <div>${tr.project_name}</div>
+                    <div class="info-label">Requestor:</div>
+                    <div>${tr.requestor_name}</div>
+                    <div class="info-label">Date Submitted:</div>
+                    <div>${formatDate(tr.date_submitted)}</div>
+                    <div class="info-label">Delivery Address:</div>
+                    <div>${tr.delivery_address}</div>
+                    <div class="info-label">Justification:</div>
+                    <div>${tr.justification || 'N/A'}</div>
+                </div>
+
+                <div class="items-breakdown">
+                    <h4>Transport Items</h4>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Unit</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td>${item.item || item.item_name}</td>
+                                    <td>${item.qty || item.quantity}</td>
+                                    <td>${item.unit}</td>
+                                    <td>${item.category || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            const modalFooter = document.getElementById('modalFooter');
+            if (tr.status === 'Pending Finance Approval') {
+                modalFooter.innerHTML = `
+                    <button class="btn btn-danger" onclick="rejectTR('${tr.tr_id}')">❌ Reject</button>
+                    <button class="btn btn-success" onclick="approveTR('${tr.tr_id}')">✅ Approve</button>
+                `;
+            } else {
+                modalFooter.innerHTML = `
+                    <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                `;
+            }
+
+            document.getElementById('prModal').classList.add('active');
+        }
+
+        // Approve TR
+        async function approveTR(trId) {
+            if (!confirm('Approve this Transport Request?')) return;
+
+            showLoading(true);
+            closeModal();
+
+            try {
+                const response = await fetch(CONFIG.webhooks.approveTR, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tr_id: trId })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Transport Request approved!', 'success');
+                    await refreshTRs();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error approving TR:', error);
+                showToast('Failed to approve TR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Reject TR
+        async function rejectTR(trId) {
+            const reason = prompt('Enter rejection reason:');
+            if (!reason) return;
+
+            showLoading(true);
+            closeModal();
+
+            try {
+                const response = await fetch(CONFIG.webhooks.rejectTR, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tr_id: trId, reason: reason })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('Transport Request rejected', 'success');
+                    await refreshTRs();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error rejecting TR:', error);
+                showToast('Failed to reject TR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
         async function init() {
             await refreshPRs();
+            await refreshTRs();
             await refreshPOTracking();
             await loadHistoricalData();
             await loadMetrics();
@@ -2072,4 +2250,242 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </body>
-</html>
+</html
+        // Refresh POs
+        async function refreshPOs() {
+            try {
+                const response = await fetch(CONFIG.webhooks.getPOs);
+                const data = await response.json();
+                poData = data.pos || [];
+                
+                // Separate active and delivered
+                const activePOs = poData.filter(po => po.procurement_status !== 'Delivered');
+                const deliveredPOs = poData.filter(po => po.procurement_status === 'Delivered');
+                
+                renderPOTable(activePOs);
+                renderDeliveredPOs(deliveredPOs);
+            } catch (error) {
+                console.error('Error loading POs:', error);
+                showToast('Failed to load POs', 'error');
+            }
+        }
+
+        // Render active PO table
+        function renderPOTable(pos) {
+            const tbody = document.getElementById('poTableBody');
+            
+            if (pos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #999;">All POs delivered</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pos.map(po => {
+                const status = po.procurement_status || 'Pending Procurement';
+                let nextAction = '';
+                
+                if (status === 'Pending Procurement') {
+                    nextAction = `<button class="btn btn-sm btn-primary" onclick="updatePOStatusProgressive('${po.po_id}', '${po.id}', 'Procuring')">▶️ Start Procuring</button>`;
+                } else if (status === 'Procuring') {
+                    nextAction = `<button class="btn btn-sm btn-success" onclick="updatePOStatusProgressive('${po.po_id}', '${po.id}', 'Procured')">✅ Mark Procured</button>`;
+                } else if (status === 'Procured') {
+                    nextAction = `<button class="btn btn-sm btn-success" onclick="markDelivered('${po.po_id}', '${po.id}')">🚚 Mark Delivered</button>`;
+                }
+                
+                return `
+                    <tr>
+                        <td><strong>${po.po_id}</strong></td>
+                        <td>${po.supplier_name}</td>
+                        <td>${po.project_name || 'N/A'}</td>
+                        <td>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>${formatDate(po.date_issued)}</td>
+                        <td><span class="status-badge ${status.toLowerCase().replace(' ', '-')}">${status}</span></td>
+                        <td>${nextAction}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Render delivered POs
+        function renderDeliveredPOs(pos) {
+            const tbody = document.getElementById('deliveredPOBody');
+            
+            if (pos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #999;">No delivered POs yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pos.map(po => `
+                <tr>
+                    <td><strong>${po.po_id}</strong></td>
+                    <td>${po.supplier_name}</td>
+                    <td>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <td>${po.delivery_cost ? '₱' + parseFloat(po.delivery_cost).toLocaleString('en-PH', {minimumFractionDigits: 2}) : 'N/A'}</td>
+                    <td>${po.delivered_date ? formatDate(po.delivered_date) : 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Update PO status progressively (cannot skip)
+        async function updatePOStatusProgressive(poId, docId, newStatus) {
+            if (!confirm(`Update PO ${poId} to "${newStatus}"?`)) return;
+
+            showLoading(true);
+
+            try {
+                const response = await fetch(CONFIG.webhooks.updatePOStatus, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        po_id: poId,
+                        doc_id: docId,
+                        status: newStatus,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`PO updated to ${newStatus}`, 'success');
+                    await refreshPOs();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error updating PO:', error);
+                showToast('Failed to update PO status', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Mark as delivered with delivery cost
+        async function markDelivered(poId, docId) {
+            const deliveryCost = prompt('Enter delivery cost (optional, enter 0 if none):');
+            if (deliveryCost === null) return;
+            
+            const cost = parseFloat(deliveryCost) || 0;
+
+            showLoading(true);
+
+            try {
+                const response = await fetch(CONFIG.webhooks.updatePOStatus, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        po_id: poId,
+                        doc_id: docId,
+                        status: 'Delivered',
+                        delivery_cost: cost,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`PO ${poId} marked as delivered!`, 'success');
+                    await refreshPOs();
+                    await loadHistoricalData(); // Refresh historical data
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                console.error('Error marking delivered:', error);
+                showToast('Failed to mark as delivered', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Load analytics
+        async function loadAnalytics() {
+            try {
+                // Calculate metrics from PO data directly
+                const now = new Date();
+                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                
+                const deliveredPOs = poData.filter(po => po.procurement_status === 'Delivered');
+                const last30Days = deliveredPOs.filter(po => new Date(po.delivered_date) >= thirtyDaysAgo);
+                const last90Days = deliveredPOs.filter(po => new Date(po.delivered_date) >= ninetyDaysAgo);
+                
+                // Calculate procurement time (issued to procured)
+                let totalProcurementDays = 0;
+                let procurementCount = 0;
+                deliveredPOs.forEach(po => {
+                    if (po.date_issued && po.procured_date) {
+                        const days = Math.ceil((new Date(po.procured_date) - new Date(po.date_issued)) / (1000 * 60 * 60 * 24));
+                        totalProcurementDays += days;
+                        procurementCount++;
+                    }
+                });
+                const avgProcurement = procurementCount > 0 ? (totalProcurementDays / procurementCount).toFixed(1) : 0;
+                
+                // Calculate delivery time (procured to delivered)
+                let totalDeliveryDays = 0;
+                let deliveryCount = 0;
+                deliveredPOs.forEach(po => {
+                    if (po.procured_date && po.delivered_date) {
+                        const days = Math.ceil((new Date(po.delivered_date) - new Date(po.procured_date)) / (1000 * 60 * 60 * 24));
+                        totalDeliveryDays += days;
+                        deliveryCount++;
+                    }
+                });
+                const avgDelivery = deliveryCount > 0 ? (totalDeliveryDays / deliveryCount).toFixed(1) : 0;
+                
+                // Calculate on-time delivery
+                let onTimeCount = 0;
+                deliveredPOs.forEach(po => {
+                    if (po.delivered_date && po.delivery_date) {
+                        if (new Date(po.delivered_date) <= new Date(po.delivery_date)) {
+                            onTimeCount++;
+                        }
+                    }
+                });
+                const onTimeRate = deliveredPOs.length > 0 ? ((onTimeCount / deliveredPOs.length) * 100).toFixed(0) : 0;
+                
+                document.getElementById('avgProcurement').textContent = `${avgProcurement} days`;
+                document.getElementById('avgDelivery').textContent = `${avgDelivery} days`;
+                document.getElementById('onTimeRate').textContent = `${onTimeRate}%`;
+                document.getElementById('totalProcessed').textContent = deliveredPOs.length;
+                
+                // Render breakdown table
+                renderMetricsBreakdown(last30Days);
+                
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+        
+        // Render metrics breakdown
+        function renderMetricsBreakdown(pos) {
+            const tbody = document.getElementById('metricsBreakdownBody');
+            
+            if (pos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #999;">No data for selected timeframe</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = pos.map(po => {
+                const procurementTime = po.date_issued && po.procured_date ? 
+                    Math.ceil((new Date(po.procured_date) - new Date(po.date_issued)) / (1000 * 60 * 60 * 24)) : 'N/A';
+                const deliveryTime = po.procured_date && po.delivered_date ?
+                    Math.ceil((new Date(po.delivered_date) - new Date(po.procured_date)) / (1000 * 60 * 60 * 24)) : 'N/A';
+                const onTime = po.delivered_date && po.delivery_date ?
+                    (new Date(po.delivered_date) <= new Date(po.delivery_date) ? '✅' : '❌') : 'N/A';
+                    
+                return `
+                    <tr>
+                        <td>${po.po_id}</td>
+                        <td>${po.supplier_name}</td>
+                        <td>${formatDate(po.date_issued)}</td>
+                        <td>${po.procured_date ? formatDate(po.procured_date) : 'N/A'}</td>
+                        <td>${po.delivered_date ? formatDate(po.delivered_date) : 'N/A'}</td>
+                        <td>${procurementTime} days</td>
+                        <td>${onTime}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+>
