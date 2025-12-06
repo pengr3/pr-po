@@ -218,7 +218,7 @@
             display: inline-block;
         }
 
-        .status-badge.pending {
+        .status-badge.pending-review {
             background: #fff3cd;
             color: #856404;
         }
@@ -329,13 +329,77 @@
         .icon-btn:hover {
             background: var(--gray-50);
         }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--gray-700);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .close-btn:hover {
+            background: var(--gray-100);
+        }
+
+        .pdf-viewer {
+            width: 100%;
+            height: 80vh;
+            border: none;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-content">
             <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;">
+               <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;">
                 <div class="header-title">
                     <h1>Procurement Dashboard</h1>
                     <p>CLMC Procurement</p>
@@ -467,6 +531,17 @@
         </section>
     </div>
 
+    <!-- PDF Viewer Modal -->
+    <div id="pdfModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="pdfModalTitle">PR Document</h3>
+                <button class="close-btn" onclick="closePDFModal()">&times;</button>
+            </div>
+            <div id="pdfViewerContainer"></div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
     <div id="loading" class="loading">
         <div class="spinner"></div>
@@ -553,12 +628,15 @@
                 return;
             }
 
+            // Get TODAY's date for dynamic countdown
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
             mrfList.innerHTML = mrfs.map(mrf => {
                 const dateNeeded = new Date(mrf.date_needed);
                 dateNeeded.setHours(0, 0, 0, 0);
+                
+                // Calculate days remaining from TODAY
                 const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
                 
                 let urgencyColor, urgencyBg;
@@ -673,7 +751,8 @@
                                     <input type="number" 
                                            class="unit-cost" 
                                            data-index="${index}" 
-                                           value="${item.unit_cost || 0}"
+                                           value="${item.unit_cost || ''}"
+                                           placeholder="0.00"
                                            step="0.01"
                                            oninput="calculateSubtotal(${index})">
                                 </td>
@@ -688,7 +767,7 @@
                                     </select>
                                 </td>
                                 <td class="subtotal-cell" id="subtotal-${index}">
-                                    ₱ ${((item.qty || item.quantity) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                    ₱ ${item.unit_cost ? ((item.qty || item.quantity) * item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2}) : '0.00'}
                                 </td>
                             </tr>
                         `).join('')}
@@ -709,7 +788,8 @@
         window.calculateSubtotal = function(index) {
             const items = JSON.parse(currentMRF.items_json);
             const qty = items[index].qty || items[index].quantity || 0;
-            const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+            const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+            const unitCost = parseFloat(unitCostInput.value) || 0;
             const subtotal = qty * unitCost;
             
             document.getElementById(`subtotal-${index}`).textContent = `₱ ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
@@ -735,7 +815,8 @@
 
             const items = JSON.parse(currentMRF.items_json);
             const updatedItems = items.map((item, index) => {
-                const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+                const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+                const unitCost = parseFloat(unitCostInput.value) || 0;
                 const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
                 
                 return {
@@ -801,7 +882,8 @@
 
             try {
                 const prItems = items.map((item, index) => {
-                    const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+                    const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+                    const unitCost = parseFloat(unitCostInput.value) || 0;
                     const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
                     
                     return {
@@ -840,7 +922,6 @@
                     }
                 }
 
-                // Generate one PR per supplier
                 const generatedPRs = [];
                 for (const [supplier, supplierItems] of Object.entries(itemsBySupplier)) {
                     const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
@@ -867,8 +948,7 @@
                     await addDoc(prsRef, prDoc);
                     generatedPRs.push(prId);
 
-                    // Generate PDF
-                    await generatePRPDF(prDoc);
+                    await generatePRPDF(prDoc, true);
                 }
 
                 const mrfRef = doc(db, 'mrfs', currentMRF.id);
@@ -885,17 +965,17 @@
 
             } catch (error) {
                 console.error('Error generating PR:', error);
-                showToast('❌ Failed to generate PR', 'error');
+                showToast('❌ Failed to generate PR: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
         };
 
-        async function generatePRPDF(prData) {
+        async function generatePRPDF(prData, downloadNow = false) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Add company logo and header
+            // Add company header
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.text('C Lacsamana Management and Construction Corporation', 105, 15, { align: 'center' });
@@ -925,18 +1005,33 @@
                 item.item,
                 item.qty,
                 item.unit,
-                `₱${item.unit_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}`,
-                `₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`
+                `₱${parseFloat(item.unit_cost).toFixed(2)}`,
+                `₱${parseFloat(item.subtotal).toFixed(2)}`
             ]);
             
             doc.autoTable({
                 startY: 100,
                 head: [['No.', 'Item Description', 'Qty', 'Unit', 'Unit Cost', 'Total Cost']],
                 body: tableData,
-                foot: [['', '', '', '', 'TOTAL AMOUNT:', `₱${prData.total_amount.toLocaleString('en-PH', {minimumFractionDigits: 2})}`]],
+                foot: [['', '', '', '', 'TOTAL AMOUNT:', `₱${parseFloat(prData.total_amount).toFixed(2)}`]],
                 theme: 'grid',
-                headStyles: { fillColor: [232, 234, 237] },
-                footStyles: { fillColor: [232, 234, 237], fontStyle: 'bold' }
+                headStyles: { 
+                    fillColor: [255, 255, 255],
+                    textColor: [0, 0, 0],
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.5,
+                    fontStyle: 'bold'
+                },
+                bodyStyles: {
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.5
+                },
+                footStyles: { 
+                    fillColor: [232, 234, 237], 
+                    fontStyle: 'bold',
+                    lineColor: [0, 0, 0],
+                    lineWidth: 0.5
+                }
             });
             
             const finalY = doc.lastAutoTable.finalY + 20;
@@ -945,7 +1040,11 @@
             doc.text('Approved By: ___________________________', 20, finalY + 30);
             doc.text('Date Approved: ___________________________', 20, finalY + 45);
             
-            doc.save(`${prData.pr_id}.pdf`);
+            if (downloadNow) {
+                doc.save(`${prData.pr_id}.pdf`);
+            }
+            
+            return doc;
         }
 
         function renderPRHistory() {
@@ -966,17 +1065,33 @@
                     <td>${pr.prepared_by}</td>
                     <td><span class="status-badge ${pr.finance_status.toLowerCase().replace(' ', '-')}">${pr.finance_status}</span></td>
                     <td class="actions">
+                        <button class="icon-btn" onclick="viewPR('${pr.id}')">👁️ View</button>
                         <button class="icon-btn" onclick="downloadPR('${pr.id}')">📥 Download</button>
-                        ${pr.finance_status === 'Rejected' ? `<button class="icon-btn" onclick="viewRejectionReason('${pr.id}')">👁️ View Reason</button>` : ''}
+                        ${pr.finance_status === 'Rejected' ? `<button class="icon-btn" onclick="viewRejectionReason('${pr.id}')">ℹ️ Reason</button>` : ''}
                     </td>
                 </tr>
             `).join('');
         }
 
+        window.viewPR = async function(prId) {
+            const pr = prHistory.find(p => p.id === prId);
+            if (!pr) return;
+
+            const doc = await generatePRPDF(pr, false);
+            const pdfBlob = doc.output('blob');
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            
+            document.getElementById('pdfModalTitle').textContent = `PR Document - ${pr.pr_id}`;
+            document.getElementById('pdfViewerContainer').innerHTML = `
+                <embed src="${pdfUrl}" type="application/pdf" class="pdf-viewer">
+            `;
+            document.getElementById('pdfModal').classList.add('active');
+        };
+
         window.downloadPR = async function(prId) {
             const pr = prHistory.find(p => p.id === prId);
             if (pr) {
-                await generatePRPDF(pr);
+                await generatePRPDF(pr, true);
             }
         };
 
@@ -985,6 +1100,11 @@
             if (pr && pr.rejection_reason) {
                 alert(`Rejection Reason:\n\n${pr.rejection_reason}`);
             }
+        };
+
+        window.closePDFModal = function() {
+            document.getElementById('pdfModal').classList.remove('active');
+            document.getElementById('pdfViewerContainer').innerHTML = '';
         };
 
         window.refreshPRHistory = async function() {
