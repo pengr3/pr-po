@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Submit Material Request Form (MRF) - CLMC Engineering</title>
     <style>
@@ -440,7 +441,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <button type="button" class="btn btn-secondary" onclick="addItem()">➕ Add Another Item</button>
+                    <button type="button" class="btn btn-secondary" onclick="addItem()">âž• Add Another Item</button>
                 </div>
 
                 <!-- Justification -->
@@ -687,7 +688,7 @@
                 showLoading(false);
                 
                 const typeLabel = requestType === 'material' ? 'Material Request' : 'Delivery/Hauling/Transportation Request';
-                showAlert('success', `✅ ${typeLabel} submitted successfully! Your MRF ID is: ${mrfId}. The procurement team has been notified.`);
+                showAlert('success', `âœ… ${typeLabel} submitted successfully! Your MRF ID is: ${mrfId}. The procurement team has been notified.`);
                 
                 // Reset form after 3 seconds
                 setTimeout(() => {
@@ -704,7 +705,7 @@
                 
             } catch (error) {
                 showLoading(false);
-                showAlert('error', '❌ Failed to submit MRF. Please check your connection and try again, or contact IT support.');
+                showAlert('error', 'âŒ Failed to submit MRF. Please check your connection and try again, or contact IT support.');
                 console.error('Error:', error);
             }
         });
