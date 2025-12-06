@@ -558,30 +558,15 @@
             </div>
         </div>
 
-
-        <!-- Transport Requests Tab -->
+        <!-- Transport Requests -->
         <div id="transport-requests" class="tab-content">
             <div class="panel">
                 <div class="panel-header">
                     <h2>Transport Requests</h2>
-                    <button class="btn btn-secondary" onclick="loadTransportRequests()">🔄 Refresh</button>
                 </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>TR ID</th>
-                            <th>MRF ID</th>
-                            <th>Project</th>
-                            <th>Requestor</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="trTableBody">
-                        <tr><td colspan="7" style="text-align: center; padding: 2rem;">Loading...</td></tr>
-                    </tbody>
-                </table>
+                <p style="text-align: center; padding: 2rem; color: #999;">
+                    Connect to Firebase transport_requests collection
+                </p>
             </div>
         </div>
 
@@ -713,21 +698,8 @@
         let filteredHistoricalData = [];
 
         // Initialize dashboard
-
-        // Load Transport Requests
-        window.loadTransportRequests = async function() {
-            try {
-                // Placeholder - connect to Firebase transport_requests collection
-                const tbody = document.getElementById('trTableBody');
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #999;">No transport requests yet. Connect to Firebase transport_requests collection.</td></tr>';
-            } catch (error) {
-                console.error('Error loading TRs:', error);
-            }
-        };
-
         async function init() {
             await refreshPRs();
-            await loadTransportRequests();
             await refreshPOs();
             await loadHistoricalData();
             await loadAnalytics();
