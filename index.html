@@ -498,18 +498,15 @@
         init();
 
 
-        // Submit Transport Request to Finance
+        // Submit Transport Request
         window.submitTransportRequest = async function() {
             if (!currentMRF) return;
-            
-            if (!confirm('Submit this Transport Request to Finance for approval?')) return;
+            if (!confirm('Submit Transport Request to Finance?')) return;
             
             showLoading(true);
-            
             try {
                 const { collection, getDocs, addDoc, query, orderBy, limit, doc, updateDoc } = window.firestore;
                 const items = JSON.parse(currentMRF.items_json);
-                const deliveryAddress = document.getElementById('deliveryAddress').value;
                 
                 // Generate TR ID
                 const year = new Date().getFullYear();
@@ -528,13 +525,12 @@
                 
                 const trId = `TR-${year}-${String(nextNum).padStart(3, '0')}`;
                 
-                // Create TR
                 await addDoc(collection(window.db, 'transport_requests'), {
                     tr_id: trId,
                     mrf_id: currentMRF.mrf_id,
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
-                    delivery_address: deliveryAddress,
+                    delivery_address: document.getElementById('deliveryAddress').value,
                     items_json: JSON.stringify(items),
                     justification: currentMRF.justification || '',
                     status: 'Pending Finance Approval',
@@ -542,20 +538,19 @@
                     created_at: new Date().toISOString()
                 });
                 
-                // Update MRF
                 await updateDoc(doc(window.db, 'mrfs', currentMRF.id), {
                     status: 'TR Submitted',
                     tr_id: trId,
                     updated_at: new Date().toISOString()
                 });
                 
-                showToast(`✅ Transport Request ${trId} submitted to Finance!`, 'success');
+                showToast('Transport Request ' + trId + ' submitted!', 'success');
                 currentMRF.status = 'TR Submitted';
                 renderMRFDetails(currentMRF);
                 
             } catch (error) {
                 console.error('Error:', error);
-                showToast('❌ Failed to submit transport request', 'error');
+                showToast('Failed to submit', 'error');
             } finally {
                 showLoading(false);
             }
@@ -663,22 +658,23 @@
         // Render MRF details
         function renderMRFDetails(mrf) {
             const items = JSON.parse(mrf.items_json);
-
             
-            const requestTypeLabel = mrf.request_type === 'service' ? 
-                'Delivery/Hauling/Transportation' : 'Material Request';
-            
-            // Set action buttons in header
+            // Show correct button based on request type
             const isService = mrf.request_type === 'service';
             const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress';
             
-            let buttons = '<button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>';
-            if (canEdit && !isService) {
-                buttons += '<button class="btn btn-success" id="generatePRBtn" onclick="generatePR()">📄 Generate PR</button>';
-            } else if (canEdit && isService) {
-                buttons += '<button class="btn btn-success" onclick="submitTransportRequest()">🚚 Submit to Finance</button>';
+            let actionButtons = '<button class="btn btn-primary" onclick="saveProgress()">Save Progress</button>';
+            if (canEdit) {
+                if (isService) {
+                    actionButtons += ' <button class="btn btn-success" onclick="submitTransportRequest()">Submit to Finance</button>';
+                } else {
+                    actionButtons += ' <button class="btn btn-success" onclick="generatePR()">Generate PR</button>';
+                }
             }
-            document.getElementById('mrfActions').innerHTML = buttons;
+            document.getElementById('mrfActions').innerHTML = actionButtons;
+            
+            const requestTypeLabel = mrf.request_type === 'service' ? 
+                'Delivery/Hauling/Transportation' : 'Material Request';
             
             const details = `
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
