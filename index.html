@@ -775,6 +775,76 @@
             document.getElementById('timelineModal').classList.remove('active');
         };
 
+
+        // Submit Transport Request
+        window.submitTransportRequest = async function() {
+            if (!currentMRF) return;
+            
+            if (!confirm('Submit this Transport Request to Finance for approval?')) return;
+            
+            showLoading(true);
+            
+            try {
+                const deliveryAddress = document.getElementById('deliveryAddress').value;
+                const items = JSON.parse(currentMRF.items_json);
+                
+                // Generate TR ID
+                const year = new Date().getFullYear();
+                const { collection, getDocs, addDoc, query, orderBy, limit, doc, updateDoc } = window.firestore;
+                const trsRef = collection(window.db, 'transport_requests');
+                const q = query(trsRef, orderBy('date_submitted', 'desc'), limit(1));
+                const snapshot = await getDocs(q);
+                
+                let nextNum = 1;
+                if (!snapshot.empty) {
+                    const lastTR = snapshot.docs[0].data();
+                    if (lastTR.tr_id) {
+                        const match = lastTR.tr_id.match(/TR-\d{4}-(\d+)/);
+                        if (match) nextNum = parseInt(match[1]) + 1;
+                    }
+                }
+                
+                const trId = `TR-${year}-${String(nextNum).padStart(3, '0')}`;
+                
+                // Create TR document
+                const trDoc = {
+                    tr_id: trId,
+                    mrf_id: currentMRF.mrf_id,
+                    mrf_doc_id: currentMRF.id,
+                    project_name: currentMRF.project_name,
+                    requestor_name: currentMRF.requestor_name,
+                    delivery_address: deliveryAddress,
+                    items_json: JSON.stringify(items),
+                    justification: currentMRF.justification || '',
+                    status: 'Pending Finance Approval',
+                    date_submitted: new Date().toISOString().split('T')[0],
+                    submitted_at: new Date().toISOString(),
+                    created_at: new Date().toISOString()
+                };
+                
+                await addDoc(collection(window.db, 'transport_requests'), trDoc);
+                
+                // Update MRF status
+                const mrfRef = doc(window.db, 'mrfs', currentMRF.id);
+                await updateDoc(mrfRef, {
+                    status: 'TR Submitted',
+                    tr_id: trId,
+                    updated_at: new Date().toISOString()
+                });
+                
+                showToast(`✅ Transport Request ${trId} submitted to Finance!`, 'success');
+                
+                currentMRF.status = 'TR Submitted';
+                renderMRFDetails(currentMRF);
+                
+            } catch (error) {
+                console.error('Error submitting TR:', error);
+                showToast('❌ Failed to submit transport request', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
         async function init() {
             await loadSuppliers();
             await loadMRFs();
@@ -889,108 +959,29 @@
 };
 
         // Render MRF details
-        function renderMRFDetails(mrf) {
+function renderMRFDetails(mrf) {
             const items = JSON.parse(mrf.items_json);
             
-            // Show/hide Generate PR button based on request type
-            const generatePRBtn = document.getElementById('generatePRBtn');
-            if (mrf.request_type === 'service') {
-                generatePRBtn.style.display = 'none';
-            } else {
-                generatePRBtn.style.display = 'block';
+            // Show/hide buttons based on request type and status
+            const isService = mrf.request_type === 'service';
+            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress';
+            
+            let actionButtons = '';
+            if (canEdit) {
+                if (isService) {
+                    actionButtons = `
+                        <button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>
+                        <button class="btn btn-success" onclick="submitTransportRequest()">🚚 Submit to Finance</button>
+                    `;
+                } else {
+                    actionButtons = `
+                        <button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>
+                        <button class="btn btn-success" onclick="generatePR()">📄 Generate PR</button>
+                    `;
+                }
             }
             
-            const requestTypeLabel = mrf.request_type === 'service' ? 
-                'Delivery/Hauling/Transportation' : 'Material Request';
-            
-            const details = `
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
-                    <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">MRF ID</div>
-                        <div style="font-weight: 600;">${mrf.mrf_id}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Request Type</div>
-                        <div style="font-weight: 600;">${requestTypeLabel}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div style="font-weight: 600;">${mrf.project_name}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Requestor</div>
-                        <div>${mrf.requestor_name}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Date Needed</div>
-                        <div>${new Date(mrf.date_needed).toLocaleDateString()}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
-                        <div>${mrf.status}</div>
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 1rem;">
-                    <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Delivery Address</label>
-                    <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid #dadce0; border-radius: 4px;">${mrf.delivery_address || ''}</textarea>
-                </div>
-
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th>Qty</th>
-                            <th>Unit</th>
-                            <th>Unit Cost (â‚±)</th>
-                            <th>Supplier</th>
-                            <th>Subtotal (â‚±)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${items.map((item, index) => `
-                            <tr>
-                                <td>${item.item || item.item_name}</td>
-                                <td>${item.category || 'N/A'}</td>
-                                <td>${item.qty || item.quantity}</td>
-                                <td>${item.unit}</td>
-                                <td>
-                                    <input type="number" 
-                                           class="unit-cost" 
-                                           data-index="${index}" 
-                                           value="${item.unit_cost || 0}"
-                                           step="0.01"
-                                           oninput="calculateSubtotal(${index})">
-                                </td>
-                                <td>
-                                    <select class="supplier-select" data-index="${index}">
-                                        <option value="">Select Supplier</option>
-                                        ${suppliersData.map(s => `
-                                            <option value="${s.supplier_name}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
-                                                ${s.supplier_name}
-                                            </option>
-                                        `).join('')}
-                                    </select>
-                                </td>
-                                <td class="subtotal-cell" id="subtotal-${index}">
-                                    â‚± ${((item.qty || item.quantity) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="6" style="text-align: right; font-weight: 600;">TOTAL:</td>
-                            <td id="grandTotal" style="font-weight: 600;">â‚± 0.00</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            `;
-
-            document.getElementById('mrfDetails').innerHTML = details;
-            calculateGrandTotal();
-        }
+            document.getElementById('mrfActions').innerHTML = actionButtons;
 
         // Calculate subtotal
         window.calculateSubtotal = function(index) {
