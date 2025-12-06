@@ -351,6 +351,31 @@
             padding: 0.5rem;
         }
 
+        .timeline-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .timeline-modal.show {
+            display: flex;
+        }
+
+        .timeline-content {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+        }
+
         .timeline-item {
             padding: 1rem;
             border-left: 3px solid #dadce0;
@@ -376,55 +401,12 @@
 
         .timeline-item.current::before {
             background: #1a73e8;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
-            50% { box-shadow: 0 0 0 10px rgba(26, 115, 232, 0); }
         }
 
         .status-select {
             padding: 0.5rem;
             border: 1px solid #dadce0;
             border-radius: 4px;
-            font-size: 0.875rem;
-            cursor: pointer;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 8px;
-            padding: 2rem;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-close {
-            float: right;
-            font-size: 1.5rem;
-            cursor: pointer;
-            border: none;
-            background: none;
         }
     </style>
 </head>
@@ -535,13 +517,11 @@
                 </table>
             </div>
         </section>
-
-
         <!-- PO Tracking Section -->
         <section id="po-tracking-section" class="section">
             <div class="card">
                 <div class="card-header">
-                    <h2>Purchase Order Tracking & Delivery</h2>
+                    <h2>Purchase Order Tracking</h2>
                     <button class="btn btn-primary" onclick="refreshPOTracking()">🔄 Refresh</button>
                 </div>
 
@@ -552,14 +532,13 @@
                             <th>Supplier</th>
                             <th>Project</th>
                             <th>Amount</th>
-                            <th>Issued Date</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="poTrackingBody">
                         <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem;">
+                            <td colspan="6" style="text-align: center; padding: 2rem;">
                                 Loading POs...
                             </td>
                         </tr>
@@ -608,19 +587,18 @@
         init();
 
 
-        // PO Tracking Global
+        // === PO TRACKING ===
         let poData = [];
 
-        // Load PO Tracking
         async function loadPOTracking() {
-            const posRef = collection(db, 'pos');
+            const { collection, onSnapshot } = window.firestore;
+            const posRef = collection(window.db, 'pos');
             
             onSnapshot(posRef, (snapshot) => {
                 poData = [];
                 snapshot.forEach((doc) => {
                     poData.push({ id: doc.id, ...doc.data() });
                 });
-                // Sort by date issued
                 poData.sort((a, b) => new Date(b.date_issued) - new Date(a.date_issued));
                 renderPOTrackingTable(poData);
                 console.log('POs updated:', poData.length);
@@ -629,154 +607,79 @@
 
         window.refreshPOTracking = async function() {
             await loadPOTracking();
-            showToast('PO list refreshed', 'success');
+            showToast('✅ PO list refreshed', 'success');
         };
 
-        // Render PO Tracking Table
         function renderPOTrackingTable(pos) {
             const tbody = document.getElementById('poTrackingBody');
             
             if (pos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = pos.map(po => `
-                <tr>
-                    <td><strong>${po.po_id}</strong></td>
-                    <td>${po.supplier_name}</td>
-                    <td>${po.project_name}</td>
-                    <td>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    <td>${new Date(po.date_issued).toLocaleDateString()}</td>
-                    <td>
-                        <select class="status-select" data-po-id="${po.id}" 
-                                onchange="updatePOStatus('${po.id}', this.value, '${po.procurement_status || 'Pending Procurement'}')">
-                            <option value="Pending Procurement" ${(po.procurement_status || 'Pending Procurement') === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
-                            <option value="Procuring" ${po.procurement_status === 'Procuring' ? 'selected' : ''}>Procuring</option>
-                            <option value="Procured" ${po.procurement_status === 'Procured' ? 'selected' : ''}>Procured</option>
-                            <option value="Delivered" ${po.procurement_status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-                        </select>
-                    </td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">📅 Timeline</button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = pos.map(po => {
+                const status = po.procurement_status || 'Pending';
+                return `
+                    <tr>
+                        <td><strong>${po.po_id}</strong></td>
+                        <td>${po.supplier_name}</td>
+                        <td>${po.project_name || 'N/A'}</td>
+                        <td>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td><span style="padding: 0.25rem 0.75rem; background: #e8f0fe; border-radius: 12px; font-size: 0.75rem;">${status}</span></td>
+                        <td><button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">📅 View</button></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
-        // Update PO Status
-        window.updatePOStatus = async function(poId, newStatus, currentStatus) {
-            if (newStatus === currentStatus) return;
-            
-            if (!confirm(`Update status to "${newStatus}"?`)) {
-                // Reset dropdown
-                const select = document.querySelector(`select[data-po-id="${poId}"]`);
-                if (select) select.value = currentStatus;
-                return;
-            }
-
-            showLoading(true);
-
-            try {
-                const updateData = {
-                    procurement_status: newStatus,
-                    updated_at: new Date().toISOString()
-                };
-
-                if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
-                    updateData.procurement_started_at = new Date().toISOString();
-                } else if (newStatus === 'Procured') {
-                    updateData.procured_date = new Date().toISOString().split('T')[0];
-                } else if (newStatus === 'Delivered') {
-                    updateData.delivered_date = new Date().toISOString().split('T')[0];
-                }
-
-                const poRef = doc(db, 'pos', poId);
-                await updateDoc(poRef, updateData);
-
-                showToast(`PO status updated to ${newStatus}`, 'success');
-            } catch (error) {
-                console.error('Error updating PO status:', error);
-                showToast('Failed to update status', 'error');
-                // Reset dropdown
-                const select = document.querySelector(`select[data-po-id="${poId}"]`);
-                if (select) select.value = currentStatus;
-            } finally {
-                showLoading(false);
-            }
-        };
-
-        // View PO Timeline
         window.viewPOTimeline = function(poId) {
             const po = poData.find(p => p.id === poId);
             if (!po) return;
 
-            const calculateDays = (start, end) => {
-                if (!start || !end) return 'N/A';
-                const s = new Date(start);
-                const e = new Date(end);
-                return Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + ' days';
-            };
-
             const content = `
-                <h3>${po.po_id} - Delivery Timeline</h3>
-                <div style="margin-top: 1.5rem;">
-                    <div class="timeline-item ${po.date_issued ? 'completed' : ''}">
-                        <strong>📋 PO Issued</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.date_issued ? new Date(po.date_issued).toLocaleString() : 'Pending'}
-                        </span>
-                    </div>
-                    
-                    <div class="timeline-item ${po.procurement_started_at ? 'completed' : ((po.procurement_status || 'Pending Procurement') === 'Procuring' ? 'current' : '')}">
-                        <strong>🔄 Procurement Started</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleString() : 'Not started'}
-                        </span>
-                    </div>
-                    
-                    <div class="timeline-item ${po.procured_date ? 'completed' : (po.procurement_status === 'Procured' ? 'current' : '')}">
-                        <strong>✅ Items Procured</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.procured_date ? new Date(po.procured_date).toLocaleDateString() : 'Not yet procured'}
-                        </span>
-                        ${po.procured_date && po.procurement_started_at ? `
-                            <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
-                                Time: ${calculateDays(po.procurement_started_at, po.procured_date)}
-                            </div>
-                        ` : ''}
-                    </div>
-                    
-                    <div class="timeline-item ${po.delivered_date ? 'completed' : (po.procurement_status === 'Delivered' ? 'current' : '')}">
-                        <strong>🚚 Delivered</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.delivered_date ? new Date(po.delivered_date).toLocaleDateString() : 'Not yet delivered'}
-                        </span>
-                        ${po.delivered_date && po.procured_date ? `
-                            <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
-                                Time: ${calculateDays(po.procured_date, po.delivered_date)}
-                            </div>
-                        ` : ''}
+                <div style="position: relative;">
+                    <button onclick="closeTimelineModal()" style="position: absolute; right: 0; top: 0; background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                    <h3>${po.po_id} - Status</h3>
+                    <div style="margin-top: 1.5rem;">
+                        <div class="timeline-item completed">
+                            <strong>📋 PO Issued</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.date_issued ? new Date(po.date_issued).toLocaleString() : 'N/A'}
+                            </span>
+                        </div>
+                        <div class="timeline-item ${po.procurement_status === 'Procuring' || po.procurement_status === 'Procured' || po.procurement_status === 'Delivered' ? 'completed' : ''}">
+                            <strong>🔄 Procurement Started</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.procurement_started_at || 'Not started'}
+                            </span>
+                        </div>
+                        <div class="timeline-item ${po.procurement_status === 'Delivered' ? 'completed' : ''}">
+                            <strong>🚚 Delivered</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.delivered_date || 'Not delivered'}
+                            </span>
+                        </div>
                     </div>
                 </div>
-
-                ${po.delivered_date && po.date_issued ? `
-                    <div style="margin-top: 2rem; padding: 1rem; background: #d1fae5; border-radius: 6px;">
-                        <strong>Total Time: ${calculateDays(po.date_issued, po.delivered_date)}</strong>
-                    </div>
-                ` : ''}
             `;
 
-            document.getElementById('timelineContent').innerHTML = content;
-            document.getElementById('timelineModal').classList.add('active');
+            const modal = document.createElement('div');
+            modal.className = 'timeline-modal show';
+            modal.innerHTML = `<div class="timeline-content">${content}</div>`;
+            modal.onclick = (e) => { if (e.target === modal) closeTimelineModal(); };
+            document.body.appendChild(modal);
+            window.currentModal = modal;
         };
 
         window.closeTimelineModal = function() {
-            document.getElementById('timelineModal').classList.remove('active');
+            if (window.currentModal) {
+                window.currentModal.remove();
+                window.currentModal = null;
+            }
         };
 
-
-        // Submit Transport Request
+        // === TRANSPORT REQUEST ===
         window.submitTransportRequest = async function() {
             if (!currentMRF) return;
             
@@ -785,12 +688,12 @@
             showLoading(true);
             
             try {
+                const { collection, getDocs, addDoc, query, orderBy, limit, doc, updateDoc } = window.firestore;
                 const deliveryAddress = document.getElementById('deliveryAddress').value;
                 const items = JSON.parse(currentMRF.items_json);
                 
                 // Generate TR ID
                 const year = new Date().getFullYear();
-                const { collection, getDocs, addDoc, query, orderBy, limit, doc, updateDoc } = window.firestore;
                 const trsRef = collection(window.db, 'transport_requests');
                 const q = query(trsRef, orderBy('date_submitted', 'desc'), limit(1));
                 const snapshot = await getDocs(q);
@@ -806,11 +709,10 @@
                 
                 const trId = `TR-${year}-${String(nextNum).padStart(3, '0')}`;
                 
-                // Create TR document
-                const trDoc = {
+                // Create TR
+                await addDoc(collection(window.db, 'transport_requests'), {
                     tr_id: trId,
                     mrf_id: currentMRF.mrf_id,
-                    mrf_doc_id: currentMRF.id,
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
                     delivery_address: deliveryAddress,
@@ -818,28 +720,23 @@
                     justification: currentMRF.justification || '',
                     status: 'Pending Finance Approval',
                     date_submitted: new Date().toISOString().split('T')[0],
-                    submitted_at: new Date().toISOString(),
                     created_at: new Date().toISOString()
-                };
+                });
                 
-                await addDoc(collection(window.db, 'transport_requests'), trDoc);
-                
-                // Update MRF status
-                const mrfRef = doc(window.db, 'mrfs', currentMRF.id);
-                await updateDoc(mrfRef, {
+                // Update MRF
+                await updateDoc(doc(window.db, 'mrfs', currentMRF.id), {
                     status: 'TR Submitted',
                     tr_id: trId,
                     updated_at: new Date().toISOString()
                 });
                 
-                showToast(`✅ Transport Request ${trId} submitted to Finance!`, 'success');
-                
+                showToast(`✅ TR ${trId} submitted to Finance!`, 'success');
                 currentMRF.status = 'TR Submitted';
                 renderMRFDetails(currentMRF);
                 
             } catch (error) {
                 console.error('Error submitting TR:', error);
-                showToast('❌ Failed to submit transport request', 'error');
+                showToast('❌ Failed to submit TR', 'error');
             } finally {
                 showLoading(false);
             }
@@ -898,10 +795,6 @@
         dateNeeded.setHours(0, 0, 0, 0);
         const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
         
-        // Check if rejected
-        const isRejected = mrf.status === 'PR Rejected';
-        const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
-        
         let urgencyColor, urgencyBg;
         if (daysRemaining <= 3) {
             urgencyColor = '#dc2626';
@@ -915,18 +808,9 @@
         }
 
         return `
-            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" 
-                 style="${rejectionStyle} border-left: 4px solid ${urgencyColor};">
-                <div style="font-weight: 600; margin-bottom: 0.25rem;">
-                    ${mrf.mrf_id}
-                    ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">🚫 PR REJECTED</span>' : ''}
-                </div>
+            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" style="border-left: 4px solid ${urgencyColor};">
+                <div style="font-weight: 600; margin-bottom: 0.25rem;">${mrf.mrf_id}</div>
                 <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
-                ${isRejected ? `
-                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                        <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
-                    </div>
-                ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
                     <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
                     <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
@@ -959,29 +843,122 @@
 };
 
         // Render MRF details
-function renderMRFDetails(mrf) {
+        function renderMRFDetails(mrf) {
             const items = JSON.parse(mrf.items_json);
             
-            // Show/hide buttons based on request type and status
+            // Set buttons based on request type
             const isService = mrf.request_type === 'service';
             const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress';
             
-            let actionButtons = '';
+            let actionButtons = '<button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>';
             if (canEdit) {
                 if (isService) {
-                    actionButtons = `
-                        <button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>
-                        <button class="btn btn-success" onclick="submitTransportRequest()">🚚 Submit to Finance</button>
-                    `;
+                    actionButtons += '<button class="btn btn-success" onclick="submitTransportRequest()">🚚 Submit to Finance</button>';
                 } else {
-                    actionButtons = `
-                        <button class="btn btn-primary" onclick="saveProgress()">💾 Save Progress</button>
-                        <button class="btn btn-success" onclick="generatePR()">📄 Generate PR</button>
-                    `;
+                    actionButtons += '<button class="btn btn-success" id="generatePRBtn" onclick="generatePR()">📄 Generate PR</button>';
                 }
             }
-            
             document.getElementById('mrfActions').innerHTML = actionButtons;
+            
+            // Show/hide Generate PR button based on request type
+            const generatePRBtn = document.getElementById('generatePRBtn');
+            if (mrf.request_type === 'service') {
+                generatePRBtn.style.display = 'none';
+            } else {
+                generatePRBtn.style.display = 'block';
+            }
+            
+            const requestTypeLabel = mrf.request_type === 'service' ? 
+                'Delivery/Hauling/Transportation' : 'Material Request';
+            
+            const details = `
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">MRF ID</div>
+                        <div style="font-weight: 600;">${mrf.mrf_id}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Request Type</div>
+                        <div style="font-weight: 600;">${requestTypeLabel}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
+                        <div style="font-weight: 600;">${mrf.project_name}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Requestor</div>
+                        <div>${mrf.requestor_name}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Date Needed</div>
+                        <div>${new Date(mrf.date_needed).toLocaleDateString()}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
+                        <div>${mrf.status}</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Delivery Address</label>
+                    <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid #dadce0; border-radius: 4px;">${mrf.delivery_address || ''}</textarea>
+                </div>
+
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Unit Cost (â‚±)</th>
+                            <th>Supplier</th>
+                            <th>Subtotal (â‚±)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${items.map((item, index) => `
+                            <tr>
+                                <td>${item.item || item.item_name}</td>
+                                <td>${item.category || 'N/A'}</td>
+                                <td>${item.qty || item.quantity}</td>
+                                <td>${item.unit}</td>
+                                <td>
+                                    <input type="number" 
+                                           class="unit-cost" 
+                                           data-index="${index}" 
+                                           value="${item.unit_cost || 0}"
+                                           step="0.01"
+                                           oninput="calculateSubtotal(${index})">
+                                </td>
+                                <td>
+                                    <select class="supplier-select" data-index="${index}">
+                                        <option value="">Select Supplier</option>
+                                        ${suppliersData.map(s => `
+                                            <option value="${s.supplier_name}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
+                                                ${s.supplier_name}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </td>
+                                <td class="subtotal-cell" id="subtotal-${index}">
+                                    â‚± ${((item.qty || item.quantity) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">TOTAL:</td>
+                            <td id="grandTotal" style="font-weight: 600;">â‚± 0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+
+            document.getElementById('mrfDetails').innerHTML = details;
+            calculateGrandTotal();
+        }
 
         // Calculate subtotal
         window.calculateSubtotal = function(index) {
@@ -1347,14 +1324,5 @@ function renderMRFDetails(mrf) {
         }
         window.showLoading = showLoading;
     </script>
-
-    <!-- Timeline Modal -->
-    <div id="timelineModal" class="modal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeTimelineModal()">&times;</button>
-            <div id="timelineContent"></div>
-        </div>
-    </div>
-
 </body>
 </html>
