@@ -1435,7 +1435,7 @@
                     updated_at: new Date().toISOString()
                 });
 
-                showToast('… Progress saved successfully', 'success');
+                showToast('Progress saved successfully', 'success');
             } catch (error) {
                 console.error('Error saving progress:', error);
                 showToast(' Failed to save progress', 'error');
@@ -1540,7 +1540,7 @@
                     updated_at: new Date().toISOString()
                 });
 
-                showToast(`… PR ${prId} generated successfully!`, 'success');
+                showToast(`PR ${prId} generated successfully!`, 'success');
                 
                 // Refresh MRF data
                 currentMRF.status = 'PR Generated';
@@ -1636,7 +1636,7 @@
                     created_at: new Date().toISOString()
                 });
 
-                showToast(`… Supplier "${supplier_name}" added successfully!`, 'success');
+                showToast(`Supplier "${supplier_name}" added successfully!`, 'success');
                 toggleAddForm();
             } catch (error) {
                 console.error('Error adding supplier:', error);
@@ -1682,7 +1682,7 @@
                     updated_at: new Date().toISOString()
                 });
 
-                showToast('… Supplier updated successfully', 'success');
+                showToast('Supplier updated successfully', 'success');
                 editingSupplier = null;
             } catch (error) {
                 console.error('Error updating supplier:', error);
@@ -1702,7 +1702,7 @@
 
             try {
                 await deleteDoc(doc(db, 'suppliers', supplierId));
-                showToast(`… Supplier "${supplierName}" deleted`, 'success');
+                showToast(`Supplier "${supplierName}" deleted`, 'success');
             } catch (error) {
                 console.error('Error deleting supplier:', error);
                 showToast(' Failed to delete supplier', 'error');
