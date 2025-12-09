@@ -444,7 +444,7 @@
         <div class="header">
             <div class="header-content">
                 <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
-                   <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;">
+                   <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png" alt="CLMC Logo" style="height: 50px;" onerror="this.style.display='none'">
                     <div class="header-title">
                         <h1>Procurement Dashboard</h1>
                         <p>CLMC Procurement</p>
@@ -686,6 +686,19 @@
         // Initialize
         init();
 
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const timelineModal = document.getElementById('timelineModal');
+            const documentsModal = document.getElementById('documentsModal');
+            
+            if (event.target === timelineModal) {
+                closeTimelineModal();
+            }
+            if (event.target === documentsModal) {
+                closeDocumentsModal();
+            }
+        };
+
 
         // PO Tracking Global
         let poData = [];
@@ -897,11 +910,21 @@
                     </div>
                 `;
                 
-                // For now, show in console and toast
-                console.log('PO Details:', po);
-                showToast(`PO ${po.po_id} - ${items.length} items - PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}`, 'success');
+                // Add title wrapper
+                const fullModal = `
+                    <h2 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
+                        Purchase Order Details: ${po.po_id}
+                    </h2>
+                    <div style="max-height: 60vh; overflow-y: auto;">
+                        ${modalContent}
+                    </div>
+                `;
                 
-                // TODO: Show in a proper modal
+                // Show in documents modal
+                document.getElementById('documentsContent').innerHTML = fullModal;
+                document.getElementById('documentsModal').classList.add('active');
+                
+                console.log('PO Details:', po);
                 
             } catch (error) {
                 console.error('Error loading PO details:', error);
@@ -978,6 +1001,10 @@
 
         window.closeTimelineModal = function() {
             document.getElementById('timelineModal').classList.remove('active');
+        };
+
+        window.closeDocumentsModal = function() {
+            document.getElementById('documentsModal').classList.remove('active');
         };
 
 
@@ -1872,21 +1899,29 @@
                 
                 console.log(`Found ${prs.length} PRs and ${pos.length} POs for ${mrfId}`);
                 
-                // Build modal content
-                let modalContent = '<div style="max-height: 60vh; overflow-y: auto;">';
+                // Build modal content with title
+                let modalContent = `
+                    <h2 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
+                        Documents for ${mrfId}
+                    </h2>
+                    <div style="max-height: 60vh; overflow-y: auto;">
+                `;
                 
                 // PRs section
                 if (prs.length > 0) {
-                    modalContent += '<h3 style="margin-bottom: 1rem;">Purchase Requests</h3>';
+                    modalContent += '<h3 style="margin-bottom: 1rem; color: #1a73e8;">Purchase Requests</h3>';
                     modalContent += '<div style="display: grid; gap: 1rem; margin-bottom: 2rem;">';
                     prs.forEach(pr => {
+                        const items = pr.items_json ? JSON.parse(pr.items_json) : [];
                         modalContent += `
-                            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem;">
-                                <div style="font-weight: 600; color: #1a73e8; margin-bottom: 0.5rem;">${pr.pr_id}</div>
-                                <div style="font-size: 0.875rem; color: #666;">
-                                    <div>Supplier: ${pr.supplier_name || 'N/A'}</div>
-                                    <div>Amount: PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
-                                    <div>Status: ${pr.finance_status || 'Unknown'}</div>
+                            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; background: #f9fafb;">
+                                <div style="font-weight: 600; color: #1a73e8; margin-bottom: 0.5rem; font-size: 1.1rem;">${pr.pr_id}</div>
+                                <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">
+                                    <div><strong>Supplier:</strong> ${pr.supplier_name || 'N/A'}</div>
+                                    <div><strong>Amount:</strong> PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                                    <div><strong>Status:</strong> <span style="padding: 0.25rem 0.5rem; background: ${pr.finance_status === 'Approved' ? '#d4edda' : '#fff3cd'}; border-radius: 4px; font-weight: 600;">${pr.finance_status || 'Unknown'}</span></div>
+                                    <div><strong>Date Generated:</strong> ${pr.date_generated || 'N/A'}</div>
+                                    <div><strong>Items:</strong> ${items.length} item(s)</div>
                                 </div>
                             </div>
                         `;
@@ -1896,17 +1931,25 @@
                 
                 // POs section
                 if (pos.length > 0) {
-                    modalContent += '<h3 style="margin-bottom: 1rem;">Purchase Orders</h3>';
+                    modalContent += '<h3 style="margin-bottom: 1rem; color: #34a853;">Purchase Orders</h3>';
                     modalContent += '<div style="display: grid; gap: 1rem;">';
                     pos.forEach(po => {
+                        const items = po.items_json ? JSON.parse(po.items_json) : [];
+                        const deliveryFee = po.delivery_fee ? `<div><strong>Delivery Fee:</strong> <span style="color: #f59e0b; font-weight: 600;">PHP ${parseFloat(po.delivery_fee).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span></div>` : '';
+                        
                         modalContent += `
-                            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem;">
-                                <div style="font-weight: 600; color: #34a853; margin-bottom: 0.5rem;">${po.po_id}</div>
-                                <div style="font-size: 0.875rem; color: #666;">
-                                    <div>Supplier: ${po.supplier_name || 'N/A'}</div>
-                                    <div>Amount: PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
-                                    <div>Status: ${po.delivery_status || 'Unknown'}</div>
+                            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; background: #f9fafb;">
+                                <div style="font-weight: 600; color: #34a853; margin-bottom: 0.5rem; font-size: 1.1rem;">${po.po_id}</div>
+                                <div style="font-size: 0.875rem; color: #666; margin-bottom: 0.5rem;">
+                                    <div><strong>Supplier:</strong> ${po.supplier_name || 'N/A'}</div>
+                                    <div><strong>Amount:</strong> PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                                    ${deliveryFee}
+                                    <div><strong>Status:</strong> <span style="padding: 0.25rem 0.5rem; background: ${po.procurement_status === 'Delivered' ? '#d4edda' : '#fff3cd'}; border-radius: 4px; font-weight: 600;">${po.procurement_status || po.delivery_status || 'Unknown'}</span></div>
+                                    <div><strong>Date Issued:</strong> ${po.date_issued || 'N/A'}</div>
+                                    ${po.delivered_date ? `<div><strong>Delivered Date:</strong> ${po.delivered_date}</div>` : ''}
+                                    <div><strong>Items:</strong> ${items.length} item(s)</div>
                                 </div>
+                                <button class="btn btn-sm btn-primary" onclick="viewPODetails('${po.id}')" style="margin-top: 0.5rem;">View Full Details</button>
                             </div>
                         `;
                     });
@@ -1919,14 +1962,10 @@
                 
                 modalContent += '</div>';
                 
-                // Show in a simple alert for now (can be enhanced with a proper modal)
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = modalContent;
+                // Show in modal
+                document.getElementById('documentsContent').innerHTML = modalContent;
+                document.getElementById('documentsModal').classList.add('active');
                 
-                // For now, show a summary in toast
-                showToast(`Found ${prs.length} PR(s) and ${pos.length} PO(s) for ${mrfId}`, 'success');
-                
-                // TODO: Show in a proper modal
                 console.log('Documents loaded:', { prs, pos });
                 
             } catch (error) {
@@ -1944,6 +1983,14 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeTimelineModal()">&times;</button>
             <div id="timelineContent"></div>
+        </div>
+    </div>
+
+    <!-- Documents Modal -->
+    <div id="documentsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <button class="modal-close" onclick="closeDocumentsModal()">&times;</button>
+            <div id="documentsContent"></div>
         </div>
     </div>
 
