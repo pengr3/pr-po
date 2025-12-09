@@ -537,16 +537,16 @@
 </head>
 <body>
     <div class="header">
-        <h1>💰 Finance Dashboard</h1>
+        <h1> Finance Dashboard</h1>
         <div class="company">CLMC Engineering Services - PR-PO Management</div>
     </div>
 
     <div class="tabs">
         <div class="tabs-nav">
-            <button class="tab-button active" onclick="switchTab('pending-prs')">📋 Pending PRs</button>
+            <button class="tab-button active" onclick="switchTab('pending-prs')"> Pending PRs</button>
             <button class="tab-button" onclick="switchTab('po-tracking')">📦 PO Tracking</button>
-            <button class="tab-button" onclick="switchTab('transport-requests')">🚚 Transport Requests</button>
-            <button class="tab-button" onclick="switchTab('historical')">📊 Historical Purchases</button>
+            <button class="tab-button" onclick="switchTab('transport-requests')"> Transport Requests</button>
+            <button class="tab-button" onclick="switchTab('historical')"> Historical Purchases</button>
             <button class="tab-button" onclick="switchTab('metrics')">📈 Performance Metrics</button>
         </div>
     </div>
@@ -565,14 +565,14 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Amount Pending</div>
-                    <div class="stat-value" id="pendingAmount">₱0</div>
+                    <div class="stat-value" id="pendingAmount">PHP 0</div>
                 </div>
             </div>
 
             <div class="panel">
                 <div class="panel-header">
                     <h2>Purchase Requests for Review</h2>
-                    <button class="btn btn-secondary" onclick="refreshPRs()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="refreshPRs()">Refresh</button>
                 </div>
 
                 <table class="data-table">
@@ -619,7 +619,7 @@
             <div class="panel">
                 <div class="panel-header">
                     <h2>Purchase Order Tracking</h2>
-                    <button class="btn btn-secondary" onclick="refreshPOTracking()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="refreshPOTracking()">Refresh</button>
                 </div>
 
                 <table class="data-table">
@@ -652,7 +652,7 @@
             <div class="panel">
                 <div class="panel-header">
                     <h2>Transport Requests for Approval</h2>
-                    <button class="btn btn-secondary" onclick="refreshTRs()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="refreshTRs()">Refresh</button>
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
@@ -677,11 +677,11 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Spend This Month</div>
-                    <div class="stat-value" id="monthSpend">₱0</div>
+                    <div class="stat-value" id="monthSpend">PHP 0</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-label">Total Spend YTD</div>
-                    <div class="stat-value" id="ytdSpend">₱0</div>
+                    <div class="stat-value" id="ytdSpend">PHP 0</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Purchases</div>
@@ -692,7 +692,7 @@
             <div class="panel">
                 <div class="panel-header">
                     <h2>Purchase History Explorer</h2>
-                    <button class="btn btn-primary export-btn" onclick="exportToCSV()">📥 Export CSV</button>
+                    <button class="btn btn-primary export-btn" onclick="exportToCSV()">Export CSV</button>
                 </div>
 
                 <div class="search-bar">
@@ -1004,10 +1004,10 @@
                     <td>${pr.project_name}</td>
                     <td>${pr.supplier_name}</td>
                     <td>${formatDate(pr.date_generated)}</td>
-                    <td><strong>₱${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                    <td><strong>PHP ${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                     <td><span class="status-badge ${pr.finance_status.toLowerCase().replace(' ', '-')}">${pr.finance_status}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${pr.id}')">👁️ View</button>
+                        <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${pr.id}')">View</button>
                     </td>
                 </tr>
             `).join('');
@@ -1020,7 +1020,7 @@
             document.getElementById('pendingCount').textContent = pending.length;
             
             const totalPending = pending.reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0);
-            document.getElementById('pendingAmount').textContent = `₱${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+            document.getElementById('pendingAmount').textContent = `PHP ${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
             
             // Get approved count for this month
             const thisMonth = new Date().getMonth();
@@ -1067,7 +1067,7 @@
                     <div class="info-label">Delivery Address:</div>
                     <div>${pr.delivery_address}</div>
                     <div class="info-label">Total Cost:</div>
-                    <div><strong>₱${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
+                    <div><strong>PHP ${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
                 </div>
 
                 <h4 style="margin: 1.5rem 0 1rem 0;">Items Breakdown</h4>
@@ -1089,13 +1089,13 @@
                                 <td>${item.category || 'N/A'}</td>
                                 <td>${item.qty}</td>
                                 <td>${item.unit}</td>
-                                <td>₱${parseFloat(item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td>₱${parseFloat(item.subtotal).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td>PHP ${parseFloat(item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td>PHP ${parseFloat(item.subtotal).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                             </tr>
                         `).join('')}
                         <tr style="background: var(--gray-50); font-weight: 600;">
                             <td colspan="5" style="text-align: right;">TOTAL:</td>
-                            <td>₱${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                            <td>PHP ${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1144,9 +1144,9 @@
 
             const modalFooter = document.getElementById('modalFooter');
             modalFooter.innerHTML = `
-                <button class="btn btn-secondary" onclick="viewPRDocument('${pr.id}')">📄 View PR Document</button>
-                <button class="btn btn-danger" onclick="rejectPR('${pr.id}')">❌ Reject</button>
-                <button class="btn btn-success" onclick="approvePR('${pr.id}')">✅ Approve & Generate PO</button>
+                <button class="btn btn-secondary" onclick="viewPRDocument('${pr.id}')"> View PR Document</button>
+                <button class="btn btn-danger" onclick="rejectPR('${pr.id}')">Reject</button>
+                <button class="btn btn-success" onclick="approvePR('${pr.id}')">Approve & Generate PO</button>
             `;
 
             // Set minimum delivery date to tomorrow
@@ -1534,12 +1534,12 @@
                     <td>${po.pr_id}</td>
                     <td>${po.supplier_name}</td>
                     <td>${po.project_name}</td>
-                    <td>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     <td>${formatDate(po.date_issued)}</td>
                     <td><span class="status-badge ${po.procurement_status.toLowerCase().replace(' ', '-')}">${po.procurement_status}</span></td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewPODetails('${po.id}')">👁️ View</button>
-                        <button class="btn btn-sm btn-secondary" onclick="viewPODocument('${po.id}')">📄 PDF</button>
+                        <button class="btn btn-sm btn-primary" onclick="viewPODetails('${po.id}')">View</button>
+                        <button class="btn btn-sm btn-secondary" onclick="viewPODocument('${po.id}')"> PDF</button>
                     </td>
                 </tr>
             `).join('');
@@ -1589,7 +1589,7 @@
                     <div class="info-label">Approved By:</div>
                     <div>${po.approved_by}</div>
                     <div class="info-label">Total Amount:</div>
-                    <div><strong>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
+                    <div><strong>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
                 </div>
 
                 <h4 style="margin: 1.5rem 0 1rem 0;">Items</h4>
@@ -1611,8 +1611,8 @@
                                 <td>${item.category || 'N/A'}</td>
                                 <td>${item.qty}</td>
                                 <td>${item.unit}</td>
-                                <td>₱${parseFloat(item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td>₱${parseFloat(item.subtotal).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td>PHP ${parseFloat(item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td>PHP ${parseFloat(item.subtotal).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1835,8 +1835,8 @@
                     <td>${item.supplier_name}</td>
                     <td>${item.quantity}</td>
                     <td>${item.unit}</td>
-                    <td>₱${item.unit_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    <td><strong>₱${item.total_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                    <td>PHP ${item.unit_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <td><strong>PHP ${item.total_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                     <td>${item.project_name}</td>
                     <td>${item.po_id}</td>
                 </tr>
@@ -1859,8 +1859,8 @@
             const monthSpend = thisMonth.reduce((sum, item) => sum + item.total_cost, 0);
             const ytdSpend = thisYear.reduce((sum, item) => sum + item.total_cost, 0);
 
-            document.getElementById('monthSpend').textContent = `₱${monthSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
-            document.getElementById('ytdSpend').textContent = `₱${ytdSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+            document.getElementById('monthSpend').textContent = `PHP ${monthSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+            document.getElementById('ytdSpend').textContent = `PHP ${ytdSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
             document.getElementById('totalPurchases').textContent = historicalData.length;
         }
 
@@ -1901,9 +1901,9 @@
                     <tr>
                         <td>${idx + 1}</td>
                         <td>${name}</td>
-                        <td>₱${stats.total.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>PHP ${stats.total.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                         <td>${stats.count}</td>
-                        <td>₱${avgCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>PHP ${avgCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `;
             }).join('');
@@ -1975,9 +1975,9 @@
                     <tr>
                         <td>${result.item_name}</td>
                         <td>${result.supplier_name}</td>
-                        <td><strong>₱${result.latest_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td><strong>PHP ${result.latest_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                         <td>${formatDate(result.latest_date)}</td>
-                        <td>₱${avgCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>PHP ${avgCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `;
             }).join('');
