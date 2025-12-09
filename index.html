@@ -900,7 +900,15 @@
 
         // Render MRF list
        function renderMRFList(materialMRFs, transportMRFs) {
+    console.log('🎨 Rendering MRF list...');
+    console.log('  Material MRFs to render:', materialMRFs.length);
+    console.log('  Transport MRFs to render:', transportMRFs.length);
+    
     const mrfList = document.getElementById('mrfList');
+    if (!mrfList) {
+        console.error('❌ mrfList element not found!');
+        return;
+    }
     
     let html = '';
     
@@ -910,12 +918,10 @@
     if (materialMRFs.length === 0) {
         html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending material requests</div>';
     } else {
-        const mrfs = materialMRFs;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    mrfList.innerHTML = mrfs.map(mrf => {
+        html += materialMRFs.map(mrf => {
         const dateNeeded = new Date(mrf.date_needed);
         dateNeeded.setHours(0, 0, 0, 0);
         const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
@@ -941,7 +947,7 @@
                  style="${rejectionStyle} border-left: 4px solid ${urgencyColor};">
                 <div style="font-weight: 600; margin-bottom: 0.25rem;">
                     ${mrf.mrf_id}
-                    ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">🚫 PR REJECTED</span>' : ''}
+                    ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
                 </div>
                 <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
                 ${isRejected ? `
@@ -961,7 +967,7 @@
     }
     
     // Transport Requests Section
-    html += '<div style="font-weight: 600; padding: 0.5rem; background: #fef3c7; border-radius: 4px; margin: 1rem 0 0.5rem 0;"> Pending Transportation Requests</div>';
+    html += '<div style="font-weight: 600; padding: 0.5rem; background: #fef3c7; border-radius: 4px; margin: 1rem 0 0.5rem 0;">Pending Transportation Requests</div>';
     
     if (transportMRFs.length === 0) {
         html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending transport requests</div>';
@@ -985,7 +991,7 @@
                      style="${rejectionStyle} border-left: 4px solid ${urgencyColor};">
                     <div style="font-weight: 600; margin-bottom: 0.25rem;">
                         ${mrf.mrf_id}
-                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">🚫 PR REJECTED</span>' : ''}
+                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
                     </div>
                     <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
                     ${isRejected ? `
@@ -1004,7 +1010,9 @@
         }).join('');
     }
     
+    console.log('✅ Setting innerHTML, total length:', html.length, 'chars');
     mrfList.innerHTML = html;
+    console.log('✅ MRF list rendered successfully');
 }
 
         // Select MRF
