@@ -860,23 +860,33 @@
             const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress', 'PR Rejected']));
             
             onSnapshot(q, (snapshot) => {
-                const mrfs = [];
+                const allMRFs = [];
                 snapshot.forEach((doc) => {
-                    mrfs.push({ id: doc.id, ...doc.data() });
+                    allMRFs.push({ id: doc.id, ...doc.data() });
                 });
-                renderMRFList(mrfs);
-                console.log('MRFs updated:', mrfs.length);
+                
+                // Separate by request type
+                const materialMRFs = allMRFs.filter(m => m.request_type !== 'service');
+                const transportMRFs = allMRFs.filter(m => m.request_type === 'service');
+                
+                renderMRFList(materialMRFs, transportMRFs);
+                console.log('Material MRFs:', materialMRFs.length, 'Transport:', transportMRFs.length);
             });
         }
 
         // Render MRF list
-       function renderMRFList(mrfs) {
+       function renderMRFList(materialMRFs, transportMRFs) {
     const mrfList = document.getElementById('mrfList');
     
-    if (mrfs.length === 0) {
-        mrfList.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">No pending MRFs</div>';
-        return;
-    }
+    let html = '';
+    
+    // Material Requests Section
+    html += '<div style="font-weight: 600; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-bottom: 0.5rem;">Material Requests</div>';
+    
+    if (materialMRFs.length === 0) {
+        html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending material requests</div>';
+    } else {
+        const mrfs = materialMRFs;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -924,6 +934,53 @@
             </div>
         `;
     }).join('');
+    }
+    
+    // Transport Requests Section
+    html += '<div style="font-weight: 600; padding: 0.5rem; background: #fef3c7; border-radius: 4px; margin: 1rem 0 0.5rem 0;">🚚 Pending Transportation Requests</div>';
+    
+    if (transportMRFs.length === 0) {
+        html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending transport requests</div>';
+    } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        html += transportMRFs.map(mrf => {
+            const dateNeeded = new Date(mrf.date_needed);
+            dateNeeded.setHours(0, 0, 0, 0);
+            const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
+            
+            const isRejected = mrf.status === 'PR Rejected';
+            const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
+            
+            let urgencyColor = '#f59e0b';
+            let urgencyBg = '#fef3c7';
+            
+            return `
+                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" 
+                     style="${rejectionStyle} border-left: 4px solid ${urgencyColor};">
+                    <div style="font-weight: 600; margin-bottom: 0.25rem;">
+                        ${mrf.mrf_id}
+                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">🚫 PR REJECTED</span>' : ''}
+                    </div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
+                    ${isRejected ? `
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
+                            <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
+                        <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
+                        <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
+                            ${daysRemaining} days
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    mrfList.innerHTML = html;
 }
 
         // Select MRF
