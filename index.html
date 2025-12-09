@@ -453,7 +453,7 @@
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchTab('mrfs')">MRF Processing</button>
                     <button class="tab-btn" onclick="switchTab('suppliers')">Supplier Management</button>
-                    <button class="tab-btn" onclick="switchTab('po-tracking')">📦 PO Tracking</button>
+                    <button class="tab-btn" onclick="switchTab('po-tracking')">PO Tracking</button>
                 </div>
             </div>
         </div>
@@ -481,7 +481,7 @@
                         <h3 class="card-title">MRF Details</h3>
                         <div style="display: flex; gap: 0.5rem;" id="mrfActions">
                             <button class="btn btn-primary" onclick="saveProgress()">Save Progress</button>
-                            <button class="btn btn-success" id="generatePRBtn" onclick="generatePR()" style="display: none;">ðŸ“„ Generate PR</button>
+                            <button class="btn btn-success" id="generatePRBtn" onclick="generatePR()" style="display: none;"> Generate PR</button>
                         </div>
                     </div>
                     <div id="mrfDetails">
@@ -670,7 +670,7 @@
                         </select>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">📅 Timeline</button>
+                        <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
                     </td>
                 </tr>
             `).join('');
@@ -870,7 +870,7 @@
         }
 
         // Load MRFs with real-time updates
-        async function loadMRFs() {
+        window.loadMRFs = async function() {
             console.log('🔍 Setting up MRF listener...');
             const mrfsRef = collection(db, 'mrfs');
             const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Submitted', 'Finance Rejected'];
@@ -1088,9 +1088,9 @@
                             <th>Category</th>
                             <th>Qty</th>
                             <th>Unit</th>
-                            <th>Unit Cost (â‚±)</th>
+                            <th>Unit Cost (PHP)</th>
                             <th>Supplier</th>
-                            <th>Subtotal (â‚±)</th>
+                            <th>Subtotal (PHP)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1119,7 +1119,7 @@
                                     </select>
                                 </td>
                                 <td class="subtotal-cell" id="subtotal-${index}">
-                                    â‚± ${((item.qty || item.quantity) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                    PHP  ${((item.qty || item.quantity) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
                                 </td>
                             </tr>
                         `).join('')}
@@ -1127,7 +1127,7 @@
                     <tfoot>
                         <tr>
                             <td colspan="6" style="text-align: right; font-weight: 600;">TOTAL:</td>
-                            <td id="grandTotal" style="font-weight: 600;">â‚± 0.00</td>
+                            <td id="grandTotal" style="font-weight: 600;">PHP  0.00</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -1144,7 +1144,7 @@
             const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
             const subtotal = qty * unitCost;
             
-            document.getElementById(`subtotal-${index}`).textContent = `â‚± ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+            document.getElementById(`subtotal-${index}`).textContent = `PHP  ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
             calculateGrandTotal();
         };
 
@@ -1160,7 +1160,7 @@
                 total += qty * unitCost;
             });
             
-            document.getElementById('grandTotal').textContent = `â‚± ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+            document.getElementById('grandTotal').textContent = `PHP  ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
         }
 
         // Save progress
