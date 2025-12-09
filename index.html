@@ -426,6 +426,17 @@
             border: none;
             background: none;
         }
+
+        .items-table {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .items-table input,
+        .items-table select {
+            width: 100%;
+            padding: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -455,7 +466,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Pending MRFs</h3>
-                        <button class="btn btn-secondary" onclick="loadMRFs()" style="padding: 0.5rem 1rem; background: #dadce0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">🔄 Refresh</button>
+                        <button class="btn btn-secondary" onclick="loadMRFs()" style="padding: 0.5rem 1rem; background: #dadce0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"> Refresh</button>
                     </div>
                     <div class="mrf-list" id="mrfList">
                         <div style="text-align: center; padding: 2rem; color: #999;">
@@ -469,7 +480,7 @@
                     <div class="card-header">
                         <h3 class="card-title">MRF Details</h3>
                         <div style="display: flex; gap: 0.5rem;" id="mrfActions">
-                            <button class="btn btn-primary" onclick="saveProgress()">ðŸ’¾ Save Progress</button>
+                            <button class="btn btn-primary" onclick="saveProgress()">Save Progress</button>
                             <button class="btn btn-success" id="generatePRBtn" onclick="generatePR()" style="display: none;">ðŸ“„ Generate PR</button>
                         </div>
                     </div>
@@ -487,7 +498,7 @@
             <div class="card">
                 <div class="suppliers-header">
                     <h2>Supplier Management</h2>
-                    <button class="btn btn-primary" onclick="toggleAddForm()">âž• Add Supplier</button>
+                    <button class="btn btn-primary" onclick="toggleAddForm()">Add Supplier</button>
                 </div>
 
                 <!-- Add Supplier Form -->
@@ -543,7 +554,7 @@
             <div class="card">
                 <div class="card-header">
                     <h2>Purchase Order Tracking & Delivery</h2>
-                    <button class="btn btn-primary" onclick="refreshPOTracking()">🔄 Refresh</button>
+                    <button class="btn btn-primary" onclick="refreshPOTracking()"> Refresh</button>
                 </div>
 
                 <table>
@@ -647,7 +658,7 @@
                     <td><strong>${po.po_id}</strong></td>
                     <td>${po.supplier_name}</td>
                     <td>${po.project_name}</td>
-                    <td>₱${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     <td>${new Date(po.date_issued).toLocaleDateString()}</td>
                     <td>
                         <select class="status-select" data-po-id="${po.id}" 
@@ -723,21 +734,21 @@
                 <h3>${po.po_id} - Delivery Timeline</h3>
                 <div style="margin-top: 1.5rem;">
                     <div class="timeline-item ${po.date_issued ? 'completed' : ''}">
-                        <strong>📋 PO Issued</strong><br>
+                        <strong> PO Issued</strong><br>
                         <span style="font-size: 0.875rem; color: #5f6368;">
                             ${po.date_issued ? new Date(po.date_issued).toLocaleString() : 'Pending'}
                         </span>
                     </div>
                     
                     <div class="timeline-item ${po.procurement_started_at ? 'completed' : ((po.procurement_status || 'Pending Procurement') === 'Procuring' ? 'current' : '')}">
-                        <strong>🔄 Procurement Started</strong><br>
+                        <strong> Procurement Started</strong><br>
                         <span style="font-size: 0.875rem; color: #5f6368;">
                             ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleString() : 'Not started'}
                         </span>
                     </div>
                     
                     <div class="timeline-item ${po.procured_date ? 'completed' : (po.procurement_status === 'Procured' ? 'current' : '')}">
-                        <strong>✅ Items Procured</strong><br>
+                        <strong> Items Procured</strong><br>
                         <span style="font-size: 0.875rem; color: #5f6368;">
                             ${po.procured_date ? new Date(po.procured_date).toLocaleDateString() : 'Not yet procured'}
                         </span>
@@ -749,7 +760,7 @@
                     </div>
                     
                     <div class="timeline-item ${po.delivered_date ? 'completed' : (po.procurement_status === 'Delivered' ? 'current' : '')}">
-                        <strong>🚚 Delivered</strong><br>
+                        <strong> Delivered</strong><br>
                         <span style="font-size: 0.875rem; color: #5f6368;">
                             ${po.delivered_date ? new Date(po.delivered_date).toLocaleDateString() : 'Not yet delivered'}
                         </span>
@@ -860,21 +871,30 @@
 
         // Load MRFs with real-time updates
         async function loadMRFs() {
+            console.log('🔍 Setting up MRF listener...');
             const mrfsRef = collection(db, 'mrfs');
-            const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress', 'PR Rejected', 'TR Submitted']));
+            const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Submitted', 'Finance Rejected'];
+            console.log(' Querying statuses:', statuses);
+            const q = query(mrfsRef, where('status', 'in', statuses));
             
             onSnapshot(q, (snapshot) => {
+                console.log('🔔 MRF snapshot received, documents:', snapshot.size);
                 const allMRFs = [];
                 snapshot.forEach((doc) => {
-                    allMRFs.push({ id: doc.id, ...doc.data() });
+                    const data = doc.data();
+                    console.log('  ', doc.id, '- Status:', data.status, '- Type:', data.request_type, '- MRF ID:', data.mrf_id);
+                    allMRFs.push({ id: doc.id, ...data });
                 });
                 
                 // Separate by request type
                 const materialMRFs = allMRFs.filter(m => m.request_type !== 'service');
                 const transportMRFs = allMRFs.filter(m => m.request_type === 'service');
                 
+                console.log(' Rendering - Material:', materialMRFs.length, 'Transport:', transportMRFs.length);
                 renderMRFList(materialMRFs, transportMRFs);
-                console.log('Material MRFs:', materialMRFs.length, 'Transport:', transportMRFs.length);
+            }, (error) => {
+                console.error(' MRF listener error:', error);
+                showToast('Error loading MRFs: ' + error.message, 'error');
             });
         }
 
@@ -941,7 +961,7 @@
     }
     
     // Transport Requests Section
-    html += '<div style="font-weight: 600; padding: 0.5rem; background: #fef3c7; border-radius: 4px; margin: 1rem 0 0.5rem 0;">🚚 Pending Transportation Requests</div>';
+    html += '<div style="font-weight: 600; padding: 0.5rem; background: #fef3c7; border-radius: 4px; margin: 1rem 0 0.5rem 0;"> Pending Transportation Requests</div>';
     
     if (transportMRFs.length === 0) {
         html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending transport requests</div>';
@@ -1015,12 +1035,12 @@
             const isService = mrf.request_type === 'service';
             const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress';
             
-            let buttons = '<button class="btn btn-primary" onclick="saveProgress()">💾 Save</button>';
+            let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
             if (canEdit) {
                 if (isService) {
-                    buttons += ' <button class="btn btn-success" onclick="submitTransportRequest()">🚚 Submit to Finance</button>';
+                    buttons += ' <button class="btn btn-success" onclick="submitTransportRequest()"> Submit to Finance</button>';
                 } else {
-                    buttons += ' <button class="btn btn-success" onclick="generatePR()">📄 Generate PR</button>';
+                    buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
                 }
             }
             document.getElementById('mrfActions').innerHTML = buttons;
@@ -1326,8 +1346,8 @@
                             <td>${supplier.email}</td>
                             <td>${supplier.phone}</td>
                             <td class="actions">
-                                <button class="icon-btn" onclick="editSupplier('${supplier.id}')">âœï¸ Edit</button>
-                                <button class="icon-btn" onclick="deleteSupplier('${supplier.id}', '${supplier.supplier_name}')">ðŸ—‘ï¸ Delete</button>
+                                <button class="icon-btn" onclick="editSupplier('${supplier.id}')">Edit</button>
+                                <button class="icon-btn" onclick="deleteSupplier('${supplier.id}', '${supplier.supplier_name}')">Delete</button>
                             </td>
                         </tr>
                     `;
