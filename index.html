@@ -631,11 +631,11 @@
                     <thead>
                         <tr>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">MRF ID</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Type</th>
+                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">PR ID(s)</th>
+                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">PO ID(s)</th>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Project Name</th>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Date Submitted</th>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Current Status</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Documents</th>
                         </tr>
                     </thead>
                     <tbody id="historicalMRFsBody">
@@ -1479,43 +1479,52 @@
                 const supplier = supplierSelect?.value || '';
                 
                 if (unitCost === 0) {
-                    showToast(`âŒ Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(`Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
                     return;
                 }
                 
                 if (!supplier) {
-                    showToast(`âŒ Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(`Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
                     return;
                 }
             }
 
-            if (!confirm('Generate Purchase Request? This will create a PR document with the current costs and suppliers.')) {
+            // Collect final items data with suppliers
+            const prItems = items.map((item, index) => {
+                const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+                const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
+                
+                return {
+                    item: item.item || item.item_name,
+                    category: item.category || 'N/A',
+                    qty: item.qty || item.quantity,
+                    unit: item.unit,
+                    unit_cost: unitCost,
+                    supplier: supplier,
+                    subtotal: (item.qty || item.quantity) * unitCost
+                };
+            });
+
+            // Group items by supplier
+            const itemsBySupplier = {};
+            prItems.forEach(item => {
+                if (!itemsBySupplier[item.supplier]) {
+                    itemsBySupplier[item.supplier] = [];
+                }
+                itemsBySupplier[item.supplier].push(item);
+            });
+
+            const suppliers = Object.keys(itemsBySupplier);
+            const prCount = suppliers.length;
+
+            if (!confirm(`Generate Purchase Request(s)? This will create ${prCount} PR document(s) (one per supplier: ${suppliers.join(', ')}).`)) {
                 return;
             }
 
             showLoading(true);
 
             try {
-                // Collect final items data
-                const prItems = items.map((item, index) => {
-                    const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
-                    const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
-                    
-                    return {
-                        item: item.item || item.item_name,
-                        category: item.category || 'N/A',
-                        qty: item.qty || item.quantity,
-                        unit: item.unit,
-                        unit_cost: unitCost,
-                        supplier: supplier,
-                        subtotal: (item.qty || item.quantity) * unitCost
-                    };
-                });
-
-                // Calculate total
-                const total = prItems.reduce((sum, item) => sum + item.subtotal, 0);
-
-                // Generate PR ID
+                // Get next PR numbers
                 const year = new Date().getFullYear();
                 const prsRef = collection(db, 'prs');
                 const q = query(prsRef, orderBy('date_generated', 'desc'), limit(1));
@@ -1531,36 +1540,46 @@
                         }
                     }
                 }
-                
-                const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
 
-                // Create PR document
-                const prDoc = {
-                    pr_id: prId,
-                    mrf_id: currentMRF.mrf_id,
-                    mrf_doc_id: currentMRF.id,
-                    project_name: currentMRF.project_name,
-                    requestor_name: currentMRF.requestor_name,
-                    delivery_address: document.getElementById('deliveryAddress').value,
-                    items_json: JSON.stringify(prItems),
-                    total_amount: total,
-                    status: 'Pending',
-                    date_generated: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
-                };
+                const generatedPRIds = [];
 
-                await addDoc(collection(db, 'prs'), prDoc);
+                // Create one PR per supplier
+                for (const supplier of suppliers) {
+                    const supplierItems = itemsBySupplier[supplier];
+                    const supplierTotal = supplierItems.reduce((sum, item) => sum + item.subtotal, 0);
+                    const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
+                    
+                    // Create PR document
+                    const prDoc = {
+                        pr_id: prId,
+                        mrf_id: currentMRF.mrf_id,
+                        mrf_doc_id: currentMRF.id,
+                        supplier_name: supplier,
+                        project_name: currentMRF.project_name,
+                        requestor_name: currentMRF.requestor_name,
+                        delivery_address: document.getElementById('deliveryAddress').value,
+                        items_json: JSON.stringify(supplierItems),
+                        total_amount: supplierTotal,
+                        finance_status: 'Pending',
+                        date_generated: new Date().toISOString().split('T')[0],
+                        created_at: new Date().toISOString()
+                    };
 
-                // Update MRF status
+                    await addDoc(collection(db, 'prs'), prDoc);
+                    generatedPRIds.push(prId);
+                    nextNum++;
+                }
+
+                // Update MRF status with all PR IDs
                 const mrfRef = doc(db, 'mrfs', currentMRF.id);
                 await updateDoc(mrfRef, {
                     status: 'PR Generated',
-                    pr_id: prId,
+                    pr_ids: generatedPRIds, // Store array of PR IDs
                     items_json: JSON.stringify(prItems),
                     updated_at: new Date().toISOString()
                 });
 
-                showToast(`PR ${prId} generated successfully!`, 'success');
+                showToast(`PR(s) generated successfully! Created ${generatedPRIds.length} PR document(s): ${generatedPRIds.join(', ')}`, 'success');
                 
                 // Refresh MRF data
                 currentMRF.status = 'PR Generated';
@@ -1834,7 +1853,7 @@
             renderHistoricalMRFs();
         }
 
-        window.renderHistoricalMRFs = function() {
+        window.renderHistoricalMRFs = async function() {
             const tbody = document.getElementById('historicalMRFsBody');
             
             if (filteredHistoricalMRFs.length === 0) {
@@ -1842,9 +1861,12 @@
                 return;
             }
             
-            tbody.innerHTML = filteredHistoricalMRFs.map(mrf => {
+            // Show loading state
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #999;">Loading document references...</td></tr>';
+            
+            // Fetch PR and PO data for all MRFs
+            const rows = await Promise.all(filteredHistoricalMRFs.map(async (mrf) => {
                 const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
-                const typeColor = mrf.request_type === 'service' ? '#f59e0b' : '#1a73e8';
                 
                 // Status badge color
                 let statusColor = '#999';
@@ -1854,31 +1876,51 @@
                 else if (mrf.status === 'Finance Approved') statusColor = '#1a73e8';
                 else if (mrf.status === 'PR Generated' || mrf.status === 'TR Submitted') statusColor = '#fbbc04';
                 
-                // Build documents column
-                let docsHtml = '';
-                
-                // For material MRFs - show View All Docs button if PR/PO generated
-                if (type === 'Material' && (mrf.status === 'PR Generated' || mrf.status === 'Finance Approved' || mrf.status === 'PO Issued' || mrf.status === 'Delivered' || mrf.status === 'Completed')) {
-                    docsHtml += `<button class="btn btn-sm btn-primary" onclick="viewAllDocuments('${mrf.mrf_id}')" style="margin-right: 0.5rem;">View All Docs</button>`;
+                // Fetch PRs for this MRF
+                let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+                if (type === 'Material') {
+                    try {
+                        const prsRef = collection(db, 'prs');
+                        const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
+                        const prSnapshot = await getDocs(prQuery);
+                        
+                        if (!prSnapshot.empty) {
+                            const prIds = [];
+                            prSnapshot.forEach((doc) => {
+                                const prData = doc.data();
+                                prIds.push(`<a href="javascript:void(0)" onclick="viewPRDetails('${doc.id}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${prData.pr_id}</a>`);
+                            });
+                            prHtml = prIds.join('<br>');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching PRs for', mrf.mrf_id, error);
+                    }
                 }
                 
-                // For transport - no documents
-                if (type === 'Transport') {
-                    docsHtml = '<span style="color: #999; font-size: 0.875rem;">No documents</span>';
-                }
-                
-                if (!docsHtml) {
-                    docsHtml = '<span style="color: #999; font-size: 0.875rem;">In progress</span>';
+                // Fetch POs for this MRF
+                let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+                try {
+                    const posRef = collection(db, 'pos');
+                    const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                    const poSnapshot = await getDocs(poQuery);
+                    
+                    if (!poSnapshot.empty) {
+                        const poIds = [];
+                        poSnapshot.forEach((doc) => {
+                            const poData = doc.data();
+                            poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
+                        });
+                        poHtml = poIds.join('<br>');
+                    }
+                } catch (error) {
+                    console.error('Error fetching POs for', mrf.mrf_id, error);
                 }
                 
                 return `
                     <tr>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><strong>${mrf.mrf_id}</strong></td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">
-                            <span style="background: ${typeColor}20; color: ${typeColor}; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">
-                                ${type}
-                            </span>
-                        </td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${mrf.project_name}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">
@@ -1886,13 +1928,259 @@
                                 ${mrf.status}
                             </span>
                         </td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">
-                            ${docsHtml}
-                        </td>
                     </tr>
                 `;
-            }).join('');
+            }));
+            
+            tbody.innerHTML = rows.join('');
         }
+
+        window.viewPRDetails = async function(prDocId) {
+            console.log('Loading PR details for:', prDocId);
+            showLoading(true);
+            
+            try {
+                const prRef = doc(db, 'prs', prDocId);
+                const prDoc = await getDoc(prRef);
+                
+                if (!prDoc.exists()) {
+                    showToast('PR not found', 'error');
+                    return;
+                }
+                
+                const pr = { id: prDoc.id, ...prDoc.data() };
+                const items = JSON.parse(pr.items_json || '[]');
+                
+                // Build modal content
+                let modalContent = `
+                    <h2 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
+                        Purchase Request Details: ${pr.pr_id}
+                    </h2>
+                    <div style="max-height: 60vh; overflow-y: auto;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">PR ID</div>
+                                <div style="font-weight: 600;">${pr.pr_id}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
+                                <div style="font-weight: 600;">${pr.mrf_id}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
+                                <div style="font-weight: 600;">${pr.supplier_name}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
+                                <div>${pr.project_name}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div>
+                                <div>${pr.date_generated}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
+                                <div><span style="background: ${pr.finance_status === 'Approved' ? '#d4edda' : '#fff3cd'}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600;">${pr.finance_status || 'Pending'}</span></div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
+                                <div style="font-weight: 600;">PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Requestor</div>
+                                <div>${pr.requestor_name}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Delivery Address</div>
+                            <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${pr.delivery_address || 'N/A'}</div>
+                        </div>
+
+                        <div style="margin-top: 1.5rem;">
+                            <h4 style="margin-bottom: 0.75rem;">Items</h4>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                                <thead>
+                                    <tr style="background: #f3f4f6;">
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                items.forEach(item => {
+                    modalContent += `
+                        <tr>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        </tr>
+                    `;
+                });
+                
+                modalContent += `
+                                </tbody>
+                                <tfoot>
+                                    <tr style="font-weight: 600;">
+                                        <td colspan="4" style="padding: 0.75rem; text-align: right; border-top: 2px solid #e5e7eb;">TOTAL:</td>
+                                        <td style="padding: 0.75rem; border-top: 2px solid #e5e7eb;">PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+                            <button class="btn btn-primary" onclick="alert('PR document download coming soon!')" style="padding: 0.75rem 1.5rem;">Download PR Document</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Show in documents modal
+                document.getElementById('documentsContent').innerHTML = modalContent;
+                document.getElementById('documentsModal').classList.add('active');
+                
+                console.log('PR Details:', pr);
+                
+            } catch (error) {
+                console.error('Error loading PR details:', error);
+                showToast('Failed to load PR details', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.viewPODetails = async function(poDocId) {
+            console.log('Loading PO details for:', poDocId);
+            showLoading(true);
+            
+            try {
+                const poRef = doc(db, 'pos', poDocId);
+                const poDoc = await getDoc(poRef);
+                
+                if (!poDoc.exists()) {
+                    showToast('PO not found', 'error');
+                    return;
+                }
+                
+                const po = { id: poDoc.id, ...poDoc.data() };
+                const items = JSON.parse(po.items_json || '[]');
+                
+                // Build modal content
+                let modalContent = `
+                    <h2 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
+                        Purchase Order Details: ${po.po_id}
+                    </h2>
+                    <div style="max-height: 60vh; overflow-y: auto;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">PO ID</div>
+                                <div style="font-weight: 600;">${po.po_id}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">PR Reference</div>
+                                <div style="font-weight: 600;">${po.pr_id || 'N/A'}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
+                                <div style="font-weight: 600;">${po.mrf_id}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
+                                <div style="font-weight: 600;">${po.supplier_name}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
+                                <div>${po.project_name}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
+                                <div>${po.date_issued}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Delivery Status</div>
+                                <div><span style="background: ${po.delivery_status === 'Delivered' ? '#d4edda' : '#fff3cd'}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600;">${po.delivery_status || 'Pending'}</span></div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
+                                <div style="font-weight: 600;">PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Delivery Address</div>
+                            <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${po.delivery_address || 'N/A'}</div>
+                        </div>
+                        
+                        ${po.payment_terms ? `
+                            <div style="margin-bottom: 1rem;">
+                                <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Payment Terms</div>
+                                <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${po.payment_terms}</div>
+                            </div>
+                        ` : ''}
+
+                        <div style="margin-top: 1.5rem;">
+                            <h4 style="margin-bottom: 0.75rem;">Items</h4>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                                <thead>
+                                    <tr style="background: #f3f4f6;">
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                                        <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                items.forEach(item => {
+                    modalContent += `
+                        <tr>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        </tr>
+                    `;
+                });
+                
+                modalContent += `
+                                </tbody>
+                                <tfoot>
+                                    <tr style="font-weight: 600;">
+                                        <td colspan="4" style="padding: 0.75rem; text-align: right; border-top: 2px solid #e5e7eb;">TOTAL:</td>
+                                        <td style="padding: 0.75rem; border-top: 2px solid #e5e7eb;">PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+                            <button class="btn btn-primary" onclick="alert('PO document download coming soon!')" style="padding: 0.75rem 1.5rem;">Download PO Document</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Show in documents modal
+                document.getElementById('documentsContent').innerHTML = modalContent;
+                document.getElementById('documentsModal').classList.add('active');
+                
+                console.log('PO Details:', po);
+                
+            } catch (error) {
+                console.error('Error loading PO details:', error);
+                showToast('Failed to load PO details', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
 
         window.viewAllDocuments = async function(mrfId) {
             console.log('Loading documents for MRF:', mrfId);
