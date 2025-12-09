@@ -1244,6 +1244,25 @@
     console.log('✅ Setting innerHTML, total length:', html.length, 'chars');
     mrfList.innerHTML = html;
     console.log('✅ MRF list rendered successfully');
+    
+    // Clear MRF details if no pending MRFs
+    if (materialMRFs.length === 0 && transportMRFs.length === 0) {
+        currentMRF = null;
+        const mrfDetails = document.getElementById('mrfDetails');
+        if (mrfDetails) {
+            mrfDetails.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #999;">
+                    <div style="font-size: 0.875rem; margin-top: 0.5rem;">No pending MRFs</div>
+                    <div style="font-size: 0.75rem; margin-top: 0.5rem;">Select an MRF from the list to view details</div>
+                </div>
+            `;
+        }
+        // Hide Generate PR button
+        const generatePRBtn = document.getElementById('generatePRBtn');
+        if (generatePRBtn) {
+            generatePRBtn.style.display = 'none';
+        }
+    }
 }
 
         // Select MRF
@@ -1343,8 +1362,9 @@
                                     <input type="number" 
                                            class="unit-cost" 
                                            data-index="${index}" 
-                                           value="${item.unit_cost || 0}"
+                                           value="${item.unit_cost || ''}"
                                            step="0.01"
+                                           placeholder="0.00"
                                            oninput="calculateSubtotal(${index})">
                                 </td>
                                 <td>
@@ -1438,7 +1458,7 @@
                 showToast('Progress saved successfully', 'success');
             } catch (error) {
                 console.error('Error saving progress:', error);
-                showToast(' Failed to save progress', 'error');
+                showToast('âŒ Failed to save progress', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1459,12 +1479,12 @@
                 const supplier = supplierSelect?.value || '';
                 
                 if (unitCost === 0) {
-                    showToast(` Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(`âŒ Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
                     return;
                 }
                 
                 if (!supplier) {
-                    showToast(` Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(`âŒ Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
                     return;
                 }
             }
@@ -1548,7 +1568,7 @@
 
             } catch (error) {
                 console.error('Error generating PR:', error);
-                showToast(' Failed to generate PR', 'error');
+                showToast('âŒ Failed to generate PR', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1621,7 +1641,7 @@
             const phone = document.getElementById('newPhone').value.trim();
 
             if (!supplier_name || !contact_person || !email || !phone) {
-                showToast(' Please fill in all fields', 'error');
+                showToast('âŒ Please fill in all fields', 'error');
                 return;
             }
 
@@ -1640,7 +1660,7 @@
                 toggleAddForm();
             } catch (error) {
                 console.error('Error adding supplier:', error);
-                showToast(' Failed to add supplier', 'error');
+                showToast('âŒ Failed to add supplier', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1666,7 +1686,7 @@
             const phone = document.getElementById('edit-phone').value.trim();
 
             if (!supplier_name || !contact_person || !email || !phone) {
-                showToast(' Please fill in all fields', 'error');
+                showToast('âŒ Please fill in all fields', 'error');
                 return;
             }
 
@@ -1684,9 +1704,11 @@
 
                 showToast('Supplier updated successfully', 'success');
                 editingSupplier = null;
+                // Explicitly render to immediately update UI (onSnapshot will also trigger)
+                renderSuppliersTable();
             } catch (error) {
                 console.error('Error updating supplier:', error);
-                showToast(' Failed to update supplier', 'error');
+                showToast('âŒ Failed to update supplier', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1705,7 +1727,7 @@
                 showToast(`Supplier "${supplierName}" deleted`, 'success');
             } catch (error) {
                 console.error('Error deleting supplier:', error);
-                showToast(' Failed to delete supplier', 'error');
+                showToast('âŒ Failed to delete supplier', 'error');
             } finally {
                 showLoading(false);
             }
