@@ -455,6 +455,7 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Pending MRFs</h3>
+                        <button class="btn btn-secondary" onclick="loadMRFs()" style="padding: 0.5rem 1rem; background: #dadce0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">🔄 Refresh</button>
                     </div>
                     <div class="mrf-list" id="mrfList">
                         <div style="text-align: center; padding: 2rem; color: #999;">
@@ -783,24 +784,27 @@
             
             showLoading(true);
             try {
-                const { collection, getDocs, addDoc, query, orderBy, limit, doc, updateDoc } = window.firestore;
+                const { collection, getDocs, addDoc, doc, updateDoc } = window.firestore;
                 const items = JSON.parse(currentMRF.items_json);
                 
+                // Generate TR ID without orderBy to avoid index requirement
                 const year = new Date().getFullYear();
                 const trsRef = collection(window.db, 'transport_requests');
-                const q = query(trsRef, orderBy('date_submitted', 'desc'), limit(1));
-                const snapshot = await getDocs(q);
+                const snapshot = await getDocs(trsRef);
                 
-                let nextNum = 1;
-                if (!snapshot.empty) {
-                    const lastTR = snapshot.docs[0].data();
-                    if (lastTR.tr_id) {
-                        const match = lastTR.tr_id.match(/TR-\d{4}-(\d+)/);
-                        if (match) nextNum = parseInt(match[1]) + 1;
+                let maxNum = 0;
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.tr_id) {
+                        const match = data.tr_id.match(/TR-\d{4}-(\d+)/);
+                        if (match) {
+                            const num = parseInt(match[1]);
+                            if (num > maxNum) maxNum = num;
+                        }
                     }
-                }
+                });
                 
-                const trId = `TR-${year}-${String(nextNum).padStart(3, '0')}`;
+                const trId = `TR-${year}-${String(maxNum + 1).padStart(3, '0')}`;
                 
                 await addDoc(collection(window.db, 'transport_requests'), {
                     tr_id: trId,
@@ -821,13 +825,13 @@
                     updated_at: new Date().toISOString()
                 });
                 
-                showToast('✅ TR ' + trId + ' submitted!', 'success');
+                showToast('TR ' + trId + ' submitted successfully!', 'success');
                 currentMRF.status = 'TR Submitted';
                 renderMRFDetails(currentMRF);
                 
             } catch (error) {
-                console.error('Error:', error);
-                showToast('❌ Failed to submit', 'error');
+                console.error('Error submitting TR:', error);
+                showToast('Failed to submit: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -857,7 +861,7 @@
         // Load MRFs with real-time updates
         async function loadMRFs() {
             const mrfsRef = collection(db, 'mrfs');
-            const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress', 'PR Rejected']));
+            const q = query(mrfsRef, where('status', 'in', ['Pending', 'In Progress', 'PR Rejected', 'TR Submitted']));
             
             onSnapshot(q, (snapshot) => {
                 const allMRFs = [];
