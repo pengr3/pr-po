@@ -1435,10 +1435,10 @@
                     updated_at: new Date().toISOString()
                 });
 
-                showToast('âœ… Progress saved successfully', 'success');
+                showToast('… Progress saved successfully', 'success');
             } catch (error) {
                 console.error('Error saving progress:', error);
-                showToast('âŒ Failed to save progress', 'error');
+                showToast(' Failed to save progress', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1459,12 +1459,12 @@
                 const supplier = supplierSelect?.value || '';
                 
                 if (unitCost === 0) {
-                    showToast(`âŒ Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(` Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
                     return;
                 }
                 
                 if (!supplier) {
-                    showToast(`âŒ Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(` Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
                     return;
                 }
             }
@@ -1540,7 +1540,7 @@
                     updated_at: new Date().toISOString()
                 });
 
-                showToast(`âœ… PR ${prId} generated successfully!`, 'success');
+                showToast(`… PR ${prId} generated successfully!`, 'success');
                 
                 // Refresh MRF data
                 currentMRF.status = 'PR Generated';
@@ -1548,7 +1548,7 @@
 
             } catch (error) {
                 console.error('Error generating PR:', error);
-                showToast('âŒ Failed to generate PR', 'error');
+                showToast(' Failed to generate PR', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1621,7 +1621,7 @@
             const phone = document.getElementById('newPhone').value.trim();
 
             if (!supplier_name || !contact_person || !email || !phone) {
-                showToast('âŒ Please fill in all fields', 'error');
+                showToast(' Please fill in all fields', 'error');
                 return;
             }
 
@@ -1636,11 +1636,11 @@
                     created_at: new Date().toISOString()
                 });
 
-                showToast(`âœ… Supplier "${supplier_name}" added successfully!`, 'success');
+                showToast(`… Supplier "${supplier_name}" added successfully!`, 'success');
                 toggleAddForm();
             } catch (error) {
                 console.error('Error adding supplier:', error);
-                showToast('âŒ Failed to add supplier', 'error');
+                showToast(' Failed to add supplier', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1666,7 +1666,7 @@
             const phone = document.getElementById('edit-phone').value.trim();
 
             if (!supplier_name || !contact_person || !email || !phone) {
-                showToast('âŒ Please fill in all fields', 'error');
+                showToast(' Please fill in all fields', 'error');
                 return;
             }
 
@@ -1682,11 +1682,11 @@
                     updated_at: new Date().toISOString()
                 });
 
-                showToast('âœ… Supplier updated successfully', 'success');
+                showToast('… Supplier updated successfully', 'success');
                 editingSupplier = null;
             } catch (error) {
                 console.error('Error updating supplier:', error);
-                showToast('âŒ Failed to update supplier', 'error');
+                showToast(' Failed to update supplier', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1702,10 +1702,10 @@
 
             try {
                 await deleteDoc(doc(db, 'suppliers', supplierId));
-                showToast(`âœ… Supplier "${supplierName}" deleted`, 'success');
+                showToast(`… Supplier "${supplierName}" deleted`, 'success');
             } catch (error) {
                 console.error('Error deleting supplier:', error);
-                showToast('âŒ Failed to delete supplier', 'error');
+                showToast(' Failed to delete supplier', 'error');
             } finally {
                 showLoading(false);
             }
