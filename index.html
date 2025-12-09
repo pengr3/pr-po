@@ -660,7 +660,7 @@
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase config
         const firebaseConfig = {
@@ -722,7 +722,7 @@
 
             tbody.innerHTML = pos.map(po => `
                 <tr>
-                    <td><strong>${po.po_id}</strong></td>
+                    <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong></td>
                     <td>${po.supplier_name}</td>
                     <td>${po.project_name}</td>
                     <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
@@ -747,7 +747,26 @@
         window.updatePOStatus = async function(poId, newStatus, currentStatus) {
             if (newStatus === currentStatus) return;
             
-            if (!confirm(`Update status to "${newStatus}"?`)) {
+            // If marking as Delivered, prompt for delivery fee
+            let deliveryFee = 0;
+            if (newStatus === 'Delivered') {
+                const feeInput = prompt('Enter Delivery Fee (PHP):', '0');
+                if (feeInput === null) {
+                    // User cancelled
+                    const select = document.querySelector(`select[data-po-id="${poId}"]`);
+                    if (select) select.value = currentStatus;
+                    return;
+                }
+                deliveryFee = parseFloat(feeInput) || 0;
+                if (deliveryFee < 0) {
+                    showToast('Delivery fee cannot be negative', 'error');
+                    const select = document.querySelector(`select[data-po-id="${poId}"]`);
+                    if (select) select.value = currentStatus;
+                    return;
+                }
+            }
+            
+            if (!confirm(`Update status to "${newStatus}"?${newStatus === 'Delivered' ? '\nDelivery Fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`)) {
                 // Reset dropdown
                 const select = document.querySelector(`select[data-po-id="${poId}"]`);
                 if (select) select.value = currentStatus;
@@ -768,18 +787,125 @@
                     updateData.procured_date = new Date().toISOString().split('T')[0];
                 } else if (newStatus === 'Delivered') {
                     updateData.delivered_date = new Date().toISOString().split('T')[0];
+                    updateData.delivery_fee = deliveryFee;
                 }
 
                 const poRef = doc(db, 'pos', poId);
                 await updateDoc(poRef, updateData);
 
-                showToast(`PO status updated to ${newStatus}`, 'success');
+                showToast(`PO status updated to ${newStatus}${newStatus === 'Delivered' ? ' with delivery fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`, 'success');
             } catch (error) {
                 console.error('Error updating PO status:', error);
                 showToast('Failed to update status', 'error');
                 // Reset dropdown
                 const select = document.querySelector(`select[data-po-id="${poId}"]`);
                 if (select) select.value = currentStatus;
+            } finally {
+                showLoading(false);
+            }
+        };
+
+
+        // View PO Details
+        window.viewPODetails = async function(poId) {
+            console.log('Loading PO details for:', poId);
+            showLoading(true);
+            
+            try {
+                const poRef = doc(db, 'pos', poId);
+                const poDoc = await getDoc(poRef);
+                
+                if (!poDoc.exists()) {
+                    showToast('PO not found', 'error');
+                    return;
+                }
+                
+                const po = { id: poDoc.id, ...poDoc.data() };
+                const items = JSON.parse(po.items_json || '[]');
+                
+                // Build modal content
+                let modalContent = `
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">PO ID</div>
+                            <div style="font-weight: 600;">${po.po_id}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
+                            <div style="font-weight: 600;">${po.supplier_name}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
+                            <div>${po.project_name}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
+                            <div>${new Date(po.date_issued).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
+                            <div>${po.procurement_status || 'Pending'}</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
+                            <div style="font-weight: 600;">PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        </div>
+                `;
+                
+                // Add delivery fee if exists
+                if (po.delivery_fee) {
+                    modalContent += `
+                        <div>
+                            <div style="font-size: 0.75rem; color: #5f6368;">Delivery Fee</div>
+                            <div style="font-weight: 600; color: #f59e0b;">PHP ${parseFloat(po.delivery_fee).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        </div>
+                    `;
+                }
+                
+                modalContent += `</div>`;
+                
+                // Items table
+                modalContent += `
+                    <div style="margin-top: 1rem;">
+                        <h4 style="margin-bottom: 0.5rem;">Items</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                            <thead>
+                                <tr style="background: #f3f4f6;">
+                                    <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                                    <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                                    <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                                    <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                items.forEach(item => {
+                    modalContent += `
+                        <tr>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                            <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        </tr>
+                    `;
+                });
+                
+                modalContent += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                // For now, show in console and toast
+                console.log('PO Details:', po);
+                showToast(`PO ${po.po_id} - ${items.length} items - PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}`, 'success');
+                
+                // TODO: Show in a proper modal
+                
+            } catch (error) {
+                console.error('Error loading PO details:', error);
+                showToast('Failed to load PO details', 'error');
             } finally {
                 showLoading(false);
             }
@@ -957,6 +1083,16 @@
                 // Separate by request type
                 const materialMRFs = allMRFs.filter(m => m.request_type !== 'service');
                 const transportMRFs = allMRFs.filter(m => m.request_type === 'service');
+                
+                // Sort by date_needed (nearest deadline first)
+                const sortByDeadline = (a, b) => {
+                    const dateA = new Date(a.date_needed);
+                    const dateB = new Date(b.date_needed);
+                    return dateA - dateB; // ascending order (nearest first)
+                };
+                
+                materialMRFs.sort(sortByDeadline);
+                transportMRFs.sort(sortByDeadline);
                 
                 console.log(' Rendering - Material:', materialMRFs.length, 'Transport:', transportMRFs.length);
                 renderMRFList(materialMRFs, transportMRFs);
@@ -1619,7 +1755,7 @@
             }
         };
 
-        function filterHistoricalMRFs() {
+        window.filterHistoricalMRFs = function() {
             const searchTerm = document.getElementById('historicalSearch').value.toLowerCase();
             const statusFilter = document.getElementById('historicalStatusFilter').value;
             const typeFilter = document.getElementById('historicalTypeFilter').value;
@@ -1649,7 +1785,7 @@
             renderHistoricalMRFs();
         }
 
-        function renderHistoricalMRFs() {
+        window.renderHistoricalMRFs = function() {
             const tbody = document.getElementById('historicalMRFsBody');
             
             if (filteredHistoricalMRFs.length === 0) {
@@ -1671,16 +1807,19 @@
                 
                 // Build documents column
                 let docsHtml = '';
-                if (mrf.pr_id && type === 'Material') {
-                    docsHtml += `<button class="btn btn-sm btn-secondary" onclick="viewPRDocument('${mrf.pr_id}')" style="margin-right: 0.5rem;">View PR</button>`;
+                
+                // For material MRFs - show View All Docs button if PR/PO generated
+                if (type === 'Material' && (mrf.status === 'PR Generated' || mrf.status === 'Finance Approved' || mrf.status === 'PO Issued' || mrf.status === 'Delivered' || mrf.status === 'Completed')) {
+                    docsHtml += `<button class="btn btn-sm btn-primary" onclick="viewAllDocuments('${mrf.mrf_id}')" style="margin-right: 0.5rem;">View All Docs</button>`;
                 }
-                // Note: PO documents would need to be fetched from POs collection
-                // For now, we'll add a placeholder
-                if (mrf.status === 'PO Issued' || mrf.status === 'Delivered' || mrf.status === 'Completed') {
-                    docsHtml += `<button class="btn btn-sm btn-secondary" onclick="viewPODocuments('${mrf.mrf_id}')">View POs</button>`;
-                }
-                if (!docsHtml) {
+                
+                // For transport - no documents
+                if (type === 'Transport') {
                     docsHtml = '<span style="color: #999; font-size: 0.875rem;">No documents</span>';
+                }
+                
+                if (!docsHtml) {
+                    docsHtml = '<span style="color: #999; font-size: 0.875rem;">In progress</span>';
                 }
                 
                 return `
@@ -1706,14 +1845,96 @@
             }).join('');
         }
 
-        window.viewPRDocument = function(prId) {
-            showToast('PR document viewer coming soon', 'success');
-            // TODO: Implement PR document viewer
-        };
-
-        window.viewPODocuments = function(mrfId) {
-            showToast('PO documents viewer coming soon', 'success');
-            // TODO: Fetch and display POs related to this MRF
+        window.viewAllDocuments = async function(mrfId) {
+            console.log('Loading documents for MRF:', mrfId);
+            showLoading(true);
+            
+            try {
+                // Fetch all PRs for this MRF
+                const prsRef = collection(db, 'prs');
+                const prQuery = query(prsRef, where('mrf_id', '==', mrfId));
+                const prSnapshot = await getDocs(prQuery);
+                
+                const prs = [];
+                prSnapshot.forEach((doc) => {
+                    prs.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Fetch all POs for this MRF
+                const posRef = collection(db, 'pos');
+                const poQuery = query(posRef, where('mrf_id', '==', mrfId));
+                const poSnapshot = await getDocs(poQuery);
+                
+                const pos = [];
+                poSnapshot.forEach((doc) => {
+                    pos.push({ id: doc.id, ...doc.data() });
+                });
+                
+                console.log(`Found ${prs.length} PRs and ${pos.length} POs for ${mrfId}`);
+                
+                // Build modal content
+                let modalContent = '<div style="max-height: 60vh; overflow-y: auto;">';
+                
+                // PRs section
+                if (prs.length > 0) {
+                    modalContent += '<h3 style="margin-bottom: 1rem;">Purchase Requests</h3>';
+                    modalContent += '<div style="display: grid; gap: 1rem; margin-bottom: 2rem;">';
+                    prs.forEach(pr => {
+                        modalContent += `
+                            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem;">
+                                <div style="font-weight: 600; color: #1a73e8; margin-bottom: 0.5rem;">${pr.pr_id}</div>
+                                <div style="font-size: 0.875rem; color: #666;">
+                                    <div>Supplier: ${pr.supplier_name || 'N/A'}</div>
+                                    <div>Amount: PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                                    <div>Status: ${pr.finance_status || 'Unknown'}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    modalContent += '</div>';
+                }
+                
+                // POs section
+                if (pos.length > 0) {
+                    modalContent += '<h3 style="margin-bottom: 1rem;">Purchase Orders</h3>';
+                    modalContent += '<div style="display: grid; gap: 1rem;">';
+                    pos.forEach(po => {
+                        modalContent += `
+                            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem;">
+                                <div style="font-weight: 600; color: #34a853; margin-bottom: 0.5rem;">${po.po_id}</div>
+                                <div style="font-size: 0.875rem; color: #666;">
+                                    <div>Supplier: ${po.supplier_name || 'N/A'}</div>
+                                    <div>Amount: PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                                    <div>Status: ${po.delivery_status || 'Unknown'}</div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    modalContent += '</div>';
+                }
+                
+                if (prs.length === 0 && pos.length === 0) {
+                    modalContent += '<p style="text-align: center; color: #999; padding: 2rem;">No documents found for this MRF.</p>';
+                }
+                
+                modalContent += '</div>';
+                
+                // Show in a simple alert for now (can be enhanced with a proper modal)
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = modalContent;
+                
+                // For now, show a summary in toast
+                showToast(`Found ${prs.length} PR(s) and ${pos.length} PO(s) for ${mrfId}`, 'success');
+                
+                // TODO: Show in a proper modal
+                console.log('Documents loaded:', { prs, pos });
+                
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                showToast('Failed to load documents', 'error');
+            } finally {
+                showLoading(false);
+            }
         };
 
     </script>
