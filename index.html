@@ -1968,7 +1968,7 @@
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
-                                <div style="font-weight: 600;">${pr.supplier_name}</div>
+                                <div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div>
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
@@ -1980,7 +1980,7 @@
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
-                                <div><span style="background: ${pr.finance_status === 'Approved' ? '#d4edda' : '#fff3cd'}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600;">${pr.finance_status || 'Pending'}</span></div>
+                                <div><span style="background: ${pr.finance_status === 'Approved' ? '#d1fae5' : '#fef3c7'}; color: ${pr.finance_status === 'Approved' ? '#065f46' : '#92400e'}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${pr.finance_status || 'Pending'}</span></div>
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
@@ -2035,8 +2035,9 @@
                             </table>
                         </div>
                         
-                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
-                            <button class="btn btn-primary" onclick="alert('PR document download coming soon!')" style="padding: 0.75rem 1.5rem;">Download PR Document</button>
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; display: flex; gap: 1rem;">
+                            <button class="btn btn-primary" onclick="viewPRDocument('${pr.id}')" style="padding: 0.75rem 1.5rem;">View PR Document</button>
+                            <button class="btn btn-success" onclick="downloadPRDocument('${pr.id}')" style="padding: 0.75rem 1.5rem;">Download PR Document</button>
                         </div>
                     </div>
                 `;
@@ -2050,6 +2051,184 @@
             } catch (error) {
                 console.error('Error loading PR details:', error);
                 showToast('Failed to load PR details', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        
+        window.viewPRDocument = async function(prDocId) {
+            console.log('Opening PR document for:', prDocId);
+            showLoading(true);
+            
+            try {
+                const prRef = doc(db, 'prs', prDocId);
+                const prDoc = await getDoc(prRef);
+                
+                if (!prDoc.exists()) {
+                    showToast('PR not found', 'error');
+                    return;
+                }
+                
+                const pr = prDoc.data();
+                
+                // Check if PR has a document link
+                if (pr.doc_link) {
+                    // Open document in new tab
+                    window.open(pr.doc_link, '_blank');
+                } else {
+                    // Document not yet generated - trigger generation
+                    showToast('PR document is being generated. Please wait...', 'warning');
+                    
+                    // TODO: Call n8n webhook to generate PR document
+                    // Example: await fetch('YOUR_N8N_WEBHOOK_URL', { method: 'POST', body: JSON.stringify({ pr_id: pr.pr_id }) });
+                    
+                    // For now, show message
+                    setTimeout(() => {
+                        showToast('PR document generation is not yet configured. Please contact IT support.', 'error');
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error('Error opening PR document:', error);
+                showToast('Failed to open PR document', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.downloadPRDocument = async function(prDocId) {
+            console.log('Downloading PR document for:', prDocId);
+            showLoading(true);
+            
+            try {
+                const prRef = doc(db, 'prs', prDocId);
+                const prDoc = await getDoc(prRef);
+                
+                if (!prDoc.exists()) {
+                    showToast('PR not found', 'error');
+                    return;
+                }
+                
+                const pr = prDoc.data();
+                
+                // Check if PR has a document link
+                if (pr.doc_link) {
+                    // Create temporary link to trigger download
+                    const link = document.createElement('a');
+                    link.href = pr.doc_link;
+                    link.download = `PR-${pr.pr_id}.pdf`;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    showToast('Download started...', 'success');
+                } else {
+                    // Document not yet generated - trigger generation
+                    showToast('PR document is being generated. Please wait...', 'warning');
+                    
+                    // TODO: Call n8n webhook to generate PR document
+                    // Example: 
+                    // const response = await fetch('YOUR_N8N_WEBHOOK_URL', {
+                    //     method: 'POST',
+                    //     headers: { 'Content-Type': 'application/json' },
+                    //     body: JSON.stringify({ pr_id: pr.pr_id, action: 'generate_and_download' })
+                    // });
+                    
+                    // For now, show message
+                    setTimeout(() => {
+                        showToast('PR document generation is not yet configured. Please contact IT support.', 'error');
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error('Error downloading PR document:', error);
+                showToast('Failed to download PR document', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        
+        window.viewPODocument = async function(poDocId) {
+            console.log('Opening PO document for:', poDocId);
+            showLoading(true);
+            
+            try {
+                const poRef = doc(db, 'pos', poDocId);
+                const poDoc = await getDoc(poRef);
+                
+                if (!poDoc.exists()) {
+                    showToast('PO not found', 'error');
+                    return;
+                }
+                
+                const po = poDoc.data();
+                
+                // Check if PO has a document link
+                if (po.doc_link) {
+                    // Open document in new tab
+                    window.open(po.doc_link, '_blank');
+                    showToast('Opening PO document...', 'success');
+                } else {
+                    // Document not yet generated
+                    showToast('PO document is being generated. Please wait...', 'warning');
+                    
+                    // TODO: Call n8n webhook to generate PO document
+                    setTimeout(() => {
+                        showToast('PO document generation is not yet configured. Please contact IT support.', 'error');
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error('Error opening PO document:', error);
+                showToast('Failed to open PO document', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        window.downloadPODocument = async function(poDocId) {
+            console.log('Downloading PO document for:', poDocId);
+            showLoading(true);
+            
+            try {
+                const poRef = doc(db, 'pos', poDocId);
+                const poDoc = await getDoc(poRef);
+                
+                if (!poDoc.exists()) {
+                    showToast('PO not found', 'error');
+                    return;
+                }
+                
+                const po = poDoc.data();
+                
+                // Check if PO has a document link
+                if (po.doc_link) {
+                    // Create temporary link to trigger download
+                    const link = document.createElement('a');
+                    link.href = po.doc_link;
+                    link.download = `PO-${po.po_id}.pdf`;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    
+                    showToast('Download started...', 'success');
+                } else {
+                    // Document not yet generated
+                    showToast('PO document is being generated. Please wait...', 'warning');
+                    
+                    // TODO: Call n8n webhook to generate PO document
+                    setTimeout(() => {
+                        showToast('PO document generation is not yet configured. Please contact IT support.', 'error');
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error('Error downloading PO document:', error);
+                showToast('Failed to download PO document', 'error');
             } finally {
                 showLoading(false);
             }
@@ -2104,7 +2283,7 @@
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: #5f6368;">Delivery Status</div>
-                                <div><span style="background: ${po.delivery_status === 'Delivered' ? '#d4edda' : '#fff3cd'}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600;">${po.delivery_status || 'Pending'}</span></div>
+                                <div><span style="background: ${po.delivery_status === 'Delivered' ? '#d1fae5' : '#fef3c7'}; color: ${po.delivery_status === 'Delivered' ? '#065f46' : '#92400e'}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${po.delivery_status || 'Pending'}</span></div>
                             </div>
                             <div>
                                 <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
@@ -2162,8 +2341,9 @@
                             </table>
                         </div>
                         
-                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
-                            <button class="btn btn-primary" onclick="alert('PO document download coming soon!')" style="padding: 0.75rem 1.5rem;">Download PO Document</button>
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb; display: flex; gap: 1rem;">
+                            <button class="btn btn-primary" onclick="viewPODocument('${po.id}')" style="padding: 0.75rem 1.5rem;">View PO Document</button>
+                            <button class="btn btn-success" onclick="downloadPODocument('${po.id}')" style="padding: 0.75rem 1.5rem;">Download PO Document</button>
                         </div>
                     </div>
                 `;
