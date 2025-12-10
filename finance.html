@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Dashboard | CLMC Engineering</title>
+    <title>Finance Dashboard v2.6 | CLMC Engineering</title>
     <style>
         * {
             margin: 0;
@@ -39,6 +39,9 @@
         .header h1 {
             font-size: 1.5rem;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .header .company {
@@ -92,28 +95,6 @@
             display: block;
         }
 
-        .panel {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--gray-200);
-        }
-
-        .panel-header h2 {
-            font-size: 1.25rem;
-            font-weight: 500;
-        }
-
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -137,6 +118,10 @@
             border-left-color: var(--warning);
         }
 
+        .stat-card.danger {
+            border-left-color: var(--danger);
+        }
+
         .stat-label {
             font-size: 0.875rem;
             color: var(--gray-700);
@@ -149,12 +134,39 @@
             color: var(--gray-900);
         }
 
-        .data-table {
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--gray-200);
+        }
+
+        .panel-header h2 {
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        .section-divider {
+            margin: 2rem 0;
+            border-top: 3px solid var(--gray-200);
+        }
+
+        table {
             width: 100%;
             border-collapse: collapse;
         }
 
-        .data-table th {
+        th {
             background: var(--gray-100);
             padding: 0.75rem 1rem;
             text-align: left;
@@ -163,12 +175,12 @@
             border-bottom: 2px solid var(--gray-200);
         }
 
-        .data-table td {
+        td {
             padding: 1rem;
             border-bottom: 1px solid var(--gray-200);
         }
 
-        .data-table tr:hover {
+        tr:hover {
             background: var(--gray-50);
         }
 
@@ -193,21 +205,6 @@
         .status-badge.rejected {
             background: #f8d7da;
             color: #721c24;
-        }
-
-        .status-badge.procuring {
-            background: #cfe2ff;
-            color: #084298;
-        }
-
-        .status-badge.procured {
-            background: #d1e7dd;
-            color: #0a3622;
-        }
-
-        .status-badge.delivered {
-            background: #d4edda;
-            color: #155724;
         }
 
         .btn {
@@ -285,9 +282,9 @@
         .modal-content {
             background: white;
             border-radius: 8px;
-            max-width: 95vw;
-            width: 1200px;
-            max-height: 95vh;
+            max-width: 900px;
+            width: 90%;
+            max-height: 85vh;
             overflow-y: auto;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
@@ -298,6 +295,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
         }
 
         .modal-header h3 {
@@ -315,6 +316,9 @@
             display: flex;
             justify-content: flex-end;
             gap: 1rem;
+            position: sticky;
+            bottom: 0;
+            background: white;
         }
 
         .close-btn {
@@ -340,7 +344,7 @@
             display: grid;
             grid-template-columns: 150px 1fr;
             gap: 1rem;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
         }
 
         .info-label {
@@ -348,65 +352,31 @@
             color: var(--gray-700);
         }
 
-        .form-group {
+        .signature-pad-container {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+        }
+
+        .signature-pad-container h4 {
             margin-bottom: 1rem;
+            font-size: 1rem;
         }
 
-        .form-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-        }
-
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid var(--gray-200);
+        .signature-canvas {
+            border: 2px solid var(--gray-300);
             border-radius: 4px;
-            font-size: 0.875rem;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .signature-pad {
-            border: 2px dashed var(--gray-300);
-            border-radius: 4px;
-            cursor: crosshair;
             background: white;
+            cursor: crosshair;
+            display: block;
+            width: 100%;
         }
 
-        .search-bar {
+        .signature-actions {
+            margin-top: 0.5rem;
             display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .search-input {
-            flex: 1;
-            padding: 0.75rem;
-            border: 1px solid var(--gray-200);
-            border-radius: 6px;
-            font-size: 0.875rem;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
-        }
-
-        .filter-select {
-            padding: 0.75rem;
-            border: 1px solid var(--gray-200);
-            border-radius: 6px;
-            font-size: 0.875rem;
-            min-width: 150px;
+            gap: 0.5rem;
         }
 
         .loading-overlay {
@@ -419,7 +389,7 @@
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 1000;
+            z-index: 2000;
         }
 
         .loading-overlay.active {
@@ -459,7 +429,8 @@
             display: none;
             align-items: center;
             gap: 0.75rem;
-            z-index: 1001;
+            z-index: 2001;
+            min-width: 300px;
         }
 
         .toast.active {
@@ -486,68 +457,65 @@
             border-left: 4px solid var(--danger);
         }
 
-        .pdf-viewer {
-            width: 100%;
-            height: 75vh;
+        .toast.warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .po-card {
             border: 1px solid var(--gray-200);
-            border-radius: 4px;
-        }
-
-        .export-btn {
-            margin-left: auto;
-        }
-
-        .file-upload-btn {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-        }
-
-        .file-upload-btn input[type="file"] {
-            position: absolute;
-            left: -9999px;
-        }
-
-        .timeline-item {
+            border-radius: 6px;
             padding: 1rem;
-            border-left: 3px solid var(--gray-200);
-            margin-left: 1rem;
-            position: relative;
+            margin-bottom: 1rem;
         }
 
-        .timeline-item::before {
-            content: '';
-            width: 12px;
-            height: 12px;
-            background: var(--gray-300);
-            border-radius: 50%;
-            position: absolute;
-            left: -7.5px;
-            top: 1.5rem;
+        .po-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
         }
 
-        .timeline-item.completed::before {
-            background: var(--success);
+        .po-id {
+            font-weight: 600;
+            color: var(--primary);
         }
 
-        .timeline-item.current::before {
-            background: var(--primary);
+        .po-details {
+            font-size: 0.875rem;
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        .po-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--gray-700);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1> Finance Dashboard</h1>
-        <div class="company">CLMC Engineering Services - PR-PO Management</div>
+        <h1>💰 Finance Dashboard</h1>
+        <div class="company">CLMC Engineering Services - v2.6</div>
     </div>
 
     <div class="tabs">
         <div class="tabs-nav">
-            <button class="tab-button active" onclick="switchTab('pending-prs')"> Pending PRs</button>
-            <button class="tab-button" onclick="switchTab('po-tracking')">📦 PO Tracking</button>
-            <button class="tab-button" onclick="switchTab('transport-requests')"> Transport Requests</button>
-            <button class="tab-button" onclick="switchTab('historical')"> Historical Purchases</button>
-            <button class="tab-button" onclick="switchTab('metrics')">📈 Performance Metrics</button>
+            <button class="tab-button active" onclick="switchTab('pending-prs')">📋 Pending Approvals</button>
+            <button class="tab-button" onclick="switchTab('po-generation')">📄 Purchase Orders</button>
+            <button class="tab-button" onclick="switchTab('historical')">📊 Historical Data</button>
         </div>
     </div>
 
@@ -556,89 +524,80 @@
         <div id="pending-prs" class="tab-content active">
             <div class="stats-grid">
                 <div class="stat-card warning">
-                    <div class="stat-label">Pending Review</div>
-                    <div class="stat-value" id="pendingCount">0</div>
+                    <div class="stat-label">Material PRs Pending</div>
+                    <div class="stat-value" id="materialPendingCount">0</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-label">Transport Requests Pending</div>
+                    <div class="stat-value" id="transportPendingCount">0</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-label">Approved This Month</div>
                     <div class="stat-value" id="approvedCount">0</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Total Amount Pending</div>
-                    <div class="stat-value" id="pendingAmount">PHP 0</div>
+                    <div class="stat-label">Total Pending Amount</div>
+                    <div class="stat-value" id="pendingAmount">₱0</div>
                 </div>
             </div>
 
+            <!-- Material Purchase Requests -->
             <div class="panel">
                 <div class="panel-header">
-                    <h2>Purchase Requests for Review</h2>
-                    <button class="btn btn-secondary" onclick="refreshPRs()">Refresh</button>
+                    <h2>🛒 Material Purchase Requests</h2>
+                    <button class="btn btn-secondary" onclick="refreshPRs()">🔄 Refresh</button>
                 </div>
 
-                <table class="data-table">
+                <table>
                     <thead>
                         <tr>
                             <th>PR ID</th>
                             <th>MRF ID</th>
                             <th>Project</th>
-                            <th>Supplier</th>
-                            <th>Date Created</th>
+                            <th>Date</th>
                             <th>Total Cost</th>
+                            <th>Suppliers</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="prTableBody">
+                    <tbody id="materialPRsBody">
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 2rem; color: #999;">
-                                Loading PRs...
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-icon">📦</div>
+                                <div>Loading material PRs...</div>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-        </div>
 
-        <!-- Tab 2: PO Tracking -->
-        <div id="po-tracking" class="tab-content">
-            <div class="stats-grid">
-                <div class="stat-card warning">
-                    <div class="stat-label">Procuring</div>
-                    <div class="stat-value" id="procuringCount">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Procured</div>
-                    <div class="stat-value" id="procuredCount">0</div>
-                </div>
-                <div class="stat-card success">
-                    <div class="stat-label">Delivered</div>
-                    <div class="stat-value" id="deliveredCount">0</div>
-                </div>
-            </div>
+            <div class="section-divider"></div>
 
+            <!-- Transport Requests -->
             <div class="panel">
                 <div class="panel-header">
-                    <h2>Purchase Order Tracking</h2>
-                    <button class="btn btn-secondary" onclick="refreshPOTracking()">Refresh</button>
+                    <h2>🚚 Transport Requests</h2>
                 </div>
 
-                <table class="data-table">
+                <table>
                     <thead>
                         <tr>
-                            <th>PO ID</th>
-                            <th>PR ID</th>
-                            <th>Supplier</th>
+                            <th>TR ID</th>
+                            <th>MRF ID</th>
                             <th>Project</th>
-                            <th>Amount</th>
-                            <th>Date Issued</th>
+                            <th>Date</th>
+                            <th>Total Cost</th>
+                            <th>Service Type</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="poTrackingBody">
+                    <tbody id="transportRequestsBody">
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 2rem; color: #999;">
-                                Loading POs...
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-icon">🚛</div>
+                                <div>Loading transport requests...</div>
                             </td>
                         </tr>
                     </tbody>
@@ -646,42 +605,33 @@
             </div>
         </div>
 
-
-        <!-- Transport Requests -->
-        <div id="transport-requests" class="tab-content">
+        <!-- Tab 2: PO Generation -->
+        <div id="po-generation" class="tab-content">
             <div class="panel">
                 <div class="panel-header">
-                    <h2>Transport Requests for Approval</h2>
-                    <button class="btn btn-secondary" onclick="refreshTRs()">Refresh</button>
+                    <h2>Recently Generated Purchase Orders</h2>
+                    <button class="btn btn-secondary" onclick="refreshPOs()">🔄 Refresh</button>
                 </div>
-                <table class="data-table" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">TR ID</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">MRF ID</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Project</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Date</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Status</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="trTableBody">
-                        <tr><td colspan="6" style="text-align: center; padding: 2rem;">Loading...</td></tr>
-                    </tbody>
-                </table>
+
+                <div id="poList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📄</div>
+                        <div>Loading purchase orders...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Tab 3: Historical Purchases -->
+        <!-- Tab 3: Historical Data -->
         <div id="historical" class="tab-content">
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Spend This Month</div>
-                    <div class="stat-value" id="monthSpend">PHP 0</div>
+                    <div class="stat-value" id="monthSpend">₱0</div>
                 </div>
                 <div class="stat-card success">
                     <div class="stat-label">Total Spend YTD</div>
-                    <div class="stat-value" id="ytdSpend">PHP 0</div>
+                    <div class="stat-value" id="ytdSpend">₱0</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Total Purchases</div>
@@ -691,144 +641,29 @@
 
             <div class="panel">
                 <div class="panel-header">
-                    <h2>Purchase History Explorer</h2>
-                    <button class="btn btn-primary export-btn" onclick="exportToCSV()">Export CSV</button>
+                    <h2>Purchase History</h2>
                 </div>
 
-                <div class="search-bar">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Search by item name, supplier, or project..." oninput="filterHistoricalData()">
-                    <select class="filter-select" id="categoryFilter" onchange="filterHistoricalData()">
-                        <option value="">All Categories</option>
-                        <option value="CIVIL">CIVIL</option>
-                        <option value="ELECTRICAL">ELECTRICAL</option>
-                        <option value="HVAC">HVAC</option>
-                        <option value="PLUMBING">PLUMBING</option>
-                        <option value="TOOLS & EQUIPMENTS">TOOLS & EQUIPMENTS</option>
-                        <option value="SAFETY">SAFETY</option>
-                        <option value="OTHERS">OTHERS</option>
-                    </select>
-                    <input type="date" class="filter-select" id="dateFrom" onchange="filterHistoricalData()">
-                    <input type="date" class="filter-select" id="dateTo" onchange="filterHistoricalData()">
-                </div>
-
-                <table class="data-table">
+                <table>
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>Item Name</th>
-                            <th>Category</th>
-                            <th>Supplier</th>
-                            <th>Qty</th>
-                            <th>Unit</th>
-                            <th>Unit Cost</th>
-                            <th>Total</th>
+                            <th>PR/TR ID</th>
                             <th>Project</th>
-                            <th>PO ID</th>
+                            <th>Type</th>
+                            <th>Total Cost</th>
+                            <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="historicalTableBody">
                         <tr>
-                            <td colspan="10" style="text-align: center; padding: 2rem; color: #999;">
-                                Loading data...
+                            <td colspan="7" class="empty-state">
+                                <div class="empty-state-icon">📊</div>
+                                <div>Loading historical data...</div>
                             </td>
                         </tr>
                     </tbody>
-                </table>
-            </div>
-
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Top Suppliers by Volume</h2>
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Supplier</th>
-                            <th>Total Purchases</th>
-                            <th>Order Count</th>
-                            <th>Avg Unit Cost (90 days)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="topSuppliersBody"></tbody>
-                </table>
-            </div>
-
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Price Comparison</h2>
-                </div>
-                <div class="search-bar">
-                    <input type="text" class="search-input" id="priceCompareSearch" placeholder="Enter item name to compare prices..." oninput="searchPriceComparison()">
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Item Name</th>
-                            <th>Supplier</th>
-                            <th>Unit Cost</th>
-                            <th>Last Purchase Date</th>
-                            <th>Avg Cost (90 days)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="priceCompareBody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: #999;">
-                                Search for an item to see price comparison
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab 4: Performance Metrics -->
-        <div id="metrics" class="tab-content">
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>Procurement Team Performance</h2>
-                    <select class="filter-select" id="metricsTimeframe" onchange="loadMetrics()">
-                        <option value="7">Last 7 days</option>
-                        <option value="30" selected>Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                    </select>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">Avg Procurement Time</div>
-                        <div class="stat-value" id="avgProcurementTime">0</div>
-                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.5rem;">days</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Avg Delivery Time</div>
-                        <div class="stat-value" id="avgDeliveryTime">0</div>
-                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.5rem;">days</div>
-                    </div>
-                    <div class="stat-card success">
-                        <div class="stat-label">On-Time Delivery Rate</div>
-                        <div class="stat-value" id="onTimeRate">0%</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total POs Processed</div>
-                        <div class="stat-value" id="totalPOsProcessed">0</div>
-                    </div>
-                </div>
-
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>PO ID</th>
-                            <th>Supplier</th>
-                            <th>Issued Date</th>
-                            <th>Procured Date</th>
-                            <th>Delivered Date</th>
-                            <th>Procurement Time</th>
-                            <th>Delivery Time</th>
-                            <th>Total Time</th>
-                        </tr>
-                    </thead>
-                    <tbody id="metricsTableBody"></tbody>
                 </table>
             </div>
         </div>
@@ -838,35 +673,39 @@
     <div id="prModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 id="modalTitle">PR Details</h3>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <h3 id="prModalTitle">PR Details</h3>
+                <button class="close-btn" onclick="closePRModal()">&times;</button>
             </div>
-            <div class="modal-body" id="modalBody"></div>
-            <div class="modal-footer" id="modalFooter"></div>
+            <div class="modal-body" id="prModalBody"></div>
+            <div class="modal-footer" id="prModalFooter"></div>
         </div>
     </div>
 
-    <!-- PO Details Modal -->
-    <div id="poModal" class="modal">
+    <!-- Signature Modal -->
+    <div id="signatureModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>PO Details & Tracking</h3>
-                <button class="close-btn" onclick="closePOModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="poModalBody"></div>
-            <div class="modal-footer" id="poModalFooter"></div>
-        </div>
-    </div>
-
-    <!-- PDF Viewer Modal -->
-    <div id="pdfModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="pdfModalTitle">Document Viewer</h3>
-                <button class="close-btn" onclick="closePDFModal()">&times;</button>
+                <h3>Approve Purchase Request</h3>
+                <button class="close-btn" onclick="closeSignatureModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <iframe id="pdfViewer" class="pdf-viewer"></iframe>
+                <p style="margin-bottom: 1rem;">Please sign below to approve this purchase request:</p>
+                
+                <div class="signature-pad-container">
+                    <h4>Finance Approval Signature</h4>
+                    <canvas id="signatureCanvas" class="signature-canvas" width="800" height="200"></canvas>
+                    <div class="signature-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="clearSignature()">Clear</button>
+                    </div>
+                </div>
+
+                <div id="signatureError" style="color: var(--danger); margin-top: 1rem; display: none;">
+                    Please provide your signature before approving.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSignatureModal()">Cancel</button>
+                <button class="btn btn-success" onclick="submitApproval()">✓ Approve & Generate POs</button>
             </div>
         </div>
     </div>
@@ -884,10 +723,9 @@
         <span id="toastMessage"></span>
     </div>
 
-    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, addDoc, updateDoc, doc, query, where, orderBy, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase config
         const firebaseConfig = {
@@ -905,57 +743,980 @@
 
         // Global variables
         window.db = db;
-        window.firestore = { collection, getDocs, addDoc, updateDoc, doc, query, where, orderBy, onSnapshot };
+        window.firestore = { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getDoc };
         
         let currentTab = 'pending-prs';
-        let prData = [];
-        let poData = [];
-        let historicalData = [];
-        let filteredHistoricalData = [];
-        let currentPR = null;
-        let signatureData = null;
+        let materialPRs = [];
+        let transportRequests = [];
+        let allPOs = [];
+        let currentPRForApproval = null;
+        
+        // Signature pad setup
+        let signatureCanvas = null;
+        let signatureContext = null;
+        let isDrawing = false;
+        let hasSignature = false;
 
-        // Initialize dashboard
-        init();
-
-
-        // Transport Requests
-        let trData = [];
-
-        async function refreshTRs() {
-            try {
-                trData = [];
-                renderTRTable(trData);
-            } catch (error) {
-                console.error('Error:', error);
-            }
+        // Initialize
+        async function init() {
+            setupSignaturePad();
+            await loadPRs();
+            await loadPOs();
+            await loadHistoricalData();
         }
 
-        function renderTRTable(trs) {
-            const tbody = document.getElementById('trTableBody');
-            if (trs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: #999;">No transport requests</td></tr>';
+        // Setup signature pad
+        function setupSignaturePad() {
+            signatureCanvas = document.getElementById('signatureCanvas');
+            signatureContext = signatureCanvas.getContext('2d');
+            
+            signatureCanvas.addEventListener('mousedown', startDrawing);
+            signatureCanvas.addEventListener('mousemove', draw);
+            signatureCanvas.addEventListener('mouseup', stopDrawing);
+            signatureCanvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch events
+            signatureCanvas.addEventListener('touchstart', handleTouch);
+            signatureCanvas.addEventListener('touchmove', handleTouch);
+            signatureCanvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            hasSignature = true;
+            const rect = signatureCanvas.getBoundingClientRect();
+            signatureContext.beginPath();
+            signatureContext.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = signatureCanvas.getBoundingClientRect();
+            signatureContext.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            signatureContext.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 'mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            signatureCanvas.dispatchEvent(mouseEvent);
+        }
+
+        window.clearSignature = function() {
+            signatureContext.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            hasSignature = false;
+            document.getElementById('signatureError').style.display = 'none';
+        };
+
+        // Load PRs with real-time updates
+        async function loadPRs() {
+            const prsRef = collection(db, 'prs');
+            const q = query(prsRef, where('finance_status', '==', 'Pending Review'));
+            
+            onSnapshot(q, (snapshot) => {
+                materialPRs = [];
+                transportRequests = [];
+                
+                snapshot.forEach((docSnap) => {
+                    const pr = { id: docSnap.id, ...docSnap.data() };
+                    
+                    // Check if it's a transport request (service type MRF)
+                    if (pr.request_type === 'service' || pr.pr_id?.startsWith('TR-')) {
+                        transportRequests.push(pr);
+                    } else {
+                        materialPRs.push(pr);
+                    }
+                });
+                
+                renderMaterialPRs();
+                renderTransportRequests();
+                updateStats();
+            });
+        }
+
+        // Render Material PRs
+        function renderMaterialPRs() {
+            const tbody = document.getElementById('materialPRsBody');
+            
+            if (materialPRs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-icon">✓</div>
+                            <div>No pending material PRs</div>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
-            tbody.innerHTML = trs.map(tr => `
+
+            tbody.innerHTML = materialPRs.map(pr => {
+                const items = JSON.parse(pr.items_json || '[]');
+                const suppliers = [...new Set(items.map(item => item.supplier))].filter(Boolean);
+                
+                return `
+                    <tr>
+                        <td><strong>${pr.pr_id}</strong></td>
+                        <td>${pr.mrf_id}</td>
+                        <td>${pr.project_name}</td>
+                        <td>${formatDate(pr.date_generated)}</td>
+                        <td><strong>₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td>${suppliers.length} supplier(s)</td>
+                        <td><span class="status-badge pending">Pending</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${pr.id}')">Review</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Render Transport Requests
+        function renderTransportRequests() {
+            const tbody = document.getElementById('transportRequestsBody');
+            
+            if (transportRequests.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-icon">✓</div>
+                            <div>No pending transport requests</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = transportRequests.map(tr => {
+                const items = JSON.parse(tr.items_json || '[]');
+                const serviceTypes = [...new Set(items.map(item => item.item || item.item_name))];
+                
+                return `
+                    <tr>
+                        <td><strong>${tr.pr_id}</strong></td>
+                        <td>${tr.mrf_id}</td>
+                        <td>${tr.project_name}</td>
+                        <td>${formatDate(tr.date_generated)}</td>
+                        <td><strong>₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td>${serviceTypes.slice(0, 2).join(', ')}${serviceTypes.length > 2 ? '...' : ''}</td>
+                        <td><span class="status-badge pending">Pending</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${tr.id}')">Review</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update stats
+        function updateStats() {
+            document.getElementById('materialPendingCount').textContent = materialPRs.length;
+            document.getElementById('transportPendingCount').textContent = transportRequests.length;
+            
+            const totalPending = [...materialPRs, ...transportRequests].reduce((sum, pr) => 
+                sum + parseFloat(pr.total_amount || 0), 0
+            );
+            document.getElementById('pendingAmount').textContent = `₱${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+            
+            // Count approved this month
+            const now = new Date();
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            
+            const prsRef = collection(db, 'prs');
+            const approvedQuery = query(
+                prsRef, 
+                where('finance_status', '==', 'Approved'),
+                where('date_approved', '>=', firstDayOfMonth)
+            );
+            
+            getDocs(approvedQuery).then(snapshot => {
+                document.getElementById('approvedCount').textContent = snapshot.size;
+            });
+        }
+
+        // View PR Details
+        window.viewPRDetails = async function(prId) {
+            showLoading(true);
+            
+            try {
+                const prDoc = await getDoc(doc(db, 'prs', prId));
+                
+                if (!prDoc.exists()) {
+                    showToast('PR not found', 'error');
+                    return;
+                }
+                
+                const pr = { id: prDoc.id, ...prDoc.data() };
+                currentPRForApproval = pr;
+                
+                const items = JSON.parse(pr.items_json || '[]');
+                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+                
+                // Build modal content
+                let modalContent = `
+                    <div class="info-grid">
+                        <div class="info-label">${isTransport ? 'TR' : 'PR'} ID:</div>
+                        <div><strong>${pr.pr_id}</strong></div>
+                        
+                        <div class="info-label">MRF Reference:</div>
+                        <div>${pr.mrf_id}</div>
+                        
+                        <div class="info-label">Project:</div>
+                        <div>${pr.project_name}</div>
+                        
+                        <div class="info-label">Requestor:</div>
+                        <div>${pr.requestor_name}</div>
+                        
+                        <div class="info-label">Date Generated:</div>
+                        <div>${formatDate(pr.date_generated)}</div>
+                        
+                        <div class="info-label">Delivery Address:</div>
+                        <div>${pr.delivery_address || 'N/A'}</div>
+                        
+                        <div class="info-label">Total Amount:</div>
+                        <div><strong style="color: var(--success); font-size: 1.25rem;">₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
+                    </div>
+
+                    <div style="margin: 1.5rem 0; padding: 1.5rem; background: var(--gray-50); border-radius: 8px;">
+                        <h4 style="margin-bottom: 1rem;">${isTransport ? 'Service Items' : 'Items Breakdown'}</h4>
+                        <table style="width: 100%; font-size: 0.875rem;">
+                            <thead>
+                                <tr style="background: white;">
+                                    <th style="padding: 0.5rem;">${isTransport ? 'Service' : 'Item'}</th>
+                                    <th style="padding: 0.5rem;">Category</th>
+                                    <th style="padding: 0.5rem;">Qty</th>
+                                    <th style="padding: 0.5rem;">Unit Cost</th>
+                                    ${!isTransport ? '<th style="padding: 0.5rem;">Supplier</th>' : ''}
+                                    <th style="padding: 0.5rem;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map(item => `
+                                    <tr style="background: white;">
+                                        <td style="padding: 0.5rem;">${item.item || item.item_name}</td>
+                                        <td style="padding: 0.5rem;">${item.category || 'N/A'}</td>
+                                        <td style="padding: 0.5rem;">${item.qty || item.quantity} ${item.unit}</td>
+                                        <td style="padding: 0.5rem;">₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                        ${!isTransport ? `<td style="padding: 0.5rem;">${item.supplier || 'N/A'}</td>` : ''}
+                                        <td style="padding: 0.5rem;"><strong>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: white; font-weight: 600;">
+                                    <td colspan="${isTransport ? 4 : 5}" style="padding: 0.75rem; text-align: right; border-top: 2px solid var(--gray-300);">TOTAL:</td>
+                                    <td style="padding: 0.75rem; border-top: 2px solid var(--gray-300);">₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; padding: 1rem; background: #e8f0fe; border-left: 4px solid var(--primary); border-radius: 4px;">
+                        <strong>Preview Document Before Approval:</strong>
+                        <div style="margin-top: 0.5rem;">
+                            <button class="btn btn-secondary btn-sm" onclick="previewPRDocument('${pr.id}')">📄 Preview PR Document</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('prModalTitle').textContent = `${isTransport ? 'Transport Request' : 'Purchase Request'} - ${pr.pr_id}`;
+                document.getElementById('prModalBody').innerHTML = modalContent;
+                
+                // Footer with approval buttons
+                const footer = document.getElementById('prModalFooter');
+                footer.innerHTML = `
+                    <button class="btn btn-danger" onclick="rejectPR('${pr.id}')">✗ Reject</button>
+                    <button class="btn btn-success" onclick="showSignatureModal()">✓ Approve${isTransport ? '' : ' & Generate POs'}</button>
+                `;
+                
+                document.getElementById('prModal').classList.add('active');
+                
+            } catch (error) {
+                console.error('Error loading PR details:', error);
+                showToast('Failed to load PR details', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Preview PR Document
+        window.previewPRDocument = function(prId) {
+            // Open print window without closing modal
+            viewPRDocument(prId);
+        };
+
+        // View PR Document (for printing/download)
+        window.viewPRDocument = async function(prId) {
+            showLoading(true);
+            
+            try {
+                const prDoc = await getDoc(doc(db, 'prs', prId));
+                if (!prDoc.exists()) {
+                    showToast('PR not found', 'error');
+                    return;
+                }
+                
+                const pr = { id: prDoc.id, ...prDoc.data() };
+                const items = JSON.parse(pr.items_json || '[]');
+                
+                // Generate PR HTML for printing
+                const prHTML = generatePRHTML(pr, items);
+                
+                // Open in new window for printing
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(prHTML);
+                printWindow.document.close();
+                
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error viewing PR document:', error);
+                showToast('Failed to load PR document', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Generate PR HTML
+        function generatePRHTML(pr, items) {
+            const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+            
+            return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${pr.pr_id} - Purchase Request</title>
+    <style>
+        @page { size: A4; margin: 15mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #333; padding-bottom: 10px; }
+        .header h1 { font-size: 18pt; margin-bottom: 5px; }
+        .header p { font-size: 9pt; color: #666; }
+        .info-section { margin: 20px 0; }
+        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 15px; }
+        .label { font-weight: bold; }
+        .value { }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background: #f0f0f0; padding: 8px; text-align: left; font-size: 10pt; border: 1px solid #ddd; }
+        td { padding: 8px; border: 1px solid #ddd; font-size: 10pt; }
+        .total-row { font-weight: bold; background: #f9f9f9; }
+        .signatures { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .signature-box { text-align: center; }
+        .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; }
+        @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>C LACSAMANA MANAGEMENT AND CONSTRUCTION CORPORATION</h1>
+        <p>133 Pinatubo St., Mandaluyong City, Metro Manila | Tel: 09178182993 | Email: cgl@consultclm.com</p>
+    </div>
+
+    <h2 style="text-align: center; margin: 20px 0;">PURCHASE REQUEST FORM (PR)</h2>
+
+    <div class="info-section">
+        <div class="info-grid">
+            <div class="label">Document No.:</div>
+            <div class="value">${pr.pr_id}</div>
+            
+            <div class="label">MRF Reference:</div>
+            <div class="value">${pr.mrf_id}</div>
+            
+            <div class="label">Date:</div>
+            <div class="value">${formatDate(pr.date_generated)}</div>
+            
+            <div class="label">Project:</div>
+            <div class="value">${pr.project_name}</div>
+            
+            <div class="label">Delivery Address:</div>
+            <div class="value">${pr.delivery_address || 'N/A'}</div>
+            
+            ${!isTransport ? `
+            <div class="label">Supplier:</div>
+            <div class="value">${[...new Set(items.map(i => i.supplier))].join(', ')}</div>
+            ` : ''}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">No.</th>
+                <th style="width: ${isTransport ? '40%' : '30%'};">${isTransport ? 'Service Description' : 'Item Description'}</th>
+                <th style="width: 15%;">Category</th>
+                <th style="width: 10%;">Quantity</th>
+                <th style="width: 10%;">Unit</th>
+                <th style="width: ${isTransport ? '20%' : '15%'};">Unit Cost</th>
+                ${!isTransport ? '<th style="width: 15%;">Supplier</th>' : ''}
+                <th style="width: 15%;">Total Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${items.map((item, index) => `
                 <tr>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><strong>${tr.tr_id}</strong></td>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${tr.mrf_id}</td>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${tr.project_name}</td>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${formatDate(tr.date_submitted)}</td>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><span class="status-badge pending">${tr.status}</span></td>
-                    <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><button class="btn btn-sm btn-primary">View</button></td>
+                    <td>${index + 1}</td>
+                    <td>${item.item || item.item_name}</td>
+                    <td>${item.category || 'N/A'}</td>
+                    <td>${item.qty || item.quantity}</td>
+                    <td>${item.unit}</td>
+                    <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    ${!isTransport ? `<td>${item.supplier || 'N/A'}</td>` : ''}
+                    <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                 </tr>
+            `).join('')}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="${isTransport ? 6 : 7}" style="text-align: right;">TOTAL AMOUNT:</td>
+                <td>₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="signatures">
+        <div class="signature-box">
+            <div class="signature-line">${pr.requestor_name || 'N/A'}</div>
+            <div style="font-size: 9pt; margin-top: 5px;">Requested By</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line">Procurement Team</div>
+            <div style="font-size: 9pt; margin-top: 5px;">Prepared By</div>
+        </div>
+        <div class="signature-box">
+            <div class="signature-line">${pr.finance_approver || '_________________________'}</div>
+            <div style="font-size: 9pt; margin-top: 5px;">Approved By (Finance)</div>
+            ${pr.date_approved ? `<div style="font-size: 8pt; color: #666; margin-top: 3px;">Date: ${formatDate(pr.date_approved)}</div>` : ''}
+        </div>
+    </div>
+</body>
+</html>
+            `.trim();
+        }
+
+        // Show signature modal
+        window.showSignatureModal = function() {
+            if (!currentPRForApproval) {
+                showToast('No PR selected for approval', 'error');
+                return;
+            }
+            
+            clearSignature();
+            document.getElementById('signatureModal').classList.add('active');
+        };
+
+        // Close signature modal
+        window.closeSignatureModal = function() {
+            document.getElementById('signatureModal').classList.remove('active');
+            document.getElementById('signatureError').style.display = 'none';
+        };
+
+        // Submit approval with signature
+        window.submitApproval = async function() {
+            if (!hasSignature) {
+                document.getElementById('signatureError').style.display = 'block';
+                return;
+            }
+            
+            if (!currentPRForApproval) {
+                showToast('No PR selected for approval', 'error');
+                return;
+            }
+            
+            // Get signature as base64
+            const signatureDataURL = signatureCanvas.toDataURL();
+            
+            closeSignatureModal();
+            closePRModal();
+            showLoading(true);
+            
+            try {
+                const pr = currentPRForApproval;
+                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+                
+                // Update PR status
+                const prRef = doc(db, 'prs', pr.id);
+                await updateDoc(prRef, {
+                    finance_status: 'Approved',
+                    finance_approver: 'Ma. Thea Angela R. Lacsamana', // TODO: Get from user settings
+                    finance_signature: signatureDataURL,
+                    date_approved: new Date().toISOString().split('T')[0],
+                    approved_at: new Date().toISOString()
+                });
+                
+                // Update MRF status
+                const mrfsRef = collection(db, 'mrfs');
+                const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
+                const mrfSnapshot = await getDocs(mrfQuery);
+                
+                if (!mrfSnapshot.empty) {
+                    const mrfDoc = mrfSnapshot.docs[0];
+                    await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
+                        status: isTransport ? 'Finance Approved' : 'Finance Approved',
+                        updated_at: new Date().toISOString()
+                    });
+                }
+                
+                // Generate POs if not transport request
+                let poCount = 0;
+                if (!isTransport) {
+                    poCount = await generatePOsForPR(pr);
+                }
+                
+                showToast(
+                    `✓ PR approved successfully!${poCount > 0 ? ` Generated ${poCount} PO(s).` : ''}`, 
+                    'success'
+                );
+                
+                // Switch to PO tab if POs were generated
+                if (poCount > 0) {
+                    setTimeout(() => {
+                        switchTab('po-generation');
+                    }, 1500);
+                }
+                
+            } catch (error) {
+                console.error('Error approving PR:', error);
+                showToast('Failed to approve PR', 'error');
+            } finally {
+                showLoading(false);
+                currentPRForApproval = null;
+            }
+        };
+
+        // Generate POs for approved PR (group by supplier)
+        async function generatePOsForPR(pr) {
+            const items = JSON.parse(pr.items_json || '[]');
+            
+            // Group items by supplier
+            const itemsBySupplier = {};
+            items.forEach(item => {
+                const supplier = item.supplier || 'Unknown';
+                if (!itemsBySupplier[supplier]) {
+                    itemsBySupplier[supplier] = [];
+                }
+                itemsBySupplier[supplier].push(item);
+            });
+            
+            // Generate PO for each supplier
+            const year = new Date().getFullYear();
+            let poCount = 0;
+            
+            for (const [supplier, supplierItems] of Object.entries(itemsBySupplier)) {
+                // Get next PO number
+                const posRef = collection(db, 'pos');
+                const poQuery = query(posRef, orderBy('date_issued', 'desc'), limit(1));
+                const poSnapshot = await getDocs(poQuery);
+                
+                let nextNum = 1;
+                if (!poSnapshot.empty) {
+                    const lastPO = poSnapshot.docs[0].data();
+                    if (lastPO.po_id) {
+                        const match = lastPO.po_id.match(/PO-\d{4}-(\d+)/);
+                        if (match) {
+                            nextNum = parseInt(match[1]) + 1;
+                        }
+                    }
+                }
+                
+                const poId = `PO-${year}-${String(nextNum + poCount).padStart(3, '0')}`;
+                
+                // Calculate total for this supplier
+                const total = supplierItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+                
+                // Create PO document
+                const poDoc = {
+                    po_id: poId,
+                    pr_id: pr.pr_id,
+                    mrf_id: pr.mrf_id,
+                    project_name: pr.project_name,
+                    supplier_name: supplier,
+                    delivery_address: pr.delivery_address,
+                    items_json: JSON.stringify(supplierItems),
+                    total_amount: total,
+                    payment_terms: '50% Downpayment, 50% Upon Delivery',
+                    delivery_status: 'Pending',
+                    date_issued: new Date().toISOString().split('T')[0],
+                    created_at: new Date().toISOString()
+                };
+                
+                await addDoc(collection(db, 'pos'), poDoc);
+                poCount++;
+            }
+            
+            return poCount;
+        }
+
+        // Reject PR
+        window.rejectPR = async function(prId) {
+            const reason = prompt('Please enter rejection reason:');
+            if (!reason || !reason.trim()) return;
+            
+            closePRModal();
+            showLoading(true);
+            
+            try {
+                const prRef = doc(db, 'prs', prId);
+                const prDoc = await getDoc(prRef);
+                const pr = prDoc.data();
+                
+                await updateDoc(prRef, {
+                    finance_status: 'Rejected',
+                    rejection_reason: reason.trim(),
+                    rejected_at: new Date().toISOString(),
+                    rejected_by: 'Ma. Thea Angela R. Lacsamana' // TODO: Get from user settings
+                });
+                
+                // Update MRF status
+                const mrfsRef = collection(db, 'mrfs');
+                const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
+                const mrfSnapshot = await getDocs(mrfQuery);
+                
+                if (!mrfSnapshot.empty) {
+                    const mrfDoc = mrfSnapshot.docs[0];
+                    await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
+                        status: 'Rejected',
+                        updated_at: new Date().toISOString()
+                    });
+                }
+                
+                showToast('PR rejected successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error rejecting PR:', error);
+                showToast('Failed to reject PR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Load POs with real-time updates
+        async function loadPOs() {
+            const posRef = collection(db, 'pos');
+            const q = query(posRef, orderBy('date_issued', 'desc'), limit(20));
+            
+            onSnapshot(q, (snapshot) => {
+                allPOs = [];
+                snapshot.forEach((docSnap) => {
+                    allPOs.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderPOs();
+            });
+        }
+
+        // Render POs
+        function renderPOs() {
+            const poList = document.getElementById('poList');
+            
+            if (allPOs.length === 0) {
+                poList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✓</div>
+                        <div>No purchase orders generated yet</div>
+                    </div>
+                `;
+                return;
+            }
+
+            poList.innerHTML = allPOs.map(po => `
+                <div class="po-card">
+                    <div class="po-header">
+                        <span class="po-id">${po.po_id}</span>
+                        <span class="status-badge ${po.delivery_status.toLowerCase()}">${po.delivery_status}</span>
+                    </div>
+                    <div class="po-details">
+                        <div><strong>Supplier:</strong> ${po.supplier_name}</div>
+                        <div><strong>Amount:</strong> ₱${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        <div><strong>Date Issued:</strong> ${formatDate(po.date_issued)}</div>
+                        <div><strong>PR Reference:</strong> ${po.pr_id}</div>
+                        <div><strong>MRF Reference:</strong> ${po.mrf_id}</div>
+                    </div>
+                    <div class="po-actions">
+                        <button class="btn btn-sm btn-primary" onclick="viewPODocument('${po.id}')">📄 View Document</button>
+                        <button class="btn btn-sm btn-secondary" onclick="downloadPODocument('${po.id}')">⬇ Download</button>
+                    </div>
+                </div>
             `).join('');
         }
 
-        async function init() {
-            await refreshPRs();
-            await refreshTRs();
-            await refreshPOTracking();
-            await loadHistoricalData();
-            await loadMetrics();
+        // View PO Document
+        window.viewPODocument = async function(poId) {
+            showLoading(true);
+            
+            try {
+                const poDoc = await getDoc(doc(db, 'pos', poId));
+                if (!poDoc.exists()) {
+                    showToast('PO not found', 'error');
+                    return;
+                }
+                
+                const po = { id: poDoc.id, ...poDoc.data() };
+                const items = JSON.parse(po.items_json || '[]');
+                
+                const poHTML = generatePOHTML(po, items);
+                
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(poHTML);
+                printWindow.document.close();
+                
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error viewing PO document:', error);
+                showToast('Failed to load PO document', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Download PO Document
+        window.downloadPODocument = async function(poId) {
+            showLoading(true);
+            
+            try {
+                const poDoc = await getDoc(doc(db, 'pos', poId));
+                if (!poDoc.exists()) {
+                    showToast('PO not found', 'error');
+                    return;
+                }
+                
+                const po = { id: poDoc.id, ...poDoc.data() };
+                const items = JSON.parse(po.items_json || '[]');
+                
+                const poHTML = generatePOHTML(po, items);
+                
+                // Create a blob and download
+                const blob = new Blob([poHTML], { type: 'text/html' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${po.po_id}_Purchase_Order.html`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                showToast('PO document downloaded', 'success');
+                
+            } catch (error) {
+                console.error('Error downloading PO document:', error);
+                showToast('Failed to download PO document', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Generate PO HTML
+        function generatePOHTML(po, items) {
+            return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${po.po_id} - Purchase Order</title>
+    <style>
+        @page { size: A4; margin: 15mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #333; padding-bottom: 10px; }
+        .header h1 { font-size: 18pt; margin-bottom: 5px; }
+        .header p { font-size: 9pt; color: #666; }
+        .info-section { margin: 20px 0; }
+        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 15px; }
+        .label { font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background: #f0f0f0; padding: 8px; text-align: left; font-size: 10pt; border: 1px solid #ddd; }
+        td { padding: 8px; border: 1px solid #ddd; font-size: 10pt; }
+        .total-row { font-weight: bold; background: #f9f9f9; }
+        .signatures { margin-top: 40px; text-align: center; }
+        .signature-line { border-top: 1px solid #333; margin: 40px auto 0; padding-top: 5px; width: 300px; }
+        @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>C LACSAMANA MANAGEMENT AND CONSTRUCTION CORPORATION</h1>
+        <p>133 Pinatubo St., Mandaluyong City, Metro Manila | Tel: 09178182993 | Email: cgl@consultclm.com</p>
+    </div>
+
+    <h2 style="text-align: center; margin: 20px 0;">PURCHASE ORDER</h2>
+
+    <div class="info-section">
+        <div class="info-grid">
+            <div class="label">P.O. No.:</div>
+            <div class="value">${po.po_id}</div>
+            
+            <div class="label">PR Reference:</div>
+            <div class="value">${po.pr_id}</div>
+            
+            <div class="label">Project:</div>
+            <div class="value">${po.project_name}</div>
+            
+            <div class="label">Date:</div>
+            <div class="value">${formatDate(po.date_issued)}</div>
+            
+            <div class="label">Supplier:</div>
+            <div class="value">${po.supplier_name}</div>
+            
+            <div class="label">Delivery Address:</div>
+            <div class="value">${po.delivery_address || 'N/A'}</div>
+            
+            <div class="label">Payment Terms:</div>
+            <div class="value">${po.payment_terms || 'As agreed'}</div>
+        </div>
+    </div>
+
+    <h3 style="margin: 20px 0 10px 0;">Order Details:</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">No.</th>
+                <th style="width: 35%;">Item Description</th>
+                <th style="width: 15%;">Category</th>
+                <th style="width: 10%;">Quantity</th>
+                <th style="width: 10%;">Unit</th>
+                <th style="width: 15%;">Unit Cost</th>
+                <th style="width: 15%;">Total Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${items.map((item, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${item.item || item.item_name}</td>
+                    <td>${item.category || 'N/A'}</td>
+                    <td>${item.qty || item.quantity}</td>
+                    <td>${item.unit}</td>
+                    <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="6" style="text-align: right;">TOTAL AMOUNT:</td>
+                <td>₱${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="signatures">
+        <div style="font-weight: bold; margin-bottom: 10px;">Authorized By:</div>
+        <div class="signature-line">Ma. Thea Angela R. Lacsamana</div>
+        <div style="font-size: 9pt; margin-top: 5px;">Chief Financial Officer</div>
+        <div style="font-size: 9pt; color: #666;">C. Lacsamana Management and Construction Corporation</div>
+    </div>
+</body>
+</html>
+            `.trim();
         }
+
+        // Load historical data
+        async function loadHistoricalData() {
+            const prsRef = collection(db, 'prs');
+            const q = query(prsRef, where('finance_status', '==', 'Approved'), orderBy('date_approved', 'desc'), limit(50));
+            
+            onSnapshot(q, (snapshot) => {
+                const historicalData = [];
+                snapshot.forEach((docSnap) => {
+                    historicalData.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderHistoricalData(historicalData);
+                updateHistoricalStats(historicalData);
+            });
+        }
+
+        // Render historical data
+        function renderHistoricalData(data) {
+            const tbody = document.getElementById('historicalTableBody');
+            
+            if (data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <div>No historical data available</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = data.map(pr => {
+                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+                return `
+                    <tr>
+                        <td>${formatDate(pr.date_approved)}</td>
+                        <td><strong>${pr.pr_id}</strong></td>
+                        <td>${pr.project_name}</td>
+                        <td>${isTransport ? 'Transport' : 'Material'}</td>
+                        <td><strong>₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td><span class="status-badge approved">Approved</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="viewPRDocument('${pr.id}')">View PR</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Update historical stats
+        function updateHistoricalStats(data) {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            // Calculate month spend
+            const monthSpend = data
+                .filter(pr => {
+                    const approvedDate = new Date(pr.date_approved);
+                    return approvedDate.getMonth() === currentMonth && approvedDate.getFullYear() === currentYear;
+                })
+                .reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0);
+            
+            // Calculate YTD spend
+            const ytdSpend = data
+                .filter(pr => {
+                    const approvedDate = new Date(pr.date_approved);
+                    return approvedDate.getFullYear() === currentYear;
+                })
+                .reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0);
+            
+            document.getElementById('monthSpend').textContent = `₱${monthSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+            document.getElementById('ytdSpend').textContent = `₱${ytdSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+            document.getElementById('totalPurchases').textContent = data.length;
+        }
+
+        // Refresh functions
+        window.refreshPRs = async function() {
+            showToast('Refreshing PRs...', 'success');
+            await loadPRs();
+        };
+
+        window.refreshPOs = async function() {
+            showToast('Refreshing POs...', 'success');
+            await loadPOs();
+        };
+
+        // Close modal
+        window.closePRModal = function() {
+            document.getElementById('prModal').classList.remove('active');
+            currentPRForApproval = null;
+        };
 
         // Switch tabs
         window.switchTab = function(tabName) {
@@ -968,1137 +1729,7 @@
             currentTab = tabName;
         };
 
-        // Refresh PRs
-        window.refreshPRs = async function() {
-            try {
-                const prsRef = collection(db, 'prs');
-                const q = query(prsRef, where('finance_status', '==', 'Pending Review'));
-                const snapshot = await getDocs(q);
-                
-                prData = [];
-                snapshot.forEach(doc => {
-                    prData.push({ id: doc.id, ...doc.data() });
-                });
-                
-                renderPRTable(prData);
-                updatePRStats(prData);
-            } catch (error) {
-                console.error('Error loading PRs:', error);
-                showToast('Failed to load PRs', 'error');
-            }
-        };
-
-        // Render PR table
-        function renderPRTable(prs) {
-            const tbody = document.getElementById('prTableBody');
-            
-            if (prs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #999;">No pending PRs</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = prs.map(pr => `
-                <tr>
-                    <td><strong>${pr.pr_id}</strong></td>
-                    <td>${pr.mrf_id}</td>
-                    <td>${pr.project_name}</td>
-                    <td>${pr.supplier_name}</td>
-                    <td>${formatDate(pr.date_generated)}</td>
-                    <td><strong>PHP ${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
-                    <td><span class="status-badge ${pr.finance_status.toLowerCase().replace(' ', '-')}">${pr.finance_status}</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${pr.id}')">View</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // Update PR stats
-        function updatePRStats(prs) {
-            const pending = prs.filter(p => p.finance_status === 'Pending Review');
-            
-            document.getElementById('pendingCount').textContent = pending.length;
-            
-            const totalPending = pending.reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0);
-            document.getElementById('pendingAmount').textContent = `PHP ${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
-            
-            // Get approved count for this month
-            const thisMonth = new Date().getMonth();
-            const thisYear = new Date().getFullYear();
-            
-            getDocs(collection(db, 'prs')).then(snapshot => {
-                let approvedCount = 0;
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    if (data.finance_status === 'Approved' && data.date_approved) {
-                        const approvedDate = new Date(data.date_approved);
-                        if (approvedDate.getMonth() === thisMonth && approvedDate.getFullYear() === thisYear) {
-                            approvedCount++;
-                        }
-                    }
-                });
-                document.getElementById('approvedCount').textContent = approvedCount;
-            });
-        }
-
-        // View PR details
-        window.viewPRDetails = async function(prId) {
-            const pr = prData.find(p => p.id === prId);
-            if (!pr) return;
-
-            currentPR = pr;
-            const items = JSON.parse(pr.items_json);
-
-            const modalBody = document.getElementById('modalBody');
-            modalBody.innerHTML = `
-                <div class="info-grid">
-                    <div class="info-label">PR ID:</div>
-                    <div>${pr.pr_id}</div>
-                    <div class="info-label">MRF ID:</div>
-                    <div>${pr.mrf_id}</div>
-                    <div class="info-label">Project:</div>
-                    <div>${pr.project_name}</div>
-                    <div class="info-label">Supplier:</div>
-                    <div>${pr.supplier_name}</div>
-                    <div class="info-label">Requestor:</div>
-                    <div>${pr.requestor_name}</div>
-                    <div class="info-label">Date Created:</div>
-                    <div>${formatDate(pr.date_generated)}</div>
-                    <div class="info-label">Delivery Address:</div>
-                    <div>${pr.delivery_address}</div>
-                    <div class="info-label">Total Cost:</div>
-                    <div><strong>PHP ${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
-                </div>
-
-                <h4 style="margin: 1.5rem 0 1rem 0;">Items Breakdown</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th>Qty</th>
-                            <th>Unit</th>
-                            <th>Unit Cost</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${items.map(item => `
-                            <tr>
-                                <td>${item.item}</td>
-                                <td>${item.category || 'N/A'}</td>
-                                <td>${item.qty}</td>
-                                <td>${item.unit}</td>
-                                <td>PHP ${parseFloat(item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td>PHP ${parseFloat(item.subtotal).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                            </tr>
-                        `).join('')}
-                        <tr style="background: var(--gray-50); font-weight: 600;">
-                            <td colspan="5" style="text-align: right;">TOTAL:</td>
-                            <td>PHP ${parseFloat(pr.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="margin-top: 2rem; padding: 1.5rem; background: var(--gray-50); border-radius: 6px;">
-                    <h4 style="margin-bottom: 1rem;">Approval Details</h4>
-                    
-                    <div class="form-group">
-                        <label>Quote Reference (Optional)</label>
-                        <div style="display: flex; gap: 1rem;">
-                            <input type="text" id="quoteRef" placeholder="Enter quote reference or upload file">
-                            <label class="btn btn-secondary file-upload-btn">
-                                📎 Upload Quote
-                                <input type="file" id="quoteFile" accept=".pdf,.jpg,.jpeg,.png" onchange="handleQuoteUpload()">
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Payment Terms *</label>
-                        <input type="text" id="paymentTerms" placeholder="e.g., 50% Downpayment, 50% Upon Delivery" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Condition *</label>
-                        <textarea id="condition" rows="2" placeholder="e.g., 2-3 days lead time upon downpayment" required></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Delivery Date *</label>
-                        <input type="date" id="deliveryDate" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Your Name *</label>
-                        <input type="text" id="approverName" placeholder="Enter your full name" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Signature *</label>
-                        <canvas id="signaturePad" class="signature-pad" width="500" height="150"></canvas>
-                        <button class="btn btn-sm btn-secondary" onclick="clearSignature()" style="margin-top: 0.5rem;">Clear Signature</button>
-                    </div>
-                </div>
-            `;
-
-            const modalFooter = document.getElementById('modalFooter');
-            modalFooter.innerHTML = `
-                <button class="btn btn-secondary" onclick="viewPRDocument('${pr.id}')"> View PR Document</button>
-                <button class="btn btn-danger" onclick="rejectPR('${pr.id}')">Reject</button>
-                <button class="btn btn-success" onclick="approvePR('${pr.id}')">Approve & Generate PO</button>
-            `;
-
-            // Set minimum delivery date to tomorrow
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            document.getElementById('deliveryDate').min = tomorrow.toISOString().split('T')[0];
-
-            // Initialize signature pad
-            initSignaturePad();
-
-            document.getElementById('prModal').classList.add('active');
-        };
-
-        // Initialize signature pad
-        function initSignaturePad() {
-            const canvas = document.getElementById('signaturePad');
-            const ctx = canvas.getContext('2d');
-            let isDrawing = false;
-            let lastX = 0;
-            let lastY = 0;
-
-            canvas.addEventListener('mousedown', (e) => {
-                isDrawing = true;
-                [lastX, lastY] = [e.offsetX, e.offsetY];
-            });
-
-            canvas.addEventListener('mousemove', (e) => {
-                if (!isDrawing) return;
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(e.offsetX, e.offsetY);
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                [lastX, lastY] = [e.offsetX, e.offsetY];
-            });
-
-            canvas.addEventListener('mouseup', () => {
-                isDrawing = false;
-                signatureData = canvas.toDataURL();
-            });
-
-            canvas.addEventListener('mouseleave', () => {
-                isDrawing = false;
-            });
-
-            // Touch events for mobile
-            canvas.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
-                isDrawing = true;
-                [lastX, lastY] = [touch.clientX - rect.left, touch.clientY - rect.top];
-            });
-
-            canvas.addEventListener('touchmove', (e) => {
-                e.preventDefault();
-                if (!isDrawing) return;
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
-                const x = touch.clientX - rect.left;
-                const y = touch.clientY - rect.top;
-                ctx.beginPath();
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(x, y);
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                [lastX, lastY] = [x, y];
-            });
-
-            canvas.addEventListener('touchend', () => {
-                isDrawing = false;
-                signatureData = canvas.toDataURL();
-            });
-        }
-
-        window.clearSignature = function() {
-            const canvas = document.getElementById('signaturePad');
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            signatureData = null;
-        };
-
-        window.handleQuoteUpload = function() {
-            const file = document.getElementById('quoteFile').files[0];
-            if (file) {
-                document.getElementById('quoteRef').value = file.name;
-            }
-        };
-
-        // View PR Document
-        window.viewPRDocument = async function(prId) {
-            const pr = prData.find(p => p.id === prId);
-            if (!pr) return;
-
-            try {
-                const pdfBlob = await generatePRPDF(pr);
-                const pdfUrl = URL.createObjectURL(pdfBlob);
-                
-                document.getElementById('pdfModalTitle').textContent = `PR Document: ${pr.pr_id}`;
-                document.getElementById('pdfViewer').src = pdfUrl;
-                document.getElementById('pdfModal').classList.add('active');
-            } catch (error) {
-                console.error('Error viewing PR:', error);
-                showToast('Failed to view PR document', 'error');
-            }
-        };
-
-        // Generate PR PDF
-        async function generatePRPDF(prData) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            const items = JSON.parse(prData.items_json);
-
-            // Header
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('C Lacsamana Management and Construction Corporation', 105, 20, { align: 'center' });
-            
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.text('133 Pinatubo St., Mandaluyong City, Metro Manila', 105, 27, { align: 'center' });
-            doc.text('Tel: 09178182993', 105, 32, { align: 'center' });
-            doc.text('Email: cgl@consultclm.com', 105, 37, { align: 'center' });
-
-            // Title
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text('PURCHASE REQUEST FORM (PR)', 105, 50, { align: 'center' });
-
-            // Details
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            const startY = 65;
-            doc.text(`Document No.: ${prData.pr_id}`, 20, startY);
-            doc.text(`MRF Reference: ${prData.mrf_id}`, 20, startY + 6);
-            doc.text(`Date: ${prData.date_generated}`, 20, startY + 12);
-            doc.text(`Project: ${prData.project_name}`, 20, startY + 18);
-            doc.text(`Delivery Address: ${prData.delivery_address}`, 20, startY + 24);
-            doc.text(`Supplier: ${prData.supplier_name}`, 20, startY + 30);
-
-            // Items table
-            const tableData = items.map(item => [
-                item.item,
-                item.category || 'N/A',
-                item.qty.toString(),
-                item.unit,
-                `PHP ${parseFloat(item.unit_cost).toFixed(2)}`,
-                `PHP ${parseFloat(item.subtotal).toFixed(2)}`
-            ]);
-
-            doc.autoTable({
-                head: [['Item Description', 'Category', 'Qty', 'Unit', 'Unit Cost', 'Total Cost']],
-                body: tableData,
-                foot: [['', '', '', '', 'TOTAL AMOUNT:', `PHP ${parseFloat(prData.total_amount).toFixed(2)}`]],
-                startY: startY + 40,
-                theme: 'grid',
-                headStyles: { 
-                    fillColor: [255, 255, 255],
-                    textColor: [0, 0, 0],
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.5,
-                    fontStyle: 'bold'
-                },
-                bodyStyles: {
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.5
-                },
-                footStyles: {
-                    fillColor: [232, 234, 237],
-                    textColor: [0, 0, 0],
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.5,
-                    fontStyle: 'bold'
-                },
-                margin: { left: 20, right: 20 }
-            });
-
-            const finalY = doc.lastAutoTable.finalY + 15;
-
-            doc.text(`Requested By: ${prData.requestor_name}`, 20, finalY);
-            doc.text(`Prepared By: ${prData.requestor_name}`, 20, finalY + 15);
-            doc.text('Approved By: ___________________________', 20, finalY + 30);
-            doc.text('Date Approved: ___________________________', 20, finalY + 45);
-
-            return doc.output('blob');
-        }
-
-        // Approve PR
-        window.approvePR = async function(prId) {
-            const pr = prData.find(p => p.id === prId);
-            if (!pr) return;
-
-            // Validate inputs
-            const paymentTerms = document.getElementById('paymentTerms').value.trim();
-            const condition = document.getElementById('condition').value.trim();
-            const deliveryDate = document.getElementById('deliveryDate').value;
-            const approverName = document.getElementById('approverName').value.trim();
-            const quoteRef = document.getElementById('quoteRef').value.trim();
-
-            if (!paymentTerms) {
-                showToast('Please enter payment terms', 'error');
-                return;
-            }
-
-            if (!condition) {
-                showToast('Please enter condition/terms', 'error');
-                return;
-            }
-
-            if (!deliveryDate) {
-                showToast('Please select delivery date', 'error');
-                return;
-            }
-
-            if (!approverName) {
-                showToast('Please enter your name', 'error');
-                return;
-            }
-
-            if (!signatureData) {
-                showToast('Please provide your signature', 'error');
-                return;
-            }
-
-            if (!confirm('Approve this PR and generate Purchase Order?')) return;
-
-            showLoading(true);
-            closeModal();
-
-            try {
-                // Generate PO ID
-                const year = new Date().getFullYear();
-                const posRef = collection(db, 'pos');
-                const q = query(posRef, orderBy('date_issued', 'desc'));
-                const snapshot = await getDocs(q);
-                
-                let nextNum = 1;
-                if (!snapshot.empty) {
-                    const lastPO = snapshot.docs[0].data();
-                    if (lastPO.po_id) {
-                        const match = lastPO.po_id.match(/PO-\d{4}-(\d+)/);
-                        if (match) {
-                            nextNum = parseInt(match[1]) + 1;
-                        }
-                    }
-                }
-                
-                const poId = `PO-${year}-${String(nextNum).padStart(3, '0')}`;
-                const today = new Date().toISOString().split('T')[0];
-
-                // Create PO document
-                const poDoc = {
-                    po_id: poId,
-                    pr_id: pr.pr_id,
-                    pr_doc_id: pr.id,
-                    mrf_id: pr.mrf_id,
-                    project_name: pr.project_name,
-                    supplier_name: pr.supplier_name,
-                    items_json: pr.items_json,
-                    total_amount: pr.total_amount,
-                    delivery_address: pr.delivery_address,
-                    payment_terms: paymentTerms,
-                    condition: condition,
-                    delivery_date: deliveryDate,
-                    quote_ref: quoteRef || '',
-                    approved_by: approverName,
-                    signature_data: signatureData,
-                    date_issued: today,
-                    procurement_status: 'Pending Procurement',
-                    procured_date: null,
-                    delivered_date: null,
-                    created_at: new Date().toISOString()
-                };
-
-                await addDoc(collection(db, 'pos'), poDoc);
-
-                // Update PR status
-                const prRef = doc(db, 'prs', pr.id);
-                await updateDoc(prRef, {
-                    finance_status: 'Approved',
-                    po_id: poId,
-                    payment_terms: paymentTerms,
-                    condition: condition,
-                    delivery_date: deliveryDate,
-                    quote_ref: quoteRef || '',
-                    approved_by: approverName,
-                    date_approved: today,
-                    updated_at: new Date().toISOString()
-                });
-
-                showToast(`PR approved! Generated PO: ${poId}`, 'success');
-                await refreshPRs();
-                await refreshPOTracking();
-
-            } catch (error) {
-                console.error('Error approving PR:', error);
-                showToast('Failed to approve PR', 'error');
-            } finally {
-                showLoading(false);
-            }
-        };
-
-        // Reject PR
-        window.rejectPR = async function(prId) {
-            const pr = prData.find(p => p.id === prId);
-            if (!pr) return;
-
-            const reason = prompt('Enter rejection reason:');
-            if (!reason) return;
-
-            showLoading(true);
-            closeModal();
-
-            try {
-                // Update PR status
-                const prRef = doc(db, 'prs', prId);
-                await updateDoc(prRef, {
-                    finance_status: 'Rejected',
-                    rejection_reason: reason,
-                    rejected_at: new Date().toISOString()
-                });
-
-                // Update MRF status back to "In Progress" so it appears in procurement again
-                const mrfsRef = collection(db, 'mrfs');
-                const q = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
-                const mrfSnapshot = await getDocs(q);
-                
-                if (!mrfSnapshot.empty) {
-                    const mrfDoc = mrfSnapshot.docs[0];
-                    await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                        status: 'PR Rejected',
-                        pr_rejection_reason: reason,
-                        updated_at: new Date().toISOString()
-                    });
-                }
-
-                showToast('PR rejected - MRF returned to procurement', 'success');
-                await refreshPRs();
-
-            } catch (error) {
-                console.error('Error rejecting PR:', error);
-                showToast('Failed to reject PR', 'error');
-            } finally {
-                showLoading(false);
-            }
-        };
-
-        // Refresh PO Tracking
-        window.refreshPOTracking = async function() {
-            try {
-                const posRef = collection(db, 'pos');
-                const snapshot = await getDocs(posRef);
-                
-                poData = [];
-                snapshot.forEach(doc => {
-                    poData.push({ id: doc.id, ...doc.data() });
-                });
-
-                // Sort by date issued (newest first)
-                poData.sort((a, b) => new Date(b.date_issued) - new Date(a.date_issued));
-                
-                renderPOTrackingTable(poData);
-                updatePOStats(poData);
-            } catch (error) {
-                console.error('Error loading POs:', error);
-                showToast('Failed to load POs', 'error');
-            }
-        };
-
-        // Render PO Tracking Table
-        function renderPOTrackingTable(pos) {
-            const tbody = document.getElementById('poTrackingBody');
-            
-            if (pos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #999;">No POs yet</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = pos.map(po => `
-                <tr>
-                    <td><strong>${po.po_id}</strong></td>
-                    <td>${po.pr_id}</td>
-                    <td>${po.supplier_name}</td>
-                    <td>${po.project_name}</td>
-                    <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    <td>${formatDate(po.date_issued)}</td>
-                    <td><span class="status-badge ${po.procurement_status.toLowerCase().replace(' ', '-')}">${po.procurement_status}</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewPODetails('${po.id}')">View</button>
-                        <button class="btn btn-sm btn-secondary" onclick="viewPODocument('${po.id}')"> PDF</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // Update PO Stats
-        function updatePOStats(pos) {
-            const procuring = pos.filter(p => p.procurement_status === 'Procuring' || p.procurement_status === 'Pending Procurement').length;
-            const procured = pos.filter(p => p.procurement_status === 'Procured').length;
-            const delivered = pos.filter(p => p.procurement_status === 'Delivered').length;
-
-            document.getElementById('procuringCount').textContent = procuring;
-            document.getElementById('procuredCount').textContent = procured;
-            document.getElementById('deliveredCount').textContent = delivered;
-        }
-
-        // View PO Details
-        window.viewPODetails = async function(poId) {
-            const po = poData.find(p => p.id === poId);
-            if (!po) return;
-
-            const items = JSON.parse(po.items_json);
-
-            const modalBody = document.getElementById('poModalBody');
-            modalBody.innerHTML = `
-                <div class="info-grid">
-                    <div class="info-label">PO ID:</div>
-                    <div>${po.po_id}</div>
-                    <div class="info-label">PR ID:</div>
-                    <div>${po.pr_id}</div>
-                    <div class="info-label">MRF ID:</div>
-                    <div>${po.mrf_id}</div>
-                    <div class="info-label">Project:</div>
-                    <div>${po.project_name}</div>
-                    <div class="info-label">Supplier:</div>
-                    <div>${po.supplier_name}</div>
-                    <div class="info-label">Date Issued:</div>
-                    <div>${formatDate(po.date_issued)}</div>
-                    <div class="info-label">Delivery Date:</div>
-                    <div>${formatDate(po.delivery_date)}</div>
-                    <div class="info-label">Payment Terms:</div>
-                    <div>${po.payment_terms}</div>
-                    <div class="info-label">Condition:</div>
-                    <div>${po.condition}</div>
-                    <div class="info-label">Quote Ref:</div>
-                    <div>${po.quote_ref || 'N/A'}</div>
-                    <div class="info-label">Approved By:</div>
-                    <div>${po.approved_by}</div>
-                    <div class="info-label">Total Amount:</div>
-                    <div><strong>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
-                </div>
-
-                <h4 style="margin: 1.5rem 0 1rem 0;">Items</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th>Qty</th>
-                            <th>Unit</th>
-                            <th>Unit Cost</th>
-                            <th>Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${items.map(item => `
-                            <tr>
-                                <td>${item.item}</td>
-                                <td>${item.category || 'N/A'}</td>
-                                <td>${item.qty}</td>
-                                <td>${item.unit}</td>
-                                <td>PHP ${parseFloat(item.unit_cost).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td>PHP ${parseFloat(item.subtotal).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-
-                <h4 style="margin: 1.5rem 0 1rem 0;">Procurement Timeline</h4>
-                <div>
-                    <div class="timeline-item ${po.date_issued ? 'completed' : ''}">
-                        <strong>PO Issued</strong><br>
-                        <span style="font-size: 0.875rem; color: var(--gray-700);">${po.date_issued ? formatDate(po.date_issued) : 'Pending'}</span>
-                    </div>
-                    <div class="timeline-item ${po.procured_date ? 'completed' : (po.procurement_status === 'Procuring' ? 'current' : '')}">
-                        <strong>Procured</strong><br>
-                        <span style="font-size: 0.875rem; color: var(--gray-700);">${po.procured_date ? formatDate(po.procured_date) : 'Pending'}</span>
-                    </div>
-                    <div class="timeline-item ${po.delivered_date ? 'completed' : (po.procurement_status === 'Delivering' ? 'current' : '')}">
-                        <strong>Delivered</strong><br>
-                        <span style="font-size: 0.875rem; color: var(--gray-700);">${po.delivered_date ? formatDate(po.delivered_date) : 'Pending'}</span>
-                    </div>
-                </div>
-            `;
-
-            const modalFooter = document.getElementById('poModalFooter');
-            modalFooter.innerHTML = `
-                <button class="btn btn-secondary" onclick="closePOModal()">Close</button>
-            `;
-
-            document.getElementById('poModal').classList.add('active');
-        };
-
-        // View PO Document
-        window.viewPODocument = async function(poId) {
-            const po = poData.find(p => p.id === poId);
-            if (!po) return;
-
-            try {
-                const pdfBlob = await generatePOPDF(po);
-                const pdfUrl = URL.createObjectURL(pdfBlob);
-                
-                document.getElementById('pdfModalTitle').textContent = `PO Document: ${po.po_id}`;
-                document.getElementById('pdfViewer').src = pdfUrl;
-                document.getElementById('pdfModal').classList.add('active');
-            } catch (error) {
-                console.error('Error viewing PO:', error);
-                showToast('Failed to view PO document', 'error');
-            }
-        };
-
-        // Generate PO PDF
-        async function generatePOPDF(poData) {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            const items = JSON.parse(poData.items_json);
-
-            // Header
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('C Lacsamana Management and Construction Corporation', 105, 20, { align: 'center' });
-            
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.text('133 Pinatubo St., Mandaluyong City, Metro Manila', 105, 27, { align: 'center' });
-            doc.text('Tel: 09178182993', 105, 32, { align: 'center' });
-            doc.text('Email: cgl@consultclm.com', 105, 37, { align: 'center' });
-
-            // Title
-            doc.setFontSize(14);
-            doc.setFont('helvetica', 'bold');
-            doc.text('PURCHASE ORDER', 105, 50, { align: 'center' });
-
-            // Details
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            const startY = 65;
-            doc.text(`P.O. No.: ${poData.po_id}`, 20, startY);
-            doc.text(`Project: ${poData.project_name}`, 20, startY + 6);
-            doc.text(`Date: ${poData.date_issued}`, 20, startY + 12);
-            doc.text(`Supplier: ${poData.supplier_name}`, 20, startY + 18);
-            doc.text(`PR Reference: ${poData.pr_id}`, 20, startY + 24);
-            if (poData.quote_ref) {
-                doc.text(`Quote Ref: ${poData.quote_ref}`, 20, startY + 30);
-            }
-
-            // Items table
-            const tableData = items.map(item => [
-                item.item,
-                item.category || 'N/A',
-                item.qty.toString(),
-                item.unit,
-                `PHP ${parseFloat(item.unit_cost).toFixed(2)}`,
-                `PHP ${parseFloat(item.subtotal).toFixed(2)}`
-            ]);
-
-            doc.autoTable({
-                head: [['Description', 'Category', 'Qty', 'Unit', 'Unit Cost', 'Total Cost']],
-                body: tableData,
-                foot: [['', '', '', '', 'TOTAL AMOUNT:', `PHP ${parseFloat(poData.total_amount).toFixed(2)}`]],
-                startY: poData.quote_ref ? startY + 40 : startY + 34,
-                theme: 'grid',
-                headStyles: { 
-                    fillColor: [255, 255, 255],
-                    textColor: [0, 0, 0],
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.5,
-                    fontStyle: 'bold'
-                },
-                bodyStyles: {
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.5
-                },
-                footStyles: {
-                    fillColor: [232, 234, 237],
-                    textColor: [0, 0, 0],
-                    lineColor: [0, 0, 0],
-                    lineWidth: 0.5,
-                    fontStyle: 'bold'
-                },
-                margin: { left: 20, right: 20 }
-            });
-
-            const finalY = doc.lastAutoTable.finalY + 15;
-
-            doc.text(`Delivery Address: ${poData.delivery_address}`, 20, finalY);
-            doc.text(`Payment Terms: ${poData.payment_terms}`, 20, finalY + 6);
-            doc.text(`Condition: ${poData.condition}`, 20, finalY + 12);
-            doc.text(`Delivery Date: ${poData.delivery_date}`, 20, finalY + 18);
-            
-            doc.text('Authorized By:', 20, finalY + 30);
-            
-            // Add signature if available
-            if (poData.signature_data) {
-                doc.addImage(poData.signature_data, 'PNG', 20, finalY + 35, 50, 15);
-            }
-            
-            doc.text(poData.approved_by, 20, finalY + 54);
-            doc.text('Chief Financial Officer', 20, finalY + 60);
-
-            return doc.output('blob');
-        }
-
-        // Load Historical Data
-        window.loadHistoricalData = async function() {
-            try {
-                const posRef = collection(db, 'pos');
-                const snapshot = await getDocs(posRef);
-                
-                historicalData = [];
-                snapshot.forEach(doc => {
-                    const po = doc.data();
-                    if (po.procurement_status === 'Delivered' && po.delivered_date) {
-                        const items = JSON.parse(po.items_json);
-                        items.forEach(item => {
-                            historicalData.push({
-                                po_id: po.po_id,
-                                pr_id: po.pr_id,
-                                project_name: po.project_name,
-                                supplier_name: po.supplier_name,
-                                item_name: item.item,
-                                category: item.category || 'N/A',
-                                quantity: item.qty,
-                                unit: item.unit,
-                                unit_cost: parseFloat(item.unit_cost),
-                                total_cost: parseFloat(item.subtotal),
-                                date_purchased: po.delivered_date,
-                                month_year: new Date(po.delivered_date).toISOString().substring(0, 7)
-                            });
-                        });
-                    }
-                });
-
-                filteredHistoricalData = [...historicalData];
-                renderHistoricalTable(filteredHistoricalData);
-                calculateAnalytics();
-                renderTopSuppliers();
-            } catch (error) {
-                console.error('Error loading historical data:', error);
-                showToast('Failed to load historical data', 'error');
-            }
-        };
-
-        // Filter Historical Data
-        window.filterHistoricalData = function() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const category = document.getElementById('categoryFilter').value;
-            const dateFrom = document.getElementById('dateFrom').value;
-            const dateTo = document.getElementById('dateTo').value;
-
-            filteredHistoricalData = historicalData.filter(item => {
-                const matchSearch = !searchTerm || 
-                    item.item_name.toLowerCase().includes(searchTerm) ||
-                    item.supplier_name.toLowerCase().includes(searchTerm) ||
-                    item.project_name.toLowerCase().includes(searchTerm);
-                
-                const matchCategory = !category || item.category === category;
-                
-                const matchDateFrom = !dateFrom || new Date(item.date_purchased) >= new Date(dateFrom);
-                const matchDateTo = !dateTo || new Date(item.date_purchased) <= new Date(dateTo);
-
-                return matchSearch && matchCategory && matchDateFrom && matchDateTo;
-            });
-
-            renderHistoricalTable(filteredHistoricalData);
-        };
-
-        // Render Historical Table
-        function renderHistoricalTable(data) {
-            const tbody = document.getElementById('historicalTableBody');
-            
-            if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem; color: #999;">No data found</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = data.map(item => `
-                <tr>
-                    <td>${formatDate(item.date_purchased)}</td>
-                    <td>${item.item_name}</td>
-                    <td>${item.category}</td>
-                    <td>${item.supplier_name}</td>
-                    <td>${item.quantity}</td>
-                    <td>${item.unit}</td>
-                    <td>PHP ${item.unit_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    <td><strong>PHP ${item.total_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
-                    <td>${item.project_name}</td>
-                    <td>${item.po_id}</td>
-                </tr>
-            `).join('');
-        }
-
-        // Calculate Analytics
-        function calculateAnalytics() {
-            const now = new Date();
-            const thisMonth = historicalData.filter(item => {
-                const itemDate = new Date(item.date_purchased);
-                return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
-            });
-
-            const thisYear = historicalData.filter(item => {
-                const itemDate = new Date(item.date_purchased);
-                return itemDate.getFullYear() === now.getFullYear();
-            });
-
-            const monthSpend = thisMonth.reduce((sum, item) => sum + item.total_cost, 0);
-            const ytdSpend = thisYear.reduce((sum, item) => sum + item.total_cost, 0);
-
-            document.getElementById('monthSpend').textContent = `PHP ${monthSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
-            document.getElementById('ytdSpend').textContent = `PHP ${ytdSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
-            document.getElementById('totalPurchases').textContent = historicalData.length;
-        }
-
-        // Render Top Suppliers
-        function renderTopSuppliers() {
-            const supplierStats = {};
-            const now = new Date();
-            const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
-
-            historicalData.forEach(item => {
-                const itemDate = new Date(item.date_purchased);
-                if (!supplierStats[item.supplier_name]) {
-                    supplierStats[item.supplier_name] = {
-                        total: 0,
-                        count: 0,
-                        recentCosts: []
-                    };
-                }
-                supplierStats[item.supplier_name].total += item.total_cost;
-                supplierStats[item.supplier_name].count += 1;
-                
-                if (itemDate >= ninetyDaysAgo) {
-                    supplierStats[item.supplier_name].recentCosts.push(item.unit_cost);
-                }
-            });
-
-            const sorted = Object.entries(supplierStats)
-                .sort((a, b) => b[1].total - a[1].total)
-                .slice(0, 5);
-
-            const tbody = document.getElementById('topSuppliersBody');
-            tbody.innerHTML = sorted.map(([ name, stats], idx) => {
-                const avgCost = stats.recentCosts.length > 0 
-                    ? stats.recentCosts.reduce((a, b) => a + b, 0) / stats.recentCosts.length 
-                    : 0;
-                
-                return `
-                    <tr>
-                        <td>${idx + 1}</td>
-                        <td>${name}</td>
-                        <td>PHP ${stats.total.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                        <td>${stats.count}</td>
-                        <td>PHP ${avgCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        // Search Price Comparison
-        window.searchPriceComparison = function() {
-            const searchTerm = document.getElementById('priceCompareSearch').value.toLowerCase();
-            
-            if (searchTerm.length < 2) {
-                document.getElementById('priceCompareBody').innerHTML = `
-                    <tr><td colspan="5" style="text-align: center; padding: 2rem; color: #999;">
-                        Enter at least 2 characters to search
-                    </td></tr>
-                `;
-                return;
-            }
-
-            const matches = historicalData.filter(item => 
-                item.item_name.toLowerCase().includes(searchTerm)
-            );
-
-            if (matches.length === 0) {
-                document.getElementById('priceCompareBody').innerHTML = `
-                    <tr><td colspan="5" style="text-align: center; padding: 2rem; color: #999;">
-                        No matches found
-                    </td></tr>
-                `;
-                return;
-            }
-
-            // Group by item and supplier
-            const grouped = {};
-            const now = new Date();
-            const ninetyDaysAgo = new Date(now.getTime() - (90 * 24 * 60 * 60 * 1000));
-
-            matches.forEach(item => {
-                const key = `${item.item_name}|||${item.supplier_name}`;
-                const itemDate = new Date(item.date_purchased);
-                
-                if (!grouped[key]) {
-                    grouped[key] = {
-                        item_name: item.item_name,
-                        supplier_name: item.supplier_name,
-                        latest_cost: 0,
-                        latest_date: '',
-                        recent_costs: []
-                    };
-                }
-
-                if (!grouped[key].latest_date || itemDate > new Date(grouped[key].latest_date)) {
-                    grouped[key].latest_cost = item.unit_cost;
-                    grouped[key].latest_date = item.date_purchased;
-                }
-
-                if (itemDate >= ninetyDaysAgo) {
-                    grouped[key].recent_costs.push(item.unit_cost);
-                }
-            });
-
-            const results = Object.values(grouped).sort((a, b) => a.latest_cost - b.latest_cost);
-
-            document.getElementById('priceCompareBody').innerHTML = results.map(result => {
-                const avgCost = result.recent_costs.length > 0
-                    ? result.recent_costs.reduce((a, b) => a + b, 0) / result.recent_costs.length
-                    : 0;
-
-                return `
-                    <tr>
-                        <td>${result.item_name}</td>
-                        <td>${result.supplier_name}</td>
-                        <td><strong>PHP ${result.latest_cost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
-                        <td>${formatDate(result.latest_date)}</td>
-                        <td>PHP ${avgCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    </tr>
-                `;
-            }).join('');
-        };
-
-        // Load Metrics
-        window.loadMetrics = async function() {
-            const timeframe = parseInt(document.getElementById('metricsTimeframe').value);
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - timeframe);
-
-            const completedPOs = poData.filter(po => 
-                po.delivered_date && new Date(po.delivered_date) >= cutoffDate
-            );
-
-            if (completedPOs.length === 0) {
-                document.getElementById('metricsTableBody').innerHTML = `
-                    <tr><td colspan="8" style="text-align: center; padding: 2rem; color: #999;">
-                        No completed deliveries in this timeframe
-                    </td></tr>
-                `;
-                document.getElementById('avgProcurementTime').textContent = '0';
-                document.getElementById('avgDeliveryTime').textContent = '0';
-                document.getElementById('onTimeRate').textContent = '0%';
-                document.getElementById('totalPOsProcessed').textContent = '0';
-                return;
-            }
-
-            let totalProcurementTime = 0;
-            let totalDeliveryTime = 0;
-            let onTimeCount = 0;
-
-            const rows = completedPOs.map(po => {
-                const issued = new Date(po.date_issued);
-                const procured = po.procured_date ? new Date(po.procured_date) : null;
-                const delivered = new Date(po.delivered_date);
-                const expectedDelivery = new Date(po.delivery_date);
-
-                const procurementDays = procured ? Math.ceil((procured - issued) / (1000 * 60 * 60 * 24)) : 0;
-                const deliveryDays = procured ? Math.ceil((delivered - procured) / (1000 * 60 * 60 * 24)) : 0;
-                const totalDays = Math.ceil((delivered - issued) / (1000 * 60 * 60 * 24));
-
-                totalProcurementTime += procurementDays;
-                totalDeliveryTime += deliveryDays;
-
-                if (delivered <= expectedDelivery) {
-                    onTimeCount++;
-                }
-
-                return `
-                    <tr>
-                        <td>${po.po_id}</td>
-                        <td>${po.supplier_name}</td>
-                        <td>${formatDate(po.date_issued)}</td>
-                        <td>${procured ? formatDate(po.procured_date) : 'N/A'}</td>
-                        <td>${formatDate(po.delivered_date)}</td>
-                        <td>${procurementDays} days</td>
-                        <td>${deliveryDays} days</td>
-                        <td><strong>${totalDays} days</strong></td>
-                    </tr>
-                `;
-            }).join('');
-
-            document.getElementById('metricsTableBody').innerHTML = rows;
-
-            const avgProcurement = Math.round(totalProcurementTime / completedPOs.length);
-            const avgDelivery = Math.round(totalDeliveryTime / completedPOs.length);
-            const onTimePercent = Math.round((onTimeCount / completedPOs.length) * 100);
-
-            document.getElementById('avgProcurementTime').textContent = avgProcurement;
-            document.getElementById('avgDeliveryTime').textContent = avgDelivery;
-            document.getElementById('onTimeRate').textContent = `${onTimePercent}%`;
-            document.getElementById('totalPOsProcessed').textContent = completedPOs.length;
-        };
-
-        // Export to CSV
-        window.exportToCSV = function() {
-            const headers = ['Date', 'Item Name', 'Category', 'Supplier', 'Qty', 'Unit', 'Unit Cost', 'Total', 'Project', 'PO ID'];
-            const rows = filteredHistoricalData.map(item => [
-                item.date_purchased,
-                item.item_name,
-                item.category,
-                item.supplier_name,
-                item.quantity,
-                item.unit,
-                item.unit_cost,
-                item.total_cost,
-                item.project_name,
-                item.po_id
-            ]);
-
-            let csvContent = headers.join(',') + '\n';
-            rows.forEach(row => {
-                csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `purchase-history-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            window.URL.revokeObjectURL(url);
-            
-            showToast('CSV exported successfully', 'success');
-        };
-
         // Utility functions
-        window.closeModal = function() {
-            document.getElementById('prModal').classList.remove('active');
-        };
-
-        window.closePOModal = function() {
-            document.getElementById('poModal').classList.remove('active');
-        };
-
-        window.closePDFModal = function() {
-            document.getElementById('pdfModal').classList.remove('active');
-            document.getElementById('pdfViewer').src = '';
-        };
-
         function formatDate(dateString) {
             if (!dateString) return 'N/A';
             return new Date(dateString).toLocaleDateString('en-PH', {
@@ -2111,7 +1742,6 @@
         function showLoading(show) {
             document.getElementById('loadingOverlay').classList.toggle('active', show);
         }
-        window.showLoading = showLoading;
 
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -2124,11 +1754,9 @@
                 toast.classList.remove('active');
             }, 3000);
         }
-        window.showToast = showToast;
-    </script>
 
-    <!-- jsPDF Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
