@@ -1009,7 +1009,10 @@
                 }
                 
                 const pr = { id: prDoc.id, ...prDoc.data() };
+                
+                // Store PR for both approval and rejection
                 currentPRForApproval = pr;
+                currentPRForRejection = pr;
                 
                 const items = JSON.parse(pr.items_json || '[]');
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
@@ -1275,6 +1278,7 @@
         window.closeSignatureModal = function() {
             document.getElementById('signatureModal').classList.remove('active');
             document.getElementById('signatureError').style.display = 'none';
+            currentPRForApproval = null;
         };
 
         // Submit approval with signature
@@ -1431,14 +1435,11 @@
         let currentPRForRejection = null;
         
         window.rejectPR = function(prId) {
-            // Find the PR in our loaded data
-            const pr = [...materialPRs, ...transportRequests].find(p => p.id === prId);
-            if (!pr) {
-                showToast('PR not found', 'error');
+            // Use the PR that was already stored when viewing details
+            if (!currentPRForRejection) {
+                showToast('Please open PR details first', 'error');
                 return;
             }
-            
-            currentPRForRejection = pr;
             
             // Close PR modal and open rejection modal
             closePRModal();
@@ -1511,6 +1512,7 @@
                 
                 showToast('✅ PR rejected - MRF sent back to Procurement for revision', 'success');
                 await loadPRs();
+                currentPRForRejection = null;  // Clear reference after successful rejection
                 
             } catch (error) {
                 console.error('❌ Error rejecting PR:', error);
@@ -1856,7 +1858,8 @@
         // Close modal
         window.closePRModal = function() {
             document.getElementById('prModal').classList.remove('active');
-            currentPRForApproval = null;
+            // Don't clear currentPRForApproval or currentPRForRejection here
+            // They're needed if rejection/approval modal opens next
         };
 
         // Switch tabs
