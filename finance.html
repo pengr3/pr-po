@@ -931,6 +931,7 @@
             const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
             
             const prsRef = collection(db, 'prs');
+            // Simple query without orderBy to avoid index requirement
             const approvedQuery = query(
                 prsRef, 
                 where('finance_status', '==', 'Approved'),
@@ -1315,20 +1316,26 @@
             let poCount = 0;
             
             for (const [supplier, supplierItems] of Object.entries(itemsBySupplier)) {
-                // Get next PO number
+                // Get next PO number - fetch all and find max to avoid index requirement
                 const posRef = collection(db, 'pos');
-                const poQuery = query(posRef, orderBy('date_issued', 'desc'), limit(1));
-                const poSnapshot = await getDocs(poQuery);
+                const poSnapshot = await getDocs(posRef);
                 
                 let nextNum = 1;
                 if (!poSnapshot.empty) {
-                    const lastPO = poSnapshot.docs[0].data();
-                    if (lastPO.po_id) {
-                        const match = lastPO.po_id.match(/PO-\d{4}-(\d+)/);
-                        if (match) {
-                            nextNum = parseInt(match[1]) + 1;
+                    let maxNum = 0;
+                    poSnapshot.forEach((doc) => {
+                        const po = doc.data();
+                        if (po.po_id) {
+                            const match = po.po_id.match(/PO-\d{4}-(\d+)/);
+                            if (match) {
+                                const num = parseInt(match[1]);
+                                if (num > maxNum) {
+                                    maxNum = num;
+                                }
+                            }
                         }
-                    }
+                    });
+                    nextNum = maxNum + 1;
                 }
                 
                 const poId = `PO-${year}-${String(nextNum + poCount).padStart(3, '0')}`;
@@ -1405,13 +1412,22 @@
         // Load POs with real-time updates
         async function loadPOs() {
             const posRef = collection(db, 'pos');
-            const q = query(posRef, orderBy('date_issued', 'desc'), limit(20));
+            // Simple query without orderBy to avoid index requirement - we'll sort client-side
+            const q = query(posRef, limit(20));
             
             onSnapshot(q, (snapshot) => {
                 allPOs = [];
                 snapshot.forEach((docSnap) => {
                     allPOs.push({ id: docSnap.id, ...docSnap.data() });
                 });
+                
+                // Sort client-side by date_issued (newest first)
+                allPOs.sort((a, b) => {
+                    const dateA = new Date(a.date_issued || 0);
+                    const dateB = new Date(b.date_issued || 0);
+                    return dateB - dateA; // Descending order
+                });
+                
                 renderPOs();
             });
         }
@@ -1628,13 +1644,22 @@
         // Load historical data
         async function loadHistoricalData() {
             const prsRef = collection(db, 'prs');
-            const q = query(prsRef, where('finance_status', '==', 'Approved'), orderBy('date_approved', 'desc'), limit(50));
+            // Simple query without orderBy to avoid index requirement - we'll sort client-side
+            const q = query(prsRef, where('finance_status', '==', 'Approved'), limit(50));
             
             onSnapshot(q, (snapshot) => {
                 const historicalData = [];
                 snapshot.forEach((docSnap) => {
                     historicalData.push({ id: docSnap.id, ...docSnap.data() });
                 });
+                
+                // Sort client-side by date_approved (newest first)
+                historicalData.sort((a, b) => {
+                    const dateA = new Date(a.date_approved || 0);
+                    const dateB = new Date(b.date_approved || 0);
+                    return dateB - dateA; // Descending order
+                });
+                
                 renderHistoricalData(historicalData);
                 updateHistoricalStats(historicalData);
             });
