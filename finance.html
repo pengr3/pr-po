@@ -797,6 +797,7 @@
         let transportRequests = [];
         let allPOs = [];
         let currentPRForApproval = null;
+        let currentPRForRejection = null;  // For rejection workflow
         
         // Signature pad setup
         let signatureCanvas = null;
@@ -1430,10 +1431,7 @@
             return poCount;
         }
 
-        // Reject PR
         // Reject PR - Open rejection modal
-        let currentPRForRejection = null;
-        
         window.rejectPR = function(prId) {
             // Use the PR that was already stored when viewing details
             if (!currentPRForRejection) {
