@@ -819,14 +819,16 @@
         // Load PRs with real-time updates
         async function loadPRs() {
             const prsRef = collection(db, 'prs');
-            const q = query(prsRef, where('finance_status', '==', 'Pending Review'));
+            const q = query(prsRef, where('finance_status', '==', 'Pending'));
             
             onSnapshot(q, (snapshot) => {
+                console.log('📊 Finance: Loaded PRs from Firebase:', snapshot.size);
                 materialPRs = [];
                 transportRequests = [];
                 
                 snapshot.forEach((docSnap) => {
                     const pr = { id: docSnap.id, ...docSnap.data() };
+                    console.log('  PR:', pr.pr_id, 'Status:', pr.finance_status, 'Type:', pr.request_type);
                     
                     // Check if it's a transport request (service type MRF)
                     if (pr.request_type === 'service' || pr.pr_id?.startsWith('TR-')) {
@@ -835,6 +837,9 @@
                         materialPRs.push(pr);
                     }
                 });
+                
+                console.log('📦 Material PRs:', materialPRs.length);
+                console.log('🚚 Transport Requests:', transportRequests.length);
                 
                 renderMaterialPRs();
                 renderTransportRequests();
@@ -1416,9 +1421,12 @@
             const q = query(posRef, limit(20));
             
             onSnapshot(q, (snapshot) => {
+                console.log('📄 Finance: Loaded POs from Firebase:', snapshot.size);
                 allPOs = [];
                 snapshot.forEach((docSnap) => {
-                    allPOs.push({ id: docSnap.id, ...docSnap.data() });
+                    const po = { id: docSnap.id, ...docSnap.data() };
+                    console.log('  PO:', po.po_id, 'Supplier:', po.supplier_name, 'Amount:', po.total_amount);
+                    allPOs.push(po);
                 });
                 
                 // Sort client-side by date_issued (newest first)
@@ -1648,10 +1656,12 @@
             const q = query(prsRef, where('finance_status', '==', 'Approved'), limit(50));
             
             onSnapshot(q, (snapshot) => {
+                console.log('📊 Finance: Loaded historical PRs from Firebase:', snapshot.size);
                 const historicalData = [];
                 snapshot.forEach((docSnap) => {
                     historicalData.push({ id: docSnap.id, ...docSnap.data() });
                 });
+                console.log('📈 Historical data loaded:', historicalData.length);
                 
                 // Sort client-side by date_approved (newest first)
                 historicalData.sort((a, b) => {
