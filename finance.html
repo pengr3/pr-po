@@ -556,7 +556,7 @@
                             <th>Project</th>
                             <th>Date</th>
                             <th>Total Cost</th>
-                            <th>Suppliers</th>
+                            <th>Supplier</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -706,6 +706,53 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeSignatureModal()">Cancel</button>
                 <button class="btn btn-success" onclick="submitApproval()">✓ Approve & Generate POs</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Rejection Modal -->
+    <div id="rejectionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reject Purchase Request</h3>
+                <button class="close-btn" onclick="closeRejectionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: var(--danger); font-weight: 600;">
+                    ⚠️ This PR will be rejected and sent back to Procurement for revision.
+                </p>
+                
+                <div class="form-group">
+                    <label for="rejectionReason" style="font-weight: 600; color: var(--gray-900);">
+                        Rejection Reason / Comments: *
+                    </label>
+                    <textarea 
+                        id="rejectionReason" 
+                        rows="5" 
+                        placeholder="Please provide detailed feedback on why this PR is being rejected and what needs to be corrected..."
+                        style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit; resize: vertical;"
+                    ></textarea>
+                    <div id="rejectionError" style="color: var(--danger); margin-top: 0.5rem; display: none; font-size: 0.875rem;">
+                        Please enter a rejection reason.
+                    </div>
+                </div>
+
+                <div style="background: var(--gray-50); padding: 1rem; border-radius: 6px; margin-top: 1rem;">
+                    <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--gray-700);">
+                        What happens next:
+                    </h4>
+                    <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.875rem; color: var(--gray-700);">
+                        <li>PR status will be set to "Rejected"</li>
+                        <li>MRF will return to "Pending" status (with red indicator)</li>
+                        <li>Procurement team will see your rejection comments</li>
+                        <li>Procurement can revise and resubmit</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeRejectionModal()">Cancel</button>
+                <button class="btn btn-danger" onclick="submitRejection()">❌ Reject PR</button>
             </div>
         </div>
     </div>
@@ -865,7 +912,8 @@
 
             tbody.innerHTML = materialPRs.map(pr => {
                 const items = JSON.parse(pr.items_json || '[]');
-                const suppliers = [...new Set(items.map(item => item.supplier))].filter(Boolean);
+                // Each PR is for ONE supplier only
+                const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
                 
                 return `
                     <tr>
@@ -874,7 +922,7 @@
                         <td>${pr.project_name}</td>
                         <td>${formatDate(pr.date_generated)}</td>
                         <td><strong>₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
-                        <td>${suppliers.length} supplier(s)</td>
+                        <td>${supplier}</td>
                         <td><span class="status-badge pending">Pending</span></td>
                         <td>
                             <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${pr.id}')">Review</button>
@@ -1249,7 +1297,14 @@
             showLoading(true);
             
             try {
+                // Preserve PR reference (don't rely on currentPRForApproval being set)
                 const pr = currentPRForApproval;
+                if (!pr) {
+                    showToast('No PR selected for approval', 'error');
+                    showLoading(false);
+                    return;
+                }
+                
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
                 
                 // Update PR status
@@ -1372,26 +1427,67 @@
         }
 
         // Reject PR
-        window.rejectPR = async function(prId) {
-            const reason = prompt('Please enter rejection reason:');
-            if (!reason || !reason.trim()) return;
+        // Reject PR - Open rejection modal
+        let currentPRForRejection = null;
+        
+        window.rejectPR = function(prId) {
+            // Find the PR in our loaded data
+            const pr = [...materialPRs, ...transportRequests].find(p => p.id === prId);
+            if (!pr) {
+                showToast('PR not found', 'error');
+                return;
+            }
             
+            currentPRForRejection = pr;
+            
+            // Close PR modal and open rejection modal
             closePRModal();
+            document.getElementById('rejectionModal').classList.add('active');
+            document.getElementById('rejectionReason').value = '';
+            document.getElementById('rejectionError').style.display = 'none';
+        };
+        
+        // Close rejection modal
+        window.closeRejectionModal = function() {
+            document.getElementById('rejectionModal').classList.remove('active');
+            currentPRForRejection = null;
+        };
+        
+        // Submit rejection
+        window.submitRejection = async function() {
+            const reason = document.getElementById('rejectionReason').value.trim();
+            
+            if (!reason) {
+                document.getElementById('rejectionError').style.display = 'block';
+                return;
+            }
+            
+            closeRejectionModal();
             showLoading(true);
             
             try {
-                const prRef = doc(db, 'prs', prId);
-                const prDoc = await getDoc(prRef);
-                const pr = prDoc.data();
+                const pr = currentPRForRejection;
+                if (!pr) {
+                    showToast('No PR selected for rejection', 'error');
+                    showLoading(false);
+                    return;
+                }
                 
+                console.log('🔴 Rejecting PR:', pr.pr_id, 'MRF:', pr.mrf_id);
+                
+                // Update PR status to Rejected
+                const prRef = doc(db, 'prs', pr.id);
                 await updateDoc(prRef, {
                     finance_status: 'Rejected',
-                    rejection_reason: reason.trim(),
-                    rejected_at: new Date().toISOString(),
-                    rejected_by: 'Ma. Thea Angela R. Lacsamana' // TODO: Get from user settings
+                    rejection_reason: reason,
+                    rejection_date: new Date().toISOString().split('T')[0],
+                    rejected_by: 'Ma. Thea Angela R. Lacsamana', // TODO: Get from user settings
+                    updated_at: new Date().toISOString()
                 });
                 
-                // Update MRF status
+                console.log('✅ PR updated to Rejected status');
+                
+                // Update MRF: Set back to "Pending" with rejection flag
                 const mrfsRef = collection(db, 'mrfs');
                 const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
                 const mrfSnapshot = await getDocs(mrfQuery);
@@ -1399,16 +1495,26 @@
                 if (!mrfSnapshot.empty) {
                     const mrfDoc = mrfSnapshot.docs[0];
                     await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                        status: 'Rejected',
+                        status: 'Pending',  // Back to Pending
+                        rejection_reason: reason,  // Store rejection comments
+                        rejection_date: new Date().toISOString().split('T')[0],
+                        rejected_by: 'Finance - Ma. Thea Angela R. Lacsamana',
+                        is_rejected: true,  // Flag for red visual indicator
+                        pr_id: null,  // Clear PR reference
+                        items_json: pr.items_json,  // Preserve items data
                         updated_at: new Date().toISOString()
                     });
+                    console.log('✅ MRF reverted to Pending with rejection flag');
+                } else {
+                    console.warn('⚠️  MRF not found:', pr.mrf_id);
                 }
                 
-                showToast('PR rejected successfully', 'success');
+                showToast('✅ PR rejected - MRF sent back to Procurement for revision', 'success');
+                await loadPRs();
                 
             } catch (error) {
-                console.error('Error rejecting PR:', error);
-                showToast('Failed to reject PR', 'error');
+                console.error('❌ Error rejecting PR:', error);
+                showToast('❌ Failed to reject PR: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
