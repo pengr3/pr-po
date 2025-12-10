@@ -926,19 +926,23 @@
             );
             document.getElementById('pendingAmount').textContent = `₱${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
             
-            // Count approved this month
+            // Count approved this month - use simpler query
             const now = new Date();
             const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
             
             const prsRef = collection(db, 'prs');
-            const approvedQuery = query(
-                prsRef, 
-                where('finance_status', '==', 'Approved'),
-                where('date_approved', '>=', firstDayOfMonth)
-            );
+            // Simplified query - filter by status only, then filter dates client-side
+            const approvedQuery = query(prsRef, where('finance_status', '==', 'Approved'));
             
             getDocs(approvedQuery).then(snapshot => {
-                document.getElementById('approvedCount').textContent = snapshot.size;
+                let monthApprovedCount = 0;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.date_approved && data.date_approved >= firstDayOfMonth) {
+                        monthApprovedCount++;
+                    }
+                });
+                document.getElementById('approvedCount').textContent = monthApprovedCount;
             });
         }
 
@@ -1628,14 +1632,26 @@
         // Load historical data
         async function loadHistoricalData() {
             const prsRef = collection(db, 'prs');
-            const q = query(prsRef, where('finance_status', '==', 'Approved'), orderBy('date_approved', 'desc'), limit(50));
+            // Use simpler query to avoid index requirement
+            const q = query(prsRef, where('finance_status', '==', 'Approved'));
             
             onSnapshot(q, (snapshot) => {
                 const historicalData = [];
                 snapshot.forEach((docSnap) => {
                     historicalData.push({ id: docSnap.id, ...docSnap.data() });
                 });
-                renderHistoricalData(historicalData);
+                
+                // Sort client-side by date_approved descending
+                historicalData.sort((a, b) => {
+                    const dateA = new Date(a.date_approved || 0);
+                    const dateB = new Date(b.date_approved || 0);
+                    return dateB - dateA;
+                });
+                
+                // Limit to 50 records client-side
+                const limitedData = historicalData.slice(0, 50);
+                
+                renderHistoricalData(limitedData);
                 updateHistoricalStats(historicalData);
             });
         }
