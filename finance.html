@@ -370,7 +370,8 @@
             background: white;
             cursor: crosshair;
             display: block;
-            width: 100%;
+            /* Removed width: 100% to prevent scaling mismatch */
+            max-width: 100%;
         }
 
         .signature-actions {
@@ -1012,8 +1013,11 @@
                 const pr = { id: prDoc.id, ...prDoc.data() };
                 
                 // Store PR for both approval and rejection
+                console.log('📋 viewPRDetails: Storing PR references for:', pr.pr_id);
                 currentPRForApproval = pr;
                 currentPRForRejection = pr;
+                console.log('✅ currentPRForApproval:', currentPRForApproval ? currentPRForApproval.pr_id : 'NULL');
+                console.log('✅ currentPRForRejection:', currentPRForRejection ? currentPRForRejection.pr_id : 'NULL');
                 
                 const items = JSON.parse(pr.items_json || '[]');
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
@@ -1266,11 +1270,16 @@
 
         // Show signature modal
         window.showSignatureModal = function() {
+            console.log('✍️ showSignatureModal called');
+            console.log('🔍 currentPRForApproval:', currentPRForApproval ? currentPRForApproval.pr_id : 'NULL');
+            
             if (!currentPRForApproval) {
+                console.error('❌ ERROR: currentPRForApproval is NULL when opening signature modal!');
                 showToast('No PR selected for approval', 'error');
                 return;
             }
             
+            console.log('✅ PR found, opening signature modal');
             clearSignature();
             document.getElementById('signatureModal').classList.add('active');
         };
@@ -1284,15 +1293,22 @@
 
         // Submit approval with signature
         window.submitApproval = async function() {
+            console.log('✅ submitApproval called');
+            console.log('🔍 hasSignature:', hasSignature);
+            console.log('🔍 currentPRForApproval:', currentPRForApproval ? currentPRForApproval.pr_id : 'NULL');
+            
             if (!hasSignature) {
                 document.getElementById('signatureError').style.display = 'block';
                 return;
             }
             
             if (!currentPRForApproval) {
+                console.error('❌ ERROR: currentPRForApproval is NULL!');
                 showToast('No PR selected for approval', 'error');
                 return;
             }
+            
+            console.log('✅ Signature validated, PR found, proceeding with approval');
             
             // Get signature as base64
             const signatureDataURL = signatureCanvas.toDataURL();
@@ -1433,11 +1449,17 @@
 
         // Reject PR - Open rejection modal
         window.rejectPR = function(prId) {
+            console.log('🔴 rejectPR called for:', prId);
+            console.log('🔍 currentPRForRejection:', currentPRForRejection ? currentPRForRejection.pr_id : 'NULL');
+            
             // Use the PR that was already stored when viewing details
             if (!currentPRForRejection) {
-                showToast('Please open PR details first', 'error');
+                console.error('❌ ERROR: currentPRForRejection is NULL!');
+                showToast('No PR selected for rejection', 'error');
                 return;
             }
+            
+            console.log('✅ PR found, opening rejection modal');
             
             // Close PR modal and open rejection modal
             closePRModal();
@@ -1855,9 +1877,13 @@
 
         // Close modal
         window.closePRModal = function() {
+            console.log('🚪 closePRModal called');
+            console.log('   currentPRForApproval:', currentPRForApproval ? currentPRForApproval.pr_id : 'NULL');
+            console.log('   currentPRForRejection:', currentPRForRejection ? currentPRForRejection.pr_id : 'NULL');
             document.getElementById('prModal').classList.remove('active');
             // Don't clear currentPRForApproval or currentPRForRejection here
             // They're needed if rejection/approval modal opens next
+            console.log('   ✅ References preserved');
         };
 
         // Switch tabs
