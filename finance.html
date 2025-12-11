@@ -834,14 +834,22 @@
             isDrawing = true;
             hasSignature = true;
             const rect = signatureCanvas.getBoundingClientRect();
+            const scaleX = signatureCanvas.width / rect.width;
+            const scaleY = signatureCanvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
             signatureContext.beginPath();
-            signatureContext.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+            signatureContext.moveTo(x, y);
         }
 
         function draw(e) {
             if (!isDrawing) return;
             const rect = signatureCanvas.getBoundingClientRect();
-            signatureContext.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            const scaleX = signatureCanvas.width / rect.width;
+            const scaleY = signatureCanvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            signatureContext.lineTo(x, y);
             signatureContext.stroke();
         }
 
@@ -1310,21 +1318,26 @@
             
             console.log('✅ Signature validated, PR found, proceeding with approval');
             
+            // CRITICAL: Store PR reference in local variable BEFORE closing modals
+            const pr = currentPRForApproval;
+            if (!pr) {
+                console.error('❌ ERROR: PR is NULL before closing modals!');
+                showToast('No PR selected for approval', 'error');
+                return;
+            }
+            console.log('✅ Stored PR reference locally:', pr.pr_id);
+            
             // Get signature as base64
             const signatureDataURL = signatureCanvas.toDataURL();
             
+            // Now safe to close modals (they clear global references)
             closeSignatureModal();
             closePRModal();
             showLoading(true);
             
             try {
-                // Preserve PR reference (don't rely on currentPRForApproval being set)
-                const pr = currentPRForApproval;
-                if (!pr) {
-                    showToast('No PR selected for approval', 'error');
-                    showLoading(false);
-                    return;
-                }
+                // Use the local PR reference (already stored above)
+                console.log('✅ Using stored PR reference:', pr.pr_id);
                 
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
                 
@@ -1450,6 +1463,8 @@
         // Reject PR - Open rejection modal
         window.rejectPR = function(prId) {
             console.log('🔴 rejectPR called for:', prId);
+            console.log('🔍 Window object:', typeof window);
+            console.log('🔍 rejectPR function:', typeof window.rejectPR);
             console.log('🔍 currentPRForRejection:', currentPRForRejection ? currentPRForRejection.pr_id : 'NULL');
             
             // Use the PR that was already stored when viewing details
