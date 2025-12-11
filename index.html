@@ -1525,31 +1525,42 @@
             showLoading(true);
 
             try {
-                // Get next PR numbers
-                const year = new Date().getFullYear();
+                // Get next PR numbers for current month
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
                 const prsRef = collection(db, 'prs');
-                const q = query(prsRef, orderBy('date_generated', 'desc'), limit(1));
-                const snapshot = await getDocs(q);
-                
-                let nextNum = 1;
-                if (!snapshot.empty) {
-                    const lastPR = snapshot.docs[0].data();
-                    if (lastPR.pr_id) {
-                        const match = lastPR.pr_id.match(/PR-\d{4}-(\d+)/);
+
+                // Get all PRs from current month to find the next number
+                const currentMonthPrefix = `PR_${year}_${month}`;
+                const allPRsSnapshot = await getDocs(prsRef);
+
+                let maxNum = 0;
+                allPRsSnapshot.forEach((doc) => {
+                    const pr = doc.data();
+                    if (pr.pr_id && pr.pr_id.startsWith(currentMonthPrefix)) {
+                        const match = pr.pr_id.match(/PR_\d{4}_\d{2}-(\d+)/);
                         if (match) {
-                            nextNum = parseInt(match[1]) + 1;
+                            const num = parseInt(match[1]);
+                            if (num > maxNum) {
+                                maxNum = num;
+                            }
                         }
                     }
-                }
+                });
 
+                let nextNum = maxNum + 1;
                 const generatedPRIds = [];
 
                 // Create one PR per supplier
                 for (const supplier of suppliers) {
                     const supplierItems = itemsBySupplier[supplier];
                     const supplierTotal = supplierItems.reduce((sum, item) => sum + item.subtotal, 0);
-                    const prId = `PR-${year}-${String(nextNum).padStart(3, '0')}`;
-                    
+
+                    // Format supplier name for filename (replace spaces with underscores, remove special chars)
+                    const supplierSlug = supplier.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                    const prId = `PR_${year}_${month}-${String(nextNum).padStart(3, '0')}-${supplierSlug}`;
+
                     // Create PR document
                     const prDoc = {
                         pr_id: prId,
