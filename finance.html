@@ -1161,7 +1161,7 @@
         // Generate PR HTML
         function generatePRHTML(pr, items) {
             const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
-            
+
             return `
 <!DOCTYPE html>
 <html>
@@ -1169,24 +1169,94 @@
     <meta charset="UTF-8">
     <title>${pr.pr_id} - Purchase Request</title>
     <style>
-        @page { size: A4; margin: 15mm; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #333; padding-bottom: 10px; }
-        .header h1 { font-size: 18pt; margin-bottom: 5px; }
-        .header p { font-size: 9pt; color: #666; }
-        .info-section { margin: 20px 0; }
-        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 15px; }
-        .label { font-weight: bold; }
-        .value { }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th { background: #f0f0f0; padding: 8px; text-align: left; font-size: 10pt; border: 1px solid #ddd; }
-        td { padding: 8px; border: 1px solid #ddd; font-size: 10pt; }
-        .total-row { font-weight: bold; background: #f9f9f9; }
-        .signatures { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .signature-box { text-align: center; }
-        .signature-line { border-top: 1px solid #333; margin-top: 40px; padding-top: 5px; }
-        @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.5in;
+            }
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 0.5in;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 2px 0;
+            font-size: 9pt;
+        }
+        .title {
+            text-align: center;
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 20px 0;
+            text-decoration: underline;
+        }
+        .section {
+            margin: 15px 0;
+        }
+        .field {
+            margin: 8px 0;
+            page-break-inside: avoid;
+        }
+        .label {
+            font-weight: bold;
+            display: inline-block;
+            width: 150px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        td {
+            font-size: 10pt;
+        }
+        .total {
+            font-size: 12pt;
+            font-weight: bold;
+            margin: 15px 0;
+            text-align: right;
+        }
+        .signatures {
+            margin-top: 40px;
+            page-break-inside: avoid;
+        }
+        .signature-line {
+            margin: 25px 0;
+        }
+        .signature-line .label {
+            width: 120px;
+        }
     </style>
 </head>
 <body>
@@ -1195,81 +1265,78 @@
         <p>133 Pinatubo St., Mandaluyong City, Metro Manila | Tel: 09178182993 | Email: cgl@consultclm.com</p>
     </div>
 
-    <h2 style="text-align: center; margin: 20px 0;">PURCHASE REQUEST FORM (PR)</h2>
+    <div class="title">PURCHASE REQUEST FORM (PR)</div>
 
-    <div class="info-section">
-        <div class="info-grid">
-            <div class="label">Document No.:</div>
-            <div class="value">${pr.pr_id}</div>
-            
-            <div class="label">MRF Reference:</div>
-            <div class="value">${pr.mrf_id}</div>
-            
-            <div class="label">Date:</div>
-            <div class="value">${formatDate(pr.date_generated)}</div>
-            
-            <div class="label">Project:</div>
-            <div class="value">${pr.project_name}</div>
-            
-            <div class="label">Delivery Address:</div>
-            <div class="value">${pr.delivery_address || 'N/A'}</div>
-            
-            ${!isTransport ? `
-            <div class="label">Supplier:</div>
-            <div class="value">${[...new Set(items.map(i => i.supplier))].join(', ')}</div>
-            ` : ''}
-        </div>
+    <div class="section">
+        <div class="field"><span class="label">Document No.:</span> ${pr.pr_id}</div>
+        <div class="field"><span class="label">MRF Reference:</span> ${pr.mrf_id}</div>
+        <div class="field"><span class="label">Date:</span> ${formatDate(pr.date_generated)}</div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 5%;">No.</th>
-                <th style="width: ${isTransport ? '40%' : '30%'};">${isTransport ? 'Service Description' : 'Item Description'}</th>
-                <th style="width: 15%;">Category</th>
-                <th style="width: 10%;">Quantity</th>
-                <th style="width: 10%;">Unit</th>
-                <th style="width: ${isTransport ? '20%' : '15%'};">Unit Cost</th>
-                ${!isTransport ? '<th style="width: 15%;">Supplier</th>' : ''}
-                <th style="width: 15%;">Total Cost</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${items.map((item, index) => `
+    <div class="section">
+        <div class="field"><span class="label">Project:</span> ${pr.project_name}</div>
+        <div class="field"><span class="label">Delivery Address:</span> ${pr.delivery_address || 'N/A'}</div>
+        ${!isTransport ? `<div class="field"><span class="label">Supplier:</span> ${[...new Set(items.map(i => i.supplier))].join(', ')}</div>` : ''}
+    </div>
+
+    <div class="section">
+        <h3 style="margin: 10px 0;">${isTransport ? 'Services Requested:' : 'Items Requested:'}</h3>
+        <table>
+            <thead>
                 <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.item || item.item_name}</td>
-                    <td>${item.category || 'N/A'}</td>
-                    <td>${item.qty || item.quantity}</td>
-                    <td>${item.unit}</td>
-                    <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    ${!isTransport ? `<td>${item.supplier || 'N/A'}</td>` : ''}
-                    <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <th style="width: 5%;">No.</th>
+                    <th style="width: ${isTransport ? '40%' : '30%'};">${isTransport ? 'Service Description' : 'Item Description'}</th>
+                    <th style="width: 15%;">Category</th>
+                    <th style="width: 10%;">Quantity</th>
+                    <th style="width: 10%;">Unit</th>
+                    <th style="width: ${isTransport ? '20%' : '15%'};">Unit Cost</th>
+                    ${!isTransport ? '<th style="width: 15%;">Supplier</th>' : ''}
+                    <th style="width: 15%;">Total Cost</th>
                 </tr>
-            `).join('')}
-        </tbody>
-        <tfoot>
-            <tr class="total-row">
-                <td colspan="${isTransport ? 6 : 7}" style="text-align: right;">TOTAL AMOUNT:</td>
-                <td>₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-            </tr>
-        </tfoot>
-    </table>
+            </thead>
+            <tbody>
+                ${items.map((item, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.item || item.item_name}</td>
+                        <td>${item.category || 'N/A'}</td>
+                        <td>${item.qty || item.quantity}</td>
+                        <td>${item.unit}</td>
+                        <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        ${!isTransport ? `<td>${item.supplier || 'N/A'}</td>` : ''}
+                        <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="total">
+        TOTAL AMOUNT: ₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+    </div>
 
     <div class="signatures">
-        <div class="signature-box">
-            <div class="signature-line">${pr.requestor_name || 'N/A'}</div>
-            <div style="font-size: 9pt; margin-top: 5px;">Requested By</div>
+        <div class="signature-line">
+            <span class="label">Requested By:</span> ${pr.requestor_name || 'N/A'}
         </div>
-        <div class="signature-box">
-            <div class="signature-line">Procurement Team</div>
-            <div style="font-size: 9pt; margin-top: 5px;">Prepared By</div>
+        <div class="signature-line">
+            <span class="label">Prepared By:</span> Procurement Team
         </div>
-        <div class="signature-box">
-            <div class="signature-line">${pr.finance_approver || '_________________________'}</div>
-            <div style="font-size: 9pt; margin-top: 5px;">Approved By (Finance)</div>
-            ${pr.date_approved ? `<div style="font-size: 8pt; color: #666; margin-top: 3px;">Date: ${formatDate(pr.date_approved)}</div>` : ''}
+        ${pr.finance_approver ? `
+        <div class="signature-line">
+            <span class="label">Approved By:</span> ${pr.finance_approver}
         </div>
+        <div class="signature-line">
+            <span class="label">Date Approved:</span> ${pr.date_approved ? formatDate(pr.date_approved) : 'N/A'}
+        </div>
+        ` : `
+        <div class="signature-line" style="margin-top: 40px;">
+            <span class="label">Approved By:</span> _______________________________
+        </div>
+        <div class="signature-line">
+            <span class="label">Date Approved:</span> _______________________________
+        </div>
+        `}
     </div>
 </body>
 </html>
@@ -1394,7 +1461,7 @@
         // Generate POs for approved PR (group by supplier)
         async function generatePOsForPR(pr) {
             const items = JSON.parse(pr.items_json || '[]');
-            
+
             // Group items by supplier
             const itemsBySupplier = {};
             items.forEach(item => {
@@ -1404,39 +1471,59 @@
                 }
                 itemsBySupplier[supplier].push(item);
             });
-            
+
             // Generate PO for each supplier
-            const year = new Date().getFullYear();
+            // IMPORTANT: PO number should match PR number for easy tracking
+            // Extract the base number from PR ID (e.g., PR_2025_12-001-SUPPLIER -> 001)
+            const prMatch = pr.pr_id.match(/PR_\d{4}_\d{2}-(\d+)-(.+)/);
+
             let poCount = 0;
-            
+
             for (const [supplier, supplierItems] of Object.entries(itemsBySupplier)) {
-                // Get next PO number - fetch all and find max to avoid index requirement
-                const posRef = collection(db, 'pos');
-                const poSnapshot = await getDocs(posRef);
-                
-                let nextNum = 1;
-                if (!poSnapshot.empty) {
-                    let maxNum = 0;
-                    poSnapshot.forEach((doc) => {
-                        const po = doc.data();
-                        if (po.po_id) {
-                            const match = po.po_id.match(/PO-\d{4}-(\d+)/);
-                            if (match) {
-                                const num = parseInt(match[1]);
-                                if (num > maxNum) {
-                                    maxNum = num;
+                let poId;
+
+                if (prMatch) {
+                    // Match PO number to PR number
+                    const baseNumber = prMatch[1]; // e.g., "001"
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+
+                    // Format supplier name for filename
+                    const supplierSlug = supplier.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                    poId = `PO_${year}_${month}-${baseNumber}-${supplierSlug}`;
+                } else {
+                    // Fallback for old format PRs
+                    const posRef = collection(db, 'pos');
+                    const poSnapshot = await getDocs(posRef);
+
+                    let nextNum = 1;
+                    if (!poSnapshot.empty) {
+                        let maxNum = 0;
+                        poSnapshot.forEach((doc) => {
+                            const po = doc.data();
+                            if (po.po_id) {
+                                const match = po.po_id.match(/PO[-_]\d{4}[-_]\d{0,2}[-_]?(\d+)/);
+                                if (match) {
+                                    const num = parseInt(match[1]);
+                                    if (num > maxNum) {
+                                        maxNum = num;
+                                    }
                                 }
                             }
-                        }
-                    });
-                    nextNum = maxNum + 1;
+                        });
+                        nextNum = maxNum + 1;
+                    }
+
+                    const year = new Date().getFullYear();
+                    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+                    const supplierSlug = supplier.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                    poId = `PO_${year}_${month}-${String(nextNum + poCount).padStart(3, '0')}-${supplierSlug}`;
                 }
-                
-                const poId = `PO-${year}-${String(nextNum + poCount).padStart(3, '0')}`;
-                
+
                 // Calculate total for this supplier
                 const total = supplierItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-                
+
                 // Create PO document
                 const poDoc = {
                     po_id: poId,
@@ -1452,11 +1539,11 @@
                     date_issued: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
                 };
-                
+
                 await addDoc(collection(db, 'pos'), poDoc);
                 poCount++;
             }
-            
+
             return poCount;
         }
 
@@ -1672,7 +1759,8 @@
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${po.po_id}_Purchase_Order.html`;
+                // Use the PO ID directly as the filename (already includes supplier name)
+                a.download = `${po.po_id}.html`;
                 a.click();
                 window.URL.revokeObjectURL(url);
                 
@@ -1695,22 +1783,93 @@
     <meta charset="UTF-8">
     <title>${po.po_id} - Purchase Order</title>
     <style>
-        @page { size: A4; margin: 15mm; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 3px solid #333; padding-bottom: 10px; }
-        .header h1 { font-size: 18pt; margin-bottom: 5px; }
-        .header p { font-size: 9pt; color: #666; }
-        .info-section { margin: 20px 0; }
-        .info-grid { display: grid; grid-template-columns: 120px 1fr; gap: 8px; margin-bottom: 15px; }
-        .label { font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        th { background: #f0f0f0; padding: 8px; text-align: left; font-size: 10pt; border: 1px solid #ddd; }
-        td { padding: 8px; border: 1px solid #ddd; font-size: 10pt; }
-        .total-row { font-weight: bold; background: #f9f9f9; }
-        .signatures { margin-top: 40px; text-align: center; }
-        .signature-line { border-top: 1px solid #333; margin: 40px auto 0; padding-top: 5px; width: 300px; }
-        @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.5in;
+            }
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            max-width: 8.5in;
+            margin: 0 auto;
+            padding: 0.5in;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 2px 0;
+            font-size: 9pt;
+        }
+        .title {
+            text-align: center;
+            font-size: 16pt;
+            font-weight: bold;
+            margin: 20px 0;
+            text-decoration: underline;
+        }
+        .section {
+            margin: 15px 0;
+        }
+        .field {
+            margin: 8px 0;
+            page-break-inside: avoid;
+        }
+        .label {
+            font-weight: bold;
+            display: inline-block;
+            width: 150px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            page-break-inside: avoid;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        td {
+            font-size: 10pt;
+        }
+        .signature {
+            margin-top: 60px;
+            page-break-inside: avoid;
+        }
+        .signature-image {
+            max-width: 200px;
+            max-height: 60px;
+            margin: 10px 0;
+        }
+        .signature-line {
+            height: 60px;
+            border-bottom: 1px solid #000;
+            width: 200px;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -1719,73 +1878,63 @@
         <p>133 Pinatubo St., Mandaluyong City, Metro Manila | Tel: 09178182993 | Email: cgl@consultclm.com</p>
     </div>
 
-    <h2 style="text-align: center; margin: 20px 0;">PURCHASE ORDER</h2>
+    <div class="title">PURCHASE ORDER</div>
 
-    <div class="info-section">
-        <div class="info-grid">
-            <div class="label">P.O. No.:</div>
-            <div class="value">${po.po_id}</div>
-            
-            <div class="label">PR Reference:</div>
-            <div class="value">${po.pr_id}</div>
-            
-            <div class="label">Project:</div>
-            <div class="value">${po.project_name}</div>
-            
-            <div class="label">Date:</div>
-            <div class="value">${formatDate(po.date_issued)}</div>
-            
-            <div class="label">Supplier:</div>
-            <div class="value">${po.supplier_name}</div>
-            
-            <div class="label">Delivery Address:</div>
-            <div class="value">${po.delivery_address || 'N/A'}</div>
-            
-            <div class="label">Payment Terms:</div>
-            <div class="value">${po.payment_terms || 'As agreed'}</div>
-        </div>
+    <div class="section">
+        <div class="field"><span class="label">P.O. No.:</span> ${po.po_id}</div>
+        <div class="field"><span class="label">PR Reference:</span> ${po.pr_id}</div>
+        <div class="field"><span class="label">Project:</span> ${po.project_name}</div>
+        <div class="field"><span class="label">Date:</span> ${formatDate(po.date_issued)}</div>
+        <div class="field"><span class="label">Supplier:</span> ${po.supplier_name}</div>
     </div>
 
-    <h3 style="margin: 20px 0 10px 0;">Order Details:</h3>
+    <div class="section">
+        <div class="field"><span class="label">Delivery Address:</span> ${po.delivery_address || 'N/A'}</div>
+        <div class="field"><span class="label">Payment Terms:</span> ${po.payment_terms || 'As agreed'}</div>
+    </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 5%;">No.</th>
-                <th style="width: 35%;">Item Description</th>
-                <th style="width: 15%;">Category</th>
-                <th style="width: 10%;">Quantity</th>
-                <th style="width: 10%;">Unit</th>
-                <th style="width: 15%;">Unit Cost</th>
-                <th style="width: 15%;">Total Cost</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${items.map((item, index) => `
+    <div class="section">
+        <h3 style="margin: 10px 0;">Order Details:</h3>
+        <table>
+            <thead>
                 <tr>
-                    <td>${index + 1}</td>
-                    <td>${item.item || item.item_name}</td>
-                    <td>${item.category || 'N/A'}</td>
-                    <td>${item.qty || item.quantity}</td>
-                    <td>${item.unit}</td>
-                    <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <th style="width: 5%;">No.</th>
+                    <th style="width: 35%;">Item Description</th>
+                    <th style="width: 15%;">Category</th>
+                    <th style="width: 10%;">Quantity</th>
+                    <th style="width: 10%;">Unit</th>
+                    <th style="width: 15%;">Unit Cost</th>
+                    <th style="width: 15%;">Total Cost</th>
                 </tr>
-            `).join('')}
-        </tbody>
-        <tfoot>
-            <tr class="total-row">
-                <td colspan="6" style="text-align: right;">TOTAL AMOUNT:</td>
-                <td>₱${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-            </tr>
-        </tfoot>
-    </table>
+            </thead>
+            <tbody>
+                ${items.map((item, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.item || item.item_name}</td>
+                        <td>${item.category || 'N/A'}</td>
+                        <td>${item.qty || item.quantity}</td>
+                        <td>${item.unit}</td>
+                        <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+            <tfoot>
+                <tr style="font-weight: bold; background: #f9f9f9;">
+                    <td colspan="6" style="text-align: right;">TOTAL AMOUNT:</td>
+                    <td>₱${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
 
-    <div class="signatures">
-        <div style="font-weight: bold; margin-bottom: 10px;">Authorized By:</div>
-        <div class="signature-line">Ma. Thea Angela R. Lacsamana</div>
-        <div style="font-size: 9pt; margin-top: 5px;">Chief Financial Officer</div>
-        <div style="font-size: 9pt; color: #666;">C. Lacsamana Management and Construction Corporation</div>
+    <div class="signature">
+        <p><strong>Authorized By:</strong></p>
+        <div class="signature-line"></div>
+        <p><strong>Ma. Thea Angela R. Lacsamana</strong></p>
+        <p style="font-size: 9pt;">Chief Financial Officer</p>
+        <p style="font-size: 9pt; color: #666;">C. Lacsamana Management and Construction Corporation</p>
     </div>
 </body>
 </html>
