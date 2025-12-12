@@ -1984,35 +1984,51 @@
                     } catch (error) {
                         console.error('Error fetching PRs for', mrf.mrf_id, error);
                     }
+                } else if (type === 'Transport') {
+                    // Calculate total cost from items_json for transport requests
+                    try {
+                        if (mrf.items_json) {
+                            const items = JSON.parse(mrf.items_json);
+                            items.forEach(item => {
+                                const qty = parseFloat(item.qty || item.quantity || 0);
+                                const unitCost = parseFloat(item.unit_cost || 0);
+                                totalCost += qty * unitCost;
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error calculating total cost for transport request', mrf.mrf_id, error);
+                    }
                 }
 
                 const totalCostHtml = totalCost > 0
                     ? `<strong style="color: #1f2937;">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong>`
                     : '<span style="color: #999; font-size: 0.875rem;">-</span>';
 
-                // Fetch POs for this MRF
+                // Fetch POs for this MRF (only for Material requests)
                 let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
                 let poCount = 0;
                 let poApprovedCount = 0;
-                try {
-                    const posRef = collection(db, 'pos');
-                    const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
-                    const poSnapshot = await getDocs(poQuery);
+                if (type === 'Material') {
+                    try {
+                        const posRef = collection(db, 'pos');
+                        const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                        const poSnapshot = await getDocs(poQuery);
 
-                    if (!poSnapshot.empty) {
-                        const poIds = [];
-                        poSnapshot.forEach((doc) => {
-                            const poData = doc.data();
-                            poCount++;
-                            if (poData.status === 'Approved' || poData.status === 'Issued') {
-                                poApprovedCount++;
-                            }
-                            poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
-                        });
-                        poHtml = poIds.join('<br>');
+                        if (!poSnapshot.empty) {
+                            const poIds = [];
+                            poSnapshot.forEach((doc) => {
+                                const poData = doc.data();
+                                poCount++;
+                                if (poData.status === 'Approved' || poData.status === 'Issued') {
+                                    poApprovedCount++;
+                                }
+                                poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
+                            });
+                            poHtml = poIds.join('<br>');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching POs for', mrf.mrf_id, error);
                     }
-                } catch (error) {
-                    console.error('Error fetching POs for', mrf.mrf_id, error);
                 }
 
                 // Calculate detailed status
