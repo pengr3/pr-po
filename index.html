@@ -1658,8 +1658,9 @@
                     const supplierItems = itemsBySupplier[supplier];
                     const supplierTotal = supplierItems.reduce((sum, item) => sum + item.subtotal, 0);
 
-                    // Format supplier name for filename (replace spaces with underscores, remove special chars)
-                    const supplierSlug = supplier.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                    // Format supplier name for filename - use only the first word
+                    const firstWord = supplier.split(/\s+/)[0] || supplier;
+                    const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
                     const prId = `PR_${year}_${month}-${String(nextNum).padStart(3, '0')}-${supplierSlug}`;
 
                     // Create PR document
@@ -2001,16 +2002,30 @@
                         const prSnapshot = await getDocs(prQuery);
 
                         if (!prSnapshot.empty) {
-                            const prIds = [];
+                            const prDataArray = [];
                             prSnapshot.forEach((doc) => {
                                 const prData = doc.data();
                                 prCount++;
-                                if (prData.status === 'Finance Approved' || prData.status === 'PO Generated') {
+                                // Check finance_status field (not status)
+                                if (prData.finance_status === 'Approved') {
                                     prApprovedCount++;
                                 }
-                                prIds.push(`<a href="javascript:void(0)" onclick="viewPRDetails('${doc.id}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${prData.pr_id}</a>`);
+                                prDataArray.push({
+                                    docId: doc.id,
+                                    pr_id: prData.pr_id,
+                                    total_amount: parseFloat(prData.total_amount || 0)
+                                });
                                 totalCost += parseFloat(prData.total_amount || 0);
                             });
+                            // Sort PR IDs by number (extract number from PR_YYYY_MM-NNN-SUPPLIER format)
+                            prDataArray.sort((a, b) => {
+                                const numA = parseInt((a.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                return numA - numB;
+                            });
+                            const prIds = prDataArray.map(pr =>
+                                `<a href="javascript:void(0)" onclick="viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${pr.pr_id}</a>`
+                            );
                             prHtml = prIds.join('<br>');
                         }
                     } catch (error) {
@@ -2059,15 +2074,27 @@
                         const poSnapshot = await getDocs(poQuery);
 
                         if (!poSnapshot.empty) {
-                            const poIds = [];
+                            const poDataArray = [];
                             poSnapshot.forEach((doc) => {
                                 const poData = doc.data();
                                 poCount++;
-                                if (poData.status === 'Approved' || poData.status === 'Issued') {
-                                    poApprovedCount++;
-                                }
-                                poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
+                                // POs are generated after finance approval, so count all as approved
+                                // The comparison should be: poCount vs prCount (expected POs = number of PRs)
+                                poApprovedCount++;
+                                poDataArray.push({
+                                    docId: doc.id,
+                                    po_id: poData.po_id
+                                });
                             });
+                            // Sort PO IDs by number (extract number from PO_YYYY_MM-NNN-SUPPLIER format)
+                            poDataArray.sort((a, b) => {
+                                const numA = parseInt((a.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                const numB = parseInt((b.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                return numA - numB;
+                            });
+                            const poIds = poDataArray.map(po =>
+                                `<a href="javascript:void(0)" onclick="viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${po.po_id}</a>`
+                            );
                             poHtml = poIds.join('<br>');
                         }
                     } catch (error) {
@@ -2080,15 +2107,16 @@
                 if (type === 'Material') {
                     if (mrf.status === 'PR Generated' && prCount > 0) {
                         if (prApprovedCount < prCount) {
-                            detailedStatus = `${prApprovedCount}/${prCount} PR Processed`;
+                            detailedStatus = `${prApprovedCount}/${prCount} PR Approved`;
                         } else {
-                            detailedStatus = 'For Approval';
+                            detailedStatus = 'PRs Approved';
                         }
-                    } else if ((mrf.status === 'Finance Approved' || mrf.status === 'PO Issued') && poCount > 0) {
-                        if (poApprovedCount < poCount) {
-                            detailedStatus = `${poApprovedCount}/${poCount} PO Approved`;
+                    } else if ((mrf.status === 'Finance Approved' || mrf.status === 'PO Issued') && prCount > 0) {
+                        // Compare POs generated vs PRs (expected: 1 PO per PR minimum)
+                        if (poCount < prCount) {
+                            detailedStatus = `${poCount}/${prCount} PO Issued`;
                         } else {
-                            detailedStatus = 'Approved';
+                            detailedStatus = `${poCount}/${prCount} PO Issued`;
                         }
                     }
                 }
