@@ -1083,12 +1083,28 @@
                 const deliveryAddressEl = document.getElementById('deliveryAddress');
                 const deliveryAddress = deliveryAddressEl ? deliveryAddressEl.value : (currentMRF.delivery_address || '');
 
-                // Calculate total cost from items
+                // Calculate total cost from items - read from DOM inputs like saveProgress does
                 let totalCost = 0;
-                items.forEach(item => {
+                const updatedItems = items.map((item, index) => {
                     const qty = parseFloat(item.qty || item.quantity || 0);
-                    const unitCost = parseFloat(item.unit_cost || 0);
+                    // Read unit_cost from DOM input field, fallback to stored value
+                    const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+                    const unitCost = unitCostInput ? (parseFloat(unitCostInput.value) || 0) : parseFloat(item.unit_cost || 0);
+                    // Read supplier from DOM select field, fallback to stored value
+                    const supplierSelect = document.querySelector(`select.supplier-select[data-index="${index}"]`);
+                    const supplier = supplierSelect ? (supplierSelect.value || item.supplier || '') : (item.supplier || '');
+
                     totalCost += qty * unitCost;
+
+                    return {
+                        item: item.item || item.item_name,
+                        qty: qty,
+                        unit: item.unit,
+                        category: item.category || 'N/A',
+                        unit_cost: unitCost,
+                        supplier: supplier,
+                        subtotal: qty * unitCost
+                    };
                 });
 
                 // Generate TR ID without orderBy to avoid index requirement
@@ -1117,9 +1133,10 @@
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
                     delivery_address: deliveryAddress,
-                    items_json: JSON.stringify(items),
+                    items_json: JSON.stringify(updatedItems),  // Use updated items with costs from DOM
                     justification: currentMRF.justification || '',
                     cost: totalCost,
+                    total_amount: totalCost,  // Also save as total_amount for consistency
                     status: 'Pending Finance Approval',
                     date_submitted: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
@@ -1135,8 +1152,8 @@
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
                     delivery_address: deliveryAddress,
-                    items_json: JSON.stringify(items),
-                    total_amount: totalCost,  // Use the calculated cost
+                    items_json: JSON.stringify(updatedItems),  // Use updated items with costs from DOM
+                    total_amount: totalCost,  // Use the calculated cost from DOM inputs
                     finance_status: 'Pending',  // For finance approval
                     date_generated: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
@@ -1145,16 +1162,17 @@
                 await updateDoc(doc(window.db, 'mrfs', currentMRF.id), {
                     status: 'TR Submitted',
                     tr_id: trId,
-                    items_json: JSON.stringify(items),  // Save items with costs
+                    items_json: JSON.stringify(updatedItems),  // Save updated items with costs from DOM
                     updated_at: new Date().toISOString()
                 });
 
                 showToast('TR ' + trId + ' submitted successfully!', 'success');
 
-                // Update currentMRF with new status and tr_id
+                // Update currentMRF with new status, tr_id, and updated items
                 if (currentMRF) {
                     currentMRF.status = 'TR Submitted';
                     currentMRF.tr_id = trId;
+                    currentMRF.items_json = JSON.stringify(updatedItems);  // Update in-memory items with costs
                     renderMRFDetails(currentMRF);
                 }
 
