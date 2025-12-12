@@ -2026,7 +2026,7 @@
                         if (!trSnapshot.empty) {
                             trSnapshot.forEach((doc) => {
                                 const trData = doc.data();
-                                totalCost = parseFloat(trData.cost || 0);
+                                totalCost = parseFloat(trData.total_amount || 0);
                             });
                         }
 
