@@ -514,9 +514,9 @@
 
     <div class="tabs">
         <div class="tabs-nav">
-            <button class="tab-button active" onclick="switchTab('pending-prs')">📋 Pending Approvals</button>
-            <button class="tab-button" onclick="switchTab('po-generation')">📄 Purchase Orders</button>
-            <button class="tab-button" onclick="switchTab('historical')">📊 Historical Data</button>
+            <button class="tab-button active" onclick="switchTab('pending-prs', event)">📋 Pending Approvals</button>
+            <button class="tab-button" onclick="switchTab('po-generation', event)">📄 Purchase Orders</button>
+            <button class="tab-button" onclick="switchTab('historical', event)">📊 Historical Data</button>
         </div>
     </div>
 
@@ -1622,8 +1622,9 @@
                     const year = now.getFullYear();
                     const month = String(now.getMonth() + 1).padStart(2, '0');
 
-                    // Format supplier name for filename
-                    const supplierSlug = supplier.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                    // Format supplier name for filename - use only the first word
+                    const firstWord = supplier.split(/\s+/)[0] || supplier;
+                    const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
                     poId = `PO_${year}_${month}-${baseNumber}-${supplierSlug}`;
                 } else {
                     // Fallback for old format PRs
@@ -1650,7 +1651,9 @@
 
                     const year = new Date().getFullYear();
                     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-                    const supplierSlug = supplier.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                    // Format supplier name for filename - use only the first word
+                    const firstWordFallback = supplier.split(/\s+/)[0] || supplier;
+                    const supplierSlug = firstWordFallback.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
                     poId = `PO_${year}_${month}-${String(nextNum + poCount).padStart(3, '0')}-${supplierSlug}`;
                 }
 
@@ -1718,16 +1721,17 @@
                 return;
             }
 
+            // CRITICAL: Store PR reference BEFORE closing modal (which clears the reference)
+            const pr = currentPRForRejection;
+            if (!pr) {
+                showToast('No PR selected for rejection', 'error');
+                return;
+            }
+
             closeRejectionModal();
             showLoading(true);
 
             try {
-                const pr = currentPRForRejection;
-                if (!pr) {
-                    showToast('No PR selected for rejection', 'error');
-                    showLoading(false);
-                    return;
-                }
 
                 // Check if this is a transport request
                 const isTransport = pr.isTransportRequest || pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
@@ -2240,9 +2244,18 @@
         };
 
         // Switch tabs
-        window.switchTab = function(tabName) {
+        window.switchTab = function(tabName, event) {
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // Fallback: find the button by tab name
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    if (btn.textContent.toLowerCase().includes(tabName.replace('-', ' ').split(' ')[0])) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
 
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName).classList.add('active');
