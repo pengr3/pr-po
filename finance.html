@@ -1770,22 +1770,23 @@
                 if (!mrfSnapshot.empty) {
                     const mrfDoc = mrfSnapshot.docs[0];
                     const mrfUpdate = {
-                        status: 'Pending',  // Back to Pending
-                        rejection_reason: reason,  // Store rejection comments
+                        status: 'PR Rejected',  // Set to PR Rejected so procurement can see it with red indicator
+                        pr_rejection_reason: reason,  // Store rejection comments (use pr_rejection_reason for consistency)
+                        rejection_reason: reason,  // Also store in rejection_reason for backward compatibility
                         rejection_date: new Date().toISOString().split('T')[0],
                         rejected_by: 'Finance - Ma. Thea Angela R. Lacsamana',
                         is_rejected: true,  // Flag for red visual indicator
                         items_json: pr.items_json,  // Preserve items data
                         updated_at: new Date().toISOString()
                     };
-                    // Clear the appropriate reference based on type
+                    // Store which PR was rejected so procurement knows which one to reprocess
                     if (isTransport) {
-                        mrfUpdate.tr_id = null;  // Clear TR reference
+                        mrfUpdate.rejected_tr_id = pr.tr_id || pr.pr_id;  // Store rejected TR ID
                     } else {
-                        mrfUpdate.pr_id = null;  // Clear PR reference
+                        mrfUpdate.rejected_pr_id = pr.pr_id;  // Store rejected PR ID
                     }
                     await updateDoc(doc(db, 'mrfs', mrfDoc.id), mrfUpdate);
-                    console.log('✅ MRF reverted to Pending with rejection flag');
+                    console.log('✅ MRF set to PR Rejected status');
                 } else {
                     console.warn('⚠️  MRF not found:', pr.mrf_id);
                 }
