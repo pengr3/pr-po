@@ -1990,29 +1990,31 @@
                     ? `<strong style="color: #1f2937;">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong>`
                     : '<span style="color: #999; font-size: 0.875rem;">-</span>';
 
-                // Fetch POs for this MRF
+                // Fetch POs for this MRF (only for Material type)
                 let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
                 let poCount = 0;
                 let poApprovedCount = 0;
-                try {
-                    const posRef = collection(db, 'pos');
-                    const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
-                    const poSnapshot = await getDocs(poQuery);
+                if (type === 'Material') {
+                    try {
+                        const posRef = collection(db, 'pos');
+                        const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                        const poSnapshot = await getDocs(poQuery);
 
-                    if (!poSnapshot.empty) {
-                        const poIds = [];
-                        poSnapshot.forEach((doc) => {
-                            const poData = doc.data();
-                            poCount++;
-                            if (poData.status === 'Approved' || poData.status === 'Issued') {
-                                poApprovedCount++;
-                            }
-                            poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
-                        });
-                        poHtml = poIds.join('<br>');
+                        if (!poSnapshot.empty) {
+                            const poIds = [];
+                            poSnapshot.forEach((doc) => {
+                                const poData = doc.data();
+                                poCount++;
+                                if (poData.status === 'Approved' || poData.status === 'Issued') {
+                                    poApprovedCount++;
+                                }
+                                poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
+                            });
+                            poHtml = poIds.join('<br>');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching POs for', mrf.mrf_id, error);
                     }
-                } catch (error) {
-                    console.error('Error fetching POs for', mrf.mrf_id, error);
                 }
 
                 // Calculate detailed status
