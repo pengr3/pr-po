@@ -875,30 +875,43 @@
 
         // Load PRs with real-time updates
         async function loadPRs() {
+            // Load Material PRs from prs collection
             const prsRef = collection(db, 'prs');
-            const q = query(prsRef, where('finance_status', '==', 'Pending'));
-            
-            onSnapshot(q, (snapshot) => {
-                console.log('📊 Finance: Loaded PRs from Firebase:', snapshot.size);
+            const prQuery = query(prsRef, where('finance_status', '==', 'Pending'));
+
+            onSnapshot(prQuery, (snapshot) => {
+                console.log('📊 Finance: Loaded Material PRs from Firebase:', snapshot.size);
                 materialPRs = [];
-                transportRequests = [];
-                
+
                 snapshot.forEach((docSnap) => {
                     const pr = { id: docSnap.id, ...docSnap.data() };
-                    console.log('  PR:', pr.pr_id, 'Status:', pr.finance_status, 'Type:', pr.request_type);
-                    
-                    // Check if it's a transport request (service type MRF)
-                    if (pr.request_type === 'service' || pr.pr_id?.startsWith('TR-')) {
-                        transportRequests.push(pr);
-                    } else {
+                    // Only include non-transport PRs (exclude any legacy TR entries)
+                    if (!pr.pr_id?.startsWith('TR-') && pr.request_type !== 'service') {
+                        console.log('  Material PR:', pr.pr_id, 'Status:', pr.finance_status);
                         materialPRs.push(pr);
                     }
                 });
-                
+
                 console.log('📦 Material PRs:', materialPRs.length);
-                console.log('🚚 Transport Requests:', transportRequests.length);
-                
                 renderMaterialPRs();
+                updateStats();
+            });
+
+            // Load Transport Requests from transport_requests collection (like materials use prs)
+            const trsRef = collection(db, 'transport_requests');
+            const trQuery = query(trsRef, where('finance_status', '==', 'Pending'));
+
+            onSnapshot(trQuery, (snapshot) => {
+                console.log('📊 Finance: Loaded Transport Requests from Firebase:', snapshot.size);
+                transportRequests = [];
+
+                snapshot.forEach((docSnap) => {
+                    const tr = { id: docSnap.id, ...docSnap.data() };
+                    console.log('  Transport:', tr.tr_id, 'Status:', tr.finance_status, 'Cost:', tr.total_amount);
+                    transportRequests.push(tr);
+                });
+
+                console.log('🚚 Transport Requests:', transportRequests.length);
                 renderTransportRequests();
                 updateStats();
             });
@@ -945,7 +958,7 @@
         // Render Transport Requests
         function renderTransportRequests() {
             const tbody = document.getElementById('transportRequestsBody');
-            
+
             if (transportRequests.length === 0) {
                 tbody.innerHTML = `
                     <tr>
@@ -961,18 +974,18 @@
             tbody.innerHTML = transportRequests.map(tr => {
                 const items = JSON.parse(tr.items_json || '[]');
                 const serviceTypes = [...new Set(items.map(item => item.item || item.item_name))];
-                
+
                 return `
                     <tr>
-                        <td><strong>${tr.pr_id}</strong></td>
+                        <td><strong>${tr.tr_id}</strong></td>
                         <td>${tr.mrf_id}</td>
                         <td>${tr.project_name}</td>
-                        <td>${formatDate(tr.date_generated)}</td>
+                        <td>${formatDate(tr.date_submitted)}</td>
                         <td><strong>₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                         <td>${serviceTypes.slice(0, 2).join(', ')}${serviceTypes.length > 2 ? '...' : ''}</td>
                         <td><span class="status-badge pending">Pending</span></td>
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${tr.id}')">Review</button>
+                            <button class="btn btn-sm btn-primary" onclick="viewTRDetails('${tr.id}')">Review</button>
                         </td>
                     </tr>
                 `;
@@ -1112,6 +1125,108 @@
             } catch (error) {
                 console.error('Error loading PR details:', error);
                 showToast('Failed to load PR details', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // View Transport Request Details (loads from transport_requests collection)
+        window.viewTRDetails = async function(trId) {
+            showLoading(true);
+
+            try {
+                const trDoc = await getDoc(doc(db, 'transport_requests', trId));
+
+                if (!trDoc.exists()) {
+                    showToast('Transport Request not found', 'error');
+                    return;
+                }
+
+                const tr = { id: trDoc.id, ...trDoc.data() };
+
+                // Store TR for approval/rejection - add isTransportRequest flag
+                console.log('📋 viewTRDetails: Storing TR references for:', tr.tr_id);
+                tr.isTransportRequest = true;  // Flag to identify as transport request
+                tr.pr_id = tr.tr_id;  // Alias for compatibility
+                currentPRForApproval = tr;
+                currentPRForRejection = tr;
+                console.log('✅ currentPRForApproval (TR):', currentPRForApproval ? currentPRForApproval.tr_id : 'NULL');
+
+                const items = JSON.parse(tr.items_json || '[]');
+
+                // Build modal content
+                let modalContent = `
+                    <div class="info-grid">
+                        <div class="info-label">TR ID:</div>
+                        <div><strong>${tr.tr_id}</strong></div>
+
+                        <div class="info-label">MRF Reference:</div>
+                        <div>${tr.mrf_id}</div>
+
+                        <div class="info-label">Project:</div>
+                        <div>${tr.project_name}</div>
+
+                        <div class="info-label">Requestor:</div>
+                        <div>${tr.requestor_name}</div>
+
+                        <div class="info-label">Date Submitted:</div>
+                        <div>${formatDate(tr.date_submitted)}</div>
+
+                        <div class="info-label">Delivery Address:</div>
+                        <div>${tr.delivery_address || 'N/A'}</div>
+
+                        <div class="info-label">Total Amount:</div>
+                        <div><strong style="color: var(--success); font-size: 1.25rem;">₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
+                    </div>
+
+                    <div style="margin: 1.5rem 0; padding: 1.5rem; background: var(--gray-50); border-radius: 8px;">
+                        <h4 style="margin-bottom: 1rem;">Service Items</h4>
+                        <table style="width: 100%; font-size: 0.875rem;">
+                            <thead>
+                                <tr style="background: white;">
+                                    <th style="padding: 0.5rem;">Service</th>
+                                    <th style="padding: 0.5rem;">Category</th>
+                                    <th style="padding: 0.5rem;">Qty</th>
+                                    <th style="padding: 0.5rem;">Unit Cost</th>
+                                    <th style="padding: 0.5rem;">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map(item => `
+                                    <tr style="background: white;">
+                                        <td style="padding: 0.5rem;">${item.item || item.item_name}</td>
+                                        <td style="padding: 0.5rem;">${item.category || 'N/A'}</td>
+                                        <td style="padding: 0.5rem;">${item.qty || item.quantity} ${item.unit}</td>
+                                        <td style="padding: 0.5rem;">₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                        <td style="padding: 0.5rem;"><strong>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: white; font-weight: 600;">
+                                    <td colspan="4" style="padding: 0.75rem; text-align: right; border-top: 2px solid var(--gray-300);">TOTAL:</td>
+                                    <td style="padding: 0.75rem; border-top: 2px solid var(--gray-300);">₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                `;
+
+                document.getElementById('prModalTitle').textContent = `Transport Request - ${tr.tr_id}`;
+                document.getElementById('prModalBody').innerHTML = modalContent;
+
+                // Footer with approval buttons (no PO generation for transport)
+                const footer = document.getElementById('prModalFooter');
+                footer.innerHTML = `
+                    <button class="btn btn-danger" onclick="rejectPR('${tr.id}')">✗ Reject</button>
+                    <button class="btn btn-success" onclick="showSignatureModal()">✓ Approve</button>
+                `;
+
+                document.getElementById('prModal').classList.add('active');
+
+            } catch (error) {
+                console.error('Error loading TR details:', error);
+                showToast('Failed to load TR details', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1405,40 +1520,58 @@
             try {
                 // Use the local PR reference (already stored above)
                 console.log('✅ Using stored PR reference:', pr.pr_id);
-                
-                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
-                
-                // Update PR status
-                const prRef = doc(db, 'prs', pr.id);
-                await updateDoc(prRef, {
-                    finance_status: 'Approved',
-                    finance_approver: 'Ma. Thea Angela R. Lacsamana', // TODO: Get from user settings
-                    finance_signature: signatureDataURL,
-                    date_approved: new Date().toISOString().split('T')[0],
-                    approved_at: new Date().toISOString()
-                });
-                
+
+                // Check if this is a transport request (from transport_requests collection)
+                const isTransport = pr.isTransportRequest || pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+
+                // Update the appropriate collection based on request type
+                if (isTransport) {
+                    // Update transport_requests collection (not prs)
+                    const trRef = doc(db, 'transport_requests', pr.id);
+                    await updateDoc(trRef, {
+                        finance_status: 'Approved',
+                        finance_approver: 'Ma. Thea Angela R. Lacsamana',
+                        finance_signature: signatureDataURL,
+                        date_approved: new Date().toISOString().split('T')[0],
+                        approved_at: new Date().toISOString()
+                    });
+                    console.log('✅ Updated transport_requests collection for:', pr.tr_id || pr.pr_id);
+                } else {
+                    // Update prs collection for material requests
+                    const prRef = doc(db, 'prs', pr.id);
+                    await updateDoc(prRef, {
+                        finance_status: 'Approved',
+                        finance_approver: 'Ma. Thea Angela R. Lacsamana',
+                        finance_signature: signatureDataURL,
+                        date_approved: new Date().toISOString().split('T')[0],
+                        approved_at: new Date().toISOString()
+                    });
+                    console.log('✅ Updated prs collection for:', pr.pr_id);
+                }
+
                 // Update MRF status
                 const mrfsRef = collection(db, 'mrfs');
                 const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
                 const mrfSnapshot = await getDocs(mrfQuery);
-                
+
                 if (!mrfSnapshot.empty) {
                     const mrfDoc = mrfSnapshot.docs[0];
                     await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                        status: isTransport ? 'Finance Approved' : 'Finance Approved',
+                        status: 'Finance Approved',
                         updated_at: new Date().toISOString()
                     });
                 }
-                
-                // Generate POs if not transport request
+
+                // Generate POs if not transport request (transport doesn't need POs)
                 let poCount = 0;
                 if (!isTransport) {
                     poCount = await generatePOsForPR(pr);
                 }
-                
+
                 showToast(
-                    `✓ PR approved successfully!${poCount > 0 ? ` Generated ${poCount} PO(s).` : ''}`, 
+                    isTransport
+                        ? '✓ Transport Request approved successfully!'
+                        : `✓ PR approved successfully!${poCount > 0 ? ` Generated ${poCount} PO(s).` : ''}`,
                     'success'
                 );
                 
@@ -1579,15 +1712,15 @@
         // Submit rejection
         window.submitRejection = async function() {
             const reason = document.getElementById('rejectionReason').value.trim();
-            
+
             if (!reason) {
                 document.getElementById('rejectionError').style.display = 'block';
                 return;
             }
-            
+
             closeRejectionModal();
             showLoading(true);
-            
+
             try {
                 const pr = currentPRForRejection;
                 if (!pr) {
@@ -1595,44 +1728,70 @@
                     showLoading(false);
                     return;
                 }
-                
-                console.log('🔴 Rejecting PR:', pr.pr_id, 'MRF:', pr.mrf_id);
-                
-                // Update PR status to Rejected
-                const prRef = doc(db, 'prs', pr.id);
-                await updateDoc(prRef, {
-                    finance_status: 'Rejected',
-                    rejection_reason: reason,
-                    rejection_date: new Date().toISOString().split('T')[0],
-                    rejected_by: 'Ma. Thea Angela R. Lacsamana', // TODO: Get from user settings
-                    updated_at: new Date().toISOString()
-                });
-                
-                console.log('✅ PR updated to Rejected status');
+
+                // Check if this is a transport request
+                const isTransport = pr.isTransportRequest || pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+                console.log('🔴 Rejecting', isTransport ? 'TR' : 'PR', ':', pr.pr_id || pr.tr_id, 'MRF:', pr.mrf_id);
+
+                // Update the appropriate collection based on request type
+                if (isTransport) {
+                    // Update transport_requests collection
+                    const trRef = doc(db, 'transport_requests', pr.id);
+                    await updateDoc(trRef, {
+                        finance_status: 'Rejected',
+                        rejection_reason: reason,
+                        rejection_date: new Date().toISOString().split('T')[0],
+                        rejected_by: 'Ma. Thea Angela R. Lacsamana',
+                        updated_at: new Date().toISOString()
+                    });
+                    console.log('✅ TR updated to Rejected status in transport_requests');
+                } else {
+                    // Update prs collection for material requests
+                    const prRef = doc(db, 'prs', pr.id);
+                    await updateDoc(prRef, {
+                        finance_status: 'Rejected',
+                        rejection_reason: reason,
+                        rejection_date: new Date().toISOString().split('T')[0],
+                        rejected_by: 'Ma. Thea Angela R. Lacsamana',
+                        updated_at: new Date().toISOString()
+                    });
+                    console.log('✅ PR updated to Rejected status in prs');
+                }
                 
                 // Update MRF: Set back to "Pending" with rejection flag
                 const mrfsRef = collection(db, 'mrfs');
                 const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
                 const mrfSnapshot = await getDocs(mrfQuery);
-                
+
                 if (!mrfSnapshot.empty) {
                     const mrfDoc = mrfSnapshot.docs[0];
-                    await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
+                    const mrfUpdate = {
                         status: 'Pending',  // Back to Pending
                         rejection_reason: reason,  // Store rejection comments
                         rejection_date: new Date().toISOString().split('T')[0],
                         rejected_by: 'Finance - Ma. Thea Angela R. Lacsamana',
                         is_rejected: true,  // Flag for red visual indicator
-                        pr_id: null,  // Clear PR reference
                         items_json: pr.items_json,  // Preserve items data
                         updated_at: new Date().toISOString()
-                    });
+                    };
+                    // Clear the appropriate reference based on type
+                    if (isTransport) {
+                        mrfUpdate.tr_id = null;  // Clear TR reference
+                    } else {
+                        mrfUpdate.pr_id = null;  // Clear PR reference
+                    }
+                    await updateDoc(doc(db, 'mrfs', mrfDoc.id), mrfUpdate);
                     console.log('✅ MRF reverted to Pending with rejection flag');
                 } else {
                     console.warn('⚠️  MRF not found:', pr.mrf_id);
                 }
-                
-                showToast('✅ PR rejected - MRF sent back to Procurement for revision', 'success');
+
+                showToast(
+                    isTransport
+                        ? '✅ TR rejected - MRF sent back to Procurement for revision'
+                        : '✅ PR rejected - MRF sent back to Procurement for revision',
+                    'success'
+                );
                 await loadPRs();
                 currentPRForRejection = null;  // Clear reference after successful rejection
                 
@@ -1943,28 +2102,58 @@
 
         // Load historical data
         async function loadHistoricalData() {
+            let historicalMaterialPRs = [];
+            let historicalTransportTRs = [];
+
+            // Load approved Material PRs from prs collection
             const prsRef = collection(db, 'prs');
-            // Simple query without orderBy to avoid index requirement - we'll sort client-side
-            const q = query(prsRef, where('finance_status', '==', 'Approved'), limit(50));
-            
-            onSnapshot(q, (snapshot) => {
+            const prQuery = query(prsRef, where('finance_status', '==', 'Approved'), limit(50));
+
+            onSnapshot(prQuery, (snapshot) => {
                 console.log('📊 Finance: Loaded historical PRs from Firebase:', snapshot.size);
-                const historicalData = [];
+                historicalMaterialPRs = [];
                 snapshot.forEach((docSnap) => {
-                    historicalData.push({ id: docSnap.id, ...docSnap.data() });
+                    const pr = { id: docSnap.id, ...docSnap.data() };
+                    // Exclude any legacy transport entries from prs
+                    if (!pr.pr_id?.startsWith('TR-') && pr.request_type !== 'service') {
+                        historicalMaterialPRs.push(pr);
+                    }
                 });
-                console.log('📈 Historical data loaded:', historicalData.length);
-                
+                updateHistoricalDisplay();
+            });
+
+            // Load approved Transport Requests from transport_requests collection
+            const trsRef = collection(db, 'transport_requests');
+            const trQuery = query(trsRef, where('finance_status', '==', 'Approved'), limit(50));
+
+            onSnapshot(trQuery, (snapshot) => {
+                console.log('📊 Finance: Loaded historical TRs from Firebase:', snapshot.size);
+                historicalTransportTRs = [];
+                snapshot.forEach((docSnap) => {
+                    const tr = { id: docSnap.id, ...docSnap.data() };
+                    // Add pr_id alias for compatibility
+                    tr.pr_id = tr.tr_id;
+                    tr.request_type = 'service';
+                    historicalTransportTRs.push(tr);
+                });
+                updateHistoricalDisplay();
+            });
+
+            function updateHistoricalDisplay() {
+                // Combine both collections
+                const historicalData = [...historicalMaterialPRs, ...historicalTransportTRs];
+                console.log('📈 Historical data loaded:', historicalData.length, '(PRs:', historicalMaterialPRs.length, ', TRs:', historicalTransportTRs.length, ')');
+
                 // Sort client-side by date_approved (newest first)
                 historicalData.sort((a, b) => {
                     const dateA = new Date(a.date_approved || 0);
                     const dateB = new Date(b.date_approved || 0);
                     return dateB - dateA; // Descending order
                 });
-                
+
                 renderHistoricalData(historicalData);
                 updateHistoricalStats(historicalData);
-            });
+            }
         }
 
         // Render historical data

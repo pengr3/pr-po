@@ -1127,35 +1127,21 @@
                 const trId = `TR-${year}-${String(maxNum + 1).padStart(3, '0')}`;
 
                 // Create transport_requests document for tracking
+                // Store ONLY in transport_requests collection (no PR document needed for transport)
+                // This matches how materials work - single collection with finance_status for approval workflow
                 await addDoc(collection(window.db, 'transport_requests'), {
                     tr_id: trId,
                     mrf_id: currentMRF.mrf_id,
+                    mrf_doc_id: currentMRF.id,
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(updatedItems),  // Use updated items with costs from DOM
                     justification: currentMRF.justification || '',
                     cost: totalCost,
-                    total_amount: totalCost,  // Also save as total_amount for consistency
-                    status: 'Pending Finance Approval',
+                    total_amount: totalCost,  // Also save as total_amount for consistency with materials
+                    finance_status: 'Pending',  // Use finance_status like materials do
                     date_submitted: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
-                });
-
-                // CRITICAL FIX: Also create a PR document in the prs collection
-                // This allows transport requests to appear in the finance dashboard for approval
-                await addDoc(collection(window.db, 'prs'), {
-                    pr_id: trId,  // Use TR ID as PR ID
-                    mrf_id: currentMRF.mrf_id,
-                    mrf_doc_id: currentMRF.id,
-                    request_type: 'service',  // Mark as service/transport type
-                    project_name: currentMRF.project_name,
-                    requestor_name: currentMRF.requestor_name,
-                    delivery_address: deliveryAddress,
-                    items_json: JSON.stringify(updatedItems),  // Use updated items with costs from DOM
-                    total_amount: totalCost,  // Use the calculated cost from DOM inputs
-                    finance_status: 'Pending',  // For finance approval
-                    date_generated: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
                 });
 
