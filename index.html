@@ -558,6 +558,37 @@
                     <button class="btn btn-primary" onclick="refreshPOTracking()"> Refresh</button>
                 </div>
 
+                <!-- Delivery Status Scoreboard -->
+                <div id="poScoreboard" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 1.5rem; margin-bottom: 1rem;">
+                    <!-- Pending -->
+                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                        <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                        <div id="scorePending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                        <div style="font-size: 0.75rem; color: #991b1b; margin-top: 0.25rem;">Materials</div>
+                    </div>
+
+                    <!-- Procuring -->
+                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                        <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procuring</div>
+                        <div id="scoreProcuring" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                        <div style="font-size: 0.75rem; color: #854d0e; margin-top: 0.25rem;">Materials</div>
+                    </div>
+
+                    <!-- Procured -->
+                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                        <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procured</div>
+                        <div id="scoreProcured" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                        <div style="font-size: 0.75rem; color: #14532d; margin-top: 0.25rem;">Materials</div>
+                    </div>
+
+                    <!-- Delivered -->
+                    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
+                        <div style="font-size: 0.75rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Delivered</div>
+                        <div id="scoreDelivered" style="font-size: 2rem; font-weight: 700; color: #2563eb;">0</div>
+                        <div style="font-size: 0.75rem; color: #1e3a8a; margin-top: 0.25rem;">Materials</div>
+                    </div>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
@@ -728,7 +759,29 @@
         // Render PO Tracking Table
         function renderPOTrackingTable(pos) {
             const tbody = document.getElementById('poTrackingBody');
-            
+
+            // Calculate scoreboard counts
+            const counts = {
+                pending: 0,
+                procuring: 0,
+                procured: 0,
+                delivered: 0
+            };
+
+            pos.forEach(po => {
+                const status = po.procurement_status || 'Pending Procurement';
+                if (status === 'Pending Procurement') counts.pending++;
+                else if (status === 'Procuring') counts.procuring++;
+                else if (status === 'Procured') counts.procured++;
+                else if (status === 'Delivered') counts.delivered++;
+            });
+
+            // Update scoreboard
+            document.getElementById('scorePending').textContent = counts.pending;
+            document.getElementById('scoreProcuring').textContent = counts.procuring;
+            document.getElementById('scoreProcured').textContent = counts.procured;
+            document.getElementById('scoreDelivered').textContent = counts.delivered;
+
             if (pos.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
                 return;
@@ -1011,19 +1064,30 @@
 
         // Submit Transport Request
         window.submitTransportRequest = async function() {
-            if (!currentMRF) return;
+            if (!currentMRF) {
+                showToast('No MRF selected', 'error');
+                return;
+            }
+            if (!currentMRF.id) {
+                showToast('Invalid MRF data', 'error');
+                return;
+            }
             if (!confirm('Submit Transport Request to Finance for approval?')) return;
-            
+
             showLoading(true);
             try {
                 const { collection, getDocs, addDoc, doc, updateDoc } = window.firestore;
                 const items = JSON.parse(currentMRF.items_json);
-                
+
+                // Get delivery address - ensure element exists
+                const deliveryAddressEl = document.getElementById('deliveryAddress');
+                const deliveryAddress = deliveryAddressEl ? deliveryAddressEl.value : (currentMRF.delivery_address || '');
+
                 // Generate TR ID without orderBy to avoid index requirement
                 const year = new Date().getFullYear();
                 const trsRef = collection(window.db, 'transport_requests');
                 const snapshot = await getDocs(trsRef);
-                
+
                 let maxNum = 0;
                 snapshot.forEach((doc) => {
                     const data = doc.data();
@@ -1035,32 +1099,37 @@
                         }
                     }
                 });
-                
+
                 const trId = `TR-${year}-${String(maxNum + 1).padStart(3, '0')}`;
-                
+
                 await addDoc(collection(window.db, 'transport_requests'), {
                     tr_id: trId,
                     mrf_id: currentMRF.mrf_id,
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
-                    delivery_address: document.getElementById('deliveryAddress').value,
+                    delivery_address: deliveryAddress,
                     items_json: JSON.stringify(items),
                     justification: currentMRF.justification || '',
                     status: 'Pending Finance Approval',
                     date_submitted: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
                 });
-                
+
                 await updateDoc(doc(window.db, 'mrfs', currentMRF.id), {
                     status: 'TR Submitted',
                     tr_id: trId,
                     updated_at: new Date().toISOString()
                 });
-                
+
                 showToast('TR ' + trId + ' submitted successfully!', 'success');
-                currentMRF.status = 'TR Submitted';
-                renderMRFDetails(currentMRF);
-                
+
+                // Update currentMRF with new status and tr_id
+                if (currentMRF) {
+                    currentMRF.status = 'TR Submitted';
+                    currentMRF.tr_id = trId;
+                    renderMRFDetails(currentMRF);
+                }
+
             } catch (error) {
                 console.error('Error submitting TR:', error);
                 showToast('Failed to submit: ' + error.message, 'error');
@@ -1891,16 +1960,22 @@
                 // Fetch PRs for this MRF
                 let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
                 let totalCost = 0;
+                let prCount = 0;
+                let prApprovedCount = 0;
                 if (type === 'Material') {
                     try {
                         const prsRef = collection(db, 'prs');
                         const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
                         const prSnapshot = await getDocs(prQuery);
-                        
+
                         if (!prSnapshot.empty) {
                             const prIds = [];
                             prSnapshot.forEach((doc) => {
                                 const prData = doc.data();
+                                prCount++;
+                                if (prData.status === 'Finance Approved' || prData.status === 'PO Generated') {
+                                    prApprovedCount++;
+                                }
                                 prIds.push(`<a href="javascript:void(0)" onclick="viewPRDetails('${doc.id}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${prData.pr_id}</a>`);
                                 totalCost += parseFloat(prData.total_amount || 0);
                             });
@@ -1910,22 +1985,28 @@
                         console.error('Error fetching PRs for', mrf.mrf_id, error);
                     }
                 }
-                
-                const totalCostHtml = totalCost > 0 
+
+                const totalCostHtml = totalCost > 0
                     ? `<strong style="color: #1f2937;">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong>`
                     : '<span style="color: #999; font-size: 0.875rem;">-</span>';
-                
+
                 // Fetch POs for this MRF
                 let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+                let poCount = 0;
+                let poApprovedCount = 0;
                 try {
                     const posRef = collection(db, 'pos');
                     const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
                     const poSnapshot = await getDocs(poQuery);
-                    
+
                     if (!poSnapshot.empty) {
                         const poIds = [];
                         poSnapshot.forEach((doc) => {
                             const poData = doc.data();
+                            poCount++;
+                            if (poData.status === 'Approved' || poData.status === 'Issued') {
+                                poApprovedCount++;
+                            }
                             poIds.push(`<a href="javascript:void(0)" onclick="viewPODetails('${doc.id}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${poData.po_id}</a>`);
                         });
                         poHtml = poIds.join('<br>');
@@ -1933,10 +2014,31 @@
                 } catch (error) {
                     console.error('Error fetching POs for', mrf.mrf_id, error);
                 }
+
+                // Calculate detailed status
+                let detailedStatus = mrf.status;
+                if (type === 'Material') {
+                    if (mrf.status === 'PR Generated' && prCount > 0) {
+                        if (prApprovedCount < prCount) {
+                            detailedStatus = `${prApprovedCount}/${prCount} PR Processed`;
+                        } else {
+                            detailedStatus = 'For Approval';
+                        }
+                    } else if ((mrf.status === 'Finance Approved' || mrf.status === 'PO Issued') && poCount > 0) {
+                        if (poApprovedCount < poCount) {
+                            detailedStatus = `${poApprovedCount}/${poCount} PO Approved`;
+                        } else {
+                            detailedStatus = 'Approved';
+                        }
+                    }
+                }
                 
+                // Display TR ID for transport requests, MRF ID for material requests
+                const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+
                 return `
                     <tr>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><strong>${mrf.mrf_id}</strong></td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><strong>${displayId}</strong></td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${totalCostHtml}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
@@ -1944,7 +2046,7 @@
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">
                             <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                                ${mrf.status}
+                                ${detailedStatus}
                             </span>
                         </td>
                     </tr>
