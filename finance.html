@@ -1673,7 +1673,9 @@
                     payment_terms: '50% Downpayment, 50% Upon Delivery',
                     delivery_status: 'Pending',
                     date_issued: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
+                    finance_approver: pr.finance_approver || 'Ma. Thea Angela R. Lacsamana',
+                    finance_signature_url: pr.finance_signature || ''
                 };
 
                 await addDoc(collection(db, 'pos'), poDoc);
@@ -2095,8 +2097,11 @@
 
     <div class="signature">
         <p><strong>Authorized By:</strong></p>
-        <div class="signature-line"></div>
-        <p><strong>Ma. Thea Angela R. Lacsamana</strong></p>
+        ${po.finance_signature_url ?
+            `<img src="${po.finance_signature_url}" class="signature-image" alt="Finance Signature">` :
+            '<div class="signature-line"></div>'
+        }
+        <p><strong>${po.finance_approver || 'Ma. Thea Angela R. Lacsamana'}</strong></p>
         <p style="font-size: 9pt;">Chief Financial Officer</p>
         <p style="font-size: 9pt; color: #666;">C. Lacsamana Management and Construction Corporation</p>
     </div>
