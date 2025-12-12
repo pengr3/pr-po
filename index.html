@@ -1083,6 +1083,14 @@
                 const deliveryAddressEl = document.getElementById('deliveryAddress');
                 const deliveryAddress = deliveryAddressEl ? deliveryAddressEl.value : (currentMRF.delivery_address || '');
 
+                // Calculate total cost from items
+                let totalCost = 0;
+                items.forEach(item => {
+                    const qty = parseFloat(item.qty || item.quantity || 0);
+                    const unitCost = parseFloat(item.unit_cost || 0);
+                    totalCost += qty * unitCost;
+                });
+
                 // Generate TR ID without orderBy to avoid index requirement
                 const year = new Date().getFullYear();
                 const trsRef = collection(window.db, 'transport_requests');
@@ -1110,6 +1118,7 @@
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(items),
                     justification: currentMRF.justification || '',
+                    cost: totalCost,
                     status: 'Pending Finance Approval',
                     date_submitted: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
@@ -1985,9 +1994,21 @@
                         console.error('Error fetching PRs for', mrf.mrf_id, error);
                     }
                 } else if (type === 'Transport') {
-                    // Calculate total cost from items_json for transport requests
+                    // Fetch cost from transport_requests collection
                     try {
-                        if (mrf.items_json) {
+                        const trsRef = collection(db, 'transport_requests');
+                        const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                        const trSnapshot = await getDocs(trQuery);
+
+                        if (!trSnapshot.empty) {
+                            trSnapshot.forEach((doc) => {
+                                const trData = doc.data();
+                                totalCost = parseFloat(trData.cost || 0);
+                            });
+                        }
+
+                        // Fallback: Calculate from MRF items_json if cost not found in TR
+                        if (totalCost === 0 && mrf.items_json) {
                             const items = JSON.parse(mrf.items_json);
                             items.forEach(item => {
                                 const qty = parseFloat(item.qty || item.quantity || 0);
@@ -1996,7 +2017,7 @@
                             });
                         }
                     } catch (error) {
-                        console.error('Error calculating total cost for transport request', mrf.mrf_id, error);
+                        console.error('Error fetching transport request cost for', mrf.mrf_id, error);
                     }
                 }
 
