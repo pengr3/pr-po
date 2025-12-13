@@ -421,14 +421,14 @@
             width: 60px;
         }
 
-        /* Column Widths - Optimized for no overlap */
-        .items-table th:nth-child(1) { width: 24%; } /* Item Description */
-        .items-table th:nth-child(2) { width: 12%; } /* Category */
-        .items-table th:nth-child(3) { width: 8%; }  /* Qty */
-        .items-table th:nth-child(4) { width: 10%; } /* Unit */
+        /* Column Widths - Optimized for better visibility */
+        .items-table th:nth-child(1) { width: 22%; } /* Item Description */
+        .items-table th:nth-child(2) { width: 11%; } /* Category */
+        .items-table th:nth-child(3) { width: 9%; }  /* Qty */
+        .items-table th:nth-child(4) { width: 11%; } /* Unit */
         .items-table th:nth-child(5) { width: 12%; } /* Unit Cost */
-        .items-table th:nth-child(6) { width: 16%; } /* Supplier */
-        .items-table th:nth-child(7) { width: 13%; } /* Subtotal */
+        .items-table th:nth-child(6) { width: 15%; } /* Supplier */
+        .items-table th:nth-child(7) { width: 15%; } /* Subtotal */
         .items-table th:nth-child(8) { width: 5%; }  /* Actions */
 
         .items-table tbody tr {
@@ -507,10 +507,36 @@
             font-weight: 400;
         }
 
-        /* Quantity input - compact centered */
+        /* Quantity input - enhanced visibility */
         .items-table .table-input-sm {
             text-align: center;
             font-variant-numeric: tabular-nums;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #1e293b;
+            background: #f8fafc;
+            border: 2px solid #cbd5e1;
+            min-width: 65px;
+        }
+
+        .items-table .table-input-sm:focus {
+            background: #ffffff;
+            border-color: #6366f1;
+        }
+
+        /* Unit select - enhanced visibility */
+        .items-table .item-unit {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #1e293b;
+            background: #f8fafc;
+            border: 2px solid #cbd5e1;
+            min-width: 80px;
+        }
+
+        .items-table .item-unit:focus {
+            background: #ffffff;
+            border-color: #6366f1;
         }
 
         /* Cost input - right aligned with monospace */
@@ -1786,7 +1812,7 @@
 
                 <div class="items-table-container">
                     <div class="items-table-header">
-                        <h4>Line Items</h4>
+                        <h4>ITEMS TABLE</h4>
                         <span class="item-count">${items.length} item${items.length !== 1 ? 's' : ''}</span>
                     </div>
                     <div class="items-table-wrapper">
@@ -1875,7 +1901,7 @@
                                         </select>
                                     </td>
                                     <td class="subtotal-cell" id="subtotal-${index}">
-                                        PHP ${((item.qty || item.quantity || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                        ${((item.qty || item.quantity || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
                                     </td>
                                     <td>
                                         <button type="button"
@@ -1931,7 +1957,7 @@
 
             const subtotalCell = document.getElementById(`subtotal-${index}`);
             if (subtotalCell) {
-                subtotalCell.textContent = `PHP ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+                subtotalCell.textContent = `${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
             }
             calculateGrandTotal();
         };
