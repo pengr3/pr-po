@@ -1842,6 +1842,8 @@
 
                 // Refresh MRF data using our local copy (currentMRF may have been cleared by onSnapshot)
                 mrfData.status = 'PR Generated';
+                // Restore currentMRF so that calculateGrandTotal and other functions can access it
+                currentMRF = mrfData;
                 renderMRFDetails(mrfData);
 
             } catch (error) {
@@ -2160,6 +2162,12 @@
                             const prDataArray = [];
                             prSnapshot.forEach((doc) => {
                                 const prData = doc.data();
+                                // Skip rejected PRs - they shouldn't appear in Historical MRFs
+                                // When a PR is rejected and reprocessed with a new supplier,
+                                // the old rejected PR ID should not be shown
+                                if (prData.finance_status === 'Rejected') {
+                                    return; // Skip this PR
+                                }
                                 prCount++;
                                 // Check finance_status field (not status)
                                 if (prData.finance_status === 'Approved') {
