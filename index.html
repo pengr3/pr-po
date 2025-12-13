@@ -1077,35 +1077,61 @@
             showLoading(true);
             try {
                 const { collection, getDocs, addDoc, doc, updateDoc } = window.firestore;
-                const items = JSON.parse(currentMRF.items_json);
+
+                // Collect items from DOM rows (supports add/edit/delete)
+                const rows = document.querySelectorAll('#lineItemsBody tr');
+                const updatedItems = [];
+                let totalCost = 0;
+
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+                    const category = row.querySelector('select.item-category')?.value || '';
+                    const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+                    const unit = row.querySelector('select.item-unit')?.value || '';
+                    const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+                    const supplier = row.querySelector('select.supplier-select')?.value || '';
+
+                    // Validate required fields
+                    if (!itemName) {
+                        showLoading(false);
+                        showToast(`Please enter an item name for row ${i + 1}`, 'error');
+                        return;
+                    }
+                    if (qty <= 0) {
+                        showLoading(false);
+                        showToast(`Please enter a valid quantity for "${itemName}"`, 'error');
+                        return;
+                    }
+                    if (unitCost === 0) {
+                        showLoading(false);
+                        showToast(`Please enter unit cost for item: ${itemName}`, 'error');
+                        return;
+                    }
+
+                    const subtotal = qty * unitCost;
+                    totalCost += subtotal;
+
+                    updatedItems.push({
+                        item: itemName,
+                        category: category || 'N/A',
+                        qty: qty,
+                        unit: unit || 'pcs',
+                        unit_cost: unitCost,
+                        supplier: supplier,
+                        subtotal: subtotal
+                    });
+                }
+
+                if (updatedItems.length === 0) {
+                    showLoading(false);
+                    showToast('At least one item is required', 'error');
+                    return;
+                }
 
                 // Get delivery address - ensure element exists
                 const deliveryAddressEl = document.getElementById('deliveryAddress');
                 const deliveryAddress = deliveryAddressEl ? deliveryAddressEl.value : (currentMRF.delivery_address || '');
-
-                // Calculate total cost from items - read from DOM inputs like saveProgress does
-                let totalCost = 0;
-                const updatedItems = items.map((item, index) => {
-                    const qty = parseFloat(item.qty || item.quantity || 0);
-                    // Read unit_cost from DOM input field, fallback to stored value
-                    const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
-                    const unitCost = unitCostInput ? (parseFloat(unitCostInput.value) || 0) : parseFloat(item.unit_cost || 0);
-                    // Read supplier from DOM select field, fallback to stored value
-                    const supplierSelect = document.querySelector(`select.supplier-select[data-index="${index}"]`);
-                    const supplier = supplierSelect ? (supplierSelect.value || item.supplier || '') : (item.supplier || '');
-
-                    totalCost += qty * unitCost;
-
-                    return {
-                        item: item.item || item.item_name,
-                        qty: qty,
-                        unit: item.unit,
-                        category: item.category || 'N/A',
-                        unit_cost: unitCost,
-                        supplier: supplier,
-                        subtotal: qty * unitCost
-                    };
-                });
 
                 // Generate TR ID without orderBy to avoid index requirement
                 const year = new Date().getFullYear();
@@ -1441,7 +1467,7 @@
                     <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid #dadce0; border-radius: 4px;">${mrf.delivery_address || ''}</textarea>
                 </div>
 
-                <table class="items-table">
+                <table class="items-table" id="lineItemsTable">
                     <thead>
                         <tr>
                             <th>Item</th>
@@ -1451,26 +1477,75 @@
                             <th>Unit Cost (PHP)</th>
                             <th>Supplier</th>
                             <th>Subtotal (PHP)</th>
+                            <th style="width: 60px;">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="lineItemsBody">
                         ${items.map((item, index) => `
-                            <tr>
-                                <td>${item.item || item.item_name}</td>
-                                <td>${item.category || 'N/A'}</td>
-                                <td>${item.qty || item.quantity}</td>
-                                <td>${item.unit}</td>
+                            <tr data-index="${index}">
                                 <td>
-                                    <input type="number" 
-                                           class="unit-cost" 
-                                           data-index="${index}" 
-                                           value="${item.unit_cost || ''}"
-                                           step="0.01"
-                                           placeholder="0.00"
+                                    <input type="text"
+                                           class="item-name"
+                                           data-index="${index}"
+                                           value="${item.item || item.item_name || ''}"
+                                           placeholder="Item name"
+                                           style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                                </td>
+                                <td>
+                                    <select class="item-category" data-index="${index}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                                        <option value="">Select</option>
+                                        <option value="CIVIL" ${(item.category || '') === 'CIVIL' ? 'selected' : ''}>CIVIL</option>
+                                        <option value="ELECTRICAL" ${(item.category || '') === 'ELECTRICAL' ? 'selected' : ''}>ELECTRICAL</option>
+                                        <option value="HVAC" ${(item.category || '') === 'HVAC' ? 'selected' : ''}>HVAC</option>
+                                        <option value="PLUMBING" ${(item.category || '') === 'PLUMBING' ? 'selected' : ''}>PLUMBING</option>
+                                        <option value="TOOLS & EQUIPMENTS" ${(item.category || '') === 'TOOLS & EQUIPMENTS' ? 'selected' : ''}>TOOLS & EQUIPMENTS</option>
+                                        <option value="SAFETY" ${(item.category || '') === 'SAFETY' ? 'selected' : ''}>SAFETY</option>
+                                        <option value="OTHERS" ${(item.category || '') === 'OTHERS' ? 'selected' : ''}>OTHERS</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           class="item-qty"
+                                           data-index="${index}"
+                                           value="${item.qty || item.quantity || ''}"
+                                           min="1"
+                                           placeholder="0"
+                                           style="width: 70px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
                                            oninput="calculateSubtotal(${index})">
                                 </td>
                                 <td>
-                                    <select class="supplier-select" data-index="${index}">
+                                    <select class="item-unit" data-index="${index}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                                        <option value="">Select</option>
+                                        <option value="pcs" ${(item.unit || '') === 'pcs' ? 'selected' : ''}>pcs</option>
+                                        <option value="boxes" ${(item.unit || '') === 'boxes' ? 'selected' : ''}>boxes</option>
+                                        <option value="bags" ${(item.unit || '') === 'bags' ? 'selected' : ''}>bags</option>
+                                        <option value="lot" ${(item.unit || '') === 'lot' ? 'selected' : ''}>lot</option>
+                                        <option value="gallons" ${(item.unit || '') === 'gallons' ? 'selected' : ''}>gallons</option>
+                                        <option value="bottles" ${(item.unit || '') === 'bottles' ? 'selected' : ''}>bottles</option>
+                                        <option value="bundle" ${(item.unit || '') === 'bundle' ? 'selected' : ''}>bundle</option>
+                                        <option value="cans" ${(item.unit || '') === 'cans' ? 'selected' : ''}>cans</option>
+                                        <option value="trucks" ${(item.unit || '') === 'trucks' ? 'selected' : ''}>trucks</option>
+                                        <option value="ride" ${(item.unit || '') === 'ride' ? 'selected' : ''}>ride</option>
+                                        <option value="sheets" ${(item.unit || '') === 'sheets' ? 'selected' : ''}>sheets</option>
+                                        <option value="yards" ${(item.unit || '') === 'yards' ? 'selected' : ''}>yards</option>
+                                        <option value="pail" ${(item.unit || '') === 'pail' ? 'selected' : ''}>pail</option>
+                                        <option value="meters" ${(item.unit || '') === 'meters' ? 'selected' : ''}>meters</option>
+                                        <option value="kg" ${(item.unit || '') === 'kg' ? 'selected' : ''}>kg</option>
+                                        <option value="liters" ${(item.unit || '') === 'liters' ? 'selected' : ''}>liters</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           class="unit-cost"
+                                           data-index="${index}"
+                                           value="${item.unit_cost || ''}"
+                                           step="0.01"
+                                           placeholder="0.00"
+                                           style="width: 100px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
+                                           oninput="calculateSubtotal(${index})">
+                                </td>
+                                <td>
+                                    <select class="supplier-select" data-index="${index}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
                                         <option value="">Select Supplier</option>
                                         ${suppliersData.map(s => `
                                             <option value="${s.supplier_name}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
@@ -1480,18 +1555,32 @@
                                     </select>
                                 </td>
                                 <td class="subtotal-cell" id="subtotal-${index}">
-                                    PHP  ${((item.qty || item.quantity) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                    PHP  ${((item.qty || item.quantity || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                </td>
+                                <td style="text-align: center;">
+                                    <button type="button"
+                                            class="btn btn-danger btn-sm"
+                                            onclick="deleteLineItem(${index})"
+                                            title="Delete this item"
+                                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                                        ✕
+                                    </button>
                                 </td>
                             </tr>
                         `).join('')}
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="7" style="text-align: right; font-weight: 600;">TOTAL:</td>
+                            <td colspan="8" style="text-align: right; font-weight: 600;">TOTAL:</td>
                             <td id="grandTotal" style="font-weight: 600;">PHP  0.00</td>
                         </tr>
                     </tfoot>
                 </table>
+                <div style="margin-top: 1rem;">
+                    <button type="button" class="btn btn-secondary" onclick="addLineItem()" style="padding: 0.5rem 1rem;">
+                        + Add Line Item
+                    </button>
+                </div>
             `;
 
             document.getElementById('mrfDetails').innerHTML = details;
@@ -1500,51 +1589,228 @@
 
         // Calculate subtotal
         window.calculateSubtotal = function(index) {
-            if (!currentMRF || !currentMRF.items_json) return;
-            const items = JSON.parse(currentMRF.items_json);
-            const qty = items[index].qty || items[index].quantity || 0;
-            const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
+            if (!currentMRF) return;
+            const qtyInput = document.querySelector(`input.item-qty[data-index="${index}"]`);
+            const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
+            const qty = parseFloat(qtyInput?.value) || 0;
+            const unitCost = parseFloat(unitCostInput?.value) || 0;
             const subtotal = qty * unitCost;
-            
-            document.getElementById(`subtotal-${index}`).textContent = `PHP  ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+
+            const subtotalCell = document.getElementById(`subtotal-${index}`);
+            if (subtotalCell) {
+                subtotalCell.textContent = `PHP  ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+            }
             calculateGrandTotal();
         };
 
         // Calculate grand total
         function calculateGrandTotal() {
-            if (!currentMRF || !currentMRF.items_json) return;
-            const items = JSON.parse(currentMRF.items_json);
+            if (!currentMRF) return;
             let total = 0;
-            
-            items.forEach((item, index) => {
-                const qty = item.qty || item.quantity || 0;
-                const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
-                const unitCost = unitCostInput ? (parseFloat(unitCostInput.value) || 0) : 0;
+
+            const rows = document.querySelectorAll('#lineItemsBody tr');
+            rows.forEach((row, index) => {
+                const qtyInput = row.querySelector('input.item-qty');
+                const unitCostInput = row.querySelector('input.unit-cost');
+                const qty = parseFloat(qtyInput?.value) || 0;
+                const unitCost = parseFloat(unitCostInput?.value) || 0;
                 total += qty * unitCost;
             });
-            
-            document.getElementById('grandTotal').textContent = `PHP  ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+
+            const grandTotalEl = document.getElementById('grandTotal');
+            if (grandTotalEl) {
+                grandTotalEl.textContent = `PHP  ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+            }
+        }
+
+        // Add new line item
+        window.addLineItem = function() {
+            if (!currentMRF) return;
+
+            const tbody = document.getElementById('lineItemsBody');
+            const currentRowCount = tbody.querySelectorAll('tr').length;
+            const newIndex = currentRowCount;
+
+            const newRow = document.createElement('tr');
+            newRow.setAttribute('data-index', newIndex);
+            newRow.innerHTML = `
+                <td>
+                    <input type="text"
+                           class="item-name"
+                           data-index="${newIndex}"
+                           value=""
+                           placeholder="Item name"
+                           style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                </td>
+                <td>
+                    <select class="item-category" data-index="${newIndex}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                        <option value="">Select</option>
+                        <option value="CIVIL">CIVIL</option>
+                        <option value="ELECTRICAL">ELECTRICAL</option>
+                        <option value="HVAC">HVAC</option>
+                        <option value="PLUMBING">PLUMBING</option>
+                        <option value="TOOLS & EQUIPMENTS">TOOLS & EQUIPMENTS</option>
+                        <option value="SAFETY">SAFETY</option>
+                        <option value="OTHERS">OTHERS</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number"
+                           class="item-qty"
+                           data-index="${newIndex}"
+                           value=""
+                           min="1"
+                           placeholder="0"
+                           style="width: 70px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
+                           oninput="calculateSubtotal(${newIndex})">
+                </td>
+                <td>
+                    <select class="item-unit" data-index="${newIndex}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                        <option value="">Select</option>
+                        <option value="pcs">pcs</option>
+                        <option value="boxes">boxes</option>
+                        <option value="bags">bags</option>
+                        <option value="lot">lot</option>
+                        <option value="gallons">gallons</option>
+                        <option value="bottles">bottles</option>
+                        <option value="bundle">bundle</option>
+                        <option value="cans">cans</option>
+                        <option value="trucks">trucks</option>
+                        <option value="ride">ride</option>
+                        <option value="sheets">sheets</option>
+                        <option value="yards">yards</option>
+                        <option value="pail">pail</option>
+                        <option value="meters">meters</option>
+                        <option value="kg">kg</option>
+                        <option value="liters">liters</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number"
+                           class="unit-cost"
+                           data-index="${newIndex}"
+                           value=""
+                           step="0.01"
+                           placeholder="0.00"
+                           style="width: 100px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
+                           oninput="calculateSubtotal(${newIndex})">
+                </td>
+                <td>
+                    <select class="supplier-select" data-index="${newIndex}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                        <option value="">Select Supplier</option>
+                        ${suppliersData.map(s => `
+                            <option value="${s.supplier_name}">${s.supplier_name}</option>
+                        `).join('')}
+                    </select>
+                </td>
+                <td class="subtotal-cell" id="subtotal-${newIndex}">
+                    PHP  0.00
+                </td>
+                <td style="text-align: center;">
+                    <button type="button"
+                            class="btn btn-danger btn-sm"
+                            onclick="deleteLineItem(${newIndex})"
+                            title="Delete this item"
+                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+                        ✕
+                    </button>
+                </td>
+            `;
+
+            tbody.appendChild(newRow);
+            showToast('New line item added', 'success');
+        };
+
+        // Delete line item
+        window.deleteLineItem = function(index) {
+            const tbody = document.getElementById('lineItemsBody');
+            const rows = tbody.querySelectorAll('tr');
+
+            if (rows.length <= 1) {
+                showToast('Cannot delete the last item. At least one item is required.', 'error');
+                return;
+            }
+
+            // Find and remove the row with the matching data-index
+            const rowToDelete = tbody.querySelector(`tr[data-index="${index}"]`);
+            if (rowToDelete) {
+                rowToDelete.remove();
+
+                // Re-index remaining rows
+                const remainingRows = tbody.querySelectorAll('tr');
+                remainingRows.forEach((row, newIndex) => {
+                    row.setAttribute('data-index', newIndex);
+
+                    // Update all data-index attributes and oninput handlers
+                    row.querySelector('input.item-name').setAttribute('data-index', newIndex);
+                    row.querySelector('select.item-category').setAttribute('data-index', newIndex);
+
+                    const qtyInput = row.querySelector('input.item-qty');
+                    qtyInput.setAttribute('data-index', newIndex);
+                    qtyInput.setAttribute('oninput', `calculateSubtotal(${newIndex})`);
+
+                    row.querySelector('select.item-unit').setAttribute('data-index', newIndex);
+
+                    const unitCostInput = row.querySelector('input.unit-cost');
+                    unitCostInput.setAttribute('data-index', newIndex);
+                    unitCostInput.setAttribute('oninput', `calculateSubtotal(${newIndex})`);
+
+                    row.querySelector('select.supplier-select').setAttribute('data-index', newIndex);
+
+                    const subtotalCell = row.querySelector('.subtotal-cell');
+                    subtotalCell.setAttribute('id', `subtotal-${newIndex}`);
+
+                    const deleteBtn = row.querySelector('button.btn-danger');
+                    deleteBtn.setAttribute('onclick', `deleteLineItem(${newIndex})`);
+                });
+
+                calculateGrandTotal();
+                showToast('Line item deleted', 'success');
+            }
         }
 
         // Save progress
         window.saveProgress = async function() {
             if (!currentMRF) return;
 
-            const items = JSON.parse(currentMRF.items_json);
-            const updatedItems = items.map((item, index) => {
-                const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
-                const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
-                
-                return {
-                    item: item.item || item.item_name,
-                    qty: item.qty || item.quantity,
-                    unit: item.unit,
-                    category: item.category || 'N/A',  // Add this line
+            // Collect items from DOM rows (supports add/edit/delete)
+            const rows = document.querySelectorAll('#lineItemsBody tr');
+            const updatedItems = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+                const category = row.querySelector('select.item-category')?.value || '';
+                const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+                const unit = row.querySelector('select.item-unit')?.value || '';
+                const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+                const supplier = row.querySelector('select.supplier-select')?.value || '';
+
+                // Validate required fields
+                if (!itemName) {
+                    showToast(`Please enter an item name for row ${i + 1}`, 'error');
+                    return;
+                }
+                if (qty <= 0) {
+                    showToast(`Please enter a valid quantity for "${itemName}"`, 'error');
+                    return;
+                }
+
+                updatedItems.push({
+                    item: itemName,
+                    category: category || 'N/A',
+                    qty: qty,
+                    unit: unit || 'pcs',
                     unit_cost: unitCost,
                     supplier: supplier,
-                    subtotal: (item.qty || item.quantity) * unitCost
-                    };
-            });
+                    subtotal: qty * unitCost
+                });
+            }
+
+            if (updatedItems.length === 0) {
+                showToast('At least one item is required', 'error');
+                return;
+            }
 
             const deliveryAddress = document.getElementById('deliveryAddress').value;
 
@@ -1559,10 +1825,14 @@
                     updated_at: new Date().toISOString()
                 });
 
+                // Update local currentMRF to reflect changes
+                currentMRF.items_json = JSON.stringify(updatedItems);
+                currentMRF.delivery_address = deliveryAddress;
+
                 showToast('Progress saved successfully', 'success');
             } catch (error) {
                 console.error('Error saving progress:', error);
-                showToast('âŒ Failed to save progress', 'error');
+                showToast('Failed to save progress', 'error');
             } finally {
                 showLoading(false);
             }
@@ -1577,42 +1847,53 @@
             // which could set currentMRF to null before we finish processing)
             const mrfData = { ...currentMRF };
 
-            const items = JSON.parse(mrfData.items_json);
+            // Collect items from DOM rows (supports add/edit/delete)
+            const rows = document.querySelectorAll('#lineItemsBody tr');
+            const prItems = [];
 
-            // Validate all items have costs and suppliers
-            for (let i = 0; i < items.length; i++) {
-                const unitCostInput = document.querySelector(`input.unit-cost[data-index="${i}"]`);
-                const supplierSelect = document.querySelector(`select.supplier-select[data-index="${i}"]`);
-                
-                const unitCost = parseFloat(unitCostInput?.value) || 0;
-                const supplier = supplierSelect?.value || '';
-                
+            // Validate and collect all items from DOM
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+                const category = row.querySelector('select.item-category')?.value || '';
+                const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+                const unit = row.querySelector('select.item-unit')?.value || '';
+                const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+                const supplier = row.querySelector('select.supplier-select')?.value || '';
+
+                // Validate required fields
+                if (!itemName) {
+                    showToast(`Please enter an item name for row ${i + 1}`, 'error');
+                    return;
+                }
+                if (qty <= 0) {
+                    showToast(`Please enter a valid quantity for "${itemName}"`, 'error');
+                    return;
+                }
                 if (unitCost === 0) {
-                    showToast(`Please enter unit cost for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(`Please enter unit cost for item: ${itemName}`, 'error');
                     return;
                 }
-                
                 if (!supplier) {
-                    showToast(`Please select supplier for item: ${items[i].item || items[i].item_name}`, 'error');
+                    showToast(`Please select supplier for item: ${itemName}`, 'error');
                     return;
                 }
-            }
 
-            // Collect final items data with suppliers
-            const prItems = items.map((item, index) => {
-                const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
-                const supplier = document.querySelector(`select.supplier-select[data-index="${index}"]`).value;
-                
-                return {
-                    item: item.item || item.item_name,
-                    category: item.category || 'N/A',
-                    qty: item.qty || item.quantity,
-                    unit: item.unit,
+                prItems.push({
+                    item: itemName,
+                    category: category || 'N/A',
+                    qty: qty,
+                    unit: unit || 'pcs',
                     unit_cost: unitCost,
                     supplier: supplier,
-                    subtotal: (item.qty || item.quantity) * unitCost
-                };
-            });
+                    subtotal: qty * unitCost
+                });
+            }
+
+            if (prItems.length === 0) {
+                showToast('At least one item is required', 'error');
+                return;
+            }
 
             // Group items by supplier
             const itemsBySupplier = {};
