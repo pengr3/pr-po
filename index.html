@@ -343,12 +343,41 @@
         .items-table {
             width: 100%;
             margin-top: 1rem;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 0.5rem 0.25rem;
+            border: 1px solid #e5e7eb;
+            vertical-align: middle;
+        }
+
+        .items-table th {
+            background: #f9fafb;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
         .items-table input,
         .items-table select {
             width: 100%;
-            padding: 0.5rem;
+            padding: 0.35rem;
+            font-size: 0.8rem;
+            box-sizing: border-box;
+        }
+
+        .items-table .subtotal-cell {
+            text-align: right;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .items-table tfoot td {
+            background: #f9fafb;
+            font-weight: 600;
         }
 
         .timeline-item {
@@ -425,17 +454,6 @@
             cursor: pointer;
             border: none;
             background: none;
-        }
-
-        .items-table {
-            width: 100%;
-            margin-top: 1rem;
-        }
-
-        .items-table input,
-        .items-table select {
-            width: 100%;
-            padding: 0.5rem;
         }
     </style>
 </head>
@@ -1470,14 +1488,14 @@
                 <table class="items-table" id="lineItemsTable">
                     <thead>
                         <tr>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th>Qty</th>
-                            <th>Unit</th>
-                            <th>Unit Cost (PHP)</th>
-                            <th>Supplier</th>
-                            <th>Subtotal (PHP)</th>
-                            <th style="width: 60px;">Action</th>
+                            <th style="width: 20%;">Item</th>
+                            <th style="width: 12%;">Category</th>
+                            <th style="width: 6%;">Qty</th>
+                            <th style="width: 8%;">Unit</th>
+                            <th style="width: 12%;">Unit Cost</th>
+                            <th style="width: 18%;">Supplier</th>
+                            <th style="width: 14%;">Subtotal</th>
+                            <th style="width: 10%;">Action</th>
                         </tr>
                     </thead>
                     <tbody id="lineItemsBody">
@@ -1571,8 +1589,9 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="8" style="text-align: right; font-weight: 600;">TOTAL:</td>
+                            <td colspan="6" style="text-align: right; font-weight: 600;">TOTAL:</td>
                             <td id="grandTotal" style="font-weight: 600;">PHP  0.00</td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -2437,15 +2456,10 @@
             // Fetch PR and PO data for all MRFs
             const rows = await Promise.all(filteredHistoricalMRFs.map(async (mrf) => {
                 const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
-                
-                // Status badge color
+
+                // Status color will be determined after we know PR/PO counts
                 let statusColor = '#999';
-                if (mrf.status === 'Completed') statusColor = '#34a853';
-                else if (mrf.status === 'Delivered') statusColor = '#34a853';
-                else if (mrf.status === 'PO Issued') statusColor = '#1a73e8';
-                else if (mrf.status === 'Finance Approved') statusColor = '#1a73e8';
-                else if (mrf.status === 'PR Generated' || mrf.status === 'TR Submitted') statusColor = '#fbbc04';
-                
+
                 // Fetch PRs for this MRF
                 let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
                 let totalCost = 0;
@@ -2562,25 +2576,65 @@
                     }
                 }
 
-                // Calculate detailed status
+                // Calculate detailed status and color based on user requirements:
+                // - Pending (RED) - When MRF or TR is requested but not yet submitted to finance
+                // - For Approval (YELLOW) - when this is a single PR or a TR
+                // - 0/n PO Issued (YELLOW) - applicable when there are multiple PR for Approval
+                // - Approved (GREEN) - applicable when TR or all PRs are approved (n/n)
                 let detailedStatus = mrf.status;
-                if (type === 'Material') {
-                    if (mrf.status === 'PR Generated' && prCount > 0) {
-                        if (prApprovedCount < prCount) {
-                            detailedStatus = `${prApprovedCount}/${prCount} PR Approved`;
+
+                if (type === 'Transport') {
+                    // Transport Request logic
+                    if (mrf.status === 'Pending' || mrf.status === 'Requested' || mrf.status === 'MRF Submitted') {
+                        detailedStatus = 'Pending';
+                        statusColor = '#dc3545'; // RED
+                    } else if (mrf.status === 'TR Submitted') {
+                        detailedStatus = 'For Approval';
+                        statusColor = '#fbbc04'; // YELLOW
+                    } else if (mrf.status === 'Finance Approved' || mrf.status === 'Completed' || mrf.status === 'Delivered') {
+                        detailedStatus = 'Approved';
+                        statusColor = '#34a853'; // GREEN
+                    }
+                } else if (type === 'Material') {
+                    // Material Request logic
+                    if (mrf.status === 'Pending' || mrf.status === 'Requested' || mrf.status === 'MRF Submitted') {
+                        detailedStatus = 'Pending';
+                        statusColor = '#dc3545'; // RED
+                    } else if (mrf.status === 'PR Generated' && prCount > 0) {
+                        if (prCount === 1) {
+                            // Single PR - For Approval
+                            if (prApprovedCount === 0) {
+                                detailedStatus = 'For Approval';
+                                statusColor = '#fbbc04'; // YELLOW
+                            } else {
+                                detailedStatus = 'Approved';
+                                statusColor = '#34a853'; // GREEN
+                            }
                         } else {
-                            detailedStatus = 'PRs Approved';
+                            // Multiple PRs - show approval progress
+                            if (prApprovedCount < prCount) {
+                                detailedStatus = `${prApprovedCount}/${prCount} PR Approved`;
+                                statusColor = '#fbbc04'; // YELLOW
+                            } else {
+                                detailedStatus = `${prCount}/${prCount} PR Approved`;
+                                statusColor = '#34a853'; // GREEN
+                            }
                         }
                     } else if ((mrf.status === 'Finance Approved' || mrf.status === 'PO Issued') && prCount > 0) {
-                        // Compare POs generated vs PRs (expected: 1 PO per PR minimum)
+                        // PO issuance stage
                         if (poCount < prCount) {
                             detailedStatus = `${poCount}/${prCount} PO Issued`;
+                            statusColor = '#fbbc04'; // YELLOW
                         } else {
                             detailedStatus = `${poCount}/${prCount} PO Issued`;
+                            statusColor = '#34a853'; // GREEN - All POs issued
                         }
+                    } else if (mrf.status === 'Completed' || mrf.status === 'Delivered') {
+                        detailedStatus = 'Approved';
+                        statusColor = '#34a853'; // GREEN
                     }
                 }
-                
+
                 // Display TR ID for transport requests, MRF ID for material requests
                 const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
 

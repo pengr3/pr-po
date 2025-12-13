@@ -1565,6 +1565,9 @@
                 // Generate POs if not transport request (transport doesn't need POs)
                 let poCount = 0;
                 if (!isTransport) {
+                    // Add signature to pr object so it gets saved to PO document
+                    pr.finance_signature = signatureDataURL;
+                    pr.finance_approver = 'Ma. Thea Angela R. Lacsamana';
                     poCount = await generatePOsForPR(pr);
                 }
 
