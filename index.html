@@ -1500,6 +1500,7 @@
 
         // Calculate subtotal
         window.calculateSubtotal = function(index) {
+            if (!currentMRF || !currentMRF.items_json) return;
             const items = JSON.parse(currentMRF.items_json);
             const qty = items[index].qty || items[index].quantity || 0;
             const unitCost = parseFloat(document.querySelector(`input.unit-cost[data-index="${index}"]`).value) || 0;
@@ -1511,6 +1512,7 @@
 
         // Calculate grand total
         function calculateGrandTotal() {
+            if (!currentMRF || !currentMRF.items_json) return;
             const items = JSON.parse(currentMRF.items_json);
             let total = 0;
             
@@ -1811,6 +1813,21 @@
                     }
                 }
 
+                // Delete rejected PRs that were NOT updated (supplier was changed)
+                // These are rejected PRs for suppliers not in the new supplier list
+                const deletedPRIds = [];
+                for (const rejectedPR of rejectedPRs) {
+                    // Skip if this rejected PR was updated (reused for the same supplier)
+                    if (updatedPRIds.includes(rejectedPR.pr_id)) {
+                        continue;
+                    }
+                    // Delete the orphaned rejected PR
+                    console.log(`🗑️ Deleting orphaned rejected PR ${rejectedPR.pr_id} (supplier changed)`);
+                    const prRef = doc(db, 'prs', rejectedPR.id);
+                    await deleteDoc(prRef);
+                    deletedPRIds.push(rejectedPR.pr_id);
+                }
+
                 // Update MRF status with all PR IDs
                 const mrfRef = doc(db, 'mrfs', mrfData.id);
                 const mrfUpdate = {
@@ -1836,6 +1853,9 @@
                 const newPRIds = generatedPRIds.filter(id => !updatedPRIds.includes(id) && !mergedPRIds.includes(id));
                 if (newPRIds.length > 0) {
                     msgParts.push(`Created ${newPRIds.length} new PR(s): ${newPRIds.join(', ')}`);
+                }
+                if (deletedPRIds.length > 0) {
+                    msgParts.push(`Removed ${deletedPRIds.length} old rejected PR(s): ${deletedPRIds.join(', ')}`);
                 }
 
                 showToast(`PR(s) processed successfully! ${msgParts.join('. ')}`, 'success');
@@ -2160,6 +2180,10 @@
                             const prDataArray = [];
                             prSnapshot.forEach((doc) => {
                                 const prData = doc.data();
+                                // Skip rejected PRs - they should not appear in Historical MRFs
+                                if (prData.finance_status === 'Rejected') {
+                                    return;
+                                }
                                 prCount++;
                                 // Check finance_status field (not status)
                                 if (prData.finance_status === 'Approved') {
