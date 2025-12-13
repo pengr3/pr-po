@@ -1764,13 +1764,14 @@
                     console.log('✅ PR updated to Rejected status in prs');
                 }
                 
-                // Update MRF: Set back to "Pending" with rejection flag
+                // Update MRF: Set back to "PR Rejected" with rejection flag
                 const mrfsRef = collection(db, 'mrfs');
                 const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
                 const mrfSnapshot = await getDocs(mrfQuery);
 
                 if (!mrfSnapshot.empty) {
                     const mrfDoc = mrfSnapshot.docs[0];
+                    const existingMrfData = mrfDoc.data();
                     const mrfUpdate = {
                         status: 'PR Rejected',  // Set to PR Rejected so procurement can see it with red indicator
                         pr_rejection_reason: reason,  // Store rejection comments (use pr_rejection_reason for consistency)
@@ -1778,7 +1779,8 @@
                         rejection_date: new Date().toISOString().split('T')[0],
                         rejected_by: 'Finance - Ma. Thea Angela R. Lacsamana',
                         is_rejected: true,  // Flag for red visual indicator
-                        items_json: pr.items_json,  // Preserve items data
+                        items_json: pr.items_json || existingMrfData.items_json,  // Preserve items data
+                        request_type: existingMrfData.request_type,  // Explicitly preserve request_type for correct tab display
                         updated_at: new Date().toISOString()
                     };
                     // Store which PR was rejected so procurement knows which one to reprocess
@@ -1789,18 +1791,20 @@
                     }
                     await updateDoc(doc(db, 'mrfs', mrfDoc.id), mrfUpdate);
                     console.log('✅ MRF set to PR Rejected status');
+
+                    showToast(
+                        isTransport
+                            ? '✅ TR rejected - MRF sent back to Procurement for revision'
+                            : '✅ PR rejected - MRF sent back to Procurement for revision',
+                        'success'
+                    );
                 } else {
-                    console.warn('⚠️  MRF not found:', pr.mrf_id);
+                    console.error('❌ MRF not found for rejection:', pr.mrf_id);
+                    showToast('❌ Error: MRF not found. PR was rejected but MRF was not updated.', 'error');
                 }
 
-                showToast(
-                    isTransport
-                        ? '✅ TR rejected - MRF sent back to Procurement for revision'
-                        : '✅ PR rejected - MRF sent back to Procurement for revision',
-                    'success'
-                );
                 await loadPRs();
-                currentPRForRejection = null;  // Clear reference after successful rejection
+                currentPRForRejection = null;  // Clear reference after rejection attempt
                 
             } catch (error) {
                 console.error('❌ Error rejecting PR:', error);
