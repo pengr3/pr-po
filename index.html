@@ -2469,8 +2469,39 @@
             }
         };
 
-        
-        
+        /**
+         * Generate All PR Documents - Opens document for each PR with a delay
+         * @param {Array<string>} prDocIds - Array of Firestore document IDs for PRs
+         */
+        window.generateAllPRDocuments = async function(prDocIds) {
+            console.log('Generating documents for PRs:', prDocIds);
+
+            if (!prDocIds || prDocIds.length === 0) {
+                showToast('No PRs to generate documents for', 'error');
+                return;
+            }
+
+            showToast(`Generating ${prDocIds.length} PR document(s)... Please allow pop-ups.`, 'info');
+
+            // Generate documents with a small delay between each to prevent browser blocking
+            for (let i = 0; i < prDocIds.length; i++) {
+                try {
+                    await generatePRDocument(prDocIds[i]);
+
+                    // Add a small delay between documents to prevent browser from blocking pop-ups
+                    if (i < prDocIds.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch (error) {
+                    console.error(`Error generating document for PR ${prDocIds[i]}:`, error);
+                }
+            }
+
+            showToast(`Generated ${prDocIds.length} PR document(s). Check your browser tabs/windows.`, 'success');
+        };
+
+
+
         // ========================================
         // NATIVE PDF DOCUMENT GENERATION SYSTEM
         // Pure JavaScript - No external libraries or services
@@ -3027,7 +3058,7 @@
 
         window.downloadPODocument = async function(poDocId) {
             console.log('Downloading PO document for:', poDocId);
-            
+
             try {
                 // Generate and open PO document (user will Save as PDF)
                 await generatePODocument(poDocId);
@@ -3035,6 +3066,37 @@
                 console.error('Error downloading PO document:', error);
                 showToast('Failed to download PO document', 'error');
             }
+        };
+
+        /**
+         * Generate All PO Documents - Opens document for each PO with a delay
+         * @param {Array<string>} poDocIds - Array of Firestore document IDs for POs
+         */
+        window.generateAllPODocuments = async function(poDocIds) {
+            console.log('Generating documents for POs:', poDocIds);
+
+            if (!poDocIds || poDocIds.length === 0) {
+                showToast('No POs to generate documents for', 'error');
+                return;
+            }
+
+            showToast(`Generating ${poDocIds.length} PO document(s)... Please allow pop-ups.`, 'info');
+
+            // Generate documents with a small delay between each to prevent browser blocking
+            for (let i = 0; i < poDocIds.length; i++) {
+                try {
+                    await generatePODocument(poDocIds[i]);
+
+                    // Add a small delay between documents to prevent browser from blocking pop-ups
+                    if (i < poDocIds.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                } catch (error) {
+                    console.error(`Error generating document for PO ${poDocIds[i]}:`, error);
+                }
+            }
+
+            showToast(`Generated ${poDocIds.length} PO document(s). Check your browser tabs/windows.`, 'success');
         };
 
         window.viewPODetails = async function(poDocId) {
@@ -3202,7 +3264,14 @@
                 
                 // PRs section
                 if (prs.length > 0) {
-                    modalContent += '<h3 style="margin-bottom: 1rem; color: #1a73e8;">Purchase Requests</h3>';
+                    // Store PR IDs for bulk generation
+                    const prDocIds = prs.map(pr => pr.id);
+                    modalContent += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: #1a73e8;">Purchase Requests</h3>
+                            ${prs.length > 1 ? `<button class="btn btn-success" onclick="generateAllPRDocuments([${prDocIds.map(id => "'" + id + "'").join(',')}])" style="padding: 0.5rem 1rem;">Generate All PR Documents (${prs.length})</button>` : ''}
+                        </div>
+                    `;
                     modalContent += '<div style="display: grid; gap: 1rem; margin-bottom: 2rem;">';
                     prs.forEach(pr => {
                         const items = pr.items_json ? JSON.parse(pr.items_json) : [];
@@ -3216,6 +3285,10 @@
                                     <div><strong>Date Generated:</strong> ${pr.date_generated || 'N/A'}</div>
                                     <div><strong>Items:</strong> ${items.length} item(s)</div>
                                 </div>
+                                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button class="btn btn-sm btn-primary" onclick="viewPRDetails('${pr.id}')" style="padding: 0.5rem 0.75rem;">View Details</button>
+                                    <button class="btn btn-sm btn-success" onclick="viewPRDocument('${pr.id}')" style="padding: 0.5rem 0.75rem;">Generate Document</button>
+                                </div>
                             </div>
                         `;
                     });
@@ -3224,12 +3297,19 @@
                 
                 // POs section
                 if (pos.length > 0) {
-                    modalContent += '<h3 style="margin-bottom: 1rem; color: #34a853;">Purchase Orders</h3>';
+                    // Store PO IDs for bulk generation
+                    const poDocIds = pos.map(po => po.id);
+                    modalContent += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: #34a853;">Purchase Orders</h3>
+                            ${pos.length > 1 ? `<button class="btn btn-success" onclick="generateAllPODocuments([${poDocIds.map(id => "'" + id + "'").join(',')}])" style="padding: 0.5rem 1rem;">Generate All PO Documents (${pos.length})</button>` : ''}
+                        </div>
+                    `;
                     modalContent += '<div style="display: grid; gap: 1rem;">';
                     pos.forEach(po => {
                         const items = po.items_json ? JSON.parse(po.items_json) : [];
                         const deliveryFee = po.delivery_fee ? `<div><strong>Delivery Fee:</strong> <span style="color: #f59e0b; font-weight: 600;">PHP ${parseFloat(po.delivery_fee).toLocaleString('en-PH', {minimumFractionDigits: 2})}</span></div>` : '';
-                        
+
                         modalContent += `
                             <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; background: #f9fafb;">
                                 <div style="font-weight: 600; color: #34a853; margin-bottom: 0.5rem; font-size: 1.1rem;">${po.po_id}</div>
@@ -3242,7 +3322,10 @@
                                     ${po.delivered_date ? `<div><strong>Delivered Date:</strong> ${po.delivered_date}</div>` : ''}
                                     <div><strong>Items:</strong> ${items.length} item(s)</div>
                                 </div>
-                                <button class="btn btn-sm btn-primary" onclick="viewPODetails('${po.id}')" style="margin-top: 0.5rem;">View Full Details</button>
+                                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button class="btn btn-sm btn-primary" onclick="viewPODetails('${po.id}')" style="padding: 0.5rem 0.75rem;">View Details</button>
+                                    <button class="btn btn-sm btn-success" onclick="viewPODocument('${po.id}')" style="padding: 0.5rem 0.75rem;">Generate Document</button>
+                                </div>
                             </div>
                         `;
                     });
