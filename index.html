@@ -340,44 +340,252 @@
             border-radius: 4px;
         }
 
+        /* Modern Elegant Items Table */
+        .items-table-container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+            margin-top: 1.5rem;
+        }
+
+        .items-table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .items-table-header h4 {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .items-table-header .item-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
         .items-table {
             width: 100%;
-            margin-top: 1rem;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             table-layout: fixed;
         }
 
-        .items-table th,
-        .items-table td {
-            padding: 0.5rem 0.25rem;
-            border: 1px solid #e5e7eb;
-            vertical-align: middle;
+        .items-table thead {
+            background: #f8fafc;
         }
 
         .items-table th {
-            background: #f9fafb;
-            font-size: 0.75rem;
+            padding: 0.875rem 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
             white-space: nowrap;
         }
 
-        .items-table input,
-        .items-table select {
+        .items-table th:first-child {
+            padding-left: 1.25rem;
+        }
+
+        .items-table th:last-child {
+            padding-right: 1.25rem;
+            text-align: center;
+        }
+
+        .items-table tbody tr {
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .items-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .items-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .items-table td {
+            padding: 0.75rem;
+            vertical-align: middle;
+            color: #334155;
+        }
+
+        .items-table td:first-child {
+            padding-left: 1.25rem;
+        }
+
+        .items-table td:last-child {
+            padding-right: 1.25rem;
+        }
+
+        /* Modern Form Controls in Table */
+        .items-table .table-input,
+        .items-table .table-select {
             width: 100%;
-            padding: 0.35rem;
-            font-size: 0.8rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.825rem;
+            color: #1e293b;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            transition: all 0.2s ease;
             box-sizing: border-box;
         }
 
+        .items-table .table-input:hover,
+        .items-table .table-select:hover {
+            border-color: #cbd5e1;
+            background: #ffffff;
+        }
+
+        .items-table .table-input:focus,
+        .items-table .table-select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+        }
+
+        .items-table .table-input::placeholder {
+            color: #94a3b8;
+        }
+
+        .items-table .table-input-sm {
+            width: 80px;
+            text-align: center;
+        }
+
+        .items-table .table-input-cost {
+            width: 100%;
+            text-align: right;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+        }
+
+        /* Subtotal Cell Styling */
         .items-table .subtotal-cell {
             text-align: right;
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #1e293b;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
             white-space: nowrap;
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem !important;
+        }
+
+        /* Delete Button */
+        .items-table .btn-delete {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            background: transparent;
+            border: 1.5px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .items-table .btn-delete:hover {
+            color: #ef4444;
+            background: #fef2f2;
+            border-color: #fecaca;
+        }
+
+        /* Table Footer */
+        .items-table tfoot {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
         }
 
         .items-table tfoot td {
-            background: #f9fafb;
+            padding: 1rem 0.75rem;
             font-weight: 600;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .items-table tfoot .total-label {
+            text-align: right;
+            font-size: 0.875rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .items-table tfoot .total-value {
+            font-size: 1.1rem;
+            color: #059669;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem !important;
+        }
+
+        /* Add Item Button Container */
+        .add-item-container {
+            padding: 1rem 1.25rem;
+            background: #fafbfc;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .btn-add-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            font-size: 0.825rem;
+            font-weight: 500;
+            color: #667eea;
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            border: 1.5px solid #c7d2fe;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-add-item:hover {
+            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+            border-color: #a5b4fc;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-add-item svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Row number indicator */
+        .row-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: #e2e8f0;
+            color: #64748b;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border-radius: 50%;
+            margin-right: 0.5rem;
         }
 
         .timeline-item {
@@ -1485,120 +1693,133 @@
                     <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid #dadce0; border-radius: 4px;">${mrf.delivery_address || ''}</textarea>
                 </div>
 
-                <table class="items-table" id="lineItemsTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 20%;">Item</th>
-                            <th style="width: 12%;">Category</th>
-                            <th style="width: 6%;">Qty</th>
-                            <th style="width: 8%;">Unit</th>
-                            <th style="width: 12%;">Unit Cost</th>
-                            <th style="width: 18%;">Supplier</th>
-                            <th style="width: 14%;">Subtotal</th>
-                            <th style="width: 10%;">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lineItemsBody">
-                        ${items.map((item, index) => `
-                            <tr data-index="${index}">
-                                <td>
-                                    <input type="text"
-                                           class="item-name"
-                                           data-index="${index}"
-                                           value="${item.item || item.item_name || ''}"
-                                           placeholder="Item name"
-                                           style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
-                                </td>
-                                <td>
-                                    <select class="item-category" data-index="${index}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
-                                        <option value="">Select</option>
-                                        <option value="CIVIL" ${(item.category || '') === 'CIVIL' ? 'selected' : ''}>CIVIL</option>
-                                        <option value="ELECTRICAL" ${(item.category || '') === 'ELECTRICAL' ? 'selected' : ''}>ELECTRICAL</option>
-                                        <option value="HVAC" ${(item.category || '') === 'HVAC' ? 'selected' : ''}>HVAC</option>
-                                        <option value="PLUMBING" ${(item.category || '') === 'PLUMBING' ? 'selected' : ''}>PLUMBING</option>
-                                        <option value="TOOLS & EQUIPMENTS" ${(item.category || '') === 'TOOLS & EQUIPMENTS' ? 'selected' : ''}>TOOLS & EQUIPMENTS</option>
-                                        <option value="SAFETY" ${(item.category || '') === 'SAFETY' ? 'selected' : ''}>SAFETY</option>
-                                        <option value="OTHERS" ${(item.category || '') === 'OTHERS' ? 'selected' : ''}>OTHERS</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number"
-                                           class="item-qty"
-                                           data-index="${index}"
-                                           value="${item.qty || item.quantity || ''}"
-                                           min="1"
-                                           placeholder="0"
-                                           style="width: 70px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
-                                           oninput="calculateSubtotal(${index})">
-                                </td>
-                                <td>
-                                    <select class="item-unit" data-index="${index}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
-                                        <option value="">Select</option>
-                                        <option value="pcs" ${(item.unit || '') === 'pcs' ? 'selected' : ''}>pcs</option>
-                                        <option value="boxes" ${(item.unit || '') === 'boxes' ? 'selected' : ''}>boxes</option>
-                                        <option value="bags" ${(item.unit || '') === 'bags' ? 'selected' : ''}>bags</option>
-                                        <option value="lot" ${(item.unit || '') === 'lot' ? 'selected' : ''}>lot</option>
-                                        <option value="gallons" ${(item.unit || '') === 'gallons' ? 'selected' : ''}>gallons</option>
-                                        <option value="bottles" ${(item.unit || '') === 'bottles' ? 'selected' : ''}>bottles</option>
-                                        <option value="bundle" ${(item.unit || '') === 'bundle' ? 'selected' : ''}>bundle</option>
-                                        <option value="cans" ${(item.unit || '') === 'cans' ? 'selected' : ''}>cans</option>
-                                        <option value="trucks" ${(item.unit || '') === 'trucks' ? 'selected' : ''}>trucks</option>
-                                        <option value="ride" ${(item.unit || '') === 'ride' ? 'selected' : ''}>ride</option>
-                                        <option value="sheets" ${(item.unit || '') === 'sheets' ? 'selected' : ''}>sheets</option>
-                                        <option value="yards" ${(item.unit || '') === 'yards' ? 'selected' : ''}>yards</option>
-                                        <option value="pail" ${(item.unit || '') === 'pail' ? 'selected' : ''}>pail</option>
-                                        <option value="meters" ${(item.unit || '') === 'meters' ? 'selected' : ''}>meters</option>
-                                        <option value="kg" ${(item.unit || '') === 'kg' ? 'selected' : ''}>kg</option>
-                                        <option value="liters" ${(item.unit || '') === 'liters' ? 'selected' : ''}>liters</option>
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number"
-                                           class="unit-cost"
-                                           data-index="${index}"
-                                           value="${item.unit_cost || ''}"
-                                           step="0.01"
-                                           placeholder="0.00"
-                                           style="width: 100px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
-                                           oninput="calculateSubtotal(${index})">
-                                </td>
-                                <td>
-                                    <select class="supplier-select" data-index="${index}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
-                                        <option value="">Select Supplier</option>
-                                        ${suppliersData.map(s => `
-                                            <option value="${s.supplier_name}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
-                                                ${s.supplier_name}
-                                            </option>
-                                        `).join('')}
-                                    </select>
-                                </td>
-                                <td class="subtotal-cell" id="subtotal-${index}">
-                                    PHP  ${((item.qty || item.quantity || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
-                                </td>
-                                <td style="text-align: center;">
-                                    <button type="button"
-                                            class="btn btn-danger btn-sm"
-                                            onclick="deleteLineItem(${index})"
-                                            title="Delete this item"
-                                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                                        ✕
-                                    </button>
-                                </td>
+                <div class="items-table-container">
+                    <div class="items-table-header">
+                        <h4>Line Items</h4>
+                        <span class="item-count">${items.length} item${items.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <table class="items-table" id="lineItemsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">Item Description</th>
+                                <th style="width: 12%;">Category</th>
+                                <th style="width: 7%;">Qty</th>
+                                <th style="width: 9%;">Unit</th>
+                                <th style="width: 11%;">Unit Cost</th>
+                                <th style="width: 17%;">Supplier</th>
+                                <th style="width: 13%;">Subtotal</th>
+                                <th style="width: 9%;"></th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="6" style="text-align: right; font-weight: 600;">TOTAL:</td>
-                            <td id="grandTotal" style="font-weight: 600;">PHP  0.00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-                <div style="margin-top: 1rem;">
-                    <button type="button" class="btn btn-secondary" onclick="addLineItem()" style="padding: 0.5rem 1rem;">
-                        + Add Line Item
-                    </button>
+                        </thead>
+                        <tbody id="lineItemsBody">
+                            ${items.map((item, index) => `
+                                <tr data-index="${index}">
+                                    <td>
+                                        <input type="text"
+                                               class="item-name table-input"
+                                               data-index="${index}"
+                                               value="${item.item || item.item_name || ''}"
+                                               placeholder="Enter item name">
+                                    </td>
+                                    <td>
+                                        <select class="item-category table-select" data-index="${index}">
+                                            <option value="">Select</option>
+                                            <option value="CIVIL" ${(item.category || '') === 'CIVIL' ? 'selected' : ''}>CIVIL</option>
+                                            <option value="ELECTRICAL" ${(item.category || '') === 'ELECTRICAL' ? 'selected' : ''}>ELECTRICAL</option>
+                                            <option value="HVAC" ${(item.category || '') === 'HVAC' ? 'selected' : ''}>HVAC</option>
+                                            <option value="PLUMBING" ${(item.category || '') === 'PLUMBING' ? 'selected' : ''}>PLUMBING</option>
+                                            <option value="TOOLS & EQUIPMENTS" ${(item.category || '') === 'TOOLS & EQUIPMENTS' ? 'selected' : ''}>TOOLS</option>
+                                            <option value="SAFETY" ${(item.category || '') === 'SAFETY' ? 'selected' : ''}>SAFETY</option>
+                                            <option value="OTHERS" ${(item.category || '') === 'OTHERS' ? 'selected' : ''}>OTHERS</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number"
+                                               class="item-qty table-input table-input-sm"
+                                               data-index="${index}"
+                                               value="${item.qty || item.quantity || ''}"
+                                               min="1"
+                                               placeholder="0"
+                                               oninput="calculateSubtotal(${index})">
+                                    </td>
+                                    <td>
+                                        <select class="item-unit table-select" data-index="${index}">
+                                            <option value="">Select</option>
+                                            <option value="pcs" ${(item.unit || '') === 'pcs' ? 'selected' : ''}>pcs</option>
+                                            <option value="boxes" ${(item.unit || '') === 'boxes' ? 'selected' : ''}>boxes</option>
+                                            <option value="bags" ${(item.unit || '') === 'bags' ? 'selected' : ''}>bags</option>
+                                            <option value="lot" ${(item.unit || '') === 'lot' ? 'selected' : ''}>lot</option>
+                                            <option value="gallons" ${(item.unit || '') === 'gallons' ? 'selected' : ''}>gallons</option>
+                                            <option value="bottles" ${(item.unit || '') === 'bottles' ? 'selected' : ''}>bottles</option>
+                                            <option value="bundle" ${(item.unit || '') === 'bundle' ? 'selected' : ''}>bundle</option>
+                                            <option value="cans" ${(item.unit || '') === 'cans' ? 'selected' : ''}>cans</option>
+                                            <option value="trucks" ${(item.unit || '') === 'trucks' ? 'selected' : ''}>trucks</option>
+                                            <option value="ride" ${(item.unit || '') === 'ride' ? 'selected' : ''}>ride</option>
+                                            <option value="sheets" ${(item.unit || '') === 'sheets' ? 'selected' : ''}>sheets</option>
+                                            <option value="yards" ${(item.unit || '') === 'yards' ? 'selected' : ''}>yards</option>
+                                            <option value="pail" ${(item.unit || '') === 'pail' ? 'selected' : ''}>pail</option>
+                                            <option value="meters" ${(item.unit || '') === 'meters' ? 'selected' : ''}>meters</option>
+                                            <option value="kg" ${(item.unit || '') === 'kg' ? 'selected' : ''}>kg</option>
+                                            <option value="liters" ${(item.unit || '') === 'liters' ? 'selected' : ''}>liters</option>
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number"
+                                               class="unit-cost table-input table-input-cost"
+                                               data-index="${index}"
+                                               value="${item.unit_cost || ''}"
+                                               step="0.01"
+                                               placeholder="0.00"
+                                               oninput="calculateSubtotal(${index})">
+                                    </td>
+                                    <td>
+                                        <select class="supplier-select table-select" data-index="${index}">
+                                            <option value="">Select Supplier</option>
+                                            ${suppliersData.map(s => `
+                                                <option value="${s.supplier_name}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
+                                                    ${s.supplier_name}
+                                                </option>
+                                            `).join('')}
+                                        </select>
+                                    </td>
+                                    <td class="subtotal-cell" id="subtotal-${index}">
+                                        PHP ${((item.qty || item.quantity || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <button type="button"
+                                                class="btn-delete"
+                                                onclick="deleteLineItem(${index})"
+                                                title="Remove item">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M3 6h18"></path>
+                                                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="6" class="total-label">Grand Total</td>
+                                <td id="grandTotal" class="total-value">PHP 0.00</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div class="add-item-container">
+                        <button type="button" class="btn-add-item" onclick="addLineItem()">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="8" x2="12" y2="16"></line>
+                                <line x1="8" y1="12" x2="16" y2="12"></line>
+                            </svg>
+                            Add Line Item
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -1617,7 +1838,7 @@
 
             const subtotalCell = document.getElementById(`subtotal-${index}`);
             if (subtotalCell) {
-                subtotalCell.textContent = `PHP  ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+                subtotalCell.textContent = `PHP ${subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
             }
             calculateGrandTotal();
         };
@@ -1638,7 +1859,7 @@
 
             const grandTotalEl = document.getElementById('grandTotal');
             if (grandTotalEl) {
-                grandTotalEl.textContent = `PHP  ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
+                grandTotalEl.textContent = `PHP ${total.toLocaleString('en-PH', {minimumFractionDigits: 2})}`;
             }
         }
 
@@ -1655,36 +1876,34 @@
             newRow.innerHTML = `
                 <td>
                     <input type="text"
-                           class="item-name"
+                           class="item-name table-input"
                            data-index="${newIndex}"
                            value=""
-                           placeholder="Item name"
-                           style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                           placeholder="Enter item name">
                 </td>
                 <td>
-                    <select class="item-category" data-index="${newIndex}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                    <select class="item-category table-select" data-index="${newIndex}">
                         <option value="">Select</option>
                         <option value="CIVIL">CIVIL</option>
                         <option value="ELECTRICAL">ELECTRICAL</option>
                         <option value="HVAC">HVAC</option>
                         <option value="PLUMBING">PLUMBING</option>
-                        <option value="TOOLS & EQUIPMENTS">TOOLS & EQUIPMENTS</option>
+                        <option value="TOOLS & EQUIPMENTS">TOOLS</option>
                         <option value="SAFETY">SAFETY</option>
                         <option value="OTHERS">OTHERS</option>
                     </select>
                 </td>
                 <td>
                     <input type="number"
-                           class="item-qty"
+                           class="item-qty table-input table-input-sm"
                            data-index="${newIndex}"
                            value=""
                            min="1"
                            placeholder="0"
-                           style="width: 70px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
                            oninput="calculateSubtotal(${newIndex})">
                 </td>
                 <td>
-                    <select class="item-unit" data-index="${newIndex}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                    <select class="item-unit table-select" data-index="${newIndex}">
                         <option value="">Select</option>
                         <option value="pcs">pcs</option>
                         <option value="boxes">boxes</option>
@@ -1706,16 +1925,15 @@
                 </td>
                 <td>
                     <input type="number"
-                           class="unit-cost"
+                           class="unit-cost table-input table-input-cost"
                            data-index="${newIndex}"
                            value=""
                            step="0.01"
                            placeholder="0.00"
-                           style="width: 100px; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;"
                            oninput="calculateSubtotal(${newIndex})">
                 </td>
                 <td>
-                    <select class="supplier-select" data-index="${newIndex}" style="width: 100%; padding: 0.25rem; border: 1px solid #dadce0; border-radius: 4px;">
+                    <select class="supplier-select table-select" data-index="${newIndex}">
                         <option value="">Select Supplier</option>
                         ${suppliersData.map(s => `
                             <option value="${s.supplier_name}">${s.supplier_name}</option>
@@ -1723,22 +1941,38 @@
                     </select>
                 </td>
                 <td class="subtotal-cell" id="subtotal-${newIndex}">
-                    PHP  0.00
+                    PHP 0.00
                 </td>
                 <td style="text-align: center;">
                     <button type="button"
-                            class="btn btn-danger btn-sm"
+                            class="btn-delete"
                             onclick="deleteLineItem(${newIndex})"
-                            title="Delete this item"
-                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
-                        ✕
+                            title="Remove item">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 6h18"></path>
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
                     </button>
                 </td>
             `;
 
             tbody.appendChild(newRow);
+            updateItemCount();
             showToast('New line item added', 'success');
         };
+
+        // Update item count in header
+        function updateItemCount() {
+            const tbody = document.getElementById('lineItemsBody');
+            const count = tbody ? tbody.querySelectorAll('tr').length : 0;
+            const itemCountEl = document.querySelector('.items-table-header .item-count');
+            if (itemCountEl) {
+                itemCountEl.textContent = `${count} item${count !== 1 ? 's' : ''}`;
+            }
+        }
 
         // Delete line item
         window.deleteLineItem = function(index) {
@@ -1779,11 +2013,12 @@
                     const subtotalCell = row.querySelector('.subtotal-cell');
                     subtotalCell.setAttribute('id', `subtotal-${newIndex}`);
 
-                    const deleteBtn = row.querySelector('button.btn-danger');
+                    const deleteBtn = row.querySelector('button.btn-delete');
                     deleteBtn.setAttribute('onclick', `deleteLineItem(${newIndex})`);
                 });
 
                 calculateGrandTotal();
+                updateItemCount();
                 showToast('Line item deleted', 'success');
             }
         }
