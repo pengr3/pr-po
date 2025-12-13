@@ -1570,7 +1570,12 @@
         window.generatePR = async function() {
             if (!currentMRF) return;
 
-            const items = JSON.parse(currentMRF.items_json);
+            // Save a local copy of the MRF to avoid race conditions with onSnapshot
+            // (when we update MRF status, it may be removed from the query results,
+            // which could set currentMRF to null before we finish processing)
+            const mrfData = { ...currentMRF };
+
+            const items = JSON.parse(mrfData.items_json);
 
             // Validate all items have costs and suppliers
             for (let i = 0; i < items.length; i++) {
@@ -1625,7 +1630,7 @@
                 const prsRef = collection(db, 'prs');
 
                 // Check for existing PRs for this MRF
-                const existingPRsQuery = query(prsRef, where('mrf_id', '==', currentMRF.mrf_id));
+                const existingPRsQuery = query(prsRef, where('mrf_id', '==', mrfData.mrf_id));
                 const existingPRsSnapshot = await getDocs(existingPRsQuery);
 
                 // Organize existing PRs by supplier and status
@@ -1787,11 +1792,11 @@
 
                         const prDoc = {
                             pr_id: prId,
-                            mrf_id: currentMRF.mrf_id,
-                            mrf_doc_id: currentMRF.id,
+                            mrf_id: mrfData.mrf_id,
+                            mrf_doc_id: mrfData.id,
                             supplier_name: supplier,
-                            project_name: currentMRF.project_name,
-                            requestor_name: currentMRF.requestor_name,
+                            project_name: mrfData.project_name,
+                            requestor_name: mrfData.requestor_name,
                             delivery_address: document.getElementById('deliveryAddress').value,
                             items_json: JSON.stringify(supplierItems),
                             total_amount: supplierTotal,
@@ -1807,7 +1812,7 @@
                 }
 
                 // Update MRF status with all PR IDs
-                const mrfRef = doc(db, 'mrfs', currentMRF.id);
+                const mrfRef = doc(db, 'mrfs', mrfData.id);
                 const mrfUpdate = {
                     status: 'PR Generated',
                     pr_ids: generatedPRIds,
@@ -1835,9 +1840,9 @@
 
                 showToast(`PR(s) processed successfully! ${msgParts.join('. ')}`, 'success');
 
-                // Refresh MRF data
-                currentMRF.status = 'PR Generated';
-                renderMRFDetails(currentMRF);
+                // Refresh MRF data using our local copy (currentMRF may have been cleared by onSnapshot)
+                mrfData.status = 'PR Generated';
+                renderMRFDetails(mrfData);
 
             } catch (error) {
                 console.error('Error generating PR:', error);
