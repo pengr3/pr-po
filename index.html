@@ -2053,7 +2053,17 @@
                 snapshot.forEach((doc) => {
                     allHistoricalMRFs.push({ id: doc.id, ...doc.data() });
                 });
-                
+
+                // Deduplicate by mrf_id - keep only unique MRFs
+                const seenMrfIds = new Set();
+                allHistoricalMRFs = allHistoricalMRFs.filter(mrf => {
+                    if (seenMrfIds.has(mrf.mrf_id)) {
+                        return false; // Skip duplicate
+                    }
+                    seenMrfIds.add(mrf.mrf_id);
+                    return true;
+                });
+
                 console.log('Loaded historical MRFs:', allHistoricalMRFs.length);
                 
                 // Sort: non-completed first, then by date
