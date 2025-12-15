@@ -690,8 +690,42 @@
                 <button class="close-btn" onclick="closeSignatureModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 1rem;">Please sign below to approve this purchase request:</p>
-                
+                <p style="margin-bottom: 1rem;">Please fill in the required information and sign below to approve this purchase request:</p>
+
+                <!-- Approver Information Section -->
+                <div style="margin-bottom: 1.5rem; padding: 1.5rem; background: var(--gray-50); border-radius: 8px;">
+                    <h4 style="margin-bottom: 1rem; font-size: 1rem;">Approver Information</h4>
+
+                    <div style="margin-bottom: 1rem;">
+                        <label for="paymentTerms" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Payment Terms: *</label>
+                        <input
+                            type="text"
+                            id="paymentTerms"
+                            placeholder="e.g., 50% Downpayment, 50% Upon Delivery"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                        />
+                    </div>
+
+                    <div style="margin-bottom: 1rem;">
+                        <label for="condition" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Condition: *</label>
+                        <input
+                            type="text"
+                            id="condition"
+                            placeholder="e.g., As specified, Subject to quality inspection"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                        />
+                    </div>
+
+                    <div style="margin-bottom: 0;">
+                        <label for="deliveryDate" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Delivery Date: *</label>
+                        <input
+                            type="date"
+                            id="deliveryDate"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                        />
+                    </div>
+                </div>
+
                 <div class="signature-pad-container">
                     <h4>Finance Approval Signature</h4>
                     <canvas id="signatureCanvas" class="signature-canvas" width="800" height="200"></canvas>
@@ -701,7 +735,7 @@
                 </div>
 
                 <div id="signatureError" style="color: var(--danger); margin-top: 1rem; display: none;">
-                    Please provide your signature before approving.
+                    Please provide all required information and your signature before approving.
                 </div>
             </div>
             <div class="modal-footer">
@@ -1478,6 +1512,10 @@
         window.closeSignatureModal = function() {
             document.getElementById('signatureModal').classList.remove('active');
             document.getElementById('signatureError').style.display = 'none';
+            // Clear approver fields
+            document.getElementById('paymentTerms').value = '';
+            document.getElementById('condition').value = '';
+            document.getElementById('deliveryDate').value = '';
             currentPRForApproval = null;
         };
 
@@ -1486,20 +1524,25 @@
             console.log('✅ submitApproval called');
             console.log('🔍 hasSignature:', hasSignature);
             console.log('🔍 currentPRForApproval:', currentPRForApproval ? currentPRForApproval.pr_id : 'NULL');
-            
-            if (!hasSignature) {
+
+            // Get and validate approver fields
+            const paymentTerms = document.getElementById('paymentTerms').value.trim();
+            const condition = document.getElementById('condition').value.trim();
+            const deliveryDate = document.getElementById('deliveryDate').value;
+
+            if (!hasSignature || !paymentTerms || !condition || !deliveryDate) {
                 document.getElementById('signatureError').style.display = 'block';
                 return;
             }
-            
+
             if (!currentPRForApproval) {
                 console.error('❌ ERROR: currentPRForApproval is NULL!');
                 showToast('No PR selected for approval', 'error');
                 return;
             }
-            
-            console.log('✅ Signature validated, PR found, proceeding with approval');
-            
+
+            console.log('✅ All fields validated, PR found, proceeding with approval');
+
             // CRITICAL: Store PR reference in local variable BEFORE closing modals
             const pr = currentPRForApproval;
             if (!pr) {
@@ -1508,7 +1551,7 @@
                 return;
             }
             console.log('✅ Stored PR reference locally:', pr.pr_id);
-            
+
             // Get signature as base64
             const signatureDataURL = signatureCanvas.toDataURL();
             
@@ -1532,6 +1575,9 @@
                         finance_status: 'Approved',
                         finance_approver: 'Ma. Thea Angela R. Lacsamana',
                         finance_signature: signatureDataURL,
+                        payment_terms: paymentTerms,
+                        condition: condition,
+                        delivery_date: deliveryDate,
                         date_approved: new Date().toISOString().split('T')[0],
                         approved_at: new Date().toISOString()
                     });
@@ -1543,6 +1589,9 @@
                         finance_status: 'Approved',
                         finance_approver: 'Ma. Thea Angela R. Lacsamana',
                         finance_signature: signatureDataURL,
+                        payment_terms: paymentTerms,
+                        condition: condition,
+                        delivery_date: deliveryDate,
                         date_approved: new Date().toISOString().split('T')[0],
                         approved_at: new Date().toISOString()
                     });
@@ -1565,9 +1614,12 @@
                 // Generate POs if not transport request (transport doesn't need POs)
                 let poCount = 0;
                 if (!isTransport) {
-                    // Add signature to pr object so it gets saved to PO document
+                    // Add signature and approver fields to pr object so they get saved to PO document
                     pr.finance_signature = signatureDataURL;
                     pr.finance_approver = 'Ma. Thea Angela R. Lacsamana';
+                    pr.payment_terms = paymentTerms;
+                    pr.condition = condition;
+                    pr.delivery_date = deliveryDate;
                     poCount = await generatePOsForPR(pr);
                 }
 
@@ -1673,7 +1725,9 @@
                     delivery_address: pr.delivery_address,
                     items_json: JSON.stringify(supplierItems),
                     total_amount: total,
-                    payment_terms: '50% Downpayment, 50% Upon Delivery',
+                    payment_terms: pr.payment_terms || '50% Downpayment, 50% Upon Delivery',
+                    condition: pr.condition || 'As specified',
+                    delivery_date: pr.delivery_date || new Date().toISOString().split('T')[0],
                     delivery_status: 'Pending',
                     date_issued: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString(),
@@ -2064,6 +2118,8 @@
     <div class="section">
         <div class="field"><span class="label">Delivery Address:</span> ${po.delivery_address || 'N/A'}</div>
         <div class="field"><span class="label">Payment Terms:</span> ${po.payment_terms || 'As agreed'}</div>
+        <div class="field"><span class="label">Condition:</span> ${po.condition || 'As specified'}</div>
+        <div class="field"><span class="label">Delivery Date:</span> ${po.delivery_date ? formatDate(po.delivery_date) : 'N/A'}</div>
     </div>
 
     <div class="section">
