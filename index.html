@@ -976,6 +976,7 @@
                             <option value="">All Statuses</option>
                             <option value="TR Submitted">TR Submitted</option>
                             <option value="PR Generated">PR Generated</option>
+                            <option value="PR Rejected">PR Rejected</option>
                             <option value="Finance Approved">Finance Approved</option>
                             <option value="PO Issued">PO Issued</option>
                             <option value="Delivered">Delivered</option>
@@ -2388,11 +2389,12 @@
                         console.log(`📝 Updating rejected PR ${rejectedPR.pr_id} for supplier ${supplier}`);
 
                         const prRef = doc(db, 'prs', rejectedPR.id);
+                        const deliveryAddressEl = document.getElementById('deliveryAddress');
                         await updateDoc(prRef, {
                             items_json: JSON.stringify(supplierItems),
                             total_amount: supplierTotal,
                             finance_status: 'Pending',
-                            delivery_address: document.getElementById('deliveryAddress').value,
+                            delivery_address: deliveryAddressEl ? deliveryAddressEl.value : (mrfData.delivery_address || ''),
                             date_generated: new Date().toISOString().split('T')[0],
                             updated_at: new Date().toISOString(),
                             reprocessed: true,
@@ -2446,6 +2448,7 @@
 
                         console.log(`➕ Creating new PR ${prId} for supplier ${supplier}`);
 
+                        const deliveryAddressEl = document.getElementById('deliveryAddress');
                         const prDoc = {
                             pr_id: prId,
                             mrf_id: mrfData.mrf_id,
@@ -2453,7 +2456,7 @@
                             supplier_name: supplier,
                             project_name: mrfData.project_name,
                             requestor_name: mrfData.requestor_name,
-                            delivery_address: document.getElementById('deliveryAddress').value,
+                            delivery_address: deliveryAddressEl ? deliveryAddressEl.value : (mrfData.delivery_address || ''),
                             items_json: JSON.stringify(supplierItems),
                             total_amount: supplierTotal,
                             finance_status: 'Pending',
@@ -2723,7 +2726,8 @@
             try {
                 const mrfsRef = collection(db, 'mrfs');
                 // Load MRFs that have moved past "In Progress"
-                const historicalStatuses = ['TR Submitted', 'PR Generated', 'Finance Approved', 'PO Issued', 'Delivered', 'Completed'];
+                // Include 'PR Rejected' so users can see and resubmit rejected PRs
+                const historicalStatuses = ['TR Submitted', 'PR Generated', 'PR Rejected', 'Finance Approved', 'PO Issued', 'Delivered', 'Completed'];
                 const q = query(mrfsRef, where('status', 'in', historicalStatuses));
                 
                 const snapshot = await getDocs(q);
@@ -2829,10 +2833,7 @@
                             const prDataArray = [];
                             prSnapshot.forEach((doc) => {
                                 const prData = doc.data();
-                                // Skip rejected PRs - they should not appear in Historical MRFs
-                                if (prData.finance_status === 'Rejected') {
-                                    return;
-                                }
+                                // Count ALL PRs (including rejected ones)
                                 prCount++;
                                 // Check finance_status field (not status)
                                 if (prData.finance_status === 'Approved') {
@@ -2841,9 +2842,13 @@
                                 prDataArray.push({
                                     docId: doc.id,
                                     pr_id: prData.pr_id,
-                                    total_amount: parseFloat(prData.total_amount || 0)
+                                    total_amount: parseFloat(prData.total_amount || 0),
+                                    finance_status: prData.finance_status
                                 });
-                                totalCost += parseFloat(prData.total_amount || 0);
+                                // Only count approved/pending PR amounts in total cost
+                                if (prData.finance_status !== 'Rejected') {
+                                    totalCost += parseFloat(prData.total_amount || 0);
+                                }
                             });
                             // Sort PR IDs by number (extract number from PR_YYYY_MM-NNN-SUPPLIER format)
                             prDataArray.sort((a, b) => {
@@ -2851,9 +2856,18 @@
                                 const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
                                 return numA - numB;
                             });
-                            const prIds = prDataArray.map(pr =>
-                                `<a href="javascript:void(0)" onclick="viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${pr.pr_id}</a>`
-                            );
+                            const prIds = prDataArray.map(pr => {
+                                // Add status badge for rejected PRs
+                                let badge = '';
+                                if (pr.finance_status === 'Rejected') {
+                                    badge = ' <span style="background: #dc2626; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">REJECTED</span>';
+                                } else if (pr.finance_status === 'Approved') {
+                                    badge = ' <span style="background: #16a34a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">APPROVED</span>';
+                                } else if (pr.finance_status === 'Pending') {
+                                    badge = ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">PENDING</span>';
+                                }
+                                return `<a href="javascript:void(0)" onclick="viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${pr.pr_id}</a>${badge}`;
+                            });
                             prHtml = prIds.join('<br>');
                         }
                     } catch (error) {
