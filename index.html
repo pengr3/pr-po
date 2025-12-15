@@ -1078,6 +1078,8 @@
 
         // PO Tracking Global
         let poData = [];
+        let poCurrentPage = 1;
+        const poItemsPerPage = 15;
 
         // Load PO Tracking
         async function loadPOTracking() {
@@ -1088,8 +1090,26 @@
                 snapshot.forEach((doc) => {
                     poData.push({ id: doc.id, ...doc.data() });
                 });
-                // Sort by date issued
-                poData.sort((a, b) => new Date(b.date_issued) - new Date(a.date_issued));
+                // Sort by status (pending, procuring, procured, delivered), then by date within each status
+                const statusOrder = {
+                    'Pending Procurement': 1,
+                    'Procuring': 2,
+                    'Procured': 3,
+                    'Delivered': 4
+                };
+                poData.sort((a, b) => {
+                    const statusA = a.procurement_status || 'Pending Procurement';
+                    const statusB = b.procurement_status || 'Pending Procurement';
+                    const orderA = statusOrder[statusA] || 999;
+                    const orderB = statusOrder[statusB] || 999;
+
+                    // First sort by status
+                    if (orderA !== orderB) {
+                        return orderA - orderB;
+                    }
+                    // Then by date (newest first within each status)
+                    return new Date(b.date_issued) - new Date(a.date_issued);
+                });
                 renderPOTrackingTable(poData);
                 console.log('POs updated:', poData.length);
             });
@@ -1128,10 +1148,19 @@
 
             if (pos.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
+                // Hide pagination if no results
+                const paginationDiv = document.getElementById('poPagination');
+                if (paginationDiv) paginationDiv.style.display = 'none';
                 return;
             }
 
-            tbody.innerHTML = pos.map(po => `
+            // Calculate pagination
+            const totalPages = Math.ceil(pos.length / poItemsPerPage);
+            const startIndex = (poCurrentPage - 1) * poItemsPerPage;
+            const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
+            const pageItems = pos.slice(startIndex, endIndex);
+
+            tbody.innerHTML = pageItems.map(po => `
                 <tr>
                     <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong></td>
                     <td>${po.supplier_name}</td>
@@ -1139,7 +1168,7 @@
                     <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     <td>${new Date(po.date_issued).toLocaleDateString()}</td>
                     <td>
-                        <select class="status-select" data-po-id="${po.id}" 
+                        <select class="status-select" data-po-id="${po.id}"
                                 onchange="updatePOStatus('${po.id}', this.value, '${po.procurement_status || 'Pending Procurement'}')">
                             <option value="Pending Procurement" ${(po.procurement_status || 'Pending Procurement') === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
                             <option value="Procuring" ${po.procurement_status === 'Procuring' ? 'selected' : ''}>Procuring</option>
@@ -1152,6 +1181,66 @@
                     </td>
                 </tr>
             `).join('');
+
+            // Update pagination controls
+            updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
+        }
+
+        // Change PO Page
+        window.changePOPage = function(direction) {
+            const totalPages = Math.ceil(poData.length / poItemsPerPage);
+
+            if (direction === 'prev' && poCurrentPage > 1) {
+                poCurrentPage--;
+            } else if (direction === 'next' && poCurrentPage < totalPages) {
+                poCurrentPage++;
+            } else if (typeof direction === 'number') {
+                poCurrentPage = direction;
+            }
+
+            renderPOTrackingTable(poData);
+        }
+
+        // Update PO Pagination Controls
+        function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems) {
+            let paginationDiv = document.getElementById('poPagination');
+
+            // Create pagination div if it doesn't exist
+            if (!paginationDiv) {
+                paginationDiv = document.createElement('div');
+                paginationDiv.id = 'poPagination';
+                paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+
+                // Insert after the table
+                const table = document.querySelector('#po-tracking-section table');
+                table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+            }
+
+            paginationDiv.style.display = 'flex';
+
+            // Build pagination HTML
+            let paginationHTML = `
+                <div style="color: #5f6368; font-size: 0.875rem;">
+                    Showing ${startIndex + 1}-${endIndex} of ${totalItems} POs
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem;"
+                        ${poCurrentPage === 1 ? 'style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                        Previous
+                    </button>
+                    <span style="color: #5f6368; font-size: 0.875rem;">
+                        Page ${poCurrentPage} of ${totalPages}
+                    </span>
+                    <button onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem;"
+                        ${poCurrentPage === totalPages ? 'style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                        Next
+                    </button>
+                </div>
+            `;
+
+            paginationDiv.innerHTML = paginationHTML;
         }
 
         // Update PO Status
@@ -1195,9 +1284,11 @@
                 if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
                     updateData.procurement_started_at = new Date().toISOString();
                 } else if (newStatus === 'Procured') {
-                    updateData.procured_date = new Date().toISOString().split('T')[0];
+                    updateData.procured_at = new Date().toISOString();
+                    updateData.procured_date = new Date().toISOString().split('T')[0]; // Keep for backward compatibility
                 } else if (newStatus === 'Delivered') {
-                    updateData.delivered_date = new Date().toISOString().split('T')[0];
+                    updateData.delivered_at = new Date().toISOString();
+                    updateData.delivered_date = new Date().toISOString().split('T')[0]; // Keep for backward compatibility
                     updateData.delivery_fee = deliveryFee;
                 }
 
@@ -1361,34 +1452,34 @@
                         </span>
                     </div>
                     
-                    <div class="timeline-item ${po.procured_date ? 'completed' : (po.procurement_status === 'Procured' ? 'current' : '')}">
+                    <div class="timeline-item ${(po.procured_at || po.procured_date) ? 'completed' : (po.procurement_status === 'Procured' ? 'current' : '')}">
                         <strong> Items Procured</strong><br>
                         <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.procured_date ? new Date(po.procured_date).toLocaleDateString() : 'Not yet procured'}
+                            ${(po.procured_at || po.procured_date) ? new Date(po.procured_at || po.procured_date).toLocaleString() : 'Not yet procured'}
                         </span>
-                        ${po.procured_date && po.procurement_started_at ? `
+                        ${(po.procured_at || po.procured_date) && po.procurement_started_at ? `
                             <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
-                                Time: ${calculateDays(po.procurement_started_at, po.procured_date)}
+                                Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}
                             </div>
                         ` : ''}
                     </div>
-                    
-                    <div class="timeline-item ${po.delivered_date ? 'completed' : (po.procurement_status === 'Delivered' ? 'current' : '')}">
+
+                    <div class="timeline-item ${(po.delivered_at || po.delivered_date) ? 'completed' : (po.procurement_status === 'Delivered' ? 'current' : '')}">
                         <strong> Delivered</strong><br>
                         <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.delivered_date ? new Date(po.delivered_date).toLocaleDateString() : 'Not yet delivered'}
+                            ${(po.delivered_at || po.delivered_date) ? new Date(po.delivered_at || po.delivered_date).toLocaleString() : 'Not yet delivered'}
                         </span>
-                        ${po.delivered_date && po.procured_date ? `
+                        ${(po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date) ? `
                             <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
-                                Time: ${calculateDays(po.procured_date, po.delivered_date)}
+                                Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}
                             </div>
                         ` : ''}
                     </div>
                 </div>
 
-                ${po.delivered_date && po.date_issued ? `
+                ${(po.delivered_at || po.delivered_date) && po.date_issued ? `
                     <div style="margin-top: 2rem; padding: 1rem; background: #d1fae5; border-radius: 6px;">
-                        <strong>Total Time: ${calculateDays(po.date_issued, po.delivered_date)}</strong>
+                        <strong>Total Time: ${calculateDays(po.date_issued, po.delivered_at || po.delivered_date)}</strong>
                     </div>
                 ` : ''}
             `;
@@ -2751,11 +2842,11 @@
 
                 console.log('Loaded historical MRFs:', allHistoricalMRFs.length);
 
-                // Sort chronologically by when MRF was initially processed (oldest first)
+                // Sort chronologically by when MRF was initially processed (newest first)
                 allHistoricalMRFs.sort((a, b) => {
                     const dateA = new Date(a.date_submitted || a.created_at);
                     const dateB = new Date(b.date_submitted || b.created_at);
-                    return dateA - dateB; // ascending order (oldest first)
+                    return dateB - dateA; // descending order (newest first)
                 });
 
                 filteredHistoricalMRFs = [...allHistoricalMRFs];
