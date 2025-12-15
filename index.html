@@ -1615,12 +1615,17 @@
 
                 showToast('TR ' + trId + ' submitted successfully!', 'success');
 
-                // Update currentMRF with new status, tr_id, and updated items
-                if (currentMRF) {
-                    currentMRF.status = 'TR Submitted';
-                    currentMRF.tr_id = trId;
-                    currentMRF.items_json = JSON.stringify(updatedItems);  // Update in-memory items with costs
-                    renderMRFDetails(currentMRF);
+                // Clear MRF details since it's been processed and moved out of pending
+                currentMRF = null;
+                const mrfDetails = document.getElementById('mrfDetails');
+                if (mrfDetails) {
+                    mrfDetails.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #666;">
+                            <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">✓ TR Submitted Successfully</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.5rem;">The MRF has been processed and moved to Historical MRFs.</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.25rem;">Select another MRF to view details.</div>
+                        </div>
+                    `;
                 }
 
             } catch (error) {
@@ -2608,9 +2613,18 @@
 
                 showToast(`PR(s) processed successfully! ${msgParts.join('. ')}`, 'success');
 
-                // Refresh MRF data using our local copy (currentMRF may have been cleared by onSnapshot)
-                mrfData.status = 'PR Generated';
-                renderMRFDetails(mrfData);
+                // Clear MRF details since it's been processed and moved out of pending
+                currentMRF = null;
+                const mrfDetails = document.getElementById('mrfDetails');
+                if (mrfDetails) {
+                    mrfDetails.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #666;">
+                            <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">✓ PR Generated Successfully</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.5rem;">The MRF has been processed and moved to Historical MRFs.</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.25rem;">Select another MRF to view details.</div>
+                        </div>
+                    `;
+                }
 
             } catch (error) {
                 console.error('Error generating PR:', error);
