@@ -1760,10 +1760,10 @@
         // Render MRF details
         function renderMRFDetails(mrf) {
             const items = JSON.parse(mrf.items_json);
-            
+
             // Show correct button based on request type
             const isService = mrf.request_type === 'service';
-            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress';
+            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected';
             
             let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
             if (canEdit) {
@@ -2720,6 +2720,8 @@
         // Historical MRFs functionality
         let allHistoricalMRFs = [];
         let filteredHistoricalMRFs = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
 
         window.loadHistoricalMRFs = async function() {
             console.log('Loading historical MRFs...');
@@ -2748,20 +2750,16 @@
                 });
 
                 console.log('Loaded historical MRFs:', allHistoricalMRFs.length);
-                
-                // Sort: non-completed first, then by date
+
+                // Sort chronologically by when MRF was initially processed (oldest first)
                 allHistoricalMRFs.sort((a, b) => {
-                    // Completed status goes to bottom
-                    if (a.status === 'Completed' && b.status !== 'Completed') return 1;
-                    if (a.status !== 'Completed' && b.status === 'Completed') return -1;
-                    
-                    // Otherwise sort by date (most recent first)
                     const dateA = new Date(a.date_submitted || a.created_at);
                     const dateB = new Date(b.date_submitted || b.created_at);
-                    return dateB - dateA;
+                    return dateA - dateB; // ascending order (oldest first)
                 });
-                
+
                 filteredHistoricalMRFs = [...allHistoricalMRFs];
+                currentPage = 1; // Reset to first page
                 renderHistoricalMRFs();
                 
             } catch (error) {
@@ -2776,43 +2774,67 @@
             const typeFilter = document.getElementById('historicalTypeFilter').value;
             const dateFrom = document.getElementById('historicalDateFrom').value;
             const dateTo = document.getElementById('historicalDateTo').value;
-            
+
             filteredHistoricalMRFs = allHistoricalMRFs.filter(mrf => {
                 // Search filter
-                const matchSearch = !searchTerm || 
+                const matchSearch = !searchTerm ||
                     mrf.mrf_id.toLowerCase().includes(searchTerm) ||
                     mrf.project_name.toLowerCase().includes(searchTerm);
-                
+
                 // Status filter
                 const matchStatus = !statusFilter || mrf.status === statusFilter;
-                
+
                 // Type filter
                 const matchType = !typeFilter || mrf.request_type === typeFilter;
-                
+
                 // Date filters
                 const mrfDate = new Date(mrf.date_submitted || mrf.created_at);
                 const matchDateFrom = !dateFrom || mrfDate >= new Date(dateFrom);
                 const matchDateTo = !dateTo || mrfDate <= new Date(dateTo);
-                
+
                 return matchSearch && matchStatus && matchType && matchDateFrom && matchDateTo;
             });
-            
+
+            currentPage = 1; // Reset to first page when filtering
+            renderHistoricalMRFs();
+        }
+
+        window.changePage = function(direction) {
+            const totalPages = Math.ceil(filteredHistoricalMRFs.length / itemsPerPage);
+
+            if (direction === 'prev' && currentPage > 1) {
+                currentPage--;
+            } else if (direction === 'next' && currentPage < totalPages) {
+                currentPage++;
+            } else if (typeof direction === 'number') {
+                currentPage = direction;
+            }
+
             renderHistoricalMRFs();
         }
 
         window.renderHistoricalMRFs = async function() {
             const tbody = document.getElementById('historicalMRFsBody');
-            
+
             if (filteredHistoricalMRFs.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #999;">No historical MRFs found</td></tr>';
+                // Hide pagination if no results
+                const paginationDiv = document.getElementById('historicalPagination');
+                if (paginationDiv) paginationDiv.style.display = 'none';
                 return;
             }
-            
+
+            // Calculate pagination
+            const totalPages = Math.ceil(filteredHistoricalMRFs.length / itemsPerPage);
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredHistoricalMRFs.length);
+            const pageItems = filteredHistoricalMRFs.slice(startIndex, endIndex);
+
             // Show loading state
             tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem; color: #999;">Loading document references...</td></tr>';
-            
-            // Fetch PR and PO data for all MRFs
-            const rows = await Promise.all(filteredHistoricalMRFs.map(async (mrf) => {
+
+            // Fetch PR and PO data for current page items only
+            const rows = await Promise.all(pageItems.map(async (mrf) => {
                 const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
 
                 // Status color will be determined after we know PR/PO counts
@@ -3022,8 +3044,74 @@
                     </tr>
                 `;
             }));
-            
+
             tbody.innerHTML = rows.join('');
+
+            // Update pagination controls
+            updatePaginationControls(totalPages, startIndex, endIndex);
+        }
+
+        function updatePaginationControls(totalPages, startIndex, endIndex) {
+            let paginationDiv = document.getElementById('historicalPagination');
+
+            // Create pagination div if it doesn't exist
+            if (!paginationDiv) {
+                paginationDiv = document.createElement('div');
+                paginationDiv.id = 'historicalPagination';
+                paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+
+                // Insert after the table
+                const table = document.querySelector('#historical-mrfs-section table');
+                table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+            }
+
+            paginationDiv.style.display = 'flex';
+
+            // Build pagination HTML
+            let paginationHTML = `
+                <div style="color: #5f6368; font-size: 0.875rem;">
+                    Showing ${startIndex + 1}-${endIndex} of ${filteredHistoricalMRFs.length} MRFs
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button
+                        onclick="changePage('prev')"
+                        ${currentPage === 1 ? 'disabled' : ''}
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${currentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                    >
+                        Previous
+                    </button>
+                    <div style="display: flex; gap: 0.25rem;">
+            `;
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                    paginationHTML += `
+                        <button
+                            onclick="changePage(${i})"
+                            style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === currentPage ? '#1a73e8' : 'white'}; color: ${i === currentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === currentPage ? '600' : '400'};"
+                        >
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === currentPage - 2 || i === currentPage + 2) {
+                    paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+                }
+            }
+
+            paginationHTML += `
+                    </div>
+                    <button
+                        onclick="changePage('next')"
+                        ${currentPage === totalPages ? 'disabled' : ''}
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${currentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}"
+                    >
+                        Next
+                    </button>
+                </div>
+            `;
+
+            paginationDiv.innerHTML = paginationHTML;
         }
 
         window.viewPRDetails = async function(prDocId) {
