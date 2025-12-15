@@ -1058,6 +1058,8 @@
         let currentMRF = null;
         let suppliersData = [];
         let editingSupplier = null;
+        let suppliersCurrentPage = 1;
+        const suppliersItemsPerPage = 15;
 
         // Initialize
         init();
@@ -1169,7 +1171,8 @@
                     <td>${new Date(po.date_issued).toLocaleDateString()}</td>
                     <td>
                         <select class="status-select" data-po-id="${po.id}"
-                                onchange="updatePOStatus('${po.id}', this.value, '${po.procurement_status || 'Pending Procurement'}')">
+                                onchange="updatePOStatus('${po.id}', this.value, '${po.procurement_status || 'Pending Procurement'}')"
+                                ${po.procurement_status === 'Delivered' ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
                             <option value="Pending Procurement" ${(po.procurement_status || 'Pending Procurement') === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
                             <option value="Procuring" ${po.procurement_status === 'Procuring' ? 'selected' : ''}>Procuring</option>
                             <option value="Procured" ${po.procurement_status === 'Procured' ? 'selected' : ''}>Procured</option>
@@ -1225,16 +1228,30 @@
                 </div>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                     <button onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}
-                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem;"
-                        ${poCurrentPage === 1 ? 'style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
                         Previous
                     </button>
-                    <span style="color: #5f6368; font-size: 0.875rem;">
-                        Page ${poCurrentPage} of ${totalPages}
-                    </span>
+            `;
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= poCurrentPage - 1 && i <= poCurrentPage + 1)) {
+                    paginationHTML += `
+                        <button
+                            onclick="changePOPage(${i})"
+                            style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === poCurrentPage ? '#1a73e8' : 'white'}; color: ${i === poCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === poCurrentPage ? '600' : '400'};"
+                        >
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === poCurrentPage - 2 || i === poCurrentPage + 2) {
+                    paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+                }
+            }
+
+            paginationHTML += `
                     <button onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}
-                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem;"
-                        ${poCurrentPage === totalPages ? 'style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
                         Next
                     </button>
                 </div>
@@ -1246,7 +1263,15 @@
         // Update PO Status
         window.updatePOStatus = async function(poId, newStatus, currentStatus) {
             if (newStatus === currentStatus) return;
-            
+
+            // Prevent changing status if already delivered
+            if (currentStatus === 'Delivered') {
+                showToast('Cannot change status once delivered', 'error');
+                const select = document.querySelector(`select[data-po-id="${poId}"]`);
+                if (select) select.value = currentStatus;
+                return;
+            }
+
             // If marking as Delivered, prompt for delivery fee
             let deliveryFee = 0;
             if (newStatus === 'Delivered') {
@@ -2637,13 +2662,22 @@
         // Render suppliers table
         function renderSuppliersTable() {
             const tbody = document.getElementById('suppliersTableBody');
-            
+
             if (suppliersData.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No suppliers yet. Add your first supplier!</td></tr>';
+                // Hide pagination if no results
+                const paginationDiv = document.getElementById('suppliersPagination');
+                if (paginationDiv) paginationDiv.style.display = 'none';
                 return;
             }
 
-            tbody.innerHTML = suppliersData.map(supplier => {
+            // Calculate pagination
+            const totalPages = Math.ceil(suppliersData.length / suppliersItemsPerPage);
+            const startIndex = (suppliersCurrentPage - 1) * suppliersItemsPerPage;
+            const endIndex = Math.min(startIndex + suppliersItemsPerPage, suppliersData.length);
+            const pageItems = suppliersData.slice(startIndex, endIndex);
+
+            tbody.innerHTML = pageItems.map(supplier => {
                 if (editingSupplier === supplier.id) {
                     return `
                         <tr class="edit-row">
@@ -2672,6 +2706,80 @@
                     `;
                 }
             }).join('');
+
+            // Update pagination controls
+            updateSuppliersPaginationControls(totalPages, startIndex, endIndex, suppliersData.length);
+        }
+
+        // Change Suppliers Page
+        window.changeSuppliersPage = function(direction) {
+            const totalPages = Math.ceil(suppliersData.length / suppliersItemsPerPage);
+
+            if (direction === 'prev' && suppliersCurrentPage > 1) {
+                suppliersCurrentPage--;
+            } else if (direction === 'next' && suppliersCurrentPage < totalPages) {
+                suppliersCurrentPage++;
+            } else if (typeof direction === 'number') {
+                suppliersCurrentPage = direction;
+            }
+
+            renderSuppliersTable();
+        }
+
+        // Update Suppliers Pagination Controls
+        function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, totalItems) {
+            let paginationDiv = document.getElementById('suppliersPagination');
+
+            // Create pagination div if it doesn't exist
+            if (!paginationDiv) {
+                paginationDiv = document.createElement('div');
+                paginationDiv.id = 'suppliersPagination';
+                paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+
+                // Insert after the table
+                const table = document.querySelector('#suppliers-section table');
+                table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+            }
+
+            paginationDiv.style.display = 'flex';
+
+            // Build pagination HTML
+            let paginationHTML = `
+                <div style="color: #5f6368; font-size: 0.875rem;">
+                    Showing ${startIndex + 1}-${endIndex} of ${totalItems} Suppliers
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button onclick="changeSuppliersPage('prev')" ${suppliersCurrentPage === 1 ? 'disabled' : ''}
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${suppliersCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        Previous
+                    </button>
+            `;
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= suppliersCurrentPage - 1 && i <= suppliersCurrentPage + 1)) {
+                    paginationHTML += `
+                        <button
+                            onclick="changeSuppliersPage(${i})"
+                            style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === suppliersCurrentPage ? '#1a73e8' : 'white'}; color: ${i === suppliersCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === suppliersCurrentPage ? '600' : '400'};"
+                        >
+                            ${i}
+                        </button>
+                    `;
+                } else if (i === suppliersCurrentPage - 2 || i === suppliersCurrentPage + 2) {
+                    paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+                }
+            }
+
+            paginationHTML += `
+                    <button onclick="changeSuppliersPage('next')" ${suppliersCurrentPage === totalPages ? 'disabled' : ''}
+                        style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${suppliersCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        Next
+                    </button>
+                </div>
+            `;
+
+            paginationDiv.innerHTML = paginationHTML;
         }
 
         // Toggle add form
