@@ -2317,26 +2317,22 @@
 
                 // Prepare confirmation message based on what will happen
                 let updatedCount = 0;
-                let mergedCount = 0;
                 let newCount = 0;
 
                 for (const supplier of suppliers) {
                     const existingForSupplier = existingPRsBySupplier[supplier] || [];
                     const rejectedForSupplier = existingForSupplier.filter(pr => pr.finance_status === 'Rejected');
-                    const approvedForSupplier = existingForSupplier.filter(pr => pr.finance_status === 'Approved');
 
                     if (rejectedForSupplier.length > 0) {
                         updatedCount++;
-                    } else if (approvedForSupplier.length > 0) {
-                        mergedCount++;
                     } else {
+                        // Create new PR for suppliers with approved PRs or no existing PRs
                         newCount++;
                     }
                 }
 
                 const actions = [];
                 if (updatedCount > 0) actions.push(`update ${updatedCount} rejected PR(s)`);
-                if (mergedCount > 0) actions.push(`merge into ${mergedCount} approved PR(s)`);
                 if (newCount > 0) actions.push(`create ${newCount} new PR(s)`);
 
                 const confirmMsg = `Generate Purchase Request(s)? This will ${actions.join(', ')} for suppliers: ${suppliers.join(', ')}.`;
@@ -2371,7 +2367,6 @@
                 let nextNum = maxNum + 1;
                 const generatedPRIds = [];
                 const updatedPRIds = [];
-                const mergedPRIds = [];
 
                 // Process each supplier
                 for (const supplier of suppliers) {
@@ -2380,7 +2375,6 @@
 
                     const existingForSupplier = existingPRsBySupplier[supplier] || [];
                     const rejectedForSupplier = existingForSupplier.filter(pr => pr.finance_status === 'Rejected');
-                    const approvedForSupplier = existingForSupplier.filter(pr => pr.finance_status === 'Approved');
 
                     if (rejectedForSupplier.length > 0) {
                         // CASE 1: Update the rejected PR instead of creating new one
@@ -2404,44 +2398,8 @@
                         updatedPRIds.push(rejectedPR.pr_id);
                         generatedPRIds.push(rejectedPR.pr_id);
 
-                    } else if (approvedForSupplier.length > 0) {
-                        // CASE 2: Merge items into existing approved PR
-                        const approvedPR = approvedForSupplier[approvedForSupplier.length - 1];
-
-                        console.log(`🔗 Merging items into approved PR ${approvedPR.pr_id} for supplier ${supplier}`);
-
-                        const existingItems = JSON.parse(approvedPR.items_json || '[]');
-
-                        // Add new items (avoid duplicates by checking item name)
-                        const existingItemNames = existingItems.map(i => i.item || i.item_name);
-                        const itemsToAdd = supplierItems.filter(newItem => {
-                            const itemName = newItem.item || newItem.item_name;
-                            return !existingItemNames.includes(itemName);
-                        });
-
-                        if (itemsToAdd.length > 0) {
-                            const mergedItems = [...existingItems, ...itemsToAdd];
-                            const mergedTotal = mergedItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-
-                            const prRef = doc(db, 'prs', approvedPR.id);
-                            await updateDoc(prRef, {
-                                items_json: JSON.stringify(mergedItems),
-                                total_amount: mergedTotal,
-                                updated_at: new Date().toISOString(),
-                                items_merged: true,
-                                last_merge_date: new Date().toISOString()
-                            });
-
-                            mergedPRIds.push(approvedPR.pr_id);
-                            console.log(`   Added ${itemsToAdd.length} new items to ${approvedPR.pr_id}`);
-                        } else {
-                            console.log(`   No new items to add to ${approvedPR.pr_id}`);
-                        }
-
-                        generatedPRIds.push(approvedPR.pr_id);
-
                     } else {
-                        // CASE 3: Create new PR (no existing PR for this supplier)
+                        // CASE 2: Create new PR (for suppliers with approved PRs or no existing PRs)
                         const firstWord = supplier.split(/\s+/)[0] || supplier;
                         const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
                         const prId = `PR_${year}_${month}-${String(nextNum).padStart(3, '0')}-${supplierSlug}`;
