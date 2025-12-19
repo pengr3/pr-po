@@ -732,6 +732,33 @@
                         </tr>
                     </tbody>
                 </table>
+
+                <!-- Client List Section -->
+                <div style="margin-top: 2rem;">
+                    <button class="btn btn-secondary" onclick="toggleClientList()" style="margin-bottom: 1rem;">
+                        <span id="clientListToggleIcon">▶</span> Client List
+                    </button>
+                    <div id="clientListSection" style="display: none;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Client Name</th>
+                                    <th>Active Projects</th>
+                                    <th>Inactive Projects</th>
+                                    <th>Total Projects</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientListTableBody">
+                                <tr>
+                                    <td colspan="4" class="empty-state">
+                                        <div class="empty-state-icon">👥</div>
+                                        <div>No clients yet.</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2607,18 +2634,17 @@
                     <td>${project.client_name || 'N/A'}</td>
                     <td>${formatDate(project.date_created)}</td>
                     <td>
-                        <span class="status-badge ${project.status === 'inactive' ? 'rejected' : 'approved'}">
-                            ${project.status === 'inactive' ? 'Inactive' : 'Active'}
+                        <span class="status-badge ${project.status === 'inactive' ? 'rejected' : 'approved'}"
+                              onclick="toggleProjectStatus('${project.id}', '${project.status}')"
+                              style="cursor: pointer;"
+                              title="Click to ${project.status === 'inactive' ? 'activate' : 'close'} project">
+                            ${project.status === 'inactive' ? 'Closed' : 'Active'}
                         </span>
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <button class="btn btn-primary btn-sm" onclick="showEditProjectModal('${project.id}')">✏️ Edit</button>
                             <button class="btn btn-danger btn-sm" onclick="confirmDeleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">🗑️ Delete</button>
-                            ${project.status !== 'inactive' ?
-                                `<button class="btn btn-warning btn-sm" onclick="closeProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Close</button>` :
-                                `<button class="btn btn-success btn-sm" onclick="activateProject('${project.id}')">Reopen</button>`
-                            }
                         </div>
                     </td>
                 </tr>
@@ -2731,6 +2757,106 @@
                 showLoading(false);
             }
         };
+
+        // Toggle project status (active/inactive)
+        window.toggleProjectStatus = async function(projectId, currentStatus) {
+            const project = projectsData.find(p => p.id === projectId);
+            if (!project) return;
+
+            const newStatus = currentStatus === 'inactive' ? 'active' : 'inactive';
+            const action = newStatus === 'inactive' ? 'close' : 'reopen';
+
+            if (newStatus === 'inactive') {
+                if (!confirm(`Are you sure you want to close "${project.project_name}"?\n\nClosed projects will not appear in dropdown lists. You can reopen it later if needed.`)) {
+                    return;
+                }
+            }
+
+            try {
+                showLoading(true);
+
+                await updateDoc(doc(db, 'projects', projectId), {
+                    status: newStatus
+                });
+
+                const message = newStatus === 'inactive'
+                    ? 'Project closed successfully. It will no longer appear in dropdown lists.'
+                    : 'Project reopened successfully! It will now appear in dropdown lists.';
+                showToast(message, 'success');
+            } catch (error) {
+                console.error(`Error ${action}ing project:`, error);
+                showToast(`Error ${action}ing project. Please try again.`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Toggle client list visibility
+        window.toggleClientList = function() {
+            const section = document.getElementById('clientListSection');
+            const icon = document.getElementById('clientListToggleIcon');
+
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                icon.textContent = '▼';
+                renderClientList();
+            } else {
+                section.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        };
+
+        // Render client list
+        function renderClientList() {
+            const tbody = document.getElementById('clientListTableBody');
+
+            if (projectsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <div class="empty-state-icon">👥</div>
+                            <div>No clients yet.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Group projects by client
+            const clientMap = {};
+            projectsData.forEach(project => {
+                const clientName = project.client_name || 'Unknown';
+                if (!clientMap[clientName]) {
+                    clientMap[clientName] = {
+                        active: 0,
+                        inactive: 0,
+                        total: 0
+                    };
+                }
+
+                if (project.status === 'inactive') {
+                    clientMap[clientName].inactive++;
+                } else {
+                    clientMap[clientName].active++;
+                }
+                clientMap[clientName].total++;
+            });
+
+            // Convert to array and sort by client name
+            const clients = Object.keys(clientMap).sort().map(name => ({
+                name,
+                ...clientMap[name]
+            }));
+
+            tbody.innerHTML = clients.map(client => `
+                <tr>
+                    <td style="font-weight: 600;">${client.name}</td>
+                    <td>${client.active}</td>
+                    <td>${client.inactive}</td>
+                    <td><strong>${client.total}</strong></td>
+                </tr>
+            `).join('');
+        }
 
         // Edit project - show modal
         let currentEditProjectId = null;
