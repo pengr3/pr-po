@@ -858,6 +858,43 @@
         </div>
     </div>
 
+    <!-- Edit Project Modal -->
+    <div id="editProjectModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Project</h3>
+                <button class="close-btn" onclick="closeEditProjectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: grid; gap: 1rem;">
+                    <div>
+                        <label for="editProjectName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Name: *</label>
+                        <input
+                            type="text"
+                            id="editProjectName"
+                            placeholder="Enter project name"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                        />
+                    </div>
+                    <div>
+                        <label for="editClientName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Client Name: *</label>
+                        <input
+                            type="text"
+                            id="editClientName"
+                            placeholder="Enter client name"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                        />
+                    </div>
+                </div>
+                <div id="editProjectError" style="color: var(--danger); margin-top: 1rem; display: none; font-size: 0.875rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditProjectModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="updateProject()">✓ Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-spinner">
@@ -2575,10 +2612,14 @@
                         </span>
                     </td>
                     <td>
-                        ${project.status !== 'inactive' ?
-                            `<button class="btn btn-danger btn-sm" onclick="closeProject('${project.id}', '${project.project_name}')">Close</button>` :
-                            `<button class="btn btn-success btn-sm" onclick="activateProject('${project.id}')">Reopen</button>`
-                        }
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-sm" onclick="showEditProjectModal('${project.id}')">✏️ Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="confirmDeleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">🗑️ Delete</button>
+                            ${project.status !== 'inactive' ?
+                                `<button class="btn btn-warning btn-sm" onclick="closeProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Close</button>` :
+                                `<button class="btn btn-success btn-sm" onclick="activateProject('${project.id}')">Reopen</button>`
+                            }
+                        </div>
                     </td>
                 </tr>
             `).join('');
@@ -2673,9 +2714,6 @@
             }
         };
 
-        // Keep deleteProject for backwards compatibility (calls closeProject)
-        window.deleteProject = window.closeProject;
-
         // Activate/Reopen project
         window.activateProject = async function(projectId) {
             try {
@@ -2689,6 +2727,92 @@
             } catch (error) {
                 console.error('Error reopening project:', error);
                 showToast('Error reopening project. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Edit project - show modal
+        let currentEditProjectId = null;
+
+        window.showEditProjectModal = function(projectId) {
+            const project = projectsData.find(p => p.id === projectId);
+            if (!project) {
+                showToast('Project not found.', 'error');
+                return;
+            }
+
+            currentEditProjectId = projectId;
+            document.getElementById('editProjectName').value = project.project_name || '';
+            document.getElementById('editClientName').value = project.client_name || '';
+            document.getElementById('editProjectError').style.display = 'none';
+            document.getElementById('editProjectModal').classList.add('active');
+        };
+
+        window.closeEditProjectModal = function() {
+            document.getElementById('editProjectModal').classList.remove('active');
+            currentEditProjectId = null;
+            document.getElementById('editProjectName').value = '';
+            document.getElementById('editClientName').value = '';
+            document.getElementById('editProjectError').style.display = 'none';
+        };
+
+        // Update project
+        window.updateProject = async function() {
+            if (!currentEditProjectId) {
+                showToast('No project selected for editing.', 'error');
+                return;
+            }
+
+            const projectName = document.getElementById('editProjectName').value.trim();
+            const clientName = document.getElementById('editClientName').value.trim();
+            const errorDiv = document.getElementById('editProjectError');
+
+            if (!projectName) {
+                errorDiv.textContent = 'Please enter a project name.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (!clientName) {
+                errorDiv.textContent = 'Please enter a client name.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                showLoading(true);
+
+                await updateDoc(doc(db, 'projects', currentEditProjectId), {
+                    project_name: projectName,
+                    client_name: clientName
+                });
+
+                showToast('Project updated successfully!', 'success');
+                closeEditProjectModal();
+            } catch (error) {
+                console.error('Error updating project:', error);
+                showToast('Error updating project. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Delete project - permanently delete from database
+        window.confirmDeleteProject = async function(projectId, projectName) {
+            if (!confirm(`⚠️ WARNING: Are you sure you want to PERMANENTLY DELETE "${projectName}"?\n\nThis action CANNOT be undone!\n\n- All project data will be permanently removed\n- Any PRs/POs linked to this project may be affected\n\nClick OK to permanently delete, or Cancel to keep the project.`)) {
+                return;
+            }
+
+            try {
+                showLoading(true);
+
+                await deleteDoc(doc(db, 'projects', projectId));
+
+                showToast('Project deleted permanently.', 'success');
+            } catch (error) {
+                console.error('Error deleting project:', error);
+                showToast('Error deleting project. Please try again.', 'error');
             } finally {
                 showLoading(false);
             }
