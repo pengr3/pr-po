@@ -2562,8 +2562,8 @@
                     </td>
                     <td>
                         ${project.status !== 'inactive' ?
-                            `<button class="btn btn-danger btn-sm" onclick="deleteProject('${project.id}', '${project.project_name}')">Delete</button>` :
-                            `<button class="btn btn-success btn-sm" onclick="activateProject('${project.id}')">Activate</button>`
+                            `<button class="btn btn-danger btn-sm" onclick="closeProject('${project.id}', '${project.project_name}')">Close</button>` :
+                            `<button class="btn btn-success btn-sm" onclick="activateProject('${project.id}')">Reopen</button>`
                         }
                     </td>
                 </tr>
@@ -2626,30 +2626,33 @@
             }
         };
 
-        // Delete project
-        window.deleteProject = async function(projectId, projectName) {
-            if (!confirm(`Are you sure you want to delete "${projectName}"?\n\nThis will mark the project as inactive rather than permanently deleting it.`)) {
+        // Close project (mark as inactive)
+        window.closeProject = async function(projectId, projectName) {
+            if (!confirm(`Are you sure you want to close "${projectName}"?\n\nClosed projects will not appear in dropdown lists. You can reopen it later if needed.`)) {
                 return;
             }
 
             try {
                 showLoading(true);
 
-                // Mark as inactive instead of deleting
+                // Mark as inactive
                 await updateDoc(doc(db, 'projects', projectId), {
                     status: 'inactive'
                 });
 
-                showToast('Project marked as inactive.', 'success');
+                showToast('Project closed successfully. It will no longer appear in dropdown lists.', 'success');
             } catch (error) {
-                console.error('Error deleting project:', error);
-                showToast('Error deleting project. Please try again.', 'error');
+                console.error('Error closing project:', error);
+                showToast('Error closing project. Please try again.', 'error');
             } finally {
                 showLoading(false);
             }
         };
 
-        // Activate project
+        // Keep deleteProject for backwards compatibility (calls closeProject)
+        window.deleteProject = window.closeProject;
+
+        // Activate/Reopen project
         window.activateProject = async function(projectId) {
             try {
                 showLoading(true);
@@ -2658,10 +2661,10 @@
                     status: 'active'
                 });
 
-                showToast('Project activated successfully!', 'success');
+                showToast('Project reopened successfully! It will now appear in dropdown lists.', 'success');
             } catch (error) {
-                console.error('Error activating project:', error);
-                showToast('Error activating project. Please try again.', 'error');
+                console.error('Error reopening project:', error);
+                showToast('Error reopening project. Please try again.', 'error');
             } finally {
                 showLoading(false);
             }
