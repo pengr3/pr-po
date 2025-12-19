@@ -487,7 +487,8 @@
 
             try {
                 const projectsRef = collection(db, 'projects');
-                const q = query(projectsRef, where('status', '==', 'active'), orderBy('project_name'));
+                // Only filter by status - sorting will be done in JavaScript to avoid composite index requirement
+                const q = query(projectsRef, where('status', '==', 'active'));
 
                 onSnapshot(q, (snapshot) => {
                     // Clear existing options
@@ -498,9 +499,17 @@
                         return;
                     }
 
-                    // Add project options
+                    // Collect projects and sort them in JavaScript
+                    const projects = [];
                     snapshot.forEach(doc => {
-                        const project = doc.data();
+                        projects.push(doc.data());
+                    });
+
+                    // Sort projects alphabetically by project_name
+                    projects.sort((a, b) => a.project_name.localeCompare(b.project_name));
+
+                    // Add sorted project options
+                    projects.forEach(project => {
                         const option = document.createElement('option');
                         option.value = project.project_name;
                         option.textContent = project.project_name;
