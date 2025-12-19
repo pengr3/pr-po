@@ -361,7 +361,9 @@
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="projectName">Project Name *</label>
-                            <input type="text" id="projectName" required>
+                            <select id="projectName" required>
+                                <option value="">Loading projects...</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="requestorName">Your Name *</label>
@@ -463,7 +465,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, onSnapshot, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase config
         const firebaseConfig = {
@@ -478,6 +480,44 @@
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // Load projects from Firebase and populate dropdown
+        function loadProjects() {
+            const projectSelect = document.getElementById('projectName');
+
+            try {
+                const projectsRef = collection(db, 'projects');
+                const q = query(projectsRef, where('status', '==', 'active'), orderBy('project_name'));
+
+                onSnapshot(q, (snapshot) => {
+                    // Clear existing options
+                    projectSelect.innerHTML = '<option value="">-- Select a project --</option>';
+
+                    if (snapshot.empty) {
+                        projectSelect.innerHTML = '<option value="">No projects available</option>';
+                        return;
+                    }
+
+                    // Add project options
+                    snapshot.forEach(doc => {
+                        const project = doc.data();
+                        const option = document.createElement('option');
+                        option.value = project.project_name;
+                        option.textContent = project.project_name;
+                        projectSelect.appendChild(option);
+                    });
+                }, (error) => {
+                    console.error('Error loading projects:', error);
+                    projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+                });
+            } catch (error) {
+                console.error('Error setting up projects listener:', error);
+                projectSelect.innerHTML = '<option value="">Error loading projects</option>';
+            }
+        }
+
+        // Load projects on page load
+        loadProjects();
 
         // Generate MRF ID
         async function generateMRFId() {
