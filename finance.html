@@ -517,6 +517,7 @@
             <button class="tab-button active" onclick="switchTab('pending-prs', event)">📋 Pending Approvals</button>
             <button class="tab-button" onclick="switchTab('po-generation', event)">📄 Purchase Orders</button>
             <button class="tab-button" onclick="switchTab('historical', event)">📊 Historical Data</button>
+            <button class="tab-button" onclick="switchTab('project-management', event)">📁 Project Management</button>
         </div>
     </div>
 
@@ -662,6 +663,58 @@
                             <td colspan="7" class="empty-state">
                                 <div class="empty-state-icon">📊</div>
                                 <div>Loading historical data...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 4: Project Management -->
+        <div id="project-management" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Project Management</h2>
+                    <button class="btn btn-primary" onclick="showAddProjectForm()">+ Add New Project</button>
+                </div>
+
+                <!-- Add Project Form (Initially Hidden) -->
+                <div id="addProjectForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: var(--gray-50); border-radius: 8px;">
+                    <h3 style="margin-bottom: 1rem; font-size: 1rem;">Add New Project</h3>
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: end;">
+                        <div>
+                            <label for="newProjectName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Name: *</label>
+                            <input
+                                type="text"
+                                id="newProjectName"
+                                placeholder="Enter project name (e.g., CLMC Building A, Road Construction Phase 2)"
+                                style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                                required
+                            />
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-success" onclick="addProject()">✓ Add Project</button>
+                            <button class="btn btn-secondary" onclick="hideAddProjectForm()">Cancel</button>
+                        </div>
+                    </div>
+                    <div id="projectError" style="color: var(--danger); margin-top: 0.5rem; display: none; font-size: 0.875rem;"></div>
+                </div>
+
+                <!-- Projects Table -->
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Date Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projectsTableBody">
+                        <tr>
+                            <td colspan="4" class="empty-state">
+                                <div class="empty-state-icon">📁</div>
+                                <div>Loading projects...</div>
                             </td>
                         </tr>
                     </tbody>
@@ -846,6 +899,7 @@
             await loadPRs();
             await loadPOs();
             await loadHistoricalData();
+            await loadProjects();
         }
 
         // Setup signature pad
@@ -2446,14 +2500,172 @@
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
             const toastMessage = document.getElementById('toastMessage');
-            
+
             toastMessage.textContent = message;
             toast.className = `toast ${type} active`;
-            
+
             setTimeout(() => {
                 toast.classList.remove('active');
             }, 3000);
         }
+
+        // ========== PROJECT MANAGEMENT FUNCTIONS ==========
+        let projectsData = [];
+
+        // Load projects from Firebase
+        async function loadProjects() {
+            try {
+                const projectsRef = collection(db, 'projects');
+                const q = query(projectsRef, orderBy('date_created', 'desc'));
+
+                onSnapshot(q, (snapshot) => {
+                    projectsData = [];
+                    snapshot.forEach(doc => {
+                        projectsData.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderProjectsTable();
+                }, (error) => {
+                    console.error('Error loading projects:', error);
+                    // If collection doesn't exist yet, show empty state
+                    renderProjectsTable();
+                });
+            } catch (error) {
+                console.error('Error setting up projects listener:', error);
+                renderProjectsTable();
+            }
+        }
+
+        // Render projects table
+        function renderProjectsTable() {
+            const tbody = document.getElementById('projectsTableBody');
+
+            if (projectsData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="empty-state">
+                            <div class="empty-state-icon">📁</div>
+                            <div>No projects yet. Click "Add New Project" to create one.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = projectsData.map(project => `
+                <tr>
+                    <td style="font-weight: 600;">${project.project_name || 'N/A'}</td>
+                    <td>${formatDate(project.date_created)}</td>
+                    <td>
+                        <span class="status-badge ${project.status === 'inactive' ? 'rejected' : 'approved'}">
+                            ${project.status === 'inactive' ? 'Inactive' : 'Active'}
+                        </span>
+                    </td>
+                    <td>
+                        ${project.status !== 'inactive' ?
+                            `<button class="btn btn-danger btn-sm" onclick="deleteProject('${project.id}', '${project.project_name}')">Delete</button>` :
+                            `<button class="btn btn-success btn-sm" onclick="activateProject('${project.id}')">Activate</button>`
+                        }
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Show add project form
+        window.showAddProjectForm = function() {
+            document.getElementById('addProjectForm').style.display = 'block';
+            document.getElementById('newProjectName').focus();
+            document.getElementById('projectError').style.display = 'none';
+        };
+
+        // Hide add project form
+        window.hideAddProjectForm = function() {
+            document.getElementById('addProjectForm').style.display = 'none';
+            document.getElementById('newProjectName').value = '';
+            document.getElementById('projectError').style.display = 'none';
+        };
+
+        // Add new project
+        window.addProject = async function() {
+            const projectNameInput = document.getElementById('newProjectName');
+            const projectName = projectNameInput.value.trim();
+            const errorDiv = document.getElementById('projectError');
+
+            // Validation
+            if (!projectName) {
+                errorDiv.textContent = 'Please enter a project name.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            // Check for duplicates
+            const duplicate = projectsData.find(p =>
+                p.project_name.toLowerCase() === projectName.toLowerCase()
+            );
+            if (duplicate) {
+                errorDiv.textContent = 'A project with this name already exists.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                showLoading(true);
+
+                await addDoc(collection(db, 'projects'), {
+                    project_name: projectName,
+                    date_created: new Date().toISOString(),
+                    status: 'active'
+                });
+
+                showToast('Project added successfully!', 'success');
+                hideAddProjectForm();
+            } catch (error) {
+                console.error('Error adding project:', error);
+                showToast('Error adding project. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Delete project
+        window.deleteProject = async function(projectId, projectName) {
+            if (!confirm(`Are you sure you want to delete "${projectName}"?\n\nThis will mark the project as inactive rather than permanently deleting it.`)) {
+                return;
+            }
+
+            try {
+                showLoading(true);
+
+                // Mark as inactive instead of deleting
+                await updateDoc(doc(db, 'projects', projectId), {
+                    status: 'inactive'
+                });
+
+                showToast('Project marked as inactive.', 'success');
+            } catch (error) {
+                console.error('Error deleting project:', error);
+                showToast('Error deleting project. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Activate project
+        window.activateProject = async function(projectId) {
+            try {
+                showLoading(true);
+
+                await updateDoc(doc(db, 'projects', projectId), {
+                    status: 'active'
+                });
+
+                showToast('Project activated successfully!', 'success');
+            } catch (error) {
+                console.error('Error activating project:', error);
+                showToast('Error activating project. Please try again.', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', init);
