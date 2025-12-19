@@ -681,16 +681,28 @@
                 <!-- Add Project Form (Initially Hidden) -->
                 <div id="addProjectForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: var(--gray-50); border-radius: 8px;">
                     <h3 style="margin-bottom: 1rem; font-size: 1rem;">Add New Project</h3>
-                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: end;">
-                        <div>
-                            <label for="newProjectName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Name: *</label>
-                            <input
-                                type="text"
-                                id="newProjectName"
-                                placeholder="Enter project name (e.g., CLMC Building A, Road Construction Phase 2)"
-                                style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
-                                required
-                            />
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <label for="newProjectName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Name: *</label>
+                                <input
+                                    type="text"
+                                    id="newProjectName"
+                                    placeholder="Enter project name (e.g., CLMC Building A, Road Construction Phase 2)"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label for="newClientName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Client Name: *</label>
+                                <input
+                                    type="text"
+                                    id="newClientName"
+                                    placeholder="Enter client name (e.g., ABC Corporation, XYZ Company)"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                                    required
+                                />
+                            </div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-success" onclick="addProject()">✓ Add Project</button>
@@ -705,6 +717,7 @@
                     <thead>
                         <tr>
                             <th>Project Name</th>
+                            <th>Client Name</th>
                             <th>Date Created</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -712,7 +725,7 @@
                     </thead>
                     <tbody id="projectsTableBody">
                         <tr>
-                            <td colspan="4" class="empty-state">
+                            <td colspan="5" class="empty-state">
                                 <div class="empty-state-icon">📁</div>
                                 <div>Loading projects...</div>
                             </td>
@@ -2542,7 +2555,7 @@
             if (projectsData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="4" class="empty-state">
+                        <td colspan="5" class="empty-state">
                             <div class="empty-state-icon">📁</div>
                             <div>No projects yet. Click "Add New Project" to create one.</div>
                         </td>
@@ -2554,6 +2567,7 @@
             tbody.innerHTML = projectsData.map(project => `
                 <tr>
                     <td style="font-weight: 600;">${project.project_name || 'N/A'}</td>
+                    <td>${project.client_name || 'N/A'}</td>
                     <td>${formatDate(project.date_created)}</td>
                     <td>
                         <span class="status-badge ${project.status === 'inactive' ? 'rejected' : 'approved'}">
@@ -2581,18 +2595,27 @@
         window.hideAddProjectForm = function() {
             document.getElementById('addProjectForm').style.display = 'none';
             document.getElementById('newProjectName').value = '';
+            document.getElementById('newClientName').value = '';
             document.getElementById('projectError').style.display = 'none';
         };
 
         // Add new project
         window.addProject = async function() {
             const projectNameInput = document.getElementById('newProjectName');
+            const clientNameInput = document.getElementById('newClientName');
             const projectName = projectNameInput.value.trim();
+            const clientName = clientNameInput.value.trim();
             const errorDiv = document.getElementById('projectError');
 
             // Validation
             if (!projectName) {
                 errorDiv.textContent = 'Please enter a project name.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (!clientName) {
+                errorDiv.textContent = 'Please enter a client name.';
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -2612,6 +2635,7 @@
 
                 await addDoc(collection(db, 'projects'), {
                     project_name: projectName,
+                    client_name: clientName,
                     date_created: new Date().toISOString(),
                     status: 'active'
                 });
