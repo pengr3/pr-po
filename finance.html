@@ -1990,8 +1990,8 @@
                                     <td style="padding: 1rem;">${po.pr_id}</td>
                                     <td style="padding: 1rem;">${po.mrf_id}</td>
                                     <td style="padding: 1rem; text-align: center;">
-                                        <span class="status-badge ${po.delivery_status.toLowerCase()}" style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.875rem; font-weight: 500;">
-                                            ${po.delivery_status}
+                                        <span class="status-badge ${(po.procurement_status || po.delivery_status || 'Pending').toLowerCase().replace(/\s+/g, '-')}" style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.875rem; font-weight: 500;">
+                                            ${po.procurement_status || po.delivery_status || 'Pending'}
                                         </span>
                                     </td>
                                     <td style="padding: 1rem; text-align: center;">
