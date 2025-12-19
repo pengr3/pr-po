@@ -154,7 +154,6 @@
             border-color: var(--primary);
             background: #e8f0fe;
             box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
-            transform: translateX(4px);
         }
 
         /* Suppliers Section */
@@ -1929,7 +1928,7 @@
 
                 <div style="margin-bottom: 1rem;">
                     <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Delivery Address</label>
-                    <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid #dadce0; border-radius: 4px;">${mrf.delivery_address || ''}</textarea>
+                    <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; resize: none; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">${mrf.delivery_address || ''}</textarea>
                 </div>
 
                 <div class="items-table-container">
