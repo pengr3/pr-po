@@ -1641,11 +1641,16 @@
             try {
                 const { collection, getDocs, addDoc, doc, updateDoc } = window.firestore;
 
+                // Transport categories that should be processed as TR
+                const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
+
                 // Collect items from DOM rows (supports add/edit/delete)
                 const rows = document.querySelectorAll('#lineItemsBody tr');
+                const allItems = [];
                 const updatedItems = [];
                 let totalCost = 0;
 
+                // First pass: collect all items
                 for (let i = 0; i < rows.length; i++) {
                     const row = rows[i];
                     const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
@@ -1655,10 +1660,26 @@
                     const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
                     const supplier = row.querySelector('select.supplier-select')?.value || '';
 
+                    allItems.push({ row, itemName, category, qty, unit, unitCost, supplier, rowIndex: i });
+                }
+
+                // Filter only transport-related items
+                const transportRows = allItems.filter(item => transportCategories.includes(item.category));
+
+                if (transportRows.length === 0) {
+                    showLoading(false);
+                    showToast('No transportation items found. Use Generate PR for other items.', 'error');
+                    return;
+                }
+
+                // Validate and collect transport items
+                for (const item of transportRows) {
+                    const { itemName, category, qty, unit, unitCost, supplier, rowIndex } = item;
+
                     // Validate required fields
                     if (!itemName) {
                         showLoading(false);
-                        showToast(`Please enter an item name for row ${i + 1}`, 'error');
+                        showToast(`Please enter an item name for row ${rowIndex + 1}`, 'error');
                         return;
                     }
                     if (qty <= 0) {
@@ -1686,9 +1707,11 @@
                     });
                 }
 
+                console.log(`📦 Processing ${updatedItems.length} transport item(s) for TR`);
+
                 if (updatedItems.length === 0) {
                     showLoading(false);
-                    showToast('At least one item is required', 'error');
+                    showToast('At least one transport item is required', 'error');
                     return;
                 }
 
@@ -2232,18 +2255,22 @@
 
         // Update action buttons based on item categories
         // Transportation/Hauling items should show TR button, materials show PR button
+        // Mixed items should show BOTH buttons
         window.updateActionButtons = function() {
             if (!currentMRF) return;
 
             const rows = document.querySelectorAll('#lineItemsBody tr');
             const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
-            let allTransport = true;
+            let hasTransport = false;
+            let hasNonTransport = false;
             let hasItems = rows.length > 0;
 
             rows.forEach(row => {
                 const category = row.querySelector('select.item-category')?.value || '';
-                if (!transportCategories.includes(category)) {
-                    allTransport = false;
+                if (transportCategories.includes(category)) {
+                    hasTransport = true;
+                } else if (category) {
+                    hasNonTransport = true;
                 }
             });
 
@@ -2251,12 +2278,13 @@
             let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
 
             if (canEdit && hasItems) {
-                if (allTransport) {
-                    // All items are transportation-related, show TR button
-                    buttons += ' <button class="btn btn-success" onclick="submitTransportRequest()"> Submit as TR</button>';
-                } else {
-                    // Has non-transport items, show PR button
+                // Show PR button if there are non-transport items
+                if (hasNonTransport) {
                     buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
+                }
+                // Show TR button if there are transport items
+                if (hasTransport) {
+                    buttons += ' <button class="btn btn-info" onclick="submitTransportRequest()"> Submit as TR</button>';
                 }
             }
 
@@ -2554,21 +2582,28 @@
                 return;
             }
 
-            // Check if ALL items have transportation-related categories
-            // If so, this should be processed as a Transport Request (TR) instead of PR
+            // Filter out transportation-related items - these should be processed via TR, not PR
             const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
-            const allTransportItems = prItems.every(item => transportCategories.includes(item.category));
+            const nonTransportItems = prItems.filter(item => !transportCategories.includes(item.category));
+            const transportItems = prItems.filter(item => transportCategories.includes(item.category));
 
-            if (allTransportItems) {
-                // Redirect to Transport Request submission
+            if (nonTransportItems.length === 0) {
+                // All items are transport - redirect to TR
                 console.log('📦 All items are transportation-related, redirecting to TR submission...');
                 await submitTransportRequest();
                 return;
             }
 
-            // Group items by supplier
+            // Use only non-transport items for PR processing
+            const itemsForPR = nonTransportItems;
+
+            if (transportItems.length > 0) {
+                console.log(`📦 Filtering out ${transportItems.length} transport item(s) for separate TR processing`);
+            }
+
+            // Group items by supplier (using filtered non-transport items)
             const itemsBySupplier = {};
-            prItems.forEach(item => {
+            itemsForPR.forEach(item => {
                 if (!itemsBySupplier[item.supplier]) {
                     itemsBySupplier[item.supplier] = [];
                 }
