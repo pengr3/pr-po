@@ -3360,7 +3360,7 @@
 
             try {
                 // Find the project to get budget info
-                const project = projectsData.find(p => p.name === projectName);
+                const project = projectsData.find(p => p.project_name === projectName);
                 const projectBudget = parseFloat(project?.budget || 0);
 
                 const expenseData = await fetchProjectExpenses(projectName);
