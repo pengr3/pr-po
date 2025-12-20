@@ -882,20 +882,6 @@
 
         <!-- Tab 4: Project Management -->
         <div id="project-management" class="tab-content">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Total Project Budget</div>
-                    <div class="stat-value" id="totalProjectBudget">₱0.00</div>
-                </div>
-                <div class="stat-card warning">
-                    <div class="stat-label">Total Expenses</div>
-                    <div class="stat-value" id="totalProjectExpenses">₱0.00</div>
-                </div>
-                <div class="stat-card success">
-                    <div class="stat-label">Remaining Budget</div>
-                    <div class="stat-value" id="totalRemainingBudget">₱0.00</div>
-                </div>
-            </div>
             <div class="panel">
                 <div class="panel-header">
                     <h2>Project Management</h2>
@@ -3373,8 +3359,12 @@
             modal.classList.add('active');
 
             try {
+                // Find the project to get budget info
+                const project = projectsData.find(p => p.name === projectName);
+                const projectBudget = parseFloat(project?.budget || 0);
+
                 const expenseData = await fetchProjectExpenses(projectName);
-                renderProjectExpenses(expenseData, projectName);
+                renderProjectExpenses(expenseData, projectName, projectBudget);
             } catch (error) {
                 console.error('Error loading project expenses:', error);
                 bodyEl.innerHTML = `
@@ -3561,11 +3551,34 @@
         }
 
         // Render project expenses in the modal
-        function renderProjectExpenses(data, projectName) {
+        function renderProjectExpenses(data, projectName, projectBudget = 0) {
             const bodyEl = document.getElementById('projectExpenseBody');
+
+            // Format currency helper
+            const formatCurrency = (amount) => `₱${parseFloat(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+
+            // Calculate budget info
+            const remainingBudget = projectBudget - data.totalCost;
+            const remainingPercent = projectBudget > 0 ? ((remainingBudget / projectBudget) * 100).toFixed(1) : 0;
+            const remainingColor = remainingBudget < 0 ? 'var(--danger)' : 'var(--success)';
+            const budgetDisplay = projectBudget > 0 ? formatCurrency(projectBudget) : 'Not set';
+            const remainingDisplay = projectBudget > 0 ? formatCurrency(remainingBudget) : 'N/A';
+            const percentDisplay = projectBudget > 0 ? `${remainingPercent}%` : '';
 
             if (data.prCount === 0 && data.trCount === 0) {
                 bodyEl.innerHTML = `
+                    <!-- Budget Scoreboards -->
+                    <div class="expense-summary-grid" style="margin-bottom: 1rem;">
+                        <div class="expense-summary-card" style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-left: 4px solid #4f46e5;">
+                            <div class="expense-summary-label" style="color: #3730a3;">Project Budget</div>
+                            <div class="expense-summary-value" style="color: #4f46e5;">${budgetDisplay}</div>
+                        </div>
+                        <div class="expense-summary-card" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-left: 4px solid #22c55e;">
+                            <div class="expense-summary-label" style="color: #14532d;">Remaining Budget</div>
+                            <div class="expense-summary-value" style="color: ${remainingColor};">${remainingDisplay}</div>
+                            ${projectBudget > 0 ? `<div style="font-size: 0.75rem; color: ${remainingColor}; margin-top: 0.25rem; font-weight: 600;">${percentDisplay} remaining</div>` : ''}
+                        </div>
+                    </div>
                     <div class="no-expenses">
                         <div class="no-expenses-icon">📭</div>
                         <div><strong>No approved expenses found for this project.</strong></div>
@@ -3576,9 +3589,6 @@
                 `;
                 return;
             }
-
-            // Format currency
-            const formatCurrency = (amount) => `₱${parseFloat(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
 
             // Sort categories by total (descending)
             const sortedCategories = Object.keys(data.categoryBreakdown)
@@ -3662,7 +3672,20 @@
             `).join('') : '<div class="no-expenses"><div class="no-expenses-icon">🚛</div><div>No transport/delivery expenses</div></div>';
 
             bodyEl.innerHTML = `
-                <!-- Summary Cards -->
+                <!-- Budget Scoreboards -->
+                <div class="expense-summary-grid" style="margin-bottom: 1rem;">
+                    <div class="expense-summary-card" style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-left: 4px solid #4f46e5;">
+                        <div class="expense-summary-label" style="color: #3730a3;">Project Budget</div>
+                        <div class="expense-summary-value" style="color: #4f46e5;">${budgetDisplay}</div>
+                    </div>
+                    <div class="expense-summary-card" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-left: 4px solid #22c55e;">
+                        <div class="expense-summary-label" style="color: #14532d;">Remaining Budget</div>
+                        <div class="expense-summary-value" style="color: ${remainingColor};">${remainingDisplay}</div>
+                        ${projectBudget > 0 ? `<div style="font-size: 0.75rem; color: ${remainingColor}; margin-top: 0.25rem; font-weight: 600;">${percentDisplay} remaining</div>` : ''}
+                    </div>
+                </div>
+
+                <!-- Expense Summary Cards -->
                 <div class="expense-summary-grid">
                     <div class="expense-summary-card materials">
                         <div class="expense-summary-label">Material Purchases</div>
