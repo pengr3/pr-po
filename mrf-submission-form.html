@@ -531,24 +531,30 @@
         // Generate MRF ID
         async function generateMRFId() {
             const year = new Date().getFullYear();
-            
-            // Get last MRF
+
+            // Get ALL MRFs and find the maximum number for current year
+            // IMPORTANT: We must scan all MRFs to find the true maximum number,
+            // not just the most recently submitted one (which could have a lower number)
             const mrfsRef = collection(db, 'mrfs');
-            const q = query(mrfsRef, orderBy('date_submitted', 'desc'), limit(1));
-            const snapshot = await getDocs(q);
-            
-            let nextNum = 1;
-            if (!snapshot.empty) {
-                const lastMRF = snapshot.docs[0].data();
-                if (lastMRF.mrf_id) {
-                    const match = lastMRF.mrf_id.match(/MRF-\d{4}-(\d+)/);
+            const snapshot = await getDocs(mrfsRef);
+
+            let maxNum = 0;
+            const yearPrefix = `MRF-${year}-`;
+
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.mrf_id && data.mrf_id.startsWith(yearPrefix)) {
+                    const match = data.mrf_id.match(/MRF-\d{4}-(\d+)/);
                     if (match) {
-                        nextNum = parseInt(match[1]) + 1;
+                        const num = parseInt(match[1]);
+                        if (num > maxNum) {
+                            maxNum = num;
+                        }
                     }
                 }
-            }
-            
-            return `MRF-${year}-${String(nextNum).padStart(3, '0')}`;
+            });
+
+            return `MRF-${year}-${String(maxNum + 1).padStart(3, '0')}`;
         }
 
         // Set minimum date to today
