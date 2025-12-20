@@ -504,6 +504,216 @@
             margin-bottom: 1rem;
             opacity: 0.3;
         }
+
+        /* Project Expense Modal Styles */
+        .expense-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .expense-summary-card {
+            background: var(--gray-50);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border-left: 4px solid var(--primary);
+        }
+
+        .expense-summary-card.materials {
+            border-left-color: var(--success);
+        }
+
+        .expense-summary-card.transport {
+            border-left-color: var(--warning);
+        }
+
+        .expense-summary-card.total {
+            border-left-color: var(--primary);
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3f4f6 100%);
+        }
+
+        .expense-summary-label {
+            font-size: 0.75rem;
+            color: var(--gray-700);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .expense-summary-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .category-breakdown {
+            margin-bottom: 1.5rem;
+        }
+
+        .category-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            overflow: hidden;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--gray-50);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .category-header:hover {
+            background: var(--gray-100);
+        }
+
+        .category-name {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .category-icon {
+            font-size: 1.25rem;
+        }
+
+        .category-total {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .category-items {
+            display: none;
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .category-items.expanded {
+            display: block;
+        }
+
+        .category-items table {
+            font-size: 0.875rem;
+        }
+
+        .category-items th {
+            background: white;
+            font-size: 0.75rem;
+            padding: 0.5rem;
+        }
+
+        .category-items td {
+            padding: 0.5rem;
+            font-size: 0.813rem;
+        }
+
+        .expense-section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .project-name-link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+            font-weight: 600;
+        }
+
+        .project-name-link:hover {
+            color: #1557b0;
+        }
+
+        .expense-pr-card {
+            background: var(--gray-50);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .expense-pr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .expense-pr-id {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .expense-pr-amount {
+            font-weight: 700;
+        }
+
+        .expense-pr-details {
+            color: var(--gray-700);
+            font-size: 0.813rem;
+        }
+
+        .no-expenses {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-700);
+        }
+
+        .no-expenses-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.5;
+        }
+
+        .expense-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--gray-200);
+            padding-bottom: 0.5rem;
+        }
+
+        .expense-tab-btn {
+            padding: 0.5rem 1rem;
+            background: none;
+            border: none;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--gray-700);
+            transition: all 0.2s;
+        }
+
+        .expense-tab-btn:hover {
+            background: var(--gray-100);
+        }
+
+        .expense-tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .expense-tab-content {
+            display: none;
+        }
+
+        .expense-tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -918,6 +1128,25 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeEditProjectModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="updateProject()">✓ Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Expense Modal -->
+    <div id="projectExpenseModal" class="modal">
+        <div class="modal-content" style="max-width: 1100px;">
+            <div class="modal-header">
+                <h3 id="projectExpenseTitle">Project Expenses</h3>
+                <button class="close-btn" onclick="closeProjectExpenseModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="projectExpenseBody">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <div>Loading expenses...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeProjectExpenseModal()">Close</button>
             </div>
         </div>
     </div>
@@ -2630,7 +2859,11 @@
 
             tbody.innerHTML = projectsData.map(project => `
                 <tr>
-                    <td style="font-weight: 600;">${project.project_name || 'N/A'}</td>
+                    <td>
+                        <span class="project-name-link" onclick="showProjectExpenses('${project.project_name.replace(/'/g, "\\'")}')" title="Click to view expenses">
+                            ${project.project_name || 'N/A'}
+                        </span>
+                    </td>
                     <td>${project.client_name || 'N/A'}</td>
                     <td>${formatDate(project.date_created)}</td>
                     <td>
@@ -2942,6 +3175,356 @@
             } finally {
                 showLoading(false);
             }
+        };
+
+        // =====================================================
+        // PROJECT EXPENSE TRACKING FUNCTIONS
+        // =====================================================
+
+        // Category icons mapping
+        const categoryIcons = {
+            'CIVIL': '🏗️',
+            'ELECTRICAL': '⚡',
+            'HVAC': '❄️',
+            'PLUMBING': '🔧',
+            'TOOLS & EQUIPMENTS': '🛠️',
+            'SAFETY': '🦺',
+            'OTHERS': '📦',
+            'TRANSPORT/DELIVERY': '🚚'
+        };
+
+        // Get category icon
+        function getCategoryIcon(category) {
+            return categoryIcons[category?.toUpperCase()] || '📦';
+        }
+
+        // Show project expenses modal
+        window.showProjectExpenses = async function(projectName) {
+            const modal = document.getElementById('projectExpenseModal');
+            const titleEl = document.getElementById('projectExpenseTitle');
+            const bodyEl = document.getElementById('projectExpenseBody');
+
+            titleEl.textContent = `📊 Expenses: ${projectName}`;
+            bodyEl.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <div class="spinner"></div>
+                    <div style="margin-top: 1rem;">Loading expenses for ${projectName}...</div>
+                </div>
+            `;
+            modal.classList.add('active');
+
+            try {
+                const expenseData = await fetchProjectExpenses(projectName);
+                renderProjectExpenses(expenseData, projectName);
+            } catch (error) {
+                console.error('Error loading project expenses:', error);
+                bodyEl.innerHTML = `
+                    <div class="no-expenses">
+                        <div class="no-expenses-icon">❌</div>
+                        <div>Error loading expenses. Please try again.</div>
+                    </div>
+                `;
+            }
+        };
+
+        // Fetch all expenses for a project
+        async function fetchProjectExpenses(projectName) {
+            const { collection, getDocs, query, where } = window.firestore;
+
+            // Fetch approved PRs for this project
+            const prsQuery = query(
+                collection(db, 'prs'),
+                where('project_name', '==', projectName),
+                where('finance_status', '==', 'Approved')
+            );
+            const prsSnapshot = await getDocs(prsQuery);
+            const approvedPRs = prsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'material' }));
+
+            // Fetch approved Transport Requests for this project
+            const trsQuery = query(
+                collection(db, 'transport_requests'),
+                where('project_name', '==', projectName),
+                where('finance_status', '==', 'Approved')
+            );
+            const trsSnapshot = await getDocs(trsQuery);
+            const approvedTRs = trsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'transport' }));
+
+            // Process and categorize expenses
+            const categoryBreakdown = {};
+            let totalMaterialCost = 0;
+            let totalTransportCost = 0;
+            const prDetails = [];
+            const trDetails = [];
+
+            // Process Material PRs
+            approvedPRs.forEach(pr => {
+                const items = JSON.parse(pr.items_json || '[]');
+                const prTotal = parseFloat(pr.total_amount || 0);
+                totalMaterialCost += prTotal;
+
+                prDetails.push({
+                    id: pr.pr_id,
+                    mrf_id: pr.mrf_id,
+                    supplier: pr.supplier_name,
+                    date: pr.date_approved || pr.date_generated,
+                    amount: prTotal,
+                    items: items
+                });
+
+                // Group items by category
+                items.forEach(item => {
+                    const category = (item.category || 'OTHERS').toUpperCase();
+                    const subtotal = parseFloat(item.subtotal || 0) || (parseFloat(item.unit_cost || 0) * parseFloat(item.qty || item.quantity || 0));
+
+                    if (!categoryBreakdown[category]) {
+                        categoryBreakdown[category] = {
+                            items: [],
+                            total: 0
+                        };
+                    }
+
+                    categoryBreakdown[category].items.push({
+                        item: item.item || item.item_name,
+                        qty: item.qty || item.quantity,
+                        unit: item.unit,
+                        unit_cost: parseFloat(item.unit_cost || 0),
+                        subtotal: subtotal,
+                        supplier: pr.supplier_name,
+                        pr_id: pr.pr_id,
+                        date: pr.date_approved || pr.date_generated
+                    });
+
+                    categoryBreakdown[category].total += subtotal;
+                });
+            });
+
+            // Process Transport Requests (as TRANSPORT/DELIVERY category)
+            approvedTRs.forEach(tr => {
+                const items = JSON.parse(tr.items_json || '[]');
+                const trTotal = parseFloat(tr.total_amount || 0);
+                totalTransportCost += trTotal;
+
+                trDetails.push({
+                    id: tr.tr_id,
+                    mrf_id: tr.mrf_id,
+                    date: tr.date_approved || tr.date_generated,
+                    amount: trTotal,
+                    items: items
+                });
+
+                // Add to TRANSPORT/DELIVERY category
+                const category = 'TRANSPORT/DELIVERY';
+                if (!categoryBreakdown[category]) {
+                    categoryBreakdown[category] = {
+                        items: [],
+                        total: 0
+                    };
+                }
+
+                items.forEach(item => {
+                    const subtotal = parseFloat(item.subtotal || 0) || (parseFloat(item.unit_cost || 0) * parseFloat(item.qty || item.quantity || 0));
+
+                    categoryBreakdown[category].items.push({
+                        item: item.item || item.item_name,
+                        qty: item.qty || item.quantity,
+                        unit: item.unit,
+                        unit_cost: parseFloat(item.unit_cost || 0),
+                        subtotal: subtotal,
+                        supplier: 'Transport Service',
+                        pr_id: tr.tr_id,
+                        date: tr.date_approved || tr.date_generated
+                    });
+
+                    categoryBreakdown[category].total += subtotal;
+                });
+            });
+
+            return {
+                categoryBreakdown,
+                totalMaterialCost,
+                totalTransportCost,
+                totalCost: totalMaterialCost + totalTransportCost,
+                prDetails,
+                trDetails,
+                prCount: approvedPRs.length,
+                trCount: approvedTRs.length
+            };
+        }
+
+        // Render project expenses in the modal
+        function renderProjectExpenses(data, projectName) {
+            const bodyEl = document.getElementById('projectExpenseBody');
+
+            if (data.prCount === 0 && data.trCount === 0) {
+                bodyEl.innerHTML = `
+                    <div class="no-expenses">
+                        <div class="no-expenses-icon">📭</div>
+                        <div><strong>No approved expenses found for this project.</strong></div>
+                        <div style="margin-top: 0.5rem; font-size: 0.875rem;">
+                            Expenses will appear here once PRs or Transport Requests are approved by Finance.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Format currency
+            const formatCurrency = (amount) => `₱${parseFloat(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+
+            // Sort categories by total (descending)
+            const sortedCategories = Object.keys(data.categoryBreakdown)
+                .sort((a, b) => data.categoryBreakdown[b].total - data.categoryBreakdown[a].total);
+
+            // Build category cards HTML
+            const categoryCardsHTML = sortedCategories.map((category, index) => {
+                const catData = data.categoryBreakdown[category];
+                const icon = getCategoryIcon(category);
+
+                const itemsHTML = catData.items.map(item => `
+                    <tr>
+                        <td>${item.item}</td>
+                        <td style="text-align: center;">${item.qty} ${item.unit}</td>
+                        <td style="text-align: right;">${formatCurrency(item.unit_cost)}</td>
+                        <td style="text-align: right; font-weight: 600;">${formatCurrency(item.subtotal)}</td>
+                        <td>${item.supplier || 'N/A'}</td>
+                        <td style="font-size: 0.75rem; color: var(--gray-700);">${item.pr_id}</td>
+                    </tr>
+                `).join('');
+
+                return `
+                    <div class="category-card">
+                        <div class="category-header" onclick="toggleCategoryItems('cat-${index}')">
+                            <span class="category-name">
+                                <span class="category-icon">${icon}</span>
+                                ${category} <span style="color: var(--gray-700); font-weight: normal; font-size: 0.875rem;">(${catData.items.length} items)</span>
+                            </span>
+                            <span class="category-total">${formatCurrency(catData.total)}</span>
+                        </div>
+                        <div id="cat-${index}" class="category-items">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th style="text-align: center;">Qty</th>
+                                        <th style="text-align: right;">Unit Cost</th>
+                                        <th style="text-align: right;">Subtotal</th>
+                                        <th>Supplier</th>
+                                        <th>Reference</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHTML}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Build PR details HTML
+            const prDetailsHTML = data.prDetails.length > 0 ? data.prDetails.map(pr => `
+                <div class="expense-pr-card">
+                    <div class="expense-pr-header">
+                        <span class="expense-pr-id">🛒 ${pr.id}</span>
+                        <span class="expense-pr-amount">${formatCurrency(pr.amount)}</span>
+                    </div>
+                    <div class="expense-pr-details">
+                        <div><strong>MRF:</strong> ${pr.mrf_id || 'N/A'}</div>
+                        <div><strong>Supplier:</strong> ${pr.supplier}</div>
+                        <div><strong>Items:</strong> ${pr.items.length} | <strong>Date:</strong> ${formatDate(pr.date)}</div>
+                    </div>
+                </div>
+            `).join('') : '<div class="no-expenses"><div class="no-expenses-icon">📦</div><div>No material purchases</div></div>';
+
+            // Build TR details HTML
+            const trDetailsHTML = data.trDetails.length > 0 ? data.trDetails.map(tr => `
+                <div class="expense-pr-card">
+                    <div class="expense-pr-header">
+                        <span class="expense-pr-id">🚚 ${tr.id}</span>
+                        <span class="expense-pr-amount">${formatCurrency(tr.amount)}</span>
+                    </div>
+                    <div class="expense-pr-details">
+                        <div><strong>MRF:</strong> ${tr.mrf_id || 'N/A'}</div>
+                        <div><strong>Items:</strong> ${tr.items.length} | <strong>Date:</strong> ${formatDate(tr.date)}</div>
+                    </div>
+                </div>
+            `).join('') : '<div class="no-expenses"><div class="no-expenses-icon">🚛</div><div>No transport/delivery expenses</div></div>';
+
+            bodyEl.innerHTML = `
+                <!-- Summary Cards -->
+                <div class="expense-summary-grid">
+                    <div class="expense-summary-card materials">
+                        <div class="expense-summary-label">Material Purchases</div>
+                        <div class="expense-summary-value">${formatCurrency(data.totalMaterialCost)}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.prCount} PR(s)</div>
+                    </div>
+                    <div class="expense-summary-card transport">
+                        <div class="expense-summary-label">Transport/Delivery</div>
+                        <div class="expense-summary-value">${formatCurrency(data.totalTransportCost)}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.trCount} TR(s)</div>
+                    </div>
+                    <div class="expense-summary-card total">
+                        <div class="expense-summary-label">Total Project Cost</div>
+                        <div class="expense-summary-value" style="color: var(--primary);">${formatCurrency(data.totalCost)}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${sortedCategories.length} categories</div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="expense-tabs">
+                    <button class="expense-tab-btn active" onclick="switchExpenseTab('category-view')">📊 By Category</button>
+                    <button class="expense-tab-btn" onclick="switchExpenseTab('pr-view')">🛒 Material PRs (${data.prCount})</button>
+                    <button class="expense-tab-btn" onclick="switchExpenseTab('tr-view')">🚚 Transport (${data.trCount})</button>
+                </div>
+
+                <!-- Tab Content: Category View -->
+                <div id="category-view" class="expense-tab-content active">
+                    <div class="expense-section-title">📦 Expenses by Category</div>
+                    <div class="category-breakdown">
+                        ${categoryCardsHTML}
+                    </div>
+                </div>
+
+                <!-- Tab Content: PR View -->
+                <div id="pr-view" class="expense-tab-content">
+                    <div class="expense-section-title">🛒 Material Purchase Requests</div>
+                    ${prDetailsHTML}
+                </div>
+
+                <!-- Tab Content: TR View -->
+                <div id="tr-view" class="expense-tab-content">
+                    <div class="expense-section-title">🚚 Transport/Delivery Requests</div>
+                    ${trDetailsHTML}
+                </div>
+            `;
+        }
+
+        // Toggle category items visibility
+        window.toggleCategoryItems = function(categoryId) {
+            const itemsEl = document.getElementById(categoryId);
+            if (itemsEl) {
+                itemsEl.classList.toggle('expanded');
+            }
+        };
+
+        // Switch expense tab
+        window.switchExpenseTab = function(tabId) {
+            // Update tab buttons
+            document.querySelectorAll('.expense-tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.expense-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+        };
+
+        // Close project expense modal
+        window.closeProjectExpenseModal = function() {
+            document.getElementById('projectExpenseModal').classList.remove('active');
         };
 
         // Initialize on page load
