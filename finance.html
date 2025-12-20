@@ -1390,8 +1390,8 @@
         function updateStats() {
             document.getElementById('materialPendingCount').textContent = materialPRs.length;
             document.getElementById('transportPendingCount').textContent = transportRequests.length;
-            
-            const totalPending = [...materialPRs, ...transportRequests].reduce((sum, pr) => 
+
+            const totalPending = [...materialPRs, ...transportRequests].reduce((sum, pr) =>
                 sum + parseFloat(pr.total_amount || 0), 0
             );
             document.getElementById('pendingAmount').textContent = `₱${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
@@ -3190,7 +3190,9 @@
             'TOOLS & EQUIPMENTS': '🛠️',
             'SAFETY': '🦺',
             'OTHERS': '📦',
-            'TRANSPORT/DELIVERY': '🚚'
+            'TRANSPORT/DELIVERY': '🚚',
+            'TRANSPORTATION': '🚐',
+            'HAULING & DELIVERY': '🚛'
         };
 
         // Get category icon
@@ -3249,12 +3251,22 @@
             const trsSnapshot = await getDocs(trsQuery);
             const approvedTRs = trsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'transport' }));
 
+            // Fetch POs with delivery fees for this project
+            const posQuery = query(
+                collection(db, 'pos'),
+                where('project_name', '==', projectName)
+            );
+            const posSnapshot = await getDocs(posQuery);
+            const projectPOs = posSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
             // Process and categorize expenses
             const categoryBreakdown = {};
             let totalMaterialCost = 0;
             let totalTransportCost = 0;
+            let totalDeliveryFees = 0;
             const prDetails = [];
             const trDetails = [];
+            const deliveryFeeDetails = [];
 
             // Process Material PRs
             approvedPRs.forEach(pr => {
@@ -3339,15 +3351,55 @@
                 });
             });
 
+            // Process PO Delivery Fees
+            projectPOs.forEach(po => {
+                if (po.delivery_fee && parseFloat(po.delivery_fee) > 0) {
+                    const deliveryFee = parseFloat(po.delivery_fee);
+                    totalDeliveryFees += deliveryFee;
+
+                    deliveryFeeDetails.push({
+                        po_id: po.po_id,
+                        supplier: po.supplier_name,
+                        amount: deliveryFee,
+                        date: po.delivered_date || po.date_issued
+                    });
+
+                    // Add to HAULING & DELIVERY category
+                    const category = 'HAULING & DELIVERY';
+                    if (!categoryBreakdown[category]) {
+                        categoryBreakdown[category] = {
+                            items: [],
+                            total: 0
+                        };
+                    }
+
+                    categoryBreakdown[category].items.push({
+                        item: `Delivery Fee - ${po.po_id}`,
+                        qty: 1,
+                        unit: 'service',
+                        unit_cost: deliveryFee,
+                        subtotal: deliveryFee,
+                        supplier: po.supplier_name || 'N/A',
+                        pr_id: po.po_id,
+                        date: po.delivered_date || po.date_issued
+                    });
+
+                    categoryBreakdown[category].total += deliveryFee;
+                }
+            });
+
             return {
                 categoryBreakdown,
                 totalMaterialCost,
                 totalTransportCost,
-                totalCost: totalMaterialCost + totalTransportCost,
+                totalDeliveryFees,
+                totalCost: totalMaterialCost + totalTransportCost + totalDeliveryFees,
                 prDetails,
                 trDetails,
+                deliveryFeeDetails,
                 prCount: approvedPRs.length,
-                trCount: approvedTRs.length
+                trCount: approvedTRs.length,
+                deliveryFeeCount: deliveryFeeDetails.length
             };
         }
 
@@ -3388,6 +3440,7 @@
                         <td style="text-align: right; font-weight: 600;">${formatCurrency(item.subtotal)}</td>
                         <td>${item.supplier || 'N/A'}</td>
                         <td style="font-size: 0.75rem; color: var(--gray-700);">${item.pr_id}</td>
+                        <td style="font-size: 0.75rem; color: var(--gray-700);">${formatDate(item.date)}</td>
                     </tr>
                 `).join('');
 
@@ -3410,6 +3463,7 @@
                                         <th style="text-align: right;">Subtotal</th>
                                         <th>Supplier</th>
                                         <th>Reference</th>
+                                        <th>Purchase Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3459,9 +3513,9 @@
                         <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.prCount} PR(s)</div>
                     </div>
                     <div class="expense-summary-card transport">
-                        <div class="expense-summary-label">Transport/Delivery</div>
-                        <div class="expense-summary-value">${formatCurrency(data.totalTransportCost)}</div>
-                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.trCount} TR(s)</div>
+                        <div class="expense-summary-label">Transport/Delivery Fees</div>
+                        <div class="expense-summary-value">${formatCurrency(data.totalTransportCost + data.totalDeliveryFees)}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.trCount} TR(s), ${data.deliveryFeeCount} Delivery Fee(s)</div>
                     </div>
                     <div class="expense-summary-card total">
                         <div class="expense-summary-label">Total Project Cost</div>
