@@ -1634,11 +1634,11 @@
                 document.getElementById('prModalTitle').textContent = `Transport Request - ${tr.tr_id}`;
                 document.getElementById('prModalBody').innerHTML = modalContent;
 
-                // Footer with approval buttons (no PO generation for transport)
+                // Footer with simple approval buttons for transport (no signature required)
                 const footer = document.getElementById('prModalFooter');
                 footer.innerHTML = `
                     <button class="btn btn-danger" onclick="rejectPR('${tr.id}')">✗ Reject</button>
-                    <button class="btn btn-success" onclick="showSignatureModal()">✓ Approve</button>
+                    <button class="btn btn-success" onclick="approveTransportDirectly()">✓ Approve</button>
                 `;
 
                 document.getElementById('prModal').classList.add('active');
@@ -2025,6 +2025,60 @@
             } catch (error) {
                 console.error('Error approving PR:', error);
                 showToast('Failed to approve PR', 'error');
+            } finally {
+                showLoading(false);
+                currentPRForApproval = null;
+            }
+        };
+
+        // Approve Transport Request directly (no signature required)
+        window.approveTransportDirectly = async function() {
+            console.log('✅ approveTransportDirectly called');
+            console.log('🔍 currentPRForApproval:', currentPRForApproval ? (currentPRForApproval.tr_id || currentPRForApproval.pr_id) : 'NULL');
+
+            if (!currentPRForApproval) {
+                console.error('❌ ERROR: currentPRForApproval is NULL!');
+                showToast('No Transport Request selected for approval', 'error');
+                return;
+            }
+
+            // CRITICAL: Store TR reference in local variable BEFORE closing modal
+            const tr = currentPRForApproval;
+            console.log('✅ Stored TR reference locally:', tr.tr_id || tr.pr_id);
+
+            // Close the modal
+            closePRModal();
+            showLoading(true);
+
+            try {
+                // Update transport_requests collection
+                const trRef = doc(db, 'transport_requests', tr.id);
+                await updateDoc(trRef, {
+                    finance_status: 'Approved',
+                    finance_approver: 'Ma. Thea Angela R. Lacsamana',
+                    date_approved: new Date().toISOString().split('T')[0],
+                    approved_at: new Date().toISOString()
+                });
+                console.log('✅ Updated transport_requests collection for:', tr.tr_id || tr.pr_id);
+
+                // Update MRF status
+                const mrfsRef = collection(db, 'mrfs');
+                const mrfQuery = query(mrfsRef, where('mrf_id', '==', tr.mrf_id));
+                const mrfSnapshot = await getDocs(mrfQuery);
+
+                if (!mrfSnapshot.empty) {
+                    const mrfDoc = mrfSnapshot.docs[0];
+                    await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
+                        status: 'Finance Approved',
+                        updated_at: new Date().toISOString()
+                    });
+                }
+
+                showToast('✓ Transport Request approved successfully!', 'success');
+
+            } catch (error) {
+                console.error('Error approving Transport Request:', error);
+                showToast('Failed to approve Transport Request', 'error');
             } finally {
                 showLoading(false);
                 currentPRForApproval = null;
