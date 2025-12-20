@@ -1092,15 +1092,22 @@
                     poData.push({ id: doc.id, ...doc.data() });
                 });
                 // Sort by status (pending, procuring, procured, delivered), then by date within each status
+                // SUBCON items use: Pending → Processing → Processed
+                // Material items use: Pending Procurement → Procuring → Procured → Delivered
                 const statusOrder = {
                     'Pending Procurement': 1,
+                    'Pending': 1,  // SUBCON equivalent
                     'Procuring': 2,
+                    'Processing': 2,  // SUBCON equivalent
                     'Procured': 3,
+                    'Processed': 3,  // SUBCON equivalent
                     'Delivered': 4
                 };
                 poData.sort((a, b) => {
-                    const statusA = a.procurement_status || 'Pending Procurement';
-                    const statusB = b.procurement_status || 'Pending Procurement';
+                    const defaultStatus = a.is_subcon ? 'Pending' : 'Pending Procurement';
+                    const defaultStatusB = b.is_subcon ? 'Pending' : 'Pending Procurement';
+                    const statusA = a.procurement_status || defaultStatus;
+                    const statusB = b.procurement_status || defaultStatusB;
                     const orderA = statusOrder[statusA] || 999;
                     const orderB = statusOrder[statusB] || 999;
 
@@ -1126,18 +1133,20 @@
             const tbody = document.getElementById('poTrackingBody');
 
             // Calculate scoreboard counts
+            // Count both material statuses and SUBCON equivalents
             const counts = {
-                pending: 0,
-                procuring: 0,
-                procured: 0,
-                delivered: 0
+                pending: 0,      // Pending Procurement (materials) + Pending (SUBCON)
+                procuring: 0,    // Procuring (materials) + Processing (SUBCON)
+                procured: 0,     // Procured (materials) + Processed (SUBCON)
+                delivered: 0     // Delivered (materials only - SUBCON uses Processed as final)
             };
 
             pos.forEach(po => {
-                const status = po.procurement_status || 'Pending Procurement';
-                if (status === 'Pending Procurement') counts.pending++;
-                else if (status === 'Procuring') counts.procuring++;
-                else if (status === 'Procured') counts.procured++;
+                const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
+                const status = po.procurement_status || defaultStatus;
+                if (status === 'Pending Procurement' || status === 'Pending') counts.pending++;
+                else if (status === 'Procuring' || status === 'Processing') counts.procuring++;
+                else if (status === 'Procured' || status === 'Processed') counts.procured++;
                 else if (status === 'Delivered') counts.delivered++;
             });
 
@@ -1161,28 +1170,50 @@
             const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
             const pageItems = pos.slice(startIndex, endIndex);
 
-            tbody.innerHTML = pageItems.map(po => `
+            tbody.innerHTML = pageItems.map(po => {
+                const isSubcon = po.is_subcon;
+                const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+                const currentStatus = po.procurement_status || defaultStatus;
+                const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
+
+                // Generate status options based on whether it's SUBCON or material
+                let statusOptions;
+                if (isSubcon) {
+                    // SUBCON: Pending → Processing → Processed
+                    statusOptions = `
+                        <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                        <option value="Processing" ${currentStatus === 'Processing' ? 'selected' : ''}>Processing</option>
+                        <option value="Processed" ${currentStatus === 'Processed' ? 'selected' : ''}>Processed</option>
+                    `;
+                } else {
+                    // Material: Pending Procurement → Procuring → Procured → Delivered
+                    statusOptions = `
+                        <option value="Pending Procurement" ${currentStatus === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
+                        <option value="Procuring" ${currentStatus === 'Procuring' ? 'selected' : ''}>Procuring</option>
+                        <option value="Procured" ${currentStatus === 'Procured' ? 'selected' : ''}>Procured</option>
+                        <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                    `;
+                }
+
+                return `
                 <tr>
-                    <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong></td>
+                    <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
                     <td>${po.supplier_name}</td>
                     <td>${po.project_name}</td>
                     <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     <td>${new Date(po.date_issued).toLocaleDateString()}</td>
                     <td>
-                        <select class="status-select" data-po-id="${po.id}"
-                                onchange="updatePOStatus('${po.id}', this.value, '${po.procurement_status || 'Pending Procurement'}')"
-                                ${po.procurement_status === 'Delivered' ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
-                            <option value="Pending Procurement" ${(po.procurement_status || 'Pending Procurement') === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
-                            <option value="Procuring" ${po.procurement_status === 'Procuring' ? 'selected' : ''}>Procuring</option>
-                            <option value="Procured" ${po.procurement_status === 'Procured' ? 'selected' : ''}>Procured</option>
-                            <option value="Delivered" ${po.procurement_status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                        <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
+                                onchange="updatePOStatus('${po.id}', this.value, '${currentStatus}', ${isSubcon})"
+                                ${isFinalStatus ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
+                            ${statusOptions}
                         </select>
                     </td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
 
             // Update pagination controls
             updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
@@ -1260,20 +1291,21 @@
         }
 
         // Update PO Status
-        window.updatePOStatus = async function(poId, newStatus, currentStatus) {
+        window.updatePOStatus = async function(poId, newStatus, currentStatus, isSubcon = false) {
             if (newStatus === currentStatus) return;
 
-            // Prevent changing status if already delivered
-            if (currentStatus === 'Delivered') {
-                showToast('Cannot change status once delivered', 'error');
+            // Prevent changing status if already at final status
+            const finalStatus = isSubcon ? 'Processed' : 'Delivered';
+            if (currentStatus === finalStatus) {
+                showToast(`Cannot change status once ${finalStatus.toLowerCase()}`, 'error');
                 const select = document.querySelector(`select[data-po-id="${poId}"]`);
                 if (select) select.value = currentStatus;
                 return;
             }
 
-            // If marking as Delivered, prompt for delivery fee
+            // If marking as Delivered (materials only), prompt for delivery fee
             let deliveryFee = 0;
-            if (newStatus === 'Delivered') {
+            if (newStatus === 'Delivered' && !isSubcon) {
                 const feeInput = prompt('Enter Delivery Fee (PHP):', '0');
                 if (feeInput === null) {
                     // User cancelled
@@ -1289,8 +1321,12 @@
                     return;
                 }
             }
-            
-            if (!confirm(`Update status to "${newStatus}"?${newStatus === 'Delivered' ? '\nDelivery Fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`)) {
+
+            const confirmMsg = isSubcon
+                ? `Update SUBCON status to "${newStatus}"?`
+                : `Update status to "${newStatus}"?${newStatus === 'Delivered' ? '\nDelivery Fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`;
+
+            if (!confirm(confirmMsg)) {
                 // Reset dropdown
                 const select = document.querySelector(`select[data-po-id="${poId}"]`);
                 if (select) select.value = currentStatus;
@@ -1305,21 +1341,35 @@
                     updated_at: new Date().toISOString()
                 };
 
-                if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
-                    updateData.procurement_started_at = new Date().toISOString();
-                } else if (newStatus === 'Procured') {
-                    updateData.procured_at = new Date().toISOString();
-                    updateData.procured_date = new Date().toISOString().split('T')[0]; // Keep for backward compatibility
-                } else if (newStatus === 'Delivered') {
-                    updateData.delivered_at = new Date().toISOString();
-                    updateData.delivered_date = new Date().toISOString().split('T')[0]; // Keep for backward compatibility
-                    updateData.delivery_fee = deliveryFee;
+                if (isSubcon) {
+                    // SUBCON status timestamps: Pending → Processing → Processed
+                    if (newStatus === 'Processing' && currentStatus !== 'Processing') {
+                        updateData.processing_started_at = new Date().toISOString();
+                    } else if (newStatus === 'Processed') {
+                        updateData.processed_at = new Date().toISOString();
+                        updateData.processed_date = new Date().toISOString().split('T')[0];
+                    }
+                } else {
+                    // Material status timestamps: Pending Procurement → Procuring → Procured → Delivered
+                    if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
+                        updateData.procurement_started_at = new Date().toISOString();
+                    } else if (newStatus === 'Procured') {
+                        updateData.procured_at = new Date().toISOString();
+                        updateData.procured_date = new Date().toISOString().split('T')[0]; // Keep for backward compatibility
+                    } else if (newStatus === 'Delivered') {
+                        updateData.delivered_at = new Date().toISOString();
+                        updateData.delivered_date = new Date().toISOString().split('T')[0]; // Keep for backward compatibility
+                        updateData.delivery_fee = deliveryFee;
+                    }
                 }
 
                 const poRef = doc(db, 'pos', poId);
                 await updateDoc(poRef, updateData);
 
-                showToast(`PO status updated to ${newStatus}${newStatus === 'Delivered' ? ' with delivery fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`, 'success');
+                const successMsg = isSubcon
+                    ? `SUBCON status updated to ${newStatus}`
+                    : `PO status updated to ${newStatus}${newStatus === 'Delivered' ? ' with delivery fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`;
+                showToast(successMsg, 'success');
             } catch (error) {
                 console.error('Error updating PO status:', error);
                 showToast('Failed to update status', 'error');
@@ -1459,54 +1509,108 @@
                 return Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + ' days';
             };
 
-            const content = `
-                <h3>${po.po_id} - Delivery Timeline</h3>
-                <div style="margin-top: 1.5rem;">
-                    <div class="timeline-item ${po.date_issued ? 'completed' : ''}">
-                        <strong> PO Issued</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.date_issued ? new Date(po.date_issued).toLocaleString() : 'Pending'}
-                        </span>
+            let content;
+
+            if (po.is_subcon) {
+                // SUBCON Timeline: PO Issued → Processing Started → Processed
+                const defaultStatus = 'Pending';
+                const currentStatus = po.procurement_status || defaultStatus;
+
+                content = `
+                    <h3>${po.po_id} - SUBCON Timeline</h3>
+                    <div style="margin-bottom: 1rem; padding: 0.5rem 1rem; background: #e0f2fe; border-radius: 6px;">
+                        <span style="color: #0369a1; font-weight: 600;">SUBCON Work Order</span>
                     </div>
-                    
-                    <div class="timeline-item ${po.procurement_started_at ? 'completed' : ((po.procurement_status || 'Pending Procurement') === 'Procuring' ? 'current' : '')}">
-                        <strong> Procurement Started</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleString() : 'Not started'}
-                        </span>
-                    </div>
-                    
-                    <div class="timeline-item ${(po.procured_at || po.procured_date) ? 'completed' : (po.procurement_status === 'Procured' ? 'current' : '')}">
-                        <strong> Items Procured</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${(po.procured_at || po.procured_date) ? new Date(po.procured_at || po.procured_date).toLocaleString() : 'Not yet procured'}
-                        </span>
-                        ${(po.procured_at || po.procured_date) && po.procurement_started_at ? `
-                            <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
-                                Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}
-                            </div>
-                        ` : ''}
+                    <div style="margin-top: 1.5rem;">
+                        <div class="timeline-item ${po.date_issued ? 'completed' : ''}">
+                            <strong> PO Issued</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.date_issued ? new Date(po.date_issued).toLocaleString() : 'Pending'}
+                            </span>
+                        </div>
+
+                        <div class="timeline-item ${po.processing_started_at ? 'completed' : (currentStatus === 'Processing' ? 'current' : '')}">
+                            <strong> Processing Started</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.processing_started_at ? new Date(po.processing_started_at).toLocaleString() : 'Not started'}
+                            </span>
+                            ${po.processing_started_at && po.date_issued ? `
+                                <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
+                                    Time to start: ${calculateDays(po.date_issued, po.processing_started_at)}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="timeline-item ${(po.processed_at || po.processed_date) ? 'completed' : (currentStatus === 'Processed' ? 'current' : '')}">
+                            <strong> Processed (Completed)</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${(po.processed_at || po.processed_date) ? new Date(po.processed_at || po.processed_date).toLocaleString() : 'Not yet processed'}
+                            </span>
+                            ${(po.processed_at || po.processed_date) && po.processing_started_at ? `
+                                <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
+                                    Processing time: ${calculateDays(po.processing_started_at, po.processed_at || po.processed_date)}
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
 
-                    <div class="timeline-item ${(po.delivered_at || po.delivered_date) ? 'completed' : (po.procurement_status === 'Delivered' ? 'current' : '')}">
-                        <strong> Delivered</strong><br>
-                        <span style="font-size: 0.875rem; color: #5f6368;">
-                            ${(po.delivered_at || po.delivered_date) ? new Date(po.delivered_at || po.delivered_date).toLocaleString() : 'Not yet delivered'}
-                        </span>
-                        ${(po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date) ? `
-                            <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
-                                Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
+                    ${(po.processed_at || po.processed_date) && po.date_issued ? `
+                        <div style="margin-top: 2rem; padding: 1rem; background: #d1fae5; border-radius: 6px;">
+                            <strong>Total Time: ${calculateDays(po.date_issued, po.processed_at || po.processed_date)}</strong>
+                        </div>
+                    ` : ''}
+                `;
+            } else {
+                // Material Timeline: PO Issued → Procurement Started → Items Procured → Delivered
+                content = `
+                    <h3>${po.po_id} - Delivery Timeline</h3>
+                    <div style="margin-top: 1.5rem;">
+                        <div class="timeline-item ${po.date_issued ? 'completed' : ''}">
+                            <strong> PO Issued</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.date_issued ? new Date(po.date_issued).toLocaleString() : 'Pending'}
+                            </span>
+                        </div>
 
-                ${(po.delivered_at || po.delivered_date) && po.date_issued ? `
-                    <div style="margin-top: 2rem; padding: 1rem; background: #d1fae5; border-radius: 6px;">
-                        <strong>Total Time: ${calculateDays(po.date_issued, po.delivered_at || po.delivered_date)}</strong>
+                        <div class="timeline-item ${po.procurement_started_at ? 'completed' : ((po.procurement_status || 'Pending Procurement') === 'Procuring' ? 'current' : '')}">
+                            <strong> Procurement Started</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleString() : 'Not started'}
+                            </span>
+                        </div>
+
+                        <div class="timeline-item ${(po.procured_at || po.procured_date) ? 'completed' : (po.procurement_status === 'Procured' ? 'current' : '')}">
+                            <strong> Items Procured</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${(po.procured_at || po.procured_date) ? new Date(po.procured_at || po.procured_date).toLocaleString() : 'Not yet procured'}
+                            </span>
+                            ${(po.procured_at || po.procured_date) && po.procurement_started_at ? `
+                                <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
+                                    Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="timeline-item ${(po.delivered_at || po.delivered_date) ? 'completed' : (po.procurement_status === 'Delivered' ? 'current' : '')}">
+                            <strong> Delivered</strong><br>
+                            <span style="font-size: 0.875rem; color: #5f6368;">
+                                ${(po.delivered_at || po.delivered_date) ? new Date(po.delivered_at || po.delivered_date).toLocaleString() : 'Not yet delivered'}
+                            </span>
+                            ${(po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date) ? `
+                                <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #059669;">
+                                    Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
-                ` : ''}
-            `;
+
+                    ${(po.delivered_at || po.delivered_date) && po.date_issued ? `
+                        <div style="margin-top: 2rem; padding: 1rem; background: #d1fae5; border-radius: 6px;">
+                            <strong>Total Time: ${calculateDays(po.date_issued, po.delivered_at || po.delivered_date)}</strong>
+                        </div>
+                    ` : ''}
+                `;
+            }
 
             document.getElementById('timelineContent').innerHTML = content;
             document.getElementById('timelineModal').classList.add('active');
@@ -1592,24 +1696,41 @@
                 const deliveryAddressEl = document.getElementById('deliveryAddress');
                 const deliveryAddress = deliveryAddressEl ? deliveryAddressEl.value : (currentMRF.delivery_address || '');
 
-                // Generate TR ID without orderBy to avoid index requirement
-                const year = new Date().getFullYear();
+                // Get the primary supplier from items (use first supplier found)
+                const primarySupplier = updatedItems.find(item => item.supplier)?.supplier || 'TRANSPORT';
+
+                // Generate TR ID in the same format as PR and PO: TR_YYYY_MM-NNN-SUPPLIER
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const currentMonthPrefix = `TR_${year}_${month}`;
+
                 const trsRef = collection(window.db, 'transport_requests');
                 const snapshot = await getDocs(trsRef);
 
                 let maxNum = 0;
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
                     if (data.tr_id) {
-                        const match = data.tr_id.match(/TR-\d{4}-(\d+)/);
-                        if (match) {
-                            const num = parseInt(match[1]);
+                        // Match new format: TR_YYYY_MM-NNN-SUPPLIER
+                        const newMatch = data.tr_id.match(/TR_\d{4}_\d{2}-(\d+)/);
+                        if (newMatch && data.tr_id.startsWith(currentMonthPrefix)) {
+                            const num = parseInt(newMatch[1]);
+                            if (num > maxNum) maxNum = num;
+                        }
+                        // Also check old format for backward compatibility: TR-YYYY-NNN
+                        const oldMatch = data.tr_id.match(/TR-\d{4}-(\d+)/);
+                        if (oldMatch) {
+                            const num = parseInt(oldMatch[1]);
                             if (num > maxNum) maxNum = num;
                         }
                     }
                 });
 
-                const trId = `TR-${year}-${String(maxNum + 1).padStart(3, '0')}`;
+                // Format supplier name for filename - use only the first word
+                const firstWord = primarySupplier.split(/\s+/)[0] || primarySupplier;
+                const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                const trId = `TR_${year}_${month}-${String(maxNum + 1).padStart(3, '0')}-${supplierSlug}`;
 
                 // Create transport_requests document for tracking
                 // Store ONLY in transport_requests collection (no PR document needed for transport)
@@ -1620,6 +1741,7 @@
                     mrf_doc_id: currentMRF.id,
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
+                    supplier_name: primarySupplier,  // Store supplier name for reference
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(updatedItems),  // Use updated items with costs from DOM
                     justification: currentMRF.justification || '',
