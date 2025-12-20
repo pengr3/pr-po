@@ -882,6 +882,20 @@
 
         <!-- Tab 4: Project Management -->
         <div id="project-management" class="tab-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Project Budget</div>
+                    <div class="stat-value" id="totalProjectBudget">₱0.00</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-label">Total Expenses</div>
+                    <div class="stat-value" id="totalProjectExpenses">₱0.00</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-label">Remaining Budget</div>
+                    <div class="stat-value" id="totalRemainingBudget">₱0.00</div>
+                </div>
+            </div>
             <div class="panel">
                 <div class="panel-header">
                     <h2>Project Management</h2>
@@ -892,7 +906,7 @@
                 <div id="addProjectForm" style="display: none; margin-bottom: 2rem; padding: 1.5rem; background: var(--gray-50); border-radius: 8px;">
                     <h3 style="margin-bottom: 1rem; font-size: 1rem;">Add New Project</h3>
                     <div style="display: grid; gap: 1rem;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
                             <div>
                                 <label for="newProjectName" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Name: *</label>
                                 <input
@@ -913,6 +927,17 @@
                                     required
                                 />
                             </div>
+                            <div>
+                                <label for="newProjectBudget" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Budget (₱):</label>
+                                <input
+                                    type="number"
+                                    id="newProjectBudget"
+                                    placeholder="Enter budget amount (optional)"
+                                    min="0"
+                                    step="0.01"
+                                    style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                                />
+                            </div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-success" onclick="addProject()">✓ Add Project</button>
@@ -928,6 +953,9 @@
                         <tr>
                             <th>Project Name</th>
                             <th>Client Name</th>
+                            <th>Total Expense</th>
+                            <th>Budget</th>
+                            <th>Remaining Budget</th>
                             <th>Date Created</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -935,7 +963,7 @@
                     </thead>
                     <tbody id="projectsTableBody">
                         <tr>
-                            <td colspan="5" class="empty-state">
+                            <td colspan="8" class="empty-state">
                                 <div class="empty-state-icon">📁</div>
                                 <div>Loading projects...</div>
                             </td>
@@ -1119,6 +1147,17 @@
                             type="text"
                             id="editClientName"
                             placeholder="Enter client name"
+                            style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
+                        />
+                    </div>
+                    <div>
+                        <label for="editProjectBudget" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Project Budget (₱):</label>
+                        <input
+                            type="number"
+                            id="editProjectBudget"
+                            placeholder="Enter budget amount (optional)"
+                            min="0"
+                            step="0.01"
                             style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem; font-family: inherit;"
                         />
                     </div>
@@ -2841,23 +2880,113 @@
             }
         }
 
+        // Cache for project expenses
+        let projectExpensesCache = {};
+
+        // Quick fetch expenses for a single project (returns total only)
+        async function getProjectTotalExpense(projectName) {
+            const { collection, getDocs, query, where } = window.firestore;
+
+            let totalExpense = 0;
+
+            try {
+                // Fetch approved PRs for this project
+                const prsQuery = query(
+                    collection(db, 'prs'),
+                    where('project_name', '==', projectName),
+                    where('finance_status', '==', 'Approved')
+                );
+                const prsSnapshot = await getDocs(prsQuery);
+                prsSnapshot.forEach(doc => {
+                    totalExpense += parseFloat(doc.data().total_amount || 0);
+                });
+
+                // Fetch approved Transport Requests for this project
+                const trsQuery = query(
+                    collection(db, 'transport_requests'),
+                    where('project_name', '==', projectName),
+                    where('finance_status', '==', 'Approved')
+                );
+                const trsSnapshot = await getDocs(trsQuery);
+                trsSnapshot.forEach(doc => {
+                    totalExpense += parseFloat(doc.data().total_amount || 0);
+                });
+
+                // Fetch POs with delivery fees for this project
+                const posQuery = query(
+                    collection(db, 'pos'),
+                    where('project_name', '==', projectName)
+                );
+                const posSnapshot = await getDocs(posQuery);
+                posSnapshot.forEach(doc => {
+                    const deliveryFee = parseFloat(doc.data().delivery_fee || 0);
+                    totalExpense += deliveryFee;
+                });
+            } catch (error) {
+                console.error('Error fetching expenses for', projectName, error);
+            }
+
+            return totalExpense;
+        }
+
         // Render projects table
-        function renderProjectsTable() {
+        async function renderProjectsTable() {
             const tbody = document.getElementById('projectsTableBody');
 
             if (projectsData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="empty-state">
+                        <td colspan="8" class="empty-state">
                             <div class="empty-state-icon">📁</div>
                             <div>No projects yet. Click "Add New Project" to create one.</div>
                         </td>
                     </tr>
                 `;
+                updateBudgetScoreboards(0, 0, 0);
                 return;
             }
 
-            tbody.innerHTML = projectsData.map(project => `
+            // Show loading state first
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <div class="spinner"></div>
+                        <div>Loading project data...</div>
+                    </td>
+                </tr>
+            `;
+
+            // Fetch expenses for all projects in parallel
+            const expensePromises = projectsData.map(async project => {
+                const totalExpense = await getProjectTotalExpense(project.project_name);
+                projectExpensesCache[project.project_name] = totalExpense;
+                return { projectId: project.id, totalExpense };
+            });
+
+            await Promise.all(expensePromises);
+
+            // Calculate totals for scoreboards
+            let totalBudget = 0;
+            let totalExpenses = 0;
+            projectsData.forEach(project => {
+                totalBudget += parseFloat(project.budget || 0);
+                totalExpenses += projectExpensesCache[project.project_name] || 0;
+            });
+            const totalRemaining = totalBudget - totalExpenses;
+            updateBudgetScoreboards(totalBudget, totalExpenses, totalRemaining);
+
+            // Format currency helper
+            const formatCurrency = (amount) => `₱${parseFloat(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+
+            tbody.innerHTML = projectsData.map(project => {
+                const budget = parseFloat(project.budget || 0);
+                const totalExpense = projectExpensesCache[project.project_name] || 0;
+                const remaining = budget - totalExpense;
+                const remainingClass = remaining < 0 ? 'color: var(--danger); font-weight: 600;' : (remaining > 0 ? 'color: var(--success);' : '');
+                const budgetDisplay = budget > 0 ? formatCurrency(budget) : '<span style="color: var(--gray-700);">Not set</span>';
+                const remainingDisplay = budget > 0 ? `<span style="${remainingClass}">${formatCurrency(remaining)}</span>` : '<span style="color: var(--gray-700);">N/A</span>';
+
+                return `
                 <tr>
                     <td>
                         <span class="project-name-link" onclick="showProjectExpenses('${project.project_name.replace(/'/g, "\\'")}')" title="Click to view expenses">
@@ -2865,6 +2994,9 @@
                         </span>
                     </td>
                     <td>${project.client_name || 'N/A'}</td>
+                    <td style="font-weight: 500;">${formatCurrency(totalExpense)}</td>
+                    <td>${budgetDisplay}</td>
+                    <td>${remainingDisplay}</td>
                     <td>${formatDate(project.date_created)}</td>
                     <td>
                         <span class="status-badge ${project.status === 'inactive' ? 'rejected' : 'approved'}"
@@ -2881,7 +3013,23 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
+        }
+
+        // Update budget scoreboards
+        function updateBudgetScoreboards(totalBudget, totalExpenses, totalRemaining) {
+            const formatCurrency = (amount) => `₱${parseFloat(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+
+            const budgetEl = document.getElementById('totalProjectBudget');
+            const expensesEl = document.getElementById('totalProjectExpenses');
+            const remainingEl = document.getElementById('totalRemainingBudget');
+
+            if (budgetEl) budgetEl.textContent = formatCurrency(totalBudget);
+            if (expensesEl) expensesEl.textContent = formatCurrency(totalExpenses);
+            if (remainingEl) {
+                remainingEl.textContent = formatCurrency(totalRemaining);
+                remainingEl.style.color = totalRemaining < 0 ? 'var(--danger)' : '';
+            }
         }
 
         // Show add project form
@@ -2896,6 +3044,7 @@
             document.getElementById('addProjectForm').style.display = 'none';
             document.getElementById('newProjectName').value = '';
             document.getElementById('newClientName').value = '';
+            document.getElementById('newProjectBudget').value = '';
             document.getElementById('projectError').style.display = 'none';
         };
 
@@ -2903,8 +3052,10 @@
         window.addProject = async function() {
             const projectNameInput = document.getElementById('newProjectName');
             const clientNameInput = document.getElementById('newClientName');
+            const budgetInput = document.getElementById('newProjectBudget');
             const projectName = projectNameInput.value.trim();
             const clientName = clientNameInput.value.trim();
+            const budget = parseFloat(budgetInput.value) || 0;
             const errorDiv = document.getElementById('projectError');
 
             // Validation
@@ -2936,6 +3087,7 @@
                 await addDoc(collection(db, 'projects'), {
                     project_name: projectName,
                     client_name: clientName,
+                    budget: budget,
                     date_created: new Date().toISOString(),
                     status: 'active'
                 });
@@ -3104,6 +3256,7 @@
             currentEditProjectId = projectId;
             document.getElementById('editProjectName').value = project.project_name || '';
             document.getElementById('editClientName').value = project.client_name || '';
+            document.getElementById('editProjectBudget').value = project.budget || '';
             document.getElementById('editProjectError').style.display = 'none';
             document.getElementById('editProjectModal').classList.add('active');
         };
@@ -3113,6 +3266,7 @@
             currentEditProjectId = null;
             document.getElementById('editProjectName').value = '';
             document.getElementById('editClientName').value = '';
+            document.getElementById('editProjectBudget').value = '';
             document.getElementById('editProjectError').style.display = 'none';
         };
 
@@ -3125,6 +3279,7 @@
 
             const projectName = document.getElementById('editProjectName').value.trim();
             const clientName = document.getElementById('editClientName').value.trim();
+            const budget = parseFloat(document.getElementById('editProjectBudget').value) || 0;
             const errorDiv = document.getElementById('editProjectError');
 
             if (!projectName) {
@@ -3144,7 +3299,8 @@
 
                 await updateDoc(doc(db, 'projects', currentEditProjectId), {
                     project_name: projectName,
-                    client_name: clientName
+                    client_name: clientName,
+                    budget: budget
                 });
 
                 showToast('Project updated successfully!', 'success');
@@ -3189,6 +3345,7 @@
             'PLUMBING': '🔧',
             'TOOLS & EQUIPMENTS': '🛠️',
             'SAFETY': '🦺',
+            'SUBCON': '👷',
             'OTHERS': '📦',
             'TRANSPORT/DELIVERY': '🚚',
             'TRANSPORTATION': '🚐',
