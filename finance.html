@@ -739,6 +739,10 @@
                     <div class="stat-label">Material PRs Pending</div>
                     <div class="stat-value" id="materialPendingCount">0</div>
                 </div>
+                <div class="stat-card danger">
+                    <div class="stat-label">Transport Requests Pending</div>
+                    <div class="stat-value" id="transportPendingCount">0</div>
+                </div>
                 <div class="stat-card success">
                     <div class="stat-label">Approved This Month</div>
                     <div class="stat-value" id="approvedCount">0</div>
@@ -774,6 +778,38 @@
                             <td colspan="8" class="empty-state">
                                 <div class="empty-state-icon">📦</div>
                                 <div>Loading material PRs...</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <!-- Transport Requests -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🚚 Transport Requests</h2>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>TR ID</th>
+                            <th>MRF ID</th>
+                            <th>Project</th>
+                            <th>Date</th>
+                            <th>Total Cost</th>
+                            <th>Service Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transportRequestsBody">
+                        <tr>
+                            <td colspan="8" class="empty-state">
+                                <div class="empty-state-icon">🚛</div>
+                                <div>Loading transport requests...</div>
                             </td>
                         </tr>
                     </tbody>
@@ -1152,6 +1188,7 @@
         
         let currentTab = 'pending-prs';
         let materialPRs = [];
+        let transportRequests = [];
         let allPOs = [];
         let currentPRForApproval = null;
         let currentPRForRejection = null;  // For rejection workflow
@@ -1253,6 +1290,25 @@
                 renderMaterialPRs();
                 updateStats();
             });
+
+            // Load Transport Requests from transport_requests collection (like materials use prs)
+            const trsRef = collection(db, 'transport_requests');
+            const trQuery = query(trsRef, where('finance_status', '==', 'Pending'));
+
+            onSnapshot(trQuery, (snapshot) => {
+                console.log('📊 Finance: Loaded Transport Requests from Firebase:', snapshot.size);
+                transportRequests = [];
+
+                snapshot.forEach((docSnap) => {
+                    const tr = { id: docSnap.id, ...docSnap.data() };
+                    console.log('  Transport:', tr.tr_id, 'Status:', tr.finance_status, 'Cost:', tr.total_amount);
+                    transportRequests.push(tr);
+                });
+
+                console.log('🚚 Transport Requests:', transportRequests.length);
+                renderTransportRequests();
+                updateStats();
+            });
         }
 
         // Render Material PRs
@@ -1293,11 +1349,49 @@
             }).join('');
         }
 
+        // Render Transport Requests
+        function renderTransportRequests() {
+            const tbody = document.getElementById('transportRequestsBody');
+
+            if (transportRequests.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-icon">✓</div>
+                            <div>No pending transport requests</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = transportRequests.map(tr => {
+                const items = JSON.parse(tr.items_json || '[]');
+                const serviceTypes = [...new Set(items.map(item => item.item || item.item_name))];
+
+                return `
+                    <tr>
+                        <td><strong>${tr.tr_id}</strong></td>
+                        <td>${tr.mrf_id}</td>
+                        <td>${tr.project_name}</td>
+                        <td>${formatDate(tr.date_submitted)}</td>
+                        <td><strong>₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td>${serviceTypes.slice(0, 2).join(', ')}${serviceTypes.length > 2 ? '...' : ''}</td>
+                        <td><span class="status-badge pending">Pending</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewTRDetails('${tr.id}')">Review</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
         // Update stats
         function updateStats() {
             document.getElementById('materialPendingCount').textContent = materialPRs.length;
+            document.getElementById('transportPendingCount').textContent = transportRequests.length;
 
-            const totalPending = materialPRs.reduce((sum, pr) =>
+            const totalPending = [...materialPRs, ...transportRequests].reduce((sum, pr) =>
                 sum + parseFloat(pr.total_amount || 0), 0
             );
             document.getElementById('pendingAmount').textContent = `₱${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
