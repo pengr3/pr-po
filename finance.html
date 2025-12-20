@@ -2154,6 +2154,9 @@
                 // Calculate total for this supplier
                 const total = supplierItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
 
+                // Check if this PO contains SUBCON items
+                const hasSubconItems = supplierItems.some(item => item.category === 'SUBCON');
+
                 // Create PO document
                 const poDoc = {
                     po_id: poId,
@@ -2171,7 +2174,9 @@
                     date_issued: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString(),
                     finance_approver: pr.finance_approver || 'Ma. Thea Angela R. Lacsamana',
-                    finance_signature_url: pr.finance_signature || ''
+                    finance_signature_url: pr.finance_signature || '',
+                    is_subcon: hasSubconItems,
+                    procurement_status: hasSubconItems ? 'Pending' : 'Pending Procurement'
                 };
 
                 await addDoc(collection(db, 'pos'), poDoc);
