@@ -739,10 +739,6 @@
                     <div class="stat-label">Material PRs Pending</div>
                     <div class="stat-value" id="materialPendingCount">0</div>
                 </div>
-                <div class="stat-card danger">
-                    <div class="stat-label">Transport Requests Pending</div>
-                    <div class="stat-value" id="transportPendingCount">0</div>
-                </div>
                 <div class="stat-card success">
                     <div class="stat-label">Approved This Month</div>
                     <div class="stat-value" id="approvedCount">0</div>
@@ -778,38 +774,6 @@
                             <td colspan="8" class="empty-state">
                                 <div class="empty-state-icon">📦</div>
                                 <div>Loading material PRs...</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="section-divider"></div>
-
-            <!-- Transport Requests -->
-            <div class="panel">
-                <div class="panel-header">
-                    <h2>🚚 Transport Requests</h2>
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>TR ID</th>
-                            <th>MRF ID</th>
-                            <th>Project</th>
-                            <th>Date</th>
-                            <th>Total Cost</th>
-                            <th>Service Type</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transportRequestsBody">
-                        <tr>
-                            <td colspan="8" class="empty-state">
-                                <div class="empty-state-icon">🚛</div>
-                                <div>Loading transport requests...</div>
                             </td>
                         </tr>
                     </tbody>
@@ -1188,7 +1152,6 @@
         
         let currentTab = 'pending-prs';
         let materialPRs = [];
-        let transportRequests = [];
         let allPOs = [];
         let currentPRForApproval = null;
         let currentPRForRejection = null;  // For rejection workflow
@@ -1290,25 +1253,6 @@
                 renderMaterialPRs();
                 updateStats();
             });
-
-            // Load Transport Requests from transport_requests collection (like materials use prs)
-            const trsRef = collection(db, 'transport_requests');
-            const trQuery = query(trsRef, where('finance_status', '==', 'Pending'));
-
-            onSnapshot(trQuery, (snapshot) => {
-                console.log('📊 Finance: Loaded Transport Requests from Firebase:', snapshot.size);
-                transportRequests = [];
-
-                snapshot.forEach((docSnap) => {
-                    const tr = { id: docSnap.id, ...docSnap.data() };
-                    console.log('  Transport:', tr.tr_id, 'Status:', tr.finance_status, 'Cost:', tr.total_amount);
-                    transportRequests.push(tr);
-                });
-
-                console.log('🚚 Transport Requests:', transportRequests.length);
-                renderTransportRequests();
-                updateStats();
-            });
         }
 
         // Render Material PRs
@@ -1349,49 +1293,11 @@
             }).join('');
         }
 
-        // Render Transport Requests
-        function renderTransportRequests() {
-            const tbody = document.getElementById('transportRequestsBody');
-
-            if (transportRequests.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="empty-state">
-                            <div class="empty-state-icon">✓</div>
-                            <div>No pending transport requests</div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = transportRequests.map(tr => {
-                const items = JSON.parse(tr.items_json || '[]');
-                const serviceTypes = [...new Set(items.map(item => item.item || item.item_name))];
-
-                return `
-                    <tr>
-                        <td><strong>${tr.tr_id}</strong></td>
-                        <td>${tr.mrf_id}</td>
-                        <td>${tr.project_name}</td>
-                        <td>${formatDate(tr.date_submitted)}</td>
-                        <td><strong>₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
-                        <td>${serviceTypes.slice(0, 2).join(', ')}${serviceTypes.length > 2 ? '...' : ''}</td>
-                        <td><span class="status-badge pending">Pending</span></td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewTRDetails('${tr.id}')">Review</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
         // Update stats
         function updateStats() {
             document.getElementById('materialPendingCount').textContent = materialPRs.length;
-            document.getElementById('transportPendingCount').textContent = transportRequests.length;
-            
-            const totalPending = [...materialPRs, ...transportRequests].reduce((sum, pr) => 
+
+            const totalPending = materialPRs.reduce((sum, pr) =>
                 sum + parseFloat(pr.total_amount || 0), 0
             );
             document.getElementById('pendingAmount').textContent = `₱${totalPending.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
@@ -3190,7 +3096,9 @@
             'TOOLS & EQUIPMENTS': '🛠️',
             'SAFETY': '🦺',
             'OTHERS': '📦',
-            'TRANSPORT/DELIVERY': '🚚'
+            'TRANSPORT/DELIVERY': '🚚',
+            'TRANSPORTATION': '🚐',
+            'HAULING & DELIVERY': '🚛'
         };
 
         // Get category icon
@@ -3249,12 +3157,22 @@
             const trsSnapshot = await getDocs(trsQuery);
             const approvedTRs = trsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), type: 'transport' }));
 
+            // Fetch POs with delivery fees for this project
+            const posQuery = query(
+                collection(db, 'pos'),
+                where('project_name', '==', projectName)
+            );
+            const posSnapshot = await getDocs(posQuery);
+            const projectPOs = posSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
             // Process and categorize expenses
             const categoryBreakdown = {};
             let totalMaterialCost = 0;
             let totalTransportCost = 0;
+            let totalDeliveryFees = 0;
             const prDetails = [];
             const trDetails = [];
+            const deliveryFeeDetails = [];
 
             // Process Material PRs
             approvedPRs.forEach(pr => {
@@ -3339,15 +3257,55 @@
                 });
             });
 
+            // Process PO Delivery Fees
+            projectPOs.forEach(po => {
+                if (po.delivery_fee && parseFloat(po.delivery_fee) > 0) {
+                    const deliveryFee = parseFloat(po.delivery_fee);
+                    totalDeliveryFees += deliveryFee;
+
+                    deliveryFeeDetails.push({
+                        po_id: po.po_id,
+                        supplier: po.supplier_name,
+                        amount: deliveryFee,
+                        date: po.delivered_date || po.date_issued
+                    });
+
+                    // Add to HAULING & DELIVERY category
+                    const category = 'HAULING & DELIVERY';
+                    if (!categoryBreakdown[category]) {
+                        categoryBreakdown[category] = {
+                            items: [],
+                            total: 0
+                        };
+                    }
+
+                    categoryBreakdown[category].items.push({
+                        item: `Delivery Fee - ${po.po_id}`,
+                        qty: 1,
+                        unit: 'service',
+                        unit_cost: deliveryFee,
+                        subtotal: deliveryFee,
+                        supplier: po.supplier_name || 'N/A',
+                        pr_id: po.po_id,
+                        date: po.delivered_date || po.date_issued
+                    });
+
+                    categoryBreakdown[category].total += deliveryFee;
+                }
+            });
+
             return {
                 categoryBreakdown,
                 totalMaterialCost,
                 totalTransportCost,
-                totalCost: totalMaterialCost + totalTransportCost,
+                totalDeliveryFees,
+                totalCost: totalMaterialCost + totalTransportCost + totalDeliveryFees,
                 prDetails,
                 trDetails,
+                deliveryFeeDetails,
                 prCount: approvedPRs.length,
-                trCount: approvedTRs.length
+                trCount: approvedTRs.length,
+                deliveryFeeCount: deliveryFeeDetails.length
             };
         }
 
@@ -3388,6 +3346,7 @@
                         <td style="text-align: right; font-weight: 600;">${formatCurrency(item.subtotal)}</td>
                         <td>${item.supplier || 'N/A'}</td>
                         <td style="font-size: 0.75rem; color: var(--gray-700);">${item.pr_id}</td>
+                        <td style="font-size: 0.75rem; color: var(--gray-700);">${formatDate(item.date)}</td>
                     </tr>
                 `).join('');
 
@@ -3410,6 +3369,7 @@
                                         <th style="text-align: right;">Subtotal</th>
                                         <th>Supplier</th>
                                         <th>Reference</th>
+                                        <th>Purchase Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3459,9 +3419,9 @@
                         <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.prCount} PR(s)</div>
                     </div>
                     <div class="expense-summary-card transport">
-                        <div class="expense-summary-label">Transport/Delivery</div>
-                        <div class="expense-summary-value">${formatCurrency(data.totalTransportCost)}</div>
-                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.trCount} TR(s)</div>
+                        <div class="expense-summary-label">Transport/Delivery Fees</div>
+                        <div class="expense-summary-value">${formatCurrency(data.totalTransportCost + data.totalDeliveryFees)}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-700); margin-top: 0.25rem;">${data.trCount} TR(s), ${data.deliveryFeeCount} Delivery Fee(s)</div>
                     </div>
                     <div class="expense-summary-card total">
                         <div class="expense-summary-label">Total Project Cost</div>
