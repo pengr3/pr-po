@@ -2083,7 +2083,7 @@
                                                placeholder="Enter item name">
                                     </td>
                                     <td>
-                                        <select class="item-category table-select" data-index="${index}">
+                                        <select class="item-category table-select" data-index="${index}" onchange="updateActionButtons()">
                                             <option value="">Select</option>
                                             <option value="CIVIL" ${(item.category || '') === 'CIVIL' ? 'selected' : ''}>CIVIL</option>
                                             <option value="ELECTRICAL" ${(item.category || '') === 'ELECTRICAL' ? 'selected' : ''}>ELECTRICAL</option>
@@ -2190,6 +2190,8 @@
 
             document.getElementById('mrfDetails').innerHTML = details;
             calculateGrandTotal();
+            // Update buttons based on actual item categories (auto-detect transport items)
+            updateActionButtons();
         }
 
         // Calculate subtotal
@@ -2228,6 +2230,39 @@
             }
         }
 
+        // Update action buttons based on item categories
+        // Transportation/Hauling items should show TR button, materials show PR button
+        window.updateActionButtons = function() {
+            if (!currentMRF) return;
+
+            const rows = document.querySelectorAll('#lineItemsBody tr');
+            const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
+            let allTransport = true;
+            let hasItems = rows.length > 0;
+
+            rows.forEach(row => {
+                const category = row.querySelector('select.item-category')?.value || '';
+                if (!transportCategories.includes(category)) {
+                    allTransport = false;
+                }
+            });
+
+            const canEdit = currentMRF.status === 'Pending' || currentMRF.status === 'In Progress' || currentMRF.status === 'PR Rejected';
+            let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
+
+            if (canEdit && hasItems) {
+                if (allTransport) {
+                    // All items are transportation-related, show TR button
+                    buttons += ' <button class="btn btn-success" onclick="submitTransportRequest()"> Submit as TR</button>';
+                } else {
+                    // Has non-transport items, show PR button
+                    buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
+                }
+            }
+
+            document.getElementById('mrfActions').innerHTML = buttons;
+        };
+
         // Add new line item
         window.addLineItem = function() {
             if (!currentMRF) return;
@@ -2247,7 +2282,7 @@
                            placeholder="Enter item name">
                 </td>
                 <td>
-                    <select class="item-category table-select" data-index="${newIndex}">
+                    <select class="item-category table-select" data-index="${newIndex}" onchange="updateActionButtons()">
                         <option value="">Select</option>
                         <option value="CIVIL">CIVIL</option>
                         <option value="ELECTRICAL">ELECTRICAL</option>
@@ -2329,6 +2364,7 @@
 
             tbody.appendChild(newRow);
             updateItemCount();
+            updateActionButtons();
             showToast('New line item added', 'success');
         };
 
@@ -2387,6 +2423,7 @@
 
                 calculateGrandTotal();
                 updateItemCount();
+                updateActionButtons();
                 showToast('Line item deleted', 'success');
             }
         }
@@ -2514,6 +2551,18 @@
 
             if (prItems.length === 0) {
                 showToast('At least one item is required', 'error');
+                return;
+            }
+
+            // Check if ALL items have transportation-related categories
+            // If so, this should be processed as a Transport Request (TR) instead of PR
+            const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
+            const allTransportItems = prItems.every(item => transportCategories.includes(item.category));
+
+            if (allTransportItems) {
+                // Redirect to Transport Request submission
+                console.log('📦 All items are transportation-related, redirecting to TR submission...');
+                await submitTransportRequest();
                 return;
             }
 
