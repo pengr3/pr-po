@@ -2255,7 +2255,7 @@
 
         // Update action buttons based on item categories
         // Transportation/Hauling items should show TR button, materials show PR button
-        // Mixed items should show BOTH buttons
+        // Mixed items show a single unified "Generate PR & TR" button
         window.updateActionButtons = function() {
             if (!currentMRF) return;
 
@@ -2278,12 +2278,14 @@
             let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
 
             if (canEdit && hasItems) {
-                // Show PR button if there are non-transport items
-                if (hasNonTransport) {
+                if (hasTransport && hasNonTransport) {
+                    // Mixed items: single unified button for both PR and TR
+                    buttons += ' <button class="btn btn-success" onclick="generatePRandTR()"> Generate PR & TR</button>';
+                } else if (hasNonTransport) {
+                    // Only PR items
                     buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
-                }
-                // Show TR button if there are transport items
-                if (hasTransport) {
+                } else if (hasTransport) {
+                    // Only TR items
                     buttons += ' <button class="btn btn-info" onclick="submitTransportRequest()"> Submit as TR</button>';
                 }
             }
@@ -2865,6 +2867,312 @@
             } catch (error) {
                 console.error('Error generating PR:', error);
                 showToast('❌ Failed to generate PR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Generate PR & TR - Unified function for mixed items
+        // Processes both material items (as PR) and transport items (as TR) in one action
+        window.generatePRandTR = async function() {
+            if (!currentMRF) return;
+
+            // Save a local copy of the MRF to avoid race conditions
+            const mrfData = { ...currentMRF };
+            const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
+
+            // Collect all items from DOM rows
+            const rows = document.querySelectorAll('#lineItemsBody tr');
+            const allItems = [];
+
+            // Validate and collect all items
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+                const category = row.querySelector('select.item-category')?.value || '';
+                const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+                const unit = row.querySelector('select.item-unit')?.value || '';
+                const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+                const supplier = row.querySelector('select.supplier-select')?.value || '';
+
+                // Validate required fields
+                if (!itemName) {
+                    showToast(`Please enter an item name for row ${i + 1}`, 'error');
+                    return;
+                }
+                if (qty <= 0) {
+                    showToast(`Please enter a valid quantity for "${itemName}"`, 'error');
+                    return;
+                }
+                if (unitCost === 0) {
+                    showToast(`Please enter unit cost for item: ${itemName}`, 'error');
+                    return;
+                }
+                // Supplier is required for PR items, optional for TR items
+                if (!transportCategories.includes(category) && !supplier) {
+                    showToast(`Please select supplier for item: ${itemName}`, 'error');
+                    return;
+                }
+
+                allItems.push({
+                    item: itemName,
+                    category: category || 'N/A',
+                    qty: qty,
+                    unit: unit || 'pcs',
+                    unit_cost: unitCost,
+                    supplier: supplier,
+                    subtotal: qty * unitCost
+                });
+            }
+
+            if (allItems.length === 0) {
+                showToast('At least one item is required', 'error');
+                return;
+            }
+
+            // Separate items
+            const prItems = allItems.filter(item => !transportCategories.includes(item.category));
+            const trItems = allItems.filter(item => transportCategories.includes(item.category));
+
+            if (prItems.length === 0 || trItems.length === 0) {
+                showToast('Mixed items required for PR & TR. Use individual buttons for single type.', 'error');
+                return;
+            }
+
+            // Show confirmation with summary
+            const confirmMsg = `Generate PR & TR for this MRF?\n\n` +
+                `PR Items: ${prItems.length} item(s) - PHP ${prItems.reduce((sum, i) => sum + i.subtotal, 0).toLocaleString()}\n` +
+                `TR Items: ${trItems.length} item(s) - PHP ${trItems.reduce((sum, i) => sum + i.subtotal, 0).toLocaleString()}`;
+
+            if (!confirm(confirmMsg)) return;
+
+            showLoading(true);
+
+            try {
+                const { collection, getDocs, addDoc, doc, updateDoc, query, where, deleteDoc } = window.firestore;
+                const generatedPRIds = [];
+                const updatedPRIds = [];
+                const mergedPRIds = [];
+                let trId = null;
+
+                // ========== PART 1: Process PR Items ==========
+                console.log('📋 Processing PR items...');
+
+                // Group PR items by supplier
+                const itemsBySupplier = {};
+                prItems.forEach(item => {
+                    if (!itemsBySupplier[item.supplier]) {
+                        itemsBySupplier[item.supplier] = [];
+                    }
+                    itemsBySupplier[item.supplier].push(item);
+                });
+
+                const suppliers = Object.keys(itemsBySupplier);
+                const prsRef = collection(db, 'prs');
+
+                // Check for existing PRs for this MRF
+                const existingPRsQuery = query(prsRef, where('mrf_id', '==', mrfData.mrf_id));
+                const existingPRsSnapshot = await getDocs(existingPRsQuery);
+
+                const existingPRsBySupplier = {};
+                const rejectedPRs = [];
+                const approvedPRs = [];
+
+                existingPRsSnapshot.forEach((docSnap) => {
+                    const pr = { id: docSnap.id, ...docSnap.data() };
+                    const supplierName = pr.supplier_name;
+                    if (!existingPRsBySupplier[supplierName]) {
+                        existingPRsBySupplier[supplierName] = [];
+                    }
+                    existingPRsBySupplier[supplierName].push(pr);
+                    if (pr.finance_status === 'Rejected') {
+                        rejectedPRs.push(pr);
+                    } else if (pr.finance_status === 'Approved') {
+                        approvedPRs.push(pr);
+                    }
+                });
+
+                // Get next PR number
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const currentMonthPrefix = `PR_${year}_${month}`;
+
+                const allPRsSnapshot = await getDocs(prsRef);
+                let maxPRNum = 0;
+                allPRsSnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.pr_id) {
+                        const match = data.pr_id.match(/PR_\d{4}_\d{2}-(\d+)/);
+                        if (match && data.pr_id.startsWith(currentMonthPrefix)) {
+                            const num = parseInt(match[1]);
+                            if (num > maxPRNum) maxPRNum = num;
+                        }
+                    }
+                });
+                let nextPRNum = maxPRNum + 1;
+
+                // Process each supplier's items
+                const deliveryAddressEl = document.getElementById('deliveryAddress');
+                const deliveryAddress = deliveryAddressEl ? deliveryAddressEl.value : (mrfData.delivery_address || '');
+
+                for (const supplier of suppliers) {
+                    const supplierItems = itemsBySupplier[supplier];
+                    const supplierTotal = supplierItems.reduce((sum, item) => sum + item.subtotal, 0);
+                    const existingPRs = existingPRsBySupplier[supplier] || [];
+                    const rejectedPR = existingPRs.find(pr => pr.finance_status === 'Rejected');
+                    const approvedPR = existingPRs.find(pr => pr.finance_status === 'Approved');
+
+                    if (rejectedPR) {
+                        // Update rejected PR
+                        const prRef = doc(db, 'prs', rejectedPR.id);
+                        await updateDoc(prRef, {
+                            items_json: JSON.stringify(supplierItems),
+                            total_amount: supplierTotal,
+                            finance_status: 'Pending',
+                            updated_at: new Date().toISOString(),
+                            resubmitted_at: new Date().toISOString()
+                        });
+                        generatedPRIds.push(rejectedPR.pr_id);
+                        updatedPRIds.push(rejectedPR.pr_id);
+                    } else if (approvedPR) {
+                        // Merge into approved PR
+                        const existingItems = JSON.parse(approvedPR.items_json || '[]');
+                        const existingItemNames = existingItems.map(i => i.item);
+                        const itemsToAdd = supplierItems.filter(i => !existingItemNames.includes(i.item));
+
+                        if (itemsToAdd.length > 0) {
+                            const mergedItems = [...existingItems, ...itemsToAdd];
+                            const mergedTotal = mergedItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+
+                            const prRef = doc(db, 'prs', approvedPR.id);
+                            await updateDoc(prRef, {
+                                items_json: JSON.stringify(mergedItems),
+                                total_amount: mergedTotal,
+                                updated_at: new Date().toISOString(),
+                                items_merged: true
+                            });
+                            mergedPRIds.push(approvedPR.pr_id);
+                        }
+                        generatedPRIds.push(approvedPR.pr_id);
+                    } else {
+                        // Create new PR
+                        const firstWord = supplier.split(/\s+/)[0] || supplier;
+                        const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                        const prId = `PR_${year}_${month}-${String(nextPRNum).padStart(3, '0')}-${supplierSlug}`;
+
+                        await addDoc(collection(db, 'prs'), {
+                            pr_id: prId,
+                            mrf_id: mrfData.mrf_id,
+                            mrf_doc_id: mrfData.id,
+                            supplier_name: supplier,
+                            project_name: mrfData.project_name,
+                            requestor_name: mrfData.requestor_name,
+                            delivery_address: deliveryAddress,
+                            items_json: JSON.stringify(supplierItems),
+                            total_amount: supplierTotal,
+                            finance_status: 'Pending',
+                            date_generated: new Date().toISOString().split('T')[0],
+                            created_at: new Date().toISOString()
+                        });
+                        generatedPRIds.push(prId);
+                        nextPRNum++;
+                    }
+                }
+
+                // Delete orphaned rejected PRs
+                for (const rejectedPR of rejectedPRs) {
+                    if (!updatedPRIds.includes(rejectedPR.pr_id)) {
+                        const prRef = doc(db, 'prs', rejectedPR.id);
+                        await deleteDoc(prRef);
+                    }
+                }
+
+                // ========== PART 2: Process TR Items ==========
+                console.log('📦 Processing TR items...');
+
+                const trTotalCost = trItems.reduce((sum, item) => sum + item.subtotal, 0);
+                const primarySupplier = trItems.find(item => item.supplier)?.supplier || 'TRANSPORT';
+
+                // Generate TR ID
+                const currentTRMonthPrefix = `TR_${year}_${month}`;
+                const trsRef = collection(window.db, 'transport_requests');
+                const trsSnapshot = await getDocs(trsRef);
+
+                let maxTRNum = 0;
+                trsSnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.tr_id) {
+                        const newMatch = data.tr_id.match(/TR_\d{4}_\d{2}-(\d+)/);
+                        if (newMatch && data.tr_id.startsWith(currentTRMonthPrefix)) {
+                            const num = parseInt(newMatch[1]);
+                            if (num > maxTRNum) maxTRNum = num;
+                        }
+                        const oldMatch = data.tr_id.match(/TR-\d{4}-(\d+)/);
+                        if (oldMatch) {
+                            const num = parseInt(oldMatch[1]);
+                            if (num > maxTRNum) maxTRNum = num;
+                        }
+                    }
+                });
+
+                const firstWord = primarySupplier.split(/\s+/)[0] || primarySupplier;
+                const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+                trId = `TR_${year}_${month}-${String(maxTRNum + 1).padStart(3, '0')}-${supplierSlug}`;
+
+                // Create TR document
+                await addDoc(collection(window.db, 'transport_requests'), {
+                    tr_id: trId,
+                    mrf_id: mrfData.mrf_id,
+                    mrf_doc_id: mrfData.id,
+                    project_name: mrfData.project_name,
+                    requestor_name: mrfData.requestor_name,
+                    supplier_name: primarySupplier,
+                    delivery_address: deliveryAddress,
+                    items_json: JSON.stringify(trItems),
+                    justification: mrfData.justification || '',
+                    cost: trTotalCost,
+                    total_amount: trTotalCost,
+                    finance_status: 'Pending',
+                    date_submitted: new Date().toISOString().split('T')[0],
+                    created_at: new Date().toISOString()
+                });
+
+                // ========== PART 3: Update MRF Status ==========
+                const mrfRef = doc(db, 'mrfs', mrfData.id);
+                await updateDoc(mrfRef, {
+                    status: 'PR & TR Submitted',
+                    pr_ids: generatedPRIds,
+                    tr_id: trId,
+                    items_json: JSON.stringify(allItems),
+                    updated_at: new Date().toISOString(),
+                    pr_rejection_reason: null,
+                    rejected_pr_id: null,
+                    is_rejected: false
+                });
+
+                // Build success message
+                const prMsg = generatedPRIds.length === 1
+                    ? `PR: ${generatedPRIds[0]}`
+                    : `PRs: ${generatedPRIds.join(', ')}`;
+                showToast(`PR & TR submitted successfully! ${prMsg}, TR: ${trId}`, 'success');
+
+                // Clear MRF details
+                currentMRF = null;
+                const mrfDetails = document.getElementById('mrfDetails');
+                if (mrfDetails) {
+                    mrfDetails.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #666;">
+                            <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">✓ PR & TR Submitted Successfully</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.5rem;">Both PR and TR have been created and sent to Finance for approval.</div>
+                            <div style="font-size: 0.875rem; margin-top: 0.25rem;">Select another MRF to view details.</div>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.error('Error generating PR & TR:', error);
+                showToast('Failed to generate PR & TR: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
