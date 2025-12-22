@@ -3538,9 +3538,7 @@
             'SAFETY': '🦺',
             'SUBCON': '👷',
             'OTHERS': '📦',
-            'TRANSPORT/DELIVERY': '🚚',
-            'TRANSPORTATION': '🚐',
-            'HAULING & DELIVERY': '🚛'
+            'TRANSPORT, HAULING & DELIVERY': '🚚'
         };
 
         // Get category icon
@@ -3662,7 +3660,7 @@
                 });
             });
 
-            // Process Transport Requests (as TRANSPORT/DELIVERY category)
+            // Process Transport Requests (as TRANSPORT, HAULING & DELIVERY category)
             approvedTRs.forEach(tr => {
                 const items = JSON.parse(tr.items_json || '[]');
                 const trTotal = parseFloat(tr.total_amount || 0);
@@ -3676,8 +3674,8 @@
                     items: items
                 });
 
-                // Add to TRANSPORT/DELIVERY category
-                const category = 'TRANSPORT/DELIVERY';
+                // Add to TRANSPORT, HAULING & DELIVERY category
+                const category = 'TRANSPORT, HAULING & DELIVERY';
                 if (!categoryBreakdown[category]) {
                     categoryBreakdown[category] = {
                         items: [],
@@ -3716,8 +3714,8 @@
                         date: po.delivered_date || po.date_issued
                     });
 
-                    // Add to HAULING & DELIVERY category
-                    const category = 'HAULING & DELIVERY';
+                    // Add to TRANSPORT, HAULING & DELIVERY category
+                    const category = 'TRANSPORT, HAULING & DELIVERY';
                     if (!categoryBreakdown[category]) {
                         categoryBreakdown[category] = {
                             items: [],
