@@ -3236,6 +3236,9 @@
             }
         };
 
+        // Track current client filter
+        let currentClientFilter = null;
+
         // Render client list
         function renderClientList() {
             const tbody = document.getElementById('clientListTableBody');
@@ -3278,14 +3281,157 @@
                 ...clientMap[name]
             }));
 
-            tbody.innerHTML = clients.map(client => `
-                <tr>
-                    <td style="font-weight: 600;">${client.name}</td>
+            tbody.innerHTML = clients.map(client => {
+                const isFiltered = currentClientFilter === client.name;
+                return `
+                <tr ${isFiltered ? 'style="background-color: var(--primary-light); border-left: 3px solid var(--primary);"' : ''}>
+                    <td style="font-weight: 600;">
+                        <span class="project-name-link"
+                              onclick="filterProjectsByClient('${client.name.replace(/'/g, "\\'")}')"
+                              title="Click to view projects for ${client.name}"
+                              style="cursor: pointer; color: var(--primary); text-decoration: underline;">
+                            ${client.name}
+                        </span>
+                    </td>
                     <td>${client.active}</td>
                     <td>${client.inactive}</td>
                     <td><strong>${client.total}</strong></td>
                 </tr>
-            `).join('');
+            `}).join('');
+        }
+
+        // Filter projects by client
+        window.filterProjectsByClient = async function(clientName) {
+            currentClientFilter = clientName;
+
+            // Update the projects table header to show filter status
+            const panelHeader = document.querySelector('#project-management .panel-header h2');
+            if (panelHeader) {
+                panelHeader.innerHTML = `
+                    Project Management - <span style="color: var(--primary);">${clientName}</span>
+                    <button class="btn btn-secondary btn-sm" onclick="clearClientFilter()" style="margin-left: 1rem; font-size: 0.875rem;">
+                        ✕ Clear Filter
+                    </button>
+                `;
+            }
+
+            // Re-render the projects table with filtered data
+            await renderFilteredProjectsTable();
+
+            // Update the client list to highlight the selected client
+            renderClientList();
+
+            // Scroll to the projects table
+            document.getElementById('projectsTableBody').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+
+        // Clear client filter
+        window.clearClientFilter = async function() {
+            currentClientFilter = null;
+
+            // Reset the header
+            const panelHeader = document.querySelector('#project-management .panel-header h2');
+            if (panelHeader) {
+                panelHeader.textContent = 'Project Management';
+            }
+
+            // Re-render the projects table with all data
+            await renderProjectsTable();
+
+            // Update the client list to remove highlight
+            renderClientList();
+        };
+
+        // Render filtered projects table
+        async function renderFilteredProjectsTable() {
+            const tbody = document.getElementById('projectsTableBody');
+
+            // Filter projects by current client
+            const filteredProjects = projectsData.filter(project =>
+                project.client_name === currentClientFilter
+            );
+
+            if (filteredProjects.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-state-icon">📁</div>
+                            <div>No projects found for this client.</div>
+                        </td>
+                    </tr>
+                `;
+                updateBudgetScoreboards(0, 0, 0);
+                return;
+            }
+
+            // Show loading state first
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <div class="spinner"></div>
+                        <div>Loading project data...</div>
+                    </td>
+                </tr>
+            `;
+
+            // Fetch expenses for filtered projects in parallel
+            const expensePromises = filteredProjects.map(async project => {
+                const totalExpense = await getProjectTotalExpense(project.project_name);
+                projectExpensesCache[project.project_name] = totalExpense;
+                return { projectId: project.id, totalExpense };
+            });
+
+            await Promise.all(expensePromises);
+
+            // Calculate totals for scoreboards (only for filtered projects)
+            let totalBudget = 0;
+            let totalExpenses = 0;
+            filteredProjects.forEach(project => {
+                totalBudget += parseFloat(project.budget || 0);
+                totalExpenses += projectExpensesCache[project.project_name] || 0;
+            });
+            const totalRemaining = totalBudget - totalExpenses;
+            updateBudgetScoreboards(totalBudget, totalExpenses, totalRemaining);
+
+            // Format currency helper
+            const formatCurrency = (amount) => `₱${parseFloat(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+
+            tbody.innerHTML = filteredProjects.map(project => {
+                const budget = parseFloat(project.budget || 0);
+                const totalExpense = projectExpensesCache[project.project_name] || 0;
+                const remaining = budget - totalExpense;
+                const remainingClass = remaining < 0 ? 'color: var(--danger); font-weight: 600;' : (remaining > 0 ? 'color: var(--success);' : '');
+                const budgetDisplay = budget > 0 ? formatCurrency(budget) : '<span style="color: var(--gray-700);">Not set</span>';
+                const remainingDisplay = budget > 0 ? `<span style="${remainingClass}">${formatCurrency(remaining)}</span>` : '<span style="color: var(--gray-700);">N/A</span>';
+
+                return `
+                <tr>
+                    <td>
+                        <span class="project-name-link" onclick="showProjectExpenses('${project.project_name.replace(/'/g, "\\'")}')" title="Click to view expenses">
+                            ${project.project_name || 'N/A'}
+                        </span>
+                    </td>
+                    <td>${project.client_name || 'N/A'}</td>
+                    <td style="font-weight: 500;">${formatCurrency(totalExpense)}</td>
+                    <td>${budgetDisplay}</td>
+                    <td>${remainingDisplay}</td>
+                    <td>${formatDate(project.date_created)}</td>
+                    <td>
+                        <span class="status-badge ${project.status === 'inactive' ? 'rejected' : 'approved'}"
+                              onclick="toggleProjectStatus('${project.id}', '${project.status}')"
+                              style="cursor: pointer;"
+                              title="Click to ${project.status === 'inactive' ? 'activate' : 'close'} project">
+                            ${project.status === 'inactive' ? 'Closed' : 'Active'}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-primary btn-sm" onclick="showEditProjectModal('${project.id}')">✏️ Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="confirmDeleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">🗑️ Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
         }
 
         // Edit project - show modal
