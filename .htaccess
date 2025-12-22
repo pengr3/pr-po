@@ -1,0 +1,70 @@
+# Apache Configuration for Security and Performance Headers
+# This file fixes all console warnings and errors
+
+<IfModule mod_headers.c>
+    # Security Headers
+    # ================
+
+    # Prevent MIME type sniffing (fixes: Error - missing x-content-type-options)
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Modern Content Security Policy with frame-ancestors
+    # (replaces deprecated X-Frame-Options)
+    Header always set Content-Security-Policy "frame-ancestors 'self'"
+
+    # Remove deprecated security headers
+    Header unset X-XSS-Protection
+    Header unset X-Frame-Options
+    Header unset Expires
+
+    # Cache Control Headers
+    # =====================
+
+    # HTML files - must revalidate (no-cache allows caching but requires validation)
+    <FilesMatch "\.(html|htm)$">
+        Header set Cache-Control "no-cache, must-revalidate, max-age=0"
+    </FilesMatch>
+
+    # CSS and JavaScript - cache for 1 year with immutable directive
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Images - cache for 1 year with immutable directive
+    <FilesMatch "\.(jpg|jpeg|png|gif|svg|ico|webp)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Fonts - cache for 1 year with immutable directive
+    <FilesMatch "\.(woff|woff2|ttf|eot|otf)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Media files - cache for 1 year
+    <FilesMatch "\.(mp4|webm|mp3|ogg|wav)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # JSON and XML - cache for 1 hour
+    <FilesMatch "\.(json|xml)$">
+        Header set Cache-Control "public, max-age=3600, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
+# Additional Security Settings
+# =============================
+
+# Disable directory browsing
+Options -Indexes
+
+# Prevent access to sensitive files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Force HTTPS (uncomment if you have SSL)
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
