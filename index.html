@@ -743,6 +743,8 @@
             border-radius: 4px;
             font-size: 0.875rem;
             cursor: pointer;
+            width: 180px;
+            box-sizing: border-box;
         }
 
         .modal {
@@ -900,34 +902,57 @@
                     <button class="btn btn-primary" onclick="refreshPOTracking()"> Refresh</button>
                 </div>
 
-                <!-- Delivery Status Scoreboard -->
-                <div id="poScoreboard" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding: 1.5rem; margin-bottom: 1rem;">
-                    <!-- Pending -->
-                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                        <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
-                        <div id="scorePending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
-                        <div style="font-size: 0.75rem; color: #991b1b; margin-top: 0.25rem;">Materials</div>
-                    </div>
+                <!-- Materials Status Scoreboard -->
+                <div style="padding: 1.5rem 1.5rem 0.75rem 1.5rem;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement</div>
+                    <div id="poScoreboardMaterials" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                        <!-- Pending Procurement -->
+                        <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                            <div id="scoreMaterialsPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                        </div>
 
-                    <!-- Procuring -->
-                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                        <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procuring</div>
-                        <div id="scoreProcuring" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
-                        <div style="font-size: 0.75rem; color: #854d0e; margin-top: 0.25rem;">Materials</div>
-                    </div>
+                        <!-- Procuring -->
+                        <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procuring</div>
+                            <div id="scoreMaterialsProcuring" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                        </div>
 
-                    <!-- Procured -->
-                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
-                        <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procured</div>
-                        <div id="scoreProcured" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
-                        <div style="font-size: 0.75rem; color: #14532d; margin-top: 0.25rem;">Materials</div>
-                    </div>
+                        <!-- Procured -->
+                        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procured</div>
+                            <div id="scoreMaterialsProcured" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                        </div>
 
-                    <!-- Delivered -->
-                    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
-                        <div style="font-size: 0.75rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Delivered</div>
-                        <div id="scoreDelivered" style="font-size: 2rem; font-weight: 700; color: #2563eb;">0</div>
-                        <div style="font-size: 0.75rem; color: #1e3a8a; margin-top: 0.25rem;">Materials</div>
+                        <!-- Delivered -->
+                        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Delivered</div>
+                            <div id="scoreMaterialsDelivered" style="font-size: 2rem; font-weight: 700; color: #2563eb;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subcon Status Scoreboard -->
+                <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing</div>
+                    <div id="poScoreboardSubcon" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                        <!-- Pending -->
+                        <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                            <div id="scoreSubconPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                        </div>
+
+                        <!-- Processing -->
+                        <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processing</div>
+                            <div id="scoreSubconProcessing" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                        </div>
+
+                        <!-- Processed -->
+                        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processed</div>
+                            <div id="scoreSubconProcessed" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                        </div>
                     </div>
                 </div>
 
@@ -1132,29 +1157,48 @@
         function renderPOTrackingTable(pos) {
             const tbody = document.getElementById('poTrackingBody');
 
-            // Calculate scoreboard counts
-            // Count both material statuses and SUBCON equivalents
-            const counts = {
-                pending: 0,      // Pending Procurement (materials) + Pending (SUBCON)
-                procuring: 0,    // Procuring (materials) + Processing (SUBCON)
-                procured: 0,     // Procured (materials) + Processed (SUBCON)
-                delivered: 0     // Delivered (materials only - SUBCON uses Processed as final)
+            // Calculate separate scoreboard counts for Materials and Subcon
+            const materialCounts = {
+                pending: 0,      // Pending Procurement
+                procuring: 0,    // Procuring
+                procured: 0,     // Procured
+                delivered: 0     // Delivered
+            };
+
+            const subconCounts = {
+                pending: 0,      // Pending
+                processing: 0,   // Processing
+                processed: 0     // Processed
             };
 
             pos.forEach(po => {
                 const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
                 const status = po.procurement_status || defaultStatus;
-                if (status === 'Pending Procurement' || status === 'Pending') counts.pending++;
-                else if (status === 'Procuring' || status === 'Processing') counts.procuring++;
-                else if (status === 'Procured' || status === 'Processed') counts.procured++;
-                else if (status === 'Delivered') counts.delivered++;
+
+                if (po.is_subcon) {
+                    // SUBCON counts
+                    if (status === 'Pending') subconCounts.pending++;
+                    else if (status === 'Processing') subconCounts.processing++;
+                    else if (status === 'Processed') subconCounts.processed++;
+                } else {
+                    // Material counts
+                    if (status === 'Pending Procurement') materialCounts.pending++;
+                    else if (status === 'Procuring') materialCounts.procuring++;
+                    else if (status === 'Procured') materialCounts.procured++;
+                    else if (status === 'Delivered') materialCounts.delivered++;
+                }
             });
 
-            // Update scoreboard
-            document.getElementById('scorePending').textContent = counts.pending;
-            document.getElementById('scoreProcuring').textContent = counts.procuring;
-            document.getElementById('scoreProcured').textContent = counts.procured;
-            document.getElementById('scoreDelivered').textContent = counts.delivered;
+            // Update Materials scoreboard
+            document.getElementById('scoreMaterialsPending').textContent = materialCounts.pending;
+            document.getElementById('scoreMaterialsProcuring').textContent = materialCounts.procuring;
+            document.getElementById('scoreMaterialsProcured').textContent = materialCounts.procured;
+            document.getElementById('scoreMaterialsDelivered').textContent = materialCounts.delivered;
+
+            // Update Subcon scoreboard
+            document.getElementById('scoreSubconPending').textContent = subconCounts.pending;
+            document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
+            document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
 
             if (pos.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
