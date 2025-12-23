@@ -2649,73 +2649,68 @@
             }
         };
 
-        // Delete MRF - allows procurement to delete unnecessary requests
+        // Delete MRF - allows procurement to delete unnecessary requests from Pending MRFs list
+        // This includes fresh MRFs and rejected PRs that came back for reprocessing
+        // ALL related documents (PRs, POs, TRs) will be deleted entirely
         window.deleteMRF = async function() {
             if (!currentMRF) {
                 showToast('No MRF selected', 'error');
                 return;
             }
 
-            // Check if MRF has approved PRs or POs - prevent deletion if finance has already processed
             const mrfId = currentMRF.mrf_id;
 
-            // Check for existing PRs
+            // Fetch all related documents to show what will be deleted
+            // PRs
             const prsRef = collection(db, 'prs');
             const prQuery = query(prsRef, where('mrf_id', '==', mrfId));
             const prSnapshot = await getDocs(prQuery);
 
-            let hasApprovedPRs = false;
-            let hasPendingPRs = false;
-            prSnapshot.forEach((doc) => {
-                const prData = doc.data();
-                if (prData.finance_status === 'Approved') {
-                    hasApprovedPRs = true;
-                } else if (prData.finance_status === 'Pending') {
-                    hasPendingPRs = true;
-                }
-            });
-
-            // Check for existing POs
+            // POs
             const posRef = collection(db, 'pos');
             const poQuery = query(posRef, where('mrf_id', '==', mrfId));
             const poSnapshot = await getDocs(poQuery);
-            const hasPOs = !poSnapshot.empty;
 
-            // Check for transport requests
+            // Transport Requests
             const trsRef = collection(db, 'transport_requests');
             const trQuery = query(trsRef, where('mrf_id', '==', mrfId));
             const trSnapshot = await getDocs(trQuery);
 
-            let hasApprovedTRs = false;
-            let hasPendingTRs = false;
-            trSnapshot.forEach((doc) => {
-                const trData = doc.data();
-                if (trData.finance_status === 'Approved') {
-                    hasApprovedTRs = true;
-                } else if (trData.finance_status === 'Pending') {
-                    hasPendingTRs = true;
-                }
+            // Build warning message about related documents
+            let warningMessage = '';
+            let prDetails = [];
+            let poDetails = [];
+            let trDetails = [];
+
+            prSnapshot.forEach((docSnap) => {
+                const prData = docSnap.data();
+                prDetails.push(`${prData.pr_id} (${prData.finance_status || 'Pending'})`);
             });
 
-            // Prevent deletion if finance has already approved
-            if (hasApprovedPRs || hasApprovedTRs || hasPOs) {
-                showToast('Cannot delete: Finance has already approved documents for this MRF. Please contact Finance to void the approval first.', 'error');
-                return;
-            }
+            poSnapshot.forEach((docSnap) => {
+                const poData = docSnap.data();
+                poDetails.push(`${poData.po_id} (${poData.procurement_status || 'Pending'})`);
+            });
 
-            // Warn about pending documents that will also be deleted
-            let warningMessage = '';
-            if (hasPendingPRs) {
-                warningMessage += '\n- Pending Purchase Request(s) awaiting Finance approval';
+            trSnapshot.forEach((docSnap) => {
+                const trData = docSnap.data();
+                trDetails.push(`${trData.tr_id} (${trData.finance_status || 'Pending'})`);
+            });
+
+            if (prDetails.length > 0) {
+                warningMessage += `\n- ${prDetails.length} Purchase Request(s): ${prDetails.join(', ')}`;
             }
-            if (hasPendingTRs) {
-                warningMessage += '\n- Pending Transport Request(s) awaiting Finance approval';
+            if (poDetails.length > 0) {
+                warningMessage += `\n- ${poDetails.length} Purchase Order(s): ${poDetails.join(', ')}`;
+            }
+            if (trDetails.length > 0) {
+                warningMessage += `\n- ${trDetails.length} Transport Request(s): ${trDetails.join(', ')}`;
             }
 
             // Prompt for deletion reason
             let promptMessage = 'Please provide a reason for deleting this MRF:\n\n(This action cannot be undone)';
             if (warningMessage) {
-                promptMessage = `WARNING: The following will also be deleted:${warningMessage}\n\nPlease provide a reason for deleting this MRF:\n\n(This action cannot be undone)`;
+                promptMessage = `WARNING: The following related documents will also be PERMANENTLY deleted:${warningMessage}\n\nPlease provide a reason for deleting this MRF:\n\n(This action cannot be undone)`;
             }
 
             const reason = prompt(promptMessage);
@@ -2733,7 +2728,7 @@
             // Confirm deletion
             let confirmMessage = `Are you sure you want to delete MRF "${currentMRF.mrf_id}"?`;
             if (warningMessage) {
-                confirmMessage += `\n\nThis will also delete:${warningMessage}`;
+                confirmMessage += `\n\nThe following will be PERMANENTLY deleted:${warningMessage}`;
             }
             confirmMessage += `\n\nReason: ${reason}\n\nThis action cannot be undone.`;
 
@@ -2753,31 +2748,43 @@
                     deletion_reason: reason.trim(),
                     deleted_by: 'Procurement',
                     deleted_prs: [],
+                    deleted_pos: [],
                     deleted_trs: []
                 };
 
-                // Delete related pending PRs and store their IDs
+                // Delete ALL related PRs and store their details for audit
                 for (const prDoc of prSnapshot.docs) {
                     const prData = prDoc.data();
-                    if (prData.finance_status !== 'Approved') {
-                        deletedMrfData.deleted_prs.push({
-                            pr_id: prData.pr_id,
-                            finance_status: prData.finance_status
-                        });
-                        await deleteDoc(doc(db, 'prs', prDoc.id));
-                    }
+                    deletedMrfData.deleted_prs.push({
+                        pr_id: prData.pr_id,
+                        supplier_name: prData.supplier_name,
+                        total_amount: prData.total_amount,
+                        finance_status: prData.finance_status
+                    });
+                    await deleteDoc(doc(db, 'prs', prDoc.id));
                 }
 
-                // Delete related pending TRs and store their IDs
+                // Delete ALL related POs and store their details for audit
+                for (const poDoc of poSnapshot.docs) {
+                    const poData = poDoc.data();
+                    deletedMrfData.deleted_pos.push({
+                        po_id: poData.po_id,
+                        supplier_name: poData.supplier_name,
+                        total_amount: poData.total_amount,
+                        procurement_status: poData.procurement_status
+                    });
+                    await deleteDoc(doc(db, 'pos', poDoc.id));
+                }
+
+                // Delete ALL related Transport Requests and store their details for audit
                 for (const trDoc of trSnapshot.docs) {
                     const trData = trDoc.data();
-                    if (trData.finance_status !== 'Approved') {
-                        deletedMrfData.deleted_trs.push({
-                            tr_id: trData.tr_id,
-                            finance_status: trData.finance_status
-                        });
-                        await deleteDoc(doc(db, 'transport_requests', trDoc.id));
-                    }
+                    deletedMrfData.deleted_trs.push({
+                        tr_id: trData.tr_id,
+                        total_amount: trData.total_amount,
+                        finance_status: trData.finance_status
+                    });
+                    await deleteDoc(doc(db, 'transport_requests', trDoc.id));
                 }
 
                 // Add to deleted_mrfs collection for audit trail
