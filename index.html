@@ -797,8 +797,7 @@
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchTab('mrfs')">MRF Processing</button>
                     <button class="tab-btn" onclick="switchTab('suppliers')">Supplier Management</button>
-                    <button class="tab-btn" onclick="switchTab('historical-mrfs')">Historical MRFs</button>
-                    <button class="tab-btn" onclick="switchTab('po-tracking')">PO Tracking</button>
+                    <button class="tab-btn" onclick="switchTab('historical-mrfs')">Historical MRFs & PO Tracking</button>
                 </div>
             </div>
         </div>
@@ -984,8 +983,50 @@
         <section id="historical-mrfs-section" class="section">
             <div class="card">
                 <div class="card-header">
-                    <h2 style="font-size: 1.5rem; font-weight: 600;">Historical MRFs</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600;">Historical MRFs & PO Tracking</h2>
                     <button class="btn btn-secondary" onclick="loadHistoricalMRFs()">Refresh</button>
+                </div>
+
+                <!-- Materials Status Scoreboard -->
+                <div style="padding: 1.5rem 1.5rem 0.75rem 1.5rem;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement Status</div>
+                    <div id="historicalScoreboardMaterials" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                            <div id="histScoreMaterialsPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procuring</div>
+                            <div id="histScoreMaterialsProcuring" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procured</div>
+                            <div id="histScoreMaterialsProcured" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Delivered</div>
+                            <div id="histScoreMaterialsDelivered" style="font-size: 2rem; font-weight: 700; color: #2563eb;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subcon Status Scoreboard -->
+                <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing Status</div>
+                    <div id="historicalScoreboardSubcon" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                        <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                            <div id="histScoreSubconPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processing</div>
+                            <div id="histScoreSubconProcessing" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processed</div>
+                            <div id="histScoreSubconProcessed" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Filters -->
@@ -998,6 +1039,8 @@
                         <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.5rem;">Status</label>
                         <select id="historicalStatusFilter" style="width: 100%; padding: 0.5rem; border: 1px solid #dadce0; border-radius: 4px;" onchange="filterHistoricalMRFs()">
                             <option value="">All Statuses</option>
+                            <option value="awaiting">Awaiting Approval</option>
+                            <option value="approved">Approved</option>
                             <option value="TR Submitted">TR Submitted</option>
                             <option value="PR Generated">PR Generated</option>
                             <option value="PR Rejected">PR Rejected</option>
@@ -1034,7 +1077,7 @@
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">PR ID(s)</th>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">PO ID(s)</th>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Project Name</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Date Submitted</th>
+                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Date Needed</th>
                             <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Current Status</th>
                         </tr>
                     </thead>
@@ -2107,6 +2150,8 @@
                     buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
                 }
             }
+            // Add delete button for procurement to remove unnecessary requests
+            buttons += ' <button class="btn btn-danger" onclick="deleteMRF()" style="margin-left: 0.5rem;"> Delete MRF</button>';
             document.getElementById('mrfActions').innerHTML = buttons;
             
             const requestTypeLabel = mrf.request_type === 'service' ? 
@@ -2599,6 +2644,214 @@
             } catch (error) {
                 console.error('Error saving progress:', error);
                 showToast('Failed to save progress', 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        // Delete MRF - allows procurement to delete unnecessary requests from Pending MRFs list
+        // For fresh MRFs: deletes entire MRF
+        // For rejected MRFs: user should remove specific items instead, but can still delete entirely if needed
+        window.deleteMRF = async function() {
+            if (!currentMRF) {
+                showToast('No MRF selected', 'error');
+                return;
+            }
+
+            const mrfId = currentMRF.mrf_id;
+            const isRejected = currentMRF.status === 'PR Rejected' || currentMRF.is_rejected;
+
+            // Fetch all related documents to show what will be deleted
+            // PRs
+            const prsRef = collection(db, 'prs');
+            const prQuery = query(prsRef, where('mrf_id', '==', mrfId));
+            const prSnapshot = await getDocs(prQuery);
+
+            // POs
+            const posRef = collection(db, 'pos');
+            const poQuery = query(posRef, where('mrf_id', '==', mrfId));
+            const poSnapshot = await getDocs(poQuery);
+
+            // Transport Requests
+            const trsRef = collection(db, 'transport_requests');
+            const trQuery = query(trsRef, where('mrf_id', '==', mrfId));
+            const trSnapshot = await getDocs(trQuery);
+
+            // Analyze related documents
+            let hasRejectedPRs = false;
+            let hasApprovedPRs = false;
+            let rejectedSuppliers = [];
+            let approvedSuppliers = [];
+
+            prSnapshot.forEach((docSnap) => {
+                const prData = docSnap.data();
+                if (prData.finance_status === 'Rejected') {
+                    hasRejectedPRs = true;
+                    rejectedSuppliers.push(prData.supplier_name);
+                } else if (prData.finance_status === 'Approved') {
+                    hasApprovedPRs = true;
+                    approvedSuppliers.push(prData.supplier_name);
+                }
+            });
+
+            // If MRF is rejected and has a mix of approved/rejected PRs
+            // Guide user to remove specific items instead
+            if (isRejected && hasApprovedPRs && hasRejectedPRs) {
+                const guidance = `This MRF has both approved and rejected PRs.\n\n` +
+                    `Approved suppliers: ${approvedSuppliers.join(', ')}\n` +
+                    `Rejected suppliers: ${rejectedSuppliers.join(', ')}\n\n` +
+                    `TIP: Instead of deleting the entire MRF, you can:\n` +
+                    `1. Remove the line items for rejected suppliers from the table\n` +
+                    `2. Click "Save" to update\n` +
+                    `3. Click "Generate PR" to resubmit - rejected PRs will be auto-cleaned\n\n` +
+                    `Do you still want to DELETE THE ENTIRE MRF and all related documents?`;
+
+                if (!confirm(guidance)) {
+                    return;
+                }
+            }
+
+            // Build warning message about related documents
+            let warningMessage = '';
+            let prDetails = [];
+            let poDetails = [];
+            let trDetails = [];
+
+            prSnapshot.forEach((docSnap) => {
+                const prData = docSnap.data();
+                prDetails.push(`${prData.pr_id} (${prData.finance_status || 'Pending'})`);
+            });
+
+            poSnapshot.forEach((docSnap) => {
+                const poData = docSnap.data();
+                poDetails.push(`${poData.po_id} (${poData.procurement_status || 'Pending'})`);
+            });
+
+            trSnapshot.forEach((docSnap) => {
+                const trData = docSnap.data();
+                trDetails.push(`${trData.tr_id} (${trData.finance_status || 'Pending'})`);
+            });
+
+            if (prDetails.length > 0) {
+                warningMessage += `\n- ${prDetails.length} Purchase Request(s): ${prDetails.join(', ')}`;
+            }
+            if (poDetails.length > 0) {
+                warningMessage += `\n- ${poDetails.length} Purchase Order(s): ${poDetails.join(', ')}`;
+            }
+            if (trDetails.length > 0) {
+                warningMessage += `\n- ${trDetails.length} Transport Request(s): ${trDetails.join(', ')}`;
+            }
+
+            // Prompt for deletion reason
+            let promptMessage = 'Please provide a reason for deleting this MRF:\n\n(This action cannot be undone)';
+            if (warningMessage) {
+                promptMessage = `WARNING: The following related documents will also be PERMANENTLY deleted:${warningMessage}\n\nPlease provide a reason for deleting this MRF:\n\n(This action cannot be undone)`;
+            }
+
+            const reason = prompt(promptMessage);
+
+            if (reason === null) {
+                // User cancelled
+                return;
+            }
+
+            if (!reason.trim()) {
+                showToast('Deletion reason is required', 'error');
+                return;
+            }
+
+            // Confirm deletion
+            let confirmMessage = `Are you sure you want to delete MRF "${currentMRF.mrf_id}"?`;
+            if (warningMessage) {
+                confirmMessage += `\n\nThe following will be PERMANENTLY deleted:${warningMessage}`;
+            }
+            confirmMessage += `\n\nReason: ${reason}\n\nThis action cannot be undone.`;
+
+            const confirmDelete = confirm(confirmMessage);
+
+            if (!confirmDelete) {
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                // Store deletion record for audit trail
+                const deletedMrfData = {
+                    ...currentMRF,
+                    deleted_at: new Date().toISOString(),
+                    deletion_reason: reason.trim(),
+                    deleted_by: 'Procurement',
+                    deleted_prs: [],
+                    deleted_pos: [],
+                    deleted_trs: []
+                };
+
+                // Delete ALL related PRs and store their details for audit
+                for (const prDoc of prSnapshot.docs) {
+                    const prData = prDoc.data();
+                    deletedMrfData.deleted_prs.push({
+                        pr_id: prData.pr_id,
+                        supplier_name: prData.supplier_name,
+                        total_amount: prData.total_amount,
+                        finance_status: prData.finance_status
+                    });
+                    await deleteDoc(doc(db, 'prs', prDoc.id));
+                }
+
+                // Delete ALL related POs and store their details for audit
+                for (const poDoc of poSnapshot.docs) {
+                    const poData = poDoc.data();
+                    deletedMrfData.deleted_pos.push({
+                        po_id: poData.po_id,
+                        supplier_name: poData.supplier_name,
+                        total_amount: poData.total_amount,
+                        procurement_status: poData.procurement_status
+                    });
+                    await deleteDoc(doc(db, 'pos', poDoc.id));
+                }
+
+                // Delete ALL related Transport Requests and store their details for audit
+                for (const trDoc of trSnapshot.docs) {
+                    const trData = trDoc.data();
+                    deletedMrfData.deleted_trs.push({
+                        tr_id: trData.tr_id,
+                        total_amount: trData.total_amount,
+                        finance_status: trData.finance_status
+                    });
+                    await deleteDoc(doc(db, 'transport_requests', trDoc.id));
+                }
+
+                // Add to deleted_mrfs collection for audit trail
+                const deletedMrfsRef = collection(db, 'deleted_mrfs');
+                await addDoc(deletedMrfsRef, deletedMrfData);
+
+                // Delete the MRF document
+                const mrfRef = doc(db, 'mrfs', currentMRF.id);
+                await deleteDoc(mrfRef);
+
+                // Clear current selection
+                currentMRF = null;
+
+                // Reset MRF details panel
+                const mrfDetails = document.getElementById('mrfDetails');
+                if (mrfDetails) {
+                    mrfDetails.innerHTML = `
+                        <div style="text-align: center; padding: 3rem; color: #999;">
+                            Select an MRF to view details
+                        </div>
+                    `;
+                }
+
+                // Reset action buttons
+                document.getElementById('mrfActions').innerHTML = `
+                    <button class="btn btn-primary" onclick="saveProgress()">Save Progress</button>
+                `;
+
+                showToast('MRF deleted successfully', 'success');
+            } catch (error) {
+                console.error('Error deleting MRF:', error);
+                showToast('Failed to delete MRF: ' + error.message, 'error');
             } finally {
                 showLoading(false);
             }
@@ -3562,22 +3815,110 @@
 
                 console.log('Loaded historical MRFs:', allHistoricalMRFs.length);
 
-                // Sort chronologically by when MRF was initially processed (newest first)
+                // Sorting logic:
+                // 1. Awaiting approval (For Approval, X/Y status) on top
+                // 2. Approved MRFs go down the list
+                // 3. Within each group, sort by MRF ID (newest first - higher number first)
                 allHistoricalMRFs.sort((a, b) => {
-                    const dateA = new Date(a.date_submitted || a.created_at);
-                    const dateB = new Date(b.date_submitted || b.created_at);
-                    return dateB - dateA; // descending order (newest first)
+                    // Determine if MRF is "awaiting approval" based on status
+                    const awaitingStatuses = ['TR Submitted', 'PR Generated', 'Finance Approved', 'PO Issued'];
+                    const approvedStatuses = ['Completed', 'Delivered'];
+
+                    const aAwaiting = awaitingStatuses.includes(a.status);
+                    const bAwaiting = awaitingStatuses.includes(b.status);
+                    const aApproved = approvedStatuses.includes(a.status);
+                    const bApproved = approvedStatuses.includes(b.status);
+
+                    // Awaiting approval items first
+                    if (aAwaiting && !bAwaiting) return -1;
+                    if (!aAwaiting && bAwaiting) return 1;
+
+                    // Within same group, sort by MRF ID (extract number for comparison)
+                    // MRF format: MRF_YYYY_MM-NNN
+                    const extractMrfNumber = (mrfId) => {
+                        const match = mrfId ? mrfId.match(/-(\d+)$/) : null;
+                        return match ? parseInt(match[1]) : 0;
+                    };
+
+                    const aNum = extractMrfNumber(a.mrf_id);
+                    const bNum = extractMrfNumber(b.mrf_id);
+
+                    return bNum - aNum; // Descending order (newest/higher number first)
                 });
 
                 filteredHistoricalMRFs = [...allHistoricalMRFs];
                 currentPage = 1; // Reset to first page
                 renderHistoricalMRFs();
-                
+
+                // Load and update PO scoreboards for Historical MRFs section
+                updateHistoricalScoreboards();
+
             } catch (error) {
                 console.error('Error loading historical MRFs:', error);
                 showToast('Failed to load historical MRFs', 'error');
             }
         };
+
+        // Update scoreboards in Historical MRFs section
+        async function updateHistoricalScoreboards() {
+            try {
+                const posRef = collection(db, 'pos');
+                const poSnapshot = await getDocs(posRef);
+
+                const materialCounts = {
+                    pending: 0,
+                    procuring: 0,
+                    procured: 0,
+                    delivered: 0
+                };
+
+                const subconCounts = {
+                    pending: 0,
+                    processing: 0,
+                    processed: 0
+                };
+
+                poSnapshot.forEach((doc) => {
+                    const po = doc.data();
+                    const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
+                    const status = po.procurement_status || defaultStatus;
+
+                    if (po.is_subcon) {
+                        if (status === 'Pending') subconCounts.pending++;
+                        else if (status === 'Processing') subconCounts.processing++;
+                        else if (status === 'Processed') subconCounts.processed++;
+                    } else {
+                        if (status === 'Pending Procurement') materialCounts.pending++;
+                        else if (status === 'Procuring') materialCounts.procuring++;
+                        else if (status === 'Procured') materialCounts.procured++;
+                        else if (status === 'Delivered') materialCounts.delivered++;
+                    }
+                });
+
+                // Update Materials scoreboard
+                const matPending = document.getElementById('histScoreMaterialsPending');
+                const matProcuring = document.getElementById('histScoreMaterialsProcuring');
+                const matProcured = document.getElementById('histScoreMaterialsProcured');
+                const matDelivered = document.getElementById('histScoreMaterialsDelivered');
+
+                if (matPending) matPending.textContent = materialCounts.pending;
+                if (matProcuring) matProcuring.textContent = materialCounts.procuring;
+                if (matProcured) matProcured.textContent = materialCounts.procured;
+                if (matDelivered) matDelivered.textContent = materialCounts.delivered;
+
+                // Update Subcon scoreboard
+                const subPending = document.getElementById('histScoreSubconPending');
+                const subProcessing = document.getElementById('histScoreSubconProcessing');
+                const subProcessed = document.getElementById('histScoreSubconProcessed');
+
+                if (subPending) subPending.textContent = subconCounts.pending;
+                if (subProcessing) subProcessing.textContent = subconCounts.processing;
+                if (subProcessed) subProcessed.textContent = subconCounts.processed;
+
+            } catch (error) {
+                console.error('Error updating historical scoreboards:', error);
+            }
+        }
 
         window.filterHistoricalMRFs = function() {
             const searchTerm = document.getElementById('historicalSearch').value.toLowerCase();
@@ -3592,14 +3933,26 @@
                     mrf.mrf_id.toLowerCase().includes(searchTerm) ||
                     mrf.project_name.toLowerCase().includes(searchTerm);
 
-                // Status filter
-                const matchStatus = !statusFilter || mrf.status === statusFilter;
+                // Status filter - handle special "awaiting" and "approved" categories
+                let matchStatus = true;
+                if (statusFilter) {
+                    const awaitingStatuses = ['TR Submitted', 'PR Generated', 'Finance Approved', 'PO Issued'];
+                    const approvedStatuses = ['Completed', 'Delivered'];
+
+                    if (statusFilter === 'awaiting') {
+                        matchStatus = awaitingStatuses.includes(mrf.status);
+                    } else if (statusFilter === 'approved') {
+                        matchStatus = approvedStatuses.includes(mrf.status);
+                    } else {
+                        matchStatus = mrf.status === statusFilter;
+                    }
+                }
 
                 // Type filter
                 const matchType = !typeFilter || mrf.request_type === typeFilter;
 
-                // Date filters
-                const mrfDate = new Date(mrf.date_submitted || mrf.created_at);
+                // Date filters - use date_needed instead of date_submitted
+                const mrfDate = new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at);
                 const matchDateFrom = !dateFrom || mrfDate >= new Date(dateFrom);
                 const matchDateTo = !dateTo || mrfDate <= new Date(dateTo);
 
@@ -3780,9 +4133,12 @@
                 // Calculate detailed status and color based on user requirements:
                 // - Pending (RED) - When MRF or TR is requested but not yet submitted to finance
                 // - For Approval (YELLOW) - when this is a single PR or a TR
-                // - 0/n PO Issued (YELLOW) - applicable when there are multiple PR for Approval
-                // - Approved (GREEN) - applicable when TR or all PRs are approved (n/n)
+                // - X/Y PR Approved (YELLOW) - only when some but not all PRs are approved
+                // - X/Y PO Issued (YELLOW) - only when some but not all POs are issued
+                // - Approved (GREEN) - when all PRs approved AND all POs issued
                 let detailedStatus = mrf.status;
+                let showPOTracking = false; // Flag to show PO Tracking controls
+                let poTrackingData = []; // Store PO data for tracking controls
 
                 if (type === 'Transport') {
                     // Transport Request logic
@@ -3808,36 +4164,118 @@
                                 detailedStatus = 'For Approval';
                                 statusColor = '#fbbc04'; // YELLOW
                             } else {
-                                detailedStatus = 'Approved';
-                                statusColor = '#34a853'; // GREEN
+                                // Single PR approved - check PO status
+                                if (poCount === 0) {
+                                    detailedStatus = 'Approved - Awaiting PO';
+                                    statusColor = '#34a853'; // GREEN
+                                } else {
+                                    detailedStatus = 'Approved';
+                                    statusColor = '#34a853'; // GREEN
+                                    showPOTracking = true;
+                                }
                             }
                         } else {
-                            // Multiple PRs - show approval progress
+                            // Multiple PRs - show approval progress only if not all approved
                             if (prApprovedCount < prCount) {
                                 detailedStatus = `${prApprovedCount}/${prCount} PR Approved`;
                                 statusColor = '#fbbc04'; // YELLOW
                             } else {
-                                detailedStatus = `${prCount}/${prCount} PR Approved`;
-                                statusColor = '#34a853'; // GREEN
+                                // All PRs approved - now check PO status
+                                if (poCount < prCount) {
+                                    detailedStatus = `${poCount}/${prCount} PO Issued`;
+                                    statusColor = '#fbbc04'; // YELLOW
+                                } else {
+                                    // All POs issued - show just "Approved"
+                                    detailedStatus = 'Approved';
+                                    statusColor = '#34a853'; // GREEN
+                                    showPOTracking = true;
+                                }
                             }
                         }
                     } else if ((mrf.status === 'Finance Approved' || mrf.status === 'PO Issued') && prCount > 0) {
-                        // PO issuance stage
+                        // Finance approved stage - check PO issuance
                         if (poCount < prCount) {
                             detailedStatus = `${poCount}/${prCount} PO Issued`;
                             statusColor = '#fbbc04'; // YELLOW
                         } else {
-                            detailedStatus = `${poCount}/${prCount} PO Issued`;
-                            statusColor = '#34a853'; // GREEN - All POs issued
+                            // All POs issued - show just "Approved"
+                            detailedStatus = 'Approved';
+                            statusColor = '#34a853'; // GREEN
+                            showPOTracking = true;
                         }
                     } else if (mrf.status === 'Completed' || mrf.status === 'Delivered') {
                         detailedStatus = 'Approved';
                         statusColor = '#34a853'; // GREEN
+                        showPOTracking = true;
                     }
                 }
 
                 // Display TR ID for transport requests, MRF ID for material requests
                 const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+
+                // Build status cell content - show PO Tracking controls when approved
+                let statusCellContent = '';
+                if (showPOTracking && poCount > 0) {
+                    // Fetch PO tracking data for this MRF
+                    try {
+                        const posRef = collection(db, 'pos');
+                        const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                        const poSnapshot = await getDocs(poQuery);
+
+                        if (!poSnapshot.empty) {
+                            statusCellContent = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+                            poSnapshot.forEach((poDoc) => {
+                                const po = poDoc.data();
+                                const isSubcon = po.is_subcon;
+                                const currentStatus = po.procurement_status || (isSubcon ? 'Pending' : 'Pending Procurement');
+                                const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
+
+                                let statusOptions;
+                                if (isSubcon) {
+                                    statusOptions = `
+                                        <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                                        <option value="Processing" ${currentStatus === 'Processing' ? 'selected' : ''}>Processing</option>
+                                        <option value="Processed" ${currentStatus === 'Processed' ? 'selected' : ''}>Processed</option>
+                                    `;
+                                } else {
+                                    statusOptions = `
+                                        <option value="Pending Procurement" ${currentStatus === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
+                                        <option value="Procuring" ${currentStatus === 'Procuring' ? 'selected' : ''}>Procuring</option>
+                                        <option value="Procured" ${currentStatus === 'Procured' ? 'selected' : ''}>Procured</option>
+                                        <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                                    `;
+                                }
+
+                                const deliveryFeeDisplay = po.delivery_fee ? `<span style="font-size: 0.7rem; color: #666;">Fee: ₱${parseFloat(po.delivery_fee).toLocaleString()}</span>` : '';
+
+                                statusCellContent += `
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        <span style="font-size: 0.7rem; color: #666; min-width: 70px;">${po.po_id.split('-').pop()}</span>
+                                        <select class="status-select" data-po-id="${poDoc.id}" data-is-subcon="${isSubcon}"
+                                                onchange="updatePOStatus('${poDoc.id}', this.value, '${currentStatus}', ${isSubcon})"
+                                                style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border: 1px solid #ddd; border-radius: 4px; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : ''}"
+                                                ${isFinalStatus ? 'disabled' : ''}>
+                                            ${statusOptions}
+                                        </select>
+                                        ${deliveryFeeDisplay}
+                                    </div>
+                                `;
+                            });
+                            statusCellContent += '</div>';
+                        }
+                    } catch (error) {
+                        console.error('Error fetching PO tracking data:', error);
+                    }
+                }
+
+                // Fallback to status badge if no PO tracking
+                if (!statusCellContent) {
+                    statusCellContent = `
+                        <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                            ${detailedStatus}
+                        </span>
+                    `;
+                }
 
                 return `
                     <tr>
@@ -3846,11 +4284,9 @@
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${mrf.project_name}</td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                         <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">
-                            <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                                ${detailedStatus}
-                            </span>
+                            ${statusCellContent}
                         </td>
                     </tr>
                 `;
