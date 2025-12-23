@@ -1808,6 +1808,7 @@
                     mrf_doc_id: currentMRF.id,
                     project_name: currentMRF.project_name,
                     requestor_name: currentMRF.requestor_name,
+                    urgency_level: currentMRF.urgency_level || 'Low',
                     supplier_name: primarySupplier,  // Store supplier name for reference
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(updatedItems),  // Use updated items with costs from DOM
@@ -1954,12 +1955,24 @@
             urgencyBg = '#d1fae5';
         }
 
+        const urgencyLevelColor = mrf.urgency_level === 'Critical' ? '#dc2626' :
+                                  mrf.urgency_level === 'High' ? '#ef4444' :
+                                  mrf.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+        const urgencyLevelBg = mrf.urgency_level === 'Critical' ? '#fef2f2' :
+                               mrf.urgency_level === 'High' ? '#fef2f2' :
+                               mrf.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
+
         return `
-            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" 
-                 style="${rejectionStyle} border-left: 4px solid ${urgencyColor};">
-                <div style="font-weight: 600; margin-bottom: 0.25rem;">
-                    ${mrf.mrf_id}
-                    ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)"
+                 style="${rejectionStyle} border-left: 4px solid ${urgencyLevelColor};">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                    <span style="font-weight: 600;">
+                        ${mrf.mrf_id}
+                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                    </span>
+                    <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
+                        ${mrf.urgency_level || 'Low'}
+                    </span>
                 </div>
                 <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
                 ${isRejected ? `
@@ -1991,19 +2004,31 @@
             const dateNeeded = new Date(mrf.date_needed);
             dateNeeded.setHours(0, 0, 0, 0);
             const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
-            
+
             const isRejected = mrf.status === 'PR Rejected';
             const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
-            
+
             let urgencyColor = '#f59e0b';
             let urgencyBg = '#fef3c7';
-            
+
+            const urgencyLevelColor = mrf.urgency_level === 'Critical' ? '#dc2626' :
+                                      mrf.urgency_level === 'High' ? '#ef4444' :
+                                      mrf.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+            const urgencyLevelBg = mrf.urgency_level === 'Critical' ? '#fef2f2' :
+                                   mrf.urgency_level === 'High' ? '#fef2f2' :
+                                   mrf.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
+
             return `
-                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)" 
-                     style="${rejectionStyle} border-left: 4px solid ${urgencyColor};">
-                    <div style="font-weight: 600; margin-bottom: 0.25rem;">
-                        ${mrf.mrf_id}
-                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="selectMRF('${mrf.id}', this)"
+                     style="${rejectionStyle} border-left: 4px solid ${urgencyLevelColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-weight: 600;">
+                            ${mrf.mrf_id}
+                            ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                        </span>
+                        <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
+                            ${mrf.urgency_level || 'Low'}
+                        </span>
                     </div>
                     <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
                     ${isRejected ? `
@@ -2112,6 +2137,14 @@
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
                         <div>${mrf.status}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Urgency Level</div>
+                        <div style="font-weight: 600; color: ${
+                            mrf.urgency_level === 'Critical' ? '#dc2626' :
+                            mrf.urgency_level === 'High' ? '#ef4444' :
+                            mrf.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e'
+                        };">${mrf.urgency_level || 'Low'}</div>
                     </div>
                 </div>
 
@@ -2834,6 +2867,7 @@
                             supplier_name: supplier,
                             project_name: mrfData.project_name,
                             requestor_name: mrfData.requestor_name,
+                            urgency_level: mrfData.urgency_level || 'Low',
                             delivery_address: deliveryAddressEl ? deliveryAddressEl.value : (mrfData.delivery_address || ''),
                             items_json: JSON.stringify(supplierItems),
                             total_amount: supplierTotal,
@@ -3171,6 +3205,7 @@
                     mrf_doc_id: mrfData.id,
                     project_name: mrfData.project_name,
                     requestor_name: mrfData.requestor_name,
+                    urgency_level: mrfData.urgency_level || 'Low',
                     supplier_name: primarySupplier,
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(trItems),

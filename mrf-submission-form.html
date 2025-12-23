@@ -355,6 +355,32 @@
                     </div>
                 </div>
 
+                <!-- Urgency Level Section -->
+                <div class="form-section">
+                    <h2 class="section-title">Urgency Level</h2>
+                    <div class="form-group full-width">
+                        <label>Select Urgency Level *</label>
+                        <div class="radio-group">
+                            <div class="radio-option">
+                                <input type="radio" id="urgencyLow" name="urgencyLevel" value="Low" checked>
+                                <label for="urgencyLow" style="color: #22c55e;">Low - Standard processing (5-7 business days)</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="urgencyMedium" name="urgencyLevel" value="Medium">
+                                <label for="urgencyMedium" style="color: #f59e0b;">Medium - Priority processing (3-5 business days)</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="urgencyHigh" name="urgencyLevel" value="High">
+                                <label for="urgencyHigh" style="color: #ef4444;">High - Urgent processing (1-2 business days)</label>
+                            </div>
+                            <div class="radio-option">
+                                <input type="radio" id="urgencyCritical" name="urgencyLevel" value="Critical">
+                                <label for="urgencyCritical" style="color: #dc2626; font-weight: 600;">Critical - Immediate attention required (same day if possible)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Basic Information -->
                 <div class="form-section">
                     <h2 class="section-title">Basic Information</h2>
@@ -704,6 +730,7 @@
             
             // Collect form data
             const requestType = document.querySelector('input[name="requestType"]:checked').value;
+            const urgencyLevel = document.querySelector('input[name="urgencyLevel"]:checked').value;
             const projectName = document.getElementById('projectName').value.trim();
             const requestorName = document.getElementById('requestorName').value.trim();
             const dateNeeded = document.getElementById('dateNeeded').value;
@@ -728,6 +755,7 @@
                 const mrfDoc = {
                     mrf_id: mrfId,
                     request_type: requestType,
+                    urgency_level: urgencyLevel,
                     project_name: projectName,
                     requestor_name: requestorName,
                     date_needed: dateNeeded,
