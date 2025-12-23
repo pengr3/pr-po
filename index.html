@@ -2650,8 +2650,8 @@
         };
 
         // Delete MRF - allows procurement to delete unnecessary requests from Pending MRFs list
-        // This includes fresh MRFs and rejected PRs that came back for reprocessing
-        // ALL related documents (PRs, POs, TRs) will be deleted entirely
+        // For fresh MRFs: deletes entire MRF
+        // For rejected MRFs: user should remove specific items instead, but can still delete entirely if needed
         window.deleteMRF = async function() {
             if (!currentMRF) {
                 showToast('No MRF selected', 'error');
@@ -2659,6 +2659,7 @@
             }
 
             const mrfId = currentMRF.mrf_id;
+            const isRejected = currentMRF.status === 'PR Rejected' || currentMRF.is_rejected;
 
             // Fetch all related documents to show what will be deleted
             // PRs
@@ -2675,6 +2676,40 @@
             const trsRef = collection(db, 'transport_requests');
             const trQuery = query(trsRef, where('mrf_id', '==', mrfId));
             const trSnapshot = await getDocs(trQuery);
+
+            // Analyze related documents
+            let hasRejectedPRs = false;
+            let hasApprovedPRs = false;
+            let rejectedSuppliers = [];
+            let approvedSuppliers = [];
+
+            prSnapshot.forEach((docSnap) => {
+                const prData = docSnap.data();
+                if (prData.finance_status === 'Rejected') {
+                    hasRejectedPRs = true;
+                    rejectedSuppliers.push(prData.supplier_name);
+                } else if (prData.finance_status === 'Approved') {
+                    hasApprovedPRs = true;
+                    approvedSuppliers.push(prData.supplier_name);
+                }
+            });
+
+            // If MRF is rejected and has a mix of approved/rejected PRs
+            // Guide user to remove specific items instead
+            if (isRejected && hasApprovedPRs && hasRejectedPRs) {
+                const guidance = `This MRF has both approved and rejected PRs.\n\n` +
+                    `Approved suppliers: ${approvedSuppliers.join(', ')}\n` +
+                    `Rejected suppliers: ${rejectedSuppliers.join(', ')}\n\n` +
+                    `TIP: Instead of deleting the entire MRF, you can:\n` +
+                    `1. Remove the line items for rejected suppliers from the table\n` +
+                    `2. Click "Save" to update\n` +
+                    `3. Click "Generate PR" to resubmit - rejected PRs will be auto-cleaned\n\n` +
+                    `Do you still want to DELETE THE ENTIRE MRF and all related documents?`;
+
+                if (!confirm(guidance)) {
+                    return;
+                }
+            }
 
             // Build warning message about related documents
             let warningMessage = '';
