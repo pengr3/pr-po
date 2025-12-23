@@ -797,7 +797,7 @@
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchTab('mrfs')">MRF Processing</button>
                     <button class="tab-btn" onclick="switchTab('suppliers')">Supplier Management</button>
-                    <button class="tab-btn" onclick="switchTab('historical-mrfs')">Historical MRFs & PO Tracking</button>
+                    <button class="tab-btn" onclick="switchTab('historical-mrfs')">MRF Records</button>
                 </div>
             </div>
         </div>
@@ -983,7 +983,7 @@
         <section id="historical-mrfs-section" class="section">
             <div class="card">
                 <div class="card-header">
-                    <h2 style="font-size: 1.5rem; font-weight: 600;">Historical MRFs & PO Tracking</h2>
+                    <h2 style="font-size: 1.5rem; font-weight: 600;">MRF Records</h2>
                     <button class="btn btn-secondary" onclick="loadHistoricalMRFs()">Refresh</button>
                 </div>
 
@@ -1069,16 +1069,16 @@
                 </div>
 
                 <!-- Historical MRFs Table -->
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                     <thead>
                         <tr>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">MRF ID</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Total Cost</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">PR ID(s)</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">PO ID(s)</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Project Name</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Date Needed</th>
-                            <th style="padding: 0.75rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left;">Current Status</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 120px;">MRF ID</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 18%;">Project Name</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 100px;">Date Needed</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: right; width: 110px;">Total Cost</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 18%;">PR ID(s)</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 16%;">PO ID(s)</th>
+                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; min-width: 200px;">Current Status</th>
                         </tr>
                     </thead>
                     <tbody id="historicalMRFsBody">
@@ -4223,12 +4223,13 @@
                         const poSnapshot = await getDocs(poQuery);
 
                         if (!poSnapshot.empty) {
-                            statusCellContent = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+                            statusCellContent = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
                             poSnapshot.forEach((poDoc) => {
                                 const po = poDoc.data();
                                 const isSubcon = po.is_subcon;
                                 const currentStatus = po.procurement_status || (isSubcon ? 'Pending' : 'Pending Procurement');
                                 const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
+                                const supplierName = po.po_id.split('-').pop();
 
                                 let statusOptions;
                                 if (isSubcon) {
@@ -4246,14 +4247,14 @@
                                     `;
                                 }
 
-                                const deliveryFeeDisplay = po.delivery_fee ? `<span style="font-size: 0.7rem; color: #666;">Fee: ₱${parseFloat(po.delivery_fee).toLocaleString()}</span>` : '';
+                                const deliveryFeeDisplay = po.delivery_fee ? `<div style="font-size: 0.7rem; color: #666; margin-top: 2px;">Fee: ₱${parseFloat(po.delivery_fee).toLocaleString()}</div>` : '';
 
                                 statusCellContent += `
-                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                        <span style="font-size: 0.7rem; color: #666; min-width: 70px;">${po.po_id.split('-').pop()}</span>
+                                    <div style="background: #f9fafb; border-radius: 6px; padding: 0.5rem 0.75rem;">
+                                        <div style="font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem;">${supplierName}</div>
                                         <select class="status-select" data-po-id="${poDoc.id}" data-is-subcon="${isSubcon}"
                                                 onchange="updatePOStatus('${poDoc.id}', this.value, '${currentStatus}', ${isSubcon})"
-                                                style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border: 1px solid #ddd; border-radius: 4px; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : ''}"
+                                                style="width: 100%; padding: 0.35rem 0.5rem; font-size: 0.8rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : ''}"
                                                 ${isFinalStatus ? 'disabled' : ''}>
                                             ${statusOptions}
                                         </select>
@@ -4278,14 +4279,14 @@
                 }
 
                 return `
-                    <tr>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;"><strong>${displayId}</strong></td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${totalCostHtml}</td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${mrf.project_name}</td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
-                        <td style="padding: 0.75rem; border-bottom: 1px solid #e5e7eb;">
+                    <tr style="vertical-align: top;">
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;"><strong>${displayId}</strong></td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${mrf.project_name}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb; text-align: right;">${totalCostHtml}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
+                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">
                             ${statusCellContent}
                         </td>
                     </tr>
