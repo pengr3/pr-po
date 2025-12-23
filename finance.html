@@ -767,6 +767,7 @@
                             <th>MRF ID</th>
                             <th>Project</th>
                             <th>Date</th>
+                            <th>Urgency</th>
                             <th>Total Cost</th>
                             <th>Supplier</th>
                             <th>Status</th>
@@ -775,7 +776,7 @@
                     </thead>
                     <tbody id="materialPRsBody">
                         <tr>
-                            <td colspan="8" class="empty-state">
+                            <td colspan="9" class="empty-state">
                                 <div class="empty-state-icon">📦</div>
                                 <div>Loading material PRs...</div>
                             </td>
@@ -799,6 +800,7 @@
                             <th>MRF ID</th>
                             <th>Project</th>
                             <th>Date</th>
+                            <th>Urgency</th>
                             <th>Total Cost</th>
                             <th>Service Type</th>
                             <th>Status</th>
@@ -807,7 +809,7 @@
                     </thead>
                     <tbody id="transportRequestsBody">
                         <tr>
-                            <td colspan="8" class="empty-state">
+                            <td colspan="9" class="empty-state">
                                 <div class="empty-state-icon">🚛</div>
                                 <div>Loading transport requests...</div>
                             </td>
@@ -1343,7 +1345,7 @@
             if (materialPRs.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             <div class="empty-state-icon">✓</div>
                             <div>No pending material PRs</div>
                         </td>
@@ -1356,13 +1358,20 @@
                 const items = JSON.parse(pr.items_json || '[]');
                 // Each PR is for ONE supplier only
                 const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
-                
+                const urgencyColor = pr.urgency_level === 'Critical' ? '#dc2626' :
+                                     pr.urgency_level === 'High' ? '#ef4444' :
+                                     pr.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+                const urgencyBg = pr.urgency_level === 'Critical' ? '#fef2f2' :
+                                  pr.urgency_level === 'High' ? '#fef2f2' :
+                                  pr.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
+
                 return `
                     <tr>
                         <td><strong>${pr.pr_id}</strong></td>
                         <td>${pr.mrf_id}</td>
                         <td>${pr.project_name}</td>
                         <td>${formatDate(pr.date_generated)}</td>
+                        <td><span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${pr.urgency_level || 'Low'}</span></td>
                         <td><strong>₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                         <td>${supplier}</td>
                         <td><span class="status-badge pending">Pending</span></td>
@@ -1381,7 +1390,7 @@
             if (transportRequests.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="empty-state">
+                        <td colspan="9" class="empty-state">
                             <div class="empty-state-icon">✓</div>
                             <div>No pending transport requests</div>
                         </td>
@@ -1393,6 +1402,12 @@
             tbody.innerHTML = transportRequests.map(tr => {
                 const items = JSON.parse(tr.items_json || '[]');
                 const serviceTypes = [...new Set(items.map(item => item.item || item.item_name))];
+                const urgencyColor = tr.urgency_level === 'Critical' ? '#dc2626' :
+                                     tr.urgency_level === 'High' ? '#ef4444' :
+                                     tr.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+                const urgencyBg = tr.urgency_level === 'Critical' ? '#fef2f2' :
+                                  tr.urgency_level === 'High' ? '#fef2f2' :
+                                  tr.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
 
                 return `
                     <tr>
@@ -1400,6 +1415,7 @@
                         <td>${tr.mrf_id}</td>
                         <td>${tr.project_name}</td>
                         <td>${formatDate(tr.date_submitted)}</td>
+                        <td><span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${tr.urgency_level || 'Low'}</span></td>
                         <td><strong>₱${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                         <td>${serviceTypes.slice(0, 2).join(', ')}${serviceTypes.length > 2 ? '...' : ''}</td>
                         <td><span class="status-badge pending">Pending</span></td>
@@ -1462,27 +1478,37 @@
                 const items = JSON.parse(pr.items_json || '[]');
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
                 
+                const urgencyColor = pr.urgency_level === 'Critical' ? '#dc2626' :
+                                     pr.urgency_level === 'High' ? '#ef4444' :
+                                     pr.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+                const urgencyBg = pr.urgency_level === 'Critical' ? '#fef2f2' :
+                                  pr.urgency_level === 'High' ? '#fef2f2' :
+                                  pr.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
+
                 // Build modal content
                 let modalContent = `
                     <div class="info-grid">
                         <div class="info-label">${isTransport ? 'TR' : 'PR'} ID:</div>
                         <div><strong>${pr.pr_id}</strong></div>
-                        
+
                         <div class="info-label">MRF Reference:</div>
                         <div>${pr.mrf_id}</div>
-                        
+
                         <div class="info-label">Project:</div>
                         <div>${pr.project_name}</div>
-                        
+
                         <div class="info-label">Requestor:</div>
                         <div>${pr.requestor_name}</div>
-                        
+
+                        <div class="info-label">Urgency Level:</div>
+                        <div><span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600;">${pr.urgency_level || 'Low'}</span></div>
+
                         <div class="info-label">Date Generated:</div>
                         <div>${formatDate(pr.date_generated)}</div>
-                        
+
                         <div class="info-label">Delivery Address:</div>
                         <div>${pr.delivery_address || 'N/A'}</div>
-                        
+
                         <div class="info-label">Total Amount:</div>
                         <div><strong style="color: var(--success); font-size: 1.25rem;">₱${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></div>
                     </div>
@@ -1573,6 +1599,13 @@
 
                 const items = JSON.parse(tr.items_json || '[]');
 
+                const urgencyColor = tr.urgency_level === 'Critical' ? '#dc2626' :
+                                     tr.urgency_level === 'High' ? '#ef4444' :
+                                     tr.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+                const urgencyBg = tr.urgency_level === 'Critical' ? '#fef2f2' :
+                                  tr.urgency_level === 'High' ? '#fef2f2' :
+                                  tr.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
+
                 // Build modal content
                 let modalContent = `
                     <div class="info-grid">
@@ -1587,6 +1620,9 @@
 
                         <div class="info-label">Requestor:</div>
                         <div>${tr.requestor_name}</div>
+
+                        <div class="info-label">Urgency Level:</div>
+                        <div><span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600;">${tr.urgency_level || 'Low'}</span></div>
 
                         <div class="info-label">Date Submitted:</div>
                         <div>${formatDate(tr.date_submitted)}</div>
@@ -1809,6 +1845,11 @@
 
     <div class="section">
         <div class="field"><span class="label">Project:</span> ${pr.project_name}</div>
+        <div class="field"><span class="label">Urgency Level:</span> <span style="color: ${
+            pr.urgency_level === 'Critical' ? '#dc2626' :
+            pr.urgency_level === 'High' ? '#ef4444' :
+            pr.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e'
+        }; font-weight: bold;">${pr.urgency_level || 'Low'}</span></div>
         <div class="field"><span class="label">Delivery Address:</span> ${pr.delivery_address || 'N/A'}</div>
         ${!isTransport ? `<div class="field"><span class="label">Supplier:</span> ${[...new Set(items.map(i => i.supplier))].join(', ')}</div>` : ''}
     </div>
