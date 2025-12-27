@@ -1072,13 +1072,13 @@
                 <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                     <thead>
                         <tr>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 120px;">MRF ID</th>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 18%;">Project Name</th>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 100px;">Date Needed</th>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: right; width: 110px;">Total Cost</th>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 18%;">PR ID(s)</th>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 16%;">PO ID(s)</th>
-                            <th style="padding: 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; min-width: 200px;">Current Status</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 100px; font-size: 0.85rem;">MRF ID</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 16%; font-size: 0.85rem;">Project Name</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: center; width: 90px; font-size: 0.85rem;">Date Needed</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: right; width: 100px; font-size: 0.85rem;">Total Cost</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 20%; font-size: 0.85rem;">PR ID(s)</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 16%; font-size: 0.85rem;">PO ID(s)</th>
+                            <th style="padding: 0.75rem 1rem; background: #f3f4f6; border-bottom: 2px solid #e5e7eb; text-align: left; width: 18%; font-size: 0.85rem;">Current Status</th>
                         </tr>
                     </thead>
                     <tbody id="historicalMRFsBody">
@@ -4043,18 +4043,25 @@
                                 return numA - numB;
                             });
                             const prIds = prDataArray.map(pr => {
-                                // Add status badge for rejected PRs
-                                let badge = '';
+                                // Add status badge for each PR
+                                let badgeColor = '#6b7280'; // gray default
+                                let badgeText = '';
                                 if (pr.finance_status === 'Rejected') {
-                                    badge = ' <span style="background: #dc2626; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">REJECTED</span>';
+                                    badgeColor = '#dc2626';
+                                    badgeText = 'REJECTED';
                                 } else if (pr.finance_status === 'Approved') {
-                                    badge = ' <span style="background: #16a34a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">APPROVED</span>';
+                                    badgeColor = '#16a34a';
+                                    badgeText = 'APPROVED';
                                 } else if (pr.finance_status === 'Pending') {
-                                    badge = ' <span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600;">PENDING</span>';
+                                    badgeColor = '#f59e0b';
+                                    badgeText = 'PENDING';
                                 }
-                                return `<a href="javascript:void(0)" onclick="viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${pr.pr_id}</a>${badge}`;
+                                return `<div style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 0.5rem;">
+                                    <a href="javascript:void(0)" onclick="viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
+                                    ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
+                                </div>`;
                             });
-                            prHtml = prIds.join('<br>');
+                            prHtml = '<div style="display: flex; flex-direction: column;">' + prIds.join('') + '</div>';
                         }
                     } catch (error) {
                         console.error('Error fetching PRs for', mrf.mrf_id, error);
@@ -4121,9 +4128,11 @@
                                 return numA - numB;
                             });
                             const poIds = poDataArray.map(po =>
-                                `<a href="javascript:void(0)" onclick="viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; display: inline-block; margin-right: 0.5rem;">${po.po_id}</a>`
+                                `<div style="margin-bottom: 0.5rem;">
+                                    <a href="javascript:void(0)" onclick="viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>
+                                </div>`
                             );
-                            poHtml = poIds.join('<br>');
+                            poHtml = '<div style="display: flex; flex-direction: column;">' + poIds.join('') + '</div>';
                         }
                     } catch (error) {
                         console.error('Error fetching POs for', mrf.mrf_id, error);
@@ -4223,7 +4232,7 @@
                         const poSnapshot = await getDocs(poQuery);
 
                         if (!poSnapshot.empty) {
-                            statusCellContent = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">';
+                            statusCellContent = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
                             poSnapshot.forEach((poDoc) => {
                                 const po = poDoc.data();
                                 const isSubcon = po.is_subcon;
@@ -4247,14 +4256,14 @@
                                     `;
                                 }
 
-                                const deliveryFeeDisplay = po.delivery_fee ? `<div style="font-size: 0.7rem; color: #666; margin-top: 2px;">Fee: ₱${parseFloat(po.delivery_fee).toLocaleString()}</div>` : '';
+                                const deliveryFeeDisplay = po.delivery_fee ? `<div style="font-size: 0.65rem; color: #666; margin-top: 2px;">Fee: ₱${parseFloat(po.delivery_fee).toLocaleString()}</div>` : '';
 
                                 statusCellContent += `
-                                    <div style="background: #f9fafb; border-radius: 6px; padding: 0.5rem 0.75rem;">
-                                        <div style="font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem;">${supplierName}</div>
+                                    <div style="background: #f9fafb; border-radius: 4px; padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #374151; margin-bottom: 0.25rem; text-transform: uppercase;">${supplierName}</div>
                                         <select class="status-select" data-po-id="${poDoc.id}" data-is-subcon="${isSubcon}"
                                                 onchange="updatePOStatus('${poDoc.id}', this.value, '${currentStatus}', ${isSubcon})"
-                                                style="width: 100%; padding: 0.35rem 0.5rem; font-size: 0.8rem; border: 1px solid #d1d5db; border-radius: 4px; background: white; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : ''}"
+                                                style="width: 100%; padding: 0.25rem 0.35rem; font-size: 0.75rem; border: 1px solid #d1d5db; border-radius: 3px; background: white; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : ''}"
                                                 ${isFinalStatus ? 'disabled' : ''}>
                                             ${statusOptions}
                                         </select>
@@ -4272,7 +4281,7 @@
                 // Fallback to status badge if no PO tracking
                 if (!statusCellContent) {
                     statusCellContent = `
-                        <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                        <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.35rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block;">
                             ${detailedStatus}
                         </span>
                     `;
@@ -4280,15 +4289,13 @@
 
                 return `
                     <tr style="vertical-align: top;">
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;"><strong>${displayId}</strong></td>
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${mrf.project_name}</td>
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb; text-align: right;">${totalCostHtml}</td>
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
-                        <td style="padding: 1rem; border-bottom: 1px solid #e5e7eb;">
-                            ${statusCellContent}
-                        </td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem;"><strong>${displayId}</strong></td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem;">${mrf.project_name}</td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 0.85rem;">${totalCostHtml}</td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb;">${prHtml}</td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb;">${poHtml}</td>
+                        <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb;">${statusCellContent}</td>
                     </tr>
                 `;
             }));
