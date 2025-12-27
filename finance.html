@@ -462,6 +462,26 @@
             border-left: 4px solid var(--warning);
         }
 
+        /* Fix z-index for modals that open on top of other modals */
+        #signatureModal,
+        #rejectionModal {
+            z-index: 1050;
+        }
+
+        #signatureModal .modal-content,
+        #rejectionModal .modal-content {
+            position: relative;
+        }
+
+        /* Ensure inputs and textareas in modals are always accessible */
+        #signatureModal input,
+        #signatureModal textarea,
+        #rejectionModal input,
+        #rejectionModal textarea {
+            position: relative;
+            z-index: 1;
+        }
+
         .po-card {
             border: 1px solid var(--gray-200);
             border-radius: 6px;
@@ -1831,8 +1851,9 @@
 </head>
 <body>
     <div class="header">
-        <h1>C LACSAMANA MANAGEMENT AND CONSTRUCTION CORPORATION</h1>
-        <p>133 Pinatubo St., Mandaluyong City, Metro Manila | Tel: 09178182993 | Email: cgl@consultclm.com</p>
+        <h1>C Lacsamana Management and Construction Corporation</h1>
+        <p>133 Pinatubo St., Mandaluyong City, Metro Manila</p>
+        <p>Tel: 09178182993 | Email: cgl@consultclm.com</p>
     </div>
 
     <div class="title">PURCHASE REQUEST FORM (PR)</div>
@@ -1845,11 +1866,6 @@
 
     <div class="section">
         <div class="field"><span class="label">Project:</span> ${pr.project_name}</div>
-        <div class="field"><span class="label">Urgency Level:</span> <span style="color: ${
-            pr.urgency_level === 'Critical' ? '#dc2626' :
-            pr.urgency_level === 'High' ? '#ef4444' :
-            pr.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e'
-        }; font-weight: bold;">${pr.urgency_level || 'Low'}</span></div>
         <div class="field"><span class="label">Delivery Address:</span> ${pr.delivery_address || 'N/A'}</div>
         ${!isTransport ? `<div class="field"><span class="label">Supplier:</span> ${[...new Set(items.map(i => i.supplier))].join(', ')}</div>` : ''}
     </div>
@@ -1860,13 +1876,11 @@
             <thead>
                 <tr>
                     <th style="width: 5%;">No.</th>
-                    <th style="width: ${isTransport ? '40%' : '30%'};">${isTransport ? 'Service Description' : 'Item Description'}</th>
-                    <th style="width: 15%;">Category</th>
-                    <th style="width: 10%;">Quantity</th>
+                    <th style="width: 45%;">${isTransport ? 'Service Description' : 'Description'}</th>
+                    <th style="width: 10%;">Qty</th>
                     <th style="width: 10%;">Unit</th>
-                    <th style="width: ${isTransport ? '20%' : '15%'};">Unit Cost</th>
-                    ${!isTransport ? '<th style="width: 15%;">Supplier</th>' : ''}
-                    <th style="width: 15%;">Total Cost</th>
+                    <th style="width: 15%;">Unit Cost</th>
+                    <th style="width: 15%;">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -1874,11 +1888,9 @@
                     <tr>
                         <td>${index + 1}</td>
                         <td>${item.item || item.item_name}</td>
-                        <td>${item.category || 'N/A'}</td>
                         <td>${item.qty || item.quantity}</td>
                         <td>${item.unit}</td>
                         <td>₱${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                        ${!isTransport ? `<td>${item.supplier || 'N/A'}</td>` : ''}
                         <td>₱${parseFloat(item.subtotal || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                     </tr>
                 `).join('')}
@@ -2919,7 +2931,7 @@
             if (!dateString) return 'N/A';
             return new Date(dateString).toLocaleDateString('en-PH', {
                 year: 'numeric',
-                month: 'short',
+                month: 'long',
                 day: 'numeric'
             });
         }
