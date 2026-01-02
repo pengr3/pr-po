@@ -734,6 +734,74 @@
         .expense-tab-content.active {
             display: block;
         }
+
+        /* Back to Top Button */
+        #backToTop {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        #backToTop:hover {
+            background: #1557b0;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Quick Navigation */
+        .quick-nav {
+            position: sticky;
+            top: 1rem;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            z-index: 10;
+        }
+
+        .quick-nav-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--gray-700);
+            font-size: 0.875rem;
+        }
+
+        .quick-nav-links {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .quick-nav-link {
+            padding: 0.5rem 1rem;
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .quick-nav-link:hover {
+            background: var(--primary);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -858,6 +926,17 @@
 
         <!-- Tab 3: Historical Data -->
         <div id="historical" class="tab-content">
+            <!-- Quick Navigation -->
+            <div class="quick-nav">
+                <div class="quick-nav-title">Jump to Section:</div>
+                <div class="quick-nav-links">
+                    <a href="#supplierAnalyticsSection" class="quick-nav-link">📊 Supplier Analytics</a>
+                    <a href="#priceHistorySection" class="quick-nav-link">💰 Price History</a>
+                    <a href="#purchasedItemsSection" class="quick-nav-link">🛒 Purchased Items</a>
+                    <a href="#purchaseHistorySection" class="quick-nav-link">📋 PR History</a>
+                </div>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-label">Total Spend This Month</div>
@@ -886,7 +965,7 @@
             </div>
 
             <!-- Supplier Analytics Section -->
-            <div class="panel" style="margin-top: 1.5rem;">
+            <div id="supplierAnalyticsSection" class="panel" style="margin-top: 1.5rem;">
                 <div class="panel-header">
                     <h2>📊 Supplier Analytics</h2>
                     <button class="btn btn-secondary btn-sm" onclick="toggleSection('supplierAnalytics')">
@@ -924,7 +1003,7 @@
             </div>
 
             <!-- Item Price History Section -->
-            <div class="panel" style="margin-top: 1.5rem;">
+            <div id="priceHistorySection" class="panel" style="margin-top: 1.5rem;">
                 <div class="panel-header">
                     <h2>💰 Item Price History</h2>
                     <button class="btn btn-secondary btn-sm" onclick="toggleSection('priceHistory')">
@@ -985,7 +1064,7 @@
             </div>
 
             <!-- Previously Purchased Items -->
-            <div class="panel" style="margin-top: 1.5rem;">
+            <div id="purchasedItemsSection" class="panel" style="margin-top: 1.5rem;">
                 <div class="panel-header">
                     <h2>🛒 Previously Purchased Items</h2>
                     <button class="btn btn-secondary btn-sm" onclick="toggleSection('purchasedItems')">
@@ -1005,7 +1084,7 @@
                         <input
                             type="text"
                             id="purchasedItemSearchInput"
-                            placeholder="🔍 Search by item, supplier, or PR/TR ID..."
+                            placeholder="🔍 Search by item, supplier, or PO ID..."
                             style="flex: 1; min-width: 250px; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem;"
                             oninput="filterPurchasedItems()"
                         />
@@ -1028,7 +1107,7 @@
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>PR/TR ID</th>
+                                <th>PO ID</th>
                                 <th>Item Name</th>
                                 <th>Category</th>
                                 <th>Quantity</th>
@@ -1047,11 +1126,14 @@
                             </tr>
                         </tbody>
                     </table>
+
+                    <!-- Pagination Controls -->
+                    <div id="purchasedItemsPagination" style="margin-top: 1rem;"></div>
                 </div>
             </div>
 
             <!-- Purchase History (Original Table - Kept for compatibility) -->
-            <div class="panel" style="margin-top: 1.5rem;">
+            <div id="purchaseHistorySection" class="panel" style="margin-top: 1.5rem;">
                 <div class="panel-header">
                     <h2>📋 Purchase Request History</h2>
                     <button class="btn btn-secondary btn-sm" onclick="toggleSection('purchaseHistory')">
@@ -3142,6 +3224,10 @@
         let itemPriceHistoryData = [];
         let purchasedItemsData = [];
 
+        // Pagination for purchased items
+        let currentPurchasedItemsPage = 1;
+        const itemsPerPage = 50;
+
         // ========== SUPPLIER ANALYTICS ==========
         function updateSupplierAnalytics(data) {
             allHistoricalData = data;
@@ -3319,10 +3405,10 @@
                     const latest = item.priceHistory[0].price;
                     const previous = item.priceHistory[1].price;
                     if (latest > previous) {
-                        trendIcon = '📈';
+                        trendIcon = '▲';
                         trendColor = 'var(--danger)';
                     } else if (latest < previous) {
-                        trendIcon = '📉';
+                        trendIcon = '▼';
                         trendColor = 'var(--success)';
                     }
                 }
@@ -3349,17 +3435,32 @@
         }
 
         // ========== PURCHASED ITEMS ==========
-        function updatePurchasedItems(data) {
+        async function updatePurchasedItems(data) {
             purchasedItemsData = [];
+
+            // Load all POs to create a mapping of pr_id to po_id and document id
+            const posRef = collection(db, 'pos');
+            const posSnapshot = await getDocs(posRef);
+            const prToPOMap = new Map();
+
+            posSnapshot.forEach(doc => {
+                const po = doc.data();
+                if (po.pr_id) {
+                    prToPOMap.set(po.pr_id, { po_id: po.po_id, doc_id: doc.id });
+                }
+            });
 
             data.forEach(pr => {
                 const items = JSON.parse(pr.items_json || '[]');
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+                const poInfo = prToPOMap.get(pr.pr_id);
 
                 items.forEach(item => {
                     purchasedItemsData.push({
                         date: pr.date_approved || pr.date_generated,
                         pr_id: pr.pr_id,
+                        po_id: poInfo?.po_id || 'N/A',
+                        po_doc_id: poInfo?.doc_id || null,
                         item_name: item.item || item.item_name || 'N/A',
                         category: item.category || (isTransport ? 'Transport & Delivery' : 'Uncategorized'),
                         quantity: `${item.qty || item.quantity || 0} ${item.unit || 'unit'}`,
@@ -3388,22 +3489,87 @@
                         </td>
                     </tr>
                 `;
+                updatePurchasedItemsPagination(0);
                 return;
             }
 
-            tbody.innerHTML = items.map(item => `
-                <tr>
-                    <td>${formatDate(item.date)}</td>
-                    <td><strong>${item.pr_id}</strong></td>
-                    <td>${item.item_name}</td>
-                    <td>${item.category}</td>
-                    <td>${item.quantity}</td>
-                    <td>₱${item.unit_price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                    <td><strong>₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
-                    <td>${item.supplier}</td>
-                    <td style="font-size: 0.875rem;">${item.project}</td>
-                </tr>
-            `).join('');
+            // Pagination
+            const startIndex = (currentPurchasedItemsPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedItems = items.slice(startIndex, endIndex);
+
+            tbody.innerHTML = paginatedItems.map(item => {
+                const poLink = item.po_doc_id
+                    ? `<a href="#" onclick="viewPODocument('${item.po_doc_id}'); return false;" style="color: #1a73e8; text-decoration: none; font-weight: 600; cursor: pointer;" title="Click to view PO details">${item.po_id}</a>`
+                    : `<span style="color: var(--gray-500);">${item.po_id}</span>`;
+
+                return `
+                    <tr>
+                        <td>${formatDate(item.date)}</td>
+                        <td>${poLink}</td>
+                        <td>${item.item_name}</td>
+                        <td>${item.category}</td>
+                        <td>${item.quantity}</td>
+                        <td>₱${item.unit_price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td><strong>₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td>${item.supplier}</td>
+                        <td style="font-size: 0.875rem;">${item.project}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            updatePurchasedItemsPagination(items.length);
+        }
+
+        function updatePurchasedItemsPagination(totalItems) {
+            const paginationDiv = document.getElementById('purchasedItemsPagination');
+            if (!paginationDiv) return;
+
+            if (totalItems === 0) {
+                paginationDiv.innerHTML = '';
+                return;
+            }
+
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            if (totalPages <= 1) {
+                paginationDiv.innerHTML = `<div style="text-align: center; color: var(--gray-600);">Showing all ${totalItems} items</div>`;
+                return;
+            }
+
+            const startItem = ((currentPurchasedItemsPage - 1) * itemsPerPage) + 1;
+            const endItem = Math.min(currentPurchasedItemsPage * itemsPerPage, totalItems);
+
+            paginationDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--gray-50); border-radius: 6px;">
+                    <div style="color: var(--gray-600);">
+                        Showing ${startItem}-${endItem} of ${totalItems} items
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button
+                            class="btn btn-sm btn-secondary"
+                            onclick="changePurchasedItemsPage(${currentPurchasedItemsPage - 1})"
+                            ${currentPurchasedItemsPage === 1 ? 'disabled' : ''}
+                        >
+                            ← Previous
+                        </button>
+                        <span style="padding: 0.5rem 1rem; background: white; border: 1px solid var(--gray-300); border-radius: 4px;">
+                            Page ${currentPurchasedItemsPage} of ${totalPages}
+                        </span>
+                        <button
+                            class="btn btn-sm btn-secondary"
+                            onclick="changePurchasedItemsPage(${currentPurchasedItemsPage + 1})"
+                            ${currentPurchasedItemsPage === totalPages ? 'disabled' : ''}
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.changePurchasedItemsPage = function(page) {
+            currentPurchasedItemsPage = page;
+            filterPurchasedItems();
         }
 
         // ========== FILTERING FUNCTIONS ==========
@@ -3429,7 +3595,7 @@
                 const matchesSearch =
                     item.item_name.toLowerCase().includes(searchTerm) ||
                     item.supplier.toLowerCase().includes(searchTerm) ||
-                    item.pr_id.toLowerCase().includes(searchTerm) ||
+                    item.po_id.toLowerCase().includes(searchTerm) ||
                     item.project.toLowerCase().includes(searchTerm);
 
                 const itemDate = new Date(item.date);
@@ -4698,6 +4864,42 @@
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', init);
+
+        // Back to Top Button functionality
+        const backToTopBtn = document.createElement('button');
+        backToTopBtn.id = 'backToTop';
+        backToTopBtn.innerHTML = '↑';
+        backToTopBtn.title = 'Back to Top';
+        document.body.appendChild(backToTopBtn);
+
+        // Show/hide back to top button on scroll
+        window.addEventListener('scroll', () => {
+            if (window.pageYOffset > 300) {
+                backToTopBtn.style.display = 'flex';
+            } else {
+                backToTopBtn.style.display = 'none';
+            }
+        });
+
+        // Scroll to top when clicked
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Smooth scrolling for quick nav links
+        document.querySelectorAll('.quick-nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
     </script>
 </body>
 </html>
