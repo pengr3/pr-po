@@ -810,7 +810,10 @@
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">Pending MRFs</h3>
-                        <button class="btn btn-secondary" onclick="loadMRFs()" style="padding: 0.5rem 1rem; background: #dadce0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"> Refresh</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="createNewMRF()" style="padding: 0.5rem 1rem; background: #1a73e8; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; color: white;"> New</button>
+                            <button class="btn btn-secondary" onclick="loadMRFs()" style="padding: 0.5rem 1rem; background: #dadce0; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;"> Refresh</button>
+                        </div>
                     </div>
                     <div class="mrf-list" id="mrfList">
                         <div style="text-align: center; padding: 2rem; color: #999;">
@@ -1124,6 +1127,7 @@
         window.firestore = { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot };
         let currentMRF = null;
         let suppliersData = [];
+        let projectsData = [];
         let editingSupplier = null;
         let suppliersCurrentPage = 1;
         const suppliersItemsPerPage = 15;
@@ -1993,6 +1997,7 @@
 
         async function init() {
             await loadSuppliers();
+            await loadProjects();
             await loadMRFs();
             await loadPOTracking();
             await loadHistoricalMRFs();
@@ -2001,7 +2006,7 @@
         // Load suppliers with real-time updates
         async function loadSuppliers() {
             const suppliersRef = collection(db, 'suppliers');
-            
+
             // Real-time listener
             onSnapshot(suppliersRef, (snapshot) => {
                 suppliersData = [];
@@ -2010,6 +2015,23 @@
                 });
                 renderSuppliersTable();
                 console.log('Suppliers updated:', suppliersData.length);
+            });
+        }
+
+        // Load projects with real-time updates
+        async function loadProjects() {
+            const projectsRef = collection(db, 'projects');
+            const q = query(projectsRef, where('status', '==', 'active'));
+
+            // Real-time listener
+            onSnapshot(q, (snapshot) => {
+                projectsData = [];
+                snapshot.forEach((doc) => {
+                    projectsData.push({ id: doc.id, ...doc.data() });
+                });
+                // Sort projects alphabetically by project_name
+                projectsData.sort((a, b) => a.project_name.localeCompare(b.project_name));
+                console.log('Projects updated:', projectsData.length);
             });
         }
 
@@ -2212,11 +2234,33 @@
     }
 }
 
+        // Create new MRF
+        window.createNewMRF = function() {
+            // Clear selection from MRF list
+            document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
+
+            // Create a new empty MRF object
+            currentMRF = {
+                id: null, // null ID indicates this is a new MRF
+                mrf_id: 'NEW', // Temporary ID
+                request_type: 'material',
+                urgency_level: 'Low',
+                project_name: '',
+                requestor_name: '',
+                date_needed: '',
+                delivery_address: '',
+                items_json: JSON.stringify([{item: '', qty: 1, unit: '', category: '', unit_cost: 0, supplier: ''}]),
+                status: 'Pending'
+            };
+
+            renderMRFDetails(currentMRF, true); // true indicates this is a new MRF
+        };
+
         // Select MRF
             window.selectMRF = async function(mrfId, element) {
                 const mrfsRef = collection(db, 'mrfs');
                 const snapshot = await getDocs(mrfsRef);
-    
+
                 snapshot.forEach((doc) => {
                     if (doc.id === mrfId) {
                         currentMRF = { id: doc.id, ...doc.data() };
@@ -2224,8 +2268,8 @@
             });
 
     if (currentMRF) {
-        renderMRFDetails(currentMRF);
-        
+        renderMRFDetails(currentMRF, false); // false indicates this is an existing MRF
+
         // Update selected state
         document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
         element.classList.add('selected');
@@ -2233,61 +2277,96 @@
 };
 
         // Render MRF details
-        function renderMRFDetails(mrf) {
+        function renderMRFDetails(mrf, isNew = false) {
             const items = JSON.parse(mrf.items_json);
 
-            // Show correct button based on request type
-            const isService = mrf.request_type === 'service';
-            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected';
-            
-            let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
-            if (canEdit) {
-                if (isService) {
-                    buttons += ' <button class="btn btn-success" onclick="submitTransportRequest()"> Submit to Finance</button>';
-                } else {
-                    buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
+            // Show correct button based on whether it's new or existing
+            if (isNew) {
+                // For new MRFs, only show Save button
+                let buttons = '<button class="btn btn-primary" onclick="saveNewMRF()"> Save New MRF</button>';
+                document.getElementById('mrfActions').innerHTML = buttons;
+            } else {
+                // For existing MRFs, show normal buttons
+                const isService = mrf.request_type === 'service';
+                const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected';
+
+                let buttons = '<button class="btn btn-primary" onclick="saveProgress()"> Save</button>';
+                if (canEdit) {
+                    if (isService) {
+                        buttons += ' <button class="btn btn-success" onclick="submitTransportRequest()"> Submit to Finance</button>';
+                    } else {
+                        buttons += ' <button class="btn btn-success" onclick="generatePR()"> Generate PR</button>';
+                    }
                 }
+                // Add delete button for procurement to remove unnecessary requests
+                buttons += ' <button class="btn btn-danger" onclick="deleteMRF()" style="margin-left: 0.5rem;"> Delete MRF</button>';
+                document.getElementById('mrfActions').innerHTML = buttons;
             }
-            // Add delete button for procurement to remove unnecessary requests
-            buttons += ' <button class="btn btn-danger" onclick="deleteMRF()" style="margin-left: 0.5rem;"> Delete MRF</button>';
-            document.getElementById('mrfActions').innerHTML = buttons;
-            
-            const requestTypeLabel = mrf.request_type === 'service' ? 
+
+            const requestTypeLabel = mrf.request_type === 'service' ?
                 'Delivery/Hauling/Transportation' : 'Material Request';
-            
+
+            // Build project options for dropdown
+            const projectOptions = projectsData.map(p =>
+                `<option value="${p.project_name}" ${p.project_name === mrf.project_name ? 'selected' : ''}>${p.project_name}</option>`
+            ).join('');
+
             const details = `
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem;">
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">MRF ID</div>
-                        <div style="font-weight: 600;">${mrf.mrf_id}</div>
+                        <div style="font-weight: 600;">${isNew ? '(Will be auto-generated)' : mrf.mrf_id}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Request Type</div>
-                        <div style="font-weight: 600;">${requestTypeLabel}</div>
+                        ${isNew ? `
+                            <select id="requestType" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit;">
+                                <option value="material" ${mrf.request_type === 'material' ? 'selected' : ''}>Material Request</option>
+                                <option value="service" ${mrf.request_type === 'service' ? 'selected' : ''}>Delivery/Hauling/Transportation</option>
+                            </select>
+                        ` : `<div style="font-weight: 600;">${requestTypeLabel}</div>`}
                     </div>
                     <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div style="font-weight: 600;">${mrf.project_name}</div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Project *</div>
+                        ${isNew ? `
+                            <select id="projectName" required style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                                <option value="">-- Select a project --</option>
+                                ${projectOptions}
+                            </select>
+                        ` : `<div style="font-weight: 600;">${mrf.project_name}</div>`}
                     </div>
                     <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Requestor</div>
-                        <div>${mrf.requestor_name}</div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Requestor *</div>
+                        ${isNew ? `
+                            <input type="text" id="requestorName" value="${mrf.requestor_name || ''}" required style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';" placeholder="Enter requestor name">
+                        ` : `<div>${mrf.requestor_name}</div>`}
                     </div>
                     <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Date Needed</div>
-                        <div>${new Date(mrf.date_needed).toLocaleDateString()}</div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Date Needed *</div>
+                        ${isNew ? `
+                            <input type="date" id="dateNeeded" value="${mrf.date_needed || ''}" required min="${new Date().toISOString().split('T')[0]}" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                        ` : `<div>${new Date(mrf.date_needed).toLocaleDateString()}</div>`}
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
                         <div>${mrf.status}</div>
                     </div>
                     <div>
-                        <div style="font-size: 0.75rem; color: #5f6368;">Urgency Level</div>
-                        <div style="font-weight: 600; color: ${
-                            mrf.urgency_level === 'Critical' ? '#dc2626' :
-                            mrf.urgency_level === 'High' ? '#ef4444' :
-                            mrf.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e'
-                        };">${mrf.urgency_level || 'Low'}</div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Urgency Level *</div>
+                        ${isNew ? `
+                            <select id="urgencyLevel" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                                <option value="Low" ${(mrf.urgency_level || 'Low') === 'Low' ? 'selected' : ''}>Low</option>
+                                <option value="Medium" ${mrf.urgency_level === 'Medium' ? 'selected' : ''}>Medium</option>
+                                <option value="High" ${mrf.urgency_level === 'High' ? 'selected' : ''}>High</option>
+                                <option value="Critical" ${mrf.urgency_level === 'Critical' ? 'selected' : ''}>Critical</option>
+                            </select>
+                        ` : `
+                            <div style="font-weight: 600; color: ${
+                                mrf.urgency_level === 'Critical' ? '#dc2626' :
+                                mrf.urgency_level === 'High' ? '#ef4444' :
+                                mrf.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e'
+                            };">${mrf.urgency_level || 'Low'}</div>
+                        `}
                     </div>
                 </div>
 
@@ -2479,6 +2558,9 @@
         window.updateActionButtons = function() {
             if (!currentMRF) return;
 
+            // Don't update buttons for new MRFs - they have their own button
+            if (currentMRF.id === null) return;
+
             const rows = document.querySelectorAll('#lineItemsBody tr');
             const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
             let hasTransport = false;
@@ -2509,6 +2591,9 @@
                     buttons += ' <button class="btn btn-info" onclick="submitTransportRequest()"> Submit as TR</button>';
                 }
             }
+
+            // Add delete button for procurement to remove unnecessary requests
+            buttons += ' <button class="btn btn-danger" onclick="deleteMRF()" style="margin-left: 0.5rem;"> Delete MRF</button>';
 
             document.getElementById('mrfActions').innerHTML = buttons;
         };
@@ -2677,6 +2762,153 @@
                 showToast('Line item deleted', 'success');
             }
         }
+
+        // Save new MRF
+        window.saveNewMRF = async function() {
+            if (!currentMRF || currentMRF.id !== null) {
+                showToast('This is not a new MRF', 'error');
+                return;
+            }
+
+            // Collect form data
+            const requestType = document.getElementById('requestType')?.value || 'material';
+            const projectName = document.getElementById('projectName')?.value?.trim();
+            const requestorName = document.getElementById('requestorName')?.value?.trim();
+            const dateNeeded = document.getElementById('dateNeeded')?.value;
+            const urgencyLevel = document.getElementById('urgencyLevel')?.value || 'Low';
+            const deliveryAddress = document.getElementById('deliveryAddress')?.value?.trim();
+
+            // Validate required fields
+            if (!projectName) {
+                showToast('Please select a project', 'error');
+                return;
+            }
+            if (!requestorName) {
+                showToast('Please enter requestor name', 'error');
+                return;
+            }
+            if (!dateNeeded) {
+                showToast('Please select date needed', 'error');
+                return;
+            }
+            if (!deliveryAddress) {
+                showToast('Please enter delivery address', 'error');
+                return;
+            }
+
+            // Collect items from DOM rows
+            const rows = document.querySelectorAll('#lineItemsBody tr');
+            const items = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+                const category = row.querySelector('select.item-category')?.value || '';
+                const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+                const unit = row.querySelector('select.item-unit')?.value || '';
+                const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+                const supplier = row.querySelector('select.supplier-select')?.value || '';
+
+                // Validate required fields
+                if (!itemName) {
+                    showToast(`Please enter an item name for row ${i + 1}`, 'error');
+                    return;
+                }
+                if (!category) {
+                    showToast(`Please select a category for "${itemName}"`, 'error');
+                    return;
+                }
+                if (qty <= 0) {
+                    showToast(`Please enter a valid quantity for "${itemName}"`, 'error');
+                    return;
+                }
+                if (!unit) {
+                    showToast(`Please select a unit for "${itemName}"`, 'error');
+                    return;
+                }
+
+                items.push({
+                    item: itemName,
+                    category: category,
+                    qty: qty,
+                    unit: unit,
+                    unit_cost: unitCost,
+                    supplier: supplier,
+                    subtotal: qty * unitCost
+                });
+            }
+
+            if (items.length === 0) {
+                showToast('At least one item is required', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                // Generate MRF ID
+                const year = new Date().getFullYear();
+                const mrfsRef = collection(db, 'mrfs');
+                const snapshot = await getDocs(mrfsRef);
+
+                let maxNum = 0;
+                const yearPrefix = `MRF-${year}-`;
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.mrf_id && data.mrf_id.startsWith(yearPrefix)) {
+                        const match = data.mrf_id.match(/MRF-\d{4}-(\d+)/);
+                        if (match) {
+                            const num = parseInt(match[1]);
+                            if (num > maxNum) {
+                                maxNum = num;
+                            }
+                        }
+                    }
+                });
+
+                const mrfId = `MRF-${year}-${String(maxNum + 1).padStart(3, '0')}`;
+
+                // Create MRF document
+                const mrfDoc = {
+                    mrf_id: mrfId,
+                    request_type: requestType,
+                    urgency_level: urgencyLevel,
+                    project_name: projectName,
+                    requestor_name: requestorName,
+                    date_needed: dateNeeded,
+                    date_submitted: new Date().toISOString().split('T')[0],
+                    delivery_address: deliveryAddress,
+                    items_json: JSON.stringify(items),
+                    status: 'Pending',
+                    created_at: new Date().toISOString()
+                };
+
+                // Save to Firebase
+                await addDoc(mrfsRef, mrfDoc);
+
+                showToast(`New MRF created successfully! MRF ID: ${mrfId}`, 'success');
+
+                // Clear the form and reset currentMRF
+                currentMRF = null;
+                document.getElementById('mrfDetails').innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #999;">
+                        <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; color: #059669;">✓ MRF Created Successfully</div>
+                        <div style="font-size: 0.875rem; margin-top: 0.5rem;">MRF ID: ${mrfId}</div>
+                        <div style="font-size: 0.875rem; margin-top: 0.5rem;">Select an MRF to view details or create a new one</div>
+                    </div>
+                `;
+
+                // Refresh MRF list
+                await loadMRFs();
+
+            } catch (error) {
+                console.error('Error creating new MRF:', error);
+                showToast('Failed to create MRF: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        };
 
         // Save progress
         window.saveProgress = async function() {
