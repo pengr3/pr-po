@@ -871,34 +871,216 @@
                     <div class="stat-label">Total Purchases</div>
                     <div class="stat-value" id="totalPurchases">0</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Suppliers</div>
+                    <div class="stat-value" id="totalSuppliers">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Unique Items</div>
+                    <div class="stat-value" id="totalUniqueItems">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Order Value</div>
+                    <div class="stat-value" id="avgOrderValue">₱0</div>
+                </div>
             </div>
 
-            <div class="panel">
+            <!-- Supplier Analytics Section -->
+            <div class="panel" style="margin-top: 1.5rem;">
                 <div class="panel-header">
-                    <h2>Purchase History</h2>
+                    <h2>📊 Supplier Analytics</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleSection('supplierAnalytics')">
+                        <span id="supplierAnalyticsToggle">▼</span> Toggle
+                    </button>
                 </div>
+                <div id="supplierAnalytics" style="display: block;">
+                    <div style="margin-bottom: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 6px;">
+                        <p style="font-size: 0.875rem; color: var(--gray-700);">
+                            <strong>📌 Purpose:</strong> View all suppliers, their total spending, number of orders, and average order value.
+                            This helps identify reliable suppliers and spending patterns.
+                        </p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Supplier Name</th>
+                                <th>Total Spent</th>
+                                <th>Orders Count</th>
+                                <th>Avg Order Value</th>
+                                <th>Last Order Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="supplierAnalyticsTableBody">
+                            <tr>
+                                <td colspan="6" class="empty-state">
+                                    <div class="empty-state-icon">📊</div>
+                                    <div>Loading supplier data...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>PR/TR ID</th>
-                            <th>Project</th>
-                            <th>Type</th>
-                            <th>Total Cost</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historicalTableBody">
-                        <tr>
-                            <td colspan="7" class="empty-state">
-                                <div class="empty-state-icon">📊</div>
-                                <div>Loading historical data...</div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+            <!-- Item Price History Section -->
+            <div class="panel" style="margin-top: 1.5rem;">
+                <div class="panel-header">
+                    <h2>💰 Item Price History</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleSection('priceHistory')">
+                        <span id="priceHistoryToggle">▼</span> Toggle
+                    </button>
+                </div>
+                <div id="priceHistory" style="display: block;">
+                    <div style="margin-bottom: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 6px;">
+                        <p style="font-size: 0.875rem; color: var(--gray-700);">
+                            <strong>📌 Purpose:</strong> Track price changes for items over time. Compare prices across different suppliers
+                            and dates to make informed purchasing decisions.
+                        </p>
+                    </div>
+
+                    <!-- Search and Filter -->
+                    <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <input
+                            type="text"
+                            id="itemSearchInput"
+                            placeholder="🔍 Search item by name..."
+                            style="flex: 1; min-width: 250px; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem;"
+                            oninput="filterItemPriceHistory()"
+                        />
+                        <select
+                            id="categoryFilter"
+                            style="padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem;"
+                            onchange="filterItemPriceHistory()"
+                        >
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Unit</th>
+                                <th>Current Price</th>
+                                <th>Min Price</th>
+                                <th>Max Price</th>
+                                <th>Avg Price</th>
+                                <th>Price Trend</th>
+                                <th>Suppliers</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="priceHistoryTableBody">
+                            <tr>
+                                <td colspan="10" class="empty-state">
+                                    <div class="empty-state-icon">💰</div>
+                                    <div>Loading price history...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Previously Purchased Items -->
+            <div class="panel" style="margin-top: 1.5rem;">
+                <div class="panel-header">
+                    <h2>🛒 Previously Purchased Items</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleSection('purchasedItems')">
+                        <span id="purchasedItemsToggle">▼</span> Toggle
+                    </button>
+                </div>
+                <div id="purchasedItems" style="display: block;">
+                    <div style="margin-bottom: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 6px;">
+                        <p style="font-size: 0.875rem; color: var(--gray-700);">
+                            <strong>📌 Purpose:</strong> Complete list of all purchased items with details.
+                            Use this as a reference to check past purchases and pricing.
+                        </p>
+                    </div>
+
+                    <!-- Search and Filter -->
+                    <div style="margin-bottom: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <input
+                            type="text"
+                            id="purchasedItemSearchInput"
+                            placeholder="🔍 Search by item, supplier, or PR/TR ID..."
+                            style="flex: 1; min-width: 250px; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem;"
+                            oninput="filterPurchasedItems()"
+                        />
+                        <input
+                            type="date"
+                            id="dateFromFilter"
+                            style="padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem;"
+                            onchange="filterPurchasedItems()"
+                        />
+                        <input
+                            type="date"
+                            id="dateToFilter"
+                            style="padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 6px; font-size: 0.875rem;"
+                            onchange="filterPurchasedItems()"
+                        />
+                        <button class="btn btn-secondary btn-sm" onclick="clearPurchasedItemsFilters()">Clear Filters</button>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>PR/TR ID</th>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Subtotal</th>
+                                <th>Supplier</th>
+                                <th>Project</th>
+                            </tr>
+                        </thead>
+                        <tbody id="purchasedItemsTableBody">
+                            <tr>
+                                <td colspan="9" class="empty-state">
+                                    <div class="empty-state-icon">🛒</div>
+                                    <div>Loading purchased items...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Purchase History (Original Table - Kept for compatibility) -->
+            <div class="panel" style="margin-top: 1.5rem;">
+                <div class="panel-header">
+                    <h2>📋 Purchase Request History</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleSection('purchaseHistory')">
+                        <span id="purchaseHistoryToggle">▼</span> Toggle
+                    </button>
+                </div>
+                <div id="purchaseHistory" style="display: none;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>PR/TR ID</th>
+                                <th>Project</th>
+                                <th>Type</th>
+                                <th>Total Cost</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historicalTableBody">
+                            <tr>
+                                <td colspan="7" class="empty-state">
+                                    <div class="empty-state-icon">📊</div>
+                                    <div>Loading historical data...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -1127,6 +1309,38 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeRejectionModal()">Cancel</button>
                 <button class="btn btn-danger" onclick="submitRejection()">❌ Reject PR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Price Detail Modal -->
+    <div id="itemPriceDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="itemPriceDetailTitle">Item Price History</h3>
+                <button class="close-btn" onclick="closeItemPriceDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="itemPriceDetailBody">
+                <!-- Will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeItemPriceDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supplier Detail Modal -->
+    <div id="supplierDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 id="supplierDetailTitle">Supplier Details</h3>
+                <button class="close-btn" onclick="closeSupplierDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="supplierDetailBody">
+                <!-- Will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSupplierDetailModal()">Close</button>
             </div>
         </div>
     </div>
@@ -2862,7 +3076,7 @@
             const now = new Date();
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
-            
+
             // Calculate month spend
             const monthSpend = data
                 .filter(pr => {
@@ -2870,7 +3084,7 @@
                     return approvedDate.getMonth() === currentMonth && approvedDate.getFullYear() === currentYear;
                 })
                 .reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0);
-            
+
             // Calculate YTD spend
             const ytdSpend = data
                 .filter(pr => {
@@ -2878,10 +3092,37 @@
                     return approvedDate.getFullYear() === currentYear;
                 })
                 .reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0);
-            
+
+            // Calculate unique suppliers
+            const suppliers = new Set();
+            const allItems = [];
+            data.forEach(pr => {
+                const items = JSON.parse(pr.items_json || '[]');
+                items.forEach(item => {
+                    const supplier = item.supplier || pr.supplier_name || 'Unknown';
+                    suppliers.add(supplier);
+                    allItems.push(item);
+                });
+            });
+
+            // Calculate unique items (by item name)
+            const uniqueItems = new Set(allItems.map(item => (item.item || item.item_name || '').toLowerCase().trim()));
+
+            // Calculate average order value
+            const avgOrder = data.length > 0 ?
+                data.reduce((sum, pr) => sum + parseFloat(pr.total_amount || 0), 0) / data.length : 0;
+
             document.getElementById('monthSpend').textContent = `₱${monthSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
             document.getElementById('ytdSpend').textContent = `₱${ytdSpend.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
             document.getElementById('totalPurchases').textContent = data.length;
+            document.getElementById('totalSuppliers').textContent = suppliers.size;
+            document.getElementById('totalUniqueItems').textContent = uniqueItems.size;
+            document.getElementById('avgOrderValue').textContent = `₱${avgOrder.toLocaleString('en-PH', {minimumFractionDigits: 0})}`;
+
+            // Update all analytical tables
+            updateSupplierAnalytics(data);
+            updateItemPriceHistory(data);
+            updatePurchasedItems(data);
         }
 
         // Refresh functions
@@ -2893,6 +3134,444 @@
         window.refreshPOs = async function() {
             showToast('Refreshing POs...', 'success');
             await loadPOs();
+        };
+
+        // Global variables for historical data filtering
+        let allHistoricalData = [];
+        let supplierAnalyticsData = [];
+        let itemPriceHistoryData = [];
+        let purchasedItemsData = [];
+
+        // ========== SUPPLIER ANALYTICS ==========
+        function updateSupplierAnalytics(data) {
+            allHistoricalData = data;
+            const supplierMap = new Map();
+
+            data.forEach(pr => {
+                const items = JSON.parse(pr.items_json || '[]');
+                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+
+                items.forEach(item => {
+                    const supplier = item.supplier || pr.supplier_name || (isTransport ? 'Transport Service' : 'Unknown');
+                    const subtotal = parseFloat(item.subtotal || 0);
+                    const date = pr.date_approved || pr.date_generated;
+
+                    if (!supplierMap.has(supplier)) {
+                        supplierMap.set(supplier, {
+                            name: supplier,
+                            totalSpent: 0,
+                            orderCount: 0,
+                            orders: [],
+                            lastOrderDate: date
+                        });
+                    }
+
+                    const supplierData = supplierMap.get(supplier);
+                    supplierData.totalSpent += subtotal;
+
+                    // Track unique orders (by PR/TR ID)
+                    if (!supplierData.orders.includes(pr.pr_id)) {
+                        supplierData.orders.push(pr.pr_id);
+                        supplierData.orderCount++;
+                    }
+
+                    // Update last order date
+                    if (new Date(date) > new Date(supplierData.lastOrderDate)) {
+                        supplierData.lastOrderDate = date;
+                    }
+                });
+            });
+
+            // Convert to array and sort by total spent (descending)
+            supplierAnalyticsData = Array.from(supplierMap.values()).sort((a, b) => b.totalSpent - a.totalSpent);
+            renderSupplierAnalytics(supplierAnalyticsData);
+        }
+
+        function renderSupplierAnalytics(suppliers) {
+            const tbody = document.getElementById('supplierAnalyticsTableBody');
+
+            if (suppliers.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <div>No supplier data available</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = suppliers.map((supplier, index) => {
+                const avgOrderValue = supplier.orderCount > 0 ? supplier.totalSpent / supplier.orderCount : 0;
+                const rankBadge = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+
+                return `
+                    <tr>
+                        <td><strong>${rankBadge} ${supplier.name}</strong></td>
+                        <td><strong>₱${supplier.totalSpent.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td>${supplier.orderCount}</td>
+                        <td>₱${avgOrderValue.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>${formatDate(supplier.lastOrderDate)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="viewSupplierDetail('${supplier.name.replace(/'/g, "\\'")}')">
+                                View Details
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ========== ITEM PRICE HISTORY ==========
+        function updateItemPriceHistory(data) {
+            const itemMap = new Map();
+            const categories = new Set();
+
+            data.forEach(pr => {
+                const items = JSON.parse(pr.items_json || '[]');
+                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+
+                items.forEach(item => {
+                    const itemName = (item.item || item.item_name || '').trim();
+                    const category = item.category || (isTransport ? 'Transport & Delivery' : 'Uncategorized');
+                    const unit = item.unit || 'unit';
+                    const unitCost = parseFloat(item.unit_cost || 0);
+                    const supplier = item.supplier || pr.supplier_name || 'Unknown';
+                    const date = pr.date_approved || pr.date_generated;
+
+                    if (!itemName) return;
+
+                    categories.add(category);
+
+                    const key = `${itemName.toLowerCase()}_${unit.toLowerCase()}`;
+
+                    if (!itemMap.has(key)) {
+                        itemMap.set(key, {
+                            name: itemName,
+                            category: category,
+                            unit: unit,
+                            prices: [],
+                            suppliers: new Set()
+                        });
+                    }
+
+                    const itemData = itemMap.get(key);
+                    itemData.prices.push({
+                        price: unitCost,
+                        supplier: supplier,
+                        date: date,
+                        pr_id: pr.pr_id
+                    });
+                    itemData.suppliers.add(supplier);
+                });
+            });
+
+            // Populate category filter
+            const categoryFilter = document.getElementById('categoryFilter');
+            const currentValue = categoryFilter.value;
+            categoryFilter.innerHTML = '<option value="">All Categories</option>' +
+                Array.from(categories).sort().map(cat =>
+                    `<option value="${cat}">${cat}</option>`
+                ).join('');
+            categoryFilter.value = currentValue;
+
+            // Convert to array and calculate statistics
+            itemPriceHistoryData = Array.from(itemMap.values()).map(item => {
+                const prices = item.prices.map(p => p.price);
+                const sortedPrices = [...prices].sort((a, b) => a - b);
+                const latestPrice = item.prices.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+
+                return {
+                    ...item,
+                    currentPrice: latestPrice.price,
+                    minPrice: Math.min(...prices),
+                    maxPrice: Math.max(...prices),
+                    avgPrice: prices.reduce((sum, p) => sum + p, 0) / prices.length,
+                    priceHistory: item.prices.sort((a, b) => new Date(b.date) - new Date(a.date)),
+                    suppliersCount: item.suppliers.size
+                };
+            }).sort((a, b) => a.name.localeCompare(b.name));
+
+            renderItemPriceHistory(itemPriceHistoryData);
+        }
+
+        function renderItemPriceHistory(items) {
+            const tbody = document.getElementById('priceHistoryTableBody');
+
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="empty-state">
+                            <div class="empty-state-icon">💰</div>
+                            <div>No price history available</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = items.map(item => {
+                // Calculate price trend
+                let trendIcon = '➖';
+                let trendColor = 'var(--gray-700)';
+                if (item.priceHistory.length > 1) {
+                    const latest = item.priceHistory[0].price;
+                    const previous = item.priceHistory[1].price;
+                    if (latest > previous) {
+                        trendIcon = '📈';
+                        trendColor = 'var(--danger)';
+                    } else if (latest < previous) {
+                        trendIcon = '📉';
+                        trendColor = 'var(--success)';
+                    }
+                }
+
+                return `
+                    <tr>
+                        <td><strong>${item.name}</strong></td>
+                        <td>${item.category}</td>
+                        <td>${item.unit}</td>
+                        <td><strong>₱${item.currentPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                        <td style="color: var(--success);">₱${item.minPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td style="color: var(--danger);">₱${item.maxPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td>₱${item.avgPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        <td style="color: ${trendColor}; font-size: 1.2rem;">${trendIcon}</td>
+                        <td>${item.suppliersCount} supplier${item.suppliersCount !== 1 ? 's' : ''}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick='viewItemPriceDetail(${JSON.stringify(item.name)})'>
+                                View History
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ========== PURCHASED ITEMS ==========
+        function updatePurchasedItems(data) {
+            purchasedItemsData = [];
+
+            data.forEach(pr => {
+                const items = JSON.parse(pr.items_json || '[]');
+                const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+
+                items.forEach(item => {
+                    purchasedItemsData.push({
+                        date: pr.date_approved || pr.date_generated,
+                        pr_id: pr.pr_id,
+                        item_name: item.item || item.item_name || 'N/A',
+                        category: item.category || (isTransport ? 'Transport & Delivery' : 'Uncategorized'),
+                        quantity: `${item.qty || item.quantity || 0} ${item.unit || 'unit'}`,
+                        unit_price: parseFloat(item.unit_cost || 0),
+                        subtotal: parseFloat(item.subtotal || 0),
+                        supplier: item.supplier || pr.supplier_name || 'Unknown',
+                        project: pr.project_name || 'N/A'
+                    });
+                });
+            });
+
+            // Sort by date (newest first)
+            purchasedItemsData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            renderPurchasedItems(purchasedItemsData);
+        }
+
+        function renderPurchasedItems(items) {
+            const tbody = document.getElementById('purchasedItemsTableBody');
+
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            <div class="empty-state-icon">🛒</div>
+                            <div>No purchased items available</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${formatDate(item.date)}</td>
+                    <td><strong>${item.pr_id}</strong></td>
+                    <td>${item.item_name}</td>
+                    <td>${item.category}</td>
+                    <td>${item.quantity}</td>
+                    <td>₱${item.unit_price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                    <td><strong>₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                    <td>${item.supplier}</td>
+                    <td style="font-size: 0.875rem;">${item.project}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ========== FILTERING FUNCTIONS ==========
+        function filterItemPriceHistory() {
+            const searchTerm = document.getElementById('itemSearchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+
+            const filtered = itemPriceHistoryData.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(searchTerm);
+                const matchesCategory = !categoryFilter || item.category === categoryFilter;
+                return matchesSearch && matchesCategory;
+            });
+
+            renderItemPriceHistory(filtered);
+        }
+
+        function filterPurchasedItems() {
+            const searchTerm = document.getElementById('purchasedItemSearchInput').value.toLowerCase();
+            const dateFrom = document.getElementById('dateFromFilter').value;
+            const dateTo = document.getElementById('dateToFilter').value;
+
+            const filtered = purchasedItemsData.filter(item => {
+                const matchesSearch =
+                    item.item_name.toLowerCase().includes(searchTerm) ||
+                    item.supplier.toLowerCase().includes(searchTerm) ||
+                    item.pr_id.toLowerCase().includes(searchTerm) ||
+                    item.project.toLowerCase().includes(searchTerm);
+
+                const itemDate = new Date(item.date);
+                const matchesDateFrom = !dateFrom || itemDate >= new Date(dateFrom);
+                const matchesDateTo = !dateTo || itemDate <= new Date(dateTo);
+
+                return matchesSearch && matchesDateFrom && matchesDateTo;
+            });
+
+            renderPurchasedItems(filtered);
+        }
+
+        function clearPurchasedItemsFilters() {
+            document.getElementById('purchasedItemSearchInput').value = '';
+            document.getElementById('dateFromFilter').value = '';
+            document.getElementById('dateToFilter').value = '';
+            filterPurchasedItems();
+        }
+
+        // ========== MODAL FUNCTIONS ==========
+        window.viewItemPriceDetail = function(itemName) {
+            const item = itemPriceHistoryData.find(i => i.name === itemName);
+            if (!item) return;
+
+            document.getElementById('itemPriceDetailTitle').textContent = `Price History: ${item.name}`;
+
+            const modalBody = document.getElementById('itemPriceDetailBody');
+            modalBody.innerHTML = `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="margin-bottom: 0.5rem;">Item Details</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.875rem;">
+                        <div><strong>Category:</strong> ${item.category}</div>
+                        <div><strong>Unit:</strong> ${item.unit}</div>
+                        <div><strong>Current Price:</strong> ₱${item.currentPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        <div><strong>Average Price:</strong> ₱${item.avgPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        <div><strong>Min Price:</strong> <span style="color: var(--success);">₱${item.minPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span></div>
+                        <div><strong>Max Price:</strong> <span style="color: var(--danger);">₱${item.maxPrice.toLocaleString('en-PH', {minimumFractionDigits: 2})}</span></div>
+                        <div><strong>Suppliers:</strong> ${Array.from(item.suppliers).join(', ')}</div>
+                        <div><strong>Total Purchases:</strong> ${item.priceHistory.length}</div>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 0.5rem;">Purchase History</h4>
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>PR/TR ID</th>
+                            <th>Supplier</th>
+                            <th>Unit Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${item.priceHistory.map(entry => `
+                            <tr>
+                                <td>${formatDate(entry.date)}</td>
+                                <td>${entry.pr_id}</td>
+                                <td>${entry.supplier}</td>
+                                <td><strong>₱${entry.price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('itemPriceDetailModal').classList.add('active');
+        };
+
+        window.closeItemPriceDetailModal = function() {
+            document.getElementById('itemPriceDetailModal').classList.remove('active');
+        };
+
+        window.viewSupplierDetail = function(supplierName) {
+            const supplier = supplierAnalyticsData.find(s => s.name === supplierName);
+            if (!supplier) return;
+
+            // Get all items from this supplier
+            const supplierItems = purchasedItemsData.filter(item => item.supplier === supplierName);
+
+            document.getElementById('supplierDetailTitle').textContent = `Supplier: ${supplier.name}`;
+
+            const modalBody = document.getElementById('supplierDetailBody');
+            const avgOrderValue = supplier.orderCount > 0 ? supplier.totalSpent / supplier.orderCount : 0;
+
+            modalBody.innerHTML = `
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="margin-bottom: 0.5rem;">Supplier Statistics</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.875rem;">
+                        <div><strong>Total Spent:</strong> ₱${supplier.totalSpent.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        <div><strong>Total Orders:</strong> ${supplier.orderCount}</div>
+                        <div><strong>Average Order Value:</strong> ₱${avgOrderValue.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                        <div><strong>Last Order:</strong> ${formatDate(supplier.lastOrderDate)}</div>
+                        <div><strong>Total Items Supplied:</strong> ${supplierItems.length}</div>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 0.5rem;">Items Purchased from ${supplier.name}</h4>
+                <table style="width: 100%; font-size: 0.875rem;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>PR/TR ID</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${supplierItems.map(item => `
+                            <tr>
+                                <td>${formatDate(item.date)}</td>
+                                <td>${item.pr_id}</td>
+                                <td>${item.item_name}</td>
+                                <td>${item.quantity}</td>
+                                <td>₱${item.unit_price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td><strong>₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('supplierDetailModal').classList.add('active');
+        };
+
+        window.closeSupplierDetailModal = function() {
+            document.getElementById('supplierDetailModal').classList.remove('active');
+        };
+
+        // ========== TOGGLE SECTION FUNCTION ==========
+        window.toggleSection = function(sectionId) {
+            const section = document.getElementById(sectionId);
+            const toggle = document.getElementById(sectionId + 'Toggle');
+
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                if (toggle) toggle.textContent = '▼';
+            } else {
+                section.style.display = 'none';
+                if (toggle) toggle.textContent = '▶';
+            }
         };
 
         // Close modal
