@@ -2250,7 +2250,7 @@
             document.getElementById('paymentTerms').value = '';
             document.getElementById('condition').value = '';
             document.getElementById('deliveryDate').value = '';
-            currentPRForApproval = null;
+            // Don't clear currentPRForApproval - user may want to retry approval
         };
 
         // Submit approval with signature
@@ -2561,6 +2561,19 @@
         // Close rejection modal
         window.closeRejectionModal = function() {
             document.getElementById('rejectionModal').classList.remove('active');
+
+            // Reopen the PR modal if user cancels rejection
+            if (currentPRForRejection) {
+                const prId = currentPRForRejection.id;
+                const isTransport = currentPRForRejection.request_type === 'service' || currentPRForRejection.pr_id?.startsWith('TR-');
+
+                if (isTransport) {
+                    viewTRDetails(prId);
+                } else {
+                    viewPRDetails(prId);
+                }
+            }
+
             currentPRForRejection = null;
         };
         
@@ -3465,13 +3478,16 @@
                 }
             });
 
+            // Use a Map to prevent duplicates
+            const itemsMap = new Map();
+
             data.forEach(pr => {
                 const items = JSON.parse(pr.items_json || '[]');
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
                 const poInfo = prToPOMap.get(pr.pr_id);
 
                 items.forEach(item => {
-                    purchasedItemsData.push({
+                    const itemData = {
                         date: pr.date_approved || pr.date_generated,
                         pr_id: pr.pr_id,
                         po_id: poInfo?.po_id || 'N/A',
@@ -3483,9 +3499,20 @@
                         subtotal: parseFloat(item.subtotal || 0),
                         supplier: item.supplier || pr.supplier_name || 'Unknown',
                         project: pr.project_name || 'N/A'
-                    });
+                    };
+
+                    // Create unique key to prevent duplicates
+                    const uniqueKey = `${itemData.pr_id}|${itemData.po_id}|${itemData.item_name}|${itemData.quantity}|${itemData.unit_price}|${itemData.supplier}`;
+
+                    // Only add if not already in map
+                    if (!itemsMap.has(uniqueKey)) {
+                        itemsMap.set(uniqueKey, itemData);
+                    }
                 });
             });
+
+            // Convert map values to array
+            purchasedItemsData = Array.from(itemsMap.values());
 
             // Sort by date (newest first)
             purchasedItemsData.sort((a, b) => new Date(b.date) - new Date(a.date));
