@@ -3102,7 +3102,7 @@
                 updateHistoricalDisplay();
             });
 
-            function updateHistoricalDisplay() {
+            async function updateHistoricalDisplay() {
                 // Combine both collections
                 const historicalData = [...historicalMaterialPRs, ...historicalTransportTRs];
                 console.log('📈 Historical data loaded:', historicalData.length, '(PRs:', historicalMaterialPRs.length, ', TRs:', historicalTransportTRs.length, ')');
@@ -3115,7 +3115,7 @@
                 });
 
                 renderHistoricalData(historicalData);
-                updateHistoricalStats(historicalData);
+                await updateHistoricalStats(historicalData);
             }
         }
 
@@ -3154,7 +3154,7 @@
         }
 
         // Update historical stats
-        function updateHistoricalStats(data) {
+        async function updateHistoricalStats(data) {
             const now = new Date();
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
@@ -3203,8 +3203,8 @@
 
             // Update all analytical tables
             updateSupplierAnalytics(data);
-            updateItemPriceHistory(data);
-            updatePurchasedItems(data);
+            await updateItemPriceHistory(data);
+            await updatePurchasedItems(data);
         }
 
         // Refresh functions
@@ -3310,13 +3310,26 @@
         }
 
         // ========== ITEM PRICE HISTORY ==========
-        function updateItemPriceHistory(data) {
+        async function updateItemPriceHistory(data) {
             const itemMap = new Map();
             const categories = new Set();
+
+            // Load all POs to create a mapping of pr_id to po_id and document id
+            const posRef = collection(db, 'pos');
+            const posSnapshot = await getDocs(posRef);
+            const prToPOMap = new Map();
+
+            posSnapshot.forEach(doc => {
+                const po = doc.data();
+                if (po.pr_id) {
+                    prToPOMap.set(po.pr_id, { po_id: po.po_id, doc_id: doc.id });
+                }
+            });
 
             data.forEach(pr => {
                 const items = JSON.parse(pr.items_json || '[]');
                 const isTransport = pr.request_type === 'service' || pr.pr_id?.startsWith('TR-');
+                const poInfo = prToPOMap.get(pr.pr_id);
 
                 items.forEach(item => {
                     const itemName = (item.item || item.item_name || '').trim();
@@ -3347,7 +3360,9 @@
                         price: unitCost,
                         supplier: supplier,
                         date: date,
-                        pr_id: pr.pr_id
+                        pr_id: pr.pr_id,
+                        po_id: poInfo?.po_id || 'N/A',
+                        po_doc_id: poInfo?.doc_id || null
                     });
                     itemData.suppliers.add(supplier);
                 });
@@ -3573,7 +3588,7 @@
         }
 
         // ========== FILTERING FUNCTIONS ==========
-        function filterItemPriceHistory() {
+        window.filterItemPriceHistory = function() {
             const searchTerm = document.getElementById('itemSearchInput').value.toLowerCase();
             const categoryFilter = document.getElementById('categoryFilter').value;
 
@@ -3586,7 +3601,7 @@
             renderItemPriceHistory(filtered);
         }
 
-        function filterPurchasedItems() {
+        window.filterPurchasedItems = function() {
             const searchTerm = document.getElementById('purchasedItemSearchInput').value.toLowerCase();
             const dateFrom = document.getElementById('dateFromFilter').value;
             const dateTo = document.getElementById('dateToFilter').value;
@@ -3608,7 +3623,7 @@
             renderPurchasedItems(filtered);
         }
 
-        function clearPurchasedItemsFilters() {
+        window.clearPurchasedItemsFilters = function() {
             document.getElementById('purchasedItemSearchInput').value = '';
             document.getElementById('dateFromFilter').value = '';
             document.getElementById('dateToFilter').value = '';
@@ -3643,20 +3658,25 @@
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>PR/TR ID</th>
+                            <th>PO ID</th>
                             <th>Supplier</th>
                             <th>Unit Price</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${item.priceHistory.map(entry => `
+                        ${item.priceHistory.map(entry => {
+                            const poLink = entry.po_doc_id
+                                ? `<a href="#" onclick="viewPODocument('${entry.po_doc_id}'); return false;" style="color: #1a73e8; text-decoration: none; font-weight: 600; cursor: pointer;" title="Click to view PO details">${entry.po_id}</a>`
+                                : `<span style="color: var(--gray-500);">${entry.po_id}</span>`;
+                            return `
                             <tr>
                                 <td>${formatDate(entry.date)}</td>
-                                <td>${entry.pr_id}</td>
+                                <td>${poLink}</td>
                                 <td>${entry.supplier}</td>
                                 <td><strong>₱${entry.price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                             </tr>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -3697,7 +3717,7 @@
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>PR/TR ID</th>
+                            <th>PO ID</th>
                             <th>Item</th>
                             <th>Quantity</th>
                             <th>Unit Price</th>
@@ -3705,16 +3725,21 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${supplierItems.map(item => `
+                        ${supplierItems.map(item => {
+                            const poLink = item.po_doc_id
+                                ? `<a href="#" onclick="viewPODocument('${item.po_doc_id}'); return false;" style="color: #1a73e8; text-decoration: none; font-weight: 600; cursor: pointer;" title="Click to view PO details">${item.po_id}</a>`
+                                : `<span style="color: var(--gray-500);">${item.po_id}</span>`;
+                            return `
                             <tr>
                                 <td>${formatDate(item.date)}</td>
-                                <td>${item.pr_id}</td>
+                                <td>${poLink}</td>
                                 <td>${item.item_name}</td>
                                 <td>${item.quantity}</td>
                                 <td>₱${item.unit_price.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                 <td><strong>₱${item.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong></td>
                             </tr>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
@@ -4889,14 +4914,22 @@
             });
         });
 
-        // Smooth scrolling for quick nav links
+        // Smooth scrolling for quick nav links with offset to prevent header overlap
         document.querySelectorAll('.quick-nav-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const targetId = link.getAttribute('href').substring(1);
                 const targetElement = document.getElementById(targetId);
                 if (targetElement) {
-                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Get the element's position
+                    const elementPosition = targetElement.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - 100; // 100px offset to prevent header overlap
+
+                    // Smooth scroll to position with offset
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
                 }
             });
         });
