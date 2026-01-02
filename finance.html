@@ -3588,7 +3588,7 @@
         }
 
         // ========== FILTERING FUNCTIONS ==========
-        function filterItemPriceHistory() {
+        window.filterItemPriceHistory = function() {
             const searchTerm = document.getElementById('itemSearchInput').value.toLowerCase();
             const categoryFilter = document.getElementById('categoryFilter').value;
 
@@ -3601,7 +3601,7 @@
             renderItemPriceHistory(filtered);
         }
 
-        function filterPurchasedItems() {
+        window.filterPurchasedItems = function() {
             const searchTerm = document.getElementById('purchasedItemSearchInput').value.toLowerCase();
             const dateFrom = document.getElementById('dateFromFilter').value;
             const dateTo = document.getElementById('dateToFilter').value;
@@ -3623,7 +3623,7 @@
             renderPurchasedItems(filtered);
         }
 
-        function clearPurchasedItemsFilters() {
+        window.clearPurchasedItemsFilters = function() {
             document.getElementById('purchasedItemSearchInput').value = '';
             document.getElementById('dateFromFilter').value = '';
             document.getElementById('dateToFilter').value = '';
