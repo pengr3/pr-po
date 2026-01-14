@@ -1,0 +1,380 @@
+/* ========================================
+   UTILITY FUNCTIONS
+   Shared utility functions used across views
+   ======================================== */
+
+import { db, collection, getDocs, query, where, orderBy, limit } from './firebase.js';
+
+/* ========================================
+   FORMATTING UTILITIES
+   ======================================== */
+
+/**
+ * Format number as Philippine Peso currency
+ * @param {number} amount - Amount to format
+ * @returns {string} Formatted currency string
+ */
+export function formatCurrency(amount) {
+    return parseFloat(amount || 0).toLocaleString('en-PH', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+/**
+ * Format date string to readable format
+ * @param {string} dateString - Date string to format
+ * @returns {string} Formatted date string
+ */
+export function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-PH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (error) {
+        return dateString;
+    }
+}
+
+/**
+ * Format timestamp to readable format
+ * @param {object} timestamp - Firebase timestamp object
+ * @returns {string} Formatted date string
+ */
+export function formatTimestamp(timestamp) {
+    if (!timestamp) return 'N/A';
+
+    try {
+        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return date.toLocaleDateString('en-PH', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (error) {
+        return 'N/A';
+    }
+}
+
+/**
+ * Parse items JSON string
+ * @param {string} itemsJson - JSON string of items
+ * @returns {Array} Parsed items array
+ */
+export function parseItems(itemsJson) {
+    if (!itemsJson) return [];
+
+    try {
+        return JSON.parse(itemsJson);
+    } catch (error) {
+        console.error('Error parsing items JSON:', error);
+        return [];
+    }
+}
+
+/* ========================================
+   UI UTILITIES
+   ======================================== */
+
+/**
+ * Show/hide loading overlay
+ * @param {boolean} show - Whether to show loading overlay
+ */
+export function showLoading(show) {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.classList.toggle('active', show);
+    }
+}
+
+/**
+ * Show toast notification
+ * @param {string} message - Message to display
+ * @param {string} type - Type of toast (success, error, warning, info)
+ */
+export function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.className = `toast show ${type}`;
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+/**
+ * Show alert message
+ * @param {string} type - Type of alert (success, error, warning, info)
+ * @param {string} message - Message to display
+ */
+export function showAlert(type, message) {
+    const alertContainer = document.getElementById('alertContainer');
+    if (!alertContainer) return;
+
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} show`;
+    alert.textContent = message;
+
+    alertContainer.appendChild(alert);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        alert.classList.remove('show');
+        setTimeout(() => alert.remove(), 300);
+    }, 5000);
+}
+
+/* ========================================
+   DATA UTILITIES
+   ======================================== */
+
+/**
+ * Generate sequential ID for documents
+ * @param {string} collectionName - Firestore collection name
+ * @param {string} prefix - ID prefix (e.g., 'MRF', 'PR', 'PO')
+ * @param {number} year - Year for the ID
+ * @returns {Promise<string>} Generated sequential ID
+ */
+export async function generateSequentialId(collectionName, prefix, year = null) {
+    try {
+        const currentYear = year || new Date().getFullYear();
+        const docs = await getDocs(collection(db, collectionName));
+
+        let maxNum = 0;
+        docs.forEach(doc => {
+            const id = doc.data()[`${prefix.toLowerCase()}_id`];
+            if (id) {
+                const parts = id.split('-');
+                if (parts.length === 3 && parts[1] === String(currentYear)) {
+                    const num = parseInt(parts[2]);
+                    if (num > maxNum) {
+                        maxNum = num;
+                    }
+                }
+            }
+        });
+
+        const newNum = maxNum + 1;
+        return `${prefix}-${currentYear}-${String(newNum).padStart(3, '0')}`;
+    } catch (error) {
+        console.error('Error generating sequential ID:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get all active projects
+ * @returns {Promise<Array>} Array of active projects
+ */
+export async function getActiveProjects() {
+    try {
+        const q = query(
+            collection(db, 'projects'),
+            where('status', '==', 'active')
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error fetching active projects:', error);
+        return [];
+    }
+}
+
+/**
+ * Get all suppliers
+ * @returns {Promise<Array>} Array of suppliers
+ */
+export async function getAllSuppliers() {
+    try {
+        const snapshot = await getDocs(collection(db, 'suppliers'));
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error fetching suppliers:', error);
+        return [];
+    }
+}
+
+/**
+ * Calculate total from items
+ * @param {Array} items - Array of items with quantity and unit_cost
+ * @returns {number} Total amount
+ */
+export function calculateTotal(items) {
+    if (!Array.isArray(items)) return 0;
+
+    return items.reduce((total, item) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const unitCost = parseFloat(item.unit_cost) || 0;
+        return total + (quantity * unitCost);
+    }, 0);
+}
+
+/* ========================================
+   VALIDATION UTILITIES
+   ======================================== */
+
+/**
+ * Validate email address
+ * @param {string} email - Email to validate
+ * @returns {boolean} True if valid
+ */
+export function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+/**
+ * Validate phone number (Philippine format)
+ * @param {string} phone - Phone number to validate
+ * @returns {boolean} True if valid
+ */
+export function validatePhone(phone) {
+    const re = /^(\+63|0)?9\d{9}$/;
+    return re.test(phone.replace(/\s|-/g, ''));
+}
+
+/**
+ * Validate required fields
+ * @param {object} data - Object with field values
+ * @param {Array} requiredFields - Array of required field names
+ * @returns {object} { valid: boolean, missingFields: Array }
+ */
+export function validateRequired(data, requiredFields) {
+    const missingFields = [];
+
+    requiredFields.forEach(field => {
+        if (!data[field] || (typeof data[field] === 'string' && data[field].trim() === '')) {
+            missingFields.push(field);
+        }
+    });
+
+    return {
+        valid: missingFields.length === 0,
+        missingFields
+    };
+}
+
+/* ========================================
+   STATUS UTILITIES
+   ======================================== */
+
+/**
+ * Get status badge class
+ * @param {string} status - Status value
+ * @returns {string} CSS class for status badge
+ */
+export function getStatusClass(status) {
+    const statusLower = (status || '').toLowerCase();
+
+    const statusMap = {
+        'pending': 'pending',
+        'approved': 'approved',
+        'rejected': 'rejected',
+        'completed': 'approved',
+        'active': 'approved',
+        'inactive': 'rejected'
+    };
+
+    return statusMap[statusLower] || 'pending';
+}
+
+/**
+ * Get urgency level class
+ * @param {string} urgency - Urgency level
+ * @returns {string} CSS class for urgency badge
+ */
+export function getUrgencyClass(urgency) {
+    const urgencyLower = (urgency || '').toLowerCase();
+
+    return urgencyLower === 'low' ? 'low' :
+           urgencyLower === 'medium' ? 'medium' :
+           urgencyLower === 'high' ? 'high' :
+           urgencyLower === 'critical' ? 'critical' : 'medium';
+}
+
+/* ========================================
+   STORAGE UTILITIES
+   ======================================== */
+
+/**
+ * Save to local storage
+ * @param {string} key - Storage key
+ * @param {any} value - Value to store
+ */
+export function saveToStorage(key, value) {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.error('Error saving to storage:', error);
+    }
+}
+
+/**
+ * Get from local storage
+ * @param {string} key - Storage key
+ * @param {any} defaultValue - Default value if key doesn't exist
+ * @returns {any} Retrieved value or default
+ */
+export function getFromStorage(key, defaultValue = null) {
+    try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+        console.error('Error getting from storage:', error);
+        return defaultValue;
+    }
+}
+
+/**
+ * Remove from local storage
+ * @param {string} key - Storage key
+ */
+export function removeFromStorage(key) {
+    try {
+        localStorage.removeItem(key);
+    } catch (error) {
+        console.error('Error removing from storage:', error);
+    }
+}
+
+/* ========================================
+   EXPORT UTILITIES TO WINDOW (for onclick handlers)
+   ======================================== */
+
+window.utils = {
+    formatCurrency,
+    formatDate,
+    formatTimestamp,
+    parseItems,
+    showLoading,
+    showToast,
+    showAlert,
+    generateSequentialId,
+    getActiveProjects,
+    getAllSuppliers,
+    calculateTotal,
+    validateEmail,
+    validatePhone,
+    validateRequired,
+    getStatusClass,
+    getUrgencyClass,
+    saveToStorage,
+    getFromStorage,
+    removeFromStorage
+};
+
+console.log('Utilities module loaded successfully');
