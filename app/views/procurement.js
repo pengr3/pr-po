@@ -42,32 +42,19 @@ let listeners = [];
  */
 export function render(activeTab = 'mrfs') {
     return `
-        <!-- Header -->
-        <div style="background: white; border-bottom: 1px solid var(--gray-200); padding: 1rem 2rem;">
-            <div style="max-width: 1400px; margin: 0 auto;">
-                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <img src="https://raw.githubusercontent.com/pengr3/pr-po/main/CLMC%20Registered%20Logo.png"
-                         alt="CLMC Logo"
-                         style="height: 50px;"
-                         onerror="this.style.display='none'">
-                    <div>
-                        <h1 style="font-size: 1.5rem; margin-bottom: 0.25rem;">Procurement Dashboard</h1>
-                        <p style="font-size: 0.875rem; color: var(--gray-700); margin: 0;">CLMC Procurement</p>
-                    </div>
-                </div>
+        <!-- Tab Navigation -->
+        <div style="background: white; border-bottom: 1px solid var(--gray-200);">
+            <div style="max-width: 1400px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
-                    <button class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}"
-                            onclick="window.procurementSwitchTab('mrfs')">
+                    <a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">
                         MRF Processing
-                    </button>
-                    <button class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}"
-                            onclick="window.procurementSwitchTab('suppliers')">
+                    </a>
+                    <a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">
                         Supplier Management
-                    </button>
-                    <button class="tab-btn ${activeTab === 'records' ? 'active' : ''}"
-                            onclick="window.procurementSwitchTab('records')">
+                    </a>
+                    <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
                         MRF Records
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
@@ -250,7 +237,6 @@ export async function destroy() {
     filteredHistoricalMRFs = [];
 
     // Clean up window functions
-    delete window.procurementSwitchTab;
     delete window.loadMRFs;
     delete window.createNewMRF;
     delete window.selectMRF;
@@ -276,20 +262,6 @@ export async function destroy() {
 
     console.log('Procurement view destroyed');
 }
-
-// ========================================
-// TAB NAVIGATION
-// ========================================
-
-window.procurementSwitchTab = function(tab) {
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-
-    // Update sections
-    document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
-    document.getElementById(`${tab}-section`).classList.add('active');
-};
 
 // ========================================
 // PROJECTS MANAGEMENT

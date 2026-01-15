@@ -17,8 +17,8 @@ export function render() {
     return `
         <div class="container" style="max-width: 1100px; margin: 2rem auto; background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); overflow: hidden;">
             <div style="background: var(--primary); color: white; padding: 2rem; text-align: center;">
-                <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem;">Material Request Form (MRF)</h1>
-                <p style="opacity: 0.9; font-size: 0.95rem;">CLMC Engineering Services</p>
+                <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; color: white;">Material Request Form (MRF)</h1>
+                <p style="opacity: 0.9; font-size: 0.95rem; color: white;">CLMC Engineering Services</p>
             </div>
 
             <div style="padding: 2rem;">
