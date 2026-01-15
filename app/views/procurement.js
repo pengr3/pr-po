@@ -354,6 +354,11 @@ export async function destroy() {
     delete window.updatePOStatus;
     delete window.viewPODetails;
     delete window.viewPOTimeline;
+    delete window.generatePRDocument;
+    delete window.generatePODocument;
+    delete window.viewPODocument;
+    delete window.downloadPODocument;
+    delete window.generateAllPODocuments;
 
     console.log('Procurement view destroyed');
 }
@@ -3175,6 +3180,582 @@ window.viewPOTimeline = function(poId) {
 
     // Show in alert for now (will add proper modal later)
     alert(content);
+};
+
+// ========================================
+// DOCUMENT GENERATION FUNCTIONS
+// ========================================
+
+/**
+ * Document Configuration
+ */
+const DOCUMENT_CONFIG = {
+    defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
+    companyInfo: {
+        name: 'C Lacsamana Management and Construction Corporation',
+        address: '133 Pinatubo St., Mandaluyong City, Metro Manila',
+        tel: '09178182993',
+        email: 'cgl@consultclm.com'
+    }
+};
+
+/**
+ * Generate HTML table for items
+ * @param {Array} items - Array of item objects
+ * @param {string} type - 'PR' or 'PO'
+ * @returns {string} - HTML table string
+ */
+function generateItemsTableHTML(items, type) {
+    let tableHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">No.</th>
+                    <th style="width: 25%;">Description</th>
+                    ${type === 'PR' ? '<th style="width: 15%;">Category</th>' : ''}
+                    <th style="width: 10%;">Qty</th>
+                    <th style="width: 10%;">Unit</th>
+                    <th style="width: 15%;">Unit Cost</th>
+                    <th style="width: 15%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    items.forEach((item, index) => {
+        const qty = item.qty || item.quantity || 0;
+        const unitCost = parseFloat(item.unit_cost || 0);
+        const subtotal = qty * unitCost;
+
+        tableHTML += `
+            <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td>${item.item || item.item_name}</td>
+                ${type === 'PR' ? `<td>${item.category || 'N/A'}</td>` : ''}
+                <td style="text-align: center;">${qty}</td>
+                <td>${item.unit}</td>
+                <td style="text-align: right;">₱${formatCurrency(unitCost)}</td>
+                <td style="text-align: right;">₱${formatCurrency(subtotal)}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    return tableHTML;
+}
+
+/**
+ * Generate PR HTML document
+ * @param {Object} data - Document data with all placeholders
+ * @returns {string} - Complete HTML document
+ */
+function generatePRHTML(data) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>${data.PR_ID} - Purchase Request</title>
+            <style>
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0.5in;
+                    }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.4;
+                    color: #000;
+                    max-width: 8.5in;
+                    margin: 0 auto;
+                    padding: 0.5in;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }
+                .header h1 {
+                    margin: 0;
+                    font-size: 14pt;
+                    font-weight: bold;
+                }
+                .header p {
+                    margin: 2px 0;
+                    font-size: 9pt;
+                }
+                .title {
+                    text-align: center;
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin: 20px 0;
+                    text-decoration: underline;
+                }
+                .section {
+                    margin: 15px 0;
+                }
+                .field {
+                    margin: 8px 0;
+                    page-break-inside: avoid;
+                }
+                .label {
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 150px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 15px 0;
+                    page-break-inside: avoid;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                td {
+                    font-size: 10pt;
+                }
+                .total {
+                    font-size: 12pt;
+                    font-weight: bold;
+                    margin: 15px 0;
+                    text-align: right;
+                }
+                .signatures {
+                    margin-top: 40px;
+                    page-break-inside: avoid;
+                }
+                .signature-line {
+                    margin: 25px 0;
+                }
+                .signature-line .label {
+                    width: 120px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>${data.company_info.name}</h1>
+                <p>${data.company_info.address}</p>
+                <p>Tel: ${data.company_info.tel} | Email: ${data.company_info.email}</p>
+            </div>
+
+            <div class="title">PURCHASE REQUEST FORM (PR)</div>
+
+            <div class="section">
+                <div class="field"><span class="label">Document No.:</span> ${data.PR_ID}</div>
+                <div class="field"><span class="label">MRF Reference:</span> ${data.MRF_ID}</div>
+                <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+            </div>
+
+            <div class="section">
+                <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                <div class="field"><span class="label">Delivery Address:</span> ${data.ADDRESS}</div>
+                <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+            </div>
+
+            <div class="section">
+                <h3 style="margin: 10px 0;">Items Requested:</h3>
+                ${data.ITEMS_TABLE}
+            </div>
+
+            <div class="total">
+                TOTAL AMOUNT: ₱${data.TOTAL_COST}
+            </div>
+
+            <div class="signatures">
+                <div class="signature-line">
+                    <span class="label">Requested By:</span> ${data.REQUESTOR}
+                </div>
+                <div class="signature-line">
+                    <span class="label">Prepared By:</span> ${data.PROCUREMENT_PIC}
+                </div>
+                ${data.IS_APPROVED ? `
+                <div class="signature-line">
+                    <span class="label">Approved By:</span> ${data.FINANCE_PIC}
+                </div>
+                <div class="signature-line">
+                    <span class="label">Date Approved:</span> ${data.DATE_APPROVED}
+                </div>
+                ` : `
+                <div class="signature-line" style="margin-top: 40px;">
+                    <span class="label">Approved By:</span> _______________________________
+                </div>
+                <div class="signature-line">
+                    <span class="label">Date Approved:</span> _______________________________
+                </div>
+                `}
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+/**
+ * Generate PO HTML document
+ * @param {Object} data - Document data with all placeholders
+ * @returns {string} - Complete HTML document
+ */
+function generatePOHTML(data) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>${data.PO_ID} - Purchase Order</title>
+            <style>
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0.5in;
+                    }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.4;
+                    color: #000;
+                    max-width: 8.5in;
+                    margin: 0 auto;
+                    padding: 0.5in;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }
+                .header h1 {
+                    margin: 0;
+                    font-size: 14pt;
+                    font-weight: bold;
+                }
+                .header p {
+                    margin: 2px 0;
+                    font-size: 9pt;
+                }
+                .title {
+                    text-align: center;
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin: 20px 0;
+                    text-decoration: underline;
+                }
+                .section {
+                    margin: 15px 0;
+                }
+                .field {
+                    margin: 8px 0;
+                    page-break-inside: avoid;
+                }
+                .label {
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 150px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 15px 0;
+                    page-break-inside: avoid;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                td {
+                    font-size: 10pt;
+                }
+                .signature {
+                    margin-top: 60px;
+                    page-break-inside: avoid;
+                }
+                .signature-image {
+                    max-width: 200px;
+                    max-height: 60px;
+                    margin: 10px 0;
+                }
+                .signature-line {
+                    height: 60px;
+                    border-bottom: 1px solid #000;
+                    width: 200px;
+                    margin: 10px 0;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>${data.company_info.name}</h1>
+                <p>${data.company_info.address}</p>
+                <p>Tel: ${data.company_info.tel} | Email: ${data.company_info.email}</p>
+            </div>
+
+            <div class="title">PURCHASE ORDER</div>
+
+            <div class="section">
+                <div class="field"><span class="label">P.O. No.:</span> ${data.PO_ID}</div>
+                <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+                <div class="field"><span class="label">Quote Ref:</span> ${data.QUOTE_REF}</div>
+            </div>
+
+            <div class="section">
+                <h3 style="margin: 10px 0;">Order Details:</h3>
+                ${data.ITEMS_TABLE}
+            </div>
+
+            <div class="section">
+                <div class="field"><span class="label">Delivery Address:</span> ${data.DELIVERY_ADDRESS}</div>
+                <div class="field"><span class="label">Payment Terms:</span> ${data.PAYMENT_TERMS}</div>
+                <div class="field"><span class="label">Condition:</span> ${data.CONDITION}</div>
+                <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
+            </div>
+
+            <div class="signature">
+                <p><strong>Authorized By:</strong></p>
+                ${data.SIGNATURE_PLACEHOLDER ?
+                    `<img src="${data.SIGNATURE_PLACEHOLDER}" class="signature-image" alt="Signature">` :
+                    '<div class="signature-line"></div>'
+                }
+                <p><strong>${data.FINANCE_PIC}</strong></p>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+/**
+ * Open print window with generated HTML
+ * @param {string} html - Complete HTML document
+ * @param {string} filename - Suggested filename
+ */
+function openPrintWindow(html, filename) {
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+        alert('Please allow pop-ups to generate PDF documents');
+        return;
+    }
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    // Wait for content to load, then trigger print
+    printWindow.onload = function() {
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
+}
+
+/**
+ * Format date for documents
+ * @param {string} dateString - ISO date string
+ * @returns {string} - Formatted date
+ */
+function formatDocumentDate(dateString) {
+    if (!dateString || dateString === 'TBD' || dateString === 'Pending') {
+        return dateString;
+    }
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+/**
+ * Generate PR Document
+ * @param {string} prDocId - Firestore document ID of the PR
+ */
+window.generatePRDocument = async function(prDocId) {
+    console.log('Generating PR document for:', prDocId);
+    showLoading(true);
+
+    try {
+        // Fetch PR data from Firestore
+        const prRef = doc(db, 'prs', prDocId);
+        const prDoc = await getDoc(prRef);
+
+        if (!prDoc.exists()) {
+            throw new Error('PR not found');
+        }
+
+        const pr = prDoc.data();
+        const items = JSON.parse(pr.items_json || '[]');
+
+        // Prepare document data
+        const documentData = {
+            PR_ID: pr.pr_id,
+            MRF_ID: pr.mrf_id,
+            DATE: formatDocumentDate(pr.date_generated || new Date().toISOString()),
+            PROJECT: pr.project_name,
+            ADDRESS: pr.delivery_address,
+            SUPPLIER: pr.supplier_name || 'Not specified',
+            ITEMS_TABLE: generateItemsTableHTML(items, 'PR'),
+            TOTAL_COST: formatCurrency(pr.total_amount),
+            REQUESTOR: pr.requestor_name,
+            PROCUREMENT_PIC: pr.procurement_pic || 'Procurement Team',
+            FINANCE_PIC: pr.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            DATE_APPROVED: pr.date_approved ? formatDocumentDate(pr.date_approved) : 'Pending',
+            IS_APPROVED: pr.finance_status === 'Approved' || pr.date_approved,
+            company_info: DOCUMENT_CONFIG.companyInfo
+        };
+
+        // Generate HTML and open in print window
+        const html = generatePRHTML(documentData);
+        openPrintWindow(html, documentData.PR_ID);
+
+        showToast('PR document opened. Use browser Print → Save as PDF', 'success');
+
+    } catch (error) {
+        console.error('Error generating PR document:', error);
+        showToast('Failed to generate PR document', 'error');
+        throw error;
+    } finally {
+        showLoading(false);
+    }
+};
+
+/**
+ * Generate PO Document
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+window.generatePODocument = async function(poDocId) {
+    console.log('Generating PO document for:', poDocId);
+    showLoading(true);
+
+    try {
+        // Fetch PO data from Firestore
+        const poRef = doc(db, 'pos', poDocId);
+        const poDoc = await getDoc(poRef);
+
+        if (!poDoc.exists()) {
+            throw new Error('PO not found');
+        }
+
+        const po = poDoc.data();
+        const items = JSON.parse(po.items_json || '[]');
+
+        // Prepare document data
+        const documentData = {
+            PO_ID: po.po_id,
+            PROJECT: po.project_name,
+            DATE: formatDocumentDate(po.date_issued || new Date().toISOString()),
+            SUPPLIER: po.supplier_name,
+            QUOTE_REF: po.quote_ref || 'N/A',
+            ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
+            DELIVERY_ADDRESS: po.delivery_address,
+            PAYMENT_TERMS: po.payment_terms || 'As per agreement',
+            CONDITION: po.condition || 'Standard terms apply',
+            DELIVERY_DATE: formatDocumentDate(po.delivery_date || 'TBD'),
+            FINANCE_PIC: po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            SIGNATURE_PLACEHOLDER: po.finance_signature_url || '',
+            company_info: DOCUMENT_CONFIG.companyInfo
+        };
+
+        // Generate HTML and open in print window
+        const html = generatePOHTML(documentData);
+        openPrintWindow(html, documentData.PO_ID);
+
+        showToast('PO document opened. Use browser Print → Save as PDF', 'success');
+
+    } catch (error) {
+        console.error('Error generating PO document:', error);
+        showToast('Failed to generate PO document', 'error');
+        throw error;
+    } finally {
+        showLoading(false);
+    }
+};
+
+/**
+ * View PO Document (wrapper for generatePODocument)
+ */
+window.viewPODocument = async function(poDocId) {
+    console.log('Viewing PO document for:', poDocId);
+
+    try {
+        await generatePODocument(poDocId);
+    } catch (error) {
+        console.error('Error viewing PO document:', error);
+        showToast('Failed to open PO document', 'error');
+    }
+};
+
+/**
+ * Download PO Document (wrapper for generatePODocument)
+ */
+window.downloadPODocument = async function(poDocId) {
+    console.log('Downloading PO document for:', poDocId);
+
+    try {
+        await generatePODocument(poDocId);
+    } catch (error) {
+        console.error('Error downloading PO document:', error);
+        showToast('Failed to download PO document', 'error');
+    }
+};
+
+/**
+ * Generate All PO Documents - Opens document for each PO with a delay
+ * @param {Array<string>} poDocIds - Array of Firestore document IDs for POs
+ */
+window.generateAllPODocuments = async function(poDocIds) {
+    console.log('Generating documents for POs:', poDocIds);
+
+    if (!poDocIds || poDocIds.length === 0) {
+        showToast('No POs to generate documents for', 'error');
+        return;
+    }
+
+    showToast(`Generating ${poDocIds.length} PO document(s)... Please allow pop-ups.`, 'info');
+
+    // Generate documents with a small delay between each to prevent browser blocking
+    for (let i = 0; i < poDocIds.length; i++) {
+        try {
+            await generatePODocument(poDocIds[i]);
+
+            // Add a small delay between documents to prevent browser from blocking pop-ups
+            if (i < poDocIds.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        } catch (error) {
+            console.error(`Error generating document for PO ${poDocIds[i]}:`, error);
+        }
+    }
+
+    showToast(`Generated ${poDocIds.length} PO document(s). Check your browser tabs/windows.`, 'success');
 };
 
 console.log('Procurement view module loaded successfully');
