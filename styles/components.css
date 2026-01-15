@@ -790,6 +790,15 @@ tr:hover {
     display: block;
 }
 
+/* Section Tabs (used in Procurement & Finance views) */
+.section {
+    display: none;
+}
+
+.section.active {
+    display: block;
+}
+
 /* ========================================
    ACTIONS (button groups)
    ======================================== */
