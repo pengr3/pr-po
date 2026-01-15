@@ -52,6 +52,9 @@ export function render(activeTab = 'mrfs') {
                     <a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">
                         Supplier Management
                     </a>
+                    <a href="#/procurement/tracking" class="tab-btn ${activeTab === 'tracking' ? 'active' : ''}">
+                        PO Tracking
+                    </a>
                     <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
                         MRF Records
                     </a>
@@ -153,6 +156,88 @@ export function render(activeTab = 'mrfs') {
                 </div>
             </section>
 
+            <!-- PO Tracking Section -->
+            <section id="tracking-section" class="section ${activeTab === 'tracking' ? 'active' : ''}">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Purchase Order Tracking & Delivery</h2>
+                        <button class="btn btn-primary" onclick="window.refreshPOTracking()">🔄 Refresh</button>
+                    </div>
+
+                    <!-- Materials Status Scoreboard -->
+                    <div style="padding: 1.5rem 1.5rem 0.75rem 1.5rem;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement</div>
+                        <div id="poScoreboardMaterials" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                            <!-- Pending Procurement -->
+                            <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                                <div id="scoreMaterialsPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                            </div>
+                            <!-- Procuring -->
+                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procuring</div>
+                                <div id="scoreMaterialsProcuring" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                            </div>
+                            <!-- Procured -->
+                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procured</div>
+                                <div id="scoreMaterialsProcured" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                            </div>
+                            <!-- Delivered -->
+                            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Delivered</div>
+                                <div id="scoreMaterialsDelivered" style="font-size: 2rem; font-weight: 700; color: #2563eb;">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subcon Status Scoreboard -->
+                    <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing</div>
+                        <div id="poScoreboardSubcon" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                            <!-- Pending -->
+                            <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
+                                <div id="scoreSubconPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
+                            </div>
+                            <!-- Processing -->
+                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processing</div>
+                                <div id="scoreSubconProcessing" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
+                            </div>
+                            <!-- Processed -->
+                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                                <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processed</div>
+                                <div id="scoreSubconProcessed" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PO Tracking Table -->
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PO ID</th>
+                                <th>Supplier</th>
+                                <th>Project</th>
+                                <th>Amount</th>
+                                <th>Issued Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poTrackingBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 2rem;">
+                                    Loading POs...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div id="poPagination"></div>
+                </div>
+            </section>
+
             <!-- MRF Records Section -->
             <section id="records-section" class="section ${activeTab === 'records' ? 'active' : ''}">
                 <div class="card">
@@ -207,6 +292,11 @@ export async function init(activeTab = 'mrfs') {
         await loadMRFs();
         await loadHistoricalMRFs();
 
+        // Load PO tracking if on tracking tab
+        if (activeTab === 'tracking') {
+            await loadPOTracking();
+        }
+
         console.log('Procurement view initialized successfully');
     } catch (error) {
         console.error('Error initializing procurement view:', error);
@@ -259,6 +349,11 @@ export async function destroy() {
     delete window.changeSuppliersPage;
     delete window.loadHistoricalMRFs;
     delete window.filterHistoricalMRFs;
+    delete window.refreshPOTracking;
+    delete window.changePOPage;
+    delete window.updatePOStatus;
+    delete window.viewPODetails;
+    delete window.viewPOTimeline;
 
     console.log('Procurement view destroyed');
 }
@@ -2632,6 +2727,454 @@ window.generatePRandTR = async function() {
     } finally {
         showLoading(false);
     }
+};
+
+// ========================================
+// PO TRACKING FUNCTIONS
+// ========================================
+
+/**
+ * Load PO Tracking with real-time listener
+ */
+async function loadPOTracking() {
+    const posRef = collection(db, 'pos');
+
+    const listener = onSnapshot(posRef, (snapshot) => {
+        poData = [];
+        snapshot.forEach((doc) => {
+            poData.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort by status (pending, procuring, procured, delivered), then by date within each status
+        // SUBCON items use: Pending → Processing → Processed
+        // Material items use: Pending Procurement → Procuring → Procured → Delivered
+        const statusOrder = {
+            'Pending Procurement': 1,
+            'Pending': 1,  // SUBCON equivalent
+            'Procuring': 2,
+            'Processing': 2,  // SUBCON equivalent
+            'Procured': 3,
+            'Processed': 3,  // SUBCON equivalent
+            'Delivered': 4
+        };
+
+        poData.sort((a, b) => {
+            const defaultStatus = a.is_subcon ? 'Pending' : 'Pending Procurement';
+            const defaultStatusB = b.is_subcon ? 'Pending' : 'Pending Procurement';
+            const statusA = a.procurement_status || defaultStatus;
+            const statusB = b.procurement_status || defaultStatusB;
+            const orderA = statusOrder[statusA] || 999;
+            const orderB = statusOrder[statusB] || 999;
+
+            // First sort by status
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            // Then by date (newest first within each status)
+            return new Date(b.date_issued) - new Date(a.date_issued);
+        });
+
+        renderPOTrackingTable(poData);
+        console.log('POs updated:', poData.length);
+    });
+
+    listeners.push(listener);
+}
+
+/**
+ * Refresh PO tracking manually
+ */
+window.refreshPOTracking = async function() {
+    await loadPOTracking();
+    showToast('PO list refreshed', 'success');
+};
+
+/**
+ * Render PO Tracking Table
+ */
+function renderPOTrackingTable(pos) {
+    const tbody = document.getElementById('poTrackingBody');
+
+    // Calculate separate scoreboard counts for Materials and Subcon
+    const materialCounts = {
+        pending: 0,      // Pending Procurement
+        procuring: 0,    // Procuring
+        procured: 0,     // Procured
+        delivered: 0     // Delivered
+    };
+
+    const subconCounts = {
+        pending: 0,      // Pending
+        processing: 0,   // Processing
+        processed: 0     // Processed
+    };
+
+    pos.forEach(po => {
+        const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+
+        if (po.is_subcon) {
+            // SUBCON counts
+            if (status === 'Pending') subconCounts.pending++;
+            else if (status === 'Processing') subconCounts.processing++;
+            else if (status === 'Processed') subconCounts.processed++;
+        } else {
+            // Material counts
+            if (status === 'Pending Procurement') materialCounts.pending++;
+            else if (status === 'Procuring') materialCounts.procuring++;
+            else if (status === 'Procured') materialCounts.procured++;
+            else if (status === 'Delivered') materialCounts.delivered++;
+        }
+    });
+
+    // Update Materials scoreboard
+    document.getElementById('scoreMaterialsPending').textContent = materialCounts.pending;
+    document.getElementById('scoreMaterialsProcuring').textContent = materialCounts.procuring;
+    document.getElementById('scoreMaterialsProcured').textContent = materialCounts.procured;
+    document.getElementById('scoreMaterialsDelivered').textContent = materialCounts.delivered;
+
+    // Update Subcon scoreboard
+    document.getElementById('scoreSubconPending').textContent = subconCounts.pending;
+    document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
+    document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
+
+    if (pos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
+        // Hide pagination if no results
+        const paginationDiv = document.getElementById('poPagination');
+        if (paginationDiv) paginationDiv.style.display = 'none';
+        return;
+    }
+
+    // Calculate pagination
+    const totalPages = Math.ceil(pos.length / poItemsPerPage);
+    const startIndex = (poCurrentPage - 1) * poItemsPerPage;
+    const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
+    const pageItems = pos.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageItems.map(po => {
+        const isSubcon = po.is_subcon;
+        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+        const currentStatus = po.procurement_status || defaultStatus;
+        const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
+
+        // Generate status options based on whether it's SUBCON or material
+        let statusOptions;
+        if (isSubcon) {
+            // SUBCON: Pending → Processing → Processed
+            statusOptions = `
+                <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Processing" ${currentStatus === 'Processing' ? 'selected' : ''}>Processing</option>
+                <option value="Processed" ${currentStatus === 'Processed' ? 'selected' : ''}>Processed</option>
+            `;
+        } else {
+            // Material: Pending Procurement → Procuring → Procured → Delivered
+            statusOptions = `
+                <option value="Pending Procurement" ${currentStatus === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
+                <option value="Procuring" ${currentStatus === 'Procuring' ? 'selected' : ''}>Procuring</option>
+                <option value="Procured" ${currentStatus === 'Procured' ? 'selected' : ''}>Procured</option>
+                <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+            `;
+        }
+
+        return `
+        <tr>
+            <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
+            <td>${po.supplier_name}</td>
+            <td>${po.project_name}</td>
+            <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+            <td>${new Date(po.date_issued).toLocaleDateString()}</td>
+            <td>
+                <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
+                        onchange="updatePOStatus('${po.id}', this.value, '${currentStatus}', ${isSubcon})"
+                        ${isFinalStatus ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
+                    ${statusOptions}
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
+            </td>
+        </tr>
+    `}).join('');
+
+    // Update pagination controls
+    updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
+}
+
+/**
+ * Change PO Page
+ */
+window.changePOPage = function(direction) {
+    const totalPages = Math.ceil(poData.length / poItemsPerPage);
+
+    if (direction === 'prev' && poCurrentPage > 1) {
+        poCurrentPage--;
+    } else if (direction === 'next' && poCurrentPage < totalPages) {
+        poCurrentPage++;
+    } else if (typeof direction === 'number') {
+        poCurrentPage = direction;
+    }
+
+    renderPOTrackingTable(poData);
+};
+
+/**
+ * Update PO Pagination Controls
+ */
+function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems) {
+    let paginationDiv = document.getElementById('poPagination');
+
+    // Create pagination div if it doesn't exist
+    if (!paginationDiv) {
+        paginationDiv = document.createElement('div');
+        paginationDiv.id = 'poPagination';
+        paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+
+        // Insert after the table
+        const section = document.getElementById('tracking-section');
+        const table = section?.querySelector('table');
+        if (table && table.parentNode) {
+            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+        }
+    }
+
+    paginationDiv.style.display = 'flex';
+
+    // Build pagination HTML
+    let paginationHTML = `
+        <div style="color: #5f6368; font-size: 0.875rem;">
+            Showing ${startIndex + 1}-${endIndex} of ${totalItems} POs
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}
+                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                Previous
+            </button>
+    `;
+
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= poCurrentPage - 1 && i <= poCurrentPage + 1)) {
+            paginationHTML += `
+                <button
+                    onclick="changePOPage(${i})"
+                    style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === poCurrentPage ? '#1a73e8' : 'white'}; color: ${i === poCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === poCurrentPage ? '600' : '400'};"
+                >
+                    ${i}
+                </button>
+            `;
+        } else if (i === poCurrentPage - 2 || i === poCurrentPage + 2) {
+            paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+        }
+    }
+
+    paginationHTML += `
+            <button onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}
+                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                Next
+            </button>
+        </div>
+    `;
+
+    paginationDiv.innerHTML = paginationHTML;
+}
+
+/**
+ * Update PO Status
+ */
+window.updatePOStatus = async function(poId, newStatus, currentStatus, isSubcon = false) {
+    if (newStatus === currentStatus) return;
+
+    // Prevent changing status if already at final status
+    const finalStatus = isSubcon ? 'Processed' : 'Delivered';
+    if (currentStatus === finalStatus) {
+        showToast(`Cannot change status once ${finalStatus.toLowerCase()}`, 'error');
+        const select = document.querySelector(`select[data-po-id="${poId}"]`);
+        if (select) select.value = currentStatus;
+        return;
+    }
+
+    // If marking as Delivered (materials only), prompt for delivery fee
+    let deliveryFee = 0;
+    if (newStatus === 'Delivered' && !isSubcon) {
+        const feeInput = prompt('Enter Delivery Fee (PHP):', '0');
+        if (feeInput === null) {
+            // User cancelled
+            const select = document.querySelector(`select[data-po-id="${poId}"]`);
+            if (select) select.value = currentStatus;
+            return;
+        }
+        deliveryFee = parseFloat(feeInput) || 0;
+        if (deliveryFee < 0) {
+            showToast('Delivery fee cannot be negative', 'error');
+            const select = document.querySelector(`select[data-po-id="${poId}"]`);
+            if (select) select.value = currentStatus;
+            return;
+        }
+    }
+
+    const confirmMsg = isSubcon
+        ? `Update SUBCON status to "${newStatus}"?`
+        : `Update status to "${newStatus}"?${newStatus === 'Delivered' ? '\nDelivery Fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`;
+
+    if (!confirm(confirmMsg)) {
+        // Reset dropdown
+        const select = document.querySelector(`select[data-po-id="${poId}"]`);
+        if (select) select.value = currentStatus;
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        const updateData = {
+            procurement_status: newStatus,
+            updated_at: new Date().toISOString()
+        };
+
+        if (isSubcon) {
+            // SUBCON status timestamps: Pending → Processing → Processed
+            if (newStatus === 'Processing' && currentStatus !== 'Processing') {
+                updateData.processing_started_at = new Date().toISOString();
+            } else if (newStatus === 'Processed') {
+                updateData.processed_at = new Date().toISOString();
+                updateData.processed_date = new Date().toISOString().split('T')[0];
+            }
+        } else {
+            // Material status timestamps: Pending Procurement → Procuring → Procured → Delivered
+            if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
+                updateData.procurement_started_at = new Date().toISOString();
+            } else if (newStatus === 'Procured') {
+                updateData.procured_at = new Date().toISOString();
+                updateData.procured_date = new Date().toISOString().split('T')[0];
+            } else if (newStatus === 'Delivered') {
+                updateData.delivered_at = new Date().toISOString();
+                updateData.delivered_date = new Date().toISOString().split('T')[0];
+                updateData.delivery_fee = deliveryFee;
+            }
+        }
+
+        const poRef = doc(db, 'pos', poId);
+        await updateDoc(poRef, updateData);
+
+        const successMsg = isSubcon
+            ? `SUBCON status updated to ${newStatus}`
+            : `PO status updated to ${newStatus}${newStatus === 'Delivered' ? ' with delivery fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`;
+        showToast(successMsg, 'success');
+    } catch (error) {
+        console.error('Error updating PO status:', error);
+        showToast('Failed to update status', 'error');
+        // Reset dropdown
+        const select = document.querySelector(`select[data-po-id="${poId}"]`);
+        if (select) select.value = currentStatus;
+    } finally {
+        showLoading(false);
+    }
+};
+
+/**
+ * View PO Details
+ */
+window.viewPODetails = async function(poId) {
+    console.log('Loading PO details for:', poId);
+    showLoading(true);
+
+    try {
+        const poRef = doc(db, 'pos', poId);
+        const poDoc = await getDoc(poRef);
+
+        if (!poDoc.exists()) {
+            showToast('PO not found', 'error');
+            return;
+        }
+
+        const po = { id: poDoc.id, ...poDoc.data() };
+        const items = JSON.parse(po.items_json || '[]');
+
+        // Build simple alert content for now
+        let content = `PO Details:\n\n`;
+        content += `PO ID: ${po.po_id}\n`;
+        content += `Supplier: ${po.supplier_name}\n`;
+        content += `Project: ${po.project_name}\n`;
+        content += `Date Issued: ${new Date(po.date_issued).toLocaleDateString()}\n`;
+        content += `Status: ${po.procurement_status || 'Pending'}\n`;
+        content += `Total Amount: PHP ${parseFloat(po.total_amount || 0).toLocaleString()}\n`;
+        if (po.delivery_fee) {
+            content += `Delivery Fee: PHP ${parseFloat(po.delivery_fee).toLocaleString()}\n`;
+        }
+        content += `\nItems: ${items.length} item(s)\n`;
+        items.forEach((item, idx) => {
+            content += `\n${idx + 1}. ${item.item || item.item_name}\n`;
+            content += `   Qty: ${item.qty || item.quantity} ${item.unit}\n`;
+            content += `   Unit Cost: PHP ${parseFloat(item.unit_cost || 0).toLocaleString()}\n`;
+            content += `   Subtotal: PHP ${parseFloat(item.subtotal || 0).toLocaleString()}\n`;
+        });
+
+        alert(content);
+        console.log('PO Details:', po);
+
+    } catch (error) {
+        console.error('Error loading PO details:', error);
+        showToast('Failed to load PO details', 'error');
+    } finally {
+        showLoading(false);
+    }
+};
+
+/**
+ * View PO Timeline
+ */
+window.viewPOTimeline = function(poId) {
+    const po = poData.find(p => p.id === poId);
+    if (!po) return;
+
+    const calculateDays = (start, end) => {
+        if (!start || !end) return 'N/A';
+        const s = new Date(start);
+        const e = new Date(end);
+        return Math.ceil((e - s) / (1000 * 60 * 60 * 24)) + ' days';
+    };
+
+    let content;
+
+    if (po.is_subcon) {
+        // SUBCON Timeline: PO Issued → Processing Started → Processed
+        const defaultStatus = 'Pending';
+        const currentStatus = po.procurement_status || defaultStatus;
+
+        content = `SUBCON Timeline: ${po.po_id}\n\n`;
+        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'Pending'}\n`;
+        content += `${po.processing_started_at ? '✓' : '○'} Processing Started: ${po.processing_started_at ? new Date(po.processing_started_at).toLocaleDateString() : 'Not started'}\n`;
+        if (po.processing_started_at && po.date_issued) {
+            content += `  Time to start: ${calculateDays(po.date_issued, po.processing_started_at)}\n`;
+        }
+        content += `${po.processed_at || po.processed_date ? '✓' : '○'} Processed: ${(po.processed_at || po.processed_date) ? new Date(po.processed_at || po.processed_date).toLocaleDateString() : 'Not yet processed'}\n`;
+        if ((po.processed_at || po.processed_date) && po.processing_started_at) {
+            content += `  Processing time: ${calculateDays(po.processing_started_at, po.processed_at || po.processed_date)}\n`;
+        }
+        if ((po.processed_at || po.processed_date) && po.date_issued) {
+            content += `\nTotal Time: ${calculateDays(po.date_issued, po.processed_at || po.processed_date)}`;
+        }
+    } else {
+        // Material Timeline: PO Issued → Procurement Started → Items Procured → Delivered
+        content = `Material Timeline: ${po.po_id}\n\n`;
+        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'Pending'}\n`;
+        content += `${po.procurement_started_at ? '✓' : '○'} Procurement Started: ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleDateString() : 'Not started'}\n`;
+        content += `${po.procured_at || po.procured_date ? '✓' : '○'} Items Procured: ${(po.procured_at || po.procured_date) ? new Date(po.procured_at || po.procured_date).toLocaleDateString() : 'Not yet procured'}\n`;
+        if ((po.procured_at || po.procured_date) && po.procurement_started_at) {
+            content += `  Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}\n`;
+        }
+        content += `${po.delivered_at || po.delivered_date ? '✓' : '○'} Delivered: ${(po.delivered_at || po.delivered_date) ? new Date(po.delivered_at || po.delivered_date).toLocaleDateString() : 'Not yet delivered'}\n`;
+        if ((po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date)) {
+            content += `  Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}\n`;
+        }
+        if ((po.delivered_at || po.delivered_date) && po.date_issued) {
+            content += `\nTotal Time: ${calculateDays(po.date_issued, po.delivered_at || po.delivered_date)}`;
+        }
+    }
+
+    // Show in alert for now (will add proper modal later)
+    alert(content);
 };
 
 console.log('Procurement view module loaded successfully');
