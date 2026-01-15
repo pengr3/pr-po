@@ -8,10 +8,12 @@ CLMC Engineering procurement management system - a static HTML application for m
 
 ## Tech Stack
 
-- **Frontend**: Pure HTML/CSS/JavaScript (no framework, no build system)
-  - All code is inline within HTML files using `<style>` and `<script>` tags
-  - No separate .js or .css files
-  - No package.json or dependencies
+- **Frontend**: Single Page Application (SPA) - Pure JavaScript ES6 modules
+  - **Architecture**: Modular SPA with hash-based routing
+  - **No framework, no build system** - Uses native ES6 modules
+  - **Separate CSS files** for organization (main.css, components.css, views.css)
+  - **Separate JS modules** in `app/` directory
+  - No package.json or dependencies (Firebase loaded via CDN)
 - **Database**: Firebase Firestore v10.7.1 (loaded via CDN)
   - Real-time listeners for live data updates
   - Project ID: `clmc-procurement`
@@ -31,18 +33,65 @@ npx http-server
 
 ## Application Structure
 
-- **index.html** (5,785 lines) - Main procurement dashboard
-  - MRF Processing: Create and review material requests
-  - Supplier Management: Add/edit suppliers
-  - MRF Records: Historical MRF data with analytics
+### SPA Architecture
 
-- **finance.html** (4,965 lines) - Finance dashboard
-  - Pending Approvals: Review and approve/reject PRs
-  - Purchase Orders: Track PO status and manage procurement
-  - Historical Data: Analytics and reporting
-  - Project Management: Add/manage active projects
+**Entry Point:**
+- **index.html** (80 lines) - Single page entry point
+  - Top navigation bar
+  - App container for dynamic views
+  - Loads ES6 modules (Firebase, router, utils, components)
 
-- **mrf-submission-form.html** (799 lines) - Public form for submitting MRFs
+**Core Modules (`app/`):**
+- **firebase.js** (80 lines) - Centralized Firebase configuration
+  - Exports db instance and all Firestore functions
+  - Single initialization, imported by all views
+- **router.js** (230 lines) - Hash-based router with lazy loading
+  - Supports sub-routes (e.g., `#/procurement/mrfs`)
+  - View lifecycle management (init/destroy)
+  - Dynamic imports for code splitting
+- **utils.js** (250 lines) - Shared utility functions
+  - formatCurrency, formatDate, showLoading, showToast
+  - generateSequentialId, Firebase helpers
+- **components.js** (350 lines) - Reusable UI components
+  - createStatusBadge, createModal, createPagination
+
+**Views (`app/views/`):**
+- **home.js** (120 lines) - Landing page with live Firebase stats
+  - Real-time dashboard statistics
+  - Navigation cards to main sections
+- **mrf-form.js** (600 lines) - **FULLY FUNCTIONAL** MRF submission form
+  - Dynamic item rows with add/delete
+  - Project dropdown from Firebase
+  - Complete form validation
+- **procurement.js** (1,915 lines) - **PARTIALLY FUNCTIONAL** Procurement dashboard
+  - **✅ Complete:** MRF CRUD, Supplier CRUD, Historical MRFs (24 functions)
+  - **⏳ Pending:** PR generation (3 functions with placeholders)
+  - Sub-routes: `/mrfs`, `/suppliers`, `/records`
+- **finance.js** (250 lines) - **PLACEHOLDER** Finance dashboard
+  - Structure in place, functions not yet migrated
+
+**Styles (`styles/`):**
+- **main.css** (400 lines) - Base styles, CSS variables, utilities
+- **components.css** (650 lines) - Button, card, table, modal styles
+- **views.css** (600 lines) - View-specific layouts
+- **hero.css** (100 lines) - Landing page styles
+
+**Archive (`archive/`):**
+- **index.html** (5,785 lines) - Original procurement dashboard (archived)
+- **finance.html** (4,965 lines) - Original finance dashboard (archived)
+- **mrf-submission-form.html** (799 lines) - Original form (archived)
+
+### Migration Status
+
+**Completed (35%):**
+- ✅ Infrastructure: Router, Firebase service, utilities, components
+- ✅ Home view: Fully functional with live stats
+- ✅ MRF Form: Fully functional submission form
+- ✅ Procurement: 24/47 functions (MRF CRUD, Suppliers, Historical data)
+
+**Pending (65%):**
+- ⏳ Procurement: PR generation functions (3 functions)
+- ⏳ Finance: All functions (46 functions, ~3,500 lines)
 
 ## Firebase Firestore Schema
 
@@ -113,20 +162,86 @@ npx http-server
 - **High**: Urgent (1-2 business days) - Red badge
 - **Critical**: Immediate (same day) - Dark red badge
 
-## Code Patterns
+## SPA Development Patterns
 
-### Global Functions for Event Handlers
-All functions called by `onclick` handlers must be in global scope or attached to `window`:
+### View Module Structure
+Every view module MUST export three functions:
 
 ```javascript
-window.selectMRF = async function(mrfId) { ... }
-window.approvePR = async function(prId) { ... }
+// app/views/example.js
+export function render(activeTab = null) {
+    return `<div>HTML content</div>`;
+}
+
+export async function init(activeTab = null) {
+    // Set up Firebase listeners, event handlers
+    // Store listeners in array for cleanup
+}
+
+export async function destroy() {
+    // Unsubscribe from Firebase listeners
+    // Clean up window functions
+    // Clear state
+}
+```
+
+### Firebase Listener Management
+Track all listeners for proper cleanup:
+
+```javascript
+let listeners = [];
+
+export async function init() {
+    const listener = onSnapshot(collection(db, 'mrfs'), (snapshot) => {
+        // Handle data updates
+    });
+    listeners.push(listener);
+}
+
+export async function destroy() {
+    listeners.forEach(unsubscribe => {
+        if (typeof unsubscribe === 'function') {
+            unsubscribe();
+        }
+    });
+    listeners = [];
+}
+```
+
+### Global Functions for Event Handlers
+Functions called by `onclick` handlers MUST be attached to `window`:
+
+```javascript
+// Export for module use
+export async function selectMRF(mrfId) { ... }
+
+// Expose to window for onclick handlers
+window.selectMRF = selectMRF;
 ```
 
 HTML buttons reference these directly:
 ```html
-<button onclick="approvePR('PR-2026-001')">Approve</button>
+<button onclick="window.selectMRF('MRF-2026-001')">Select</button>
 ```
+
+### Hash-Based Routing
+Use hash links for navigation:
+
+```javascript
+// Top-level routes
+<a href="#/">Home</a>
+<a href="#/procurement">Procurement</a>
+
+// Sub-routes (for tabbed views)
+<a href="#/procurement/mrfs">MRF Processing</a>
+<a href="#/procurement/suppliers">Suppliers</a>
+```
+
+Router automatically parses `#/procurement/mrfs` into:
+- `path`: `/procurement`
+- `tab`: `mrfs`
+
+And passes `tab` to `render(tab)` and `init(tab)`
 
 ### Real-time Data with Firebase Listeners
 Data updates automatically via `onSnapshot()` - never manually refresh:
@@ -193,12 +308,29 @@ if (mrf.status === 'pending') { ... } // lowercase won't work
 
 ## Common Development Tasks
 
+### Adding a New View
+
+1. Create `app/views/viewname.js`
+2. Export `render()`, `init()`, and `destroy()` functions
+3. Add route to `app/router.js`:
+```javascript
+const routes = {
+    '/viewname': {
+        name: 'View Name',
+        load: () => import('./views/viewname.js'),
+        title: 'View Name | CLMC Operations'
+    }
+};
+```
+4. Add navigation link to `index.html`
+5. Import any needed utilities from `app/utils.js` and `app/firebase.js`
+
 ### Adding a New Field to MRFs
 
-1. Update the form in `index.html` or `mrf-submission-form.html` to include input field
+1. Update the form in `app/views/mrf-form.js` or `app/views/procurement.js`
 2. Modify the form submission handler to capture the new field
 3. Update Firestore `addDoc()` or `setDoc()` calls to include the field
-4. Update display functions to show the new field in tables/modals
+4. Update display functions to show the new field in tables/views
 5. No database migration needed - Firestore is schemaless
 
 ### Modifying Firebase Queries
@@ -258,20 +390,33 @@ When modifying headers, update ALL config files to maintain consistency across p
 
 ## Important Notes
 
-### File Size
-HTML files are large (5000+ lines each). When editing:
-- Use `Read` tool to view specific sections by line range
-- Make targeted edits rather than rewriting entire files
-- Search for specific functions using `Grep` before editing
+### SPA Architecture
+- **No page reloads**: All navigation happens via hash routing
+- **Modular code**: Each view is self-contained with proper lifecycle
+- **Lazy loading**: Views are loaded on demand via dynamic imports
+- **Cleanup required**: Always implement `destroy()` to prevent memory leaks
+- **Window functions**: Functions used in `onclick` must be on `window`
+
+### Archive Folder
+Original monolithic HTML files are preserved in `archive/`:
+- **archive/index.html** - Original procurement dashboard (reference only)
+- **archive/finance.html** - Original finance dashboard (reference only)
+- **archive/mrf-submission-form.html** - Original form (reference only)
+
+**DO NOT EDIT ARCHIVE FILES**. Use them only as reference for migration.
+
+### File Organization
+- **Views**: `app/views/*.js` - One file per view/page
+- **Utilities**: `app/utils.js` - Shared helper functions
+- **Components**: `app/components.js` - Reusable UI elements
+- **Firebase**: `app/firebase.js` - Single initialization point
+- **Styles**: `styles/*.css` - Organized by purpose
 
 ### Firebase Configuration
-Firebase config is hardcoded in each HTML file (this is safe for client-side apps). No `.env` files are used.
+Firebase config is centralized in `app/firebase.js` (safe for client-side apps). No `.env` files are used.
 
 ### Pagination
-Tables implement pagination (15 items per page) for performance. When adding new tables, include pagination controls.
-
-### Modal System
-Detail views use modal overlays. Modal HTML is dynamically generated and injected into the DOM. Close modals by setting `display: none` on modal container.
+Tables implement pagination (15 items per page) for performance. Pagination is handled by individual view modules.
 
 ### Git Branch Naming
 Follow the pattern: `claude/feature-description-xxxxx` where xxxxx is a session ID. All branches are created from `main`.
