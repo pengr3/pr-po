@@ -6,7 +6,7 @@
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, generateSequentialId } from '../utils.js';
-import { createStatusBadge, createModal } from '../components.js';
+import { createStatusBadge, createModal, openModal, closeModal } from '../components.js';
 
 // ========================================
 // GLOBAL STATE
@@ -23,10 +23,10 @@ let poData = [];
 let poCurrentPage = 1;
 const poItemsPerPage = 15;
 
-let allHistoricalMRFs = [];
-let filteredHistoricalMRFs = [];
-let currentPage = 1;
-const itemsPerPage = 10;
+let allPRPORecords = [];
+let filteredPRPORecords = [];
+let prpoCurrentPage = 1;
+const prpoItemsPerPage = 10;
 
 // Firebase listeners for cleanup
 let listeners = [];
@@ -68,19 +68,14 @@ function attachWindowFunctions() {
     window.deleteSupplier = deleteSupplier;
     window.changeSuppliersPage = changeSuppliersPage;
 
-    // Historical MRFs Functions
-    window.loadHistoricalMRFs = loadHistoricalMRFs;
-    window.filterHistoricalMRFs = filterHistoricalMRFs;
-    window.goToHistoricalPage = goToHistoricalPage;
-    window.viewHistoricalMRFDetails = viewHistoricalMRFDetails;
+    // PR-PO Records Functions
+    window.loadPRPORecords = loadPRPORecords;
+    window.filterPRPORecords = filterPRPORecords;
+    window.goToPRPOPage = goToPRPOPage;
     window.viewPRDetails = viewPRDetails;
-
-    // PO Tracking Functions
-    window.refreshPOTracking = refreshPOTracking;
-    window.changePOPage = changePOPage;
-    window.updatePOStatus = updatePOStatus;
     window.viewPODetails = viewPODetails;
     window.viewPOTimeline = viewPOTimeline;
+    window.updatePOStatus = updatePOStatus;
 
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
@@ -112,11 +107,8 @@ export function render(activeTab = 'mrfs') {
                     <a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">
                         Supplier Management
                     </a>
-                    <a href="#/procurement/tracking" class="tab-btn ${activeTab === 'tracking' ? 'active' : ''}">
-                        PO Tracking
-                    </a>
                     <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
-                        MRF Records
+                        PR-PO Records
                     </a>
                 </div>
             </div>
@@ -216,118 +208,97 @@ export function render(activeTab = 'mrfs') {
                 </div>
             </section>
 
-            <!-- PO Tracking Section -->
-            <section id="tracking-section" class="section ${activeTab === 'tracking' ? 'active' : ''}">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Purchase Order Tracking & Delivery</h2>
-                        <button class="btn btn-primary" onclick="window.refreshPOTracking()">🔄 Refresh</button>
-                    </div>
-
-                    <!-- Materials Status Scoreboard -->
-                    <div style="padding: 1.5rem 1.5rem 0.75rem 1.5rem;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement</div>
-                        <div id="poScoreboardMaterials" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;">
-                            <!-- Pending Procurement -->
-                            <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
-                                <div id="scoreMaterialsPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
-                            </div>
-                            <!-- Procuring -->
-                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procuring</div>
-                                <div id="scoreMaterialsProcuring" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
-                            </div>
-                            <!-- Procured -->
-                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Procured</div>
-                                <div id="scoreMaterialsProcured" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
-                            </div>
-                            <!-- Delivered -->
-                            <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Delivered</div>
-                                <div id="scoreMaterialsDelivered" style="font-size: 2rem; font-weight: 700; color: #2563eb;">0</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Subcon Status Scoreboard -->
-                    <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing</div>
-                        <div id="poScoreboardSubcon" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
-                            <!-- Pending -->
-                            <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Pending</div>
-                                <div id="scoreSubconPending" style="font-size: 2rem; font-weight: 700; color: #dc2626;">0</div>
-                            </div>
-                            <!-- Processing -->
-                            <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processing</div>
-                                <div id="scoreSubconProcessing" style="font-size: 2rem; font-weight: 700; color: #ca8a04;">0</div>
-                            </div>
-                            <!-- Processed -->
-                            <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1.25rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
-                                <div style="font-size: 0.75rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Processed</div>
-                                <div id="scoreSubconProcessed" style="font-size: 2rem; font-weight: 700; color: #16a34a;">0</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- PO Tracking Table -->
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>PO ID</th>
-                                <th>Supplier</th>
-                                <th>Project</th>
-                                <th>Amount</th>
-                                <th>Issued Date</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="poTrackingBody">
-                            <tr>
-                                <td colspan="7" style="text-align: center; padding: 2rem;">
-                                    Loading POs...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div id="poPagination"></div>
-                </div>
-            </section>
-
-            <!-- MRF Records Section -->
+            <!-- PR-PO Records Section -->
             <section id="records-section" class="section ${activeTab === 'records' ? 'active' : ''}">
                 <div class="card">
                     <div class="card-header">
-                        <h2>MRF Records</h2>
-                        <button class="btn btn-primary" onclick="window.loadHistoricalMRFs()">Refresh</button>
+                        <h2>PR-PO Records</h2>
+                        <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                    </div>
+
+                    <!-- PO Scoreboards -->
+                    <div style="padding: 1.5rem 1.5rem 0 1.5rem;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 1.5rem;">
+                            <!-- Materials Scoreboards -->
+                            <div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Pending</div>
+                                        <div id="scoreMaterialsPending" style="font-size: 1.75rem; font-weight: 700; color: #dc2626;">0</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Procuring</div>
+                                        <div id="scoreMaterialsProcuring" style="font-size: 1.75rem; font-weight: 700; color: #ca8a04;">0</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Procured</div>
+                                        <div id="scoreMaterialsProcured" style="font-size: 1.75rem; font-weight: 700; color: #16a34a;">0</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Delivered</div>
+                                        <div id="scoreMaterialsDelivered" style="font-size: 1.75rem; font-weight: 700; color: #2563eb;">0</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subcon Scoreboards -->
+                            <div>
+                                <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Pending</div>
+                                        <div id="scoreSubconPending" style="font-size: 1.75rem; font-weight: 700; color: #dc2626;">0</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Processing</div>
+                                        <div id="scoreSubconProcessing" style="font-size: 1.75rem; font-weight: 700; color: #ca8a04;">0</div>
+                                    </div>
+                                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; grid-column: span 2;">
+                                        <div style="font-size: 0.7rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Processed</div>
+                                        <div id="scoreSubconProcessed" style="font-size: 1.75rem; font-weight: 700; color: #16a34a;">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Filters -->
-                    <div class="historical-filters">
-                        <div class="filter-group">
-                            <label>Search</label>
-                            <input type="text" id="histSearchInput" placeholder="Search MRF ID, Project..." onkeyup="window.filterHistoricalMRFs()">
-                        </div>
-                        <div class="filter-group">
-                            <label>Status</label>
-                            <select id="histStatusFilter" onchange="window.filterHistoricalMRFs()">
-                                <option value="">All Statuses</option>
-                                <option value="PR Generated">PR Generated</option>
-                                <option value="TR Submitted">TR Submitted</option>
-                                <option value="Finance Approved">Finance Approved</option>
-                            </select>
+                    <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                            <div class="filter-group">
+                                <label>PO Status</label>
+                                <select id="poStatusFilter" onchange="window.filterPRPORecords()">
+                                    <option value="">All PO Statuses</option>
+                                    <option value="Pending Procurement">Pending Procurement</option>
+                                    <option value="Procuring">Procuring</option>
+                                    <option value="Procured">Procured</option>
+                                    <option value="Delivered">Delivered</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>MRF Status</label>
+                                <select id="histStatusFilter" onchange="window.filterPRPORecords()">
+                                    <option value="">All MRF Statuses</option>
+                                    <option value="PR Generated">PR Generated</option>
+                                    <option value="TR Submitted">TR Submitted</option>
+                                    <option value="Finance Approved">Finance Approved</option>
+                                    <option value="PO Issued">PO Issued</option>
+                                    <option value="Delivered">Delivered</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Search</label>
+                                <input type="text" id="histSearchInput" placeholder="MRF ID, Project..." onkeyup="window.filterPRPORecords()">
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Historical MRFs Container -->
-                    <div id="historicalMRFsContainer">
-                        <div style="text-align: center; padding: 2rem;">Loading historical MRFs...</div>
+                    <!-- PR-PO Records Container -->
+                    <div id="prpoRecordsContainer">
+                        <div style="text-align: center; padding: 2rem;">Loading PR-PO records...</div>
                     </div>
-                    <div id="historicalPagination"></div>
+                    <div id="prpoPagination"></div>
                 </div>
             </section>
         </div>
@@ -355,11 +326,10 @@ export async function init(activeTab = 'mrfs') {
         await loadProjects();
         await loadSuppliers();
         await loadMRFs();
-        await loadHistoricalMRFs();
 
-        // Load PO tracking if on tracking tab
-        if (activeTab === 'tracking') {
-            await loadPOTracking();
+        // Load PR-PO records if on records tab
+        if (activeTab === 'records') {
+            await loadPRPORecords();
         }
 
         console.log('[Procurement] ✅ Procurement view initialized successfully');
@@ -388,8 +358,8 @@ export async function destroy() {
     suppliersData = [];
     projectsData = [];
     poData = [];
-    allHistoricalMRFs = [];
-    filteredHistoricalMRFs = [];
+    allPRPORecords = [];
+    filteredPRPORecords = [];
 
     // Clean up window functions
     delete window.loadMRFs;
@@ -412,16 +382,13 @@ export async function destroy() {
     delete window.saveEdit;
     delete window.deleteSupplier;
     delete window.changeSuppliersPage;
-    delete window.loadHistoricalMRFs;
-    delete window.filterHistoricalMRFs;
-    delete window.goToHistoricalPage;
-    delete window.viewHistoricalMRFDetails;
+    delete window.loadPRPORecords;
+    delete window.filterPRPORecords;
+    delete window.goToPRPOPage;
     delete window.viewPRDetails;
-    delete window.refreshPOTracking;
-    delete window.changePOPage;
-    delete window.updatePOStatus;
     delete window.viewPODetails;
     delete window.viewPOTimeline;
+    delete window.updatePOStatus;
     delete window.generatePRDocument;
     delete window.generatePODocument;
     delete window.viewPODocument;
@@ -1914,75 +1881,158 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 // HISTORICAL MRFS
 // ========================================
 
-async function loadHistoricalMRFs() {
-    console.log('Loading historical MRFs...');
+/**
+ * Load PR-PO Records (combines MRFs, PRs, and POs)
+ */
+async function loadPRPORecords() {
+    console.log('Loading PR-PO Records...');
+    showLoading(true);
+
     try {
+        // Fetch all MRFs with historical statuses
         const mrfsRef = collection(db, 'mrfs');
         const historicalStatuses = ['TR Submitted', 'PR Generated', 'PR Rejected', 'Finance Approved', 'PO Issued', 'Delivered', 'Completed'];
-        const q = query(mrfsRef, where('status', 'in', historicalStatuses));
+        const mrfQuery = query(mrfsRef, where('status', 'in', historicalStatuses));
+        const mrfSnapshot = await getDocs(mrfQuery);
 
-        const snapshot = await getDocs(q);
-        allHistoricalMRFs = [];
-
-        snapshot.forEach((doc) => {
-            allHistoricalMRFs.push({ id: doc.id, ...doc.data() });
+        allPRPORecords = [];
+        mrfSnapshot.forEach((doc) => {
+            allPRPORecords.push({ id: doc.id, ...doc.data() });
         });
 
         // Sort by date (newest first)
-        allHistoricalMRFs.sort((a, b) => {
+        allPRPORecords.sort((a, b) => {
             const dateA = new Date(a.created_at || a.date_submitted);
             const dateB = new Date(b.created_at || b.date_submitted);
             return dateB - dateA;
         });
 
-        filteredHistoricalMRFs = [...allHistoricalMRFs];
-        currentPage = 1;
+        // Fetch all POs for scoreboard
+        const posRef = collection(db, 'pos');
+        const posSnapshot = await getDocs(posRef);
+        const allPOData = [];
+        posSnapshot.forEach((doc) => {
+            allPOData.push({ id: doc.id, ...doc.data() });
+        });
 
-        console.log(`Loaded ${allHistoricalMRFs.length} historical MRFs`);
-        renderHistoricalMRFs();
+        // Update scoreboards
+        updatePOScoreboards(allPOData);
+
+        filteredPRPORecords = [...allPRPORecords];
+        prpoCurrentPage = 1;
+
+        console.log(`Loaded ${allPRPORecords.length} MRFs and ${allPOData.length} POs`);
+        renderPRPORecords();
     } catch (error) {
-        console.error('Error loading historical MRFs:', error);
-        showToast('Error loading historical MRFs', 'error');
+        console.error('Error loading PR-PO records:', error);
+        showToast('Error loading PR-PO records', 'error');
+    } finally {
+        showLoading(false);
     }
-};
+}
 
-function filterHistoricalMRFs() {
+/**
+ * Update PO Scoreboards
+ */
+function updatePOScoreboards(pos) {
+    const materialCounts = {
+        pending: 0,
+        procuring: 0,
+        procured: 0,
+        delivered: 0
+    };
+
+    const subconCounts = {
+        pending: 0,
+        processing: 0,
+        processed: 0
+    };
+
+    pos.forEach(po => {
+        const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+
+        if (po.is_subcon) {
+            if (status === 'Pending') subconCounts.pending++;
+            else if (status === 'Processing') subconCounts.processing++;
+            else if (status === 'Processed') subconCounts.processed++;
+        } else {
+            if (status === 'Pending Procurement') materialCounts.pending++;
+            else if (status === 'Procuring') materialCounts.procuring++;
+            else if (status === 'Procured') materialCounts.procured++;
+            else if (status === 'Delivered') materialCounts.delivered++;
+        }
+    });
+
+    // Update DOM elements
+    const elements = {
+        scoreMaterialsPending: document.getElementById('scoreMaterialsPending'),
+        scoreMaterialsProcuring: document.getElementById('scoreMaterialsProcuring'),
+        scoreMaterialsProcured: document.getElementById('scoreMaterialsProcured'),
+        scoreMaterialsDelivered: document.getElementById('scoreMaterialsDelivered'),
+        scoreSubconPending: document.getElementById('scoreSubconPending'),
+        scoreSubconProcessing: document.getElementById('scoreSubconProcessing'),
+        scoreSubconProcessed: document.getElementById('scoreSubconProcessed')
+    };
+
+    if (elements.scoreMaterialsPending) elements.scoreMaterialsPending.textContent = materialCounts.pending;
+    if (elements.scoreMaterialsProcuring) elements.scoreMaterialsProcuring.textContent = materialCounts.procuring;
+    if (elements.scoreMaterialsProcured) elements.scoreMaterialsProcured.textContent = materialCounts.procured;
+    if (elements.scoreMaterialsDelivered) elements.scoreMaterialsDelivered.textContent = materialCounts.delivered;
+    if (elements.scoreSubconPending) elements.scoreSubconPending.textContent = subconCounts.pending;
+    if (elements.scoreSubconProcessing) elements.scoreSubconProcessing.textContent = subconCounts.processing;
+    if (elements.scoreSubconProcessed) elements.scoreSubconProcessed.textContent = subconCounts.processed;
+}
+
+/**
+ * Filter PR-PO Records
+ */
+function filterPRPORecords() {
     const searchInput = document.getElementById('histSearchInput')?.value.toLowerCase() || '';
-    const statusFilter = document.getElementById('histStatusFilter')?.value || '';
+    const mrfStatusFilter = document.getElementById('histStatusFilter')?.value || '';
+    const poStatusFilter = document.getElementById('poStatusFilter')?.value || '';
 
-    filteredHistoricalMRFs = allHistoricalMRFs.filter(mrf => {
+    filteredPRPORecords = allPRPORecords.filter(mrf => {
+        // Search filter
         const matchesSearch = !searchInput ||
             (mrf.mrf_id && mrf.mrf_id.toLowerCase().includes(searchInput)) ||
             (mrf.project_name && mrf.project_name.toLowerCase().includes(searchInput));
 
-        const matchesStatus = !statusFilter || mrf.status === statusFilter;
+        // MRF status filter
+        const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
 
-        return matchesSearch && matchesStatus;
+        // Note: PO status filter would require checking related POs
+        // For now, we only filter by MRF status and search
+
+        return matchesSearch && matchesMRFStatus;
     });
 
-    currentPage = 1;
-    renderHistoricalMRFs();
-};
+    prpoCurrentPage = 1;
+    renderPRPORecords();
+}
 
-async function renderHistoricalMRFs() {
-    const container = document.getElementById('historicalMRFsContainer');
+/**
+ * Render PR-PO Records Table (merged view)
+ */
+async function renderPRPORecords() {
+    const container = document.getElementById('prpoRecordsContainer');
     if (!container) return;
 
-    if (filteredHistoricalMRFs.length === 0) {
+    if (filteredPRPORecords.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: #999;">
-                <div style="font-size: 1.125rem; margin-bottom: 0.5rem;">No historical MRFs found</div>
-                <div style="font-size: 0.875rem;">Historical MRFs will appear here once processed</div>
+                <div style="font-size: 1.125rem; margin-bottom: 0.5rem;">No PR-PO records found</div>
+                <div style="font-size: 0.875rem;">PR-PO records will appear here once processed</div>
             </div>
         `;
         return;
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(filteredHistoricalMRFs.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredHistoricalMRFs.length);
-    const pageItems = filteredHistoricalMRFs.slice(startIndex, endIndex);
+    const totalPages = Math.ceil(filteredPRPORecords.length / prpoItemsPerPage);
+    const startIndex = (prpoCurrentPage - 1) * prpoItemsPerPage;
+    const endIndex = Math.min(startIndex + prpoItemsPerPage, filteredPRPORecords.length);
+    const pageItems = filteredPRPORecords.slice(startIndex, endIndex);
 
     // Show loading state
     container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
@@ -2113,8 +2163,9 @@ async function renderHistoricalMRFs() {
                     });
 
                     const poIds = poDataArray.map(po =>
-                        `<div style="min-height: 52px; display: flex; align-items: center;">
+                        `<div style="min-height: 52px; display: flex; align-items: center; gap: 0.5rem;">
                             <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>
+                            <button onclick="window.viewPOTimeline('${po.docId}')" style="padding: 4px 8px; font-size: 0.7rem; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">Timeline</button>
                         </div>`
                     );
                     poHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + poIds.join('') + '</div>';
@@ -2213,8 +2264,8 @@ async function renderHistoricalMRFs() {
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
                     <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date</th>
                     <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Total Cost</th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PR IDs</th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO IDs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs & Timeline</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Status</th>
                 </tr>
             </thead>
@@ -2225,20 +2276,26 @@ async function renderHistoricalMRFs() {
     `;
 
     container.innerHTML = html;
-    renderHistoricalPagination(totalPages);
+    renderPRPOPagination(totalPages);
 }
 
-function renderHistoricalPagination(totalPages) {
-    const paginationDiv = document.getElementById('historicalPagination');
-    if (!paginationDiv || totalPages <= 1) return;
+/**
+ * Render PR-PO Records Pagination
+ */
+function renderPRPOPagination(totalPages) {
+    const paginationDiv = document.getElementById('prpoPagination');
+    if (!paginationDiv || totalPages <= 1) {
+        if (paginationDiv) paginationDiv.innerHTML = '';
+        return;
+    }
 
     let html = '<div style="display: flex; justify-content: center; gap: 0.5rem; padding: 1rem;">';
 
     for (let i = 1; i <= totalPages; i++) {
         html += `
             <button
-                onclick="goToHistoricalPage(${i})"
-                class="btn ${i === currentPage ? 'btn-primary' : 'btn-secondary'}"
+                onclick="goToPRPOPage(${i})"
+                class="btn ${i === prpoCurrentPage ? 'btn-primary' : 'btn-secondary'}"
                 style="min-width: 2.5rem;"
             >
                 ${i}
@@ -2250,15 +2307,13 @@ function renderHistoricalPagination(totalPages) {
     paginationDiv.innerHTML = html;
 }
 
-function goToHistoricalPage(page) {
-    currentPage = page;
-    renderHistoricalMRFs();
-};
-
-function viewHistoricalMRFDetails(mrfId) {
-    // TODO: Implement modal view for historical MRF details
-    showToast('Historical MRF details view coming soon', 'info');
-};
+/**
+ * Go to PR-PO Page
+ */
+function goToPRPOPage(page) {
+    prpoCurrentPage = page;
+    renderPRPORecords();
+}
 
 // Placeholder stubs for remaining functions
 // ========================================
@@ -3024,254 +3079,8 @@ async function generatePRandTR() {
 };
 
 // ========================================
-// PO TRACKING FUNCTIONS
+// PO STATUS & TIMELINE FUNCTIONS
 // ========================================
-
-/**
- * Load PO Tracking with real-time listener
- */
-async function loadPOTracking() {
-    const posRef = collection(db, 'pos');
-
-    const listener = onSnapshot(posRef, (snapshot) => {
-        poData = [];
-        snapshot.forEach((doc) => {
-            poData.push({ id: doc.id, ...doc.data() });
-        });
-
-        // Sort by status (pending, procuring, procured, delivered), then by date within each status
-        // SUBCON items use: Pending → Processing → Processed
-        // Material items use: Pending Procurement → Procuring → Procured → Delivered
-        const statusOrder = {
-            'Pending Procurement': 1,
-            'Pending': 1,  // SUBCON equivalent
-            'Procuring': 2,
-            'Processing': 2,  // SUBCON equivalent
-            'Procured': 3,
-            'Processed': 3,  // SUBCON equivalent
-            'Delivered': 4
-        };
-
-        poData.sort((a, b) => {
-            const defaultStatus = a.is_subcon ? 'Pending' : 'Pending Procurement';
-            const defaultStatusB = b.is_subcon ? 'Pending' : 'Pending Procurement';
-            const statusA = a.procurement_status || defaultStatus;
-            const statusB = b.procurement_status || defaultStatusB;
-            const orderA = statusOrder[statusA] || 999;
-            const orderB = statusOrder[statusB] || 999;
-
-            // First sort by status
-            if (orderA !== orderB) {
-                return orderA - orderB;
-            }
-            // Then by date (newest first within each status)
-            return new Date(b.date_issued) - new Date(a.date_issued);
-        });
-
-        renderPOTrackingTable(poData);
-        console.log('POs updated:', poData.length);
-    });
-
-    listeners.push(listener);
-}
-
-/**
- * Refresh PO tracking manually
- */
-async function refreshPOTracking() {
-    await loadPOTracking();
-    showToast('PO list refreshed', 'success');
-};
-
-/**
- * Render PO Tracking Table
- */
-function renderPOTrackingTable(pos) {
-    const tbody = document.getElementById('poTrackingBody');
-
-    // Calculate separate scoreboard counts for Materials and Subcon
-    const materialCounts = {
-        pending: 0,      // Pending Procurement
-        procuring: 0,    // Procuring
-        procured: 0,     // Procured
-        delivered: 0     // Delivered
-    };
-
-    const subconCounts = {
-        pending: 0,      // Pending
-        processing: 0,   // Processing
-        processed: 0     // Processed
-    };
-
-    pos.forEach(po => {
-        const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
-        const status = po.procurement_status || defaultStatus;
-
-        if (po.is_subcon) {
-            // SUBCON counts
-            if (status === 'Pending') subconCounts.pending++;
-            else if (status === 'Processing') subconCounts.processing++;
-            else if (status === 'Processed') subconCounts.processed++;
-        } else {
-            // Material counts
-            if (status === 'Pending Procurement') materialCounts.pending++;
-            else if (status === 'Procuring') materialCounts.procuring++;
-            else if (status === 'Procured') materialCounts.procured++;
-            else if (status === 'Delivered') materialCounts.delivered++;
-        }
-    });
-
-    // Update Materials scoreboard
-    document.getElementById('scoreMaterialsPending').textContent = materialCounts.pending;
-    document.getElementById('scoreMaterialsProcuring').textContent = materialCounts.procuring;
-    document.getElementById('scoreMaterialsProcured').textContent = materialCounts.procured;
-    document.getElementById('scoreMaterialsDelivered').textContent = materialCounts.delivered;
-
-    // Update Subcon scoreboard
-    document.getElementById('scoreSubconPending').textContent = subconCounts.pending;
-    document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
-    document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
-
-    if (pos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
-        // Hide pagination if no results
-        const paginationDiv = document.getElementById('poPagination');
-        if (paginationDiv) paginationDiv.style.display = 'none';
-        return;
-    }
-
-    // Calculate pagination
-    const totalPages = Math.ceil(pos.length / poItemsPerPage);
-    const startIndex = (poCurrentPage - 1) * poItemsPerPage;
-    const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
-    const pageItems = pos.slice(startIndex, endIndex);
-
-    tbody.innerHTML = pageItems.map(po => {
-        const isSubcon = po.is_subcon;
-        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
-        const currentStatus = po.procurement_status || defaultStatus;
-        const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
-
-        // Generate status options based on whether it's SUBCON or material
-        let statusOptions;
-        if (isSubcon) {
-            // SUBCON: Pending → Processing → Processed
-            statusOptions = `
-                <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option value="Processing" ${currentStatus === 'Processing' ? 'selected' : ''}>Processing</option>
-                <option value="Processed" ${currentStatus === 'Processed' ? 'selected' : ''}>Processed</option>
-            `;
-        } else {
-            // Material: Pending Procurement → Procuring → Procured → Delivered
-            statusOptions = `
-                <option value="Pending Procurement" ${currentStatus === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
-                <option value="Procuring" ${currentStatus === 'Procuring' ? 'selected' : ''}>Procuring</option>
-                <option value="Procured" ${currentStatus === 'Procured' ? 'selected' : ''}>Procured</option>
-                <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
-            `;
-        }
-
-        return `
-        <tr>
-            <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
-            <td>${po.supplier_name}</td>
-            <td>${po.project_name}</td>
-            <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-            <td>${new Date(po.date_issued).toLocaleDateString()}</td>
-            <td>
-                <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
-                        onchange="updatePOStatus('${po.id}', this.value, '${currentStatus}', ${isSubcon})"
-                        ${isFinalStatus ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
-                    ${statusOptions}
-                </select>
-            </td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
-            </td>
-        </tr>
-    `}).join('');
-
-    // Update pagination controls
-    updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
-}
-
-/**
- * Change PO Page
- */
-function changePOPage(direction) {
-    const totalPages = Math.ceil(poData.length / poItemsPerPage);
-
-    if (direction === 'prev' && poCurrentPage > 1) {
-        poCurrentPage--;
-    } else if (direction === 'next' && poCurrentPage < totalPages) {
-        poCurrentPage++;
-    } else if (typeof direction === 'number') {
-        poCurrentPage = direction;
-    }
-
-    renderPOTrackingTable(poData);
-};
-
-/**
- * Update PO Pagination Controls
- */
-function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems) {
-    let paginationDiv = document.getElementById('poPagination');
-
-    // Create pagination div if it doesn't exist
-    if (!paginationDiv) {
-        paginationDiv = document.createElement('div');
-        paginationDiv.id = 'poPagination';
-        paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
-
-        // Insert after the table
-        const section = document.getElementById('tracking-section');
-        const table = section?.querySelector('table');
-        if (table && table.parentNode) {
-            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
-        }
-    }
-
-    paginationDiv.style.display = 'flex';
-
-    // Build pagination HTML
-    let paginationHTML = `
-        <div style="color: #5f6368; font-size: 0.875rem;">
-            Showing ${startIndex + 1}-${endIndex} of ${totalItems} POs
-        </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <button onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Previous
-            </button>
-    `;
-
-    // Page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= poCurrentPage - 1 && i <= poCurrentPage + 1)) {
-            paginationHTML += `
-                <button
-                    onclick="changePOPage(${i})"
-                    style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === poCurrentPage ? '#1a73e8' : 'white'}; color: ${i === poCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === poCurrentPage ? '600' : '400'};"
-                >
-                    ${i}
-                </button>
-            `;
-        } else if (i === poCurrentPage - 2 || i === poCurrentPage + 2) {
-            paginationHTML += '<span style="padding: 0.5rem;">...</span>';
-        }
-    }
-
-    paginationHTML += `
-            <button onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Next
-            </button>
-        </div>
-    `;
-
-    paginationDiv.innerHTML = paginationHTML;
-}
 
 /**
  * Update PO Status
@@ -3385,11 +3194,8 @@ async function viewPRDetails(prDocId) {
         const pr = { id: prDoc.id, ...prDoc.data() };
         const items = JSON.parse(pr.items_json || '[]');
 
-        // Build modal content
-        let modalContent = `
-            <h2 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
-                Purchase Request Details: ${pr.pr_id}
-            </h2>
+        // Build modal body content
+        let modalBodyContent = `
             <div style="max-height: 60vh; overflow-y: auto;">
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                     <div>
@@ -3459,7 +3265,24 @@ async function viewPRDetails(prDocId) {
             </div>
         `;
 
-        createModal(modalContent);
+        // Create modal container if it doesn't exist
+        let modalContainer = document.getElementById('prDetailsModalContainer');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'prDetailsModalContainer';
+            document.body.appendChild(modalContainer);
+        }
+
+        // Insert modal HTML
+        modalContainer.innerHTML = createModal({
+            id: 'prDetailsModal',
+            title: `Purchase Request Details: ${pr.pr_id}`,
+            body: modalBodyContent,
+            size: 'large'
+        });
+
+        // Open the modal
+        openModal('prDetailsModal');
 
     } catch (error) {
         console.error('Error loading PR details:', error);
