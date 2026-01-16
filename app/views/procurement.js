@@ -1830,7 +1830,7 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
     if (!paginationDiv) {
         paginationDiv = document.createElement('div');
         paginationDiv.id = 'suppliersPagination';
-        paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+        paginationDiv.className = 'pagination-container';
 
         const table = document.querySelector('#suppliers-section table');
         if (table && table.parentNode) {
@@ -1838,38 +1838,31 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
         }
     }
 
-    paginationDiv.style.display = 'flex';
-
     let paginationHTML = `
-        <div style="color: #5f6368; font-size: 0.875rem;">
-            Showing ${startIndex + 1}-${endIndex} of ${totalItems} Suppliers
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> Suppliers
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <button onclick="window.changeSuppliersPage('prev')" ${suppliersCurrentPage === 1 ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${suppliersCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Previous
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="window.changeSuppliersPage('prev')" ${suppliersCurrentPage === 1 ? 'disabled' : ''}>
+                ← Previous
             </button>
     `;
 
     for (let i = 1; i <= totalPages; i++) {
         if (i === 1 || i === totalPages || (i >= suppliersCurrentPage - 1 && i <= suppliersCurrentPage + 1)) {
             paginationHTML += `
-                <button
-                    onclick="window.changeSuppliersPage(${i})"
-                    style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === suppliersCurrentPage ? '#1a73e8' : 'white'}; color: ${i === suppliersCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === suppliersCurrentPage ? '600' : '400'};"
-                >
+                <button class="pagination-btn ${i === suppliersCurrentPage ? 'active' : ''}" onclick="window.changeSuppliersPage(${i})">
                     ${i}
                 </button>
             `;
         } else if (i === suppliersCurrentPage - 2 || i === suppliersCurrentPage + 2) {
-            paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
         }
     }
 
     paginationHTML += `
-            <button onclick="window.changeSuppliersPage('next')" ${suppliersCurrentPage === totalPages ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${suppliersCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Next
+            <button class="pagination-btn" onclick="window.changeSuppliersPage('next')" ${suppliersCurrentPage === totalPages ? 'disabled' : ''}>
+                Next →
             </button>
         </div>
     `;
@@ -2329,12 +2322,15 @@ async function renderPRPORecords() {
  */
 function renderPRPOPagination(totalPages) {
     const paginationDiv = document.getElementById('prpoPagination');
+function renderHistoricalPagination(totalPages) {
+    const paginationDiv = document.getElementById('historicalPagination');
     if (!paginationDiv || totalPages <= 1) {
         if (paginationDiv) paginationDiv.innerHTML = '';
         return;
     }
 
-    let html = '<div style="display: flex; justify-content: center; gap: 0.5rem; padding: 1rem;">';
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, historicalMRFs.length);
 
     for (let i = 1; i <= totalPages; i++) {
         html += `
@@ -2344,11 +2340,36 @@ function renderPRPOPagination(totalPages) {
                 style="min-width: 2.5rem;"
             >
                 ${i}
+    let html = `
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${historicalMRFs.length}</strong> Historical MRFs
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToHistoricalPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                ← Previous
             </button>
-        `;
+    `;
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            html += `
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToHistoricalPage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            html += '<span class="pagination-ellipsis">...</span>';
+        }
     }
 
-    html += '</div>';
+    html += `
+            <button class="pagination-btn" onclick="goToHistoricalPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                Next →
+            </button>
+        </div>
+    `;
+
+    paginationDiv.className = 'pagination-container';
     paginationDiv.innerHTML = html;
 }
 
@@ -3126,6 +3147,245 @@ async function generatePRandTR() {
 // ========================================
 // PO STATUS & TIMELINE FUNCTIONS
 // ========================================
+
+/**
+ * Load PO Tracking with real-time listener
+ */
+async function loadPOTracking() {
+    const posRef = collection(db, 'pos');
+
+    const listener = onSnapshot(posRef, (snapshot) => {
+        poData = [];
+        snapshot.forEach((doc) => {
+            poData.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort by status (pending, procuring, procured, delivered), then by date within each status
+        // SUBCON items use: Pending → Processing → Processed
+        // Material items use: Pending Procurement → Procuring → Procured → Delivered
+        const statusOrder = {
+            'Pending Procurement': 1,
+            'Pending': 1,  // SUBCON equivalent
+            'Procuring': 2,
+            'Processing': 2,  // SUBCON equivalent
+            'Procured': 3,
+            'Processed': 3,  // SUBCON equivalent
+            'Delivered': 4
+        };
+
+        poData.sort((a, b) => {
+            const defaultStatus = a.is_subcon ? 'Pending' : 'Pending Procurement';
+            const defaultStatusB = b.is_subcon ? 'Pending' : 'Pending Procurement';
+            const statusA = a.procurement_status || defaultStatus;
+            const statusB = b.procurement_status || defaultStatusB;
+            const orderA = statusOrder[statusA] || 999;
+            const orderB = statusOrder[statusB] || 999;
+
+            // First sort by status
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+            // Then by date (newest first within each status)
+            return new Date(b.date_issued) - new Date(a.date_issued);
+        });
+
+        renderPOTrackingTable(poData);
+        console.log('POs updated:', poData.length);
+    });
+
+    listeners.push(listener);
+}
+
+/**
+ * Refresh PO tracking manually
+ */
+async function refreshPOTracking() {
+    await loadPOTracking();
+    showToast('PO list refreshed', 'success');
+};
+
+/**
+ * Render PO Tracking Table
+ */
+function renderPOTrackingTable(pos) {
+    const tbody = document.getElementById('poTrackingBody');
+
+    // Calculate separate scoreboard counts for Materials and Subcon
+    const materialCounts = {
+        pending: 0,      // Pending Procurement
+        procuring: 0,    // Procuring
+        procured: 0,     // Procured
+        delivered: 0     // Delivered
+    };
+
+    const subconCounts = {
+        pending: 0,      // Pending
+        processing: 0,   // Processing
+        processed: 0     // Processed
+    };
+
+    pos.forEach(po => {
+        const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+
+        if (po.is_subcon) {
+            // SUBCON counts
+            if (status === 'Pending') subconCounts.pending++;
+            else if (status === 'Processing') subconCounts.processing++;
+            else if (status === 'Processed') subconCounts.processed++;
+        } else {
+            // Material counts
+            if (status === 'Pending Procurement') materialCounts.pending++;
+            else if (status === 'Procuring') materialCounts.procuring++;
+            else if (status === 'Procured') materialCounts.procured++;
+            else if (status === 'Delivered') materialCounts.delivered++;
+        }
+    });
+
+    // Update Materials scoreboard
+    document.getElementById('scoreMaterialsPending').textContent = materialCounts.pending;
+    document.getElementById('scoreMaterialsProcuring').textContent = materialCounts.procuring;
+    document.getElementById('scoreMaterialsProcured').textContent = materialCounts.procured;
+    document.getElementById('scoreMaterialsDelivered').textContent = materialCounts.delivered;
+
+    // Update Subcon scoreboard
+    document.getElementById('scoreSubconPending').textContent = subconCounts.pending;
+    document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
+    document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
+
+    if (pos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
+        // Hide pagination if no results
+        const paginationDiv = document.getElementById('poPagination');
+        if (paginationDiv) paginationDiv.style.display = 'none';
+        return;
+    }
+
+    // Calculate pagination
+    const totalPages = Math.ceil(pos.length / poItemsPerPage);
+    const startIndex = (poCurrentPage - 1) * poItemsPerPage;
+    const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
+    const pageItems = pos.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageItems.map(po => {
+        const isSubcon = po.is_subcon;
+        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+        const currentStatus = po.procurement_status || defaultStatus;
+        const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
+
+        // Generate status options based on whether it's SUBCON or material
+        let statusOptions;
+        if (isSubcon) {
+            // SUBCON: Pending → Processing → Processed
+            statusOptions = `
+                <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Processing" ${currentStatus === 'Processing' ? 'selected' : ''}>Processing</option>
+                <option value="Processed" ${currentStatus === 'Processed' ? 'selected' : ''}>Processed</option>
+            `;
+        } else {
+            // Material: Pending Procurement → Procuring → Procured → Delivered
+            statusOptions = `
+                <option value="Pending Procurement" ${currentStatus === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
+                <option value="Procuring" ${currentStatus === 'Procuring' ? 'selected' : ''}>Procuring</option>
+                <option value="Procured" ${currentStatus === 'Procured' ? 'selected' : ''}>Procured</option>
+                <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+            `;
+        }
+
+        return `
+        <tr>
+            <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
+            <td>${po.supplier_name}</td>
+            <td>${po.project_name}</td>
+            <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+            <td>${new Date(po.date_issued).toLocaleDateString()}</td>
+            <td>
+                <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
+                        onchange="updatePOStatus('${po.id}', this.value, '${currentStatus}', ${isSubcon})"
+                        ${isFinalStatus ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
+                    ${statusOptions}
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
+            </td>
+        </tr>
+    `}).join('');
+
+    // Update pagination controls
+    updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
+}
+
+/**
+ * Change PO Page
+ */
+function changePOPage(direction) {
+    const totalPages = Math.ceil(poData.length / poItemsPerPage);
+
+    if (direction === 'prev' && poCurrentPage > 1) {
+        poCurrentPage--;
+    } else if (direction === 'next' && poCurrentPage < totalPages) {
+        poCurrentPage++;
+    } else if (typeof direction === 'number') {
+        poCurrentPage = direction;
+    }
+
+    renderPOTrackingTable(poData);
+};
+
+/**
+ * Update PO Pagination Controls
+ */
+function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems) {
+    let paginationDiv = document.getElementById('poPagination');
+
+    // Create pagination div if it doesn't exist
+    if (!paginationDiv) {
+        paginationDiv = document.createElement('div');
+        paginationDiv.id = 'poPagination';
+        paginationDiv.className = 'pagination-container';
+
+        // Insert after the table
+        const section = document.getElementById('tracking-section');
+        const table = section?.querySelector('table');
+        if (table && table.parentNode) {
+            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+        }
+    }
+
+    // Build pagination HTML
+    let paginationHTML = `
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> POs
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}>
+                ← Previous
+            </button>
+    `;
+
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= poCurrentPage - 1 && i <= poCurrentPage + 1)) {
+            paginationHTML += `
+                <button class="pagination-btn ${i === poCurrentPage ? 'active' : ''}" onclick="changePOPage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === poCurrentPage - 2 || i === poCurrentPage + 2) {
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+
+    paginationHTML += `
+            <button class="pagination-btn" onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}>
+                Next →
+            </button>
+        </div>
+    `;
+
+    paginationDiv.innerHTML = paginationHTML;
+}
 
 /**
  * Update PO Status
