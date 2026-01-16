@@ -289,8 +289,8 @@ export async function init(activeTab = 'mrfs') {
         // Load all data
         await loadProjects();
         await loadSuppliers();
-        await loadMRFs();
-        await loadHistoricalMRFs();
+        await window.loadMRFs();
+        await window.loadHistoricalMRFs();
 
         // Load PO tracking if on tracking tab
         if (activeTab === 'tracking') {
