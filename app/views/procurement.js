@@ -32,6 +32,64 @@ const itemsPerPage = 10;
 let listeners = [];
 
 // ========================================
+// WINDOW FUNCTIONS ATTACHMENT
+// ========================================
+
+/**
+ * Attach all window functions for use in onclick handlers
+ * This needs to be called every time init() runs to ensure
+ * functions are available after tab navigation
+ */
+function attachWindowFunctions() {
+    // MRF Management Functions
+    window.loadMRFs = loadMRFs;
+    window.createNewMRF = createNewMRF;
+    window.selectMRF = selectMRF;
+    window.saveProgress = saveProgress;
+    window.saveNewMRF = saveNewMRF;
+    window.deleteMRF = deleteMRF;
+    window.generatePR = generatePR;
+    window.generatePRandTR = generatePRandTR;
+    window.submitTransportRequest = submitTransportRequest;
+
+    // Line Items Functions
+    window.calculateSubtotal = calculateSubtotal;
+    window.addLineItem = addLineItem;
+    window.deleteLineItem = deleteLineItem;
+    window.updateActionButtons = updateActionButtons;
+
+    // Supplier Management Functions
+    window.toggleAddForm = toggleAddForm;
+    window.addSupplier = addSupplier;
+    window.editSupplier = editSupplier;
+    window.cancelEdit = cancelEdit;
+    window.saveEdit = saveEdit;
+    window.deleteSupplier = deleteSupplier;
+    window.changeSuppliersPage = changeSuppliersPage;
+
+    // Historical MRFs Functions
+    window.loadHistoricalMRFs = loadHistoricalMRFs;
+    window.filterHistoricalMRFs = filterHistoricalMRFs;
+    window.goToHistoricalPage = goToHistoricalPage;
+    window.viewHistoricalMRFDetails = viewHistoricalMRFDetails;
+    window.viewPRDetails = viewPRDetails;
+
+    // PO Tracking Functions
+    window.refreshPOTracking = refreshPOTracking;
+    window.changePOPage = changePOPage;
+    window.updatePOStatus = updatePOStatus;
+    window.viewPODetails = viewPODetails;
+    window.viewPOTimeline = viewPOTimeline;
+
+    // Document Generation Functions
+    window.generatePRDocument = generatePRDocument;
+    window.generatePODocument = generatePODocument;
+    window.viewPODocument = viewPODocument;
+    window.downloadPODocument = downloadPODocument;
+    window.generateAllPODocuments = generateAllPODocuments;
+}
+
+// ========================================
 // VIEW RENDERING
 // ========================================
 
@@ -285,12 +343,15 @@ export function render(activeTab = 'mrfs') {
 export async function init(activeTab = 'mrfs') {
     console.log('Initializing procurement view, tab:', activeTab);
 
+    // Re-attach all window functions (needed after tab navigation)
+    attachWindowFunctions();
+
     try {
         // Load all data
         await loadProjects();
         await loadSuppliers();
-        await window.loadMRFs();
-        await window.loadHistoricalMRFs();
+        await loadMRFs();
+        await loadHistoricalMRFs();
 
         // Load PO tracking if on tracking tab
         if (activeTab === 'tracking') {
@@ -349,6 +410,9 @@ export async function destroy() {
     delete window.changeSuppliersPage;
     delete window.loadHistoricalMRFs;
     delete window.filterHistoricalMRFs;
+    delete window.goToHistoricalPage;
+    delete window.viewHistoricalMRFDetails;
+    delete window.viewPRDetails;
     delete window.refreshPOTracking;
     delete window.changePOPage;
     delete window.updatePOStatus;
@@ -402,7 +466,7 @@ async function loadProjects() {
 /**
  * Load MRFs with real-time updates
  */
-window.loadMRFs = async function() {
+async function loadMRFs() {
     console.log('🔍 Setting up MRF listener...');
     const mrfsRef = collection(db, 'mrfs');
     const statuses = ['Pending', 'In Progress', 'PR Rejected', 'Finance Rejected'];
@@ -607,7 +671,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
 /**
  * Create new MRF
  */
-window.createNewMRF = function() {
+function createNewMRF() {
     // Clear selection from MRF list
     document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
 
@@ -631,7 +695,7 @@ window.createNewMRF = function() {
 /**
  * Select MRF
  */
-window.selectMRF = async function(mrfId, element) {
+async function selectMRF(mrfId, element) {
     const mrfsRef = collection(db, 'mrfs');
     const snapshot = await getDocs(mrfsRef);
 
@@ -899,7 +963,7 @@ function renderMRFDetails(mrf, isNew = false) {
 /**
  * Calculate subtotal for a line item
  */
-window.calculateSubtotal = function(index) {
+function calculateSubtotal(index) {
     if (!currentMRF) return;
     const qtyInput = document.querySelector(`input.item-qty[data-index="${index}"]`);
     const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
@@ -939,7 +1003,7 @@ function calculateGrandTotal() {
 /**
  * Update action buttons based on item categories
  */
-window.updateActionButtons = function() {
+function updateActionButtons() {
     if (!currentMRF) return;
 
     // Don't update buttons for new MRFs - they have their own button
@@ -985,7 +1049,7 @@ window.updateActionButtons = function() {
 /**
  * Add new line item
  */
-window.addLineItem = function() {
+function addLineItem() {
     if (!currentMRF) return;
 
     const tbody = document.getElementById('lineItemsBody');
@@ -1104,7 +1168,7 @@ function updateItemCount() {
 /**
  * Delete line item
  */
-window.deleteLineItem = function(index) {
+function deleteLineItem(index) {
     const tbody = document.getElementById('lineItemsBody');
     const rows = tbody.querySelectorAll('tr');
 
@@ -1160,7 +1224,7 @@ window.deleteLineItem = function(index) {
 /**
  * Save new MRF
  */
-window.saveNewMRF = async function() {
+async function saveNewMRF() {
     if (!currentMRF || currentMRF.id !== null) {
         showToast('This is not a new MRF', 'error');
         return;
@@ -1309,7 +1373,7 @@ window.saveNewMRF = async function() {
 /**
  * Save progress
  */
-window.saveProgress = async function() {
+async function saveProgress() {
     if (!currentMRF) return;
 
     // Collect items from DOM rows (supports add/edit/delete)
@@ -1380,7 +1444,7 @@ window.saveProgress = async function() {
 /**
  * Delete MRF - allows procurement to delete unnecessary requests
  */
-window.deleteMRF = async function() {
+async function deleteMRF() {
     if (!currentMRF) {
         showToast('No MRF selected', 'error');
         return;
@@ -1663,7 +1727,7 @@ function renderSuppliersTable() {
 }
 
 // Supplier management functions
-window.toggleAddForm = function() {
+function toggleAddForm() {
     const form = document.getElementById('addSupplierForm');
     if (form.style.display === 'none') {
         form.style.display = 'block';
@@ -1680,7 +1744,7 @@ function clearAddForm() {
     document.getElementById('newPhone').value = '';
 }
 
-window.addSupplier = async function() {
+async function addSupplier() {
     const supplier_name = document.getElementById('newSupplierName').value.trim();
     const contact_person = document.getElementById('newContactPerson').value.trim();
     const email = document.getElementById('newEmail').value.trim();
@@ -1712,17 +1776,17 @@ window.addSupplier = async function() {
     }
 };
 
-window.editSupplier = function(supplierId) {
+function editSupplier(supplierId) {
     editingSupplier = supplierId;
     renderSuppliersTable();
 };
 
-window.cancelEdit = function() {
+function cancelEdit() {
     editingSupplier = null;
     renderSuppliersTable();
 };
 
-window.saveEdit = async function(supplierId) {
+async function saveEdit(supplierId) {
     const supplier_name = document.getElementById('edit-name').value.trim();
     const contact_person = document.getElementById('edit-contact').value.trim();
     const email = document.getElementById('edit-email').value.trim();
@@ -1756,7 +1820,7 @@ window.saveEdit = async function(supplierId) {
     }
 };
 
-window.deleteSupplier = async function(supplierId, supplierName) {
+async function deleteSupplier(supplierId, supplierName) {
     if (!confirm(`Are you sure you want to delete supplier "${supplierName}"?`)) {
         return;
     }
@@ -1774,7 +1838,7 @@ window.deleteSupplier = async function(supplierId, supplierName) {
     }
 };
 
-window.changeSuppliersPage = function(direction) {
+function changeSuppliersPage(direction) {
     const totalPages = Math.ceil(suppliersData.length / suppliersItemsPerPage);
 
     if (direction === 'prev' && suppliersCurrentPage > 1) {
@@ -1845,7 +1909,7 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 // HISTORICAL MRFS
 // ========================================
 
-window.loadHistoricalMRFs = async function() {
+async function loadHistoricalMRFs() {
     console.log('Loading historical MRFs...');
     try {
         const mrfsRef = collection(db, 'mrfs');
@@ -1877,7 +1941,7 @@ window.loadHistoricalMRFs = async function() {
     }
 };
 
-window.filterHistoricalMRFs = function() {
+function filterHistoricalMRFs() {
     const searchInput = document.getElementById('histSearchInput')?.value.toLowerCase() || '';
     const statusFilter = document.getElementById('histStatusFilter')?.value || '';
 
@@ -1895,7 +1959,7 @@ window.filterHistoricalMRFs = function() {
     renderHistoricalMRFs();
 };
 
-function renderHistoricalMRFs() {
+async function renderHistoricalMRFs() {
     const container = document.getElementById('historicalMRFsContainer');
     if (!container) return;
 
@@ -1909,33 +1973,253 @@ function renderHistoricalMRFs() {
         return;
     }
 
+    // Calculate pagination
     const totalPages = Math.ceil(filteredHistoricalMRFs.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, filteredHistoricalMRFs.length);
     const pageItems = filteredHistoricalMRFs.slice(startIndex, endIndex);
 
-    let html = '<table><thead><tr><th>MRF ID</th><th>Project</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+    // Show loading state
+    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
 
-    pageItems.forEach(mrf => {
-        const statusColor = mrf.status === 'PR Generated' ? '#34a853' :
-                            mrf.status === 'Finance Approved' ? '#1a73e8' : '#5f6368';
+    // Fetch PR and PO data for current page items only
+    const rows = await Promise.all(pageItems.map(async (mrf) => {
+        const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
 
-        html += `
+        // Fetch PRs for this MRF
+        let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let totalCost = 0;
+        let prCount = 0;
+        let prApprovedCount = 0;
+
+        if (type === 'Material') {
+            try {
+                const prsRef = collection(db, 'prs');
+                const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
+                const prSnapshot = await getDocs(prQuery);
+
+                if (!prSnapshot.empty) {
+                    const prDataArray = [];
+                    prSnapshot.forEach((doc) => {
+                        const prData = doc.data();
+                        prCount++;
+                        if (prData.finance_status === 'Approved') {
+                            prApprovedCount++;
+                        }
+                        prDataArray.push({
+                            docId: doc.id,
+                            pr_id: prData.pr_id,
+                            total_amount: parseFloat(prData.total_amount || 0),
+                            finance_status: prData.finance_status
+                        });
+                        if (prData.finance_status !== 'Rejected') {
+                            totalCost += parseFloat(prData.total_amount || 0);
+                        }
+                    });
+
+                    // Sort PR IDs by number
+                    prDataArray.sort((a, b) => {
+                        const numA = parseInt((a.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                        const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                        return numA - numB;
+                    });
+
+                    const prIds = prDataArray.map(pr => {
+                        let badgeColor = '#6b7280';
+                        let badgeText = '';
+                        if (pr.finance_status === 'Rejected') {
+                            badgeColor = '#dc2626';
+                            badgeText = 'REJECTED';
+                        } else if (pr.finance_status === 'Approved') {
+                            badgeColor = '#16a34a';
+                            badgeText = 'APPROVED';
+                        } else if (pr.finance_status === 'Pending') {
+                            badgeColor = '#f59e0b';
+                            badgeText = 'PENDING';
+                        }
+                        return `<div style="display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center;">
+                            <a href="javascript:void(0)" onclick="window.viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
+                            ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
+                        </div>`;
+                    });
+                    prHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + prIds.join('') + '</div>';
+                }
+            } catch (error) {
+                console.error('Error fetching PRs for', mrf.mrf_id, error);
+            }
+        } else if (type === 'Transport') {
+            // Fetch cost from transport_requests collection
+            try {
+                const trsRef = collection(db, 'transport_requests');
+                const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                const trSnapshot = await getDocs(trQuery);
+
+                if (!trSnapshot.empty) {
+                    trSnapshot.forEach((doc) => {
+                        const trData = doc.data();
+                        totalCost = parseFloat(trData.total_amount || 0);
+                    });
+                }
+
+                // Fallback: Calculate from MRF items_json if cost not found in TR
+                if (totalCost === 0 && mrf.items_json) {
+                    const items = JSON.parse(mrf.items_json);
+                    items.forEach(item => {
+                        const qty = parseFloat(item.qty || item.quantity || 0);
+                        const unitCost = parseFloat(item.unit_cost || 0);
+                        totalCost += qty * unitCost;
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching transport request cost for', mrf.mrf_id, error);
+            }
+        }
+
+        const totalCostHtml = totalCost > 0
+            ? `<strong style="color: #1f2937;">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong>`
+            : '<span style="color: #999; font-size: 0.875rem;">-</span>';
+
+        // Fetch POs for this MRF (only for Material requests)
+        let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let poCount = 0;
+
+        if (type === 'Material') {
+            try {
+                const posRef = collection(db, 'pos');
+                const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                const poSnapshot = await getDocs(poQuery);
+
+                if (!poSnapshot.empty) {
+                    const poDataArray = [];
+                    poSnapshot.forEach((doc) => {
+                        const poData = doc.data();
+                        poCount++;
+                        poDataArray.push({
+                            docId: doc.id,
+                            po_id: poData.po_id
+                        });
+                    });
+
+                    // Sort PO IDs by number
+                    poDataArray.sort((a, b) => {
+                        const numA = parseInt((a.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                        const numB = parseInt((b.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                        return numA - numB;
+                    });
+
+                    const poIds = poDataArray.map(po =>
+                        `<div style="min-height: 52px; display: flex; align-items: center;">
+                            <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>
+                        </div>`
+                    );
+                    poHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + poIds.join('') + '</div>';
+                }
+            } catch (error) {
+                console.error('Error fetching POs for', mrf.mrf_id, error);
+            }
+        }
+
+        // Calculate detailed status
+        let detailedStatus = mrf.status;
+        let statusColor = '#999';
+
+        if (type === 'Transport') {
+            if (mrf.status === 'Pending' || mrf.status === 'Requested' || mrf.status === 'MRF Submitted') {
+                detailedStatus = 'Pending';
+                statusColor = '#dc3545';
+            } else if (mrf.status === 'TR Submitted') {
+                detailedStatus = 'For Approval';
+                statusColor = '#fbbc04';
+            } else if (mrf.status === 'Finance Approved' || mrf.status === 'Completed' || mrf.status === 'Delivered') {
+                detailedStatus = 'Approved';
+                statusColor = '#34a853';
+            }
+        } else if (type === 'Material') {
+            if (mrf.status === 'Pending' || mrf.status === 'Requested' || mrf.status === 'MRF Submitted') {
+                detailedStatus = 'Pending';
+                statusColor = '#dc3545';
+            } else if (mrf.status === 'PR Generated' && prCount > 0) {
+                if (prCount === 1) {
+                    if (prApprovedCount === 0) {
+                        detailedStatus = 'For Approval';
+                        statusColor = '#fbbc04';
+                    } else {
+                        if (poCount === 0) {
+                            detailedStatus = 'Approved - Awaiting PO';
+                            statusColor = '#34a853';
+                        } else {
+                            detailedStatus = 'Approved';
+                            statusColor = '#34a853';
+                        }
+                    }
+                } else {
+                    if (prApprovedCount < prCount) {
+                        detailedStatus = `${prApprovedCount}/${prCount} PR Approved`;
+                        statusColor = '#fbbc04';
+                    } else {
+                        if (poCount < prCount) {
+                            detailedStatus = `${poCount}/${prCount} PO Issued`;
+                            statusColor = '#fbbc04';
+                        } else {
+                            detailedStatus = 'Approved';
+                            statusColor = '#34a853';
+                        }
+                    }
+                }
+            } else if ((mrf.status === 'Finance Approved' || mrf.status === 'PO Issued') && prCount > 0) {
+                if (poCount < prCount) {
+                    detailedStatus = `${poCount}/${prCount} PO Issued`;
+                    statusColor = '#fbbc04';
+                } else {
+                    detailedStatus = 'Approved';
+                    statusColor = '#34a853';
+                }
+            } else if (mrf.status === 'Completed' || mrf.status === 'Delivered') {
+                detailedStatus = 'Approved';
+                statusColor = '#34a853';
+            }
+        }
+
+        const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+
+        return `
             <tr>
-                <td style="font-weight: 600;">${mrf.mrf_id}</td>
-                <td>${mrf.project_name}</td>
-                <td>${formatDate(mrf.date_submitted || mrf.created_at)}</td>
-                <td><span style="color: ${statusColor}; font-weight: 500;">${mrf.status}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-secondary" onclick="viewHistoricalMRFDetails('${mrf.id}')">View</button>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${mrf.project_name}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${totalCostHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">
+                    <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.35rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block;">
+                        ${detailedStatus}
+                    </span>
                 </td>
             </tr>
         `;
-    });
+    }));
 
-    html += '</tbody></table>';
+    // Build complete table
+    let html = `
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">ID</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Total Cost</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PR IDs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO IDs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows.join('')}
+            </tbody>
+        </table>
+    `;
+
     container.innerHTML = html;
-
     renderHistoricalPagination(totalPages);
 }
 
@@ -1961,12 +2245,12 @@ function renderHistoricalPagination(totalPages) {
     paginationDiv.innerHTML = html;
 }
 
-window.goToHistoricalPage = function(page) {
+function goToHistoricalPage(page) {
     currentPage = page;
     renderHistoricalMRFs();
 };
 
-window.viewHistoricalMRFDetails = function(mrfId) {
+function viewHistoricalMRFDetails(mrfId) {
     // TODO: Implement modal view for historical MRF details
     showToast('Historical MRF details view coming soon', 'info');
 };
@@ -1980,7 +2264,7 @@ window.viewHistoricalMRFDetails = function(mrfId) {
  * Submit Transport Request (TR) for transport/hauling items
  * Filters transport items, validates, and creates TR document
  */
-window.submitTransportRequest = async function() {
+async function submitTransportRequest() {
     if (!currentMRF) return;
 
     const mrfData = currentMRF;
@@ -2154,7 +2438,7 @@ window.submitTransportRequest = async function() {
  * Generate Purchase Request (PR) for material items
  * Handles update/merge/create logic for PRs grouped by supplier
  */
-window.generatePR = async function() {
+async function generatePR() {
     if (!currentMRF) return;
 
     const mrfData = currentMRF;
@@ -2433,7 +2717,7 @@ window.generatePR = async function() {
  * Generate PR & TR - Unified function for mixed items
  * Processes both material items (as PR) and transport items (as TR) in one action
  */
-window.generatePRandTR = async function() {
+async function generatePRandTR() {
     if (!currentMRF) return;
 
     const mrfData = currentMRF;
@@ -2789,7 +3073,7 @@ async function loadPOTracking() {
 /**
  * Refresh PO tracking manually
  */
-window.refreshPOTracking = async function() {
+async function refreshPOTracking() {
     await loadPOTracking();
     showToast('PO list refreshed', 'success');
 };
@@ -2909,7 +3193,7 @@ function renderPOTrackingTable(pos) {
 /**
  * Change PO Page
  */
-window.changePOPage = function(direction) {
+function changePOPage(direction) {
     const totalPages = Math.ceil(poData.length / poItemsPerPage);
 
     if (direction === 'prev' && poCurrentPage > 1) {
@@ -2987,7 +3271,7 @@ function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems
 /**
  * Update PO Status
  */
-window.updatePOStatus = async function(poId, newStatus, currentStatus, isSubcon = false) {
+async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) {
     if (newStatus === currentStatus) return;
 
     // Prevent changing status if already at final status
@@ -3078,9 +3362,112 @@ window.updatePOStatus = async function(poId, newStatus, currentStatus, isSubcon 
 };
 
 /**
+ * View PR Details in a modal
+ */
+async function viewPRDetails(prDocId) {
+    console.log('Loading PR details for:', prDocId);
+    showLoading(true);
+
+    try {
+        const prRef = doc(db, 'prs', prDocId);
+        const prDoc = await getDoc(prRef);
+
+        if (!prDoc.exists()) {
+            showToast('PR not found', 'error');
+            return;
+        }
+
+        const pr = { id: prDoc.id, ...prDoc.data() };
+        const items = JSON.parse(pr.items_json || '[]');
+
+        // Build modal content
+        let modalContent = `
+            <h2 style="margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb;">
+                Purchase Request Details: ${pr.pr_id}
+            </h2>
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">PR ID</div>
+                        <div style="font-weight: 600;">${pr.pr_id}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
+                        <div style="font-weight: 600;">${pr.mrf_id}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
+                        <div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
+                        <div>${pr.project_name}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div>
+                        <div>${pr.date_generated}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
+                        <div><span style="background: ${pr.finance_status === 'Approved' ? '#d1fae5' : pr.finance_status === 'Rejected' ? '#fee2e2' : '#fef3c7'}; color: ${pr.finance_status === 'Approved' ? '#065f46' : pr.finance_status === 'Rejected' ? '#991b1b' : '#92400e'}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${pr.finance_status || 'Pending'}</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
+                        <div style="font-weight: 600;">PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Requestor</div>
+                        <div>${pr.requestor_name}</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Delivery Address</div>
+                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${pr.delivery_address || 'N/A'}</div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        createModal(modalContent);
+
+    } catch (error) {
+        console.error('Error loading PR details:', error);
+        showToast('Failed to load PR details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * View PO Details
  */
-window.viewPODetails = async function(poId) {
+async function viewPODetails(poId) {
     console.log('Loading PO details for:', poId);
     showLoading(true);
 
@@ -3129,7 +3516,7 @@ window.viewPODetails = async function(poId) {
 /**
  * View PO Timeline
  */
-window.viewPOTimeline = function(poId) {
+function viewPOTimeline(poId) {
     const po = poData.find(p => p.id === poId);
     if (!po) return;
 
@@ -3598,7 +3985,7 @@ function formatDocumentDate(dateString) {
  * Generate PR Document
  * @param {string} prDocId - Firestore document ID of the PR
  */
-window.generatePRDocument = async function(prDocId) {
+async function generatePRDocument(prDocId) {
     console.log('Generating PR document for:', prDocId);
     showLoading(true);
 
@@ -3651,7 +4038,7 @@ window.generatePRDocument = async function(prDocId) {
  * Generate PO Document
  * @param {string} poDocId - Firestore document ID of the PO
  */
-window.generatePODocument = async function(poDocId) {
+async function generatePODocument(poDocId) {
     console.log('Generating PO document for:', poDocId);
     showLoading(true);
 
@@ -3702,7 +4089,7 @@ window.generatePODocument = async function(poDocId) {
 /**
  * View PO Document (wrapper for generatePODocument)
  */
-window.viewPODocument = async function(poDocId) {
+async function viewPODocument(poDocId) {
     console.log('Viewing PO document for:', poDocId);
 
     try {
@@ -3716,7 +4103,7 @@ window.viewPODocument = async function(poDocId) {
 /**
  * Download PO Document (wrapper for generatePODocument)
  */
-window.downloadPODocument = async function(poDocId) {
+async function downloadPODocument(poDocId) {
     console.log('Downloading PO document for:', poDocId);
 
     try {
@@ -3731,7 +4118,7 @@ window.downloadPODocument = async function(poDocId) {
  * Generate All PO Documents - Opens document for each PO with a delay
  * @param {Array<string>} poDocIds - Array of Firestore document IDs for POs
  */
-window.generateAllPODocuments = async function(poDocIds) {
+async function generateAllPODocuments(poDocIds) {
     console.log('Generating documents for POs:', poDocIds);
 
     if (!poDocIds || poDocIds.length === 0) {
