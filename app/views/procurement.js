@@ -289,8 +289,8 @@ export async function init(activeTab = 'mrfs') {
         // Load all data
         await loadProjects();
         await loadSuppliers();
-        await window.loadMRFs();
-        await window.loadHistoricalMRFs();
+        await loadMRFs();
+        await loadHistoricalMRFs();
 
         // Load PO tracking if on tracking tab
         if (activeTab === 'tracking') {
@@ -402,7 +402,7 @@ async function loadProjects() {
 /**
  * Load MRFs with real-time updates
  */
-window.loadMRFs = async function() {
+async function loadMRFs() {
     console.log('🔍 Setting up MRF listener...');
     const mrfsRef = collection(db, 'mrfs');
     const statuses = ['Pending', 'In Progress', 'PR Rejected', 'Finance Rejected'];
@@ -440,7 +440,10 @@ window.loadMRFs = async function() {
     });
 
     listeners.push(listener);
-};
+}
+
+// Expose to window for onclick handlers
+window.loadMRFs = loadMRFs;
 
 /**
  * Render MRF list
@@ -1296,7 +1299,7 @@ window.saveNewMRF = async function() {
         `;
 
         // Refresh MRF list
-        await window.loadMRFs();
+        await loadMRFs();
 
     } catch (error) {
         console.error('Error creating new MRF:', error);
@@ -1845,7 +1848,7 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 // HISTORICAL MRFS
 // ========================================
 
-window.loadHistoricalMRFs = async function() {
+async function loadHistoricalMRFs() {
     console.log('Loading historical MRFs...');
     try {
         const mrfsRef = collection(db, 'mrfs');
@@ -1875,7 +1878,10 @@ window.loadHistoricalMRFs = async function() {
         console.error('Error loading historical MRFs:', error);
         showToast('Error loading historical MRFs', 'error');
     }
-};
+}
+
+// Expose to window for onclick handlers
+window.loadHistoricalMRFs = loadHistoricalMRFs;
 
 window.filterHistoricalMRFs = function() {
     const searchInput = document.getElementById('histSearchInput')?.value.toLowerCase() || '';
