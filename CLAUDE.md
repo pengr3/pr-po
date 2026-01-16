@@ -8,10 +8,12 @@ CLMC Engineering procurement management system - a static HTML application for m
 
 ## Tech Stack
 
-- **Frontend**: Pure HTML/CSS/JavaScript (no framework, no build system)
-  - All code is inline within HTML files using `<style>` and `<script>` tags
-  - No separate .js or .css files
-  - No package.json or dependencies
+- **Frontend**: Single Page Application (SPA) - Pure JavaScript ES6 modules
+  - **Architecture**: Modular SPA with hash-based routing
+  - **No framework, no build system** - Uses native ES6 modules
+  - **Separate CSS files** for organization (main.css, components.css, views.css)
+  - **Separate JS modules** in `app/` directory
+  - No package.json or dependencies (Firebase loaded via CDN)
 - **Database**: Firebase Firestore v10.7.1 (loaded via CDN)
   - Real-time listeners for live data updates
   - Project ID: `clmc-procurement`
@@ -31,18 +33,93 @@ npx http-server
 
 ## Application Structure
 
-- **index.html** (5,785 lines) - Main procurement dashboard
-  - MRF Processing: Create and review material requests
-  - Supplier Management: Add/edit suppliers
-  - MRF Records: Historical MRF data with analytics
+### SPA Architecture
 
-- **finance.html** (4,965 lines) - Finance dashboard
-  - Pending Approvals: Review and approve/reject PRs
-  - Purchase Orders: Track PO status and manage procurement
-  - Historical Data: Analytics and reporting
-  - Project Management: Add/manage active projects
+**Entry Point:**
+- **index.html** (80 lines) - Single page entry point
+  - Top navigation bar
+  - App container for dynamic views
+  - Loads ES6 modules (Firebase, router, utils, components)
 
-- **mrf-submission-form.html** (799 lines) - Public form for submitting MRFs
+**Core Modules (`app/`):**
+- **firebase.js** (80 lines) - Centralized Firebase configuration
+  - Exports db instance and all Firestore functions
+  - Single initialization, imported by all views
+- **router.js** (230 lines) - Hash-based router with lazy loading
+  - Supports sub-routes (e.g., `#/procurement/mrfs`)
+  - View lifecycle management (init/destroy)
+  - Dynamic imports for code splitting
+- **utils.js** (250 lines) - Shared utility functions
+  - formatCurrency, formatDate, showLoading, showToast
+  - generateSequentialId, Firebase helpers
+- **components.js** (350 lines) - Reusable UI components
+  - createStatusBadge, createModal, createPagination
+
+**Views (`app/views/`):**
+- **home.js** (120 lines) - Landing page with live Firebase stats
+  - Real-time dashboard statistics
+  - Navigation cards to main sections
+- **mrf-form.js** (600 lines) - **FULLY FUNCTIONAL** MRF submission form
+  - Dynamic item rows with add/delete
+  - Project dropdown from Firebase
+  - Complete form validation
+- **procurement.js** (3,761 lines) - **FULLY FUNCTIONAL** Procurement dashboard
+  - **✅ Complete:** 44 functions across 4 tabs (93% coverage)
+  - MRF Management (8 functions) - Create, edit, save, delete MRFs
+  - Line Items (3 functions) - Dynamic item management
+  - Supplier Management (7 functions) - CRUD operations with pagination
+  - Historical MRFs (6 functions) - Filtering and viewing past MRFs
+  - PR/TR Generation (3 functions) - Smart PR generation, TR submission, mixed items
+  - PO Tracking (8 functions) - Status updates, timeline, pagination, scoreboards
+  - Document Generation (9 functions) - PDF export for PR/PO documents
+  - Sub-routes: `/mrfs`, `/suppliers`, `/tracking`, `/records`
+- **finance.js** (1,077 lines) - **FULLY FUNCTIONAL** Finance dashboard
+  - **✅ Complete:** PR/TR approval workflow with automatic PO generation
+  - Three tabs: Pending Approvals, Purchase Orders, Historical Data
+  - Real-time Firebase listeners for PRs, TRs, and POs
+  - Statistics scorecards (pending counts, total amounts)
+  - PR/TR details modals with complete item breakdowns
+  - Approval workflow with automatic PO generation (grouped by supplier)
+  - Rejection workflow with reason capture
+  - MRF status cascading (updates originating MRF)
+  - Sub-routes: `/approvals`, `/pos`, `/history`
+
+**Styles (`styles/`):**
+- **main.css** (400 lines) - Base styles, CSS variables, utilities
+- **components.css** (650 lines) - Button, card, table, modal styles
+- **views.css** (600 lines) - View-specific layouts
+- **hero.css** (100 lines) - Landing page styles
+
+**Archive (`archive/`):**
+- **index.html** (5,785 lines) - Original procurement dashboard (archived)
+- **finance.html** (4,965 lines) - Original finance dashboard (archived)
+- **mrf-submission-form.html** (799 lines) - Original form (archived)
+
+### Migration Status
+
+**✅ MIGRATION COMPLETE (100%):**
+
+All views have been successfully migrated from monolithic HTML files to the modular SPA architecture:
+
+- ✅ **Infrastructure:** Router, Firebase service, utilities, components (100%)
+- ✅ **Home view** (120 lines): Fully functional with live Firebase stats
+- ✅ **MRF Form** (600 lines): Fully functional submission form
+- ✅ **Procurement view** (3,761 lines, 44 functions): Complete dashboard
+  - MRF Management (8 functions)
+  - Line Items (3 functions)
+  - Supplier Management (7 functions)
+  - Historical MRFs (6 functions)
+  - PR/TR Generation (3 functions)
+  - PO Tracking (8 functions)
+  - Document Generation (9 functions - PR/PO PDFs)
+- ✅ **Finance view** (1,077 lines): Complete approval workflow
+  - PR/TR approval with automatic PO generation
+  - Rejection workflow with reason capture
+  - Real-time data synchronization
+  - Three-tab interface (Approvals, POs, History)
+
+**Total Lines Migrated:** ~5,600 lines of production code
+**Original Archive Size:** ~11,500 lines (before modularization)
 
 ## Firebase Firestore Schema
 
@@ -113,20 +190,93 @@ npx http-server
 - **High**: Urgent (1-2 business days) - Red badge
 - **Critical**: Immediate (same day) - Dark red badge
 
-## Code Patterns
+## SPA Development Patterns
 
-### Global Functions for Event Handlers
-All functions called by `onclick` handlers must be in global scope or attached to `window`:
+### View Module Structure
+Every view module MUST export three functions:
 
 ```javascript
-window.selectMRF = async function(mrfId) { ... }
-window.approvePR = async function(prId) { ... }
+// app/views/example.js
+export function render(activeTab = null) {
+    return `<div>HTML content</div>`;
+}
+
+export async function init(activeTab = null) {
+    // Set up Firebase listeners, event handlers
+    // Store listeners in array for cleanup
+}
+
+export async function destroy() {
+    // Unsubscribe from Firebase listeners
+    // Clean up window functions
+    // Clear state
+}
+```
+
+### Firebase Listener Management
+Track all listeners for proper cleanup:
+
+```javascript
+let listeners = [];
+
+export async function init() {
+    const listener = onSnapshot(collection(db, 'mrfs'), (snapshot) => {
+        // Handle data updates
+    });
+    listeners.push(listener);
+}
+
+export async function destroy() {
+    listeners.forEach(unsubscribe => {
+        if (typeof unsubscribe === 'function') {
+            unsubscribe();
+        }
+    });
+    listeners = [];
+}
+```
+
+### Global Functions for Event Handlers
+Functions called by `onclick` handlers MUST be attached to `window`:
+
+```javascript
+// Export for module use
+export async function selectMRF(mrfId) { ... }
+
+// Expose to window for onclick handlers
+window.selectMRF = selectMRF;
 ```
 
 HTML buttons reference these directly:
 ```html
-<button onclick="approvePR('PR-2026-001')">Approve</button>
+<button onclick="window.selectMRF('MRF-2026-001')">Select</button>
 ```
+
+### Hash-Based Routing
+Use hash links for navigation:
+
+```javascript
+// Top-level routes
+<a href="#/">Home</a>
+<a href="#/procurement">Procurement</a>
+
+// Sub-routes (for tabbed views)
+<a href="#/procurement/mrfs">MRF Processing</a>
+<a href="#/procurement/suppliers">Suppliers</a>
+```
+
+Router automatically parses `#/procurement/mrfs` into:
+- `path`: `/procurement`
+- `tab`: `mrfs`
+
+And passes `tab` to `render(tab)` and `init(tab)`
+
+**IMPORTANT - Tab Navigation Behavior:**
+- When switching tabs within the same view (e.g., `/procurement/mrfs` → `/procurement/suppliers`), the router DOES NOT call `destroy()` on the view
+- This prevents window functions from being deleted during tab switches
+- The router only calls `destroy()` when navigating to a completely different view
+- Each tab switch triggers `render()` and `init()` with the new tab parameter
+- Window functions are re-attached in `init()` via `attachWindowFunctions()` to ensure availability
 
 ### Real-time Data with Firebase Listeners
 Data updates automatically via `onSnapshot()` - never manually refresh:
@@ -191,14 +341,84 @@ if (po.procurement_status === 'Delivered') { ... }
 if (mrf.status === 'pending') { ... } // lowercase won't work
 ```
 
+### DOM Element Selection in Procurement View
+**CRITICAL**: The procurement view uses **CSS classes**, NOT data attributes for item rows.
+
+When collecting items from the line items table, use these correct selectors:
+
+```javascript
+// ✅ CORRECT - Use CSS classes
+const itemRows = document.querySelectorAll('#lineItemsBody tr');
+for (const row of itemRows) {
+    const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+    const category = row.querySelector('select.item-category')?.value || '';
+    const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+    const unit = row.querySelector('select.item-unit')?.value || 'pcs';
+    const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+    const supplier = row.querySelector('select.supplier-select')?.value || '';
+}
+
+// ❌ WRONG - Do NOT use these selectors
+const itemRows = document.querySelectorAll('#mrfDetailsItemRows tr'); // Wrong ID
+const itemName = row.querySelector('input[data-field="item_name"]'); // Wrong selector
+```
+
+**Key Points:**
+- Table body ID: `#lineItemsBody` (not `#mrfDetailsItemRows`)
+- Use CSS class selectors: `.item-name`, `.item-category`, etc.
+- Do NOT use data-field attribute selectors like `[data-field="item_name"]`
+- This pattern is used in: `generatePR()`, `submitTransportRequest()`, `generatePRandTR()`, `saveNewMRF()`, `saveProgress()`
+
+### Debugging with Console Logs
+The application includes comprehensive console logging for debugging:
+
+**Router Logs:**
+- `[Router]` prefix indicates router activity
+- Navigation events show: path, tab, and whether it's the same view
+- Module loading and view lifecycle events are logged
+
+**Procurement View Logs:**
+- `[Procurement]` prefix for all procurement-related logs
+- 🔵 Blue circle: Init started
+- ✅ Green checkmark: Success/completion
+- 🔴 Red circle: Destroy started
+- 🗑️ Trash icon: Window functions deleted
+- Function attachment logs show when window functions are attached/available
+
+**Debugging Tab Navigation Issues:**
+1. Open browser DevTools Console
+2. Navigate to procurement view
+3. Switch between tabs and watch for:
+   - `[Router] Same view - skipping destroy` (should appear for tab switches)
+   - `[Procurement] Attaching window functions...` (confirms functions are re-attached)
+   - `[Procurement] Testing window.loadMRFs availability: function` (confirms availability)
+4. If you see errors about undefined window functions, check that `attachWindowFunctions()` was called
+
 ## Common Development Tasks
+
+### Adding a New View
+
+1. Create `app/views/viewname.js`
+2. Export `render()`, `init()`, and `destroy()` functions
+3. Add route to `app/router.js`:
+```javascript
+const routes = {
+    '/viewname': {
+        name: 'View Name',
+        load: () => import('./views/viewname.js'),
+        title: 'View Name | CLMC Operations'
+    }
+};
+```
+4. Add navigation link to `index.html`
+5. Import any needed utilities from `app/utils.js` and `app/firebase.js`
 
 ### Adding a New Field to MRFs
 
-1. Update the form in `index.html` or `mrf-submission-form.html` to include input field
+1. Update the form in `app/views/mrf-form.js` or `app/views/procurement.js`
 2. Modify the form submission handler to capture the new field
 3. Update Firestore `addDoc()` or `setDoc()` calls to include the field
-4. Update display functions to show the new field in tables/modals
+4. Update display functions to show the new field in tables/views
 5. No database migration needed - Firestore is schemaless
 
 ### Modifying Firebase Queries
@@ -258,20 +478,74 @@ When modifying headers, update ALL config files to maintain consistency across p
 
 ## Important Notes
 
-### File Size
-HTML files are large (5000+ lines each). When editing:
-- Use `Read` tool to view specific sections by line range
-- Make targeted edits rather than rewriting entire files
-- Search for specific functions using `Grep` before editing
+### SPA Architecture
+- **No page reloads**: All navigation happens via hash routing
+- **Modular code**: Each view is self-contained with proper lifecycle
+- **Lazy loading**: Views are loaded on demand via dynamic imports
+- **Cleanup required**: Always implement `destroy()` to prevent memory leaks
+- **Window functions**: Functions used in `onclick` must be on `window`
+
+### Archive Folder
+Original monolithic HTML files are preserved in `archive/`:
+- **archive/index.html** - Original procurement dashboard (reference only)
+- **archive/finance.html** - Original finance dashboard (reference only)
+- **archive/mrf-submission-form.html** - Original form (reference only)
+
+**DO NOT EDIT ARCHIVE FILES**. Use them only as reference for migration.
+
+### File Organization
+- **Views**: `app/views/*.js` - One file per view/page
+- **Utilities**: `app/utils.js` - Shared helper functions
+- **Components**: `app/components.js` - Reusable UI elements
+- **Firebase**: `app/firebase.js` - Single initialization point
+- **Styles**: `styles/*.css` - Organized by purpose
 
 ### Firebase Configuration
-Firebase config is hardcoded in each HTML file (this is safe for client-side apps). No `.env` files are used.
+Firebase config is centralized in `app/firebase.js` (safe for client-side apps). No `.env` files are used.
 
 ### Pagination
-Tables implement pagination (15 items per page) for performance. When adding new tables, include pagination controls.
-
-### Modal System
-Detail views use modal overlays. Modal HTML is dynamically generated and injected into the DOM. Close modals by setting `display: none` on modal container.
+Tables implement pagination (15 items per page) for performance. Pagination is handled by individual view modules.
 
 ### Git Branch Naming
 Follow the pattern: `claude/feature-description-xxxxx` where xxxxx is a session ID. All branches are created from `main`.
+
+## Recent Critical Bug Fixes (2026-01-16)
+
+### Issue #1 & #3: Window Functions Not Available During Tab Switching
+**Problem:** When switching between tabs within procurement view (e.g., MRF Processing → Suppliers), errors appeared:
+- `TypeError: window.loadMRFs is not a function`
+- `TypeError: window.refreshPOTracking is not a function`
+
+**Root Cause:** The router was calling `destroy()` on every navigation, even when just switching tabs within the same view. This deleted all window functions, causing onclick handlers to fail before `init()` could re-attach them.
+
+**Fix:** Modified `app/router.js` to:
+- Check if navigation is to the same view (just different tab)
+- Skip `destroy()` call when switching tabs within the same view
+- Only call `destroy()` when navigating to a completely different view
+- Reuse the current module instead of reloading it
+
+**Result:** Tab switching now works smoothly without destroying/recreating the entire view.
+
+### Issue #2: "At least one item is required" Error in PR Generation
+**Problem:** When clicking "Generate PR" with items in the table, the error "At least one item is required" appeared, blocking PR generation.
+
+**Root Cause:** The PR generation functions (`generatePR()`, `submitTransportRequest()`, `generatePRandTR()`) were using incorrect DOM selectors:
+- Wrong table ID: `#mrfDetailsItemRows` (should be `#lineItemsBody`)
+- Wrong selectors: `input[data-field="item_name"]` (should be `input.item-name`)
+- This caused the query to find zero items, triggering the validation error
+
+**Fix:** Updated all three functions to use correct selectors:
+- Changed table selector from `#mrfDetailsItemRows tr` to `#lineItemsBody tr`
+- Changed all element selectors to use CSS classes (`.item-name`, `.item-category`, etc.)
+- Made consistent with working `saveNewMRF()` function pattern
+
+**Result:** PR generation now correctly reads items from the table and processes them.
+
+### Debugging Enhancements
+Added comprehensive console logging to track:
+- Router navigation and view lifecycle events
+- Window function attachment/deletion
+- Tab navigation behavior (same view vs. different view)
+- Function availability checks
+
+Use browser DevTools Console to monitor application behavior and debug issues.
