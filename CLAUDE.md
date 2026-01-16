@@ -271,6 +271,13 @@ Router automatically parses `#/procurement/mrfs` into:
 
 And passes `tab` to `render(tab)` and `init(tab)`
 
+**IMPORTANT - Tab Navigation Behavior:**
+- When switching tabs within the same view (e.g., `/procurement/mrfs` → `/procurement/suppliers`), the router DOES NOT call `destroy()` on the view
+- This prevents window functions from being deleted during tab switches
+- The router only calls `destroy()` when navigating to a completely different view
+- Each tab switch triggers `render()` and `init()` with the new tab parameter
+- Window functions are re-attached in `init()` via `attachWindowFunctions()` to ensure availability
+
 ### Real-time Data with Firebase Listeners
 Data updates automatically via `onSnapshot()` - never manually refresh:
 
@@ -333,6 +340,59 @@ if (po.procurement_status === 'Delivered') { ... }
 // Incorrect - won't match
 if (mrf.status === 'pending') { ... } // lowercase won't work
 ```
+
+### DOM Element Selection in Procurement View
+**CRITICAL**: The procurement view uses **CSS classes**, NOT data attributes for item rows.
+
+When collecting items from the line items table, use these correct selectors:
+
+```javascript
+// ✅ CORRECT - Use CSS classes
+const itemRows = document.querySelectorAll('#lineItemsBody tr');
+for (const row of itemRows) {
+    const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+    const category = row.querySelector('select.item-category')?.value || '';
+    const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+    const unit = row.querySelector('select.item-unit')?.value || 'pcs';
+    const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+    const supplier = row.querySelector('select.supplier-select')?.value || '';
+}
+
+// ❌ WRONG - Do NOT use these selectors
+const itemRows = document.querySelectorAll('#mrfDetailsItemRows tr'); // Wrong ID
+const itemName = row.querySelector('input[data-field="item_name"]'); // Wrong selector
+```
+
+**Key Points:**
+- Table body ID: `#lineItemsBody` (not `#mrfDetailsItemRows`)
+- Use CSS class selectors: `.item-name`, `.item-category`, etc.
+- Do NOT use data-field attribute selectors like `[data-field="item_name"]`
+- This pattern is used in: `generatePR()`, `submitTransportRequest()`, `generatePRandTR()`, `saveNewMRF()`, `saveProgress()`
+
+### Debugging with Console Logs
+The application includes comprehensive console logging for debugging:
+
+**Router Logs:**
+- `[Router]` prefix indicates router activity
+- Navigation events show: path, tab, and whether it's the same view
+- Module loading and view lifecycle events are logged
+
+**Procurement View Logs:**
+- `[Procurement]` prefix for all procurement-related logs
+- 🔵 Blue circle: Init started
+- ✅ Green checkmark: Success/completion
+- 🔴 Red circle: Destroy started
+- 🗑️ Trash icon: Window functions deleted
+- Function attachment logs show when window functions are attached/available
+
+**Debugging Tab Navigation Issues:**
+1. Open browser DevTools Console
+2. Navigate to procurement view
+3. Switch between tabs and watch for:
+   - `[Router] Same view - skipping destroy` (should appear for tab switches)
+   - `[Procurement] Attaching window functions...` (confirms functions are re-attached)
+   - `[Procurement] Testing window.loadMRFs availability: function` (confirms availability)
+4. If you see errors about undefined window functions, check that `attachWindowFunctions()` was called
 
 ## Common Development Tasks
 
@@ -448,3 +508,44 @@ Tables implement pagination (15 items per page) for performance. Pagination is h
 
 ### Git Branch Naming
 Follow the pattern: `claude/feature-description-xxxxx` where xxxxx is a session ID. All branches are created from `main`.
+
+## Recent Critical Bug Fixes (2026-01-16)
+
+### Issue #1 & #3: Window Functions Not Available During Tab Switching
+**Problem:** When switching between tabs within procurement view (e.g., MRF Processing → Suppliers), errors appeared:
+- `TypeError: window.loadMRFs is not a function`
+- `TypeError: window.refreshPOTracking is not a function`
+
+**Root Cause:** The router was calling `destroy()` on every navigation, even when just switching tabs within the same view. This deleted all window functions, causing onclick handlers to fail before `init()` could re-attach them.
+
+**Fix:** Modified `app/router.js` to:
+- Check if navigation is to the same view (just different tab)
+- Skip `destroy()` call when switching tabs within the same view
+- Only call `destroy()` when navigating to a completely different view
+- Reuse the current module instead of reloading it
+
+**Result:** Tab switching now works smoothly without destroying/recreating the entire view.
+
+### Issue #2: "At least one item is required" Error in PR Generation
+**Problem:** When clicking "Generate PR" with items in the table, the error "At least one item is required" appeared, blocking PR generation.
+
+**Root Cause:** The PR generation functions (`generatePR()`, `submitTransportRequest()`, `generatePRandTR()`) were using incorrect DOM selectors:
+- Wrong table ID: `#mrfDetailsItemRows` (should be `#lineItemsBody`)
+- Wrong selectors: `input[data-field="item_name"]` (should be `input.item-name`)
+- This caused the query to find zero items, triggering the validation error
+
+**Fix:** Updated all three functions to use correct selectors:
+- Changed table selector from `#mrfDetailsItemRows tr` to `#lineItemsBody tr`
+- Changed all element selectors to use CSS classes (`.item-name`, `.item-category`, etc.)
+- Made consistent with working `saveNewMRF()` function pattern
+
+**Result:** PR generation now correctly reads items from the table and processes them.
+
+### Debugging Enhancements
+Added comprehensive console logging to track:
+- Router navigation and view lifecycle events
+- Window function attachment/deletion
+- Tab navigation behavior (same view vs. different view)
+- Function availability checks
+
+Use browser DevTools Console to monitor application behavior and debug issues.

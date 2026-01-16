@@ -41,6 +41,7 @@ let listeners = [];
  * functions are available after tab navigation
  */
 function attachWindowFunctions() {
+    console.log('[Procurement] Attaching window functions...');
     // MRF Management Functions
     window.loadMRFs = loadMRFs;
     window.createNewMRF = createNewMRF;
@@ -87,6 +88,7 @@ function attachWindowFunctions() {
     window.viewPODocument = viewPODocument;
     window.downloadPODocument = downloadPODocument;
     window.generateAllPODocuments = generateAllPODocuments;
+    console.log('[Procurement] ✅ All window functions attached successfully');
 }
 
 // ========================================
@@ -341,10 +343,12 @@ export function render(activeTab = 'mrfs') {
  * @param {string} activeTab - Active tab to display
  */
 export async function init(activeTab = 'mrfs') {
-    console.log('Initializing procurement view, tab:', activeTab);
+    console.log('[Procurement] 🔵 Initializing procurement view, tab:', activeTab);
 
     // Re-attach all window functions (needed after tab navigation)
     attachWindowFunctions();
+
+    console.log('[Procurement] Testing window.loadMRFs availability:', typeof window.loadMRFs);
 
     try {
         // Load all data
@@ -358,7 +362,7 @@ export async function init(activeTab = 'mrfs') {
             await loadPOTracking();
         }
 
-        console.log('Procurement view initialized successfully');
+        console.log('[Procurement] ✅ Procurement view initialized successfully');
     } catch (error) {
         console.error('Error initializing procurement view:', error);
         showToast('Error loading procurement data', 'error');
@@ -369,7 +373,7 @@ export async function init(activeTab = 'mrfs') {
  * Cleanup when leaving the view
  */
 export async function destroy() {
-    console.log('Destroying procurement view...');
+    console.log('[Procurement] 🔴 Destroying procurement view...');
 
     // Unsubscribe from all Firebase listeners
     listeners.forEach(unsubscribe => {
@@ -424,7 +428,8 @@ export async function destroy() {
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
 
-    console.log('Procurement view destroyed');
+    console.log('[Procurement] 🗑️ All window functions deleted');
+    console.log('[Procurement] ✅ Procurement view destroyed');
 }
 
 // ========================================
@@ -2274,16 +2279,16 @@ async function submitTransportRequest() {
     const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
 
     // Collect all items from DOM
-    const itemRows = document.querySelectorAll('#mrfDetailsItemRows tr');
+    const itemRows = document.querySelectorAll('#lineItemsBody tr');
     const allItems = [];
 
     for (const row of itemRows) {
-        const itemName = row.querySelector('input[data-field="item_name"]')?.value || '';
-        const category = row.querySelector('select[data-field="category"]')?.value || '';
-        const qty = parseFloat(row.querySelector('input[data-field="qty"]')?.value) || 0;
-        const unit = row.querySelector('input[data-field="unit"]')?.value || 'pcs';
-        const unitCost = parseFloat(row.querySelector('input[data-field="unit_cost"]')?.value) || 0;
-        const supplier = row.querySelector('select[data-field="supplier"]')?.value || '';
+        const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+        const category = row.querySelector('select.item-category')?.value || '';
+        const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+        const unit = row.querySelector('select.item-unit')?.value || 'pcs';
+        const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+        const supplier = row.querySelector('select.supplier-select')?.value || '';
 
         if (!itemName) continue;
 
@@ -2448,16 +2453,16 @@ async function generatePR() {
     const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
 
     // Collect all items from DOM
-    const itemRows = document.querySelectorAll('#mrfDetailsItemRows tr');
+    const itemRows = document.querySelectorAll('#lineItemsBody tr');
     const allItems = [];
 
     for (const row of itemRows) {
-        const itemName = row.querySelector('input[data-field="item_name"]')?.value || '';
-        const category = row.querySelector('select[data-field="category"]')?.value || '';
-        const qty = parseFloat(row.querySelector('input[data-field="qty"]')?.value) || 0;
-        const unit = row.querySelector('input[data-field="unit"]')?.value || 'pcs';
-        const unitCost = parseFloat(row.querySelector('input[data-field="unit_cost"]')?.value) || 0;
-        const supplier = row.querySelector('select[data-field="supplier"]')?.value || '';
+        const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+        const category = row.querySelector('select.item-category')?.value || '';
+        const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+        const unit = row.querySelector('select.item-unit')?.value || 'pcs';
+        const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+        const supplier = row.querySelector('select.supplier-select')?.value || '';
 
         if (!itemName) continue;
 
@@ -2727,16 +2732,16 @@ async function generatePRandTR() {
     const transportCategories = ['TRANSPORTATION', 'HAULING & DELIVERY'];
 
     // Collect all items from DOM
-    const itemRows = document.querySelectorAll('#mrfDetailsItemRows tr');
+    const itemRows = document.querySelectorAll('#lineItemsBody tr');
     const allItems = [];
 
     for (const row of itemRows) {
-        const itemName = row.querySelector('input[data-field="item_name"]')?.value || '';
-        const category = row.querySelector('select[data-field="category"]')?.value || '';
-        const qty = parseFloat(row.querySelector('input[data-field="qty"]')?.value) || 0;
-        const unit = row.querySelector('input[data-field="unit"]')?.value || 'pcs';
-        const unitCost = parseFloat(row.querySelector('input[data-field="unit_cost"]')?.value) || 0;
-        const supplier = row.querySelector('select[data-field="supplier"]')?.value || '';
+        const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+        const category = row.querySelector('select.item-category')?.value || '';
+        const qty = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+        const unit = row.querySelector('select.item-unit')?.value || 'pcs';
+        const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+        const supplier = row.querySelector('select.supplier-select')?.value || '';
 
         if (!itemName) continue;
 
