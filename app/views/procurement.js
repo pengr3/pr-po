@@ -2136,6 +2136,8 @@ async function renderPRPORecords() {
 
         // Fetch POs for this MRF (only for Material requests)
         let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let poStatusHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let poTimelineHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
         let poCount = 0;
 
         if (type === 'Material') {
@@ -2151,7 +2153,9 @@ async function renderPRPORecords() {
                         poCount++;
                         poDataArray.push({
                             docId: doc.id,
-                            po_id: poData.po_id
+                            po_id: poData.po_id,
+                            procurement_status: poData.procurement_status,
+                            is_subcon: poData.is_subcon || false
                         });
                     });
 
@@ -2162,13 +2166,52 @@ async function renderPRPORecords() {
                         return numA - numB;
                     });
 
-                    const poIds = poDataArray.map(po =>
-                        `<div style="min-height: 52px; display: flex; align-items: center; gap: 0.5rem;">
-                            <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>
-                            <button onclick="window.viewPOTimeline('${po.docId}')" style="padding: 4px 8px; font-size: 0.7rem; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">Timeline</button>
-                        </div>`
-                    );
-                    poHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + poIds.join('') + '</div>';
+                    const poLinks = poDataArray.map(po => {
+                        const isSubcon = po.is_subcon;
+                        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+                        const currentStatus = po.procurement_status || defaultStatus;
+                        const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
+
+                        // Generate status options based on whether it's SUBCON or material
+                        let statusOptions;
+                        if (isSubcon) {
+                            // SUBCON: Pending → Processing → Processed
+                            statusOptions = `
+                                <option value="Pending" ${currentStatus === 'Pending' ? 'selected' : ''}>Pending</option>
+                                <option value="Processing" ${currentStatus === 'Processing' ? 'selected' : ''}>Processing</option>
+                                <option value="Processed" ${currentStatus === 'Processed' ? 'selected' : ''}>Processed</option>
+                            `;
+                        } else {
+                            // Material: Pending Procurement → Procuring → Procured → Delivered
+                            statusOptions = `
+                                <option value="Pending Procurement" ${currentStatus === 'Pending Procurement' ? 'selected' : ''}>Pending</option>
+                                <option value="Procuring" ${currentStatus === 'Procuring' ? 'selected' : ''}>Procuring</option>
+                                <option value="Procured" ${currentStatus === 'Procured' ? 'selected' : ''}>Procured</option>
+                                <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                            `;
+                        }
+
+                        return {
+                            linkHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
+                                <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
+                            </div>`,
+                            statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
+                                <select class="status-select" data-po-id="${po.docId}" data-is-subcon="${isSubcon}"
+                                        onchange="window.updatePOStatus('${po.docId}', this.value, '${currentStatus}', ${isSubcon})"
+                                        ${isFinalStatus ? 'disabled' : ''}
+                                        style="padding: 0.35rem 0.5rem; border: 1px solid #dadce0; border-radius: 4px; font-size: 0.75rem; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : 'cursor: pointer;'}">
+                                    ${statusOptions}
+                                </select>
+                            </div>`,
+                            timelineHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
+                                <button onclick="window.viewPOTimeline('${po.docId}')" style="padding: 6px 12px; font-size: 0.75rem; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">Timeline</button>
+                            </div>`
+                        };
+                    });
+
+                    poHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + poLinks.map(p => p.linkHtml).join('') + '</div>';
+                    poStatusHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + poLinks.map(p => p.statusHtml).join('') + '</div>';
+                    poTimelineHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + poLinks.map(p => p.timelineHtml).join('') + '</div>';
                 }
             } catch (error) {
                 console.error('Error fetching POs for', mrf.mrf_id, error);
@@ -2243,9 +2286,10 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${mrf.project_name}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${totalCostHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: top;">${poTimelineHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">
                     <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.35rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block;">
                         ${detailedStatus}
@@ -2260,13 +2304,14 @@ async function renderPRPORecords() {
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8f9fa;">
-                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">ID</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF ID</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
                     <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date</th>
-                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Total Cost</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs & Timeline</th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Status</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO Status</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Timeline</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -3311,27 +3356,120 @@ async function viewPODetails(poId) {
         const po = { id: poDoc.id, ...poDoc.data() };
         const items = JSON.parse(po.items_json || '[]');
 
-        // Build simple alert content for now
-        let content = `PO Details:\n\n`;
-        content += `PO ID: ${po.po_id}\n`;
-        content += `Supplier: ${po.supplier_name}\n`;
-        content += `Project: ${po.project_name}\n`;
-        content += `Date Issued: ${new Date(po.date_issued).toLocaleDateString()}\n`;
-        content += `Status: ${po.procurement_status || 'Pending'}\n`;
-        content += `Total Amount: PHP ${parseFloat(po.total_amount || 0).toLocaleString()}\n`;
-        if (po.delivery_fee) {
-            content += `Delivery Fee: PHP ${parseFloat(po.delivery_fee).toLocaleString()}\n`;
+        // Determine status color
+        const isSubcon = po.is_subcon || false;
+        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+        let statusBg = '#fef3c7';
+        let statusColor = '#92400e';
+
+        if (isSubcon) {
+            if (status === 'Processed') {
+                statusBg = '#d1fae5';
+                statusColor = '#065f46';
+            } else if (status === 'Processing') {
+                statusBg = '#dbeafe';
+                statusColor = '#1e40af';
+            }
+        } else {
+            if (status === 'Delivered') {
+                statusBg = '#d1fae5';
+                statusColor = '#065f46';
+            } else if (status === 'Procured') {
+                statusBg = '#dbeafe';
+                statusColor = '#1e40af';
+            } else if (status === 'Procuring') {
+                statusBg = '#fef3c7';
+                statusColor = '#92400e';
+            }
         }
-        content += `\nItems: ${items.length} item(s)\n`;
-        items.forEach((item, idx) => {
-            content += `\n${idx + 1}. ${item.item || item.item_name}\n`;
-            content += `   Qty: ${item.qty || item.quantity} ${item.unit}\n`;
-            content += `   Unit Cost: PHP ${parseFloat(item.unit_cost || 0).toLocaleString()}\n`;
-            content += `   Subtotal: PHP ${parseFloat(item.subtotal || 0).toLocaleString()}\n`;
+
+        // Build modal body content
+        let modalBodyContent = `
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">PO ID</div>
+                        <div style="font-weight: 600;">${po.po_id}${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
+                        <div style="font-weight: 600;">${po.mrf_id || 'N/A'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
+                        <div style="font-weight: 600;">${po.supplier_name}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
+                        <div>${po.project_name}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
+                        <div>${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'N/A'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
+                        <div><span style="background: ${statusBg}; color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${status}</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
+                        <div style="font-weight: 600;">PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                    </div>
+                    ${po.delivery_fee ? `
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Delivery Fee</div>
+                        <div style="font-weight: 600;">PHP ${parseFloat(po.delivery_fee).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // Create modal container if it doesn't exist
+        let modalContainer = document.getElementById('poDetailsModalContainer');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'poDetailsModalContainer';
+            document.body.appendChild(modalContainer);
+        }
+
+        // Insert modal HTML
+        modalContainer.innerHTML = createModal({
+            id: 'poDetailsModal',
+            title: `Purchase Order Details: ${po.po_id}`,
+            body: modalBodyContent,
+            size: 'large'
         });
 
-        alert(content);
-        console.log('PO Details:', po);
+        // Open the modal
+        openModal('poDetailsModal');
 
     } catch (error) {
         console.error('Error loading PO details:', error);
