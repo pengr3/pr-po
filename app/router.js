@@ -93,10 +93,16 @@ export async function navigate(path, tab = null) {
     showLoading(true);
 
     try {
-        // Cleanup previous view
-        if (currentView && typeof currentView.destroy === 'function') {
-            console.log('Cleaning up previous view...');
+        // Check if we're just switching tabs within the same view
+        const isSameView = currentRoute === path;
+        console.log('[Router] Navigation:', { path, tab, currentRoute, isSameView });
+
+        // Cleanup previous view ONLY if navigating to a different view
+        if (!isSameView && currentView && typeof currentView.destroy === 'function') {
+            console.log('[Router] 🔴 Cleaning up previous view:', currentRoute);
             await currentView.destroy();
+        } else if (isSameView) {
+            console.log('[Router] 🔄 Same view - skipping destroy, just re-rendering tab:', tab);
         }
 
         // Clear app container
@@ -105,13 +111,20 @@ export async function navigate(path, tab = null) {
             throw new Error('App container not found');
         }
 
-        // Load view module
-        console.log('Loading view:', path);
-        const module = await route.load();
+        // Load view module (reuse current module if same view)
+        let module;
+        if (isSameView && currentView) {
+            console.log('[Router] 📦 Reusing current view module');
+            module = currentView;
+        } else {
+            console.log('[Router] 📦 Loading view module:', path);
+            module = await route.load();
+        }
 
         // Render view
         if (typeof module.render === 'function') {
             const activeTab = tab || route.defaultTab || null;
+            console.log('[Router] 🎨 Rendering view with tab:', activeTab);
             appContainer.innerHTML = module.render(activeTab);
         } else {
             throw new Error('View module must export a render() function');
@@ -120,6 +133,7 @@ export async function navigate(path, tab = null) {
         // Initialize view
         if (typeof module.init === 'function') {
             const activeTab = tab || route.defaultTab || null;
+            console.log('[Router] ⚙️ Initializing view with tab:', activeTab);
             await module.init(activeTab);
         }
 
@@ -133,7 +147,7 @@ export async function navigate(path, tab = null) {
         // Scroll to top
         window.scrollTo(0, 0);
 
-        console.log('Navigation complete:', path, tab);
+        console.log('[Router] ✅ Navigation complete:', { path, tab, isSameView });
     } catch (error) {
         console.error('Error navigating to route:', error);
 
