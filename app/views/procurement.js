@@ -1863,7 +1863,7 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
     if (!paginationDiv) {
         paginationDiv = document.createElement('div');
         paginationDiv.id = 'suppliersPagination';
-        paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+        paginationDiv.className = 'pagination-container';
 
         const table = document.querySelector('#suppliers-section table');
         if (table && table.parentNode) {
@@ -1871,38 +1871,31 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
         }
     }
 
-    paginationDiv.style.display = 'flex';
-
     let paginationHTML = `
-        <div style="color: #5f6368; font-size: 0.875rem;">
-            Showing ${startIndex + 1}-${endIndex} of ${totalItems} Suppliers
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> Suppliers
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <button onclick="window.changeSuppliersPage('prev')" ${suppliersCurrentPage === 1 ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${suppliersCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Previous
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="window.changeSuppliersPage('prev')" ${suppliersCurrentPage === 1 ? 'disabled' : ''}>
+                ← Previous
             </button>
     `;
 
     for (let i = 1; i <= totalPages; i++) {
         if (i === 1 || i === totalPages || (i >= suppliersCurrentPage - 1 && i <= suppliersCurrentPage + 1)) {
             paginationHTML += `
-                <button
-                    onclick="window.changeSuppliersPage(${i})"
-                    style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === suppliersCurrentPage ? '#1a73e8' : 'white'}; color: ${i === suppliersCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === suppliersCurrentPage ? '600' : '400'};"
-                >
+                <button class="pagination-btn ${i === suppliersCurrentPage ? 'active' : ''}" onclick="window.changeSuppliersPage(${i})">
                     ${i}
                 </button>
             `;
         } else if (i === suppliersCurrentPage - 2 || i === suppliersCurrentPage + 2) {
-            paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
         }
     }
 
     paginationHTML += `
-            <button onclick="window.changeSuppliersPage('next')" ${suppliersCurrentPage === totalPages ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${suppliersCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Next
+            <button class="pagination-btn" onclick="window.changeSuppliersPage('next')" ${suppliersCurrentPage === totalPages ? 'disabled' : ''}>
+                Next →
             </button>
         </div>
     `;
@@ -2230,23 +2223,44 @@ async function renderHistoricalMRFs() {
 
 function renderHistoricalPagination(totalPages) {
     const paginationDiv = document.getElementById('historicalPagination');
-    if (!paginationDiv || totalPages <= 1) return;
-
-    let html = '<div style="display: flex; justify-content: center; gap: 0.5rem; padding: 1rem;">';
-
-    for (let i = 1; i <= totalPages; i++) {
-        html += `
-            <button
-                onclick="goToHistoricalPage(${i})"
-                class="btn ${i === currentPage ? 'btn-primary' : 'btn-secondary'}"
-                style="min-width: 2.5rem;"
-            >
-                ${i}
-            </button>
-        `;
+    if (!paginationDiv || totalPages <= 1) {
+        if (paginationDiv) paginationDiv.innerHTML = '';
+        return;
     }
 
-    html += '</div>';
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, historicalMRFs.length);
+
+    let html = `
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${historicalMRFs.length}</strong> Historical MRFs
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="goToHistoricalPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                ← Previous
+            </button>
+    `;
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            html += `
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToHistoricalPage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            html += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+
+    html += `
+            <button class="pagination-btn" onclick="goToHistoricalPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                Next →
+            </button>
+        </div>
+    `;
+
+    paginationDiv.className = 'pagination-container';
     paginationDiv.innerHTML = html;
 }
 
@@ -3222,7 +3236,7 @@ function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems
     if (!paginationDiv) {
         paginationDiv = document.createElement('div');
         paginationDiv.id = 'poPagination';
-        paginationDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8f9fa; border-radius: 6px; margin-top: 1rem;';
+        paginationDiv.className = 'pagination-container';
 
         // Insert after the table
         const section = document.getElementById('tracking-section');
@@ -3232,17 +3246,14 @@ function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems
         }
     }
 
-    paginationDiv.style.display = 'flex';
-
     // Build pagination HTML
     let paginationHTML = `
-        <div style="color: #5f6368; font-size: 0.875rem;">
-            Showing ${startIndex + 1}-${endIndex} of ${totalItems} POs
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> POs
         </div>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <button onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Previous
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="changePOPage('prev')" ${poCurrentPage === 1 ? 'disabled' : ''}>
+                ← Previous
             </button>
     `;
 
@@ -3250,22 +3261,18 @@ function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems
     for (let i = 1; i <= totalPages; i++) {
         if (i === 1 || i === totalPages || (i >= poCurrentPage - 1 && i <= poCurrentPage + 1)) {
             paginationHTML += `
-                <button
-                    onclick="changePOPage(${i})"
-                    style="padding: 0.5rem 0.75rem; border: 1px solid #dadce0; background: ${i === poCurrentPage ? '#1a73e8' : 'white'}; color: ${i === poCurrentPage ? 'white' : '#1f2937'}; border-radius: 4px; cursor: pointer; font-size: 0.875rem; font-weight: ${i === poCurrentPage ? '600' : '400'};"
-                >
+                <button class="pagination-btn ${i === poCurrentPage ? 'active' : ''}" onclick="changePOPage(${i})">
                     ${i}
                 </button>
             `;
         } else if (i === poCurrentPage - 2 || i === poCurrentPage + 2) {
-            paginationHTML += '<span style="padding: 0.5rem;">...</span>';
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
         }
     }
 
     paginationHTML += `
-            <button onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}
-                style="padding: 0.5rem 1rem; border: 1px solid #dadce0; background: white; border-radius: 4px; cursor: pointer; font-size: 0.875rem; ${poCurrentPage === totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
-                Next
+            <button class="pagination-btn" onclick="changePOPage('next')" ${poCurrentPage === totalPages ? 'disabled' : ''}>
+                Next →
             </button>
         </div>
     `;
