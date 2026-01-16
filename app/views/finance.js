@@ -21,15 +21,6 @@ let currentPRForRejection = null;
  */
 export function render(activeTab = 'approvals') {
     return `
-        <div style="background: linear-gradient(135deg, #34a853 0%, #1e8e3e 100%); color: white; padding: 1.5rem 2rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="max-width: 1600px; margin: 0 auto;">
-                <h1 style="font-size: 1.5rem; font-weight: 500; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                    💰 Finance Dashboard
-                </h1>
-                <p style="font-size: 0.875rem; opacity: 0.9; margin: 0;">CLMC Engineering</p>
-            </div>
-        </div>
-
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 2px solid var(--gray-200);">
             <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
@@ -161,7 +152,7 @@ export function render(activeTab = 'approvals') {
 
         <!-- PR Details Modal -->
         <div id="prModal" class="modal">
-            <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-content">
                 <div class="modal-header">
                     <h2 id="prModalTitle">Purchase Request Details</h2>
                     <button class="modal-close" onclick="window.closePRModal()">&times;</button>
@@ -173,14 +164,14 @@ export function render(activeTab = 'approvals') {
 
         <!-- Rejection Modal -->
         <div id="rejectionModal" class="modal">
-            <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-content">
                 <div class="modal-header">
                     <h2>Reject Request</h2>
                     <button class="modal-close" onclick="window.closeRejectionModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <p style="margin-bottom: 1rem;">Please provide a reason for rejection:</p>
-                    <textarea id="rejectionReason" rows="4" style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 4px; font-family: inherit;"></textarea>
+                    <textarea id="rejectionReason" rows="4" style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.boxShadow='0 0 0 4px rgba(26, 115, 232, 0.1)'" onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'"></textarea>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="window.closeRejectionModal()">Cancel</button>
@@ -453,74 +444,74 @@ window.viewPRDetails = async function(prId) {
         const colors = urgencyColors[urgencyLevel] || urgencyColors['Low'];
 
         const modalContent = `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-                <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">PR ID:</div>
-                    <div><strong>${pr.pr_id}</strong></div>
+            <div class="modal-details-grid">
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">PR ID:</div>
+                    <div class="modal-detail-value"><strong>${pr.pr_id}</strong></div>
                 </div>
-                <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">MRF Reference:</div>
-                    <div>${pr.mrf_id}</div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">MRF Reference:</div>
+                    <div class="modal-detail-value">${pr.mrf_id}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Project:</div>
-                    <div>${pr.project_name}</div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Project:</div>
+                    <div class="modal-detail-value">${pr.project_name}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Requestor:</div>
-                    <div>${pr.requestor_name}</div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Requestor:</div>
+                    <div class="modal-detail-value">${pr.requestor_name}</div>
                 </div>
-                <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Urgency Level:</div>
-                    <div><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.75rem; border-radius: 4px; font-weight: 600;">${urgencyLevel}</span></div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Urgency Level:</div>
+                    <div class="modal-detail-value">
+                        <span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.75rem; border-radius: 6px; font-weight: 600; font-size: 0.875rem;">${urgencyLevel}</span>
+                    </div>
                 </div>
-                <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Date Generated:</div>
-                    <div>${formatDate(pr.date_generated)}</div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Date Generated:</div>
+                    <div class="modal-detail-value">${formatDate(pr.date_generated)}</div>
                 </div>
-                <div style="grid-column: 1 / -1;">
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Delivery Address:</div>
-                    <div>${pr.delivery_address || 'N/A'}</div>
+                <div class="modal-detail-item full-width">
+                    <div class="modal-detail-label">Delivery Address:</div>
+                    <div class="modal-detail-value">${pr.delivery_address || 'N/A'}</div>
                 </div>
-                <div style="grid-column: 1 / -1;">
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Total Amount:</div>
-                    <div><strong style="color: #34a853; font-size: 1.25rem;">₱${formatCurrency(pr.total_amount || 0)}</strong></div>
+                <div class="modal-detail-item full-width">
+                    <div class="modal-detail-label">Total Amount:</div>
+                    <div class="modal-detail-value"><strong style="color: #059669; font-size: 1.5rem;">₱${formatCurrency(pr.total_amount || 0)}</strong></div>
                 </div>
             </div>
 
-            <div style="margin: 1.5rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
-                <h4 style="margin-bottom: 1rem;">Items Breakdown</h4>
-                <table style="width: 100%; font-size: 0.875rem;">
-                    <thead>
-                        <tr style="background: white;">
-                            <th style="padding: 0.5rem;">Item</th>
-                            <th style="padding: 0.5rem;">Category</th>
-                            <th style="padding: 0.5rem;">Qty</th>
-                            <th style="padding: 0.5rem;">Unit Cost</th>
-                            <th style="padding: 0.5rem;">Supplier</th>
-                            <th style="padding: 0.5rem;">Subtotal</th>
+            <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Items Breakdown</h4>
+            <table class="modal-items-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Category</th>
+                        <th>Qty</th>
+                        <th>Unit Cost</th>
+                        <th>Supplier</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(item => `
+                        <tr>
+                            <td>${item.item || item.item_name}</td>
+                            <td>${item.category || 'N/A'}</td>
+                            <td>${item.qty || item.quantity} ${item.unit}</td>
+                            <td>₱${formatCurrency(item.unit_cost || 0)}</td>
+                            <td>${item.supplier || 'N/A'}</td>
+                            <td><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        ${items.map(item => `
-                            <tr style="background: white;">
-                                <td style="padding: 0.5rem;">${item.item || item.item_name}</td>
-                                <td style="padding: 0.5rem;">${item.category || 'N/A'}</td>
-                                <td style="padding: 0.5rem;">${item.qty || item.quantity} ${item.unit}</td>
-                                <td style="padding: 0.5rem;">₱${formatCurrency(item.unit_cost || 0)}</td>
-                                <td style="padding: 0.5rem;">${item.supplier || 'N/A'}</td>
-                                <td style="padding: 0.5rem;"><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: white; font-weight: 600;">
-                            <td colspan="5" style="padding: 0.75rem; text-align: right; border-top: 2px solid #dee2e6;">TOTAL:</td>
-                            <td style="padding: 0.75rem; border-top: 2px solid #dee2e6;">₱${formatCurrency(pr.total_amount || 0)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                    `).join('')}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" style="text-align: right; font-weight: 600;">TOTAL:</td>
+                        <td>₱${formatCurrency(pr.total_amount || 0)}</td>
+                    </tr>
+                </tfoot>
+            </table>
         `;
 
         document.getElementById('prModalTitle').textContent = `Purchase Request - ${pr.pr_id}`;
