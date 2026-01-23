@@ -121,6 +121,426 @@ All views have been successfully migrated from monolithic HTML files to the modu
 **Total Lines Migrated:** ~5,600 lines of production code
 **Original Archive Size:** ~11,500 lines (before modularization)
 
+## Application Features
+
+### 🏠 Home Dashboard
+**Location:** `app/views/home.js` (165 lines)
+
+**Features:**
+- **Real-time Statistics Dashboard**
+  - Active MRFs count (Pending status)
+  - Pending PRs count (Finance approval pending)
+  - Active POs count (Not yet delivered)
+  - Auto-updates via Firebase listeners
+- **Navigation Cards**
+  - Material Request Form entry point
+  - Procurement Dashboard entry point
+  - Finance Dashboard entry point
+- **Live Data Sync**
+  - Statistics update in real-time without refresh
+  - Automatic listener cleanup on view exit
+
+---
+
+### 📝 MRF Submission Form
+**Location:** `app/views/mrf-form.js` (537 lines)
+
+**Features:**
+- **Request Type Selection**
+  - Material Request option
+  - Delivery/Hauling/Transportation option
+- **Urgency Level System** (4 levels)
+  - Low: Standard processing (5-7 business days)
+  - Medium: Priority processing (3-5 business days)
+  - High: Urgent processing (1-2 business days)
+  - Critical: Immediate attention (same day if possible)
+- **Basic Information Capture**
+  - Project name dropdown (loaded from Firebase)
+  - Requestor name
+  - Date needed (with calendar picker, minimum today)
+  - Delivery address (multi-line text)
+- **Dynamic Items Table**
+  - Add/remove item rows
+  - Item description field
+  - Quantity and unit selection
+  - Category dropdown (CIVIL, ELECTRICAL, HVAC, PLUMBING, etc.)
+  - Custom unit support (specify other units)
+  - Unlimited items support
+- **Form Validation**
+  - All required fields validated
+  - Minimum one item required
+  - Date cannot be in the past
+- **Automatic MRF ID Generation**
+  - Format: `MRF-YYYY-###` (e.g., `MRF-2026-001`)
+  - Sequential numbering per year
+  - Auto-increments from highest number
+- **Form Actions**
+  - Submit request (saves to Firebase)
+  - Reset form (with confirmation)
+  - Success feedback with generated MRF ID
+  - Auto-reset after successful submission
+
+---
+
+### 🏭 Procurement Dashboard
+**Location:** `app/views/procurement.js` (4,500+ lines, 47 functions)
+
+The procurement dashboard is the most comprehensive view with 4 major tabs:
+
+#### Tab 1: MRF Processing (13 functions)
+
+**MRF Management (8 functions)**
+- `loadMRFs()` - Load all pending MRFs from Firebase
+- `createNewMRF()` - Initialize new blank MRF form
+- `selectMRF()` - Load selected MRF details into form
+- `saveNewMRF()` - Save new MRF with validation
+- `saveProgress()` - Save in-progress MRF edits
+- `deleteMRF()` - Soft delete MRF with cascade to PRs/POs/TRs
+- `renderMRFDetails()` - Dynamic form rendering
+- `renderMRFList()` - Separate material/transport MRF lists
+
+**Line Items Management (5 functions)**
+- `addLineItem()` - Add new item row with supplier dropdown
+- `deleteLineItem()` - Remove item row (minimum 1 required)
+- `calculateSubtotal()` - Calculate per-item total (qty × unit cost)
+- `calculateGrandTotal()` - Sum all item subtotals
+- `updateItemCount()` - Track number of items in table
+
+**Smart PR/TR Generation (3 functions)**
+- `generatePR()` - Generate Material Purchase Requests
+  - Groups items by supplier automatically
+  - Creates separate PR per supplier
+  - Validates all items have suppliers assigned
+  - Validates all items have unit costs
+  - Updates MRF status to 'Approved'
+- `submitTransportRequest()` - Generate Transportation Requests
+  - For hauling/delivery services
+  - Creates TR with single supplier
+  - Validates transport items and costs
+- `generatePRandTR()` - Mixed Material + Transport
+  - Handles MRFs with both material and transport items
+  - Separates items by category automatically
+  - Generates PRs for materials, TR for transport
+  - Single-click generation for complex requests
+
+**Document Generation (2 functions)**
+- `generatePRDocument()` - Generate PR PDF for printing
+- `generatePODocument()` - Generate PO PDF for printing
+
+#### Tab 2: Supplier Management (7 functions)
+
+**Supplier CRUD Operations**
+- `loadSuppliers()` - Load all suppliers from Firebase
+- `renderSuppliersTable()` - Display suppliers with pagination
+- `toggleAddForm()` - Show/hide add supplier form
+- `addSupplier()` - Create new supplier record
+- `editSupplier()` - Enable inline editing mode
+- `saveEdit()` - Save supplier changes
+- `deleteSupplier()` - Remove supplier (with confirmation)
+
+**Supplier Pagination**
+- 15 suppliers per page
+- Previous/Next navigation
+- Page number display
+- "Showing X-Y of Z Items" counter
+- Ellipsis support for large page counts
+
+**Supplier Data Fields**
+- Supplier name (unique identifier)
+- Contact person
+- Email address
+- Phone number
+- Business address (optional)
+
+#### Tab 3: PR-PO Records (8 functions)
+
+**PR-PO Records Display**
+- `loadPRPORecords()` - Load all PRs and POs with MRF data
+- `renderPRPORecords()` - Display unified PR/PO table
+- `filterPRPORecords()` - Filter by status/type/search term
+- `viewPRDetails()` - Show complete PR details modal
+- `viewPODetails()` - Show complete PO details modal
+- `viewPOTimeline()` - Show PO status timeline
+- `updatePOStatus()` - Change PO procurement status
+- `goToPRPOPage()` - Navigate pagination
+
+**Records Table Features**
+- Unified view of PRs and POs
+- Type badge (PR vs PO)
+- Status badges with colors
+- Finance status display
+- Procurement status display
+- Total amount display
+- Timeline button for POs
+- Status update dropdown
+- Pagination (10 items per page)
+
+**Status Management**
+- PO Status Updates:
+  - Pending Procurement → Procuring → Procured → Delivered
+  - Direct status change from dropdown
+  - Confirmation dialogs for critical changes
+- Filter Options:
+  - All Records / PRs Only / POs Only
+  - By Finance Status: All / Pending / Approved / Rejected
+  - By Procurement Status: All / Pending / Procuring / Procured / Delivered
+  - Search by ID, project, or supplier
+
+**Scoreboards (4 metrics)**
+- Pending Procurement (yellow badge)
+- Procuring (blue badge)
+- Procured (purple badge)
+- Delivered (green badge)
+
+#### Document Generation System (9 functions)
+
+**PR Document Generation**
+- `generatePRDocument()` - Generate formatted PR for print
+- Company header with logo
+- PR details (ID, MRF reference, date, supplier)
+- Items table with quantities and costs
+- Grand total calculation
+- Signature blocks for approval workflow
+- Print-optimized CSS
+
+**PO Document Generation**
+- `generatePODocument()` - Generate formatted PO for print
+- Company header with CLMC Engineering branding
+- PO details (ID, date issued, supplier info)
+- Billing and shipping addresses
+- Items table with line totals
+- Terms and conditions
+- Signature blocks
+- Print-optimized layout
+
+**Batch Document Generation**
+- `generateAllPODocuments()` - Generate multiple POs at once
+- Opens each PO in new tab for printing
+- Useful for bulk PO processing
+
+**Document Actions**
+- `viewPODocument()` - Preview PO in modal
+- `downloadPODocument()` - Download PO as file
+- `openPrintWindow()` - Open in print-ready window
+
+---
+
+### 💰 Finance Dashboard
+**Location:** `app/views/finance.js` (1,077 lines)
+
+The finance dashboard handles PR/TR approvals and PO tracking with 3 main tabs:
+
+#### Tab 1: Pending Approvals (9 functions)
+
+**Real-time Statistics (4 scoreboards)**
+- Material PRs Pending (yellow badge)
+- Transport Requests Pending (red badge)
+- Approved This Month (green badge)
+- Total Pending Amount (currency display)
+
+**Material Purchase Requests**
+- Display all PRs with `finance_status: Pending`
+- Show PR ID, MRF reference, project, date
+- Display urgency level badges
+- Show total cost and supplier
+- Action buttons: View Details, Approve, Reject
+
+**Transport Requests**
+- Display all TRs with `finance_status: Pending`
+- Show TR ID, MRF reference, project, date
+- Display service type (hauling/delivery)
+- Show total cost
+- Action buttons: View Details, Approve, Reject
+
+**Approval Workflow**
+- `viewPRTRDetails()` - Show complete PR/TR details in modal
+  - All item details with quantities and costs
+  - Project information
+  - Urgency level and justification
+  - Supplier information
+- `approvePRTR()` - Approve PR/TR with automatic PO generation
+  - Updates `finance_status` to 'Approved'
+  - Automatically generates PO record in `pos` collection
+  - Groups items by supplier (for multi-supplier PRs)
+  - Sets initial PO status to 'Pending Procurement'
+  - Updates originating MRF status if applicable
+  - Shows success notification
+- `openRejectionModal()` - Opens rejection reason dialog
+- `submitRejection()` - Reject with reason
+  - Updates `finance_status` to 'Rejected'
+  - Stores rejection reason
+  - Updates MRF status to 'Rejected'
+  - Notifies user of rejection
+
+**PR/TR Details Modal**
+- Window-style modal design
+- 2-column metadata grid
+- Complete items table with categories
+- Grand total display
+- Action buttons (Approve/Reject)
+
+#### Tab 2: Purchase Orders (2 functions)
+
+**PO Display**
+- `loadPOs()` - Load all POs from Firebase
+- `renderPOsList()` - Display POs in cards layout
+- Real-time updates via Firebase listeners
+
+**PO Information Cards**
+- PO ID and date issued
+- Supplier name
+- Originating PR and MRF references
+- Total amount (formatted currency)
+- Procurement status badge
+- Subcontractor indicator (if applicable)
+- Last updated timestamp
+
+**PO Actions**
+- View PO details button
+- Status displayed with color-coded badges
+- Grouped by recent activity (last 30 days)
+
+#### Tab 3: Historical Data
+
+**Features:**
+- Placeholder for analytics dashboard
+- Future: Supplier performance metrics
+- Future: Price trend analysis
+- Future: Procurement cycle analytics
+- Future: Budget vs. actual reports
+
+---
+
+### 🎨 UI/UX Features
+
+**Modern Design System**
+- **Color Scheme:**
+  - Primary Blue: `#1a73e8`
+  - Success Green: `#059669`
+  - Warning Yellow: `#f59e0b`
+  - Danger Red: `#ef4444`
+  - Consistent border colors and backgrounds
+- **Typography:**
+  - System font stack for performance
+  - Clear hierarchy with size and weight
+  - Letter-spacing on labels
+- **Components:**
+  - Window-style modals (not banner-style)
+  - Standardized pagination controls
+  - Consistent status badges
+  - Responsive tables with hover effects
+  - Modern form inputs with focus states
+  - Action buttons with icons
+- **Interactions:**
+  - Smooth transitions (200ms)
+  - Hover effects with scale transforms
+  - Focus states with colored rings
+  - Loading states with spinners
+  - Toast notifications for feedback
+  - Confirmation dialogs for destructive actions
+
+**Accessibility**
+- Proper ARIA labels
+- Keyboard navigation support
+- Focus visible states
+- High contrast text
+- Large touch targets (minimum 40px height)
+- Semantic HTML structure
+
+---
+
+### 🔄 Real-time Features
+
+**Firebase Listeners (All Views)**
+- MRFs collection - Auto-updates pending MRFs
+- PRs collection - Auto-updates pending PRs
+- POs collection - Auto-updates PO status
+- TRs collection - Auto-updates transport requests
+- Suppliers collection - Auto-updates supplier list
+- Projects collection - Auto-updates project dropdown
+
+**Auto-refresh Capabilities**
+- Statistics update without page reload
+- New submissions appear immediately
+- Status changes reflect instantly
+- Multi-user collaboration support
+- No manual refresh required
+
+---
+
+### 📊 Data Management
+
+**Soft Delete System**
+- `deleted_mrfs` collection stores removed MRFs
+- Cascading delete captures related PRs, POs, TRs
+- Complete audit trail preserved
+- Recovery possible from deleted collection
+
+**Sequential ID Generation**
+- MRF IDs: `MRF-YYYY-###`
+- PR IDs: `PR-YYYY-###`
+- PO IDs: `PO-YYYY-###`
+- TR IDs: `TR-YYYY-###`
+- Auto-increments per year
+- Finds max number and adds 1
+
+**Data Validation**
+- Required field enforcement
+- Type validation (numbers, dates, emails)
+- Minimum/maximum constraints
+- Custom validation rules
+- Client-side validation before Firebase save
+- Error messages displayed inline
+
+---
+
+### 🔒 Security & Performance
+
+**Security Features**
+- HTTP security headers configured
+- CSP (Content Security Policy) enabled
+- X-Content-Type-Options: nosniff
+- Frame-ancestors: 'self' (prevents clickjacking)
+- No sensitive data in client code
+- Firebase security rules (server-side)
+
+**Performance Optimizations**
+- Lazy loading of views (dynamic imports)
+- Pagination (15 items/page for suppliers, 10 for records)
+- Efficient Firebase queries with indexes
+- CSS/JS minification via Netlify
+- CDN delivery of Firebase SDK
+- Real-time listeners prevent unnecessary queries
+- Proper listener cleanup prevents memory leaks
+
+**Browser Compatibility**
+- Modern ES6 modules (Chrome, Firefox, Safari, Edge)
+- Native fetch API
+- CSS Grid and Flexbox
+- No polyfills required
+- Graceful degradation for older browsers
+
+---
+
+## Feature Summary Matrix
+
+| Feature Category | Home | MRF Form | Procurement | Finance |
+|-----------------|------|----------|-------------|---------|
+| **Real-time Stats** | ✅ | - | ✅ | ✅ |
+| **Form Submission** | - | ✅ | ✅ | - |
+| **CRUD Operations** | - | - | ✅ | - |
+| **Document Generation** | - | - | ✅ | - |
+| **Approval Workflow** | - | - | - | ✅ |
+| **Status Management** | - | - | ✅ | ✅ |
+| **Pagination** | - | - | ✅ | - |
+| **Modal Dialogs** | - | - | ✅ | ✅ |
+| **PDF Export** | - | - | ✅ | ✅ |
+| **Firebase Listeners** | ✅ | ✅ | ✅ | ✅ |
+| **Search/Filter** | - | - | ✅ | ✅ |
+
+**Total Functions Across All Views: 47+**
+**Total Lines of Production Code: ~6,300 lines**
+
 ## Firebase Firestore Schema
 
 ### Collections
