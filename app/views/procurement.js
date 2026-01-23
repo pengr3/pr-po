@@ -2322,48 +2322,38 @@ async function renderPRPORecords() {
  */
 function renderPRPOPagination(totalPages) {
     const paginationDiv = document.getElementById('prpoPagination');
-function renderHistoricalPagination(totalPages) {
-    const paginationDiv = document.getElementById('historicalPagination');
     if (!paginationDiv || totalPages <= 1) {
         if (paginationDiv) paginationDiv.innerHTML = '';
         return;
     }
 
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, historicalMRFs.length);
+    const startIndex = (prpoCurrentPage - 1) * prpoItemsPerPage;
+    const endIndex = Math.min(startIndex + prpoItemsPerPage, filteredPRPORecords.length);
 
-    for (let i = 1; i <= totalPages; i++) {
-        html += `
-            <button
-                onclick="goToPRPOPage(${i})"
-                class="btn ${i === prpoCurrentPage ? 'btn-primary' : 'btn-secondary'}"
-                style="min-width: 2.5rem;"
-            >
-                ${i}
     let html = `
         <div class="pagination-info">
-            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${historicalMRFs.length}</strong> Historical MRFs
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${filteredPRPORecords.length}</strong> Records
         </div>
         <div class="pagination-controls">
-            <button class="pagination-btn" onclick="goToHistoricalPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+            <button class="pagination-btn" onclick="goToPRPOPage(${prpoCurrentPage - 1})" ${prpoCurrentPage === 1 ? 'disabled' : ''}>
                 ← Previous
             </button>
     `;
 
     for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+        if (i === 1 || i === totalPages || (i >= prpoCurrentPage - 1 && i <= prpoCurrentPage + 1)) {
             html += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="goToHistoricalPage(${i})">
+                <button class="pagination-btn ${i === prpoCurrentPage ? 'active' : ''}" onclick="goToPRPOPage(${i})">
                     ${i}
                 </button>
             `;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
+        } else if (i === prpoCurrentPage - 2 || i === prpoCurrentPage + 2) {
             html += '<span class="pagination-ellipsis">...</span>';
         }
     }
 
     html += `
-            <button class="pagination-btn" onclick="goToHistoricalPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+            <button class="pagination-btn" onclick="goToPRPOPage(${prpoCurrentPage + 1})" ${prpoCurrentPage === totalPages ? 'disabled' : ''}>
                 Next →
             </button>
         </div>
@@ -3578,11 +3568,23 @@ async function viewPRDetails(prDocId) {
             document.body.appendChild(modalContainer);
         }
 
-        // Insert modal HTML
+        // Insert modal HTML with View PR button
         modalContainer.innerHTML = createModal({
             id: 'prDetailsModal',
             title: `Purchase Request Details: ${pr.pr_id}`,
             body: modalBodyContent,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('prDetailsModal')">Close</button>
+                <button class="btn btn-primary" onclick="window.generatePRDocument('${pr.id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    View PR
+                </button>
+            `,
             size: 'large'
         });
 
@@ -3720,11 +3722,23 @@ async function viewPODetails(poId) {
             document.body.appendChild(modalContainer);
         }
 
-        // Insert modal HTML
+        // Insert modal HTML with View PO button
         modalContainer.innerHTML = createModal({
             id: 'poDetailsModal',
             title: `Purchase Order Details: ${po.po_id}`,
             body: modalBodyContent,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('poDetailsModal')">Close</button>
+                <button class="btn btn-primary" onclick="window.generatePODocument('${po.id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    View PO
+                </button>
+            `,
             size: 'large'
         });
 
@@ -3805,10 +3819,11 @@ function viewPOTimeline(poId) {
 const DOCUMENT_CONFIG = {
     defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
     companyInfo: {
-        name: 'C Lacsamana Management and Construction Corporation',
-        address: '133 Pinatubo St., Mandaluyong City, Metro Manila',
+        name: 'C. Lacsamana Management and Construction Corporation',
+        address: '133 Pinatubo St. City of Mandaluyong City',
         tel: '09178182993',
-        email: 'cgl@consultclm.com'
+        email: 'cgl@consultclm.com',
+        logo: '/CLMC Registered Logo Cropped (black fill).png'
     }
 };
 
@@ -3877,12 +3892,21 @@ function generatePRHTML(data) {
                 @media print {
                     @page {
                         size: A4;
-                        margin: 0.5in;
+                        margin: 0;
                     }
                     body {
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
                 }
                 body {
                     font-family: Arial, sans-serif;
@@ -3891,22 +3915,40 @@ function generatePRHTML(data) {
                     color: #000;
                     max-width: 8.5in;
                     margin: 0 auto;
-                    padding: 0.5in;
                 }
                 .header {
-                    text-align: center;
-                    border-bottom: 2px solid #000;
-                    padding-bottom: 10px;
-                    margin-bottom: 20px;
+                    background-color: #000;
+                    color: #fff;
+                    padding: 15px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
                 }
-                .header h1 {
-                    margin: 0;
-                    font-size: 14pt;
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 22px;
+                }
+                .header-logo {
+                    width: 70px;
+                    height: 70px;
+                    object-fit: contain;
+                }
+                .header-company {
+                    font-size: 16pt;
                     font-weight: bold;
+                    max-width: 320px;
+                    line-height: 1.3;
                 }
-                .header p {
-                    margin: 2px 0;
-                    font-size: 9pt;
+                .header-right {
+                    text-align: right;
+                    font-size: 8pt;
+                    line-height: 1.6;
+                }
+                .content {
+                    padding: 25px 30px;
+                    margin: 0 0.5in 0.5in 0.5in;
                 }
                 .title {
                     text-align: center;
@@ -3966,56 +4008,64 @@ function generatePRHTML(data) {
         </head>
         <body>
             <div class="header">
-                <h1>${data.company_info.name}</h1>
-                <p>${data.company_info.address}</p>
-                <p>Tel: ${data.company_info.tel} | Email: ${data.company_info.email}</p>
+                <div class="header-left">
+                    <img src="${data.company_info.logo}" class="header-logo" alt="Logo">
+                    <div class="header-company">${data.company_info.name}</div>
+                </div>
+                <div class="header-right">
+                    <div>${data.company_info.address}</div>
+                    <div>Tel: ${data.company_info.tel}</div>
+                    <div>Email: ${data.company_info.email}</div>
+                </div>
             </div>
 
-            <div class="title">PURCHASE REQUEST FORM (PR)</div>
+            <div class="content">
+                <div class="title">PURCHASE REQUEST FORM (PR)</div>
 
-            <div class="section">
-                <div class="field"><span class="label">Document No.:</span> ${data.PR_ID}</div>
-                <div class="field"><span class="label">MRF Reference:</span> ${data.MRF_ID}</div>
-                <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
-            </div>
+                <div class="section">
+                    <div class="field"><span class="label">Document No.:</span> ${data.PR_ID}</div>
+                    <div class="field"><span class="label">MRF Reference:</span> ${data.MRF_ID}</div>
+                    <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                </div>
 
-            <div class="section">
-                <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
-                <div class="field"><span class="label">Delivery Address:</span> ${data.ADDRESS}</div>
-                <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
-            </div>
+                <div class="section">
+                    <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                    <div class="field"><span class="label">Delivery Address:</span> ${data.ADDRESS}</div>
+                    <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+                </div>
 
-            <div class="section">
-                <h3 style="margin: 10px 0;">Items Requested:</h3>
-                ${data.ITEMS_TABLE}
-            </div>
+                <div class="section">
+                    <h3 style="margin: 10px 0;">Items Requested:</h3>
+                    ${data.ITEMS_TABLE}
+                </div>
 
-            <div class="total">
-                TOTAL AMOUNT: ₱${data.TOTAL_COST}
-            </div>
+                <div class="total">
+                    TOTAL AMOUNT: ₱${data.TOTAL_COST}
+                </div>
 
-            <div class="signatures">
-                <div class="signature-line">
-                    <span class="label">Requested By:</span> ${data.REQUESTOR}
+                <div class="signatures">
+                    <div class="signature-line">
+                        <span class="label">Requested By:</span> ${data.REQUESTOR}
+                    </div>
+                    <div class="signature-line">
+                        <span class="label">Prepared By:</span> ${data.PROCUREMENT_PIC}
+                    </div>
+                    ${data.IS_APPROVED ? `
+                    <div class="signature-line">
+                        <span class="label">Approved By:</span> ${data.FINANCE_PIC}
+                    </div>
+                    <div class="signature-line">
+                        <span class="label">Date Approved:</span> ${data.DATE_APPROVED}
+                    </div>
+                    ` : `
+                    <div class="signature-line" style="margin-top: 40px;">
+                        <span class="label">Approved By:</span> _______________________________
+                    </div>
+                    <div class="signature-line">
+                        <span class="label">Date Approved:</span> _______________________________
+                    </div>
+                    `}
                 </div>
-                <div class="signature-line">
-                    <span class="label">Prepared By:</span> ${data.PROCUREMENT_PIC}
-                </div>
-                ${data.IS_APPROVED ? `
-                <div class="signature-line">
-                    <span class="label">Approved By:</span> ${data.FINANCE_PIC}
-                </div>
-                <div class="signature-line">
-                    <span class="label">Date Approved:</span> ${data.DATE_APPROVED}
-                </div>
-                ` : `
-                <div class="signature-line" style="margin-top: 40px;">
-                    <span class="label">Approved By:</span> _______________________________
-                </div>
-                <div class="signature-line">
-                    <span class="label">Date Approved:</span> _______________________________
-                </div>
-                `}
             </div>
         </body>
         </html>
@@ -4038,12 +4088,21 @@ function generatePOHTML(data) {
                 @media print {
                     @page {
                         size: A4;
-                        margin: 0.5in;
+                        margin: 0;
                     }
                     body {
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
                 }
                 body {
                     font-family: Arial, sans-serif;
@@ -4052,22 +4111,40 @@ function generatePOHTML(data) {
                     color: #000;
                     max-width: 8.5in;
                     margin: 0 auto;
-                    padding: 0.5in;
                 }
                 .header {
-                    text-align: center;
-                    border-bottom: 2px solid #000;
-                    padding-bottom: 10px;
-                    margin-bottom: 20px;
+                    background-color: #000;
+                    color: #fff;
+                    padding: 15px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
                 }
-                .header h1 {
-                    margin: 0;
-                    font-size: 14pt;
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 22px;
+                }
+                .header-logo {
+                    width: 70px;
+                    height: 70px;
+                    object-fit: contain;
+                }
+                .header-company {
+                    font-size: 16pt;
                     font-weight: bold;
+                    max-width: 320px;
+                    line-height: 1.3;
                 }
-                .header p {
-                    margin: 2px 0;
-                    font-size: 9pt;
+                .header-right {
+                    text-align: right;
+                    font-size: 8pt;
+                    line-height: 1.6;
+                }
+                .content {
+                    padding: 25px 30px;
+                    margin: 0 0.5in 0.5in 0.5in;
                 }
                 .title {
                     text-align: center;
@@ -4126,40 +4203,48 @@ function generatePOHTML(data) {
         </head>
         <body>
             <div class="header">
-                <h1>${data.company_info.name}</h1>
-                <p>${data.company_info.address}</p>
-                <p>Tel: ${data.company_info.tel} | Email: ${data.company_info.email}</p>
+                <div class="header-left">
+                    <img src="${data.company_info.logo}" class="header-logo" alt="Logo">
+                    <div class="header-company">${data.company_info.name}</div>
+                </div>
+                <div class="header-right">
+                    <div>${data.company_info.address}</div>
+                    <div>Tel: ${data.company_info.tel}</div>
+                    <div>Email: ${data.company_info.email}</div>
+                </div>
             </div>
 
-            <div class="title">PURCHASE ORDER</div>
+            <div class="content">
+                <div class="title">PURCHASE ORDER</div>
 
-            <div class="section">
-                <div class="field"><span class="label">P.O. No.:</span> ${data.PO_ID}</div>
-                <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
-                <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
-                <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
-                <div class="field"><span class="label">Quote Ref:</span> ${data.QUOTE_REF}</div>
-            </div>
+                <div class="section">
+                    <div class="field"><span class="label">P.O. No.:</span> ${data.PO_ID}</div>
+                    <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                    <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                    <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+                    <div class="field"><span class="label">Quote Ref:</span> ${data.QUOTE_REF}</div>
+                </div>
 
-            <div class="section">
-                <h3 style="margin: 10px 0;">Order Details:</h3>
-                ${data.ITEMS_TABLE}
-            </div>
+                <div class="section">
+                    <h3 style="margin: 10px 0;">Order Details:</h3>
+                    ${data.ITEMS_TABLE}
+                </div>
 
-            <div class="section">
-                <div class="field"><span class="label">Delivery Address:</span> ${data.DELIVERY_ADDRESS}</div>
-                <div class="field"><span class="label">Payment Terms:</span> ${data.PAYMENT_TERMS}</div>
-                <div class="field"><span class="label">Condition:</span> ${data.CONDITION}</div>
-                <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
-            </div>
+                <div class="section">
+                    <div class="field"><span class="label">Delivery Address:</span> ${data.DELIVERY_ADDRESS}</div>
+                    <div class="field"><span class="label">Payment Terms:</span> ${data.PAYMENT_TERMS}</div>
+                    <div class="field"><span class="label">Condition:</span> ${data.CONDITION}</div>
+                    <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
+                </div>
 
-            <div class="signature">
-                <p><strong>Authorized By:</strong></p>
-                ${data.SIGNATURE_PLACEHOLDER ?
-                    `<img src="${data.SIGNATURE_PLACEHOLDER}" class="signature-image" alt="Signature">` :
-                    '<div class="signature-line"></div>'
-                }
-                <p><strong>${data.FINANCE_PIC}</strong></p>
+                <div class="signature">
+                    <p><strong>Authorized By:</strong></p>
+                    ${data.SIGNATURE_PLACEHOLDER ?
+                        `<img src="${data.SIGNATURE_PLACEHOLDER}" class="signature-image" alt="Signature">` :
+                        '<div class="signature-line"></div>'
+                    }
+                    <p><strong>${data.FINANCE_PIC}</strong></p>
+                </div>
             </div>
         </body>
         </html>
