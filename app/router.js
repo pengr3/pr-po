@@ -16,6 +16,11 @@ const routes = {
         load: () => import('./views/home.js'),
         title: 'Home | CLMC Procurement'
     },
+    '/clients': {
+        name: 'Clients',
+        load: () => import('./views/clients.js'),
+        title: 'Clients | CLMC Procurement'
+    },
     '/mrf-form': {
         name: 'Material Request',
         load: () => import('./views/mrf-form.js'),
