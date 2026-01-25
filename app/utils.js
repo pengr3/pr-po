@@ -171,6 +171,53 @@ export async function generateSequentialId(collectionName, prefix, year = null) 
 }
 
 /**
+ * Generate composite project code: CLMC_CLIENT_YYYY###
+ * @param {string} clientCode - Client code (e.g., "ACME")
+ * @param {number} year - Year for the project code (defaults to current year)
+ * @returns {Promise<string>} Generated project code
+ *
+ * Example output: CLMC_ACME_2026001, CLMC_ACME_2026002
+ *
+ * Note: Uses regex parsing to handle client codes with underscores (e.g., ACME_INC)
+ * Race condition possible with simultaneous creates - acceptable for v1.0
+ */
+export async function generateProjectCode(clientCode, year = null) {
+    try {
+        const currentYear = year || new Date().getFullYear();
+
+        // Query projects for this client and year using range query
+        const q = query(
+            collection(db, 'projects'),
+            where('client_code', '==', clientCode),
+            where('project_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
+            where('project_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
+        );
+
+        const snapshot = await getDocs(q);
+
+        let maxNum = 0;
+        snapshot.forEach(doc => {
+            const code = doc.data().project_code;
+            // Use regex to extract 3-digit number - handles client codes with underscores
+            // Pattern: CLMC_{anything}_YYYY###
+            const match = code.match(/^CLMC_.+_\d{4}(\d{3})$/);
+            if (match) {
+                const num = parseInt(match[1]);
+                if (num > maxNum) {
+                    maxNum = num;
+                }
+            }
+        });
+
+        const newNum = maxNum + 1;
+        return `CLMC_${clientCode}_${currentYear}${String(newNum).padStart(3, '0')}`;
+    } catch (error) {
+        console.error('[Projects] Error generating project code:', error);
+        throw error;
+    }
+}
+
+/**
  * Get all active projects
  * @returns {Promise<Array>} Array of active projects
  */
