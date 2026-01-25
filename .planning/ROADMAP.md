@@ -50,10 +50,11 @@ Plans:
   8. User can delete projects (with confirmation)
   9. Budget and contract_cost validation enforces positive numbers
   10. Project code uniqueness is enforced per client per year
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD
+- [ ] 02-01-PLAN.md — Create projects view module with CRUD and composite ID generation
+- [ ] 02-02-PLAN.md — Integrate projects into SPA navigation
 
 ### Phase 3: Projects Management
 **Goal**: Users can find, filter, and view projects through powerful list management
@@ -100,6 +101,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Clients Foundation | 2/2 | Complete | 2026-01-25 |
-| 2. Projects Core | 0/TBD | Not started | - |
+| 2. Projects Core | 0/2 | Not started | - |
 | 3. Projects Management | 0/TBD | Not started | - |
 | 4. MRF-Project Integration | 0/TBD | Not started | - |
