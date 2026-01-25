@@ -9,11 +9,11 @@ Requirements for Core Projects Foundation. Each maps to roadmap phases.
 
 ### Clients Management
 
-- [ ] **CLIENT-01**: User can create client with client_code, company_name, contact_person, contact_details
-- [ ] **CLIENT-02**: User can edit existing client information
-- [ ] **CLIENT-03**: Super Admin can delete clients (v1.0: anyone can delete, role enforcement in v2.0)
-- [ ] **CLIENT-04**: User can view list of all clients
-- [ ] **CLIENT-05**: Client code is manually entered by admin (validated for uniqueness)
+- [x] **CLIENT-01**: User can create client with client_code, company_name, contact_person, contact_details
+- [x] **CLIENT-02**: User can edit existing client information
+- [x] **CLIENT-03**: Super Admin can delete clients (v1.0: anyone can delete, role enforcement in v2.0)
+- [x] **CLIENT-04**: User can view list of all clients
+- [x] **CLIENT-05**: Client code is manually entered by admin (validated for uniqueness)
 
 ### Projects Management
 
@@ -148,11 +148,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLIENT-01 | Phase 1 | Pending |
-| CLIENT-02 | Phase 1 | Pending |
-| CLIENT-03 | Phase 1 | Pending |
-| CLIENT-04 | Phase 1 | Pending |
-| CLIENT-05 | Phase 1 | Pending |
+| CLIENT-01 | Phase 1 | Complete |
+| CLIENT-02 | Phase 1 | Complete |
+| CLIENT-03 | Phase 1 | Complete |
+| CLIENT-04 | Phase 1 | Complete |
+| CLIENT-05 | Phase 1 | Complete |
 | PROJ-01 | Phase 2 | Pending |
 | PROJ-02 | Phase 2 | Pending |
 | PROJ-03 | Phase 2 | Pending |
