@@ -140,10 +140,47 @@ Deferred to future release. Tracked but not in current roadmap.
 Which phases cover which requirements. Updated during roadmap creation.
 
 **Coverage:**
-- v1.0 requirements: 27 total
-- Mapped to phases: TBD (pending roadmap)
-- Unmapped: TBD
+- v1.0 requirements: 32 total
+- Mapped to phases: 32/32 (100%)
+- Unmapped: 0
+
+### Phase Mapping
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CLIENT-01 | Phase 1 | Pending |
+| CLIENT-02 | Phase 1 | Pending |
+| CLIENT-03 | Phase 1 | Pending |
+| CLIENT-04 | Phase 1 | Pending |
+| CLIENT-05 | Phase 1 | Pending |
+| PROJ-01 | Phase 2 | Pending |
+| PROJ-02 | Phase 2 | Pending |
+| PROJ-03 | Phase 2 | Pending |
+| PROJ-04 | Phase 2 | Pending |
+| PROJ-05 | Phase 2 | Pending |
+| PROJ-06 | Phase 2 | Pending |
+| PROJ-07 | Phase 2 | Pending |
+| PROJ-08 | Phase 2 | Pending |
+| PROJ-17 | Phase 2 | Pending |
+| PROJ-18 | Phase 2 | Pending |
+| PROJ-09 | Phase 3 | Pending |
+| PROJ-10 | Phase 3 | Pending |
+| PROJ-11 | Phase 3 | Pending |
+| PROJ-12 | Phase 3 | Pending |
+| PROJ-13 | Phase 3 | Pending |
+| PROJ-14 | Phase 3 | Pending |
+| PROJ-15 | Phase 3 | Pending |
+| PROJ-16 | Phase 3 | Pending |
+| MRF-01 | Phase 4 | Pending |
+| MRF-02 | Phase 4 | Pending |
+| MRF-03 | Phase 4 | Pending |
+| MRF-04 | Phase 4 | Pending |
+| MRF-05 | Phase 4 | Pending |
+| MRF-06 | Phase 4 | Pending |
+| MRF-07 | Phase 4 | Pending |
+| MRF-08 | Phase 4 | Pending |
+| MRF-09 | Phase 4 | Pending |
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-25 after initial definition*
+*Last updated: 2026-01-25 after roadmap creation*
