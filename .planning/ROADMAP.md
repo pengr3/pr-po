@@ -29,10 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. User can edit existing client information
   4. User can delete clients (with confirmation)
   5. Client codes are validated for uniqueness when entered
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD
+- [ ] 01-01-PLAN.md — Create clients view module with CRUD operations
+- [ ] 01-02-PLAN.md — Integrate clients into SPA navigation
 
 ### Phase 2: Projects Core
 **Goal**: Users can create and edit projects with auto-generated codes and dual-status tracking
@@ -98,7 +99,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Clients Foundation | 0/TBD | Not started | - |
+| 1. Clients Foundation | 0/2 | Planned | - |
 | 2. Projects Core | 0/TBD | Not started | - |
 | 3. Projects Management | 0/TBD | Not started | - |
 | 4. MRF-Project Integration | 0/TBD | Not started | - |
