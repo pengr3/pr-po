@@ -377,6 +377,7 @@ function renderProjectsTable() {
                 </td>
                 <td style="white-space: nowrap;">
                     <button class="btn btn-sm btn-primary" onclick="editProject('${project.id}')">Edit</button>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleProjectActive('${project.id}', ${project.active})">${project.active ? 'Deactivate' : 'Activate'}</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
                 </td>
             </tr>
