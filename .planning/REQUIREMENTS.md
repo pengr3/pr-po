@@ -25,14 +25,14 @@ Requirements for Core Projects Foundation. Each maps to roadmap phases.
 - [x] **PROJ-06**: User can toggle project active/inactive status
 - [x] **PROJ-07**: User can edit existing projects
 - [x] **PROJ-08**: Super Admin can delete projects (v1.0: anyone can delete, role enforcement in v2.0)
-- [ ] **PROJ-09**: User can view full project details by clicking project in list
-- [ ] **PROJ-10**: User can view project list with columns: Code, Name, Client, Internal Status, Project Status
-- [ ] **PROJ-11**: User can filter projects by Internal Status
-- [ ] **PROJ-12**: User can filter projects by Project Status
-- [ ] **PROJ-13**: User can filter projects by Client
-- [ ] **PROJ-14**: User can search projects by project code or project name
-- [ ] **PROJ-15**: Project list displays most recent projects first
-- [ ] **PROJ-16**: Project create/edit uses new page UI (not modal) with back navigation
+- [x] **PROJ-09**: User can view full project details by clicking project in list
+- [x] **PROJ-10**: User can view project list with columns: Code, Name, Client, Internal Status, Project Status
+- [x] **PROJ-11**: User can filter projects by Internal Status
+- [x] **PROJ-12**: User can filter projects by Project Status
+- [x] **PROJ-13**: User can filter projects by Client
+- [x] **PROJ-14**: User can search projects by project code or project name
+- [x] **PROJ-15**: Project list displays most recent projects first
+- [x] **PROJ-16**: Project create/edit uses new page UI (not modal) with back navigation
 - [x] **PROJ-17**: Budget and contract_cost must be positive numbers if provided
 - [x] **PROJ-18**: Project code uniqueness is enforced per client per year
 
@@ -153,24 +153,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CLIENT-03 | Phase 1 | Complete |
 | CLIENT-04 | Phase 1 | Complete |
 | CLIENT-05 | Phase 1 | Complete |
-| PROJ-01 | Phase 2 | Pending |
-| PROJ-02 | Phase 2 | Pending |
-| PROJ-03 | Phase 2 | Pending |
-| PROJ-04 | Phase 2 | Pending |
-| PROJ-05 | Phase 2 | Pending |
-| PROJ-06 | Phase 2 | Pending |
-| PROJ-07 | Phase 2 | Pending |
-| PROJ-08 | Phase 2 | Pending |
-| PROJ-17 | Phase 2 | Pending |
-| PROJ-18 | Phase 2 | Pending |
-| PROJ-09 | Phase 3 | Pending |
-| PROJ-10 | Phase 3 | Pending |
-| PROJ-11 | Phase 3 | Pending |
-| PROJ-12 | Phase 3 | Pending |
-| PROJ-13 | Phase 3 | Pending |
-| PROJ-14 | Phase 3 | Pending |
-| PROJ-15 | Phase 3 | Pending |
-| PROJ-16 | Phase 3 | Pending |
+| PROJ-01 | Phase 2 | Complete |
+| PROJ-02 | Phase 2 | Complete |
+| PROJ-03 | Phase 2 | Complete |
+| PROJ-04 | Phase 2 | Complete |
+| PROJ-05 | Phase 2 | Complete |
+| PROJ-06 | Phase 2 | Complete |
+| PROJ-07 | Phase 2 | Complete |
+| PROJ-08 | Phase 2 | Complete |
+| PROJ-17 | Phase 2 | Complete |
+| PROJ-18 | Phase 2 | Complete |
+| PROJ-09 | Phase 3 | Complete |
+| PROJ-10 | Phase 3 | Complete |
+| PROJ-11 | Phase 3 | Complete |
+| PROJ-12 | Phase 3 | Complete |
+| PROJ-13 | Phase 3 | Complete |
+| PROJ-14 | Phase 3 | Complete |
+| PROJ-15 | Phase 3 | Complete |
+| PROJ-16 | Phase 3 | Complete |
 | MRF-01 | Phase 4 | Pending |
 | MRF-02 | Phase 4 | Pending |
 | MRF-03 | Phase 4 | Pending |
@@ -183,4 +183,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-25*
-*Last updated: 2026-01-25 after roadmap creation*
+*Last updated: 2026-01-26 after Phase 3 completion*
