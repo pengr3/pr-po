@@ -13,7 +13,7 @@ Transform the CLMC procurement system by adding comprehensive project lifecycle 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Clients Foundation** - Client CRUD and database
-- [ ] **Phase 2: Projects Core** - Project creation and editing
+- [x] **Phase 2: Projects Core** - Project creation and editing
 - [ ] **Phase 3: Projects Management** - Filtering, search, and views
 - [ ] **Phase 4: MRF-Project Integration** - Connect MRFs to projects
 
@@ -50,11 +50,12 @@ Plans:
   8. User can delete projects (with confirmation)
   9. Budget and contract_cost validation enforces positive numbers
   10. Project code uniqueness is enforced per client per year
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Create projects view module with CRUD and composite ID generation
-- [ ] 02-02-PLAN.md — Integrate projects into SPA navigation
+- [x] 02-01-PLAN.md — Create projects view module with CRUD and composite ID generation
+- [x] 02-02-PLAN.md — Integrate projects into SPA navigation
+- [x] 02-03-PLAN.md — Add toggle button for project active/inactive (gap closure)
 
 ### Phase 3: Projects Management
 **Goal**: Users can find, filter, and view projects through powerful list management
@@ -101,6 +102,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Clients Foundation | 2/2 | Complete | 2026-01-25 |
-| 2. Projects Core | 0/2 | Not started | - |
+| 2. Projects Core | 3/3 | Complete | 2026-01-26 |
 | 3. Projects Management | 0/TBD | Not started | - |
 | 4. MRF-Project Integration | 0/TBD | Not started | - |

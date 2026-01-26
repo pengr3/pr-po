@@ -17,14 +17,14 @@ Requirements for Core Projects Foundation. Each maps to roadmap phases.
 
 ### Projects Management
 
-- [ ] **PROJ-01**: User can create project with auto-generated project code (CLMC_CLIENT_YYYY###)
-- [ ] **PROJ-02**: Project creation requires project_name and client (dropdown)
-- [ ] **PROJ-03**: Project creation allows optional: budget, contract_cost, personnel (freetext)
-- [ ] **PROJ-04**: User can select Internal Status from dropdown (For Inspection, For Proposal, For Internal Approval, Ready to Submit)
-- [ ] **PROJ-05**: User can select Project Status from dropdown (Pending Client Review, Under Client Review, Approved by Client, For Mobilization, On-going, Completed, Loss)
-- [ ] **PROJ-06**: User can toggle project active/inactive status
-- [ ] **PROJ-07**: User can edit existing projects
-- [ ] **PROJ-08**: Super Admin can delete projects (v1.0: anyone can delete, role enforcement in v2.0)
+- [x] **PROJ-01**: User can create project with auto-generated project code (CLMC_CLIENT_YYYY###)
+- [x] **PROJ-02**: Project creation requires project_name and client (dropdown)
+- [x] **PROJ-03**: Project creation allows optional: budget, contract_cost, personnel (freetext)
+- [x] **PROJ-04**: User can select Internal Status from dropdown (For Inspection, For Proposal, For Internal Approval, Ready to Submit)
+- [x] **PROJ-05**: User can select Project Status from dropdown (Pending Client Review, Under Client Review, Approved by Client, For Mobilization, On-going, Completed, Loss)
+- [x] **PROJ-06**: User can toggle project active/inactive status
+- [x] **PROJ-07**: User can edit existing projects
+- [x] **PROJ-08**: Super Admin can delete projects (v1.0: anyone can delete, role enforcement in v2.0)
 - [ ] **PROJ-09**: User can view full project details by clicking project in list
 - [ ] **PROJ-10**: User can view project list with columns: Code, Name, Client, Internal Status, Project Status
 - [ ] **PROJ-11**: User can filter projects by Internal Status
@@ -33,8 +33,8 @@ Requirements for Core Projects Foundation. Each maps to roadmap phases.
 - [ ] **PROJ-14**: User can search projects by project code or project name
 - [ ] **PROJ-15**: Project list displays most recent projects first
 - [ ] **PROJ-16**: Project create/edit uses new page UI (not modal) with back navigation
-- [ ] **PROJ-17**: Budget and contract_cost must be positive numbers if provided
-- [ ] **PROJ-18**: Project code uniqueness is enforced per client per year
+- [x] **PROJ-17**: Budget and contract_cost must be positive numbers if provided
+- [x] **PROJ-18**: Project code uniqueness is enforced per client per year
 
 ### MRF-Project Integration
 
