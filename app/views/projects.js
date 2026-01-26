@@ -14,6 +14,12 @@ let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
 
+// Filtering and sorting state
+let allProjects = [];           // Unfiltered data from Firebase
+let filteredProjects = [];      // Filtered subset for display
+let sortColumn = 'created_at';  // Default sort column
+let sortDirection = 'desc';     // Most recent first (PROJ-15)
+
 // Status options
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -32,6 +38,19 @@ const PROJECT_STATUS_OPTIONS = [
     'Loss'
 ];
 
+// Debounce utility function
+function debounce(callback, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            callback(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     console.log('[Projects] Attaching window functions...');
@@ -43,6 +62,8 @@ function attachWindowFunctions() {
     window.deleteProject = deleteProject;
     window.toggleProjectActive = toggleProjectActive;
     window.changeProjectsPage = changeProjectsPage;
+    window.applyFilters = applyFilters;
+    window.debouncedFilter = debouncedFilter;
     console.log('[Projects] Window functions attached');
 }
 
@@ -116,6 +137,45 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
+                <!-- Filter Bar -->
+                <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Internal Status</label>
+                        <select id="internalStatusFilter" onchange="window.applyFilters()" style="width: 100%;">
+                            <option value="">All Internal Statuses</option>
+                            ${INTERNAL_STATUS_OPTIONS.map(s =>
+                                `<option value="${s}">${s}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Project Status</label>
+                        <select id="projectStatusFilter" onchange="window.applyFilters()" style="width: 100%;">
+                            <option value="">All Project Statuses</option>
+                            ${PROJECT_STATUS_OPTIONS.map(s =>
+                                `<option value="${s}">${s}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Client</label>
+                        <select id="clientFilter" onchange="window.applyFilters()" style="width: 100%;">
+                            <option value="">All Clients</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin: 0; flex: 2; min-width: 200px;">
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Search</label>
+                        <input type="text"
+                               id="searchInput"
+                               placeholder="Search by code or name..."
+                               oninput="window.debouncedFilter()"
+                               style="width: 100%;">
+                    </div>
+                </div>
+
                 <!-- Projects Table -->
                 <table>
                     <thead>
@@ -158,6 +218,10 @@ export async function destroy() {
     clientsData = [];
     editingProject = null;
     currentPage = 1;
+    allProjects = [];
+    filteredProjects = [];
+    sortColumn = 'created_at';
+    sortDirection = 'desc';
 
     delete window.toggleAddProjectForm;
     delete window.addProject;
@@ -167,6 +231,8 @@ export async function destroy() {
     delete window.deleteProject;
     delete window.toggleProjectActive;
     delete window.changeProjectsPage;
+    delete window.applyFilters;
+    delete window.debouncedFilter;
 
     console.log('[Projects] View destroyed');
 }
@@ -212,6 +278,18 @@ function renderClientDropdown() {
     });
 
     select.innerHTML = optionsHtml;
+
+    // Also update client filter dropdown
+    const filterSelect = document.getElementById('clientFilter');
+    if (filterSelect) {
+        const currentFilterValue = filterSelect.value;
+        let filterOptionsHtml = '<option value="">All Clients</option>';
+        clientsData.forEach(client => {
+            const selected = client.id === currentFilterValue ? 'selected' : '';
+            filterOptionsHtml += `<option value="${client.id}" ${selected}>${client.company_name}</option>`;
+        });
+        filterSelect.innerHTML = filterOptionsHtml;
+    }
 }
 
 // Toggle add/edit form visibility
@@ -316,22 +394,95 @@ async function addProject() {
     }
 }
 
+// Apply filters
+function applyFilters() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const internalStatusFilter = document.getElementById('internalStatusFilter')?.value || '';
+    const projectStatusFilter = document.getElementById('projectStatusFilter')?.value || '';
+    const clientFilter = document.getElementById('clientFilter')?.value || '';
+
+    filteredProjects = allProjects.filter(project => {
+        // Search filter (OR across code and name)
+        const matchesSearch = !searchTerm ||
+            (project.project_code && project.project_code.toLowerCase().includes(searchTerm)) ||
+            (project.project_name && project.project_name.toLowerCase().includes(searchTerm));
+
+        // Status filters (exact match)
+        const matchesInternalStatus = !internalStatusFilter ||
+            project.internal_status === internalStatusFilter;
+        const matchesProjectStatus = !projectStatusFilter ||
+            project.project_status === projectStatusFilter;
+
+        // Client filter (match by ID)
+        const matchesClient = !clientFilter ||
+            project.client_id === clientFilter;
+
+        // AND logic - all conditions must be true
+        return matchesSearch && matchesInternalStatus &&
+               matchesProjectStatus && matchesClient;
+    });
+
+    // Reset pagination when filters change
+    currentPage = 1;
+
+    // Apply current sort
+    sortFilteredProjects();
+
+    renderProjectsTable();
+}
+
+// Sort filtered projects
+function sortFilteredProjects() {
+    filteredProjects.sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+
+        // Handle null/undefined (sort to end)
+        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+
+        // Handle dates
+        if (sortColumn === 'created_at' || sortColumn === 'updated_at') {
+            aVal = new Date(aVal);
+            bVal = new Date(bVal);
+        }
+
+        // Handle booleans
+        if (sortColumn === 'active') {
+            // Active first when descending, inactive first when ascending
+            return sortDirection === 'asc'
+                ? (aVal === bVal ? 0 : aVal ? 1 : -1)
+                : (aVal === bVal ? 0 : aVal ? -1 : 1);
+        }
+
+        // String comparison
+        if (typeof aVal === 'string') {
+            return sortDirection === 'asc'
+                ? aVal.localeCompare(bVal)
+                : bVal.localeCompare(aVal);
+        }
+
+        // Numeric/date comparison
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+}
+
+// Create debounced filter
+const debouncedFilter = debounce(applyFilters, 300);
+
 // Load projects with real-time listener
 async function loadProjects() {
     try {
         const listener = onSnapshot(collection(db, 'projects'), (snapshot) => {
-            projectsData = [];
+            allProjects = [];
             snapshot.forEach(doc => {
-                projectsData.push({ id: doc.id, ...doc.data() });
+                allProjects.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort by created_at descending (most recent first)
-            projectsData.sort((a, b) =>
-                new Date(b.created_at) - new Date(a.created_at)
-            );
+            console.log('[Projects] Loaded:', allProjects.length);
 
-            console.log('[Projects] Loaded:', projectsData.length);
-            renderProjectsTable();
+            // Apply filters (which will also sort and render)
+            applyFilters();
         });
 
         listeners.push(listener);
@@ -345,18 +496,18 @@ function renderProjectsTable() {
     const tbody = document.getElementById('projectsTableBody');
     if (!tbody) return;
 
-    if (projectsData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No projects yet. Add your first project!</td></tr>';
+    if (filteredProjects.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No projects found matching filters.</td></tr>';
         const paginationDiv = document.getElementById('projectsPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
     }
 
     // Pagination
-    const totalPages = Math.ceil(projectsData.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, projectsData.length);
-    const pageItems = projectsData.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + itemsPerPage, filteredProjects.length);
+    const pageItems = filteredProjects.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageItems.map(project => {
         // Find client name
@@ -384,7 +535,7 @@ function renderProjectsTable() {
         `;
     }).join('');
 
-    updatePaginationControls(totalPages, startIndex, endIndex, projectsData.length);
+    updatePaginationControls(totalPages, startIndex, endIndex, filteredProjects.length);
 }
 
 // Edit project
@@ -532,7 +683,7 @@ async function toggleProjectActive(projectId, currentStatus) {
 
 // Change page
 function changeProjectsPage(direction) {
-    const totalPages = Math.ceil(projectsData.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
 
     if (direction === 'prev' && currentPage > 1) {
         currentPage--;
