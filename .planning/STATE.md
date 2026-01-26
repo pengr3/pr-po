@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 ## Current Position
 
 Phase: 3 of 4 (Projects Management)
-Plan: 1 of 3
+Plan: 2 of 3
 Status: In progress
-Last activity: 2026-01-26 — Completed 03-01-PLAN.md
+Last activity: 2026-01-26 — Completed 03-02-PLAN.md
 
-Progress: [██████░░░░] 54% (6/11 plans complete)
+Progress: [███████░░░] 63% (7/11 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 2.2 min
-- Total execution time: 0.22 hours
+- Total plans completed: 7
+- Average duration: 2.3 min
+- Total execution time: 0.27 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [██████░░░░] 54% (6/11 plans complete)
 |-------|-------|-------|----------|
 | 01-clients-foundation | 2/2 | 5min | 2.5min |
 | 02-projects-core | 3/3 | 6min | 2.0min |
-| 03-projects-management | 1/3 | 3min | 3.0min |
+| 03-projects-management | 2/3 | 7min | 3.5min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 2min, 1min, 3min, 3min
+- Last 5 plans: 2min, 1min, 3min, 3min, 4min
 - Trend: Steady velocity (consistent execution times)
 
 *Updated after each plan completion*
@@ -92,6 +92,15 @@ Recent decisions affecting current work:
 - Category-grouped UI with four cards — Basic Info, Financial, Status, Personnel for logical field organization
 - Inline validation without blocking — Show error below field, keep editable, don't prevent other field edits
 
+**From 03-02 (Project List Management):**
+- AND logic for combining filters — All selected filters must match for a project to appear
+- Search uses OR logic internally — Matches if project_code OR project_name contains search term
+- 300ms debounce delay for search — Balances responsiveness with performance, avoids excessive filtering
+- Separate allProjects and filteredProjects state — Enables efficient client-side re-filtering without re-querying Firebase
+- Default sort: created_at desc (most recent first) — Per PROJ-15 requirement
+- event.stopPropagation() on Actions column — Prevents row navigation when clicking Edit/Toggle/Delete buttons
+- Sort indicators: blue for active, gray for inactive — Visual feedback for current sort state (↑↓⇅)
+
 ### Pending Todos
 
 None yet.
@@ -103,6 +112,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-26
-Stopped at: Completed 03-01-PLAN.md (Project Detail View)
+Stopped at: Completed 03-02-PLAN.md (Project List Management)
 Resume file: None
-Next step: Plan 03-02 (Filtering and Search) or Plan 03-03 (Click Navigation)
+Next step: Phase 3 complete - discuss Phase 04 (MRF-Project Integration) or finalize
