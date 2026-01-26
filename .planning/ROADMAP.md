@@ -70,10 +70,11 @@ Plans:
   6. User can search projects by code or name
   7. Project list displays most recent projects first by default
   8. Create/edit uses new page UI with back navigation (not modal)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD
+- [ ] 03-01-PLAN.md — Router extension and project detail view with inline editing
+- [ ] 03-02-PLAN.md — List enhancements: filtering, search, sorting, row navigation
 
 ### Phase 4: MRF-Project Integration
 **Goal**: MRF workflow fully integrated with project tracking
@@ -103,5 +104,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Clients Foundation | 2/2 | Complete | 2026-01-25 |
 | 2. Projects Core | 3/3 | Complete | 2026-01-26 |
-| 3. Projects Management | 0/TBD | Not started | - |
+| 3. Projects Management | 0/2 | Planned | - |
 | 4. MRF-Project Integration | 0/TBD | Not started | - |
