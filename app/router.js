@@ -8,6 +8,7 @@ import { showLoading } from './utils.js';
 // Current view state
 let currentView = null;
 let currentRoute = null;
+let currentParam = null;
 
 // Route definitions with lazy loading
 const routes = {
@@ -15,6 +16,16 @@ const routes = {
         name: 'Home',
         load: () => import('./views/home.js'),
         title: 'Home | CLMC Procurement'
+    },
+    '/clients': {
+        name: 'Clients',
+        load: () => import('./views/clients.js'),
+        title: 'Clients | CLMC Procurement'
+    },
+    '/projects': {
+        name: 'Projects',
+        load: () => import('./views/projects.js'),
+        title: 'Projects | CLMC Procurement'
     },
     '/mrf-form': {
         name: 'Material Request',
@@ -32,25 +43,31 @@ const routes = {
         load: () => import('./views/finance.js'),
         title: 'Finance Dashboard | CLMC Procurement',
         defaultTab: 'approvals'
+    },
+    '/project-detail': {
+        name: 'Project Detail',
+        load: () => import('./views/project-detail.js'),
+        title: 'Project Details | CLMC Procurement'
     }
 };
 
 /**
- * Parse hash to extract route and optional tab
- * @returns {object} { path, tab }
+ * Parse hash to extract route, optional tab, and optional subpath
+ * @returns {object} { path, tab, subpath }
  */
 function parseHash() {
     const hash = window.location.hash.slice(1) || '/';
     const parts = hash.split('/').filter(Boolean);
 
     if (parts.length === 0) {
-        return { path: '/', tab: null };
+        return { path: '/', tab: null, subpath: null };
     }
 
     const path = '/' + parts[0];
     const tab = parts[1] || null;
+    const subpath = parts[2] || null;
 
-    return { path, tab };
+    return { path, tab, subpath };
 }
 
 /**
@@ -78,8 +95,9 @@ function updateNavigation(path) {
  * Navigate to a route
  * @param {string} path - Route path
  * @param {string} tab - Optional tab within the route
+ * @param {string} param - Optional parameter (e.g., for detail views)
  */
-export async function navigate(path, tab = null) {
+export async function navigate(path, tab = null, param = null) {
     // Validate route
     const route = routes[path];
     if (!route) {
@@ -124,8 +142,8 @@ export async function navigate(path, tab = null) {
         // Render view
         if (typeof module.render === 'function') {
             const activeTab = tab || route.defaultTab || null;
-            console.log('[Router] 🎨 Rendering view with tab:', activeTab);
-            appContainer.innerHTML = module.render(activeTab);
+            console.log('[Router] 🎨 Rendering view with tab:', activeTab, 'param:', param);
+            appContainer.innerHTML = module.render(activeTab, param);
         } else {
             throw new Error('View module must export a render() function');
         }
@@ -133,13 +151,14 @@ export async function navigate(path, tab = null) {
         // Initialize view
         if (typeof module.init === 'function') {
             const activeTab = tab || route.defaultTab || null;
-            console.log('[Router] ⚙️ Initializing view with tab:', activeTab);
-            await module.init(activeTab);
+            console.log('[Router] ⚙️ Initializing view with tab:', activeTab, 'param:', param);
+            await module.init(activeTab, param);
         }
 
         // Store current view
         currentView = module;
         currentRoute = path;
+        currentParam = param;
 
         // Update navigation
         updateNavigation(path);
@@ -180,7 +199,14 @@ export async function navigate(path, tab = null) {
  * Handle hash change events
  */
 function handleHashChange() {
-    const { path, tab } = parseHash();
+    const { path, tab, subpath } = parseHash();
+
+    // Handle detail routes: #/projects/detail/CODE -> navigate to /project-detail with param
+    if (path === '/projects' && tab === 'detail' && subpath) {
+        navigate('/project-detail', null, subpath);
+        return;
+    }
+
     navigate(path, tab);
 }
 
@@ -194,8 +220,14 @@ export function initRouter() {
     window.addEventListener('hashchange', handleHashChange);
 
     // Handle initial route
-    const { path, tab } = parseHash();
-    navigate(path, tab);
+    const { path, tab, subpath } = parseHash();
+
+    // Handle detail routes on initial load
+    if (path === '/projects' && tab === 'detail' && subpath) {
+        navigate('/project-detail', null, subpath);
+    } else {
+        navigate(path, tab);
+    }
 
     // Expose navigate to window for onclick handlers
     window.navigateTo = function(route) {

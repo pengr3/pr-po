@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m http.server:*)",
+      "Bash(npx http-server:*)",
+      "Bash(timeout:*)",
+      "Bash(ls:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 2068)",
+      "Bash(taskkill //F //PID 2068)"
+    ]
+  }
+}

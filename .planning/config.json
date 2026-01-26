@@ -1,0 +1,12 @@
+{
+  "workflow": {
+    "mode": "interactive-critical",
+    "mode_description": "Auto-approve non-critical operations, request approval for system-critical changes",
+    "depth": "standard",
+    "depth_description": "Balanced scope and speed (5-8 phases, 3-5 plans each)",
+    "parallelization": "enabled",
+    "parallelization_description": "Independent plans run simultaneously"
+  },
+  "created": "2026-01-23",
+  "version": "1.0"
+}
