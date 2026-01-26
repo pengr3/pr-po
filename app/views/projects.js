@@ -563,7 +563,9 @@ function renderProjectsTable() {
         const clientName = client ? client.company_name : project.client_code;
 
         return `
-            <tr>
+            <tr onclick="window.location.hash = '#/projects/detail/${project.project_code}'"
+                style="cursor: pointer;"
+                class="clickable-row">
                 <td><strong>${project.project_code}</strong></td>
                 <td>${project.project_name}</td>
                 <td>${clientName}</td>
@@ -574,7 +576,7 @@ function renderProjectsTable() {
                         ${project.active ? 'Active' : 'Inactive'}
                     </span>
                 </td>
-                <td style="white-space: nowrap;">
+                <td style="white-space: nowrap;" onclick="event.stopPropagation()">
                     <button class="btn btn-sm btn-primary" onclick="editProject('${project.id}')">Edit</button>
                     <button class="btn btn-sm btn-secondary" onclick="toggleProjectActive('${project.id}', ${project.active})">${project.active ? 'Deactivate' : 'Activate'}</button>
                     <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
