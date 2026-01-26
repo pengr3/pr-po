@@ -375,6 +375,4 @@ function attachWindowFunctions() {
     window.confirmDelete = confirmDelete;
 }
 
-export { render, init, destroy };
-
 console.log('[ProjectDetail] Module loaded');
