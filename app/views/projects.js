@@ -64,6 +64,7 @@ function attachWindowFunctions() {
     window.changeProjectsPage = changeProjectsPage;
     window.applyFilters = applyFilters;
     window.debouncedFilter = debouncedFilter;
+    window.sortProjects = sortProjects;
     console.log('[Projects] Window functions attached');
 }
 
@@ -180,12 +181,24 @@ export function render(activeTab = null) {
                 <table>
                     <thead>
                         <tr>
-                            <th>Code</th>
-                            <th>Name</th>
-                            <th>Client</th>
-                            <th>Internal Status</th>
-                            <th>Project Status</th>
-                            <th>Active</th>
+                            <th onclick="window.sortProjects('project_code')" style="cursor: pointer; user-select: none;">
+                                Code <span class="sort-indicator" data-col="project_code"></span>
+                            </th>
+                            <th onclick="window.sortProjects('project_name')" style="cursor: pointer; user-select: none;">
+                                Name <span class="sort-indicator" data-col="project_name"></span>
+                            </th>
+                            <th onclick="window.sortProjects('client_code')" style="cursor: pointer; user-select: none;">
+                                Client <span class="sort-indicator" data-col="client_code"></span>
+                            </th>
+                            <th onclick="window.sortProjects('internal_status')" style="cursor: pointer; user-select: none;">
+                                Internal Status <span class="sort-indicator" data-col="internal_status"></span>
+                            </th>
+                            <th onclick="window.sortProjects('project_status')" style="cursor: pointer; user-select: none;">
+                                Project Status <span class="sort-indicator" data-col="project_status"></span>
+                            </th>
+                            <th onclick="window.sortProjects('active')" style="cursor: pointer; user-select: none;">
+                                Active <span class="sort-indicator" data-col="active"></span>
+                            </th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -233,6 +246,7 @@ export async function destroy() {
     delete window.changeProjectsPage;
     delete window.applyFilters;
     delete window.debouncedFilter;
+    delete window.sortProjects;
 
     console.log('[Projects] View destroyed');
 }
@@ -470,6 +484,40 @@ function sortFilteredProjects() {
 // Create debounced filter
 const debouncedFilter = debounce(applyFilters, 300);
 
+// Sort projects by column
+function sortProjects(column) {
+    // Toggle direction if clicking same column
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc'; // Default to ascending on new column
+    }
+
+    // Reset pagination (per RESEARCH.md Pitfall 3)
+    currentPage = 1;
+
+    // Sort the filtered data
+    sortFilteredProjects();
+
+    // Re-render table with updated headers
+    renderProjectsTable();
+}
+
+// Update sort indicators
+function updateSortIndicators() {
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const col = indicator.dataset.col;
+        if (col === sortColumn) {
+            indicator.textContent = sortDirection === 'asc' ? ' ↑' : ' ↓';
+            indicator.style.color = '#1a73e8';
+        } else {
+            indicator.textContent = ' ⇅';
+            indicator.style.color = '#94a3b8';
+        }
+    });
+}
+
 // Load projects with real-time listener
 async function loadProjects() {
     try {
@@ -536,6 +584,9 @@ function renderProjectsTable() {
     }).join('');
 
     updatePaginationControls(totalPages, startIndex, endIndex, filteredProjects.length);
+
+    // Update sort indicators
+    updateSortIndicators();
 }
 
 // Edit project
