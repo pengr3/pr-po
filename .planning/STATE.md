@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 
 ## Current Position
 
-Phase: 2 of 4 (Projects Core)
-Plan: 3 of 3
-Status: Phase verified and complete
-Last activity: 2026-01-26 — Phase 2 verified (gap PROJ-06 closed)
+Phase: 3 of 4 (Projects Management)
+Plan: 1 of 3
+Status: In progress
+Last activity: 2026-01-26 — Completed 03-01-PLAN.md
 
-Progress: [█████░░░░░] 50% (2/4 phases complete)
+Progress: [██████░░░░] 54% (6/11 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 2.0 min
-- Total execution time: 0.17 hours
+- Total plans completed: 6
+- Average duration: 2.2 min
+- Total execution time: 0.22 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [█████░░░░░] 50% (2/4 phases complete)
 |-------|-------|-------|----------|
 | 01-clients-foundation | 2/2 | 5min | 2.5min |
 | 02-projects-core | 3/3 | 6min | 2.0min |
+| 03-projects-management | 1/3 | 3min | 3.0min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 3min, 2min, 1min
-- Trend: Improving velocity (trend toward faster execution)
+- Last 5 plans: 3min, 2min, 1min, 3min, 3min
+- Trend: Steady velocity (consistent execution times)
 
 *Updated after each plan completion*
 
@@ -81,6 +82,16 @@ Recent decisions affecting current work:
 - Button text uses ternary for action intent — "Deactivate" for active, "Activate" for inactive
 - Three-button Actions pattern established — Edit, Toggle, Delete for CRUD tables
 
+**From 03-01 (Project Detail View):**
+- Router parseHash extended to return subpath for third segment — Enables detail routes (#/path/tab/subpath)
+- Detail route pattern uses redirect: #/projects/detail/CODE → /project-detail with param — Clean separation of list and detail views
+- Query by project_code field (not document ID) via onSnapshot — Enables URL-based direct access to projects
+- Locked fields visibly disabled with hints — project_code and client_code immutable after creation
+- Silent save success (console log only, no toast) — Per 03-CONTEXT.md, reduces UI noise for frequent auto-saves
+- Focus preservation during real-time updates — Skip re-rendering focused field to prevent cursor jump
+- Category-grouped UI with four cards — Basic Info, Financial, Status, Personnel for logical field organization
+- Inline validation without blocking — Show error below field, keep editable, don't prevent other field edits
+
 ### Pending Todos
 
 None yet.
@@ -92,6 +103,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-26
-Stopped at: Phase 2 execution and verification complete (all gaps closed)
+Stopped at: Completed 03-01-PLAN.md (Project Detail View)
 Resume file: None
-Next step: Discuss or plan Phase 03 - Projects Management (filtering, search, detail view)
+Next step: Plan 03-02 (Filtering and Search) or Plan 03-03 (Click Navigation)
