@@ -113,87 +113,70 @@ function renderProjectDetail() {
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
-            <!-- Header -->
-            <div style="margin-bottom: 0.75rem;">
-                <h2 style="margin-bottom: 0.25rem;">${currentProject.project_code}</h2>
-                <p style="color: #64748b; margin: 0 0 0.25rem 0;">${currentProject.project_name}</p>
-                <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentProject.created_at)}${currentProject.updated_at ? ' | Updated: ' + formatDate(currentProject.updated_at) : ''}</p>
-            </div>
+            <!-- Project Summary Card -->
+            <div class="card">
+                <div class="card-body" style="padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem;">
+                        <div>
+                            <h2 style="margin: 0 0 0.25rem 0;">${currentProject.project_code}</h2>
+                            <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentProject.created_at)}${currentProject.updated_at ? ' | Updated: ' + formatDate(currentProject.updated_at) : ''}</p>
+                        </div>
+                        <button class="btn btn-danger" onclick="window.confirmDelete()">Delete Project</button>
+                    </div>
 
-            <!-- Basic Info Card -->
-            <div class="card" style="margin-bottom: 0.75rem;">
-                <div class="card-body" style="padding: 1rem;">
-                    <h3 style="margin: 0 0 0.5rem 0; color: #1e293b; font-size: 1rem;">Basic Information</h3>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="margin-bottom: 0.25rem;">Project Code <small style="color: #94a3b8;">(locked)</small></label>
-                        <input type="text" value="${currentProject.project_code}" disabled style="background: #f5f5f5; cursor: not-allowed;">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="margin-bottom: 0.25rem;">Project Name *</label>
-                        <input type="text" data-field="project_name" value="${currentProject.project_name || ''}" onblur="window.saveField('project_name', this.value)" placeholder="Enter project name">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="margin-bottom: 0.25rem;">Client <small style="color: #94a3b8;">(linked to code)</small></label>
-                        <input type="text" value="${currentProject.client_code || ''}" disabled style="background: #f5f5f5; cursor: not-allowed;">
-                    </div>
-                </div>
-            </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <!-- Left Column -->
+                        <div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Project Code <small style="color: #94a3b8;">(locked)</small></label>
+                                <input type="text" value="${currentProject.project_code}" disabled style="background: #f5f5f5; cursor: not-allowed;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Project Name *</label>
+                                <input type="text" data-field="project_name" value="${currentProject.project_name || ''}" onblur="window.saveField('project_name', this.value)" placeholder="Enter project name">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Client <small style="color: #94a3b8;">(linked to code)</small></label>
+                                <input type="text" value="${currentProject.client_code || ''}" disabled style="background: #f5f5f5; cursor: not-allowed;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Budget ${currentProject.budget ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentProject.budget)}</small>` : ''}</label>
+                                <input type="number" data-field="budget" value="${currentProject.budget || ''}" onblur="window.saveField('budget', this.value)" placeholder="(Not set)" min="0" step="0.01">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="margin-bottom: 0.25rem;">Contract Cost ${currentProject.contract_cost ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentProject.contract_cost)}</small>` : ''}</label>
+                                <input type="number" data-field="contract_cost" value="${currentProject.contract_cost || ''}" onblur="window.saveField('contract_cost', this.value)" placeholder="(Not set)" min="0" step="0.01">
+                            </div>
+                        </div>
 
-            <!-- Financial Details Card -->
-            <div class="card" style="margin-bottom: 0.75rem;">
-                <div class="card-body" style="padding: 1rem;">
-                    <h3 style="margin: 0 0 0.5rem 0; color: #1e293b; font-size: 1rem;">Financial Details</h3>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="margin-bottom: 0.25rem;">Budget ${currentProject.budget ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentProject.budget)}</small>` : ''}</label>
-                        <input type="number" data-field="budget" value="${currentProject.budget || ''}" onblur="window.saveField('budget', this.value)" placeholder="(Not set)" min="0" step="0.01">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="margin-bottom: 0.25rem;">Contract Cost ${currentProject.contract_cost ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentProject.contract_cost)}</small>` : ''}</label>
-                        <input type="number" data-field="contract_cost" value="${currentProject.contract_cost || ''}" onblur="window.saveField('contract_cost', this.value)" placeholder="(Not set)" min="0" step="0.01">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Status Card -->
-            <div class="card" style="margin-bottom: 0.75rem;">
-                <div class="card-body" style="padding: 1rem;">
-                    <h3 style="margin: 0 0 0.5rem 0; color: #1e293b; font-size: 1rem;">Status</h3>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="margin-bottom: 0.25rem;">Internal Status</label>
-                        <select data-field="internal_status" onchange="window.saveField('internal_status', this.value)">
-                            ${INTERNAL_STATUS_OPTIONS.map(s => `<option value="${s}" ${currentProject.internal_status === s ? 'selected' : ''}>${s}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="margin-bottom: 0.25rem;">Project Status</label>
-                        <select data-field="project_status" onchange="window.saveField('project_status', this.value)">
-                            ${PROJECT_STATUS_OPTIONS.map(s => `<option value="${s}" ${currentProject.project_status === s ? 'selected' : ''}>${s}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="margin-bottom: 0.25rem;">Active Status</label>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" id="activeToggle" ${currentProject.active ? 'checked' : ''} onchange="window.toggleActive(this.checked)" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
-                            <span style="color: ${currentProject.active ? '#059669' : '#64748b'}; font-size: 0.875rem;">${currentProject.active ? 'Active' : 'Inactive'}</span>
+                        <!-- Right Column -->
+                        <div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Internal Status</label>
+                                <select data-field="internal_status" onchange="window.saveField('internal_status', this.value)">
+                                    ${INTERNAL_STATUS_OPTIONS.map(s => `<option value="${s}" ${currentProject.internal_status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Project Status</label>
+                                <select data-field="project_status" onchange="window.saveField('project_status', this.value)">
+                                    ${PROJECT_STATUS_OPTIONS.map(s => `<option value="${s}" ${currentProject.project_status === s ? 'selected' : ''}>${s}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.75rem;">
+                                <label style="margin-bottom: 0.25rem;">Active Status</label>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="activeToggle" ${currentProject.active ? 'checked' : ''} onchange="window.toggleActive(this.checked)" style="width: 1.1rem; height: 1.1rem; cursor: pointer;">
+                                    <span style="color: ${currentProject.active ? '#059669' : '#64748b'}; font-size: 0.875rem;">${currentProject.active ? 'Active' : 'Inactive'}</span>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
+                                <input type="text" data-field="personnel" value="${currentProject.personnel || ''}" onblur="window.saveField('personnel', this.value)" placeholder="(Not set)">
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Personnel Card -->
-            <div class="card" style="margin-bottom: 0.75rem;">
-                <div class="card-body" style="padding: 1rem;">
-                    <h3 style="margin: 0 0 0.5rem 0; color: #1e293b; font-size: 1rem;">Personnel</h3>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
-                        <input type="text" data-field="personnel" value="${currentProject.personnel || ''}" onblur="window.saveField('personnel', this.value)" placeholder="(Not set)">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1rem;">
-                <button class="btn btn-danger" onclick="window.confirmDelete()">Delete Project</button>
             </div>
         </div>
     `;
