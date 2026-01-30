@@ -543,7 +543,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                         ${mrf.urgency_level || 'Low'}
                     </span>
                 </div>
-                <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
+                <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
                 ${isRejected ? `
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
                         <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
@@ -599,7 +599,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                             ${mrf.urgency_level || 'Low'}
                         </span>
                     </div>
-                    <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_name}</div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
                     ${isRejected ? `
                         <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
                             <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
@@ -720,7 +720,7 @@ function renderMRFDetails(mrf, isNew = false) {
 
     // Build project options for dropdown
     const projectOptions = projectsData.map(p =>
-        `<option value="${p.project_name}" ${p.project_name === mrf.project_name ? 'selected' : ''}>${p.project_name}</option>`
+        `<option value="${p.project_code}" data-project-name="${p.project_name}" ${p.project_code === mrf.project_code ? 'selected' : (!mrf.project_code && p.project_name === mrf.project_name ? 'selected' : '')}>${p.project_code} - ${p.project_name}</option>`
     ).join('');
 
     const details = `
@@ -745,7 +745,7 @@ function renderMRFDetails(mrf, isNew = false) {
                         <option value="">-- Select a project --</option>
                         ${projectOptions}
                     </select>
-                ` : `<div style="font-weight: 600;">${mrf.project_name}</div>`}
+                ` : `<div style="font-weight: 600;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>`}
             </div>
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Requestor *</div>
@@ -1204,15 +1204,22 @@ async function saveNewMRF() {
 
     // Collect form data
     const requestType = document.getElementById('requestType')?.value || 'material';
-    const projectName = document.getElementById('projectName')?.value?.trim();
+    const selectedProjectCode = document.getElementById('projectName')?.value?.trim();
     const requestorName = document.getElementById('requestorName')?.value?.trim();
     const dateNeeded = document.getElementById('dateNeeded')?.value;
     const urgencyLevel = document.getElementById('urgencyLevel')?.value || 'Low';
     const deliveryAddress = document.getElementById('deliveryAddress')?.value?.trim();
 
     // Validate required fields
-    if (!projectName) {
+    if (!selectedProjectCode) {
         showToast('Please select a project', 'error');
+        return;
+    }
+
+    // Find the selected project to get both code and name
+    const selectedProject = projectsData.find(p => p.project_code === selectedProjectCode);
+    if (!selectedProject) {
+        showToast('Selected project not found', 'error');
         return;
     }
     if (!requestorName) {
@@ -1306,7 +1313,8 @@ async function saveNewMRF() {
             mrf_id: mrfId,
             request_type: requestType,
             urgency_level: urgencyLevel,
-            project_name: projectName,
+            project_code: selectedProject.project_code,
+            project_name: selectedProject.project_name,
             requestor_name: requestorName,
             date_needed: dateNeeded,
             date_submitted: new Date().toISOString().split('T')[0],
@@ -2277,7 +2285,7 @@ async function renderPRPORecords() {
         return `
             <tr>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${mrf.project_name}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
@@ -2504,6 +2512,7 @@ async function submitTransportRequest() {
             tr_id: trId,
             mrf_id: mrfData.mrf_id,
             mrf_doc_id: mrfData.id,
+            project_code: mrfData.project_code || '',
             project_name: mrfData.project_name,
             requestor_name: mrfData.requestor_name,
             urgency_level: mrfData.urgency_level || 'Low',
@@ -2751,6 +2760,7 @@ async function generatePR() {
                     mrf_id: mrfData.mrf_id,
                     mrf_doc_id: mrfData.id,
                     supplier_name: supplier,
+                    project_code: mrfData.project_code || '',
                     project_name: mrfData.project_name,
                     requestor_name: mrfData.requestor_name,
                     delivery_address: deliveryAddress,
@@ -3021,6 +3031,7 @@ async function generatePRandTR() {
                     mrf_id: mrfData.mrf_id,
                     mrf_doc_id: mrfData.id,
                     supplier_name: supplier,
+                    project_code: mrfData.project_code || '',
                     project_name: mrfData.project_name,
                     requestor_name: mrfData.requestor_name,
                     delivery_address: deliveryAddress,
@@ -3080,6 +3091,7 @@ async function generatePRandTR() {
             tr_id: trId,
             mrf_id: mrfData.mrf_id,
             mrf_doc_id: mrfData.id,
+            project_code: mrfData.project_code || '',
             project_name: mrfData.project_name,
             requestor_name: mrfData.requestor_name,
             urgency_level: mrfData.urgency_level || 'Low',
@@ -3286,7 +3298,7 @@ function renderPOTrackingTable(pos) {
         <tr>
             <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
             <td>${po.supplier_name}</td>
-            <td>${po.project_name}</td>
+            <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
             <td>${new Date(po.date_issued).toLocaleDateString()}</td>
             <td>
@@ -3507,7 +3519,7 @@ async function viewPRDetails(prDocId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${pr.project_name}</div>
+                        <div>${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div>
@@ -3664,7 +3676,7 @@ async function viewPODetails(poId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${po.project_name}</div>
+                        <div>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
@@ -4317,7 +4329,7 @@ async function generatePRDocument(prDocId) {
             PR_ID: pr.pr_id,
             MRF_ID: pr.mrf_id,
             DATE: formatDocumentDate(pr.date_generated || new Date().toISOString()),
-            PROJECT: pr.project_name,
+            PROJECT: pr.project_code ? `${pr.project_code} - ${pr.project_name}` : pr.project_name,
             ADDRESS: pr.delivery_address,
             SUPPLIER: pr.supplier_name || 'Not specified',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PR'),
@@ -4368,7 +4380,7 @@ async function generatePODocument(poDocId) {
         // Prepare document data
         const documentData = {
             PO_ID: po.po_id,
-            PROJECT: po.project_name,
+            PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
             DATE: formatDocumentDate(po.date_issued || new Date().toISOString()),
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
