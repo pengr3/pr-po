@@ -8,11 +8,17 @@ A zero-build static SPA for managing engineering procurement workflows (MRFs, PR
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
-## Current Milestone: Preparing v2.0
+## Current Milestone: v2.0 Authentication & Permissions
 
-**v1.0 Status:** ✅ SHIPPED (2026-01-30)
+**Goal:** Secure the foundation with role-based access control, enabling multiple users with granular permissions across procurement workflows.
 
-**Next focus:** Authentication & permissions system to secure the foundation with role-based access control.
+**Target features:**
+- 5-role system (Super Admin, Operations Admin, Operations User, Finance, Procurement)
+- Self-registration with invitation codes and account approval workflow
+- Tab-based access control with edit vs view-only permissions
+- Project assignments for Operations Users (see only assigned projects)
+- Super Admin dashboard for user and permission management
+- Immediate permission changes with Firebase Auth session persistence
 
 ## Requirements
 
@@ -63,26 +69,32 @@ Projects tab must work - it's the foundation where project name and code origina
 - ✓ Denormalized storage (project_code + project_name) for performance — v1.0
 - ✓ Backward compatible display for legacy MRFs — v1.0
 
-### Active (v2.0 - Planned)
+### Active (v2.0 - This Milestone)
+
+#### User Roles
+- **Super Admin**: Full system access, user management, permission control
+- **Operations Admin**: Dashboard + Projects tabs, edit all projects, assign personnel, create MRFs for any active project
+- **Operations User**: Dashboard + Projects tabs, see/edit only assigned projects, create MRFs for assigned projects
+- **Finance**: Dashboard + Projects + Finance tabs, approve PRs/TRs, create/manage POs, update payment status, edit projects
+- **Procurement**: Dashboard + Projects + Procurement tabs, create/edit MRFs, generate PRs/TRs, manage suppliers, view all projects
 
 #### Authentication & User Management
-- User self-registration with invitation code validation
-- One-time invitation code generation by Super Admin
-- User account approval workflow (pending → active)
-- Secure login/logout with session persistence
-- Super Admin can deactivate users (with confirmation)
-- Super Admin can delete user accounts (with confirmation)
-- Super Admin can manage user credentials
+- Self-registration page with invitation code validation (generic codes, not role-specific)
+- Super Admin generates one-time invitation codes
+- Account approval workflow (pending → active, Super Admin assigns role during approval)
+- Secure login/logout with Firebase Auth session persistence
+- User management (deactivate, delete, credential management with confirmations)
+- Full Super Admin dashboard (user list, pending approvals, invitation generator, permission matrix)
 
 #### Permission System
-- Tab-based access control (show/hide tabs per user)
-- Edit vs view-only permissions within tabs
-- Project assignment to users (specific projects or "all projects")
-- Permission changes take effect immediately
-- Super Admin dashboard for user/permission management
-- Operations Admin can edit all projects
-- Operations Users can edit only assigned projects
-- Operations Users see only assigned projects
+- Tab-based access control (navigation shows only permitted tabs by role)
+- Edit vs view-only permissions enforced within tabs
+- Project assignment for Operations Users (see only assigned projects in list)
+- Operations Admin can assign personnel to projects
+- Permission changes take effect immediately (no logout required)
+- Firebase security rules enforce permissions server-side
+
+### Future (v2.1+)
 
 #### Activity Logging
 - Structured activity entries on projects
@@ -201,5 +213,5 @@ Projects tab must work - it's the foundation where project name and code origina
 | Inline editing with auto-save on blur | Efficient editing workflow without save buttons for every field | ✓ Good - UX improvement validated |
 | Focus preservation during real-time updates | Prevents cursor jump when typing and Firestore update arrives | ✓ Good - smooth editing experience |
 
----
-*Last updated: 2026-01-30 after v1.0 milestone completion*
+| Generic invitation codes (not role-specific) | Simpler UX - Super Admin assigns role during approval step, not during code generation | — Pending |\n| Operations User sees only assigned projects | Clean, focused view - users don't need to see unrelated projects | — Pending |\n| Finance creates POs (not Procurement) | Finance controls spending after PR/TR approval, maintains separation of duties | — Pending |\n| 5 roles instead of 3 | Added Finance and Procurement roles for granular access control aligned with workflows | — Pending |\n\n---
+*Last updated: 2026-01-30 after v2.0 milestone planning*

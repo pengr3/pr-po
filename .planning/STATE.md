@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-30)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Planning next milestone (v2.0 - Authentication & Permissions)
+**Current focus:** v2.0 - Authentication & Permissions (defining requirements)
 
 ## Current Position
 
-Phase: Not started
-Plan: Not started
-Status: v1.0 milestone complete, ready to plan next milestone
-Last activity: 2026-01-30 — v1.0 milestone archived and tagged
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-01-30 — Milestone v2.0 started
 
-Progress: Milestone complete. Fresh roadmap needed for v2.0.
+Progress: Requirements definition in progress.
 
 ## Performance Metrics
 
