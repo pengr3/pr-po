@@ -724,7 +724,7 @@ function renderMRFDetails(mrf, isNew = false) {
 
     // Build project options for dropdown
     const projectOptions = projectsData.map(p =>
-        `<option value="${p.project_code}" data-project-name="${p.project_name}" ${p.project_code === mrf.project_code ? 'selected' : (!mrf.project_code && p.project_name === mrf.project_name ? 'selected' : '')}>${p.project_code} - ${p.project_name}</option>`
+        `<option value="${p.project_code}" data-project-name="${p.project_name}" ${p.project_code === mrf.project_code ? 'selected' : (!mrf.project_code && p.project_name === mrf.project_name ? 'selected' : '')}>${p.project_code ? p.project_code + ' - ' : ''}${p.project_name}</option>`
     ).join('');
 
     const details = `
