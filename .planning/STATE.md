@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 
 ## Current Position
 
-Phase: 3 of 4 (Projects Management)
-Plan: 2 of 2
-Status: Phase verified and complete
-Last activity: 2026-01-26 — Phase 3 verified (all requirements satisfied)
+Phase: 4 of 4 (MRF-Project Integration)
+Plan: 1 of 2
+Status: In progress
+Last activity: 2026-01-30 — Completed 04-01-PLAN.md
 
-Progress: [███████░░░] 75% (3/4 phases complete)
+Progress: [████████░░] 80% (8/10 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 2.3 min
-- Total execution time: 0.28 hours
+- Total plans completed: 8
+- Average duration: 2.5 min
+- Total execution time: 0.35 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [███████░░░] 75% (3/4 phases complete)
 | 01-clients-foundation | 2/2 | 5min | 2.5min |
 | 02-projects-core | 3/3 | 6min | 2.0min |
 | 03-projects-management | 2/2 | 7min | 3.5min |
+| 04-mrf-project-integration | 1/2 | 4.5min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 2min, 1min, 3min, 4min
-- Trend: Steady velocity (consistent execution times)
+- Last 5 plans: 1min, 3min, 4min, 4.5min
+- Trend: Slight increase (more complex integrations in Phase 4)
 
 *Updated after each plan completion*
 
@@ -101,6 +102,13 @@ Recent decisions affecting current work:
 - event.stopPropagation() on Actions column — Prevents row navigation when clicking Edit/Toggle/Delete buttons
 - Sort indicators: blue for active, gray for inactive — Visual feedback for current sort state (↑↓⇅)
 
+**From 04-01 (MRF-Project Integration):**
+- Denormalize project_name in MRF documents — Performance (no join needed) + historical accuracy (survives renames)
+- Store project_code as stable reference — Unique identifier that persists across project name changes
+- MRF dropdown sorted by created_at desc — Most recent projects appear first (matches user workflow)
+- Use data attributes for project_name storage — Avoids Firebase query on submit, more reliable than text parsing
+- Both project_code and project_name stored in MRFs — Code for reference, name for display (denormalized)
+
 ### Pending Todos
 
 None yet.
@@ -111,7 +119,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-26
-Stopped at: Phase 3 execution and verification complete (all requirements satisfied)
+Last session: 2026-01-30
+Stopped at: Completed 04-01-PLAN.md (MRF form integration)
 Resume file: None
-Next step: Discuss or plan Phase 04 - MRF-Project Integration (connect MRFs to projects)
+Next step: Execute 04-02-PLAN.md (update procurement view to handle project_code)
