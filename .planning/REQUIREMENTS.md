@@ -38,15 +38,15 @@ Requirements for Core Projects Foundation. Each maps to roadmap phases.
 
 ### MRF-Project Integration
 
-- [ ] **MRF-01**: User can select project from dropdown in MRF form
-- [ ] **MRF-02**: Project dropdown displays format: "CLMC_CODE_YYYY### - Project Name"
-- [ ] **MRF-03**: Project dropdown shows only active projects (inactive excluded)
-- [ ] **MRF-04**: Project dropdown is sorted by most recent first
-- [ ] **MRF-05**: Project code is stored in MRF document
-- [ ] **MRF-06**: MRF list displays project code and project name
-- [ ] **MRF-07**: MRF details view displays project information
-- [ ] **MRF-08**: User can create MRFs for completed projects (warranty work)
-- [ ] **MRF-09**: User cannot create MRFs for inactive projects
+- [x] **MRF-01**: User can select project from dropdown in MRF form
+- [x] **MRF-02**: Project dropdown displays format: "CLMC_CODE_YYYY### - Project Name"
+- [x] **MRF-03**: Project dropdown shows only active projects (inactive excluded)
+- [x] **MRF-04**: Project dropdown is sorted by most recent first
+- [x] **MRF-05**: Project code is stored in MRF document
+- [x] **MRF-06**: MRF list displays project code and project name
+- [x] **MRF-07**: MRF details view displays project information
+- [x] **MRF-08**: User can create MRFs for completed projects (warranty work)
+- [x] **MRF-09**: User cannot create MRFs for inactive projects
 
 ## v2.0 Requirements
 

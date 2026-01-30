@@ -95,7 +95,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — MRF form integration with project dropdown and storage
 - [x] 04-02-PLAN.md — Display updates across procurement and finance views
-- [ ] 04-03-PLAN.md — Fix project dropdown sorting in procurement.js (gap closure)
+- [x] 04-03-PLAN.md — Fix project dropdown sorting in procurement.js (gap closure)
 
 ## Progress
 
@@ -107,4 +107,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Clients Foundation | 2/2 | Complete | 2026-01-25 |
 | 2. Projects Core | 3/3 | Complete | 2026-01-26 |
 | 3. Projects Management | 2/2 | Complete | 2026-01-26 |
-| 4. MRF-Project Integration | 2/3 | In Progress | - |
+| 4. MRF-Project Integration | 3/3 | Complete | 2026-01-30 |
