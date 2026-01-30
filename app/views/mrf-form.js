@@ -457,7 +457,10 @@ async function handleFormSubmit(e) {
     // Collect form data
     const requestType = document.querySelector('input[name="requestType"]:checked').value;
     const urgencyLevel = document.querySelector('input[name="urgencyLevel"]:checked').value;
-    const projectName = document.getElementById('projectName').value.trim();
+    const projectSelect = document.getElementById('projectName');
+    const projectCode = projectSelect.value.trim(); // Now stores the code
+    const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+    const projectName = selectedOption?.dataset?.projectName || ''; // Get name from data attribute
     const requestorName = document.getElementById('requestorName').value.trim();
     const dateNeeded = document.getElementById('dateNeeded').value;
     const deliveryAddress = document.getElementById('deliveryAddress').value.trim();
@@ -482,7 +485,8 @@ async function handleFormSubmit(e) {
             mrf_id: mrfId,
             request_type: requestType,
             urgency_level: urgencyLevel,
-            project_name: projectName,
+            project_code: projectCode,    // NEW: stable reference
+            project_name: projectName,    // KEEP: for display (denormalized)
             requestor_name: requestorName,
             date_needed: dateNeeded,
             date_submitted: new Date().toISOString().split('T')[0],
