@@ -243,16 +243,23 @@ function loadProjects() {
             // Collect and sort projects
             const projects = [];
             snapshot.forEach(doc => {
-                projects.push(doc.data());
+                projects.push({ id: doc.id, ...doc.data() });
             });
 
-            projects.sort((a, b) => a.project_name.localeCompare(b.project_name));
+            // Sort by created_at descending (most recent first)
+            projects.sort((a, b) => {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return bTime - aTime; // Most recent first
+            });
 
             // Add sorted project options
             projects.forEach(project => {
                 const option = document.createElement('option');
-                option.value = project.project_name;
-                option.textContent = project.project_name;
+                option.value = project.project_code; // Store the code
+                option.textContent = `${project.project_code} - ${project.project_name}`; // Display format
+                // Store project_name in data attribute for submission
+                option.dataset.projectName = project.project_name;
                 projectSelect.appendChild(option);
             });
         }, (error) => {
