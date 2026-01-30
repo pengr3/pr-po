@@ -90,20 +90,21 @@ Plans:
   7. MRF details view shows complete project information
   8. User can create MRFs for completed projects (warranty work scenario)
   9. User cannot create MRFs for inactive projects
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — MRF form integration with project dropdown and storage
-- [ ] 04-02-PLAN.md — Display updates across procurement and finance views
+- [x] 04-01-PLAN.md — MRF form integration with project dropdown and storage
+- [x] 04-02-PLAN.md — Display updates across procurement and finance views
+- [ ] 04-03-PLAN.md — Fix project dropdown sorting in procurement.js (gap closure)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Clients Foundation | 2/2 | Complete | 2026-01-25 |
 | 2. Projects Core | 3/3 | Complete | 2026-01-26 |
 | 3. Projects Management | 2/2 | Complete | 2026-01-26 |
-| 4. MRF-Project Integration | 0/2 | Planned | - |
+| 4. MRF-Project Integration | 2/3 | In Progress | - |
