@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-25)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 3: Projects Management
+**Current focus:** Phase 4: MRF-Project Integration
 
 ## Current Position
 
 Phase: 4 of 4 (MRF-Project Integration)
-Plan: 1 of 2
-Status: In progress
-Last activity: 2026-01-30 — Completed 04-01-PLAN.md
+Plan: 2 of 2
+Status: Phase complete
+Last activity: 2026-01-30 — Completed 04-02-PLAN.md
 
-Progress: [████████░░] 80% (8/10 plans complete)
+Progress: [██████████] 100% (9/10 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 2.5 min
-- Total execution time: 0.35 hours
+- Total plans completed: 9
+- Average duration: 2.7 min
+- Total execution time: 0.41 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [████████░░] 80% (8/10 plans complete)
 | 01-clients-foundation | 2/2 | 5min | 2.5min |
 | 02-projects-core | 3/3 | 6min | 2.0min |
 | 03-projects-management | 2/2 | 7min | 3.5min |
-| 04-mrf-project-integration | 1/2 | 4.5min | 4.5min |
+| 04-mrf-project-integration | 2/2 | 11.5min | 5.75min |
 
 **Recent Trend:**
-- Last 5 plans: 1min, 3min, 4min, 4.5min
-- Trend: Slight increase (more complex integrations in Phase 4)
+- Last 5 plans: 3min, 4min, 4.5min, 7min
+- Trend: Higher complexity in Phase 4 (integration across multiple views)
 
 *Updated after each plan completion*
 
@@ -109,6 +109,13 @@ Recent decisions affecting current work:
 - Use data attributes for project_name storage — Avoids Firebase query on submit, more reliable than text parsing
 - Both project_code and project_name stored in MRFs — Code for reference, name for display (denormalized)
 
+**From 04-02 (MRF-Project Display Integration):**
+- Backward-compatible display pattern — Ternary checks for project_code existence before displaying
+- Project dropdown uses project_code as value — More stable than project_name, handles legacy via fallback logic
+- Data propagation through PR/TR/PO chain — All generated documents include both project_code and project_name
+- Display format "CODE - Name" for new records — Clear visual hierarchy, code first for scanning
+- Graceful fallback for legacy data — Shows just project_name when project_code missing
+
 ### Pending Todos
 
 None yet.
@@ -120,6 +127,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-30
-Stopped at: Completed 04-01-PLAN.md (MRF form integration)
+Stopped at: Completed 04-02-PLAN.md (MRF-Project display integration - Phase 4 complete)
 Resume file: None
-Next step: Execute 04-02-PLAN.md (update procurement view to handle project_code)
+Next step: Phase 4 complete - all MRF-Project integration done. Ready for UAT or next phase planning.
