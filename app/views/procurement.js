@@ -419,8 +419,12 @@ async function loadProjects() {
                 projectsData.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort alphabetically
-            projectsData.sort((a, b) => a.project_name.localeCompare(b.project_name));
+            // Sort by created_at descending (most recent first)
+            projectsData.sort((a, b) => {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return bTime - aTime; // Most recent first
+            });
 
             console.log('Projects loaded:', projectsData.length);
         });
