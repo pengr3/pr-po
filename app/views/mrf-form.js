@@ -229,7 +229,7 @@ function loadProjects() {
 
     try {
         const projectsRef = collection(db, 'projects');
-        const q = query(projectsRef, where('status', '==', 'active'));
+        const q = query(projectsRef, where('active', '==', true));
 
         projectsListener = onSnapshot(q, (snapshot) => {
             // Clear existing options

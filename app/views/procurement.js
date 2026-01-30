@@ -410,7 +410,7 @@ async function loadProjects() {
     try {
         const q = query(
             collection(db, 'projects'),
-            where('status', '==', 'active')
+            where('active', '==', true)
         );
 
         const listener = onSnapshot(q, (snapshot) => {
