@@ -2,29 +2,23 @@
 
 ## What This Is
 
-An enhancement to the existing CLMC Engineering procurement management system that adds secure authentication, role-based permissions, and comprehensive project management capabilities. The system manages the complete procurement workflow from Material Request Forms (MRFs) through Purchase Orders (POs), now with everything anchored to tracked projects.
+A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking. All procurement activities are anchored to projects with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Built with vanilla JavaScript and Firebase.
 
 ## Core Value
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
-## Current Milestone: v1.0 - Core Projects Foundation
+## Current Milestone: Preparing v2.0
 
-**Goal:** Establish project lifecycle tracking from lead to completion, with structured client management and MRF integration.
+**v1.0 Status:** ✅ SHIPPED (2026-01-30)
 
-**Target features:**
-- Client collection with standardized client codes
-- Full project CRUD with dual status tracking (internal + client-facing)
-- Project code generation (CLMC_CLIENT_YYYY###)
-- MRF-Project integration (link all procurement to projects)
-- Project filtering, search, and list management
+**Next focus:** Authentication & permissions system to secure the foundation with role-based access control.
 
 ## Requirements
 
-### Validated
+### Validated (Shipped in v1.0)
 
-<!-- Existing capabilities from current system -->
-
+**Existing System (Pre-v1.0):**
 - ✓ MRF submission with dynamic line items — existing
 - ✓ MRF approval workflow (Pending/Approved/Rejected) — existing
 - ✓ PR/TR generation from approved MRFs — existing
@@ -34,41 +28,42 @@ Projects tab must work - it's the foundation where project name and code origina
 - ✓ Real-time dashboard with procurement statistics — existing
 - ✓ Sequential ID generation (MRF-YYYY-###, PR-YYYY-###, PO-YYYY-###) — existing
 
-### Active (v1.0)
+**Clients Management (v1.0):**
+- ✓ Create clients with client_code, company_name, contact_person, contact_details — v1.0
+- ✓ Edit existing clients — v1.0
+- ✓ Delete clients — v1.0
+- ✓ List view of all clients — v1.0
+- ✓ Client code uniqueness validation — v1.0
 
-<!-- Core Projects + MRF Integration -->
+**Projects Tab (v1.0):**
+- ✓ Create projects with auto-generated code (CLMC_CLIENT_YYYY###) — v1.0
+- ✓ Required fields: project_name, client (dropdown) — v1.0
+- ✓ Optional fields: budget, contract_cost, personnel (freetext) — v1.0
+- ✓ Internal status tracking (4 options) — v1.0
+- ✓ Project status tracking (7 options) — v1.0
+- ✓ Active/inactive flag to control MRF creation — v1.0
+- ✓ Edit existing projects — v1.0
+- ✓ Delete projects — v1.0
+- ✓ Project list view with columns: Code, Name, Client, Internal Status, Project Status — v1.0
+- ✓ Filter by: Internal Status, Project Status, Client — v1.0
+- ✓ Search by project code or project name — v1.0
+- ✓ Sort by most recent first — v1.0
+- ✓ Click row to view full project details — v1.0
+- ✓ New page UI (not modal) for create/edit with back navigation — v1.0
+- ✓ Budget/contract_cost positive number validation — v1.0
+- ✓ Full-page detail view with inline editing and auto-save — v1.0
 
-#### Clients Management
-- [ ] Create clients with client_code, company_name, contact_person, contact_details
-- [ ] Edit existing clients
-- [ ] Delete clients (Super Admin only - future role, for now anyone can delete)
-- [ ] List view of all clients
+**MRF-Project Integration (v1.0):**
+- ✓ Add project_code dropdown to MRF form — v1.0
+- ✓ Dropdown displays: "CLMC_CODE_YYYY### - Project Name" — v1.0
+- ✓ Dropdown shows only active projects (inactive excluded) — v1.0
+- ✓ Dropdown sorted by most recent first — v1.0
+- ✓ Display project code and name in MRF lists — v1.0
+- ✓ Display project info in MRF details view — v1.0
+- ✓ Denormalized storage (project_code + project_name) for performance — v1.0
+- ✓ Backward compatible display for legacy MRFs — v1.0
 
-#### Projects Tab
-- [ ] Create projects with auto-generated code (CLMC_CLIENT_YYYY###)
-- [ ] Required fields: project_name, client (dropdown)
-- [ ] Optional fields: budget, contract_cost, personnel (freetext)
-- [ ] Internal status tracking (For Inspection, For Proposal, For Internal Approval, Ready to Submit)
-- [ ] Project status tracking (Pending Client Review, Under Client Review, Approved by Client, For Mobilization, On-going, Completed, Loss)
-- [ ] Active/inactive flag to control MRF creation
-- [ ] Edit existing projects
-- [ ] Delete projects (Super Admin only - future role, for now anyone can delete)
-- [ ] Project list view with columns: Code, Name, Client, Internal Status, Project Status
-- [ ] Filter by: Internal Status, Project Status, Client
-- [ ] Search by project code or project name
-- [ ] Sort by most recent first
-- [ ] Click row to view full project details
-- [ ] New page UI (not modal) for create/edit with back navigation
-
-#### MRF-Project Integration
-- [ ] Add project_code dropdown to MRF form
-- [ ] Dropdown displays: "CLMC_CODE_YYYY### - Project Name"
-- [ ] Dropdown shows only active projects (inactive projects excluded)
-- [ ] Dropdown sorted by most recent first
-- [ ] Display project code and name in MRF lists
-- [ ] Display project info in MRF details view
-
-### v2.0 (Deferred)
+### Active (v2.0 - Planned)
 
 #### Authentication & User Management
 - User self-registration with invitation code validation
@@ -136,57 +131,75 @@ Projects tab must work - it's the foundation where project name and code origina
 - OAuth/SSO login — Email/password sufficient for v1; complexity not warranted yet
 - Real-time chat/comments — Not core to procurement workflow
 - Automated email verification — Invitation codes provide sufficient security control
+- BOQ creation/editing in system — BOQ created externally, only uploaded for reference
+- Automated expense tracking — Manual MRF creation provides oversight and control
 
 ## Context
 
-**Existing System:**
+**System Architecture:**
 - Zero-build static SPA (pure JavaScript ES6 modules)
 - Firebase Firestore for data, no backend server
 - Hash-based routing with lazy-loaded views
-- Collections: mrfs, prs, pos, transport_requests, suppliers, projects (minimal), deleted_mrfs
 - Deployed on Netlify with direct push
+
+**Shipped v1.0 (2026-01-30):**
+- 9,312 lines of JavaScript across 9 core files
+- Collections: clients, projects, mrfs, prs, pos, transport_requests, suppliers, deleted_mrfs
+- 4 phases, 10 plans, 17 feature commits
+- 59 days from first commit to ship
+- 100% requirements coverage (32/32), zero tech debt
+
+**Current Codebase State:**
+- Client CRUD: app/views/clients.js (371 lines)
+- Project CRUD: app/views/projects.js (596 lines)
+- Project Detail: app/views/project-detail.js (309 lines)
+- MRF Form: app/views/mrf-form.js (updated with project integration)
+- Procurement: app/views/procurement.js (updated with project display)
+- Finance: app/views/finance.js (updated with project display)
+- Utils: app/utils.js (generateProjectCode function)
 
 **Technical Environment:**
 - Frontend: Vanilla JavaScript ES6 modules, no framework
-- Database: Firebase Firestore v10.7.1 (CDN)
-- Storage: Firebase Storage (for invoices)
-- Auth: Firebase Authentication (to be implemented)
+- Database: Firebase Firestore v10.7.1 (CDN), Project ID: clmc-procurement
+- Storage: Firebase Storage (for future invoice uploads)
+- Auth: Firebase Authentication (to be implemented in v2.0)
 - Deployment: Netlify (auto-deploy from git)
 
-**User Knowledge:**
-- System already in use for procurement workflow
-- Users familiar with MRF → PR → PO process
-- Projects collection exists but no UI/management
-- Currently no authentication - open access to all features
+**User Feedback Themes (v1.0):**
+- Project tracking working as expected
+- Need for access control (v2.0 priority)
+- Document upload desired for project files
 
-**Key Requirements:**
-- High security emphasis (confirmations for critical operations)
-- Desktop-optimized UI (mobile secondary concern)
-- Maintain existing workflow patterns (don't break current usage)
-- Everything connects to projects via name + code
+**Known Issues:**
+- None - all v1.0 requirements satisfied
+- No authentication (planned for v2.0)
 
 ## Constraints
 
 - **Tech stack**: Must use Firebase (Firestore + Auth + Storage), pure JavaScript (no build system)
 - **Deployment**: Netlify direct push, no CI/CD complexity
 - **Browser**: Desktop-first, modern browsers only (Chrome, Edge, Firefox)
-- **Security**: Invitation-only access, granular permissions, confirmation dialogs for destructive actions
-- **Data continuity**: Existing MRFs/PRs/POs must remain functional during migration
+- **Security**: Invitation-only access (v2.0), granular permissions, confirmation dialogs for destructive actions
+- **Data continuity**: Existing MRFs/PRs/POs must remain functional during v2.0 auth migration
 - **Performance**: Real-time listeners already in use, maintain responsiveness
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Build Projects first, auth/permissions later (v2.0) | Core value is project tracking; get foundation working before securing it | ✓ Good - pragmatic approach |
-| Project lifecycle starts at lead stage (not just won projects) | Track all expenses from first contact, measure what you pursue vs win | ✓ Good - complete visibility |
-| Two status fields (Internal + Project Status) | Internal status tracks Operations steps, Project Status tracks client relationship | ✓ Good - clear separation |
-| Project codes include client: CLMC_CLIENT_YYYY### | Group projects by client, see win/loss rates per client over time | ✓ Good - valuable analytics |
-| Active/inactive flag controls MRF creation | Can create MRFs for completed projects (warranty work) but not lost opportunities | ✓ Good - flexible |
-| Freetext personnel field in v1.0 | No user system yet; structured assignment deferred to v2.0 when auth exists | — Pending |
-| New page UI (not modal) for project create/edit | Projects have many fields; full page provides better UX than cramped modal | — Pending |
-| Start fresh with Projects collection vs migrating existing project_name data | Clean data model - existing MRFs are test data, no migration needed | ✓ Good - clean slate |
-| Desktop-first vs responsive design | Primary users work at desks, mobile usage rare, optimize for main use case | — Pending |
+| Build Projects first, auth/permissions later (v2.0) | Core value is project tracking; get foundation working before securing it | ✓ Good - v1.0 shipped successfully, foundation solid |
+| Project lifecycle starts at lead stage | Track all expenses from first contact, measure what you pursue vs win | ✓ Good - complete visibility achieved |
+| Two status fields (Internal + Project Status) | Internal status tracks Operations steps, Project Status tracks client relationship | ✓ Good - clear separation working well |
+| Project codes include client: CLMC_CLIENT_YYYY### | Group projects by client, see win/loss rates per client over time | ✓ Good - enables valuable client analytics |
+| Active/inactive flag controls MRF creation | Can create MRFs for completed projects (warranty work) but not lost opportunities | ✓ Good - flexible workflow validated |
+| Freetext personnel field in v1.0 | No user system yet; structured assignment deferred to v2.0 when auth exists | ✓ Good - pragmatic interim solution |
+| New page UI (not modal) for project create/edit | Projects have many fields; full page provides better UX than cramped modal | ✓ Good - detail view with inline editing highly effective |
+| Start fresh with Projects collection | Clean data model - existing MRFs are test data, no migration needed | ✓ Good - clean slate enabled fast development |
+| Desktop-first vs responsive design | Primary users work at desks, mobile usage rare, optimize for main use case | ✓ Good - focus on primary use case validated |
+| Denormalize project_code + project_name in MRFs | Performance optimization - no join needed for display, historical accuracy preserved | ✓ Good - 21 display points work efficiently |
+| Composite ID generation with regex parsing | Handles client codes with underscores, per-client per-year uniqueness | ✓ Good - robust implementation |
+| Inline editing with auto-save on blur | Efficient editing workflow without save buttons for every field | ✓ Good - UX improvement validated |
+| Focus preservation during real-time updates | Prevents cursor jump when typing and Firestore update arrives | ✓ Good - smooth editing experience |
 
 ---
-*Last updated: 2026-01-25 after v1.0 milestone definition*
+*Last updated: 2026-01-30 after v1.0 milestone completion*
