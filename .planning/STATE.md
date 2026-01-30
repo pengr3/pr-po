@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-25)
 ## Current Position
 
 Phase: 4 of 4 (MRF-Project Integration)
-Plan: 2 of 2
+Plan: 3 of 3
 Status: Phase complete
-Last activity: 2026-01-30 — Completed 04-02-PLAN.md
+Last activity: 2026-01-30 — Completed 04-03-PLAN.md (gap closure)
 
-Progress: [██████████] 100% (9/10 plans complete)
+Progress: [██████████] 100% (10/10 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 2.7 min
-- Total execution time: 0.41 hours
+- Total plans completed: 10
+- Average duration: 2.5 min
+- Total execution time: 0.43 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [██████████] 100% (9/10 plans complete)
 | 01-clients-foundation | 2/2 | 5min | 2.5min |
 | 02-projects-core | 3/3 | 6min | 2.0min |
 | 03-projects-management | 2/2 | 7min | 3.5min |
-| 04-mrf-project-integration | 2/2 | 11.5min | 5.75min |
+| 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 4min, 4.5min, 7min
-- Trend: Higher complexity in Phase 4 (integration across multiple views)
+- Last 5 plans: 4min, 4.5min, 7min, 4.5min, 1min
+- Trend: Gap closure plans faster than feature plans
 
 *Updated after each plan completion*
 
@@ -116,6 +116,11 @@ Recent decisions affecting current work:
 - Display format "CODE - Name" for new records — Clear visual hierarchy, code first for scanning
 - Graceful fallback for legacy data — Shows just project_name when project_code missing
 
+**From 04-03 (Gap Closure - Dropdown Sorting):**
+- Project dropdown sorting consistency enforced — created_at desc in ALL views (mrf-form.js + procurement.js)
+- Replaced alphabetical sort in procurement.js — Now matches user workflow (most recent projects first)
+- Consistent UX pattern established — Same data displayed same way across all views
+
 ### Pending Todos
 
 None yet.
@@ -127,6 +132,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-30
-Stopped at: Completed 04-02-PLAN.md (MRF-Project display integration - Phase 4 complete)
+Stopped at: Completed 04-03-PLAN.md (gap closure - project dropdown sorting consistency)
 Resume file: None
-Next step: Phase 4 complete - all MRF-Project integration done. Ready for UAT or next phase planning.
+Next step: All 4 phases complete (10/10 plans). Project foundation fully implemented. Ready for UAT or next phase planning.
