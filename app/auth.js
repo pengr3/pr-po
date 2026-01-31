@@ -14,8 +14,10 @@ import {
     query,
     where,
     serverTimestamp,
-    onAuthStateChanged
+    onAuthStateChanged,
+    onSnapshot
 } from './firebase.js';
+import { signOut } from './firebase.js';
 
 /* ========================================
    FIRESTORE SCHEMA DOCUMENTATION
@@ -152,16 +154,101 @@ export async function getUserDocument(userId) {
    AUTH STATE OBSERVER
    ======================================== */
 
+// Module-level variables to track current user and listeners
+let currentUser = null;
+let userDocUnsubscribe = null;
+
+/**
+ * Get current authenticated user data
+ * @returns {Object|null} User data from Firestore or null if not authenticated
+ */
+export function getCurrentUser() {
+    return currentUser;
+}
+
+/**
+ * Check if user is authenticated
+ * @returns {boolean} True if user is authenticated
+ */
+export function isAuthenticated() {
+    return currentUser !== null;
+}
+
 /**
  * Initialize authentication state observer
- * Logs auth state changes for debugging
+ * Sets up onAuthStateChanged listener and real-time user document monitoring
+ * Handles AUTH-09: Auto-logout for deactivated users
  */
 export function initAuthObserver() {
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
+        // Clean up previous user document listener if exists
+        if (userDocUnsubscribe) {
+            userDocUnsubscribe();
+            userDocUnsubscribe = null;
+        }
+
         if (user) {
             console.log('[Auth] User signed in:', user.email);
+
+            // Fetch user document from Firestore
+            try {
+                const userData = await getUserDocument(user.uid);
+
+                if (userData) {
+                    // Store user data
+                    currentUser = { uid: user.uid, ...userData };
+
+                    // Dispatch custom event for auth state change
+                    window.dispatchEvent(new CustomEvent('authStateChanged', {
+                        detail: { user: currentUser }
+                    }));
+
+                    // Set up real-time listener on user document (AUTH-09)
+                    userDocUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnapshot) => {
+                        if (docSnapshot.exists()) {
+                            const updatedUserData = docSnapshot.data();
+                            currentUser = { uid: user.uid, ...updatedUserData };
+
+                            console.log('[Auth] User document updated:', updatedUserData.status);
+
+                            // AUTH-09: If status changes to 'deactivated', force logout
+                            if (updatedUserData.status === 'deactivated') {
+                                console.warn('[Auth] User deactivated - forcing logout');
+
+                                // Clean up listener before logout
+                                if (userDocUnsubscribe) {
+                                    userDocUnsubscribe();
+                                    userDocUnsubscribe = null;
+                                }
+
+                                // Sign out
+                                signOut(auth).then(() => {
+                                    window.location.hash = '#/login';
+                                    alert('Your account has been deactivated. Please contact an administrator.');
+                                }).catch(error => {
+                                    console.error('[Auth] Error signing out deactivated user:', error);
+                                });
+                            }
+                        }
+                    });
+                } else {
+                    console.warn('[Auth] User document not found for:', user.email);
+                    currentUser = { uid: user.uid, email: user.email };
+                }
+            } catch (error) {
+                console.error('[Auth] Error fetching user document:', error);
+                currentUser = { uid: user.uid, email: user.email };
+            }
         } else {
             console.log('[Auth] User signed out');
+
+            // Clear current user
+            currentUser = null;
+
+            // Dispatch custom event for auth state change
+            window.dispatchEvent(new CustomEvent('authStateChanged', {
+                detail: { user: null }
+            }));
         }
     });
 }
@@ -170,3 +257,5 @@ export function initAuthObserver() {
 window.validateInvitationCode = validateInvitationCode;
 window.createUserDocument = createUserDocument;
 window.getUserDocument = getUserDocument;
+window.getCurrentUser = getCurrentUser;
+window.isAuthenticated = isAuthenticated;
