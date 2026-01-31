@@ -64,10 +64,13 @@ Plans:
   3. User can log in with credentials and session persists across browser refresh
   4. User can log out from any page
   5. Pending users see "awaiting approval" message instead of main system
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 05-01: [To be planned]
+- [ ] 05-01: Firebase Auth foundation and auth utilities module
+- [ ] 05-02: Registration flow with invitation code validation
+- [ ] 05-03: Login page and session management
+- [ ] 05-04: Pending user page and logout integration
 
 ### Phase 6: Role Infrastructure & Real-time Permissions
 **Goal**: Permission system exists with configurable role templates and immediate updates
@@ -158,7 +161,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
 | 2. Project Code Generation | v1.0 | 2/2 | Complete | 2026-01-30 |
 | 3. Project Detail View | v1.0 | 3/3 | Complete | 2026-01-30 |
 | 4. MRF-Project Integration | v1.0 | 3/3 | Complete | 2026-01-30 |
-| 5. Core Authentication | v2.0 | 0/0 | Not started | - |
+| 5. Core Authentication | v2.0 | 0/4 | Planned | - |
 | 6. Role Infrastructure & Real-time Permissions | v2.0 | 0/0 | Not started | - |
 | 7. Project Assignment System | v2.0 | 0/0 | Not started | - |
 | 8. Security Rules Enforcement | v2.0 | 0/0 | Not started | - |
