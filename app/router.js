@@ -48,6 +48,11 @@ const routes = {
         name: 'Project Detail',
         load: () => import('./views/project-detail.js'),
         title: 'Project Details | CLMC Procurement'
+    },
+    '/register': {
+        name: 'Register',
+        load: () => import('./views/register.js'),
+        title: 'Create Account | CLMC Procurement'
     }
 };
 
