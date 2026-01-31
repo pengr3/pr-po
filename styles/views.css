@@ -904,6 +904,112 @@
     margin-top: 0.5rem;
 }
 
+/* Pending View Specific Styles */
+.auth-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.auth-header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.auth-header p {
+    font-size: 0.9375rem;
+    color: var(--gray-700);
+}
+
+.pending-user-info {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.pending-timeline {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+}
+
+.timeline-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.pending-timeline p {
+    font-size: 0.875rem;
+    color: #92400e;
+    margin: 0;
+    font-weight: 500;
+}
+
+.status-message {
+    min-height: 50px;
+    margin-bottom: 1.5rem;
+}
+
+.status-message-box {
+    padding: 0.875rem 1rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9375rem;
+}
+
+.status-success {
+    background: #d1fae5;
+    border: 1px solid #34d399;
+    color: #065f46;
+}
+
+.status-error {
+    background: #fee2e2;
+    border: 1px solid #f87171;
+    color: #991b1b;
+}
+
+.status-info {
+    background: #dbeafe;
+    border: 1px solid #60a5fa;
+    color: #1e40af;
+}
+
+.status-icon {
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.auth-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.spinner-small {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Mobile responsive */
 @media (max-width: 576px) {
     .auth-card {
