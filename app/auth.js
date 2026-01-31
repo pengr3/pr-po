@@ -198,6 +198,9 @@ export function initAuthObserver() {
                     // Store user data
                     currentUser = { uid: user.uid, ...userData };
 
+                    // Update navigation for authenticated user
+                    updateNavForAuth(currentUser);
+
                     // Dispatch custom event for auth state change
                     window.dispatchEvent(new CustomEvent('authStateChanged', {
                         detail: { user: currentUser }
@@ -234,16 +237,21 @@ export function initAuthObserver() {
                 } else {
                     console.warn('[Auth] User document not found for:', user.email);
                     currentUser = { uid: user.uid, email: user.email };
+                    updateNavForAuth(currentUser);
                 }
             } catch (error) {
                 console.error('[Auth] Error fetching user document:', error);
                 currentUser = { uid: user.uid, email: user.email };
+                updateNavForAuth(currentUser);
             }
         } else {
             console.log('[Auth] User signed out');
 
             // Clear current user
             currentUser = null;
+
+            // Update navigation for unauthenticated state
+            updateNavForAuth(null);
 
             // Dispatch custom event for auth state change
             window.dispatchEvent(new CustomEvent('authStateChanged', {
@@ -253,9 +261,131 @@ export function initAuthObserver() {
     });
 }
 
+/* ========================================
+   LOGOUT FUNCTIONALITY
+   ======================================== */
+
+/**
+ * Update navigation UI based on authentication state
+ * @param {Object|null} user - Current user data or null
+ */
+function updateNavForAuth(user) {
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (!logoutBtn) return;
+
+    if (user) {
+        // Show logout button for authenticated users
+        logoutBtn.style.display = 'block';
+    } else {
+        // Hide logout button for unauthenticated users
+        logoutBtn.style.display = 'none';
+    }
+}
+
+/**
+ * Show logout confirmation modal
+ * @returns {Promise<boolean>} True if user confirms, false if cancelled
+ */
+function showLogoutConfirmation() {
+    return new Promise((resolve) => {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // Create modal dialog
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: var(--gray-900);">
+                Confirm Logout
+            </h3>
+            <p style="margin: 0 0 1.5rem 0; color: var(--gray-700); font-size: 0.9375rem;">
+                Are you sure you want to log out?
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button id="cancelLogout" class="btn btn-secondary" style="min-width: 90px;">
+                    Cancel
+                </button>
+                <button id="confirmLogout" class="btn btn-danger" style="min-width: 90px;">
+                    Log Out
+                </button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // Handle cancel
+        document.getElementById('cancelLogout').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(false);
+        });
+
+        // Handle confirm
+        document.getElementById('confirmLogout').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(true);
+        });
+
+        // Handle click outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                resolve(false);
+            }
+        });
+    });
+}
+
+/**
+ * Handle logout from navigation header
+ */
+export async function handleLogout() {
+    console.log('[Auth] Logout requested');
+
+    // Show confirmation modal
+    const confirmed = await showLogoutConfirmation();
+
+    if (!confirmed) {
+        console.log('[Auth] Logout cancelled');
+        return;
+    }
+
+    try {
+        await signOut(auth);
+        console.log('[Auth] User signed out successfully');
+        window.location.hash = '#/login';
+    } catch (error) {
+        console.error('[Auth] Error signing out:', error);
+        alert('Error logging out. Please try again.');
+    }
+}
+
 // Expose functions to window for onclick handlers
 window.validateInvitationCode = validateInvitationCode;
 window.createUserDocument = createUserDocument;
 window.getUserDocument = getUserDocument;
 window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
+window.handleLogout = handleLogout;

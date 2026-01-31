@@ -60,6 +60,25 @@
     color: var(--primary);
 }
 
+.nav-logout-btn {
+    padding: 0.5rem 1rem;
+    margin-left: 1rem;
+    background: transparent;
+    color: var(--gray-700);
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-logout-btn:hover {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
 /* ========================================
    BUTTONS
    ======================================== */
