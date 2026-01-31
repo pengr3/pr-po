@@ -23,6 +23,15 @@ import {
     Timestamp,
     serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    setPersistence,
+    browserLocalPersistence
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -37,9 +46,13 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-// Export database instance
-export { db };
+// Set auth persistence to local (1-day session)
+setPersistence(auth, browserLocalPersistence);
+
+// Export database and auth instances
+export { db, auth };
 
 // Export Firestore methods
 export {
@@ -60,8 +73,17 @@ export {
     serverTimestamp
 };
 
+// Export Auth methods
+export {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+};
+
 // Also expose to window for backward compatibility with onclick handlers
 window.db = db;
+window.auth = auth;
 window.firestore = {
     collection,
     getDocs,
@@ -79,5 +101,20 @@ window.firestore = {
     Timestamp,
     serverTimestamp
 };
+window.firebaseAuth = {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+};
 
 console.log('Firebase initialized successfully');
+
+// Initialize auth observer after auth is set up
+import('./auth.js').then(module => {
+    if (module.initAuthObserver) {
+        module.initAuthObserver();
+    }
+}).catch(err => {
+    console.log('[Firebase] Auth observer not initialized yet:', err.message);
+});
