@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 ## Current Position
 
 Phase: 5 of 10 (Core Authentication)
-Plan: 0 of 0 in current phase (planning not started)
-Status: Ready to plan
-Last activity: 2026-01-31 — v2.0 roadmap created with 6 phases covering 51 requirements
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-01-31 — Completed 05-01-PLAN.md (Firebase Auth foundation)
 
-Progress: [████░░░░░░] 40% (10 plans complete across v1.0, starting v2.0)
+Progress: [████░░░░░░] 42% (11 plans complete, 1 in Phase 5)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10 (all from v1.0)
-- Average duration: 2.5 min
-- Total execution time: 0.43 hours
+- Total plans completed: 11 (10 from v1.0, 1 from v2.0)
+- Average duration: 2.4 min
+- Total execution time: 0.46 hours
 
 **By Phase:**
 
@@ -31,13 +31,13 @@ Progress: [████░░░░░░] 40% (10 plans complete across v1.0, s
 | 02-projects-core | 3/3 | 6min | 2.0min |
 | 03-projects-management | 2/2 | 7min | 3.5min |
 | 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
-| 05-core-authentication | 0/0 | — | — |
+| 05-core-authentication | 1/4 | 1.7min | 1.7min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 4.5min, 7min, 4.5min, 1min
-- Trend: Gap closure plans faster than feature plans
+- Last 5 plans: 4.5min, 7min, 4.5min, 1min, 1.7min
+- Trend: Infrastructure setup plans faster than feature plans
 
-*Updated: 2026-01-31 after roadmap creation*
+*Updated: 2026-01-31 after 05-01 completion*
 
 ## Accumulated Context
 
@@ -45,6 +45,10 @@ Progress: [████░░░░░░] 40% (10 plans complete across v1.0, s
 
 Recent decisions affecting current work (full log in PROJECT.md):
 
+- **AUTH-01 (05-01)**: Firebase Auth v10.7.1 - Same version as Firestore for SDK consistency
+- **AUTH-02 (05-01)**: browserLocalPersistence - 1-day session requirement
+- **AUTH-03 (05-01)**: Invitation codes in separate collection - Track usage and prevent reuse
+- **AUTH-04 (05-01)**: New users default to pending status with null role - Super Admin assigns during approval
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -57,9 +61,9 @@ None yet.
 ### Blockers/Concerns
 
 **Phase 5 (Core Authentication):**
-- Firebase version compatibility check needed (currently 10.7.1 from Jan 2024, latest is 12.8.0)
-- Super Admin bootstrap process - first admin account needs manual creation outside approval flow
-- Migration risk: Adding auth without breaking existing v1.0 functionality (40+ MRFs, PRs, POs)
+- ✅ Firebase version compatibility - Using 10.7.1 for SDK consistency (AUTH-01)
+- Super Admin bootstrap process - first admin account needs manual creation outside approval flow (still needs planning)
+- ✅ Migration risk - 05-01 added auth without breaking existing v1.0 functionality (verified)
 
 **Phase 6 (Role Infrastructure):**
 - Real-time listener performance with >10 projects - Firestore 'in' query limited to 10 items, may need batching
@@ -72,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-31 (roadmap creation)
-Stopped at: ROADMAP.md and STATE.md created, ready for Phase 5 planning
+Last session: 2026-01-31 (05-01 execution)
+Stopped at: Completed 05-01-PLAN.md - Firebase Auth foundation established
 Resume file: None
