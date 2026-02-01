@@ -63,6 +63,9 @@
         // Import Firebase service (initializes Firebase)
         import './app/firebase.js';
 
+        // Import and initialize auth observer
+        import { initAuthObserver } from './app/auth.js';
+
         // Import and initialize router
         import { initRouter } from './app/router.js';
 
@@ -72,12 +75,14 @@
         // Import components to make them available globally
         import './app/components.js';
 
-        // Initialize the router when DOM is ready
+        // Initialize auth and router when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
+                initAuthObserver();
                 initRouter();
             });
         } else {
+            initAuthObserver();
             initRouter();
         }
     </script>
