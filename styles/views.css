@@ -822,6 +822,12 @@
     text-align: center;
 }
 
+.auth-logo img {
+    max-width: 120px;
+    height: auto;
+    display: inline-block;
+}
+
 .auth-title {
     font-size: 1.75rem;
     font-weight: 600;
