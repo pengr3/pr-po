@@ -76,6 +76,18 @@ export function render() {
                     </div>
 
                     <div class="auth-field">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            required
+                            placeholder="Re-enter password"
+                        >
+                        <div class="auth-error" id="confirmPasswordError"></div>
+                    </div>
+
+                    <div class="auth-field">
                         <label for="invitationCode">Invitation Code</label>
                         <input
                             type="text"
@@ -161,6 +173,7 @@ async function handleRegister(e) {
     const fullName = document.getElementById('fullName').value.trim();
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
     const invitationCode = document.getElementById('invitationCode').value.trim();
 
     // Clear previous errors
@@ -187,6 +200,14 @@ async function handleRegister(e) {
         hasError = true;
     } else if (!validatePassword(password)) {
         showError('password', 'Password must be 8+ characters with uppercase, lowercase, and at least one number');
+        hasError = true;
+    }
+
+    if (!confirmPassword) {
+        showError('confirmPassword', 'Please confirm your password');
+        hasError = true;
+    } else if (password !== confirmPassword) {
+        showError('confirmPassword', 'Passwords do not match');
         hasError = true;
     }
 
