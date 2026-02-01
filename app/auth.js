@@ -201,6 +201,31 @@ export function initAuthObserver() {
                     // Update navigation for authenticated user
                     updateNavForAuth(currentUser);
 
+                    // Status-based routing (AUTH-08)
+                    const currentHash = window.location.hash;
+
+                    if (userData.status === 'pending') {
+                        // Redirect pending users to pending page
+                        if (!currentHash.includes('/pending')) {
+                            console.log('[Auth] Pending user - redirecting to pending page');
+                            window.location.hash = '#/pending';
+                        }
+                    } else if (userData.status === 'rejected') {
+                        // Rejected users also see pending page (shows rejection message)
+                        if (!currentHash.includes('/pending')) {
+                            console.log('[Auth] Rejected user - redirecting to pending page');
+                            window.location.hash = '#/pending';
+                        }
+                    } else if (userData.status === 'deactivated') {
+                        // Deactivated users are logged out
+                        console.log('[Auth] Deactivated user - signing out');
+                        await signOut(auth);
+                        window.location.hash = '#/login';
+                        alert('Your account has been deactivated. Please contact an administrator.');
+                        return;
+                    }
+                    // Active users: no forced redirect, allow normal navigation
+
                     // Dispatch custom event for auth state change
                     window.dispatchEvent(new CustomEvent('authStateChanged', {
                         detail: { user: currentUser }
