@@ -9,15 +9,15 @@ Requirements for Authentication & Permissions milestone. Each maps to roadmap ph
 
 ### Authentication & User Management
 
-- [ ] **AUTH-01**: User can self-register with email, password, and invitation code
-- [ ] **AUTH-02**: System validates invitation code is active and unused before registration
-- [ ] **AUTH-03**: System marks invitation code as used after successful registration
-- [ ] **AUTH-04**: New user account starts with status "pending" (awaiting Super Admin approval)
-- [ ] **AUTH-05**: User can login with email and password
-- [ ] **AUTH-06**: User session persists across browser refresh
-- [ ] **AUTH-07**: User can logout
-- [ ] **AUTH-08**: Pending users see "awaiting approval" message (cannot access main system)
-- [ ] **AUTH-09**: Deactivated users are automatically logged out when status changes
+- [x] **AUTH-01**: User can self-register with email, password, and invitation code
+- [x] **AUTH-02**: System validates invitation code is active and unused before registration
+- [x] **AUTH-03**: System marks invitation code as used after successful registration
+- [x] **AUTH-04**: New user account starts with status "pending" (awaiting Super Admin approval)
+- [x] **AUTH-05**: User can login with email and password
+- [x] **AUTH-06**: User session persists across browser refresh
+- [x] **AUTH-07**: User can logout
+- [x] **AUTH-08**: Pending users see "awaiting approval" message (cannot access main system)
+- [x] **AUTH-09**: Deactivated users are automatically logged out when status changes
 - [ ] **AUTH-10**: Super Admin can generate one-time invitation codes
 - [ ] **AUTH-11**: Super Admin can view pending user registrations
 - [ ] **AUTH-12**: Super Admin can approve pending user (assign role during approval)
