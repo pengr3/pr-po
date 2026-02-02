@@ -28,12 +28,28 @@ function attachWindowFunctions() {
 
 // Render view HTML
 export function render(activeTab = null) {
+    // Check edit permission
+    const canEdit = window.canEditTab?.('clients');
+    // IMPORTANT: Use strict equality to distinguish undefined (not loaded) from false (no permission)
+    // canEdit === false -> no permission, hide edit controls
+    // canEdit === undefined -> not loaded yet, show controls (backwards compatible)
+    // canEdit === true -> has permission, show controls
+    const showEditControls = canEdit !== false;
+
     return `
         <div class="container" style="margin-top: 2rem;">
+            ${canEdit === false ? `
+                <div class="view-only-notice">
+                    <span class="notice-icon">👁</span>
+                    <span>You have view-only access to this section.</span>
+                </div>
+            ` : ''}
             <div class="card">
                 <div class="suppliers-header">
                     <h2>Client Management</h2>
-                    <button class="btn btn-primary" onclick="window.toggleAddClientForm()">Add Client</button>
+                    ${showEditControls ? `
+                        <button class="btn btn-primary" onclick="window.toggleAddClientForm()">Add Client</button>
+                    ` : ''}
                 </div>
 
                 <!-- Add Client Form -->
@@ -148,6 +164,10 @@ function renderClientsTable() {
     const endIndex = Math.min(startIndex + itemsPerPage, clientsData.length);
     const pageItems = clientsData.slice(startIndex, endIndex);
 
+    // Check edit permission for action buttons
+    const canEdit = window.canEditTab?.('clients');
+    const showEditControls = canEdit !== false;
+
     tbody.innerHTML = pageItems.map(client => {
         if (editingClient === client.id) {
             return `
@@ -169,10 +189,16 @@ function renderClientsTable() {
                     <td>${client.company_name}</td>
                     <td>${client.contact_person}</td>
                     <td>${client.contact_details}</td>
-                    <td style="white-space: nowrap;">
-                        <button class="btn btn-sm btn-primary" onclick="editClient('${client.id}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteClient('${client.id}', '${client.company_name.replace(/'/g, "\\'")}')">Delete</button>
-                    </td>
+                    ${showEditControls ? `
+                        <td style="white-space: nowrap;">
+                            <button class="btn btn-sm btn-primary" onclick="editClient('${client.id}')">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteClient('${client.id}', '${client.company_name.replace(/'/g, "\\'")}')">Delete</button>
+                        </td>
+                    ` : `
+                        <td class="actions-cell">
+                            <span class="view-only-badge">View Only</span>
+                        </td>
+                    `}
                 </tr>
             `;
         }
@@ -182,6 +208,12 @@ function renderClientsTable() {
 }
 
 function toggleAddClientForm() {
+    // Guard: check edit permission
+    if (window.canEditTab?.('clients') === false) {
+        showToast('You do not have permission to edit clients', 'error');
+        return;
+    }
+
     const form = document.getElementById('addClientForm');
     if (!form) return;
 
@@ -198,6 +230,12 @@ function toggleAddClientForm() {
 }
 
 async function addClient() {
+    // Guard: check edit permission
+    if (window.canEditTab?.('clients') === false) {
+        showToast('You do not have permission to edit clients', 'error');
+        return;
+    }
+
     const client_code = document.getElementById('newClientCode').value.trim().toUpperCase();
     const company_name = document.getElementById('newCompanyName').value.trim();
     const contact_person = document.getElementById('newContactPerson').value.trim();
@@ -236,6 +274,12 @@ async function addClient() {
 }
 
 function editClient(clientId) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('clients') === false) {
+        showToast('You do not have permission to edit clients', 'error');
+        return;
+    }
+
     editingClient = clientId;
     renderClientsTable();
 }
@@ -246,6 +290,12 @@ function cancelEdit() {
 }
 
 async function saveEdit(clientId) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('clients') === false) {
+        showToast('You do not have permission to edit clients', 'error');
+        return;
+    }
+
     const client_code = document.getElementById('edit-code').value.trim().toUpperCase();
     const company_name = document.getElementById('edit-company').value.trim();
     const contact_person = document.getElementById('edit-contact').value.trim();
@@ -286,6 +336,12 @@ async function saveEdit(clientId) {
 }
 
 async function deleteClient(clientId, companyName) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('clients') === false) {
+        showToast('You do not have permission to edit clients', 'error');
+        return;
+    }
+
     if (editingClient === clientId) {
         editingClient = null;
     }
