@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 ## Current Position
 
 Phase: 6 of 10 (Role Infrastructure & Real-time Permissions)
-Plan: 3 of 3 in current phase
-Status: Phase complete
-Last activity: 2026-02-02 — Completed 06-03-PLAN.md (Super Admin role config UI)
+Plan: 4 of 5 in current phase
+Status: In progress
+Last activity: 2026-02-02 — Completed 06-04-PLAN.md (Edit permission checks for clients, projects, mrf-form)
 
-Progress: [██████░░░░] 64% (16 plans complete, Phase 6 complete)
+Progress: [██████░░░░] 68% (17 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16 (10 from v1.0, 6 from v2.0)
-- Average duration: 3.6 min
+- Total plans completed: 17 (10 from v1.0, 7 from v2.0)
+- Average duration: 3.4 min
 - Total execution time: 21.4 hours
 
 **By Phase:**
@@ -32,13 +32,13 @@ Progress: [██████░░░░] 64% (16 plans complete, Phase 6 compl
 | 03-projects-management | 2/2 | 7min | 3.5min |
 | 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
-| 06-role-infrastructure-real-time-permissions | 3/3 | 9min | 3.0min |
+| 06-role-infrastructure-real-time-permissions | 4/5 | 12min | 3.0min |
 
 **Recent Trend:**
-- Last 5 plans: 2min, 3.3min, 20.9 hours, 3min, 3min
+- Last 5 plans: 3.3min, 20.9 hours, 3min, 3min, 3min
 - Trend: Consistent 3min velocity after Phase 5
 
-*Updated: 2026-02-02 after 06-03 completion*
+*Updated: 2026-02-02 after 06-04 completion*
 
 ## Accumulated Context
 
@@ -75,6 +75,10 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **PERM-22 (06-03)**: Batch writes for atomic role updates - Ensures consistency, prevents partial updates
 - **PERM-23 (06-03)**: Super Admin's role_config permissions disabled in UI - Prevents lockout scenario
 - **PERM-24 (06-03)**: Visual change indicators show pending edits - Clear visual feedback prevents accidental data loss
+- **PERM-25 (06-04)**: Strict equality (=== false) distinguishes no permission from loading state - Prevents UI flickering, backwards compatible with undefined
+- **PERM-26 (06-04)**: Guard functions double-check permissions before executing actions - Defense in depth beyond UI hiding
+- **PERM-27 (06-04)**: MRF form blocked entirely for view-only users - Create form irrelevant for users who can't submit
+- **PERM-28 (06-04)**: Backwards compatible with undefined permission state - Defaults to showing controls when permissions not loaded
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -96,12 +100,16 @@ None yet.
 - ✅ Logout functionality - Header button with confirmation modal (05-04)
 - ⚠️ Super Admin bootstrap process - first admin account needs manual Firestore creation (carried to Phase 6)
 
-**Phase 6 (Role Infrastructure & Real-time Permissions) - COMPLETE:**
+**Phase 6 (Role Infrastructure & Real-time Permissions) - IN PROGRESS:**
 - ✅ Permission module with role template listener (06-01)
 - ✅ Permission integration with auth observer, router, and navigation (06-02)
 - ✅ Super Admin role configuration UI with checkbox matrix (06-03)
 - ✅ Batch writes for atomic permission updates (06-03)
 - ✅ Real-time permission propagation to all users (06-03)
+- ✅ Edit permission checks for clients, projects, mrf-form views (06-04)
+- ✅ View-only mode with conditional rendering and guard functions (06-04)
+- 🚧 CSS styling for view-only elements (06-05) - Next plan
+- 🚧 Permission enforcement in procurement and finance views (06-05 or later)
 - Real-time listener performance with >10 projects - Firestore 'in' query limited to 10 items, may need batching (carried to Phase 9)
 - Permission caching strategy - Balance between real-time updates and query efficiency (carried to Phase 9)
 
@@ -112,6 +120,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-02 (06-03 execution)
-Stopped at: Completed 06-03-PLAN.md - Phase 6 complete (Role Infrastructure & Real-time Permissions)
+Last session: 2026-02-02 (06-04 execution)
+Stopped at: Completed 06-04-PLAN.md - Edit permission checks for clients, projects, mrf-form views
 Resume file: None
