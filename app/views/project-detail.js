@@ -48,6 +48,18 @@ export async function init(activeTab = null, param = null) {
     projectCode = param;
     attachWindowFunctions();
 
+    // Listen for permission changes and re-render
+    const permissionChangeHandler = () => {
+        console.log('[ProjectDetail] Permissions changed, re-rendering...');
+        renderProjectDetail();
+    };
+    window.addEventListener('permissionsChanged', permissionChangeHandler);
+
+    // Store handler for cleanup
+    if (!window._projectDetailPermissionHandler) {
+        window._projectDetailPermissionHandler = permissionChangeHandler;
+    }
+
     if (!projectCode) {
         document.getElementById('projectDetailContainer').innerHTML = `
             <div class="container" style="margin-top: 2rem;">
@@ -89,6 +101,12 @@ export async function init(activeTab = null, param = null) {
 export async function destroy() {
     console.log('[ProjectDetail] Destroying view...');
 
+    // Remove permission change listener
+    if (window._projectDetailPermissionHandler) {
+        window.removeEventListener('permissionsChanged', window._projectDetailPermissionHandler);
+        delete window._projectDetailPermissionHandler;
+    }
+
     if (listener) {
         listener();
         listener = null;
@@ -109,10 +127,20 @@ function renderProjectDetail() {
     const container = document.getElementById('projectDetailContainer');
     if (!container || !currentProject) return;
 
+    // Check edit permission
+    const canEdit = window.canEditTab?.('projects');
+    const showEditControls = canEdit !== false;
+
     const focusedField = document.activeElement?.dataset?.field;
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
+            ${canEdit === false ? `
+                <div class="view-only-notice">
+                    <span class="notice-icon">👁</span>
+                    <span>You have view-only access to this section.</span>
+                </div>
+            ` : ''}
             <!-- Project Summary Card -->
             <div class="card">
                 <div class="card-body" style="padding: 1.5rem;">
@@ -121,7 +149,11 @@ function renderProjectDetail() {
                             <h2 style="margin: 0 0 0.25rem 0;">${currentProject.project_code}</h2>
                             <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentProject.created_at)}${currentProject.updated_at ? ' | Updated: ' + formatDate(currentProject.updated_at) : ''}</p>
                         </div>
-                        <button class="btn btn-danger" onclick="window.confirmDelete()">Delete Project</button>
+                        ${showEditControls ? `
+                            <button class="btn btn-danger" onclick="window.confirmDelete()">Delete Project</button>
+                        ` : `
+                            <span class="view-only-badge">View Only</span>
+                        `}
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -190,6 +222,12 @@ function renderProjectDetail() {
 
 // Save field
 async function saveField(fieldName, newValue) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return false;
+    }
+
     // Reject locked fields
     if (['project_code', 'client_id', 'client_code'].includes(fieldName)) {
         console.error('[ProjectDetail] Attempted to edit locked field:', fieldName);
@@ -240,6 +278,12 @@ async function saveField(fieldName, newValue) {
 
 // Toggle active status
 async function toggleActive(newValue) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     try {
         const projectRef = doc(db, 'projects', currentProject.id);
         await updateDoc(projectRef, {
@@ -255,6 +299,12 @@ async function toggleActive(newValue) {
 
 // Confirm delete
 async function confirmDelete() {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     const confirmed = confirm(`Delete project "${currentProject.project_name}"? This cannot be undone.`);
     if (!confirmed) return;
 
