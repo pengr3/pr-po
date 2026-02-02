@@ -96,6 +96,10 @@ function attachWindowFunctions() {
  * @returns {string} HTML string
  */
 export function render(activeTab = 'mrfs') {
+    // Get edit permission
+    const canEdit = window.canEditTab?.('procurement');
+    const showEditControls = canEdit !== false;
+
     return `
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 1px solid var(--gray-200);">
@@ -117,13 +121,14 @@ export function render(activeTab = 'mrfs') {
         <div class="container" style="margin-top: 2rem;">
             <!-- MRF Processing Section -->
             <section id="mrfs-section" class="section ${activeTab === 'mrfs' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view MRF data but cannot create or process MRFs.</span></div>' : ''}
                 <div class="dashboard-grid">
                     <!-- MRF List -->
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">Pending MRFs</h3>
                             <div style="display: flex; gap: 0.5rem;">
-                                <button class="btn btn-primary" onclick="window.createNewMRF()">New</button>
+                                ${showEditControls ? '<button class="btn btn-primary" onclick="window.createNewMRF()">New</button>' : ''}
                                 <button class="btn btn-secondary" onclick="window.loadMRFs()">Refresh</button>
                             </div>
                         </div>
@@ -138,10 +143,12 @@ export function render(activeTab = 'mrfs') {
                     <div class="card">
                         <div class="card-header">
                             <h3 class="card-title">MRF Details</h3>
+                            ${showEditControls ? `
                             <div style="display: flex; gap: 0.5rem;" id="mrfActions">
                                 <button class="btn btn-primary" onclick="window.saveProgress()">Save Progress</button>
                                 <button class="btn btn-success" id="generatePRBtn" onclick="window.generatePR()" style="display: none;">Generate PR</button>
                             </div>
+                            ` : ''}
                         </div>
                         <div id="mrfDetails">
                             <div style="text-align: center; padding: 3rem; color: #999;">
@@ -154,10 +161,11 @@ export function render(activeTab = 'mrfs') {
 
             <!-- Supplier Management Section -->
             <section id="suppliers-section" class="section ${activeTab === 'suppliers' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view suppliers but cannot add, edit, or delete suppliers.</span></div>' : ''}
                 <div class="card">
                     <div class="suppliers-header">
                         <h2>Supplier Management</h2>
-                        <button class="btn btn-primary" onclick="window.toggleAddForm()">Add Supplier</button>
+                        ${showEditControls ? '<button class="btn btn-primary" onclick="window.toggleAddForm()">Add Supplier</button>' : ''}
                     </div>
 
                     <!-- Add Supplier Form -->
@@ -210,6 +218,7 @@ export function render(activeTab = 'mrfs') {
 
             <!-- PR-PO Records Section -->
             <section id="records-section" class="section ${activeTab === 'records' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view records but cannot update PO statuses.</span></div>' : ''}
                 <div class="card">
                     <div class="card-header">
                         <h2>PR-PO Records</h2>
@@ -648,6 +657,11 @@ function renderMRFList(materialMRFs, transportMRFs) {
  * Create new MRF
  */
 function createNewMRF() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     // Clear selection from MRF list
     document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
 
@@ -1201,6 +1215,11 @@ function deleteLineItem(index) {
  * Save new MRF
  */
 async function saveNewMRF() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!currentMRF || currentMRF.id !== null) {
         showToast('This is not a new MRF', 'error');
         return;
@@ -1358,6 +1377,11 @@ async function saveNewMRF() {
  * Save progress
  */
 async function saveProgress() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!currentMRF) return;
 
     // Collect items from DOM rows (supports add/edit/delete)
@@ -1429,6 +1453,11 @@ async function saveProgress() {
  * Delete MRF - allows procurement to delete unnecessary requests
  */
 async function deleteMRF() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!currentMRF) {
         showToast('No MRF selected', 'error');
         return;
@@ -1663,6 +1692,9 @@ function renderSuppliersTable() {
     const tbody = document.getElementById('suppliersTableBody');
     if (!tbody) return;
 
+    const canEdit = window.canEditTab?.('procurement');
+    const showEditControls = canEdit !== false;
+
     if (suppliersData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No suppliers yet. Add your first supplier!</td></tr>';
         const paginationDiv = document.getElementById('suppliersPagination');
@@ -1698,8 +1730,10 @@ function renderSuppliersTable() {
                     <td>${supplier.email}</td>
                     <td>${supplier.phone}</td>
                     <td class="actions">
+                        ${showEditControls ? `
                         <button class="icon-btn" onclick="window.editSupplier('${supplier.id}')">Edit</button>
                         <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${supplier.supplier_name}')">Delete</button>
+                        ` : '<span class="view-only-badge">View Only</span>'}
                     </td>
                 </tr>
             `;
@@ -1729,6 +1763,11 @@ function clearAddForm() {
 }
 
 async function addSupplier() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     const supplier_name = document.getElementById('newSupplierName').value.trim();
     const contact_person = document.getElementById('newContactPerson').value.trim();
     const email = document.getElementById('newEmail').value.trim();
@@ -1761,6 +1800,11 @@ async function addSupplier() {
 };
 
 function editSupplier(supplierId) {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     editingSupplier = supplierId;
     renderSuppliersTable();
 };
@@ -1771,6 +1815,11 @@ function cancelEdit() {
 };
 
 async function saveEdit(supplierId) {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     const supplier_name = document.getElementById('edit-name').value.trim();
     const contact_person = document.getElementById('edit-contact').value.trim();
     const email = document.getElementById('edit-email').value.trim();
@@ -1805,6 +1854,11 @@ async function saveEdit(supplierId) {
 };
 
 async function deleteSupplier(supplierId, supplierName) {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!confirm(`Are you sure you want to delete supplier "${supplierName}"?`)) {
         return;
     }
@@ -2393,6 +2447,11 @@ function goToPRPOPage(page) {
  * Filters transport items, validates, and creates TR document
  */
 async function submitTransportRequest() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!currentMRF) return;
 
     const mrfData = currentMRF;
@@ -2568,6 +2627,11 @@ async function submitTransportRequest() {
  * Handles update/merge/create logic for PRs grouped by supplier
  */
 async function generatePR() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!currentMRF) return;
 
     const mrfData = currentMRF;
@@ -2848,6 +2912,11 @@ async function generatePR() {
  * Processes both material items (as PR) and transport items (as TR) in one action
  */
 async function generatePRandTR() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
     if (!currentMRF) return;
 
     const mrfData = currentMRF;
@@ -3397,6 +3466,13 @@ function updatePOPaginationControls(totalPages, startIndex, endIndex, totalItems
  * Update PO Status
  */
 async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        const select = document.querySelector(`select[data-po-id="${poId}"]`);
+        if (select) select.value = currentStatus;
+        return;
+    }
+
     if (newStatus === currentStatus) return;
 
     // Prevent changing status if already at final status
