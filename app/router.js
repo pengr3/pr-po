@@ -78,6 +78,11 @@ const routes = {
         name: 'Pending Approval',
         load: () => import('./views/pending.js'),
         title: 'Pending Approval | CLMC Procurement'
+    },
+    '/role-config': {
+        name: 'Role Configuration',
+        load: () => import('./views/role-config.js'),
+        title: 'Role Configuration | CLMC Procurement'
     }
 };
 
