@@ -1026,3 +1026,168 @@
         font-size: 1.5rem;
     }
 }
+
+/* ========================================
+   ROLE CONFIGURATION VIEW
+   ======================================== */
+
+.role-config-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.role-config-header {
+    margin-bottom: 1.5rem;
+}
+
+.role-config-header h1 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0 0 0.5rem 0;
+}
+
+.role-config-header p {
+    color: var(--gray-600);
+    margin: 0;
+}
+
+.role-config-info {
+    background: var(--blue-50, #eff6ff);
+    border: 1px solid var(--blue-200, #bfdbfe);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.role-config-info-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.role-config-info-text {
+    color: var(--blue-800, #1e40af);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+/* Permission Matrix Table */
+.permission-matrix-card {
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.permission-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+}
+
+.permission-matrix th,
+.permission-matrix td {
+    padding: 0.75rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.permission-matrix th {
+    background: var(--gray-50);
+    font-weight: 600;
+    color: var(--gray-700);
+    white-space: nowrap;
+}
+
+.permission-matrix th:first-child,
+.permission-matrix th:nth-child(2) {
+    text-align: left;
+}
+
+.permission-matrix td:first-child,
+.permission-matrix td:nth-child(2) {
+    text-align: left;
+}
+
+.permission-matrix .tab-name {
+    font-weight: 500;
+    color: var(--gray-900);
+    background: var(--gray-50);
+    vertical-align: middle;
+}
+
+.permission-matrix .permission-type {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+}
+
+.permission-matrix tr:last-child td {
+    border-bottom: none;
+}
+
+.permission-matrix input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.permission-matrix input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Highlight changed cells */
+.permission-matrix td.has-changes {
+    background: var(--yellow-50, #fefce8);
+}
+
+/* Action buttons */
+.role-config-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+}
+
+.role-config-actions .btn {
+    min-width: 140px;
+}
+
+/* Saving indicator */
+.saving-indicator {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--gray-600);
+    font-size: 0.9375rem;
+}
+
+.saving-indicator.visible {
+    display: flex;
+}
+
+.saving-indicator .spinner {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+
+/* Unsaved changes indicator */
+.unsaved-indicator {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--warning);
+    font-size: 0.875rem;
+    margin-right: auto;
+}
+
+.unsaved-indicator.visible {
+    display: flex;
+}
