@@ -20,6 +20,10 @@ let currentPRForRejection = null;
  * @returns {string} HTML string for finance view
  */
 export function render(activeTab = 'approvals') {
+    // Get edit permission
+    const canEdit = window.canEditTab?.('finance');
+    const showEditControls = canEdit !== false;
+
     return `
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 2px solid var(--gray-200);">
@@ -41,6 +45,7 @@ export function render(activeTab = 'approvals') {
         <div class="container" style="max-width: 1600px; margin: 0 auto; padding: 1.5rem;">
             <!-- Tab 1: Pending Approvals -->
             <section id="approvals-section" class="section ${activeTab === 'approvals' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view pending approvals but cannot approve or reject requests.</span></div>' : ''}
                 <!-- Stats Grid -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                     <div class="card" style="padding: 1.5rem; background: linear-gradient(135deg, #fef3c7, #fde047);">
@@ -121,6 +126,7 @@ export function render(activeTab = 'approvals') {
 
             <!-- Tab 2: Purchase Orders -->
             <section id="pos-section" class="section ${activeTab === 'pos' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view purchase orders but cannot modify them.</span></div>' : ''}
                 <div class="card">
                     <div class="card-header">
                         <h2>Recently Generated Purchase Orders</h2>
@@ -134,6 +140,7 @@ export function render(activeTab = 'approvals') {
 
             <!-- Tab 3: Historical Data -->
             <section id="history-section" class="section ${activeTab === 'history' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view historical data.</span></div>' : ''}
                 <div class="card">
                     <div class="card-header">
                         <h2>Historical Data & Analytics</h2>
@@ -517,11 +524,16 @@ window.viewPRDetails = async function(prId) {
         document.getElementById('prModalTitle').textContent = `Purchase Request - ${pr.pr_id}`;
         document.getElementById('prModalBody').innerHTML = modalContent;
 
+        const canEdit = window.canEditTab?.('finance');
+        const showEditControls = canEdit !== false;
+
         const footer = document.getElementById('prModalFooter');
         footer.innerHTML = `
             <button class="btn btn-secondary" onclick="window.closePRModal()">Close</button>
+            ${showEditControls ? `
             <button class="btn btn-danger" onclick="window.rejectPR('${pr.id}')">✗ Reject</button>
             <button class="btn btn-success" onclick="window.approvePR('${pr.id}')">✓ Approve & Generate POs</button>
+            ` : ''}
         `;
 
         document.getElementById('prModal').classList.add('active');
@@ -637,11 +649,16 @@ window.viewTRDetails = async function(trId) {
         document.getElementById('prModalTitle').textContent = `Transport Request - ${tr.tr_id}`;
         document.getElementById('prModalBody').innerHTML = modalContent;
 
+        const canEdit = window.canEditTab?.('finance');
+        const showEditControls = canEdit !== false;
+
         const footer = document.getElementById('prModalFooter');
         footer.innerHTML = `
             <button class="btn btn-secondary" onclick="window.closePRModal()">Close</button>
+            ${showEditControls ? `
             <button class="btn btn-danger" onclick="window.rejectPR('${tr.id}')">✗ Reject</button>
             <button class="btn btn-success" onclick="window.approveTR('${tr.id}')">✓ Approve</button>
+            ` : ''}
         `;
 
         document.getElementById('prModal').classList.add('active');
@@ -658,6 +675,11 @@ window.viewTRDetails = async function(trId) {
  * Approve PR and generate POs
  */
 window.approvePR = async function(prId) {
+    if (window.canEditTab?.('finance') === false) {
+        showToast('You do not have permission to edit finance data', 'error');
+        return;
+    }
+
     if (!confirm('Approve this Purchase Request and generate Purchase Orders?')) {
         return;
     }
@@ -717,6 +739,11 @@ window.approvePR = async function(prId) {
  * Approve TR (Transport Request)
  */
 window.approveTR = async function(trId) {
+    if (window.canEditTab?.('finance') === false) {
+        showToast('You do not have permission to edit finance data', 'error');
+        return;
+    }
+
     if (!confirm('Approve this Transport Request?')) {
         return;
     }
@@ -779,6 +806,11 @@ window.closePRModal = function() {
  * Reject PR/TR
  */
 window.rejectPR = function(prId) {
+    if (window.canEditTab?.('finance') === false) {
+        showToast('You do not have permission to edit finance data', 'error');
+        return;
+    }
+
     // Store current PR for rejection
     if (!currentPRForRejection || currentPRForRejection.id !== prId) {
         showToast('Request reference lost. Please refresh and try again.', 'error');
@@ -802,6 +834,11 @@ window.closeRejectionModal = function() {
  * Submit Rejection
  */
 window.submitRejection = async function() {
+    if (window.canEditTab?.('finance') === false) {
+        showToast('You do not have permission to edit finance data', 'error');
+        return;
+    }
+
     const reason = document.getElementById('rejectionReason').value.trim();
 
     if (!reason) {
