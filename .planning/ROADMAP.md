@@ -83,10 +83,13 @@ Plans:
   4. Navigation menu shows only tabs permitted by user's role
   5. Edit mode vs view-only mode enforced within tabs based on role permissions
   6. Real-time listeners update permissions in active sessions when admin changes role or user role
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 06-01: [To be planned]
+- [ ] 06-01-PLAN.md — Role templates foundation and permissions module
+- [ ] 06-02-PLAN.md — Auth, router, and navigation permission integration
+- [ ] 06-03-PLAN.md — Role configuration admin UI (checkbox matrix)
+- [ ] 06-04-PLAN.md — Edit mode vs view-only enforcement in views
 
 ### Phase 7: Project Assignment System
 **Goal**: Operations Users see only assigned projects with immediate filtering
@@ -162,7 +165,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
 | 3. Project Detail View | v1.0 | 3/3 | Complete | 2026-01-30 |
 | 4. MRF-Project Integration | v1.0 | 3/3 | Complete | 2026-01-30 |
 | 5. Core Authentication | v2.0 | 4/4 | Complete | 2026-02-01 |
-| 6. Role Infrastructure & Real-time Permissions | v2.0 | 0/0 | Not started | - |
+| 6. Role Infrastructure & Real-time Permissions | v2.0 | 0/4 | Planned | - |
 | 7. Project Assignment System | v2.0 | 0/0 | Not started | - |
 | 8. Security Rules Enforcement | v2.0 | 0/0 | Not started | - |
 | 9. Super Admin User Management | v2.0 | 0/0 | Not started | - |
