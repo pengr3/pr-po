@@ -332,15 +332,29 @@ export function initAuthObserver() {
  */
 function updateNavForAuth(user) {
     const logoutBtn = document.getElementById('logoutBtn');
-
-    if (!logoutBtn) return;
+    const navLinks = document.querySelectorAll('.nav-link[data-route]');
 
     if (user) {
         // Show logout button for authenticated users
-        logoutBtn.style.display = 'block';
+        if (logoutBtn) logoutBtn.style.display = 'block';
+
+        // Filter navigation based on permissions (PERM-13, PERM-14)
+        const permissions = window.getCurrentPermissions?.();
+
+        navLinks.forEach(link => {
+            const route = link.getAttribute('data-route');
+            const hasAccess = permissions?.tabs?.[route]?.access ?? true; // Default to true if no permissions loaded yet
+
+            link.style.display = hasAccess ? '' : 'none';
+        });
     } else {
         // Hide logout button for unauthenticated users
-        logoutBtn.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+
+        // Show all nav links for unauthenticated users (route protection comes in Phase 10)
+        navLinks.forEach(link => {
+            link.style.display = '';
+        });
     }
 }
 
