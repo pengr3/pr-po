@@ -103,12 +103,31 @@ export function render(activeTab = null) {
 export async function init(activeTab = null) {
     console.log('[Clients] Initializing clients view...');
     attachWindowFunctions();
+
+    // Listen for permission changes and re-render table
+    const permissionChangeHandler = () => {
+        console.log('[Clients] Permissions changed, re-rendering table...');
+        renderClientsTable();
+    };
+    window.addEventListener('permissionsChanged', permissionChangeHandler);
+
+    // Store handler for cleanup
+    if (!window._clientsPermissionHandler) {
+        window._clientsPermissionHandler = permissionChangeHandler;
+    }
+
     await loadClients();
 }
 
 // Cleanup
 export async function destroy() {
     console.log('[Clients] Destroying clients view...');
+
+    // Remove permission change listener
+    if (window._clientsPermissionHandler) {
+        window.removeEventListener('permissionsChanged', window._clientsPermissionHandler);
+        delete window._clientsPermissionHandler;
+    }
 
     listeners.forEach(unsubscribe => unsubscribe?.());
     listeners = [];
