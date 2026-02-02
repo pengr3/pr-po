@@ -18,6 +18,19 @@ import {
     onSnapshot
 } from './firebase.js';
 import { signOut } from './firebase.js';
+import { initPermissionsObserver, destroyPermissionsObserver } from './permissions.js';
+
+// ========================================
+// PERMISSION CHANGE LISTENER (MODULE LEVEL)
+// Updates navigation when permissions change (PERM-18)
+// ========================================
+window.addEventListener('permissionsChanged', (event) => {
+    console.log('[Auth] Permissions changed, updating navigation');
+    const user = getCurrentUser();
+    if (user) {
+        updateNavForAuth(user);
+    }
+});
 
 /* ========================================
    FIRESTORE SCHEMA DOCUMENTATION
@@ -198,6 +211,11 @@ export function initAuthObserver() {
                     // Store user data
                     currentUser = { uid: user.uid, ...userData };
 
+                    // Initialize permissions if user is active with a role (PERM-16, PERM-17)
+                    if (userData.status === 'active' && userData.role) {
+                        await initPermissionsObserver(currentUser);
+                    }
+
                     // Update navigation for authenticated user
                     updateNavForAuth(currentUser);
 
@@ -232,12 +250,27 @@ export function initAuthObserver() {
                     }));
 
                     // Set up real-time listener on user document (AUTH-09)
-                    userDocUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnapshot) => {
+                    userDocUnsubscribe = onSnapshot(doc(db, 'users', user.uid), async (docSnapshot) => {
                         if (docSnapshot.exists()) {
                             const updatedUserData = docSnapshot.data();
+
+                            // Detect role change (PERM-19) - reinitialize permission listener
+                            const previousRole = currentUser?.role;
                             currentUser = { uid: user.uid, ...updatedUserData };
 
                             console.log('[Auth] User document updated:', updatedUserData.status);
+
+                            if (previousRole !== updatedUserData.role) {
+                                console.log('[Auth] Role changed:', previousRole, '->', updatedUserData.role);
+
+                                if (updatedUserData.status === 'active' && updatedUserData.role) {
+                                    // Reinitialize permissions with new role
+                                    await initPermissionsObserver(currentUser);
+                                } else {
+                                    // No valid role, destroy permissions
+                                    destroyPermissionsObserver();
+                                }
+                            }
 
                             // AUTH-09: If status changes to 'deactivated', force logout
                             if (updatedUserData.status === 'deactivated') {
@@ -271,6 +304,9 @@ export function initAuthObserver() {
             }
         } else {
             console.log('[Auth] User signed out');
+
+            // Clean up permissions observer
+            destroyPermissionsObserver();
 
             // Clear current user
             currentUser = null;
