@@ -233,6 +233,19 @@ export function render(activeTab = null) {
 export async function init(activeTab = null) {
     console.log('[Projects] Initializing projects view...');
     attachWindowFunctions();
+
+    // Listen for permission changes and re-render table
+    const permissionChangeHandler = () => {
+        console.log('[Projects] Permissions changed, re-rendering table...');
+        renderProjectsTable();
+    };
+    window.addEventListener('permissionsChanged', permissionChangeHandler);
+
+    // Store handler for cleanup
+    if (!window._projectsPermissionHandler) {
+        window._projectsPermissionHandler = permissionChangeHandler;
+    }
+
     await loadClients();
     await loadProjects();
 }
@@ -240,6 +253,12 @@ export async function init(activeTab = null) {
 // Cleanup
 export async function destroy() {
     console.log('[Projects] Destroying projects view...');
+
+    // Remove permission change listener
+    if (window._projectsPermissionHandler) {
+        window.removeEventListener('permissionsChanged', window._projectsPermissionHandler);
+        delete window._projectsPermissionHandler;
+    }
 
     listeners.forEach(unsubscribe => unsubscribe?.());
     listeners = [];
