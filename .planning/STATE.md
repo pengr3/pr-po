@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-01-30)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 5 - Core Authentication
+**Current focus:** Phase 6 - Role Infrastructure & Real-time Permissions
 
 ## Current Position
 
-Phase: 5 of 10 (Core Authentication)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-01 — Completed 05-04-PLAN.md (Pending user page and logout)
+Phase: 6 of 10 (Role Infrastructure & Real-time Permissions)
+Plan: 2 of 3 in current phase
+Status: In progress
+Last activity: 2026-02-02 — Completed 06-02-PLAN.md (Permission integration)
 
-Progress: [█████░░░░░] 54% (14 plans complete, Phase 5 complete)
+Progress: [██████░░░░] 60% (15 plans complete, Phase 5 complete, Phase 6 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14 (10 from v1.0, 4 from v2.0)
-- Average duration: 4.6 min
+- Total plans completed: 15 (10 from v1.0, 5 from v2.0)
+- Average duration: 3.7 min
 - Total execution time: 21.4 hours
 
 **By Phase:**
@@ -32,12 +32,13 @@ Progress: [█████░░░░░] 54% (14 plans complete, Phase 5 compl
 | 03-projects-management | 2/2 | 7min | 3.5min |
 | 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
+| 06-role-infrastructure-real-time-permissions | 2/3 | 6min | 3.0min |
 
 **Recent Trend:**
-- Last 5 plans: 1min, 1.7min, 2min, 3.3min, 20.9 hours
-- Trend: 05-04 included user verification checkpoint with extended testing
+- Last 5 plans: 1.7min, 2min, 3.3min, 20.9 hours, 3min
+- Trend: Back to normal velocity after 05-04 checkpoint
 
-*Updated: 2026-02-01 after 05-04 completion*
+*Updated: 2026-02-02 after 06-02 completion*
 
 ## Accumulated Context
 
@@ -63,6 +64,12 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **REG-01 (05-02)**: Combined form and submission in single commit - Tightly coupled view module pattern
 - **REG-02 (05-02)**: Pre-filled invitation codes are disabled - Prevent user editing when code from URL
 - **REG-03 (05-02)**: Auth styles in views.css - Consistent with existing view-specific styling pattern
+- **PERM-13 (06-02)**: Navigation filtered based on tab access permissions - Clean separation between routing logic and permission enforcement
+- **PERM-14 (06-02)**: Router blocks access to unpermitted routes with Access Denied page - Strict equality (hasAccess === false) distinguishes no permission from pending state
+- **PERM-16 (06-02)**: Permissions initialize automatically on login for active users with roles - Automatic setup ensures permissions ready before navigation
+- **PERM-17 (06-02)**: Permission listener skipped for pending/rejected/deactivated users - Avoids unnecessary Firestore queries
+- **PERM-18 (06-02)**: permissionsChanged event listener at module level updates navigation in real-time - Module-level registration persists for application lifetime
+- **PERM-19 (06-02)**: Role changes detected and trigger permission listener reinitialization - Enables automatic permission reload when Super Admin changes user's role
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -84,7 +91,9 @@ None yet.
 - ✅ Logout functionality - Header button with confirmation modal (05-04)
 - ⚠️ Super Admin bootstrap process - first admin account needs manual Firestore creation (carried to Phase 6)
 
-**Phase 6 (Role Infrastructure):**
+**Phase 6 (Role Infrastructure & Real-time Permissions):**
+- ✅ Permission module with role template listener (06-01)
+- ✅ Permission integration with auth observer, router, and navigation (06-02)
 - Real-time listener performance with >10 projects - Firestore 'in' query limited to 10 items, may need batching
 - Permission caching strategy - Balance between real-time updates and query efficiency
 
@@ -95,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-01 (05-04 execution)
-Stopped at: Completed 05-04-PLAN.md - Phase 5 complete (Core Authentication)
+Last session: 2026-02-02 (06-02 execution)
+Stopped at: Completed 06-02-PLAN.md - Permission integration complete
 Resume file: None
