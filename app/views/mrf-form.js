@@ -14,6 +14,24 @@ let projectsListener = null;
  * @returns {string} HTML string for MRF form
  */
 export function render() {
+    // Check edit permission - this is a create form, so block if no edit permission
+    const canEdit = window.canEditTab?.('mrf_form');
+
+    // If user has no edit permission, show blocked message
+    if (canEdit === false) {
+        return `
+            <div class="container" style="padding: 2rem;">
+                <div class="view-only-notice">
+                    <span class="notice-icon">👁</span>
+                    <span>You have view-only access. You cannot create or edit Material Requests.</span>
+                </div>
+                <button class="btn btn-secondary" onclick="location.hash='#/'">
+                    Back to Dashboard
+                </button>
+            </div>
+        `;
+    }
+
     return `
         <div class="container" style="max-width: 1100px; margin: 2rem auto; background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); overflow: hidden;">
             <div style="background: var(--primary); color: white; padding: 2rem; text-align: center;">

@@ -70,12 +70,28 @@ function attachWindowFunctions() {
 
 // Render view HTML
 export function render(activeTab = null) {
+    // Check edit permission
+    const canEdit = window.canEditTab?.('projects');
+    // IMPORTANT: Use strict equality to distinguish undefined (not loaded) from false (no permission)
+    // canEdit === false -> no permission, hide edit controls
+    // canEdit === undefined -> not loaded yet, show controls (backwards compatible)
+    // canEdit === true -> has permission, show controls
+    const showEditControls = canEdit !== false;
+
     return `
         <div class="container" style="margin-top: 2rem;">
+            ${canEdit === false ? `
+                <div class="view-only-notice">
+                    <span class="notice-icon">👁</span>
+                    <span>You have view-only access to this section.</span>
+                </div>
+            ` : ''}
             <div class="card">
                 <div class="suppliers-header">
                     <h2>Project Management</h2>
-                    <button class="btn btn-primary" onclick="window.toggleAddProjectForm()">Add Project</button>
+                    ${showEditControls ? `
+                        <button class="btn btn-primary" onclick="window.toggleAddProjectForm()">Add Project</button>
+                    ` : ''}
                 </div>
 
                 <!-- Add Project Form -->
@@ -308,6 +324,12 @@ function renderClientDropdown() {
 
 // Toggle add/edit form visibility
 function toggleAddProjectForm() {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     const form = document.getElementById('addProjectForm');
     if (!form) return;
 
@@ -337,6 +359,12 @@ function toggleAddProjectForm() {
 
 // Add project
 async function addProject() {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     const clientSelect = document.getElementById('projectClient');
     const clientId = clientSelect.value;
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
@@ -557,6 +585,10 @@ function renderProjectsTable() {
     const endIndex = Math.min(startIndex + itemsPerPage, filteredProjects.length);
     const pageItems = filteredProjects.slice(startIndex, endIndex);
 
+    // Check edit permission for action buttons
+    const canEdit = window.canEditTab?.('projects');
+    const showEditControls = canEdit !== false;
+
     tbody.innerHTML = pageItems.map(project => {
         // Find client name
         const client = clientsData.find(c => c.id === project.client_id);
@@ -576,11 +608,17 @@ function renderProjectsTable() {
                         ${project.active ? 'Active' : 'Inactive'}
                     </span>
                 </td>
-                <td style="white-space: nowrap;" onclick="event.stopPropagation()">
-                    <button class="btn btn-sm btn-primary" onclick="editProject('${project.id}')">Edit</button>
-                    <button class="btn btn-sm btn-secondary" onclick="toggleProjectActive('${project.id}', ${project.active})">${project.active ? 'Deactivate' : 'Activate'}</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
-                </td>
+                ${showEditControls ? `
+                    <td style="white-space: nowrap;" onclick="event.stopPropagation()">
+                        <button class="btn btn-sm btn-primary" onclick="editProject('${project.id}')">Edit</button>
+                        <button class="btn btn-sm btn-secondary" onclick="toggleProjectActive('${project.id}', ${project.active})">${project.active ? 'Deactivate' : 'Activate'}</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
+                    </td>
+                ` : `
+                    <td class="actions-cell" onclick="event.stopPropagation()">
+                        <span class="view-only-badge">View Only</span>
+                    </td>
+                `}
             </tr>
         `;
     }).join('');
@@ -593,6 +631,12 @@ function renderProjectsTable() {
 
 // Edit project
 function editProject(projectId) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     const project = projectsData.find(p => p.id === projectId);
     if (!project) return;
 
@@ -622,6 +666,12 @@ function cancelEdit() {
 
 // Save edit
 async function saveEdit() {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     if (!editingProject) return;
 
     const clientSelect = document.getElementById('projectClient');
@@ -694,6 +744,12 @@ async function saveEdit() {
 
 // Delete project
 async function deleteProject(projectId, projectName) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     if (!confirm(`Are you sure you want to delete project "${projectName}"?`)) {
         return;
     }
@@ -713,6 +769,12 @@ async function deleteProject(projectId, projectName) {
 
 // Toggle project active status
 async function toggleProjectActive(projectId, currentStatus) {
+    // Guard: check edit permission
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
     if (!confirm(`${currentStatus ? 'Deactivate' : 'Activate'} this project?`)) {
         return;
     }
