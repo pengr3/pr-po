@@ -5,6 +5,21 @@
 
 import { showLoading } from './utils.js';
 
+// Map routes to permission tab IDs
+const routePermissionMap = {
+    '/': 'dashboard',
+    '/clients': 'clients',
+    '/projects': 'projects',
+    '/project-detail': 'projects',  // Detail view uses projects permission
+    '/mrf-form': 'mrf_form',
+    '/procurement': 'procurement',
+    '/finance': 'finance',
+    '/role-config': 'role_config'   // Admin route (future)
+};
+
+// Routes that don't require permission checks (auth routes)
+const publicRoutes = ['/login', '/register', '/pending'];
+
 // Current view state
 let currentView = null;
 let currentRoute = null;
@@ -107,6 +122,34 @@ function updateNavigation(path) {
 }
 
 /**
+ * Show access denied page
+ */
+function showAccessDenied() {
+    const appContainer = document.getElementById('app-container');
+    if (!appContainer) return;
+
+    appContainer.innerHTML = `
+        <div class="container" style="padding: 4rem 2rem;">
+            <div class="card">
+                <div class="card-body">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔒</div>
+                        <h3>Access Denied</h3>
+                        <p>You don't have permission to access this page.</p>
+                        <p style="color: var(--gray-500); font-size: 0.875rem; margin-top: 0.5rem;">
+                            Contact your administrator if you believe this is an error.
+                        </p>
+                        <button class="btn btn-primary" onclick="location.hash='#/'" style="margin-top: 1rem;">
+                            Go to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
  * Navigate to a route
  * @param {string} path - Route path
  * @param {string} tab - Optional tab within the route
@@ -120,6 +163,22 @@ export async function navigate(path, tab = null, param = null) {
         // Redirect to home
         window.location.hash = '#/';
         return;
+    }
+
+    // Permission check for protected routes (PERM-14)
+    if (!publicRoutes.includes(path)) {
+        const permissionKey = routePermissionMap[path];
+        const hasAccess = window.hasTabAccess?.(permissionKey);
+
+        // IMPORTANT: Use strict equality check to distinguish:
+        // - false = no permission (block)
+        // - undefined = not loaded yet (allow, pending state)
+        // - true = has permission (allow)
+        if (hasAccess === false) {
+            console.warn('[Router] Access denied to:', path);
+            showAccessDenied();
+            return;
+        }
     }
 
     // Show loading
