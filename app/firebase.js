@@ -21,7 +21,8 @@ import {
     orderBy,
     limit,
     Timestamp,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import {
     getAuth,
@@ -70,7 +71,8 @@ export {
     orderBy,
     limit,
     Timestamp,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 };
 
 // Export Auth methods
@@ -99,7 +101,8 @@ window.firestore = {
     orderBy,
     limit,
     Timestamp,
-    serverTimestamp
+    serverTimestamp,
+    writeBatch
 };
 window.firebaseAuth = {
     createUserWithEmailAndPassword,
