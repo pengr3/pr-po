@@ -246,6 +246,16 @@ export async function init(activeTab = null) {
         window._projectsPermissionHandler = permissionChangeHandler;
     }
 
+    // Phase 7: Re-filter when assignments change
+    const assignmentChangeHandler = () => {
+        console.log('[Projects] Assignments changed, re-filtering...');
+        applyFilters();
+    };
+    window.addEventListener('assignmentsChanged', assignmentChangeHandler);
+    if (!window._projectsAssignmentHandler) {
+        window._projectsAssignmentHandler = assignmentChangeHandler;
+    }
+
     await loadClients();
     await loadProjects();
 }
@@ -258,6 +268,12 @@ export async function destroy() {
     if (window._projectsPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._projectsPermissionHandler);
         delete window._projectsPermissionHandler;
+    }
+
+    // Phase 7: Remove assignment change listener
+    if (window._projectsAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._projectsAssignmentHandler);
+        delete window._projectsAssignmentHandler;
     }
 
     listeners.forEach(unsubscribe => unsubscribe?.());
@@ -462,7 +478,21 @@ function applyFilters() {
     const projectStatusFilter = document.getElementById('projectStatusFilter')?.value || '';
     const clientFilter = document.getElementById('clientFilter')?.value || '';
 
-    filteredProjects = allProjects.filter(project => {
+    // Phase 7: Scope to assigned projects for operations_user
+    // getAssignedProjectCodes() returns null (no filter) for all roles except
+    // operations_user without all_projects. Returns [] if zero assignments.
+    const assignedCodes = window.getAssignedProjectCodes?.();
+    let scopedProjects = allProjects;
+    if (assignedCodes !== null) {
+        // Filter to assigned projects only. Defensively include any project that
+        // lacks a project_code field (legacy pre-Phase-4 data) so they are never
+        // accidentally hidden.
+        scopedProjects = allProjects.filter(project =>
+            !project.project_code || assignedCodes.includes(project.project_code)
+        );
+    }
+
+    filteredProjects = scopedProjects.filter(project => {
         // Search filter (OR across code and name)
         const matchesSearch = !searchTerm ||
             (project.project_code && project.project_code.toLowerCase().includes(searchTerm)) ||
