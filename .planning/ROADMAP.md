@@ -102,10 +102,14 @@ Plans:
   3. Operations Users can only create/edit MRFs for their assigned projects
   4. Operations Users can be assigned "all projects" (no filtering applied)
   5. Project assignment changes take effect immediately (no logout required)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 07-01: [To be planned]
+- [ ] 07-01-PLAN.md — Assignment utility (getAssignedProjectCodes) and assignmentsChanged event dispatch
+- [ ] 07-02-PLAN.md — Project Assignments admin panel (view module + route + nav link)
+- [ ] 07-03-PLAN.md — Project list and detail assignment filtering
+- [ ] 07-04-PLAN.md — MRF form dropdown and procurement MRF list filtering
+- [ ] 07-05-PLAN.md — End-to-end verification checkpoint
 
 ### Phase 8: Security Rules Enforcement
 **Goal**: Server-side Firebase Security Rules enforce all permissions and prevent client-side bypasses
@@ -167,7 +171,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
 | 4. MRF-Project Integration | v1.0 | 3/3 | Complete | 2026-01-30 |
 | 5. Core Authentication | v2.0 | 4/4 | Complete | 2026-02-01 |
 | 6. Role Infrastructure & Real-time Permissions | v2.0 | 5/5 | Complete | 2026-02-03 |
-| 7. Project Assignment System | v2.0 | 0/0 | Not started | - |
+| 7. Project Assignment System | v2.0 | 0/5 | Planned | - |
 | 8. Security Rules Enforcement | v2.0 | 0/0 | Not started | - |
 | 9. Super Admin User Management | v2.0 | 0/0 | Not started | - |
 | 10. Route Protection & Session Security | v2.0 | 0/0 | Not started | - |
