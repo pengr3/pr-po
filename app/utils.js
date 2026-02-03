@@ -218,6 +218,26 @@ export async function generateProjectCode(clientCode, year = null) {
 }
 
 /**
+ * Get the set of project codes the current user is allowed to see.
+ * Returns null if no filtering should be applied (all roles except operations_user,
+ * or operations_user with all_projects flag set).
+ * Returns an array of project_code strings if the user is scoped to specific projects.
+ * Returns an empty array if the user is operations_user with no assignments at all.
+ *
+ * @returns {string[]|null} Array of allowed project_codes, or null for "no filter"
+ */
+export function getAssignedProjectCodes() {
+    const user = window.getCurrentUser?.();
+    if (!user) return null;                          // Not logged in -- no filter
+    if (user.role !== 'operations_user') return null; // Only operations_user is scoped
+
+    if (user.all_projects === true) return null;     // "All projects" escape hatch
+
+    // Return the array if present, otherwise empty array (zero assignments)
+    return Array.isArray(user.assigned_project_codes) ? user.assigned_project_codes : [];
+}
+
+/**
  * Get all active projects
  * @returns {Promise<Array>} Array of active projects
  */
@@ -411,6 +431,7 @@ window.utils = {
     showToast,
     showAlert,
     generateSequentialId,
+    getAssignedProjectCodes,
     getActiveProjects,
     getAllSuppliers,
     calculateTotal,
@@ -423,5 +444,7 @@ window.utils = {
     getFromStorage,
     removeFromStorage
 };
+
+window.getAssignedProjectCodes = getAssignedProjectCodes;
 
 console.log('Utilities module loaded successfully');
