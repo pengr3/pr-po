@@ -59,6 +59,11 @@ export function render() {
 export async function init() {
     console.log('[ProjectAssignments] Initializing...');
 
+    // Re-expose window functions on every init (destroy() removes them, and ES module
+    // top-level code only runs once on first import, so re-assignment is required here)
+    window.handleAllProjectsChange = handleAllProjectsChange;
+    window.handleProjectCheckboxChange = handleProjectCheckboxChange;
+
     // Role gate check (defense in depth -- render() already checked)
     const user = window.getCurrentUser?.();
     if (!user || (user.role !== 'super_admin' && user.role !== 'operations_admin')) {
@@ -246,9 +251,5 @@ export async function destroy() {
 
     console.log('[ProjectAssignments] Destroyed');
 }
-
-// Expose event handler functions to window for onchange attributes in rendered HTML
-window.handleAllProjectsChange = handleAllProjectsChange;
-window.handleProjectCheckboxChange = handleProjectCheckboxChange;
 
 console.log('[ProjectAssignments] View module loaded');
