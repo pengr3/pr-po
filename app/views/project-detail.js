@@ -60,6 +60,18 @@ export async function init(activeTab = null, param = null) {
         window._projectDetailPermissionHandler = permissionChangeHandler;
     }
 
+    // Phase 7: Re-check access when assignments change
+    const assignmentChangeHandler = () => {
+        console.log('[ProjectDetail] Assignments changed, re-checking access...');
+        if (currentProject) {
+            checkProjectAccess(); // Will render access denied if project no longer assigned
+        }
+    };
+    window.addEventListener('assignmentsChanged', assignmentChangeHandler);
+    if (!window._projectDetailAssignmentHandler) {
+        window._projectDetailAssignmentHandler = assignmentChangeHandler;
+    }
+
     if (!projectCode) {
         document.getElementById('projectDetailContainer').innerHTML = `
             <div class="container" style="margin-top: 2rem;">
@@ -93,7 +105,12 @@ export async function init(activeTab = null, param = null) {
 
         const docSnap = snapshot.docs[0];
         currentProject = { id: docSnap.id, ...docSnap.data() };
-        renderProjectDetail();
+
+        // Phase 7: Check project assignment access for operations_user
+        if (checkProjectAccess()) {
+            renderProjectDetail();
+        }
+        // If checkProjectAccess() returns false, it already rendered the access denied message
     });
 }
 
@@ -105,6 +122,12 @@ export async function destroy() {
     if (window._projectDetailPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._projectDetailPermissionHandler);
         delete window._projectDetailPermissionHandler;
+    }
+
+    // Phase 7: Remove assignment change listener
+    if (window._projectDetailAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._projectDetailAssignmentHandler);
+        delete window._projectDetailAssignmentHandler;
     }
 
     if (listener) {
@@ -120,6 +143,53 @@ export async function destroy() {
     delete window.confirmDelete;
 
     console.log('[ProjectDetail] View destroyed');
+}
+
+/**
+ * Check if the current user has access to the current project.
+ * For operations_user without all_projects, the project must be in assigned_project_codes.
+ * Returns true if access is allowed (or if no filtering applies).
+ * Returns false and renders an access denied message if access is denied.
+ * If the target container is not in the DOM (race condition or navigation), falls back
+ * to redirecting to #/projects rather than silently returning false with nothing rendered.
+ */
+function checkProjectAccess() {
+    const assignedCodes = window.getAssignedProjectCodes?.();
+
+    // null means no filtering -- all roles except scoped operations_user
+    if (assignedCodes === null) return true;
+
+    // If current project has no project_code (legacy), allow access defensively
+    if (!currentProject?.project_code) return true;
+
+    // Check if this project is in the assigned set
+    if (assignedCodes.includes(currentProject.project_code)) return true;
+
+    // Access denied -- render message in place (do NOT redirect silently)
+    const container = document.getElementById('projectDetailContainer');
+    if (container) {
+        container.innerHTML = `
+            <div class="container" style="margin-top: 2rem;">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🔒</div>
+                            <h3>Access Denied</h3>
+                            <p>You do not have access to this project.</p>
+                            <p style="color: #64748b; font-size: 0.875rem;">This project has been removed from your assigned projects.</p>
+                            <a href="#/projects" class="btn btn-primary" style="margin-top: 1rem;">Back to Projects</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        // Container not in DOM (race condition or mid-navigation) -- navigate back
+        // rather than silently returning false with nothing rendered.
+        window.location.hash = '#/projects';
+    }
+    console.log('[ProjectDetail] Access denied for project:', currentProject?.project_code);
+    return false;
 }
 
 // Render project detail
