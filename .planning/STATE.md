@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 
 ## Current Position
 
-Phase: 6 of 10 (Role Infrastructure & Real-time Permissions)
-Plan: 5 of 5 in current phase — Phase complete
-Status: Phase 6 complete, awaiting Phase 7
-Last activity: 2026-02-03 — Completed 06-05-PLAN.md (Edit permission enforcement in procurement and finance)
+Phase: 7 of 10 (Project Assignment System)
+Plan: 1 of 5 in current phase — In progress
+Status: Phase 7 in progress
+Last activity: 2026-02-03 — Completed 07-01-PLAN.md (Project assignment core utilities and event dispatch)
 
-Progress: [███████░░░] 76% (19 plans complete)
+Progress: [███████░░░] 80% (20 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19 (10 from v1.0, 9 from v2.0)
+- Total plans completed: 20 (10 from v1.0, 10 from v2.0)
 - Average duration: 3.5 min
 - Total execution time: 21.6 hours
 
@@ -33,12 +33,13 @@ Progress: [███████░░░] 76% (19 plans complete)
 | 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
 | 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
+| 07-project-assignment-system | 1/5 | 1.5min | 1.5min |
 
 **Recent Trend:**
 - Last 5 plans: 20.9 hours, 3min, 3min, 3min, 5min
 - Trend: Consistent 3-5min velocity after Phase 5
 
-*Updated: 2026-02-03 after 06-05 completion*
+*Updated: 2026-02-03 after 07-01 completion*
 
 ## Accumulated Context
 
@@ -82,6 +83,10 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **PERM-29 (06-05)**: PO status dropdowns replaced with colored badges for view-only users - Disabled selects are visually ambiguous, badges match app-wide status pattern
 - **PERM-30 (06-05)**: mrfActions container null-checked in dynamic renderers - Element is conditionally absent from DOM for view-only; selectMRF is intentionally unguarded so users can view details
 - **PERM-31 (06-05)**: Permission matrix selectors use .tab-name/.permission-type classes - Positional nth-child breaks under rowspan="2" on tab-name cells
+- **ASSIGN-01 (07-01)**: getAssignedProjectCodes returns null for "no filter" - null sentinel means do not scope; applies to all roles except operations_user without all_projects
+- **ASSIGN-02 (07-01)**: Missing/malformed assigned_project_codes on operations_user yields empty array - Missing field is zero access, not unconstrained access
+- **ASSIGN-03 (07-01)**: JSON.stringify comparison for array change detection - Firestore always produces new references; stringify handles undefined vs empty transitions
+- **ASSIGN-04 (07-01)**: assignmentsChanged event fires on first assignment too - Downstream listeners must be idempotent
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -124,6 +129,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-03 (06-05 execution)
-Stopped at: Completed 06-05-PLAN.md - Edit permission enforcement in procurement and finance. Phase 6 complete.
+Last session: 2026-02-03 (07-01 execution)
+Stopped at: Completed 07-01-PLAN.md - Project assignment core utilities and assignmentsChanged event dispatch.
 Resume file: None
