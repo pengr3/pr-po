@@ -28,6 +28,8 @@ let filteredPRPORecords = [];
 let prpoCurrentPage = 1;
 const prpoItemsPerPage = 10;
 
+let cachedAllMRFs = [];   // Holds raw MRF snapshot for re-filtering on assignment change
+
 // Firebase listeners for cleanup
 let listeners = [];
 
@@ -328,6 +330,17 @@ export async function init(activeTab = 'mrfs') {
     // Re-attach all window functions (needed after tab navigation)
     attachWindowFunctions();
 
+    // Phase 7: Re-filter MRF list when assignments change
+    // Guard: only register once (init() is called on every tab switch without destroy)
+    if (!window._procurementAssignmentHandler) {
+        const assignmentChangeHandler = () => {
+            console.log('[Procurement] Assignments changed, re-filtering MRF list...');
+            reFilterAndRenderMRFs();
+        };
+        window.addEventListener('assignmentsChanged', assignmentChangeHandler);
+        window._procurementAssignmentHandler = assignmentChangeHandler;
+    }
+
     console.log('[Procurement] Testing window.loadMRFs availability:', typeof window.loadMRFs);
 
     try {
@@ -353,6 +366,15 @@ export async function init(activeTab = 'mrfs') {
  */
 export async function destroy() {
     console.log('[Procurement] 🔴 Destroying procurement view...');
+
+    // Phase 7: Remove assignment change listener
+    if (window._procurementAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._procurementAssignmentHandler);
+        delete window._procurementAssignmentHandler;
+    }
+
+    // Phase 7: Clear cached MRF data
+    cachedAllMRFs = [];
 
     // Unsubscribe from all Firebase listeners
     listeners.forEach(unsubscribe => {
@@ -467,9 +489,23 @@ async function loadMRFs() {
             allMRFs.push({ id: doc.id, ...data });
         });
 
+        // Cache raw data for re-filtering on assignment change (Phase 7)
+        cachedAllMRFs = [...allMRFs];
+
+        // Phase 7: Scope MRF list to assigned projects for operations_user.
+        // Runs BEFORE the material/transport split so both lists are filtered.
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        let scopedMRFs = allMRFs;
+        if (assignedCodes !== null) {
+            scopedMRFs = allMRFs.filter(mrf =>
+                // Defensively include legacy MRFs that lack project_code (pre-Phase-4 data)
+                !mrf.project_code || assignedCodes.includes(mrf.project_code)
+            );
+        }
+
         // Separate by request type
-        const materialMRFs = allMRFs.filter(m => m.request_type !== 'service');
-        const transportMRFs = allMRFs.filter(m => m.request_type === 'service');
+        const materialMRFs = scopedMRFs.filter(m => m.request_type !== 'service');
+        const transportMRFs = scopedMRFs.filter(m => m.request_type === 'service');
 
         // Sort by date_needed (nearest deadline first)
         const sortByDeadline = (a, b) => {
@@ -490,6 +526,36 @@ async function loadMRFs() {
 
     listeners.push(listener);
 };
+
+/**
+ * Re-apply the assignment filter and re-render MRF list.
+ * Uses cachedAllMRFs (set by the loadMRFs onSnapshot callback) so we do not
+ * create duplicate Firestore listeners.
+ */
+function reFilterAndRenderMRFs() {
+    const assignedCodes = window.getAssignedProjectCodes?.();
+    let scopedMRFs = cachedAllMRFs;
+    if (assignedCodes !== null) {
+        scopedMRFs = cachedAllMRFs.filter(mrf =>
+            !mrf.project_code || assignedCodes.includes(mrf.project_code)
+        );
+    }
+
+    const materialMRFs = scopedMRFs.filter(m => m.request_type !== 'service');
+    const transportMRFs = scopedMRFs.filter(m => m.request_type === 'service');
+
+    const sortByDeadline = (a, b) => {
+        const dateA = new Date(a.date_needed);
+        const dateB = new Date(b.date_needed);
+        return dateA - dateB;
+    };
+
+    materialMRFs.sort(sortByDeadline);
+    transportMRFs.sort(sortByDeadline);
+
+    console.log('[Procurement] Re-filtered - Material:', materialMRFs.length, 'Transport:', transportMRFs.length);
+    renderMRFList(materialMRFs, transportMRFs);
+}
 
 /**
  * Render MRF list
