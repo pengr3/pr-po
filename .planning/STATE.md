@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 ## Current Position
 
 Phase: 6 of 10 (Role Infrastructure & Real-time Permissions)
-Plan: 4 of 5 in current phase
-Status: In progress
-Last activity: 2026-02-02 — Completed 06-04-PLAN.md (Edit permission checks for clients, projects, mrf-form)
+Plan: 5 of 5 in current phase — Phase complete
+Status: Phase 6 complete, awaiting Phase 7
+Last activity: 2026-02-03 — Completed 06-05-PLAN.md (Edit permission enforcement in procurement and finance)
 
-Progress: [██████░░░░] 68% (17 plans complete)
+Progress: [███████░░░] 76% (19 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17 (10 from v1.0, 7 from v2.0)
-- Average duration: 3.4 min
-- Total execution time: 21.4 hours
+- Total plans completed: 19 (10 from v1.0, 9 from v2.0)
+- Average duration: 3.5 min
+- Total execution time: 21.6 hours
 
 **By Phase:**
 
@@ -32,13 +32,13 @@ Progress: [██████░░░░] 68% (17 plans complete)
 | 03-projects-management | 2/2 | 7min | 3.5min |
 | 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
-| 06-role-infrastructure-real-time-permissions | 4/5 | 12min | 3.0min |
+| 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
 
 **Recent Trend:**
-- Last 5 plans: 3.3min, 20.9 hours, 3min, 3min, 3min
-- Trend: Consistent 3min velocity after Phase 5
+- Last 5 plans: 20.9 hours, 3min, 3min, 3min, 5min
+- Trend: Consistent 3-5min velocity after Phase 5
 
-*Updated: 2026-02-02 after 06-04 completion*
+*Updated: 2026-02-03 after 06-05 completion*
 
 ## Accumulated Context
 
@@ -79,6 +79,9 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **PERM-26 (06-04)**: Guard functions double-check permissions before executing actions - Defense in depth beyond UI hiding
 - **PERM-27 (06-04)**: MRF form blocked entirely for view-only users - Create form irrelevant for users who can't submit
 - **PERM-28 (06-04)**: Backwards compatible with undefined permission state - Defaults to showing controls when permissions not loaded
+- **PERM-29 (06-05)**: PO status dropdowns replaced with colored badges for view-only users - Disabled selects are visually ambiguous, badges match app-wide status pattern
+- **PERM-30 (06-05)**: mrfActions container null-checked in dynamic renderers - Element is conditionally absent from DOM for view-only; selectMRF is intentionally unguarded so users can view details
+- **PERM-31 (06-05)**: Permission matrix selectors use .tab-name/.permission-type classes - Positional nth-child breaks under rowspan="2" on tab-name cells
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -100,7 +103,7 @@ None yet.
 - ✅ Logout functionality - Header button with confirmation modal (05-04)
 - ⚠️ Super Admin bootstrap process - first admin account needs manual Firestore creation (carried to Phase 6)
 
-**Phase 6 (Role Infrastructure & Real-time Permissions) - IN PROGRESS:**
+**Phase 6 (Role Infrastructure & Real-time Permissions) - COMPLETE:**
 - ✅ Permission module with role template listener (06-01)
 - ✅ Permission integration with auth observer, router, and navigation (06-02)
 - ✅ Super Admin role configuration UI with checkbox matrix (06-03)
@@ -108,8 +111,9 @@ None yet.
 - ✅ Real-time permission propagation to all users (06-03)
 - ✅ Edit permission checks for clients, projects, mrf-form views (06-04)
 - ✅ View-only mode with conditional rendering and guard functions (06-04)
-- 🚧 CSS styling for view-only elements (06-05) - Next plan
-- 🚧 Permission enforcement in procurement and finance views (06-05 or later)
+- ✅ View-only CSS styles (06-05)
+- ✅ Permission enforcement in procurement and finance views (06-05)
+- ✅ Human verification of end-to-end permission system (06-05 checkpoint)
 - Real-time listener performance with >10 projects - Firestore 'in' query limited to 10 items, may need batching (carried to Phase 9)
 - Permission caching strategy - Balance between real-time updates and query efficiency (carried to Phase 9)
 
@@ -120,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-02 (06-04 execution)
-Stopped at: Completed 06-04-PLAN.md - Edit permission checks for clients, projects, mrf-form views
+Last session: 2026-02-03 (06-05 execution)
+Stopped at: Completed 06-05-PLAN.md - Edit permission enforcement in procurement and finance. Phase 6 complete.
 Resume file: None
