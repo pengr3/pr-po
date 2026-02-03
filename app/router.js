@@ -14,7 +14,8 @@ const routePermissionMap = {
     '/mrf-form': 'mrf_form',
     '/procurement': 'procurement',
     '/finance': 'finance',
-    '/role-config': 'role_config'   // Admin route (future)
+    '/role-config': 'role_config',   // Admin route (future)
+    '/project-assignments': 'role_config'   // Shares role_config gate with Settings
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -83,6 +84,11 @@ const routes = {
         name: 'Role Configuration',
         load: () => import('./views/role-config.js'),
         title: 'Role Configuration | CLMC Procurement'
+    },
+    '/project-assignments': {
+        name: 'Project Assignments',
+        load: () => import('./views/project-assignments.js'),
+        title: 'Project Assignments | CLMC Procurement'
     }
 };
 
