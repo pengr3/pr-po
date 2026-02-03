@@ -8,6 +8,7 @@ import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '..
 
 // View state
 let projectsListener = null;
+let cachedProjects = [];   // Holds the latest projects from the onSnapshot callback
 
 /**
  * Render the MRF submission form
@@ -228,6 +229,14 @@ export async function init() {
         // Load projects
         loadProjects();
 
+        // Phase 7: Re-populate dropdown when assignments change
+        const assignmentChangeHandler = () => {
+            console.log('[MRFForm] Assignments changed, re-populating project dropdown...');
+            populateProjectDropdown();
+        };
+        window.addEventListener('assignmentsChanged', assignmentChangeHandler);
+        window._mrfFormAssignmentHandler = assignmentChangeHandler;
+
         // Setup form submission handler
         const form = document.getElementById('mrfForm');
         if (form) {
@@ -250,36 +259,20 @@ function loadProjects() {
         const q = query(projectsRef, where('active', '==', true));
 
         projectsListener = onSnapshot(q, (snapshot) => {
-            // Clear existing options
-            projectSelect.innerHTML = '<option value="">-- Select a project --</option>';
-
-            if (snapshot.empty) {
-                projectSelect.innerHTML = '<option value="">No projects available</option>';
-                return;
-            }
-
-            // Collect and sort projects
-            const projects = [];
+            // Cache projects for re-population on assignment change
+            cachedProjects = [];
             snapshot.forEach(doc => {
-                projects.push({ id: doc.id, ...doc.data() });
+                cachedProjects.push({ id: doc.id, ...doc.data() });
             });
 
             // Sort by created_at descending (most recent first)
-            projects.sort((a, b) => {
+            cachedProjects.sort((a, b) => {
                 const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
                 const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return bTime - aTime; // Most recent first
+                return bTime - aTime;
             });
 
-            // Add sorted project options
-            projects.forEach(project => {
-                const option = document.createElement('option');
-                option.value = project.project_code; // Store the code
-                option.textContent = `${project.project_code} - ${project.project_name}`; // Display format
-                // Store project_name in data attribute for submission
-                option.dataset.projectName = project.project_name;
-                projectSelect.appendChild(option);
-            });
+            populateProjectDropdown();
         }, (error) => {
             console.error('Error loading projects:', error);
             projectSelect.innerHTML = '<option value="">Error loading projects</option>';
@@ -288,6 +281,44 @@ function loadProjects() {
         console.error('Error setting up projects listener:', error);
         projectSelect.innerHTML = '<option value="">Error loading projects</option>';
     }
+}
+
+/**
+ * Populate the project dropdown from cachedProjects, applying assignment filter
+ * for operations_user. Called by the onSnapshot callback and by the
+ * assignmentsChanged event handler.
+ */
+function populateProjectDropdown() {
+    const projectSelect = document.getElementById('projectName');
+    if (!projectSelect) return;
+
+    // Phase 7: Filter to assigned projects for operations_user
+    const assignedCodes = window.getAssignedProjectCodes?.();
+    let projects = cachedProjects;
+    if (assignedCodes !== null) {
+        projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
+    }
+
+    // Clear and rebuild dropdown
+    projectSelect.innerHTML = '<option value="">-- Select a project --</option>';
+
+    if (projects.length === 0) {
+        // Distinct hint for operations_user with zero assignments vs truly empty collection
+        if (assignedCodes !== null) {
+            projectSelect.innerHTML = '<option value="" disabled>No projects assigned -- contact your admin</option>';
+        } else {
+            projectSelect.innerHTML = '<option value="">No projects available</option>';
+        }
+        return;
+    }
+
+    projects.forEach(project => {
+        const option = document.createElement('option');
+        option.value = project.project_code;
+        option.textContent = `${project.project_code} - ${project.project_name}`;
+        option.dataset.projectName = project.project_name;
+        projectSelect.appendChild(option);
+    });
 }
 
 /**
@@ -548,6 +579,12 @@ async function handleFormSubmit(e) {
  */
 export async function destroy() {
     console.log('Destroying MRF form view...');
+
+    // Phase 7: Remove assignment change listener
+    if (window._mrfFormAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._mrfFormAssignmentHandler);
+        delete window._mrfFormAssignmentHandler;
+    }
 
     // Unsubscribe from listeners
     if (projectsListener) {
