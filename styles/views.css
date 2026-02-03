@@ -1110,8 +1110,8 @@
     text-align: left;
 }
 
-.permission-matrix td:first-child,
-.permission-matrix td:nth-child(2) {
+.permission-matrix td.tab-name,
+.permission-matrix td.permission-type {
     text-align: left;
 }
 
