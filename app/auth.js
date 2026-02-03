@@ -256,6 +256,9 @@ export function initAuthObserver() {
 
                             // Detect role change (PERM-19) - reinitialize permission listener
                             const previousRole = currentUser?.role;
+                            // Capture previous assignment state for change detection (Phase 7)
+                            const previousAssignedCodes = currentUser?.assigned_project_codes;
+                            const previousAllProjects = currentUser?.all_projects;
                             currentUser = { uid: user.uid, ...updatedUserData };
 
                             console.log('[Auth] User document updated:', updatedUserData.status);
@@ -270,6 +273,18 @@ export function initAuthObserver() {
                                     // No valid role, destroy permissions
                                     destroyPermissionsObserver();
                                 }
+                            }
+
+                            // Phase 7: Detect assignment change and dispatch event
+                            // Compares serialized arrays because array reference equality is always false
+                            const newAssignedCodes = updatedUserData.assigned_project_codes;
+                            const newAllProjects = updatedUserData.all_projects;
+                            if (JSON.stringify(newAssignedCodes) !== JSON.stringify(previousAssignedCodes) ||
+                                newAllProjects !== previousAllProjects) {
+                                console.log('[Auth] Assignments changed, dispatching event');
+                                window.dispatchEvent(new CustomEvent('assignmentsChanged', {
+                                    detail: { user: currentUser }
+                                }));
                             }
 
                             // AUTH-09: If status changes to 'deactivated', force logout
