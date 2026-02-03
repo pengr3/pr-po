@@ -710,27 +710,34 @@ async function selectMRF(mrfId, element) {
 function renderMRFDetails(mrf, isNew = false) {
     const items = JSON.parse(mrf.items_json);
 
+    // Only update action buttons if the mrfActions container exists (hidden for view-only users)
+    const mrfActionsEl = document.getElementById('mrfActions');
+
     // Show correct button based on whether it's new or existing
     if (isNew) {
         // For new MRFs, only show Save button
-        let buttons = '<button class="btn btn-primary" onclick="window.saveNewMRF()">💾 Save New MRF</button>';
-        document.getElementById('mrfActions').innerHTML = buttons;
+        if (mrfActionsEl) {
+            let buttons = '<button class="btn btn-primary" onclick="window.saveNewMRF()">💾 Save New MRF</button>';
+            mrfActionsEl.innerHTML = buttons;
+        }
     } else {
         // For existing MRFs, show normal buttons
-        const isService = mrf.request_type === 'service';
-        const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected';
+        if (mrfActionsEl) {
+            const isService = mrf.request_type === 'service';
+            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected';
 
-        let buttons = '<button class="btn btn-primary" onclick="window.saveProgress()">💾 Save</button>';
-        if (canEdit) {
-            if (isService) {
-                buttons += ' <button class="btn btn-success" onclick="window.submitTransportRequest()">📄 Submit to Finance</button>';
-            } else {
-                buttons += ' <button class="btn btn-success" onclick="window.generatePR()">📄 Generate PR</button>';
+            let buttons = '<button class="btn btn-primary" onclick="window.saveProgress()">💾 Save</button>';
+            if (canEdit) {
+                if (isService) {
+                    buttons += ' <button class="btn btn-success" onclick="window.submitTransportRequest()">📄 Submit to Finance</button>';
+                } else {
+                    buttons += ' <button class="btn btn-success" onclick="window.generatePR()">📄 Generate PR</button>';
+                }
             }
+            // Add delete button for procurement to remove unnecessary requests
+            buttons += ' <button class="btn btn-danger" onclick="window.deleteMRF()" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>';
+            mrfActionsEl.innerHTML = buttons;
         }
-        // Add delete button for procurement to remove unnecessary requests
-        buttons += ' <button class="btn btn-danger" onclick="window.deleteMRF()" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>';
-        document.getElementById('mrfActions').innerHTML = buttons;
     }
 
     const requestTypeLabel = mrf.request_type === 'service' ?
@@ -1033,7 +1040,11 @@ function updateActionButtons() {
     // Add delete button for procurement to remove unnecessary requests
     buttons += ' <button class="btn btn-danger" onclick="window.deleteMRF()" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>';
 
-    document.getElementById('mrfActions').innerHTML = buttons;
+    // Only update if container exists (hidden for view-only users)
+    const mrfActionsEl = document.getElementById('mrfActions');
+    if (mrfActionsEl) {
+        mrfActionsEl.innerHTML = buttons;
+    }
 };
 
 /**
@@ -2077,6 +2088,9 @@ async function renderPRPORecords() {
     const container = document.getElementById('prpoRecordsContainer');
     if (!container) return;
 
+    const canEdit = window.canEditTab?.('procurement');
+    const showEditControls = canEdit !== false;
+
     if (filteredPRPORecords.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: #999;">
@@ -2250,17 +2264,31 @@ async function renderPRPORecords() {
                             `;
                         }
 
+                        // Status badge colors for view-only display
+                        const statusColors = {
+                            'Pending Procurement': { bg: '#fef3c7', color: '#f59e0b' },
+                            'Pending': { bg: '#fef3c7', color: '#f59e0b' },
+                            'Procuring': { bg: '#dbeafe', color: '#3b82f6' },
+                            'Processing': { bg: '#dbeafe', color: '#3b82f6' },
+                            'Procured': { bg: '#d1fae5', color: '#22c55e' },
+                            'Processed': { bg: '#d1fae5', color: '#22c55e' },
+                            'Delivered': { bg: '#eff6ff', color: '#2563eb' }
+                        };
+                        const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
+
                         return {
                             linkHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                 <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
                             </div>`,
                             statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
+                                ${showEditControls ? `
                                 <select class="status-select" data-po-id="${po.docId}" data-is-subcon="${isSubcon}"
                                         onchange="window.updatePOStatus('${po.docId}', this.value, '${currentStatus}', ${isSubcon})"
                                         ${isFinalStatus ? 'disabled' : ''}
                                         style="padding: 0.35rem 0.5rem; border: 1px solid #dadce0; border-radius: 4px; font-size: 0.75rem; ${isFinalStatus ? 'opacity: 0.6; cursor: not-allowed;' : 'cursor: pointer;'}">
                                     ${statusOptions}
                                 </select>
+                                ` : `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${currentStatus}</span>`}
                             </div>`,
                             timelineHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                 <button onclick="window.viewPOTimeline('${po.docId}')" style="padding: 6px 12px; font-size: 0.75rem; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">Timeline</button>
@@ -3285,6 +3313,9 @@ async function refreshPOTracking() {
 function renderPOTrackingTable(pos) {
     const tbody = document.getElementById('poTrackingBody');
 
+    const canEdit = window.canEditTab?.('procurement');
+    const showEditControls = canEdit !== false;
+
     // Calculate separate scoreboard counts for Materials and Subcon
     const materialCounts = {
         pending: 0,      // Pending Procurement
@@ -3367,6 +3398,18 @@ function renderPOTrackingTable(pos) {
             `;
         }
 
+        // Status badge colors for view-only display
+        const statusColors = {
+            'Pending Procurement': { bg: '#fef3c7', color: '#f59e0b' },
+            'Pending': { bg: '#fef3c7', color: '#f59e0b' },
+            'Procuring': { bg: '#dbeafe', color: '#3b82f6' },
+            'Processing': { bg: '#dbeafe', color: '#3b82f6' },
+            'Procured': { bg: '#d1fae5', color: '#22c55e' },
+            'Processed': { bg: '#d1fae5', color: '#22c55e' },
+            'Delivered': { bg: '#eff6ff', color: '#2563eb' }
+        };
+        const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
+
         return `
         <tr>
             <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
@@ -3375,11 +3418,13 @@ function renderPOTrackingTable(pos) {
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
             <td>${new Date(po.date_issued).toLocaleDateString()}</td>
             <td>
+                ${showEditControls ? `
                 <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
                         onchange="updatePOStatus('${po.id}', this.value, '${currentStatus}', ${isSubcon})"
                         ${isFinalStatus ? 'disabled style="opacity: 0.6; cursor: not-allowed;"' : ''}>
                     ${statusOptions}
                 </select>
+                ` : `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${currentStatus}</span>`}
             </td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
