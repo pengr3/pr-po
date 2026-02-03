@@ -27,13 +27,13 @@ Requirements for Authentication & Permissions milestone. Each maps to roadmap ph
 
 ### Permission System - Role Templates
 
-- [ ] **PERM-01**: System has 5 configurable role templates: Super Admin, Operations Admin, Operations User, Finance, Procurement
-- [ ] **PERM-02**: Each role template stores configurable permissions (tab access, edit rights)
-- [ ] **PERM-03**: Super Admin can view role configuration matrix (all roles and their permissions)
-- [ ] **PERM-04**: Super Admin can edit role permissions via checkboxes (which tabs each role can access)
-- [ ] **PERM-05**: Super Admin can configure edit vs view-only permission per tab for each role
-- [ ] **PERM-06**: Role configuration changes apply to all users with that role immediately
-- [ ] **PERM-07**: System initializes with sensible default permissions for each role template
+- [x] **PERM-01**: System has 5 configurable role templates: Super Admin, Operations Admin, Operations User, Finance, Procurement
+- [x] **PERM-02**: Each role template stores configurable permissions (tab access, edit rights)
+- [x] **PERM-03**: Super Admin can view role configuration matrix (all roles and their permissions)
+- [x] **PERM-04**: Super Admin can edit role permissions via checkboxes (which tabs each role can access)
+- [x] **PERM-05**: Super Admin can configure edit vs view-only permission per tab for each role
+- [x] **PERM-06**: Role configuration changes apply to all users with that role immediately
+- [x] **PERM-07**: System initializes with sensible default permissions for each role template
 
 ### Permission System - Project Assignments
 
@@ -45,13 +45,13 @@ Requirements for Authentication & Permissions milestone. Each maps to roadmap ph
 
 ### Permission System - Enforcement
 
-- [ ] **PERM-13**: Navigation menu shows only tabs permitted by user's role template configuration
-- [ ] **PERM-14**: Attempting to access unpermitted tab redirects to dashboard or shows access denied
-- [ ] **PERM-15**: Edit mode vs view-only mode enforced within tabs based on role template permissions
-- [ ] **PERM-16**: Role template changes take effect immediately for all users with that role (no logout required)
-- [ ] **PERM-17**: User role changes take effect immediately (no logout required)
-- [ ] **PERM-18**: Real-time listener on role template updates permissions in active sessions
-- [ ] **PERM-19**: Real-time listener on user document updates role/projects in active session
+- [x] **PERM-13**: Navigation menu shows only tabs permitted by user's role template configuration
+- [x] **PERM-14**: Attempting to access unpermitted tab redirects to dashboard or shows access denied
+- [x] **PERM-15**: Edit mode vs view-only mode enforced within tabs based on role template permissions
+- [x] **PERM-16**: Role template changes take effect immediately for all users with that role (no logout required)
+- [x] **PERM-17**: User role changes take effect immediately (no logout required)
+- [x] **PERM-18**: Real-time listener on role template updates permissions in active sessions
+- [x] **PERM-19**: Real-time listener on user document updates role/projects in active session
 - [ ] **PERM-20**: Firebase Security Rules validate user status (active) for all operations
 - [ ] **PERM-21**: Firebase Security Rules validate user role template permissions for all operations
 - [ ] **PERM-22**: Firebase Security Rules validate project assignments for data filtering
@@ -170,40 +170,40 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 5 | Pending |
-| AUTH-02 | Phase 5 | Pending |
-| AUTH-03 | Phase 5 | Pending |
-| AUTH-04 | Phase 5 | Pending |
-| AUTH-05 | Phase 5 | Pending |
-| AUTH-06 | Phase 5 | Pending |
-| AUTH-07 | Phase 5 | Pending |
-| AUTH-08 | Phase 5 | Pending |
-| AUTH-09 | Phase 5 | Pending |
+| AUTH-01 | Phase 5 | Complete |
+| AUTH-02 | Phase 5 | Complete |
+| AUTH-03 | Phase 5 | Complete |
+| AUTH-04 | Phase 5 | Complete |
+| AUTH-05 | Phase 5 | Complete |
+| AUTH-06 | Phase 5 | Complete |
+| AUTH-07 | Phase 5 | Complete |
+| AUTH-08 | Phase 5 | Complete |
+| AUTH-09 | Phase 5 | Complete |
 | AUTH-10 | Phase 9 | Pending |
 | AUTH-11 | Phase 9 | Pending |
 | AUTH-12 | Phase 9 | Pending |
 | AUTH-13 | Phase 9 | Pending |
 | AUTH-14 | Phase 9 | Pending |
 | AUTH-15 | Phase 9 | Pending |
-| PERM-01 | Phase 6 | Pending |
-| PERM-02 | Phase 6 | Pending |
-| PERM-03 | Phase 6 | Pending |
-| PERM-04 | Phase 6 | Pending |
-| PERM-05 | Phase 6 | Pending |
-| PERM-06 | Phase 6 | Pending |
-| PERM-07 | Phase 6 | Pending |
+| PERM-01 | Phase 6 | Complete |
+| PERM-02 | Phase 6 | Complete |
+| PERM-03 | Phase 6 | Complete |
+| PERM-04 | Phase 6 | Complete |
+| PERM-05 | Phase 6 | Complete |
+| PERM-06 | Phase 6 | Complete |
+| PERM-07 | Phase 6 | Complete |
 | PERM-08 | Phase 7 | Pending |
 | PERM-09 | Phase 7 | Pending |
 | PERM-10 | Phase 7 | Pending |
 | PERM-11 | Phase 7 | Pending |
 | PERM-12 | Phase 7 | Pending |
-| PERM-13 | Phase 6 | Pending |
-| PERM-14 | Phase 6 | Pending |
-| PERM-15 | Phase 6 | Pending |
-| PERM-16 | Phase 6 | Pending |
-| PERM-17 | Phase 6 | Pending |
-| PERM-18 | Phase 6 | Pending |
-| PERM-19 | Phase 6 | Pending |
+| PERM-13 | Phase 6 | Complete |
+| PERM-14 | Phase 6 | Complete |
+| PERM-15 | Phase 6 | Complete |
+| PERM-16 | Phase 6 | Complete |
+| PERM-17 | Phase 6 | Complete |
+| PERM-18 | Phase 6 | Complete |
+| PERM-19 | Phase 6 | Complete |
 | PERM-20 | Phase 8 | Pending |
 | PERM-21 | Phase 8 | Pending |
 | PERM-22 | Phase 8 | Pending |

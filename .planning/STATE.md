@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-01-30)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 6 - Role Infrastructure & Real-time Permissions
+**Current focus:** Phase 7 - Project Assignment System
 
 ## Current Position
 

@@ -86,11 +86,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Role templates foundation and permissions module
-- [ ] 06-02-PLAN.md — Auth, router, and navigation permission integration
-- [ ] 06-03-PLAN.md — Role configuration admin UI (checkbox matrix)
-- [ ] 06-04-PLAN.md — Edit mode vs view-only enforcement (clients, projects, mrf-form)
-- [ ] 06-05-PLAN.md — Edit mode vs view-only enforcement (procurement, finance) + CSS
+- [x] 06-01-PLAN.md — Role templates foundation and permissions module
+- [x] 06-02-PLAN.md — Auth, router, and navigation permission integration
+- [x] 06-03-PLAN.md — Role configuration admin UI (checkbox matrix)
+- [x] 06-04-PLAN.md — Edit mode vs view-only enforcement (clients, projects, mrf-form)
+- [x] 06-05-PLAN.md — Edit mode vs view-only enforcement (procurement, finance) + CSS
 
 ### Phase 7: Project Assignment System
 **Goal**: Operations Users see only assigned projects with immediate filtering
@@ -166,7 +166,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
 | 3. Project Detail View | v1.0 | 3/3 | Complete | 2026-01-30 |
 | 4. MRF-Project Integration | v1.0 | 3/3 | Complete | 2026-01-30 |
 | 5. Core Authentication | v2.0 | 4/4 | Complete | 2026-02-01 |
-| 6. Role Infrastructure & Real-time Permissions | v2.0 | 0/5 | Planned | - |
+| 6. Role Infrastructure & Real-time Permissions | v2.0 | 5/5 | Complete | 2026-02-03 |
 | 7. Project Assignment System | v2.0 | 0/0 | Not started | - |
 | 8. Security Rules Enforcement | v2.0 | 0/0 | Not started | - |
 | 9. Super Admin User Management | v2.0 | 0/0 | Not started | - |
