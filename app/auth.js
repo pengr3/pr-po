@@ -227,12 +227,29 @@ export function initAuthObserver() {
                         // Redirect pending users to pending page
                         if (!currentHash.includes('/pending')) {
                             console.log('[Auth] Pending user - redirecting to pending page');
+
+                            // Preserve intended route for after approval (SEC-02)
+                            // If they become active, they'll be redirected to intended route
+                            const currentPath = window.location.hash.slice(1);
+                            if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
+                                console.log('[Auth] Preserving intended route for pending user:', currentPath);
+                                sessionStorage.setItem('intendedRoute', currentPath);
+                            }
+
                             window.location.hash = '#/pending';
                         }
                     } else if (userData.status === 'rejected') {
                         // Rejected users also see pending page (shows rejection message)
                         if (!currentHash.includes('/pending')) {
                             console.log('[Auth] Rejected user - redirecting to pending page');
+
+                            // Preserve intended route for rejected user (in case they're reactivated)
+                            const currentPath = window.location.hash.slice(1);
+                            if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
+                                console.log('[Auth] Preserving intended route for rejected user:', currentPath);
+                                sessionStorage.setItem('intendedRoute', currentPath);
+                            }
+
                             window.location.hash = '#/pending';
                         }
                     } else if (userData.status === 'deactivated') {
@@ -495,6 +512,9 @@ export async function handleLogout() {
     }
 
     try {
+        // Clear any saved intended route (SEC-02)
+        sessionStorage.removeItem('intendedRoute');
+
         await signOut(auth);
         console.log('[Auth] User signed out successfully');
         window.location.hash = '#/login';
