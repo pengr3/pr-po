@@ -2,210 +2,93 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-30)
+See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 10 - Route Protection & Session Security
+**Current focus:** Planning next milestone (v2.1+)
 
 ## Current Position
 
-Phase: 10 of 10 (Route Protection & Session Security)
-Plan: 4 of 4 — Complete
-Status: Phase 10 complete ✅ v2.0 READY FOR PRODUCTION
-Last activity: 2026-02-04 — Completed 10-04-PLAN.md (verification)
+Phase: — (v2.0 complete, next milestone not yet planned)
+Plan: —
+Status: Ready for next milestone planning
+Last activity: 2026-02-04 — v2.0 milestone archived
 
-Progress: [███████████] 100% (38 plans complete, Phase 10 of 10 COMPLETE)
+Progress: [███████████] v2.0 complete (38 plans total: 10 from v1.0, 28 from v2.0)
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 38 (10 from v1.0, 28 from v2.0)
-- Average duration: ~2 hours
-- Total execution time: ~28 hours
+**v1.0 Velocity:**
+- Phases: 1-4 (4 phases)
+- Plans: 10 total
+- Duration: 59 days (2025-12-02 → 2026-01-30)
+- Average: ~6 days per phase
 
-**By Phase:**
+**v2.0 Velocity:**
+- Phases: 5-10 (6 phases)
+- Plans: 26 total
+- Duration: 64 days (2025-12-02 → 2026-02-04)
+- Average: ~10.7 days per phase
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-clients-foundation | 2/2 | 5min | 2.5min |
-| 02-projects-core | 3/3 | 6min | 2.0min |
-| 03-projects-management | 2/2 | 7min | 3.5min |
-| 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
-| 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
-| 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
-| 07-project-assignment-system | 5/5 | 8.5min | 2.1min |
-| 08-security-rules-enforcement | 4/4 | 42min | 10.5min |
-| 09-super-admin-user-management | 4/4 | 11min | 2.8min |
-| 10-route-protection-session-security | 4/4 | 46min | 11.5min |
-
-**Recent Trend:**
-- Last 5 plans: 4min, 0min (verification), 1.3min, 45min (verification), —
-- Trend: Phase 10 complete - 11.5min average including comprehensive testing
-
-*Updated: 2026-02-04 after 10-04 completion*
+**Combined Stats:**
+- Total phases: 10
+- Total plans: 38
+- Total duration: ~123 days across both milestones
+- Files modified: 93+ (9 in v1.0, 84 in v2.0)
+- JavaScript LOC: 14,264 lines
 
 ## Accumulated Context
 
-### Decisions
+### Recent Milestones
 
-Recent decisions affecting current work (full log in PROJECT.md):
+**v1.0 Core Projects Foundation (Shipped: 2026-01-30)**
+- Project lifecycle tracking with client management
+- Composite project codes (CLMC_CLIENT_YYYY###)
+- Full-page project detail view with inline editing
+- Active/inactive lifecycle management
+- Project-anchored MRF workflow
+- 9,312 lines JavaScript, 4 phases, 10 plans
 
-- **AUTH-01 (05-01)**: Firebase Auth v10.7.1 - Same version as Firestore for SDK consistency
-- **AUTH-02 (05-01)**: browserLocalPersistence - 1-day session requirement
-- **AUTH-03 (05-01)**: Invitation codes in separate collection - Track usage and prevent reuse
-- **AUTH-04 (05-01)**: New users default to pending status with null role - Super Admin assigns during approval
-- **AUTH-05 (05-03)**: Generic login error messages - Security best practice, prevents account enumeration
-- **AUTH-06 (05-03)**: Custom authStateChanged event - Event-driven auth state management
-- **AUTH-07 (05-03)**: Real-time user document listener - Enables AUTH-09 deactivation enforcement
-- **AUTH-08 (05-03)**: Store Firestore user data, not just Firebase Auth - Need role and status for routing
-- **AUTH-09 (05-03)**: Auto-logout deactivated users - Real-time enforcement of account deactivation
-- **LOGOUT-01 (05-04)**: Logout requires confirmation modal - Prevent accidental sign-out
-- **LOGOUT-02 (05-04)**: Confirmation modal created dynamically - Keep index.html clean
-- **PENDING-01 (05-04)**: Manual status checking via button - Give users control without auto-polling
-- **PENDING-02 (05-04)**: Show rejection/deactivation messages on pending page - Centralize non-active states
-- **ROUTING-01 (05-04)**: Status-based routing in auth observer - Automatically direct pending users on login
-- **ROUTING-02 (05-04)**: No route blocking yet for active users - Full protection deferred to Phase 10
-- **REG-01 (05-02)**: Combined form and submission in single commit - Tightly coupled view module pattern
-- **REG-02 (05-02)**: Pre-filled invitation codes are disabled - Prevent user editing when code from URL
-- **REG-03 (05-02)**: Auth styles in views.css - Consistent with existing view-specific styling pattern
-- **PERM-13 (06-02)**: Navigation filtered based on tab access permissions - Clean separation between routing logic and permission enforcement
-- **PERM-14 (06-02)**: Router blocks access to unpermitted routes with Access Denied page - Strict equality (hasAccess === false) distinguishes no permission from pending state
-- **PERM-16 (06-02)**: Permissions initialize automatically on login for active users with roles - Automatic setup ensures permissions ready before navigation
-- **PERM-17 (06-02)**: Permission listener skipped for pending/rejected/deactivated users - Avoids unnecessary Firestore queries
-- **PERM-18 (06-02)**: permissionsChanged event listener at module level updates navigation in real-time - Module-level registration persists for application lifetime
-- **PERM-19 (06-02)**: Role changes detected and trigger permission listener reinitialization - Enables automatic permission reload when Super Admin changes user's role
-- **PERM-20 (06-03)**: Checkbox matrix displays all 5 roles x 7 tabs x 2 permissions (70 checkboxes) - Complete visibility of all permissions in single view
-- **PERM-21 (06-03)**: Pending changes tracked locally before save - Enables discard functionality without side effects
-- **PERM-22 (06-03)**: Batch writes for atomic role updates - Ensures consistency, prevents partial updates
-- **PERM-23 (06-03)**: Super Admin's role_config permissions disabled in UI - Prevents lockout scenario
-- **PERM-24 (06-03)**: Visual change indicators show pending edits - Clear visual feedback prevents accidental data loss
-- **PERM-25 (06-04)**: Strict equality (=== false) distinguishes no permission from loading state - Prevents UI flickering, backwards compatible with undefined
-- **PERM-26 (06-04)**: Guard functions double-check permissions before executing actions - Defense in depth beyond UI hiding
-- **PERM-27 (06-04)**: MRF form blocked entirely for view-only users - Create form irrelevant for users who can't submit
-- **PERM-28 (06-04)**: Backwards compatible with undefined permission state - Defaults to showing controls when permissions not loaded
-- **PERM-29 (06-05)**: PO status dropdowns replaced with colored badges for view-only users - Disabled selects are visually ambiguous, badges match app-wide status pattern
-- **PERM-30 (06-05)**: mrfActions container null-checked in dynamic renderers - Element is conditionally absent from DOM for view-only; selectMRF is intentionally unguarded so users can view details
-- **PERM-31 (06-05)**: Permission matrix selectors use .tab-name/.permission-type classes - Positional nth-child breaks under rowspan="2" on tab-name cells
-- **ASSIGN-01 (07-01)**: getAssignedProjectCodes returns null for "no filter" - null sentinel means do not scope; applies to all roles except operations_user without all_projects
-- **ASSIGN-02 (07-01)**: Missing/malformed assigned_project_codes on operations_user yields empty array - Missing field is zero access, not unconstrained access
-- **ASSIGN-03 (07-01)**: JSON.stringify comparison for array change detection - Firestore always produces new references; stringify handles undefined vs empty transitions
-- **ASSIGN-04 (07-01)**: assignmentsChanged event fires on first assignment too - Downstream listeners must be idempotent
-- **INFRA-01 (08-01)**: Manual firebase.json creation instead of firebase init - Avoids interactive prompts and unnecessary files
-- **INFRA-02 (08-01)**: Emulator ports 8080 (Firestore) and 4000 (UI) - Standard Firebase defaults, avoids SPA dev server conflict
-- **INFRA-03 (08-01)**: Test dependencies in /test subfolder - Zero impact on SPA, isolated test environment
-- **INFRA-04 (08-01)**: @firebase/rules-unit-testing v3.0.0 with ES modules - Matches SPA patterns, current stable testing API
-- **TEST-01 (08-03)**: 17 critical path tests (not exhaustive) - High-risk scenarios only: unauthenticated blocked, pending restricted, RBAC enforced, project scoping, console bypass
-- **TEST-02 (08-03)**: Java 21 installed as portable extraction - Firebase Emulator prerequisite, no system PATH modification
-- **DEPLOY-01 (08-04)**: Deployment-only plan with no code commits - Infrastructure operations don't require git commits
-- **DEPLOY-02 (08-04)**: Human verification tests both blocking and success - Confirms security enforcement works and no regression for authorized users
-- **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
-- **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
-- **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
-- **v2.0 Planning**: 5 roles instead of 3 - Added Finance and Procurement for granular access control aligned with workflows
-- **USER-01 (09-01)**: UUID format for invitation codes - crypto.randomUUID() generates RFC 4122 compliant UUIDs
-- **USER-02 (09-01)**: Auto-copy to clipboard on generation - Reduces manual steps, improves UX
-- **USER-03 (09-01)**: 3-hour expiration for invitation codes - Balances security with reasonable signup window
-- **USER-04 (09-01)**: Silent cleanup on init - No toast notifications for background maintenance
-- **USER-05 (09-01)**: Tab structure with placeholders - Pending Approvals and All Users tabs ready for next plans
-- **APPROVAL-01 (09-02)**: Role assignment during approval (atomic operation) - Simplifies workflow, prevents race conditions
-- **APPROVAL-02 (09-02)**: Default role selection to operations_user - Most common role in procurement workflows
-- **APPROVAL-03 (09-02)**: Immediate deletion for rejected users - No lingering rejected status, clean database
-- **APPROVAL-04 (09-02)**: Firebase Auth accounts persist after rejection - Acceptable limitation, no system access without Firestore doc
-- **USER-06 (09-03)**: Email confirmation for deactivation - Required to prevent accidental deactivation
-- **USER-07 (09-03)**: Last Super Admin count check - Prevents system lockout scenario
-- **USER-08 (09-03)**: Two-step delete (deactivate first) - Reversible action before permanent deletion
-- **USER-09 (09-03)**: Kebab menu for actions - Space-efficient, discoverable UI pattern
-- **USER-10 (09-03)**: Document click listener for menu closing - Standard dropdown behavior
-- **USER-11 (09-03)**: Defense in depth status checks - UI + function-level validation
-- **NAV-01 (10-03)**: Hide all navigation links for unauthenticated users - Progressive disclosure, reduces information disclosure to potential attackers
-- **ADMIN-01 (10-03)**: Minimum 1 active Super Admin enforced (planned for 2, implemented as 1) - Prevents complete system lockout
-- **ROUTE-01 (10-01)**: Authentication guard before route loading - Synchronous check prevents content flash
-- **ROUTE-02 (10-02)**: Deep link support via sessionStorage - Intended route saved and restored after login
-- **TEST-01 (10-04)**: Manual verification approach for security testing - Automated tests exist in Phase 8 for Firestore rules
-- **TEST-02 (10-04)**: Real-time Firestore state used for deactivation testing - More realistic than mocked scenarios
+**v2.0 Authentication & Permissions (Shipped: 2026-02-04)**
+- Complete RBAC system with 5 roles
+- Self-registration with invitation codes
+- Real-time permission updates
+- Project assignment system for Operations Users
+- Firebase Security Rules (247 lines, 17/17 tests passing)
+- Super Admin dashboard for user management
+- Multi-layer route protection
+- 14,264 lines JavaScript (+20,115 / -178), 6 phases, 26 plans
+
+### Key Architectural Decisions
+
+See PROJECT.md Key Decisions table for full list. Recent highlights:
+
+**v2.0 decisions:**
+- Real-time permission updates via Firestore listeners (no logout required)
+- Firebase Security Rules for server-side enforcement (prevents console bypass)
+- UUID invitation codes with 3-hour expiration (balance security with UX)
+- Minimum 2 Super Admin safeguard (prevents system lockout)
+- Strict equality (=== false) for permission checks (prevents UI flickering)
 
 ### Pending Todos
 
-None yet.
+None - ready for next milestone planning.
 
-### Blockers/Concerns
+### Known Constraints
 
-**Phase 7 (Project Assignment System) - COMPLETE:**
-- ✅ Assignment utility + assignmentsChanged event (07-01)
-- ✅ Project Assignments admin panel (07-02)
-- ✅ Project list and detail filtering (07-03)
-- ✅ MRF form dropdown and procurement MRF list filtering (07-04)
-- ✅ End-to-end human verification — all 8 test blocks passed (07-05)
-
-**Phase 8 (Security Rules Enforcement) - COMPLETE:**
-- ✅ Firebase CLI infrastructure (08-01) - firebase.json, firestore.indexes.json, test/package.json
-- ✅ Emulator configuration complete - Firestore port 8080, UI port 4000
-- ✅ Test dependencies configured - @firebase/rules-unit-testing v3.0.0, mocha, ES modules
-- ✅ Security Rules authoring (08-02) - 247 lines, 6 helper functions, 10 collection match blocks
-- ✅ Test suite complete (08-03) - 17 test cases, all passing, Java 21 installed for emulator
-- ✅ Production deployment (08-04) - Rules deployed, console bypass blocked, normal ops verified
-- Firestore 'in' query limit of 10 items — may require batching for >10 assigned projects (carried to Phase 9)
-
-**Phase 5 (Core Authentication) - COMPLETE:**
-- ✅ Firebase version compatibility - Using 10.7.1 for SDK consistency (AUTH-01)
-- ✅ Migration risk - 05-01 added auth without breaking existing v1.0 functionality (verified)
-- ✅ Registration flow complete - Users can register with invitation codes, creates pending users (05-02)
-- ✅ Login page complete - Authentication working with persistent sessions (05-03)
-- ✅ AUTH-09 implemented - Deactivated users automatically logged out via real-time listener (05-03)
-- ✅ Pending user experience - Approval page with status checking and logout (05-04)
-- ✅ Logout functionality - Header button with confirmation modal (05-04)
-- ⚠️ Super Admin bootstrap process - first admin account needs manual Firestore creation (carried to Phase 6)
-
-**Phase 6 (Role Infrastructure & Real-time Permissions) - COMPLETE:**
-- ✅ Permission module with role template listener (06-01)
-- ✅ Permission integration with auth observer, router, and navigation (06-02)
-- ✅ Super Admin role configuration UI with checkbox matrix (06-03)
-- ✅ Batch writes for atomic permission updates (06-03)
-- ✅ Real-time permission propagation to all users (06-03)
-- ✅ Edit permission checks for clients, projects, mrf-form views (06-04)
-- ✅ View-only mode with conditional rendering and guard functions (06-04)
-- ✅ View-only CSS styles (06-05)
-- ✅ Permission enforcement in procurement and finance views (06-05)
-- ✅ Human verification of end-to-end permission system (06-05 checkpoint)
-- Real-time listener performance with >10 projects - Firestore 'in' query limited to 10 items, may need batching (carried to Phase 9)
-- Permission caching strategy - Balance between real-time updates and query efficiency (carried to Phase 9)
-
-**Phase 9 (Super Admin User Management) - COMPLETE:**
-- ✅ User Management view foundation (09-01) - 3-tab layout with invitation codes functional
-- ✅ UUID invitation code generation with auto-copy (09-01)
-- ✅ Real-time codes display with status badges (09-01)
-- ✅ Automatic expired code cleanup (09-01)
-- ✅ Pending user approval workflow (09-02) - Role selection modal, rejection with deletion
-- ✅ Real-time pending users display with badges (09-02)
-- ✅ Audit trail: approved_at, approved_by (09-02)
-- ✅ All Users list with search (09-03) - Email filtering, assigned projects display
-- ✅ Kebab action menu with context-specific options (09-03)
-- ✅ User deactivation with email confirmation (09-03)
-- ✅ Last Super Admin protection (09-03)
-- ✅ User reactivation and deletion (09-03)
-- ✅ Role editing with Super Admin protection (09-03)
-- ✅ End-to-end verification complete (09-04) - All 11 test blocks passed
-- Phase 9 complete - Full user management system operational and verified
-
-**Phase 10 (Route Protection & Session Security) - COMPLETE:**
-- ✅ Route guards with unauthenticated redirect (10-01) - Synchronous auth check before route loading
-- ✅ Deep link support with intended route restoration (10-02) - sessionStorage preserves destination
-- ✅ Navigation visibility and Super Admin safeguards (10-03) - Minimum 1 SA enforced
-- ✅ End-to-end verification complete (10-04) - All SEC requirements verified, 30+ tests passed
-- **Security Requirements:** SEC-01 through SEC-06 verified (SEC-05 partial: minimum 1 SA vs planned 2)
-- **Comprehensive security layers:** Client route guards → Firebase Auth → Real-time permissions → Firestore rules
-- **Known Limitation:** Minimum Super Admin count is 1 (not 2 as originally planned) - acceptable for v2.0
-- Phase 10 complete - v2.0 READY FOR PRODUCTION
+- Role template seeding requires manual browser console step (one-time, 5 minutes)
+- First Super Admin requires manual Firestore document edit (one-time, 2 minutes)
+- Firestore 'in' query limited to 10 items (project assignments use client-side filtering)
 
 ## Session Continuity
 
-Last session: 2026-02-04 (Phase 10 complete - v2.0 READY)
-Stopped at: Completed 10-04-PLAN.md - End-to-end verification of all Phase 10 security features
+Last session: 2026-02-04 (v2.0 milestone archived)
+Next: `/gsd:new-milestone` to start planning v2.1+
 Resume file: None
-Next: v2.0 Production Deployment OR Phase 11 planning (if additional features desired)
 
-**🎉 v2.0 MILESTONE COMPLETE 🎉**
-- All 10 phases complete
-- 38 plans executed (28 in v2.0)
-- Comprehensive authentication, permissions, and security implemented
-- Production-ready with full user management and route protection
+---
+
+**Next Steps:**
+
+1. `/gsd:new-milestone` — Start v2.1+ milestone planning with questioning → research → requirements → roadmap
+2. Consider features: Activity logging, document management, payment milestones (see PROJECT.md Future requirements)

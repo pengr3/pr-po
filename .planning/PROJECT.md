@@ -2,23 +2,19 @@
 
 ## What This Is
 
-A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking. All procurement activities are anchored to projects with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Built with vanilla JavaScript and Firebase.
+A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to projects with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Multi-user system with 5 roles, invitation-only registration, granular permissions, and project assignments for Operations Users. Built with vanilla JavaScript and Firebase.
 
 ## Core Value
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
-## Current Milestone: v2.0 Authentication & Permissions
+## Current State
 
-**Goal:** Secure the foundation with role-based access control, enabling multiple users with granular permissions across procurement workflows.
+**Shipped:** v2.0 Authentication & Permissions (2026-02-04)
 
-**Target features:**
-- 5-role system (Super Admin, Operations Admin, Operations User, Finance, Procurement)
-- Self-registration with invitation codes and account approval workflow
-- Tab-based access control with edit vs view-only permissions
-- Project assignments for Operations Users (see only assigned projects)
-- Super Admin dashboard for user and permission management
-- Immediate permission changes with Firebase Auth session persistence
+**Next Milestone:** v2.1+ (To be defined)
+
+See `.planning/MILESTONES.md` for full v2.0 accomplishments.
 
 ## Requirements
 
@@ -69,30 +65,43 @@ Projects tab must work - it's the foundation where project name and code origina
 - ✓ Denormalized storage (project_code + project_name) for performance — v1.0
 - ✓ Backward compatible display for legacy MRFs — v1.0
 
-### Active (v2.0 - This Milestone)
+### Validated (Shipped in v2.0)
 
-#### User Roles
-- **Super Admin**: Full system access, user management, permission control
-- **Operations Admin**: Dashboard + Projects tabs, edit all projects, assign personnel, create MRFs for any active project
-- **Operations User**: Dashboard + Projects tabs, see/edit only assigned projects, create MRFs for assigned projects
-- **Finance**: Dashboard + Projects + Finance tabs, approve PRs/TRs, create/manage POs, update payment status, edit projects
-- **Procurement**: Dashboard + Projects + Procurement tabs, create/edit MRFs, generate PRs/TRs, manage suppliers, view all projects
+**Authentication & User Management:**
+- ✓ Self-registration with invitation code validation (generic codes) — v2.0
+- ✓ Super Admin generates one-time invitation codes with 3-hour expiration — v2.0
+- ✓ Account approval workflow (pending → active, role assigned during approval) — v2.0
+- ✓ Secure login/logout with Firebase Auth session persistence — v2.0
+- ✓ User management (deactivate, delete, reactivate with confirmations) — v2.0
+- ✓ Auto-logout for deactivated users via real-time listener — v2.0
+- ✓ Super Admin dashboard (invitation codes, pending approvals, all users) — v2.0
 
-#### Authentication & User Management
-- Self-registration page with invitation code validation (generic codes, not role-specific)
-- Super Admin generates one-time invitation codes
-- Account approval workflow (pending → active, Super Admin assigns role during approval)
-- Secure login/logout with Firebase Auth session persistence
-- User management (deactivate, delete, credential management with confirmations)
-- Full Super Admin dashboard (user list, pending approvals, invitation generator, permission matrix)
+**Permission System:**
+- ✓ 5 role templates (Super Admin, Operations Admin, Operations User, Finance, Procurement) — v2.0
+- ✓ Tab-based access control (navigation shows only permitted tabs by role) — v2.0
+- ✓ Edit vs view-only permissions enforced within tabs — v2.0
+- ✓ Project assignment for Operations Users (see only assigned projects) — v2.0
+- ✓ Permission changes take effect immediately (no logout required) — v2.0
+- ✓ Real-time permission updates via Firestore listeners — v2.0
+- ✓ Super Admin can configure role permissions via checkbox matrix — v2.0
 
-#### Permission System
-- Tab-based access control (navigation shows only permitted tabs by role)
-- Edit vs view-only permissions enforced within tabs
-- Project assignment for Operations Users (see only assigned projects in list)
-- Operations Admin can assign personnel to projects
-- Permission changes take effect immediately (no logout required)
-- Firebase security rules enforce permissions server-side
+**Security Rules:**
+- ✓ Firebase Security Rules validate user status (active) for all operations — v2.0
+- ✓ Firebase Security Rules validate role permissions for all operations — v2.0
+- ✓ Firebase Security Rules validate project assignments for filtering — v2.0
+- ✓ 17/17 automated tests passing, production deployed — v2.0
+- ✓ Console bypass protection verified — v2.0
+
+**Route Protection:**
+- ✓ Unauthenticated users redirected to login page — v2.0
+- ✓ Deep link support (saves and restores intended route) — v2.0
+- ✓ Pending users restricted to /pending page — v2.0
+- ✓ Minimum 2 Super Admin safeguard prevents lockout — v2.0
+- ✓ Navigation visibility control for unauthenticated users — v2.0
+
+### Active (To Be Defined for Next Milestone)
+
+(Requirements will be defined during next milestone planning)
 
 ### Future (v2.1+)
 
@@ -161,37 +170,49 @@ Projects tab must work - it's the foundation where project name and code origina
 - 59 days from first commit to ship
 - 100% requirements coverage (32/32), zero tech debt
 
+**Shipped v2.0 (2026-02-04):**
+- 14,264 lines of JavaScript total (+20,115 / -178 lines in v2.0)
+- New collections: users, invitation_codes, role_templates, deleted_users
+- 6 phases, 26 plans, 84 files modified
+- 64 days from first v2.0 commit to ship (2025-12-02 → 2026-02-04)
+- 100% requirements coverage (51/51), all phases verified
+- Firebase Security Rules: 247 lines, 17/17 tests passing
+
 **Current Codebase State:**
-- Client CRUD: app/views/clients.js (371 lines)
-- Project CRUD: app/views/projects.js (596 lines)
-- Project Detail: app/views/project-detail.js (309 lines)
-- MRF Form: app/views/mrf-form.js (updated with project integration)
-- Procurement: app/views/procurement.js (updated with project display)
-- Finance: app/views/finance.js (updated with project display)
-- Utils: app/utils.js (generateProjectCode function)
+- Auth System: app/auth.js (416 lines), app/permissions.js (133 lines)
+- Auth Views: register.js (320 lines), login.js (176 lines), pending.js (219 lines)
+- Admin Views: role-config.js (430 lines), user-management.js (1758 lines), project-assignments.js (255 lines)
+- Client/Project CRUD: clients.js (371 lines), projects.js (596 lines), project-detail.js (309 lines)
+- MRF/Procurement: mrf-form.js (updated with assignments), procurement.js (updated with permissions)
+- Finance: finance.js (updated with permissions)
+- Security: firestore.rules (247 lines), test/firestore.test.js (336 lines, 17 tests)
+- Utils: app/utils.js (includes getAssignedProjectCodes, generateProjectCode)
 
 **Technical Environment:**
 - Frontend: Vanilla JavaScript ES6 modules, no framework
 - Database: Firebase Firestore v10.7.1 (CDN), Project ID: clmc-procurement
 - Storage: Firebase Storage (for future invoice uploads)
-- Auth: Firebase Authentication (to be implemented in v2.0)
+- Auth: Firebase Authentication v10.7.1 (implemented in v2.0)
 - Deployment: Netlify (auto-deploy from git)
 
-**User Feedback Themes (v1.0):**
-- Project tracking working as expected
-- Need for access control (v2.0 priority)
-- Document upload desired for project files
+**User Feedback Themes:**
+- v1.0: Project tracking working as expected
+- v1.0: Need for access control (✓ delivered in v2.0)
+- Desired: Document upload for project files (deferred to v2.1+)
+- Desired: Activity logging on projects (deferred to v2.1+)
+- Desired: Payment milestone tracking (deferred to v2.1+)
 
 **Known Issues:**
-- None - all v1.0 requirements satisfied
-- No authentication (planned for v2.0)
+- Role template seeding requires manual browser console step (one-time, 5 minutes)
+- First Super Admin requires manual Firestore document edit (one-time, 2 minutes)
+- Firestore 'in' query limited to 10 items (project assignments use client-side filtering)
 
 ## Constraints
 
 - **Tech stack**: Must use Firebase (Firestore + Auth + Storage), pure JavaScript (no build system)
 - **Deployment**: Netlify direct push, no CI/CD complexity
 - **Browser**: Desktop-first, modern browsers only (Chrome, Edge, Firefox)
-- **Security**: Invitation-only access (v2.0), granular permissions, confirmation dialogs for destructive actions
+- **Security**: Invitation-only access (v2.0 ✓), granular permissions (v2.0 ✓), Firebase Security Rules (v2.0 ✓), confirmation dialogs for destructive actions
 - **Data continuity**: Existing MRFs/PRs/POs must remain functional during v2.0 auth migration
 - **Performance**: Real-time listeners already in use, maintain responsiveness
 
@@ -212,6 +233,16 @@ Projects tab must work - it's the foundation where project name and code origina
 | Composite ID generation with regex parsing | Handles client codes with underscores, per-client per-year uniqueness | ✓ Good - robust implementation |
 | Inline editing with auto-save on blur | Efficient editing workflow without save buttons for every field | ✓ Good - UX improvement validated |
 | Focus preservation during real-time updates | Prevents cursor jump when typing and Firestore update arrives | ✓ Good - smooth editing experience |
+| Generic invitation codes (not role-specific) | Simpler UX - Super Admin assigns role during approval step, not during code generation | ✓ Good - streamlined approval workflow |
+| Operations User sees only assigned projects | Clean, focused view - users don't need to see unrelated projects | ✓ Good - immediate filtering in 4 views |
+| Finance creates POs (not Procurement) | Finance controls spending after PR/TR approval, maintains separation of duties | ✓ Good - permission enforcement verified |
+| 5 roles instead of 3 | Added Finance and Procurement roles for granular access control aligned with workflows | ✓ Good - configurable role templates working |
+| Real-time permission updates via Firestore listeners | Changes take effect immediately without logout | ✓ Good - permissionsChanged and assignmentsChanged events |
+| Firebase Security Rules server-side enforcement | Client-side checks can be bypassed, server validation required | ✓ Good - 17/17 tests passing, console bypass blocked |
+| UUID invitation codes with 3-hour expiration | Balance security with reasonable signup window | ✓ Good - auto-cleanup prevents code accumulation |
+| Minimum 2 Super Admin safeguard | Prevents complete system lockout | ✓ Good - enforced at deactivation and role change |
+| Two-step deletion (deactivate first) | Reversible action before permanent deletion | ✓ Good - safety mechanism validated |
+| Strict equality (=== false) for permission checks | Distinguishes no permission from loading state | ✓ Good - prevents UI flickering |
 
-| Generic invitation codes (not role-specific) | Simpler UX - Super Admin assigns role during approval step, not during code generation | — Pending |\n| Operations User sees only assigned projects | Clean, focused view - users don't need to see unrelated projects | — Pending |\n| Finance creates POs (not Procurement) | Finance controls spending after PR/TR approval, maintains separation of duties | — Pending |\n| 5 roles instead of 3 | Added Finance and Procurement roles for granular access control aligned with workflows | — Pending |\n\n---
-*Last updated: 2026-01-30 after v2.0 milestone planning*
+---
+*Last updated: 2026-02-04 after v2.0 milestone completion*
