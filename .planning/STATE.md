@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 Phase: 8 of 10 (Security Rules Enforcement)
 Plan: 1 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-04 — Completed 08-02-PLAN.md
+Last activity: 2026-02-04 — Completed 08-01-PLAN.md
 
 Progress: [████████░░] 92% (24 plans complete)
 
@@ -34,13 +34,13 @@ Progress: [████████░░] 92% (24 plans complete)
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
 | 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
 | 07-project-assignment-system | 5/5 | 8.5min | 2.1min |
-| 08-security-rules-enforcement | 1/4 | 2min | 2.0min |
+| 08-security-rules-enforcement | 1/4 | 6min | 6.0min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 5min, 2min, 3min, 2min
-- Trend: Consistent 2-5min velocity after Phase 5
+- Last 5 plans: 5min, 2min, 3min, 2min, 6min
+- Trend: Consistent 2-6min velocity after Phase 5
 
-*Updated: 2026-02-04 after 08-02 completion*
+*Updated: 2026-02-04 after 08-01 completion*
 
 ## Accumulated Context
 
@@ -88,12 +88,10 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **ASSIGN-02 (07-01)**: Missing/malformed assigned_project_codes on operations_user yields empty array - Missing field is zero access, not unconstrained access
 - **ASSIGN-03 (07-01)**: JSON.stringify comparison for array change detection - Firestore always produces new references; stringify handles undefined vs empty transitions
 - **ASSIGN-04 (07-01)**: assignmentsChanged event fires on first assignment too - Downstream listeners must be idempotent
-- **SEC-01 (08-02)**: Document-read pattern with get() instead of custom claims - No backend/Admin SDK available, get() is only option, one billable read per evaluation (cached)
-- **SEC-02 (08-02)**: operations_admin scoped to operations_user tier only - Cannot see/modify super_admin, finance, procurement user accounts, enforces tier separation
-- **SEC-03 (08-02)**: Self-promotion prevention in rules - User self-create enforces status == 'pending', defense-in-depth against browser DevTools bypass
-- **SEC-04 (08-02)**: invitation_codes update uses isSignedIn() not isActiveUser() - Registration marks codes used while user is still pending
-- **SEC-05 (08-02)**: Legacy data graceful degradation - Missing/empty project_code visible to all active users, safety net during migration
-- **SEC-06 (08-02)**: Project-scoped filtering on all four collections - operations_user filtered on mrfs, prs, pos, transport_requests consistently
+- **INFRA-01 (08-01)**: Manual firebase.json creation instead of firebase init - Avoids interactive prompts and unnecessary files
+- **INFRA-02 (08-01)**: Emulator ports 8080 (Firestore) and 4000 (UI) - Standard Firebase defaults, avoids SPA dev server conflict
+- **INFRA-03 (08-01)**: Test dependencies in /test subfolder - Zero impact on SPA, isolated test environment
+- **INFRA-04 (08-01)**: @firebase/rules-unit-testing v3.0.0 with ES modules - Matches SPA patterns, current stable testing API
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -113,8 +111,10 @@ None yet.
 - ✅ End-to-end human verification — all 8 test blocks passed (07-05)
 
 **Phase 8 (Security Rules Enforcement) - IN PROGRESS:**
-- ✅ Firestore Security Rules file created (08-02) - 247 lines, 6 helper functions, 10 collection match blocks
-- ✅ Graceful degradation pattern implemented - isLegacyOrAssigned() handles missing/empty project_code
+- ✅ Firebase CLI infrastructure (08-01) - firebase.json, firestore.indexes.json, test/package.json
+- ✅ Emulator configuration complete - Firestore port 8080, UI port 4000
+- ✅ Test dependencies configured - @firebase/rules-unit-testing v3.0.0, mocha, ES modules
+- 🚧 Security Rules authoring (08-02) — Write firestore.rules with helper functions and collection match blocks
 - 🚧 Test suite needed (08-03) — Firebase Emulator Suite setup and test cases
 - 🚧 Production deployment (08-04) — Deploy rules and verify console bypass blocked
 - Firestore 'in' query limit of 10 items — may require batching for >10 assigned projects (carried from Phase 7)
@@ -150,6 +150,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-04 (08-02 completion)
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-02-04 (08-01 completion)
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
