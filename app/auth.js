@@ -170,6 +170,7 @@ export async function getUserDocument(userId) {
 // Module-level variables to track current user and listeners
 let currentUser = null;
 let userDocUnsubscribe = null;
+let initialRouteHandled = false;
 
 /**
  * Get current authenticated user data
@@ -247,6 +248,12 @@ export function initAuthObserver() {
                     window.dispatchEvent(new CustomEvent('authStateChanged', {
                         detail: { user: currentUser }
                     }));
+
+                    // Handle initial route after auth state known (SEC-01)
+                    if (!initialRouteHandled && window.handleInitialRoute) {
+                        initialRouteHandled = true;
+                        window.handleInitialRoute();
+                    }
 
                     // Set up real-time listener on user document (AUTH-09)
                     userDocUnsubscribe = onSnapshot(doc(db, 'users', user.uid), async (docSnapshot) => {
@@ -352,6 +359,12 @@ export function initAuthObserver() {
             window.dispatchEvent(new CustomEvent('authStateChanged', {
                 detail: { user: null }
             }));
+
+            // Handle initial route for unauthenticated state (SEC-01)
+            if (!initialRouteHandled && window.handleInitialRoute) {
+                initialRouteHandled = true;
+                window.handleInitialRoute();
+            }
         }
     });
 }
@@ -385,9 +398,9 @@ function updateNavForAuth(user) {
         // Hide logout button for unauthenticated users
         if (logoutBtn) logoutBtn.style.display = 'none';
 
-        // Hide all nav links for unauthenticated users (Phase 10 - security improvement)
+        // Show all nav links for unauthenticated users (will be blocked by route guards)
         navLinks.forEach(link => {
-            link.style.display = 'none';
+            link.style.display = '';
         });
     }
 }

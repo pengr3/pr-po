@@ -182,6 +182,30 @@ export async function navigate(path, tab = null, param = null) {
         return;
     }
 
+    // Authentication check for protected routes (SEC-01, SEC-03)
+    if (!publicRoutes.includes(path)) {
+        const currentUser = window.getCurrentUser?.();
+
+        if (!currentUser) {
+            console.warn('[Router] Unauthenticated access blocked:', path);
+            window.location.hash = '#/login';
+            return;
+        }
+
+        // Check for pending/rejected/deactivated status
+        if (currentUser.status === 'pending' || currentUser.status === 'rejected') {
+            console.warn('[Router] Pending/rejected user redirected to pending page');
+            window.location.hash = '#/pending';
+            return;
+        }
+
+        if (currentUser.status === 'deactivated') {
+            console.warn('[Router] Deactivated user redirected to login');
+            window.location.hash = '#/login';
+            return;
+        }
+    }
+
     // Permission check for protected routes (PERM-14)
     if (!publicRoutes.includes(path)) {
         const permissionKey = routePermissionMap[path];
@@ -302,15 +326,28 @@ function handleHashChange() {
 }
 
 /**
- * Initialize router
+ * Handle initial route after auth state is known
+ * Called by auth.js after authentication state is determined
  */
-export function initRouter() {
-    console.log('Initializing router...');
+export function handleInitialRoute() {
+    console.log('[Router] Handling initial route after auth check');
 
-    // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange);
+    // Hide initial loading indicator
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) {
+        const loadingIndicator = appContainer.querySelector('.loading-spinner');
+        if (loadingIndicator && loadingIndicator.parentElement) {
+            loadingIndicator.parentElement.style.display = 'none';
+        }
+    }
 
-    // Handle initial route
+    // Show navbar
+    const navbar = document.querySelector('.top-nav');
+    if (navbar) {
+        navbar.style.display = '';
+    }
+
+    // Navigate to current hash
     const { path, tab, subpath } = parseHash();
 
     // Handle detail routes on initial load
@@ -319,13 +356,26 @@ export function initRouter() {
     } else {
         navigate(path, tab);
     }
+}
+
+/**
+ * Initialize router
+ */
+export function initRouter() {
+    console.log('Initializing router...');
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
 
     // Expose navigate to window for onclick handlers
     window.navigateTo = function(route) {
         window.location.hash = '#' + route;
     };
 
-    console.log('Router initialized');
+    // Expose handleInitialRoute for auth.js
+    window.handleInitialRoute = handleInitialRoute;
+
+    console.log('Router initialized - waiting for auth state before initial navigation');
 }
 
 /**
