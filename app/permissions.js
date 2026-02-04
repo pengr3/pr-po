@@ -31,18 +31,22 @@ export function getCurrentPermissions() {
 /**
  * Check if user has access to a tab
  * @param {string} tabId - Tab identifier ('dashboard', 'clients', 'projects', 'mrf_form', 'procurement', 'finance', 'role_config')
- * @returns {boolean} True if user has access permission
+ * @returns {boolean|undefined} True if has access, false if denied, undefined if not loaded yet
  */
 export function hasTabAccess(tabId) {
+    // Return undefined if permissions not loaded yet (allows router to defer check)
+    if (!currentPermissions) return undefined;
     return currentPermissions?.tabs?.[tabId]?.access || false;
 }
 
 /**
  * Check if user has edit permission for a tab
  * @param {string} tabId - Tab identifier
- * @returns {boolean} True if user has edit permission
+ * @returns {boolean|undefined} True if can edit, false if view-only, undefined if not loaded yet
  */
 export function canEditTab(tabId) {
+    // Return undefined if permissions not loaded yet
+    if (!currentPermissions) return undefined;
     return currentPermissions?.tabs?.[tabId]?.edit || false;
 }
 
