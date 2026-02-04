@@ -235,11 +235,10 @@ export function initAuthObserver() {
                             window.location.hash = '#/pending';
                         }
                     } else if (userData.status === 'deactivated') {
-                        // Deactivated users are logged out
+                        // Deactivated users are logged out (silently - login page shows error)
                         console.log('[Auth] Deactivated user - signing out');
                         await signOut(auth);
                         window.location.hash = '#/login';
-                        alert('Your account has been deactivated. Please contact an administrator.');
                         return;
                     }
                     // Active users: no forced redirect, allow normal navigation
@@ -297,7 +296,7 @@ export function initAuthObserver() {
                                     userDocUnsubscribe = null;
                                 }
 
-                                // Sign out
+                                // Sign out and show alert (this is for real-time deactivation while user is active)
                                 signOut(auth).then(() => {
                                     window.location.hash = '#/login';
                                     alert('Your account has been deactivated. Please contact an administrator.');
@@ -315,11 +314,10 @@ export function initAuthObserver() {
                         const deletedUserDoc = await getDoc(doc(db, 'deleted_users', user.uid));
 
                         if (deletedUserDoc.exists()) {
-                            // User account was deleted - force sign out
+                            // User account was deleted - force sign out (silently - login page shows error)
                             console.error('[Auth] User account deleted - forcing sign out');
                             await signOut(auth);
                             window.location.hash = '#/login';
-                            alert('Your account has been deleted by an administrator. Please contact support for more information.');
                             return;
                         }
                     } catch (error) {
@@ -327,11 +325,10 @@ export function initAuthObserver() {
                     }
 
                     // User document missing (not deleted, but also not found)
-                    // This is an invalid state - force sign out for security
+                    // This is an invalid state - force sign out for security (silently - login page shows error)
                     console.error('[Auth] User document missing - forcing sign out for security');
                     await signOut(auth);
                     window.location.hash = '#/login';
-                    alert('Your account information is missing. Please contact an administrator.');
                     return;
                 }
             } catch (error) {

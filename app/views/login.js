@@ -3,8 +3,8 @@
    User authentication with email and password
    ======================================== */
 
-import { auth } from '../firebase.js';
-import { signInWithEmailAndPassword } from '../firebase.js';
+import { auth, db } from '../firebase.js';
+import { signInWithEmailAndPassword, signOut, doc, getDoc } from '../firebase.js';
 
 /**
  * Render login view
@@ -120,12 +120,69 @@ async function handleLogin(e) {
 
     try {
         // Sign in with Firebase Auth
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-        console.log('[Login] User signed in successfully');
+        console.log('[Login] User signed in successfully:', user.email);
 
-        // Redirect to home - auth observer will handle routing based on status
-        window.location.hash = '#/';
+        // CRITICAL: Validate user document BEFORE allowing navigation
+        try {
+            // Check if user document exists
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (!userDoc.exists()) {
+                // User document doesn't exist - check if deleted
+                const deletedUserDocRef = doc(db, 'deleted_users', user.uid);
+                const deletedUserDoc = await getDoc(deletedUserDocRef);
+
+                // Sign out immediately
+                await signOut(auth);
+
+                if (deletedUserDoc.exists()) {
+                    // Account was deleted
+                    showError('general', 'Your account has been deleted. Please contact an administrator.');
+                } else {
+                    // User document missing (corrupted state)
+                    showError('general', 'Your account information is missing. Please contact an administrator.');
+                }
+
+                // Reset button
+                loginBtn.textContent = originalBtnText;
+                loginBtn.disabled = false;
+                return;
+            }
+
+            // User document exists - check status
+            const userData = userDoc.data();
+
+            if (userData.status === 'deactivated') {
+                // Account is deactivated
+                await signOut(auth);
+                showError('general', 'Your account has been deactivated. Please contact an administrator.');
+
+                // Reset button
+                loginBtn.textContent = originalBtnText;
+                loginBtn.disabled = false;
+                return;
+            }
+
+            // Valid user (active, pending, or rejected) - allow navigation
+            // Auth observer will handle routing based on status
+            console.log('[Login] User validation passed, navigating...');
+            window.location.hash = '#/';
+
+        } catch (validationError) {
+            console.error('[Login] Error validating user:', validationError);
+
+            // Sign out on validation error for security
+            await signOut(auth);
+            showError('general', 'Unable to verify your account. Please try again.');
+
+            // Reset button
+            loginBtn.textContent = originalBtnText;
+            loginBtn.disabled = false;
+        }
 
     } catch (error) {
         console.error('[Login] Error signing in:', error);
