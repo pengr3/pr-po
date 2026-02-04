@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-01-30)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 7 - Project Assignment System
+**Current focus:** Phase 8 - Security Rules Enforcement
 
 ## Current Position
 
-Phase: 7 of 10 (Project Assignment System)
-Plan: 4 of 5 in current phase — In progress
-Status: Phase 7 in progress
-Last activity: 2026-02-03 — Completed 07-04-PLAN.md (Assignment-scoped MRF form dropdown and procurement MRF list)
+Phase: 8 of 10 (Security Rules Enforcement)
+Plan: 0 of TBD — Not yet planned
+Status: Phase 7 complete, Phase 8 next
+Last activity: 2026-02-04 — Completed 07-05 human verification checkpoint, Phase 7 closed
 
-Progress: [███████░░░] 86% (22 plans complete)
+Progress: [████████░░] 90% (23 plans complete)
 
 ## Performance Metrics
 
@@ -33,13 +33,13 @@ Progress: [███████░░░] 86% (22 plans complete)
 | 04-mrf-project-integration | 3/3 | 12.7min | 4.2min |
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
 | 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
-| 07-project-assignment-system | 4/5 | 8.5min | 2.1min |
+| 07-project-assignment-system | 5/5 | 8.5min | 2.1min |
 
 **Recent Trend:**
 - Last 5 plans: 3min, 3min, 5min, 2min, 3min
 - Trend: Consistent 2-5min velocity after Phase 5
 
-*Updated: 2026-02-03 after 07-04 completion*
+*Updated: 2026-02-04 after 07-05 verification sign-off*
 
 ## Accumulated Context
 
@@ -98,6 +98,20 @@ None yet.
 
 ### Blockers/Concerns
 
+**Phase 7 (Project Assignment System) - COMPLETE:**
+- ✅ Assignment utility + assignmentsChanged event (07-01)
+- ✅ Project Assignments admin panel (07-02)
+- ✅ Project list and detail filtering (07-03)
+- ✅ MRF form dropdown and procurement MRF list filtering (07-04)
+- ✅ End-to-end human verification — all 8 test blocks passed (07-05)
+
+**Phase 8 (Security Rules Enforcement) - NEXT:**
+- 🚧 Plans not yet created — needs research and planning
+- Complex rules testing strategy — Firebase Emulator Suite setup needed
+- Data backfill timing — existing records lack project_code field required by strict rules
+- Graceful degradation pattern — allow null values temporarily during migration
+- Firestore 'in' query limit of 10 items — may require batching for >10 assigned projects (carried from Phase 7)
+
 **Phase 5 (Core Authentication) - COMPLETE:**
 - ✅ Firebase version compatibility - Using 10.7.1 for SDK consistency (AUTH-01)
 - ✅ Migration risk - 05-01 added auth without breaking existing v1.0 functionality (verified)
@@ -129,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-03 (07-04 execution)
-Stopped at: Completed 07-04-PLAN.md - Assignment-scoped MRF form dropdown and procurement MRF list filtering.
+Last session: 2026-02-04 (07-05 sign-off, Phase 7 closure)
+Stopped at: Phase 7 complete. Routing to Phase 8 research/planning.
 Resume file: None
