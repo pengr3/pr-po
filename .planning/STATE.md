@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 ## Current Position
 
 Phase: 8 of 10 (Security Rules Enforcement)
-Plan: 3 of 4 in current phase
-Status: In progress
-Last activity: 2026-02-04 — Completed 08-03-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-04 — Completed 08-04-PLAN.md
 
-Progress: [█████████░] 96% (26 plans complete)
+Progress: [█████████░] 96% (27 plans complete)
 
 ## Performance Metrics
 
@@ -34,13 +34,13 @@ Progress: [█████████░] 96% (26 plans complete)
 | 05-core-authentication | 4/4 | 21 hours | 5.2 hours |
 | 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
 | 07-project-assignment-system | 5/5 | 8.5min | 2.1min |
-| 08-security-rules-enforcement | 3/4 | 34min | 11.3min |
+| 08-security-rules-enforcement | 4/4 | 42min | 10.5min |
 
 **Recent Trend:**
-- Last 5 plans: 2min, 6min, 2min, 26min, ?
-- Trend: Consistent 2-6min velocity except when infrastructure setup required (08-03: Java install, emulator setup)
+- Last 5 plans: 6min, 2min, 26min, 8min, —
+- Trend: Consistent 2-8min velocity except when infrastructure setup required (08-03: Java install, emulator setup = 26min)
 
-*Updated: 2026-02-04 after 08-03 completion*
+*Updated: 2026-02-04 after 08-04 completion*
 
 ## Accumulated Context
 
@@ -94,6 +94,8 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **INFRA-04 (08-01)**: @firebase/rules-unit-testing v3.0.0 with ES modules - Matches SPA patterns, current stable testing API
 - **TEST-01 (08-03)**: 17 critical path tests (not exhaustive) - High-risk scenarios only: unauthenticated blocked, pending restricted, RBAC enforced, project scoping, console bypass
 - **TEST-02 (08-03)**: Java 21 installed as portable extraction - Firebase Emulator prerequisite, no system PATH modification
+- **DEPLOY-01 (08-04)**: Deployment-only plan with no code commits - Infrastructure operations don't require git commits
+- **DEPLOY-02 (08-04)**: Human verification tests both blocking and success - Confirms security enforcement works and no regression for authorized users
 - **v2.0 Planning**: Generic invitation codes (not role-specific) - Super Admin assigns role during approval step, simpler UX
 - **v2.0 Planning**: Operations User sees only assigned projects - Clean, focused view without unrelated projects
 - **v2.0 Planning**: Finance creates POs (not Procurement) - Finance controls spending after PR/TR approval, separation of duties
@@ -112,14 +114,14 @@ None yet.
 - ✅ MRF form dropdown and procurement MRF list filtering (07-04)
 - ✅ End-to-end human verification — all 8 test blocks passed (07-05)
 
-**Phase 8 (Security Rules Enforcement) - IN PROGRESS:**
+**Phase 8 (Security Rules Enforcement) - COMPLETE:**
 - ✅ Firebase CLI infrastructure (08-01) - firebase.json, firestore.indexes.json, test/package.json
 - ✅ Emulator configuration complete - Firestore port 8080, UI port 4000
 - ✅ Test dependencies configured - @firebase/rules-unit-testing v3.0.0, mocha, ES modules
 - ✅ Security Rules authoring (08-02) - 247 lines, 6 helper functions, 10 collection match blocks
 - ✅ Test suite complete (08-03) - 17 test cases, all passing, Java 21 installed for emulator
-- 🚧 Production deployment (08-04) — Deploy rules and verify console bypass blocked
-- Firestore 'in' query limit of 10 items — may require batching for >10 assigned projects (carried from Phase 7)
+- ✅ Production deployment (08-04) - Rules deployed, console bypass blocked, normal ops verified
+- Firestore 'in' query limit of 10 items — may require batching for >10 assigned projects (carried to Phase 9)
 
 **Phase 5 (Core Authentication) - COMPLETE:**
 - ✅ Firebase version compatibility - Using 10.7.1 for SDK consistency (AUTH-01)
@@ -152,6 +154,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-04 (08-03 completion)
-Stopped at: Completed 08-03-PLAN.md - Security Rules Test Suite
+Last session: 2026-02-04 (08-04 completion)
+Stopped at: Completed 08-04-PLAN.md - Production Deployment (Phase 8 COMPLETE)
 Resume file: None
