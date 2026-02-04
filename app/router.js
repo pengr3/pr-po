@@ -118,6 +118,28 @@ function parseHash() {
 }
 
 /**
+ * Build route string from path, tab, and param
+ * Used for deep linking (SEC-02)
+ * @param {string} path - Route path
+ * @param {string} tab - Optional tab
+ * @param {string} param - Optional parameter
+ * @returns {string} Full route string (e.g., '/projects/detail/CLMC_001')
+ */
+function buildRouteString(path, tab, param) {
+    let route = path;
+
+    if (tab) {
+        route += '/' + tab;
+    }
+
+    if (param) {
+        route += '/' + param;
+    }
+
+    return route;
+}
+
+/**
  * Update navigation active state
  * @param {string} path - Current route path
  */
@@ -187,6 +209,11 @@ export async function navigate(path, tab = null, param = null) {
         const currentUser = window.getCurrentUser?.();
 
         if (!currentUser) {
+            // Save intended route for deep linking (SEC-02)
+            const intendedRoute = buildRouteString(path, tab, param);
+            console.log('[Router] Saving intended route:', intendedRoute);
+            sessionStorage.setItem('intendedRoute', intendedRoute);
+
             console.warn('[Router] Unauthenticated access blocked:', path);
             window.location.hash = '#/login';
             return;
@@ -280,6 +307,14 @@ export async function navigate(path, tab = null, param = null) {
 
         // Scroll to top
         window.scrollTo(0, 0);
+
+        // Clear intended route if navigation succeeded (SEC-02)
+        // This prevents re-restoring the route on subsequent logins
+        const intendedRoute = sessionStorage.getItem('intendedRoute');
+        if (intendedRoute && intendedRoute === buildRouteString(path, tab, param)) {
+            console.log('[Router] Clearing fulfilled intended route');
+            sessionStorage.removeItem('intendedRoute');
+        }
 
         console.log('[Router] ✅ Navigation complete:', { path, tab, isSameView });
     } catch (error) {
