@@ -863,6 +863,361 @@ function showRejectConfirmation(user) {
 }
 
 /* ========================================
+   USER DEACTIVATION & REACTIVATION
+   ======================================== */
+
+/**
+ * Handle user deactivation with Super Admin protection
+ * @param {string} userId - User ID to deactivate
+ */
+async function handleDeactivateUser(userId) {
+    try {
+        // Find user data
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) {
+            showToast('User not found', 'error');
+            return;
+        }
+
+        // Check if user is super_admin
+        if (user.role === 'super_admin') {
+            // Count active Super Admins
+            const activeSuperAdminCount = countActiveSuperAdmins();
+
+            if (activeSuperAdminCount <= 1) {
+                // Show error modal - cannot deactivate last Super Admin
+                showErrorModal(
+                    'Cannot Deactivate Last Super Admin',
+                    'Cannot deactivate the last Super Admin account. Promote another user to Super Admin first.'
+                );
+                return;
+            }
+        }
+
+        // Show deactivation confirmation modal
+        await showDeactivationModal(user);
+    } catch (error) {
+        console.error('[UserManagement] Error in deactivation flow:', error);
+        showToast('Error initiating deactivation', 'error');
+    }
+}
+
+/**
+ * Count active Super Admins
+ * @returns {number} Count of active Super Admins
+ */
+function countActiveSuperAdmins() {
+    return allUsers.filter(u => u.role === 'super_admin' && u.status === 'active').length;
+}
+
+/**
+ * Show deactivation modal with email confirmation
+ * @param {Object} user - User object to deactivate
+ */
+function showDeactivationModal(user) {
+    return new Promise((resolve) => {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'deactivationModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        // Create modal dialog
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #dc2626;">
+                ⚠️ Deactivate User Account
+            </h3>
+
+            <p style="margin: 0 0 1rem 0; color: #475569; font-size: 0.9375rem;">
+                You are about to deactivate <strong>${user.email}</strong>
+            </p>
+
+            <div style="background: #fee2e2; border: 1px solid #ef4444; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <p style="margin: 0; color: #991b1b; font-size: 0.875rem; font-weight: 500;">
+                    This will immediately log them out and prevent future access.
+                </p>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1e293b;">
+                    Type the user's email to confirm:
+                </label>
+                <input type="text"
+                       id="deactivationEmailInput"
+                       class="form-input"
+                       placeholder="${user.email}"
+                       style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9375rem;">
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button id="cancelDeactivation" class="btn btn-secondary" style="min-width: 100px;">
+                    Cancel
+                </button>
+                <button id="confirmDeactivationBtn" class="btn btn-danger" style="min-width: 100px;" disabled>
+                    Deactivate
+                </button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        // Get references
+        const emailInput = document.getElementById('deactivationEmailInput');
+        const confirmBtn = document.getElementById('confirmDeactivationBtn');
+
+        // Enable button only when email matches exactly
+        emailInput.addEventListener('input', () => {
+            confirmBtn.disabled = emailInput.value !== user.email;
+        });
+
+        // Handle cancel
+        document.getElementById('cancelDeactivation').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(false);
+        });
+
+        // Handle confirm
+        confirmBtn.addEventListener('click', async () => {
+            if (emailInput.value !== user.email) {
+                showToast('Email does not match', 'error');
+                return;
+            }
+
+            try {
+                // Get current user for audit trail
+                const currentUser = window.getCurrentUser?.();
+
+                // Update user document
+                await updateDoc(doc(db, 'users', user.id), {
+                    status: 'deactivated',
+                    deactivated_at: serverTimestamp(),
+                    deactivated_by: currentUser?.uid || 'unknown'
+                });
+
+                // Close modal
+                document.body.removeChild(modal);
+
+                // Show success message
+                showToast('User deactivated', 'success');
+
+                console.log('[UserManagement] User deactivated:', user.id);
+                resolve(true);
+            } catch (error) {
+                console.error('[UserManagement] Error deactivating user:', error);
+                showToast('Failed to deactivate user', 'error');
+                resolve(false);
+            }
+        });
+
+        // Handle click outside to close
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                resolve(false);
+            }
+        });
+    });
+}
+
+/**
+ * Handle user reactivation
+ * @param {string} userId - User ID to reactivate
+ */
+async function handleReactivateUser(userId) {
+    try {
+        // Find user data
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) {
+            showToast('User not found', 'error');
+            return;
+        }
+
+        // Show confirmation
+        const confirmed = await showSimpleConfirmation(
+            'Reactivate User',
+            `Reactivate <strong>${user.email}</strong>? They will regain access to the system.`
+        );
+
+        if (!confirmed) {
+            console.log('[UserManagement] Reactivation cancelled');
+            return;
+        }
+
+        // Get current user for audit trail
+        const currentUser = window.getCurrentUser?.();
+
+        // Update user document
+        await updateDoc(doc(db, 'users', userId), {
+            status: 'active',
+            reactivated_at: serverTimestamp(),
+            reactivated_by: currentUser?.uid || 'unknown'
+        });
+
+        showToast('User reactivated', 'success');
+        console.log('[UserManagement] User reactivated:', userId);
+    } catch (error) {
+        console.error('[UserManagement] Error reactivating user:', error);
+        showToast('Failed to reactivate user', 'error');
+    }
+}
+
+/**
+ * Show simple confirmation modal
+ * @param {string} title - Modal title
+ * @param {string} message - Modal message (HTML allowed)
+ * @returns {Promise<boolean>} True if confirmed
+ */
+function showSimpleConfirmation(title, message) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.id = 'confirmModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #1e293b;">
+                ${title}
+            </h3>
+            <p style="margin: 0 0 1.5rem 0; color: #475569; font-size: 0.9375rem;">
+                ${message}
+            </p>
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button id="cancelBtn" class="btn btn-secondary" style="min-width: 90px;">
+                    Cancel
+                </button>
+                <button id="confirmBtn" class="btn btn-primary" style="min-width: 90px;">
+                    Confirm
+                </button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(false);
+        });
+
+        document.getElementById('confirmBtn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(true);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                resolve(false);
+            }
+        });
+    });
+}
+
+/**
+ * Show error modal
+ * @param {string} title - Modal title
+ * @param {string} message - Error message
+ */
+function showErrorModal(title, message) {
+    const modal = document.createElement('div');
+    modal.id = 'errorModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 450px;
+        width: 90%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+
+    dialog.innerHTML = `
+        <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #dc2626;">
+            ${title}
+        </h3>
+        <div style="background: #fee2e2; border: 1px solid #ef4444; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+            <p style="margin: 0; color: #991b1b; font-size: 0.875rem;">
+                ${message}
+            </p>
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+            <button id="closeErrorBtn" class="btn btn-primary" style="min-width: 90px;">
+                OK
+            </button>
+        </div>
+    `;
+
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    const closeBtn = document.getElementById('closeErrorBtn');
+    closeBtn.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+/* ========================================
    INVITATION CODE GENERATION
    ======================================== */
 
