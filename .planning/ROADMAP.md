@@ -121,10 +121,13 @@ Plans:
   3. Firebase Security Rules validate project assignments for data filtering
   4. Security Rules deployed and tested for all collections (users, roles, invitation_codes, projects, mrfs, prs, pos, transport_requests, suppliers)
   5. Attempting to bypass client-side checks via browser console is blocked by Security Rules
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 08-01: [To be planned]
+- [ ] 08-01-PLAN.md — Firebase CLI infrastructure and test dependencies
+- [ ] 08-02-PLAN.md — Complete Firestore Security Rules for all 9 collections
+- [ ] 08-03-PLAN.md — Security rules test suite with emulator verification
+- [ ] 08-04-PLAN.md — Production deployment and console bypass verification
 
 ### Phase 9: Super Admin User Management
 **Goal**: Super Admin can manage users, approve registrations, and configure permissions
@@ -172,6 +175,6 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
 | 5. Core Authentication | v2.0 | 4/4 | Complete | 2026-02-01 |
 | 6. Role Infrastructure & Real-time Permissions | v2.0 | 5/5 | Complete | 2026-02-03 |
 | 7. Project Assignment System | v2.0 | 5/5 | Complete | 2026-02-04 |
-| 8. Security Rules Enforcement | v2.0 | 0/0 | Not started | - |
+| 8. Security Rules Enforcement | v2.0 | 0/4 | Planned | - |
 | 9. Super Admin User Management | v2.0 | 0/0 | Not started | - |
 | 10. Route Protection & Session Security | v2.0 | 0/0 | Not started | - |
