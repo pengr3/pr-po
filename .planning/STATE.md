@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-30)
 ## Current Position
 
 Phase: 9 of 10 (Super Admin User Management)
-Plan: 1 of TBD — In progress
+Plan: 2 of TBD — In progress
 Status: Phase 9 in progress
-Last activity: 2026-02-04 — Completed 09-01-PLAN.md
+Last activity: 2026-02-04 — Completed 09-02-PLAN.md
 
-Progress: [█████████░] 97% (28 plans complete)
+Progress: [█████████░] 97% (29 plans complete)
 
 ## Performance Metrics
 
@@ -35,13 +35,13 @@ Progress: [█████████░] 97% (28 plans complete)
 | 06-role-infrastructure-real-time-permissions | 5/5 | 17min | 3.4min |
 | 07-project-assignment-system | 5/5 | 8.5min | 2.1min |
 | 08-security-rules-enforcement | 4/4 | 42min | 10.5min |
-| 09-super-admin-user-management | 1/TBD | 4min | 4.0min |
+| 09-super-admin-user-management | 2/TBD | 7min | 3.5min |
 
 **Recent Trend:**
-- Last 5 plans: 2min, 26min, 8min, —, 4min
-- Trend: Consistent 2-8min velocity except when infrastructure setup required (08-03: Java install, emulator setup = 26min)
+- Last 5 plans: 26min, 8min, 4min, 3min, —
+- Trend: Consistent 3-8min velocity for Phase 9 admin features
 
-*Updated: 2026-02-04 after 09-01 completion*
+*Updated: 2026-02-04 after 09-02 completion*
 
 ## Accumulated Context
 
@@ -106,6 +106,10 @@ Recent decisions affecting current work (full log in PROJECT.md):
 - **USER-03 (09-01)**: 3-hour expiration for invitation codes - Balances security with reasonable signup window
 - **USER-04 (09-01)**: Silent cleanup on init - No toast notifications for background maintenance
 - **USER-05 (09-01)**: Tab structure with placeholders - Pending Approvals and All Users tabs ready for next plans
+- **APPROVAL-01 (09-02)**: Role assignment during approval (atomic operation) - Simplifies workflow, prevents race conditions
+- **APPROVAL-02 (09-02)**: Default role selection to operations_user - Most common role in procurement workflows
+- **APPROVAL-03 (09-02)**: Immediate deletion for rejected users - No lingering rejected status, clean database
+- **APPROVAL-04 (09-02)**: Firebase Auth accounts persist after rejection - Acceptable limitation, no system access without Firestore doc
 
 ### Pending Todos
 
@@ -158,11 +162,13 @@ None yet.
 - ✅ UUID invitation code generation with auto-copy (09-01)
 - ✅ Real-time codes display with status badges (09-01)
 - ✅ Automatic expired code cleanup (09-01)
-- Pending Approvals tab - Placeholder ready for implementation
-- All Users tab - Placeholder ready for implementation
+- ✅ Pending user approval workflow (09-02) - Role selection modal, rejection with deletion
+- ✅ Real-time pending users display with badges (09-02)
+- ✅ Audit trail: approved_at, approved_by (09-02)
+- All Users tab - Ready for implementation
 
 ## Session Continuity
 
-Last session: 2026-02-04 (09-01 completion)
-Stopped at: Completed 09-01-PLAN.md - User Management Foundation
+Last session: 2026-02-04 (09-02 completion)
+Stopped at: Completed 09-02-PLAN.md - Pending User Approval Workflow
 Resume file: None
