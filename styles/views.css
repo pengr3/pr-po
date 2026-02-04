@@ -1239,3 +1239,56 @@
 .view-only button.btn-danger {
     display: none;
 }
+
+/* ========================================
+   USER MANAGEMENT VIEW
+   ======================================== */
+
+/* Invitation Code Display */
+.code-display {
+    font-family: 'SF Mono', 'Roboto Mono', 'Consolas', monospace;
+    font-size: 0.875rem;
+    background: var(--gray-50);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--gray-200);
+    display: inline-block;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Status Badges for Invitation Codes */
+.status-badge.unused {
+    background: var(--success-light);
+    color: var(--success-dark);
+}
+
+.status-badge.used {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.status-badge.expired {
+    background: var(--danger-light);
+    color: var(--danger-dark);
+}
+
+/* Expired Code Row Styling */
+.expired-code {
+    opacity: 0.6;
+}
+
+.expired-code .code-display {
+    background: var(--gray-100);
+    color: var(--gray-500);
+    text-decoration: line-through;
+}
+
+/* Small Copy Button */
+.btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    min-width: auto;
+}

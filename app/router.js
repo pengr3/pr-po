@@ -15,7 +15,8 @@ const routePermissionMap = {
     '/procurement': 'procurement',
     '/finance': 'finance',
     '/role-config': 'role_config',   // Admin route (future)
-    '/project-assignments': 'role_config'   // Shares role_config gate with Settings
+    '/project-assignments': 'role_config',   // Shares role_config gate with Settings
+    '/user-management': 'role_config'        // Shares role_config gate with Settings
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -89,6 +90,11 @@ const routes = {
         name: 'Project Assignments',
         load: () => import('./views/project-assignments.js'),
         title: 'Project Assignments | CLMC Procurement'
+    },
+    '/user-management': {
+        name: 'User Management',
+        load: () => import('./views/user-management.js'),
+        title: 'User Management | CLMC Procurement'
     }
 };
 
