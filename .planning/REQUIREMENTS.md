@@ -215,12 +215,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMIN-05 | Phase 9 | Pending |
 | ADMIN-06 | Phase 7 | Pending |
 | ADMIN-07 | Phase 9 | Pending |
-| SEC-01 | Phase 10 | Pending |
-| SEC-02 | Phase 10 | Pending |
-| SEC-03 | Phase 10 | Pending |
-| SEC-04 | Phase 10 | Pending |
-| SEC-05 | Phase 10 | Pending |
-| SEC-06 | Phase 10 | Pending |
+| SEC-01 | Phase 10 | Complete |
+| SEC-02 | Phase 10 | Complete |
+| SEC-03 | Phase 10 | Complete |
+| SEC-04 | Phase 10 | Complete |
+| SEC-05 | Phase 10 | Complete |
+| SEC-06 | Phase 10 | Complete |
 
 ---
 *Requirements defined: 2026-01-31*
