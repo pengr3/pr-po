@@ -415,10 +415,13 @@ function updateNavForAuth(user) {
         // Hide logout button for unauthenticated users
         if (logoutBtn) logoutBtn.style.display = 'none';
 
-        // Show all nav links for unauthenticated users (will be blocked by route guards)
+        // SEC-04: Hide all nav links for unauthenticated users
+        // Only auth pages (login/register) should be accessible
         navLinks.forEach(link => {
-            link.style.display = '';
+            link.style.display = 'none';
         });
+
+        console.log('[Auth] Navigation hidden for unauthenticated user');
     }
 }
 
