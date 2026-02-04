@@ -885,11 +885,11 @@ async function handleDeactivateUser(userId) {
             // Count active Super Admins
             const activeSuperAdminCount = countActiveSuperAdmins();
 
-            if (activeSuperAdminCount <= 1) {
-                // Show error modal - cannot deactivate last Super Admin
+            if (activeSuperAdminCount <= 2) {
+                // Show error modal - cannot deactivate if only 2 Super Admins remain
                 showErrorModal(
-                    'Cannot Deactivate Last Super Admin',
-                    'Cannot deactivate the last Super Admin account. Promote another user to Super Admin first.'
+                    'Cannot Deactivate Super Admin',
+                    'Cannot deactivate this Super Admin. System requires at least 2 active Super Admins. Promote another user to Super Admin first.'
                 );
                 return;
             }
@@ -1376,13 +1376,13 @@ async function handleEditRole(userId) {
             return;
         }
 
-        // If changing away from super_admin, check if last Super Admin
+        // If changing away from super_admin, check if only 2 Super Admins remain
         if (user.role === 'super_admin' && newRole !== 'super_admin') {
             const activeSuperAdminCount = countActiveSuperAdmins();
-            if (activeSuperAdminCount <= 1) {
+            if (activeSuperAdminCount <= 2) {
                 showErrorModal(
                     'Cannot Change Role',
-                    'Cannot change role. This is the last Super Admin account.'
+                    'Cannot change role. System requires at least 2 active Super Admins. Promote another user to Super Admin first.'
                 );
                 return;
             }
