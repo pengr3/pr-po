@@ -52,10 +52,10 @@ Requirements for Authentication & Permissions milestone. Each maps to roadmap ph
 - [x] **PERM-17**: User role changes take effect immediately (no logout required)
 - [x] **PERM-18**: Real-time listener on role template updates permissions in active sessions
 - [x] **PERM-19**: Real-time listener on user document updates role/projects in active session
-- [ ] **PERM-20**: Firebase Security Rules validate user status (active) for all operations
-- [ ] **PERM-21**: Firebase Security Rules validate user role template permissions for all operations
-- [ ] **PERM-22**: Firebase Security Rules validate project assignments for data filtering
-- [ ] **PERM-23**: Firebase Security Rules deployed and tested for all collections (users, roles, invitation_codes, projects, mrfs, prs, pos, etc.)
+- [x] **PERM-20**: Firebase Security Rules validate user status (active) for all operations
+- [x] **PERM-21**: Firebase Security Rules validate user role template permissions for all operations
+- [x] **PERM-22**: Firebase Security Rules validate project assignments for data filtering
+- [x] **PERM-23**: Firebase Security Rules deployed and tested for all collections (users, roles, invitation_codes, projects, mrfs, prs, pos, etc.)
 
 ### Super Admin Dashboard
 
@@ -204,10 +204,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERM-17 | Phase 6 | Complete |
 | PERM-18 | Phase 6 | Complete |
 | PERM-19 | Phase 6 | Complete |
-| PERM-20 | Phase 8 | Pending |
-| PERM-21 | Phase 8 | Pending |
-| PERM-22 | Phase 8 | Pending |
-| PERM-23 | Phase 8 | Pending |
+| PERM-20 | Phase 8 | Complete |
+| PERM-21 | Phase 8 | Complete |
+| PERM-22 | Phase 8 | Complete |
+| PERM-23 | Phase 8 | Complete |
 | ADMIN-01 | Phase 9 | Pending |
 | ADMIN-02 | Phase 9 | Pending |
 | ADMIN-03 | Phase 9 | Pending |
