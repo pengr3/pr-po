@@ -1218,6 +1218,289 @@ function showErrorModal(title, message) {
 }
 
 /* ========================================
+   USER DELETION & ROLE EDITING
+   ======================================== */
+
+/**
+ * Handle user deletion (only for deactivated users)
+ * @param {string} userId - User ID to delete
+ */
+async function handleDeleteUser(userId) {
+    try {
+        // Find user data
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) {
+            showToast('User not found', 'error');
+            return;
+        }
+
+        // Verify user is deactivated (defense in depth)
+        if (user.status !== 'deactivated') {
+            showErrorModal(
+                'Cannot Delete Active User',
+                'Users must be deactivated before deletion.'
+            );
+            return;
+        }
+
+        // Show confirmation modal
+        const confirmed = await showDeleteConfirmation(user);
+        if (!confirmed) {
+            console.log('[UserManagement] Deletion cancelled');
+            return;
+        }
+
+        // Delete user document from Firestore
+        await deleteDoc(doc(db, 'users', userId));
+        showToast('User deleted', 'success');
+        console.log('[UserManagement] User permanently deleted:', userId);
+    } catch (error) {
+        console.error('[UserManagement] Error deleting user:', error);
+        showToast('Failed to delete user', 'error');
+    }
+}
+
+/**
+ * Show delete confirmation modal
+ * @param {Object} user - User to delete
+ * @returns {Promise<boolean>} True if confirmed
+ */
+function showDeleteConfirmation(user) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.id = 'deleteModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        `;
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #dc2626;">
+                Permanently Delete User
+            </h3>
+
+            <p style="margin: 0 0 0.75rem 0; color: #475569; font-size: 0.9375rem;">
+                This will permanently delete <strong>${user.email}</strong> and cannot be undone.
+            </p>
+
+            <p style="margin: 0 0 1rem 0; color: #475569; font-size: 0.9375rem;">
+                User's created data (MRFs, PRs, POs) will be preserved with original creator info.
+            </p>
+
+            <div style="background: #fee2e2; border: 1px solid #ef4444; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+                <p style="margin: 0; color: #991b1b; font-size: 0.875rem; font-weight: 500;">
+                    ⚠️ This action cannot be undone.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button id="cancelDelete" class="btn btn-secondary" style="min-width: 100px;">
+                    Cancel
+                </button>
+                <button id="confirmDelete" class="btn btn-danger" style="min-width: 100px;">
+                    Delete
+                </button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        document.getElementById('cancelDelete').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(false);
+        });
+
+        document.getElementById('confirmDelete').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(true);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                resolve(false);
+            }
+        });
+    });
+}
+
+/**
+ * Handle role editing for a user
+ * @param {string} userId - User ID to edit role
+ */
+async function handleEditRole(userId) {
+    try {
+        // Find user data
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) {
+            showToast('User not found', 'error');
+            return;
+        }
+
+        // Show role edit modal
+        const newRole = await showRoleEditModal(user);
+        if (!newRole) {
+            console.log('[UserManagement] Role edit cancelled');
+            return;
+        }
+
+        // If changing away from super_admin, check if last Super Admin
+        if (user.role === 'super_admin' && newRole !== 'super_admin') {
+            const activeSuperAdminCount = countActiveSuperAdmins();
+            if (activeSuperAdminCount <= 1) {
+                showErrorModal(
+                    'Cannot Change Role',
+                    'Cannot change role. This is the last Super Admin account.'
+                );
+                return;
+            }
+        }
+
+        // Get current user for audit trail
+        const currentUser = window.getCurrentUser?.();
+
+        // Update user document
+        await updateDoc(doc(db, 'users', userId), {
+            role: newRole,
+            role_changed_at: serverTimestamp(),
+            role_changed_by: currentUser?.uid || 'unknown'
+        });
+
+        showToast('Role updated', 'success');
+        console.log('[UserManagement] Role updated:', userId, 'New role:', newRole);
+    } catch (error) {
+        console.error('[UserManagement] Error updating role:', error);
+        showToast('Failed to update role', 'error');
+    }
+}
+
+/**
+ * Show role edit modal
+ * @param {Object} user - User to edit
+ * @returns {Promise<string|null>} New role or null if cancelled
+ */
+function showRoleEditModal(user) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.id = 'roleEditModal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        `;
+
+        // Role label mapping
+        const roleLabels = {
+            'super_admin': 'Super Admin',
+            'operations_admin': 'Operations Admin',
+            'operations_user': 'Operations User',
+            'finance': 'Finance',
+            'procurement': 'Procurement'
+        };
+
+        const currentRoleLabel = roleLabels[user.role] || user.role || 'Unknown';
+
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; font-size: 1.25rem; color: #1e293b;">
+                Change Role
+            </h3>
+
+            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <div style="margin-bottom: 0.5rem;">
+                    <strong style="color: #475569;">User:</strong>
+                    <span style="color: #1e293b;">${user.email}</span>
+                </div>
+                <div>
+                    <strong style="color: #475569;">Current:</strong>
+                    <span style="color: #1e293b;">${currentRoleLabel}</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1e293b;">
+                    Select New Role
+                </label>
+                <select id="roleEditSelect" class="form-input" style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9375rem;">
+                    <option value="operations_user" ${user.role === 'operations_user' ? 'selected' : ''}>Operations User</option>
+                    <option value="super_admin" ${user.role === 'super_admin' ? 'selected' : ''}>Super Admin</option>
+                    <option value="operations_admin" ${user.role === 'operations_admin' ? 'selected' : ''}>Operations Admin</option>
+                    <option value="finance" ${user.role === 'finance' ? 'selected' : ''}>Finance</option>
+                    <option value="procurement" ${user.role === 'procurement' ? 'selected' : ''}>Procurement</option>
+                </select>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button id="cancelRoleEdit" class="btn btn-secondary" style="min-width: 100px;">
+                    Cancel
+                </button>
+                <button id="confirmRoleEdit" class="btn btn-primary" style="min-width: 100px;">
+                    Save Changes
+                </button>
+            </div>
+        `;
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        const roleSelect = document.getElementById('roleEditSelect');
+
+        document.getElementById('cancelRoleEdit').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            resolve(null);
+        });
+
+        document.getElementById('confirmRoleEdit').addEventListener('click', () => {
+            const newRole = roleSelect.value;
+            document.body.removeChild(modal);
+            resolve(newRole);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+                resolve(null);
+            }
+        });
+    });
+}
+
+/* ========================================
    INVITATION CODE GENERATION
    ======================================== */
 
@@ -1427,6 +1710,9 @@ async function cleanupExpiredCodes() {
 export async function destroy() {
     console.log('[UserManagement] Cleaning up...');
 
+    // Remove document event listener
+    document.removeEventListener('click', closeAllActionMenus);
+
     // Unsubscribe all listeners
     listeners.forEach(unsubscribe => unsubscribe?.());
     listeners = [];
@@ -1436,6 +1722,9 @@ export async function destroy() {
     pendingUsers = [];
     pendingUsersListener = null;
     selectedUserForApproval = null;
+    allUsers = [];
+    allUsersListener = null;
+    userSearchQuery = '';
 
     // Remove window functions
     delete window.switchUserMgmtTab;
@@ -1445,6 +1734,12 @@ export async function destroy() {
     delete window.handleRejectUser;
     delete window.confirmApproval;
     delete window.closeApprovalModal;
+    delete window.handleUserSearch;
+    delete window.toggleUserActionMenu;
+    delete window.handleEditRole;
+    delete window.handleDeactivateUser;
+    delete window.handleReactivateUser;
+    delete window.handleDeleteUser;
 }
 
 console.log('[UserManagement] Module loaded');
