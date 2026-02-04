@@ -328,6 +328,194 @@ function renderPendingUsersTable() {
 }
 
 /* ========================================
+   USER APPROVAL WORKFLOW
+   ======================================== */
+
+/**
+ * Open approval modal with role selection
+ * @param {string} userId - User ID to approve
+ */
+function openApprovalModal(userId) {
+    // Store userId for later use
+    selectedUserForApproval = userId;
+
+    // Find user data
+    const user = pendingUsers.find(u => u.id === userId);
+    if (!user) {
+        showToast('User not found', 'error');
+        return;
+    }
+
+    // Format registration date
+    const createdAt = user.created_at?.toDate ? user.created_at.toDate() : new Date();
+    const registeredDate = createdAt.toLocaleDateString() + ' ' + createdAt.toLocaleTimeString();
+
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.id = 'approvalModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+
+    // Create modal dialog
+    const dialog = document.createElement('div');
+    dialog.style.cssText = `
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+
+    dialog.innerHTML = `
+        <h3 style="margin: 0 0 1.5rem 0; font-size: 1.25rem; color: #1e293b;">
+            Approve User
+        </h3>
+
+        <!-- User Info -->
+        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: #475569;">Email:</strong>
+                <span style="color: #1e293b;">${user.email}</span>
+            </div>
+            <div style="margin-bottom: 0.5rem;">
+                <strong style="color: #475569;">Full Name:</strong>
+                <span style="color: #1e293b;">${user.full_name || 'Unknown'}</span>
+            </div>
+            <div>
+                <strong style="color: #475569;">Registered:</strong>
+                <span style="color: #1e293b;">${registeredDate}</span>
+            </div>
+        </div>
+
+        <!-- Role Selection -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #1e293b;">
+                Select Role <span style="color: #ef4444;">*</span>
+            </label>
+            <select id="approvalRoleSelect" class="form-input" style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9375rem;">
+                <option value="operations_user">Operations User</option>
+                <option value="super_admin">Super Admin</option>
+                <option value="operations_admin">Operations Admin</option>
+                <option value="finance">Finance</option>
+                <option value="procurement">Procurement</option>
+            </select>
+        </div>
+
+        <!-- Warning -->
+        <div style="background: #fef3c7; border: 1px solid #fbbf24; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+            <p style="margin: 0; color: #92400e; font-size: 0.875rem;">
+                ⚠️ Approved users will have immediate access to the system with the assigned role.
+            </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+            <button id="cancelApproval" class="btn btn-secondary" style="min-width: 100px;">
+                Cancel
+            </button>
+            <button id="confirmApprovalBtn" class="btn btn-primary" style="min-width: 100px;">
+                Approve
+            </button>
+        </div>
+    `;
+
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    // Handle cancel
+    document.getElementById('cancelApproval').addEventListener('click', closeApprovalModal);
+
+    // Handle confirm
+    document.getElementById('confirmApprovalBtn').addEventListener('click', confirmApproval);
+
+    // Handle click outside to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeApprovalModal();
+        }
+    });
+}
+
+/**
+ * Close approval modal
+ */
+function closeApprovalModal() {
+    const modal = document.getElementById('approvalModal');
+    if (modal) {
+        document.body.removeChild(modal);
+    }
+    selectedUserForApproval = null;
+}
+
+/**
+ * Confirm user approval with selected role
+ */
+async function confirmApproval() {
+    try {
+        if (!selectedUserForApproval) {
+            showToast('No user selected', 'error');
+            return;
+        }
+
+        // Get selected role
+        const roleSelect = document.getElementById('approvalRoleSelect');
+        const selectedRole = roleSelect?.value;
+
+        if (!selectedRole) {
+            showToast('Please select a role', 'error');
+            return;
+        }
+
+        // Get current user for audit trail
+        const currentUser = window.getCurrentUser?.();
+        if (!currentUser) {
+            showToast('Authentication required', 'error');
+            return;
+        }
+
+        // Update user document
+        await updateDoc(doc(db, 'users', selectedUserForApproval), {
+            status: 'active',
+            role: selectedRole,
+            approved_at: serverTimestamp(),
+            approved_by: currentUser.uid,
+            updated_at: serverTimestamp()
+        });
+
+        // Close modal
+        closeApprovalModal();
+
+        // Show success message
+        showToast('User approved successfully', 'success');
+
+        console.log('[UserManagement] User approved:', selectedUserForApproval, 'Role:', selectedRole);
+    } catch (error) {
+        console.error('[UserManagement] Error approving user:', error);
+        showToast('Failed to approve user', 'error');
+    }
+}
+
+/**
+ * Handle user rejection (placeholder for Task 3)
+ * @param {string} userId - User ID to reject
+ */
+async function handleRejectUser(userId) {
+    // Implementation in Task 3
+    showToast('Rejection functionality coming soon', 'info');
+}
+
+/* ========================================
    INVITATION CODE GENERATION
    ======================================== */
 
