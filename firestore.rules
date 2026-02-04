@@ -1,0 +1,247 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =============================================
+    // HELPER FUNCTIONS
+    // =============================================
+
+    // Is the request from a signed-in user?
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Read the current user's document. Cached per evaluation -- one billable read.
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Is the user's status 'active'?
+    function isActiveUser() {
+      return isSignedIn() && getUserData().status == 'active';
+    }
+
+    // Does the user have one of the listed roles?
+    function hasRole(roles) {
+      return isActiveUser() && getUserData().role in roles;
+    }
+
+    // Does the user have a specific role?
+    function isRole(role) {
+      return hasRole([role]);
+    }
+
+    // Check if an operations_user is assigned to a given project_code.
+    // Only call this after confirming role is operations_user.
+    function isAssignedToProject(projectCode) {
+      return getUserData().all_projects == true ||
+             projectCode in getUserData().assigned_project_codes;
+    }
+
+    // Helper for legacy data: check if doc has no project_code or empty project_code
+    function isLegacyOrAssigned(projectCode) {
+      return !('project_code' in resource.data) ||
+             resource.data.project_code == '' ||
+             isAssignedToProject(projectCode);
+    }
+
+    // =============================================
+    // users collection
+    // =============================================
+    match /users/{userId} {
+      // Get: own doc OR super_admin OR (operations_admin AND target is operations_user)
+      allow get: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isRole('super_admin') ||
+        (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user')
+      );
+
+      // List: super_admin OR (operations_admin - filtered by client to operations_user only)
+      // Note: operations_admin's list access must be filtered client-side to operations_user docs
+      allow list: if isRole('super_admin') || isRole('operations_admin');
+
+      // Create: signed-in user creating own doc AND status is 'pending'
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       request.resource.data.status == 'pending';
+
+      // Update: super_admin OR (operations_admin AND target is operations_user) OR own doc
+      allow update: if isSignedIn() && (
+        isRole('super_admin') ||
+        (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
+        request.auth.uid == userId
+      );
+
+      // Delete: never allow client-side deletion
+      allow delete: if false;
+    }
+
+    // =============================================
+    // role_templates collection
+    // =============================================
+    match /role_templates/{roleId} {
+      // All active users can read role templates (permissions module needs this)
+      allow read: if isActiveUser();
+
+      // Only Super Admin can modify role templates
+      allow write: if isRole('super_admin');
+    }
+
+    // =============================================
+    // invitation_codes collection
+    // =============================================
+    match /invitation_codes/{codeId} {
+      // Any signed-in user can read (for validation during registration)
+      // Note: isSignedIn() not isActiveUser() - registration validation needs this
+      allow read: if isSignedIn();
+
+      // Super Admin creates codes
+      allow create: if isRole('super_admin');
+
+      // Any signed-in user can update (to mark as used during registration)
+      // Note: isSignedIn() not isActiveUser() - registration marks code used while pending
+      allow update: if isSignedIn();
+
+      // No deletion
+      allow delete: if false;
+    }
+
+    // =============================================
+    // projects collection
+    // =============================================
+    match /projects/{projectId} {
+      // All active users can read
+      allow read: if isActiveUser();
+
+      // Create: super_admin, operations_admin
+      allow create: if hasRole(['super_admin', 'operations_admin']);
+
+      // Update: super_admin, operations_admin, finance
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+
+      // Delete: super_admin, operations_admin
+      allow delete: if hasRole(['super_admin', 'operations_admin']);
+    }
+
+    // =============================================
+    // mrfs collection
+    // =============================================
+    match /mrfs/{mrfId} {
+      // Get: all active users
+      allow get: if isActiveUser();
+
+      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      allow list: if isActiveUser() && (
+        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+      );
+
+      // Create: super_admin, operations_admin, operations_user, procurement
+      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'procurement']);
+
+      // Update: super_admin, operations_admin, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'procurement']);
+
+      // Delete: super_admin, operations_admin
+      allow delete: if hasRole(['super_admin', 'operations_admin']);
+    }
+
+    // =============================================
+    // prs collection
+    // =============================================
+    match /prs/{prId} {
+      // Get: all active users
+      allow get: if isActiveUser();
+
+      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      allow list: if isActiveUser() && (
+        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+      );
+
+      // Create: super_admin, operations_admin, procurement
+      allow create: if hasRole(['super_admin', 'operations_admin', 'procurement']);
+
+      // Update: super_admin, operations_admin, finance, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']);
+
+      // Delete: super_admin, operations_admin, procurement
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'procurement']);
+    }
+
+    // =============================================
+    // pos collection
+    // =============================================
+    match /pos/{poId} {
+      // Get: all active users
+      allow get: if isActiveUser();
+
+      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      allow list: if isActiveUser() && (
+        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+      );
+
+      // Create: super_admin, finance (Finance issues POs after approving PRs)
+      allow create: if hasRole(['super_admin', 'finance']);
+
+      // Update: super_admin, finance, procurement
+      allow update: if hasRole(['super_admin', 'finance', 'procurement']);
+
+      // Delete: super_admin only
+      allow delete: if hasRole(['super_admin']);
+    }
+
+    // =============================================
+    // transport_requests collection
+    // =============================================
+    match /transport_requests/{trId} {
+      // Get: all active users
+      allow get: if isActiveUser();
+
+      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      allow list: if isActiveUser() && (
+        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+      );
+
+      // Create: super_admin, operations_admin, operations_user, procurement
+      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'procurement']);
+
+      // Update: super_admin, operations_admin, finance, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']);
+
+      // Delete: super_admin, operations_admin, procurement
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'procurement']);
+    }
+
+    // =============================================
+    // suppliers collection
+    // =============================================
+    match /suppliers/{supplierId} {
+      // All active users can read
+      allow read: if isActiveUser();
+
+      // Create/Update/Delete: super_admin, procurement
+      allow create: if hasRole(['super_admin', 'procurement']);
+      allow update: if hasRole(['super_admin', 'procurement']);
+      allow delete: if hasRole(['super_admin', 'procurement']);
+    }
+
+    // =============================================
+    // deleted_mrfs collection (soft-delete archive)
+    // =============================================
+    match /deleted_mrfs/{deletedMrfId} {
+      // Read: super_admin, operations_admin only
+      allow read: if hasRole(['super_admin', 'operations_admin']);
+
+      // Create: super_admin, operations_admin (append when MRF is soft-deleted)
+      allow create: if hasRole(['super_admin', 'operations_admin']);
+
+      // No update or delete - archive is append-only
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
