@@ -10,6 +10,7 @@ import {
     onSnapshot,
     getDocs,
     addDoc,
+    updateDoc,
     deleteDoc,
     query,
     where,
@@ -25,6 +26,9 @@ import { showToast } from '../utils.js';
 
 let listeners = [];              // Array of unsubscribe functions
 let invitationCodes = [];        // Loaded invitation codes
+let pendingUsers = [];           // Loaded pending users
+let pendingUsersListener = null; // Listener for pending users
+let selectedUserForApproval = null; // User being approved
 
 /* ========================================
    RENDER FUNCTION
@@ -83,11 +87,19 @@ export function render(activeTab = null) {
 
                 <!-- Tab Content -->
                 <div id="approvalsTab" class="tab-content" style="display: ${currentTab === 'approvals' ? 'block' : 'none'};">
-                    <div class="empty-state" style="padding: 3rem;">
-                        <div class="empty-state-icon">⏳</div>
-                        <h3>Pending Approvals</h3>
-                        <p style="color: #64748b;">Review and approve new user registrations.</p>
-                        <p style="color: #94a3b8; font-size: 0.875rem;">(Coming in next plan)</p>
+                    <!-- Pending Approvals Header -->
+                    <div class="suppliers-header" style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem;">
+                        <div>
+                            <h3 style="font-size: 1.125rem; margin: 0;">Pending User Approvals</h3>
+                            <span id="pendingUsersBadge" class="status-badge" style="display: inline-block; margin-top: 0.5rem; font-size: 0.875rem;">
+                                Loading...
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Pending Users Table -->
+                    <div id="pendingUsersContainer">
+                        <p style="color: #64748b; padding: 1rem;">Loading pending users...</p>
                     </div>
                 </div>
 
@@ -146,6 +158,10 @@ export async function init(activeTab = null) {
     window.switchUserMgmtTab = switchUserMgmtTab;
     window.generateInvitationCode = generateInvitationCode;
     window.copyCodeToClipboard = copyCodeToClipboard;
+    window.openApprovalModal = openApprovalModal;
+    window.handleRejectUser = handleRejectUser;
+    window.confirmApproval = confirmApproval;
+    window.closeApprovalModal = closeApprovalModal;
 
     // Clean up expired codes first (before setting up listener)
     await cleanupExpiredCodes();
@@ -156,14 +172,30 @@ export async function init(activeTab = null) {
         orderBy('created_at', 'desc')
     );
 
-    const listener = onSnapshot(codesQuery, (snapshot) => {
+    const codesListener = onSnapshot(codesQuery, (snapshot) => {
         invitationCodes = [];
         snapshot.forEach(d => invitationCodes.push({ id: d.id, ...d.data() }));
         console.log('[UserManagement] Invitation codes loaded:', invitationCodes.length);
         renderInvitationCodesTable();
     });
 
-    listeners.push(listener);
+    listeners.push(codesListener);
+
+    // Set up listener for pending users
+    const pendingQuery = query(
+        collection(db, 'users'),
+        where('status', '==', 'pending'),
+        orderBy('created_at', 'desc')
+    );
+
+    pendingUsersListener = onSnapshot(pendingQuery, (snapshot) => {
+        pendingUsers = [];
+        snapshot.forEach(d => pendingUsers.push({ id: d.id, ...d.data() }));
+        console.log('[UserManagement] Pending users loaded:', pendingUsers.length);
+        renderPendingUsersTable();
+    });
+
+    listeners.push(pendingUsersListener);
 }
 
 /* ========================================
@@ -186,6 +218,113 @@ function switchUserMgmtTab(tabId) {
 
     // Update URL hash
     window.location.hash = `#/user-management/${tabId}`;
+}
+
+/* ========================================
+   PENDING USERS TABLE RENDERING
+   ======================================== */
+
+/**
+ * Render the pending users table
+ */
+function renderPendingUsersTable() {
+    const container = document.getElementById('pendingUsersContainer');
+    const badge = document.getElementById('pendingUsersBadge');
+
+    if (!container) return;
+
+    // Update badge
+    if (badge) {
+        if (pendingUsers.length === 0) {
+            badge.textContent = 'No pending users';
+            badge.style.background = '#e5e7eb';
+            badge.style.color = '#64748b';
+        } else {
+            badge.textContent = `${pendingUsers.length} pending`;
+            badge.style.background = '#fef3c7';
+            badge.style.color = '#92400e';
+            badge.style.border = '1px solid #fbbf24';
+        }
+    }
+
+    if (pendingUsers.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="padding: 2rem;">
+                <div class="empty-state-icon">✅</div>
+                <p style="color: #64748b;">No pending registrations</p>
+            </div>
+        `;
+        return;
+    }
+
+    const tableRows = pendingUsers.map(user => {
+        const createdAt = user.created_at?.toDate ? user.created_at.toDate() : new Date();
+        const invitationCode = user.invitation_code || 'Unknown';
+        const truncatedCode = invitationCode.length > 8 ? invitationCode.substring(0, 8) + '...' : invitationCode;
+
+        // Format registration date
+        const timeDiff = Date.now() - createdAt.getTime();
+        const hoursAgo = Math.floor(timeDiff / (1000 * 60 * 60));
+        const daysAgo = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+
+        let registeredDisplay = '';
+        if (daysAgo === 0) {
+            if (hoursAgo === 0) {
+                registeredDisplay = 'Just now';
+            } else {
+                registeredDisplay = `${hoursAgo}h ago`;
+            }
+        } else if (daysAgo === 1) {
+            registeredDisplay = 'Yesterday';
+        } else {
+            registeredDisplay = `${daysAgo}d ago`;
+        }
+
+        return `
+            <tr>
+                <td>${user.email || 'Unknown'}</td>
+                <td>${user.full_name || 'Unknown'}</td>
+                <td>
+                    <div style="font-weight: 500; color: #1e293b;">${registeredDisplay}</div>
+                    <div style="font-size: 0.8125rem; color: #64748b;">
+                        ${createdAt.toLocaleDateString()} ${createdAt.toLocaleTimeString()}
+                    </div>
+                </td>
+                <td>
+                    <code style="font-size: 0.8125rem; background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">
+                        ${truncatedCode}
+                    </code>
+                </td>
+                <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-primary btn-sm" onclick="openApprovalModal('${user.id}')">
+                            Approve
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="handleRejectUser('${user.id}')" style="background: white; color: #ef4444; border: 1px solid #ef4444;">
+                            Reject
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Full Name</th>
+                    <th>Registered</th>
+                    <th>Invitation Code</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tableRows}
+            </tbody>
+        </table>
+    `;
 }
 
 /* ========================================
@@ -404,11 +543,18 @@ export async function destroy() {
 
     // Clear module state
     invitationCodes = [];
+    pendingUsers = [];
+    pendingUsersListener = null;
+    selectedUserForApproval = null;
 
     // Remove window functions
     delete window.switchUserMgmtTab;
     delete window.generateInvitationCode;
     delete window.copyCodeToClipboard;
+    delete window.openApprovalModal;
+    delete window.handleRejectUser;
+    delete window.confirmApproval;
+    delete window.closeApprovalModal;
 }
 
 console.log('[UserManagement] Module loaded');
