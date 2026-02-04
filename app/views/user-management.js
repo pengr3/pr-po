@@ -29,6 +29,9 @@ let invitationCodes = [];        // Loaded invitation codes
 let pendingUsers = [];           // Loaded pending users
 let pendingUsersListener = null; // Listener for pending users
 let selectedUserForApproval = null; // User being approved
+let allUsers = [];               // All active/deactivated users (excludes pending)
+let allUsersListener = null;     // Listener for all users
+let userSearchQuery = '';        // Search query for user filtering
 
 /* ========================================
    RENDER FUNCTION
@@ -104,11 +107,29 @@ export function render(activeTab = null) {
                 </div>
 
                 <div id="usersTab" class="tab-content" style="display: ${currentTab === 'users' ? 'block' : 'none'};">
-                    <div class="empty-state" style="padding: 3rem;">
-                        <div class="empty-state-icon">👥</div>
-                        <h3>All Users</h3>
-                        <p style="color: #64748b;">View and manage all system users.</p>
-                        <p style="color: #94a3b8; font-size: 0.875rem;">(Coming in next plan)</p>
+                    <!-- All Users Header -->
+                    <div class="suppliers-header" style="border-top: 1px solid #e5e7eb; padding-top: 1.5rem;">
+                        <div>
+                            <h3 style="font-size: 1.125rem; margin: 0;">All Users</h3>
+                            <span id="allUsersBadge" class="status-badge" style="display: inline-block; margin-top: 0.5rem; font-size: 0.875rem;">
+                                Loading...
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Search Bar -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <input type="text"
+                               class="form-input"
+                               placeholder="Search by email..."
+                               value="${userSearchQuery}"
+                               oninput="handleUserSearch(event)"
+                               style="max-width: 400px;">
+                    </div>
+
+                    <!-- Users Table Container -->
+                    <div id="usersTableContainer">
+                        <p style="color: #64748b; padding: 1rem;">Loading users...</p>
                     </div>
                 </div>
 
@@ -162,6 +183,12 @@ export async function init(activeTab = null) {
     window.handleRejectUser = handleRejectUser;
     window.confirmApproval = confirmApproval;
     window.closeApprovalModal = closeApprovalModal;
+    window.handleUserSearch = handleUserSearch;
+    window.toggleUserActionMenu = toggleUserActionMenu;
+    window.handleEditRole = handleEditRole;
+    window.handleDeactivateUser = handleDeactivateUser;
+    window.handleReactivateUser = handleReactivateUser;
+    window.handleDeleteUser = handleDeleteUser;
 
     // Clean up expired codes first (before setting up listener)
     await cleanupExpiredCodes();
@@ -196,6 +223,25 @@ export async function init(activeTab = null) {
     });
 
     listeners.push(pendingUsersListener);
+
+    // Set up listener for all users (active and deactivated, exclude pending)
+    const allUsersQuery = query(
+        collection(db, 'users'),
+        where('status', 'in', ['active', 'deactivated'])
+    );
+
+    allUsersListener = onSnapshot(allUsersQuery, (snapshot) => {
+        allUsers = [];
+        snapshot.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
+        allUsers.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+        console.log('[UserManagement] All users loaded:', allUsers.length);
+        renderUsersTable();
+    });
+
+    listeners.push(allUsersListener);
+
+    // Close action menus when clicking outside
+    document.addEventListener('click', closeAllActionMenus);
 }
 
 /* ========================================
@@ -325,6 +371,196 @@ function renderPendingUsersTable() {
             </tbody>
         </table>
     `;
+}
+
+/* ========================================
+   ALL USERS TABLE RENDERING
+   ======================================== */
+
+/**
+ * Render the all users table with action menus
+ */
+function renderUsersTable() {
+    const container = document.getElementById('usersTableContainer');
+    const badge = document.getElementById('allUsersBadge');
+
+    if (!container) return;
+
+    // Update badge
+    if (badge) {
+        badge.textContent = `${allUsers.length} users`;
+        badge.style.background = '#e0f2fe';
+        badge.style.color = '#0369a1';
+        badge.style.border = '1px solid #0ea5e9';
+    }
+
+    // Filter users by search query
+    let filteredUsers = allUsers;
+    if (userSearchQuery.trim()) {
+        const searchLower = userSearchQuery.toLowerCase();
+        filteredUsers = allUsers.filter(user =>
+            (user.email || '').toLowerCase().includes(searchLower)
+        );
+    }
+
+    if (filteredUsers.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state" style="padding: 2rem;">
+                <div class="empty-state-icon">🔍</div>
+                <p style="color: #64748b;">
+                    ${userSearchQuery.trim() ? 'No users match your search' : 'No users found'}
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    // Get current user to prevent actions on self
+    const currentUser = window.getCurrentUser?.();
+    const currentUserId = currentUser?.uid;
+
+    const tableRows = filteredUsers.map(user => {
+        const isCurrentUser = user.id === currentUserId;
+
+        // Role label mapping
+        const roleLabels = {
+            'super_admin': 'Super Admin',
+            'operations_admin': 'Operations Admin',
+            'operations_user': 'Operations User',
+            'finance': 'Finance',
+            'procurement': 'Procurement'
+        };
+        const roleLabel = roleLabels[user.role] || user.role || 'Unknown';
+
+        // Status badge
+        const isActive = user.status === 'active';
+        const statusBadge = isActive
+            ? '<span class="status-badge approved" style="background: #d1fae5; color: #065f46;">Active</span>'
+            : '<span class="status-badge" style="background: #e5e7eb; color: #475569;">Deactivated</span>';
+
+        // Assigned projects display
+        let assignedProjectsDisplay = '-';
+        if (user.role === 'operations_user') {
+            if (user.all_projects === true) {
+                assignedProjectsDisplay = 'All projects';
+            } else if (Array.isArray(user.assigned_project_codes) && user.assigned_project_codes.length > 0) {
+                assignedProjectsDisplay = `${user.assigned_project_codes.length} projects`;
+            } else {
+                assignedProjectsDisplay = 'No projects';
+            }
+        }
+
+        // Action menu items
+        let actionMenuItems = '';
+        if (!isCurrentUser) {
+            actionMenuItems = `
+                <button class="action-menu-item" onclick="handleEditRole('${user.id}'); event.stopPropagation();">
+                    Edit Role
+                </button>
+                ${user.role === 'operations_user' ? `
+                    <a href="#/project-assignments" class="action-menu-item" style="display: block; color: inherit; text-decoration: none;">
+                        Assign Projects
+                    </a>
+                ` : ''}
+                ${isActive ? `
+                    <button class="action-menu-item action-menu-danger" onclick="handleDeactivateUser('${user.id}'); event.stopPropagation();">
+                        Deactivate
+                    </button>
+                ` : `
+                    <button class="action-menu-item" onclick="handleReactivateUser('${user.id}'); event.stopPropagation();">
+                        Reactivate
+                    </button>
+                    <button class="action-menu-item action-menu-danger" onclick="handleDeleteUser('${user.id}'); event.stopPropagation();">
+                        Delete
+                    </button>
+                `}
+            `;
+        }
+
+        // Row styling for current user
+        const rowStyle = isCurrentUser ? 'background: #fef3c7;' : '';
+
+        return `
+            <tr style="${rowStyle}">
+                <td>
+                    ${user.email || 'Unknown'}
+                    ${isCurrentUser ? '<span style="color: #92400e; font-size: 0.75rem; margin-left: 0.5rem;">(You)</span>' : ''}
+                </td>
+                <td>${user.full_name || '-'}</td>
+                <td>${roleLabel}</td>
+                <td>${statusBadge}</td>
+                <td>${assignedProjectsDisplay}</td>
+                <td style="position: relative;">
+                    ${!isCurrentUser ? `
+                        <button class="action-menu-btn" onclick="toggleUserActionMenu('${user.id}'); event.stopPropagation();" title="Actions">
+                            ⋮
+                        </button>
+                        <div id="actionMenu-${user.id}" class="action-menu" style="display: none;">
+                            ${actionMenuItems}
+                        </div>
+                    ` : '<span style="color: #94a3b8; font-size: 0.875rem;">-</span>'}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Full Name</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Assigned Projects</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tableRows}
+            </tbody>
+        </table>
+    `;
+}
+
+/**
+ * Handle user search input
+ * @param {Event} event - Input event from search field
+ */
+function handleUserSearch(event) {
+    userSearchQuery = event.target.value;
+    renderUsersTable();
+}
+
+/**
+ * Toggle visibility of action menu for a specific user
+ * @param {string} userId - User ID to toggle menu for
+ */
+function toggleUserActionMenu(userId) {
+    // Close all other menus
+    document.querySelectorAll('.action-menu').forEach(menu => {
+        if (menu.id !== `actionMenu-${userId}`) {
+            menu.style.display = 'none';
+        }
+    });
+
+    // Toggle this menu
+    const menu = document.getElementById(`actionMenu-${userId}`);
+    if (menu) {
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+/**
+ * Close all action menus when clicking outside
+ */
+function closeAllActionMenus(event) {
+    // Check if click is on action menu button or inside menu
+    if (!event.target.closest('.action-menu-btn') && !event.target.closest('.action-menu')) {
+        document.querySelectorAll('.action-menu').forEach(menu => {
+            menu.style.display = 'none';
+        });
+    }
 }
 
 /* ========================================

@@ -1292,3 +1292,57 @@
     padding: 0.25rem 0.5rem;
     min-width: auto;
 }
+
+/* Action Menu (Kebab Menu) */
+.action-menu-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    color: var(--gray-600);
+    transition: color 0.2s;
+}
+
+.action-menu-btn:hover {
+    color: var(--primary);
+}
+
+.action-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: white;
+    border: 1px solid var(--gray-200);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    z-index: 1000;
+    padding: 0.5rem 0;
+}
+
+.action-menu-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--gray-900);
+    font-size: 0.875rem;
+    transition: background 0.2s;
+}
+
+.action-menu-item:hover {
+    background: var(--gray-50);
+}
+
+.action-menu-item.action-menu-danger {
+    color: var(--danger);
+}
+
+.action-menu-item.action-menu-danger:hover {
+    background: var(--danger-light);
+}
