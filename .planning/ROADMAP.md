@@ -2,13 +2,13 @@
 
 ## Milestones
 
-- ✅ **v1.0 Core Projects Foundation** - Phases 1-4 (shipped 2026-01-30)
-- 🚧 **v2.0 Authentication & Permissions** - Phases 5-10 (in progress)
+- **v1.0 Core Projects Foundation** - Phases 1-4 (shipped 2026-01-30)
+- **v2.0 Authentication & Permissions** - Phases 5-10 (in progress)
 
 ## Phases
 
 <details>
-<summary>✅ v1.0 Core Projects Foundation (Phases 1-4) - SHIPPED 2026-01-30</summary>
+<summary>v1.0 Core Projects Foundation (Phases 1-4) - SHIPPED 2026-01-30</summary>
 
 ### Phase 1: Foundation - Client Management
 **Goal**: Establish client database as foundation for project tracking
@@ -46,7 +46,7 @@ Plans:
 
 </details>
 
-## 🚧 v2.0 Authentication & Permissions (In Progress)
+## v2.0 Authentication & Permissions (In Progress)
 
 **Milestone Goal:** Secure the foundation with role-based access control, enabling multiple users with granular permissions across procurement workflows.
 
@@ -140,10 +140,13 @@ Plans:
   4. Super Admin can view list of all users with email, role, status, assigned projects
   5. Super Admin can deactivate or delete user accounts (with confirmation)
   6. System prevents deactivating last Super Admin account
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 09-01: [To be planned]
+- [ ] 09-01-PLAN.md — User Management view foundation with invitation code generation
+- [ ] 09-02-PLAN.md — Pending user approval with role assignment modal
+- [ ] 09-03-PLAN.md — All Users list with search and user actions
+- [ ] 09-04-PLAN.md — End-to-end verification checkpoint
 
 ### Phase 10: Route Protection & Session Security
 **Goal**: Unauthenticated and unauthorized users cannot access the system
@@ -164,7 +167,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
+Phases execute in numeric order: 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -176,5 +179,5 @@ Phases execute in numeric order: 5 → 6 → 7 → 8 → 9 → 10
 | 6. Role Infrastructure & Real-time Permissions | v2.0 | 5/5 | Complete | 2026-02-03 |
 | 7. Project Assignment System | v2.0 | 5/5 | Complete | 2026-02-04 |
 | 8. Security Rules Enforcement | v2.0 | 4/4 | Complete | 2026-02-04 |
-| 9. Super Admin User Management | v2.0 | 0/0 | Not started | - |
+| 9. Super Admin User Management | v2.0 | 0/4 | Ready | - |
 | 10. Route Protection & Session Security | v2.0 | 0/0 | Not started | - |
