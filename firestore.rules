@@ -244,5 +244,27 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if false;
     }
+
+    // =============================================
+    // deleted_users collection (user deletion audit trail)
+    // =============================================
+    match /deleted_users/{userId} {
+      // Read: any signed-in user can check if their account was deleted (auth check)
+      // Super Admin can read all for audit purposes
+      allow get: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isRole('super_admin')
+      );
+
+      // List: super_admin only (for audit purposes)
+      allow list: if isRole('super_admin');
+
+      // Create: super_admin only (when deleting a user)
+      allow create: if isRole('super_admin');
+
+      // No update or delete - archive is append-only
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }

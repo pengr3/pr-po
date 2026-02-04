@@ -10,6 +10,7 @@ import {
     onSnapshot,
     getDocs,
     addDoc,
+    setDoc,
     updateDoc,
     deleteDoc,
     query,
@@ -1250,10 +1251,22 @@ async function handleDeleteUser(userId) {
             return;
         }
 
-        // Delete user document from Firestore
+        // Get current user for audit trail
+        const currentUser = window.getCurrentUser?.();
+
+        // Move user to deleted_users collection (audit trail)
+        await setDoc(doc(db, 'deleted_users', userId), {
+            ...user,
+            deleted_at: serverTimestamp(),
+            deleted_by: currentUser?.uid || 'unknown',
+            original_user_id: userId
+        });
+
+        // Delete user document from active users collection
         await deleteDoc(doc(db, 'users', userId));
+
         showToast('User deleted', 'success');
-        console.log('[UserManagement] User permanently deleted:', userId);
+        console.log('[UserManagement] User moved to deleted_users:', userId);
     } catch (error) {
         console.error('[UserManagement] Error deleting user:', error);
         showToast('Failed to delete user', 'error');

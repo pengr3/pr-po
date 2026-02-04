@@ -309,8 +309,30 @@ export function initAuthObserver() {
                     });
                 } else {
                     console.warn('[Auth] User document not found for:', user.email);
-                    currentUser = { uid: user.uid, email: user.email };
-                    updateNavForAuth(currentUser);
+
+                    // Check if user was deleted (moved to deleted_users collection)
+                    try {
+                        const deletedUserDoc = await getDoc(doc(db, 'deleted_users', user.uid));
+
+                        if (deletedUserDoc.exists()) {
+                            // User account was deleted - force sign out
+                            console.error('[Auth] User account deleted - forcing sign out');
+                            await signOut(auth);
+                            window.location.hash = '#/login';
+                            alert('Your account has been deleted by an administrator. Please contact support for more information.');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('[Auth] Error checking deleted_users:', error);
+                    }
+
+                    // User document missing (not deleted, but also not found)
+                    // This is an invalid state - force sign out for security
+                    console.error('[Auth] User document missing - forcing sign out for security');
+                    await signOut(auth);
+                    window.location.hash = '#/login';
+                    alert('Your account information is missing. Please contact an administrator.');
+                    return;
                 }
             } catch (error) {
                 console.error('[Auth] Error fetching user document:', error);
