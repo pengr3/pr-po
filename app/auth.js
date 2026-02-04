@@ -96,15 +96,15 @@ export async function validateInvitationCode(code) {
 /**
  * Mark invitation code as used
  * @param {string} docId - Invitation code document ID
- * @param {string} userId - User ID who used the code
+ * @param {string} userEmail - Email of user who used the code
  * @returns {Promise<void>}
  */
-export async function markInvitationCodeUsed(docId, userId) {
+export async function markInvitationCodeUsed(docId, userEmail) {
     try {
         await updateDoc(doc(db, 'invitation_codes', docId), {
             status: 'used',
             used_at: serverTimestamp(),
-            used_by: userId
+            used_by: userEmail
         });
     } catch (error) {
         console.error('[Auth] Error marking invitation code as used:', error);

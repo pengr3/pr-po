@@ -255,8 +255,8 @@ async function handleRegister(e) {
 
         console.log('[Register] User document created in Firestore');
 
-        // Mark invitation code as used
-        await markInvitationCodeUsed(codeValidation.docId, userId);
+        // Mark invitation code as used (pass email so we can display "Used by [email]")
+        await markInvitationCodeUsed(codeValidation.docId, email);
 
         console.log('[Register] Invitation code marked as used');
 
