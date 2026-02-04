@@ -34,9 +34,9 @@ export function getCurrentPermissions() {
  * @returns {boolean|undefined} True if has access, false if denied, undefined if not loaded yet
  */
 export function hasTabAccess(tabId) {
-    // Return undefined if permissions not loaded yet (allows router to defer check)
-    if (!currentPermissions) return undefined;
-    return currentPermissions?.tabs?.[tabId]?.access || false;
+    // Return undefined if permissions not loaded yet OR malformed (allows router to defer check)
+    if (!currentPermissions || !currentPermissions.tabs) return undefined;
+    return currentPermissions.tabs[tabId]?.access || false;
 }
 
 /**
@@ -45,9 +45,9 @@ export function hasTabAccess(tabId) {
  * @returns {boolean|undefined} True if can edit, false if view-only, undefined if not loaded yet
  */
 export function canEditTab(tabId) {
-    // Return undefined if permissions not loaded yet
-    if (!currentPermissions) return undefined;
-    return currentPermissions?.tabs?.[tabId]?.edit || false;
+    // Return undefined if permissions not loaded yet OR malformed
+    if (!currentPermissions || !currentPermissions.tabs) return undefined;
+    return currentPermissions.tabs[tabId]?.edit || false;
 }
 
 /* ========================================

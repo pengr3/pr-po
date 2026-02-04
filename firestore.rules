@@ -73,8 +73,9 @@ service cloud.firestore {
         request.auth.uid == userId
       );
 
-      // Delete: never allow client-side deletion
-      allow delete: if false;
+      // Delete: super_admin can delete deactivated users only (two-step safety)
+      allow delete: if isRole('super_admin') &&
+                       get(/databases/$(database)/documents/users/$(userId)).data.status == 'deactivated';
     }
 
     // =============================================
@@ -103,8 +104,8 @@ service cloud.firestore {
       // Note: isSignedIn() not isActiveUser() - registration marks code used while pending
       allow update: if isSignedIn();
 
-      // No deletion
-      allow delete: if false;
+      // Delete: super_admin can delete (for expired code cleanup)
+      allow delete: if isRole('super_admin');
     }
 
     // =============================================
