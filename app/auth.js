@@ -385,9 +385,9 @@ function updateNavForAuth(user) {
         // Hide logout button for unauthenticated users
         if (logoutBtn) logoutBtn.style.display = 'none';
 
-        // Show all nav links for unauthenticated users (route protection comes in Phase 10)
+        // Hide all nav links for unauthenticated users (Phase 10 - security improvement)
         navLinks.forEach(link => {
-            link.style.display = '';
+            link.style.display = 'none';
         });
     }
 }
