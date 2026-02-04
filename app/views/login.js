@@ -170,7 +170,18 @@ async function handleLogin(e) {
             // Valid user (active, pending, or rejected) - allow navigation
             // Auth observer will handle routing based on status
             console.log('[Login] User validation passed, navigating...');
-            window.location.hash = '#/';
+
+            // Check for intended route (SEC-02)
+            const intendedRoute = sessionStorage.getItem('intendedRoute');
+
+            if (intendedRoute) {
+                console.log('[Login] Restoring intended route:', intendedRoute);
+                sessionStorage.removeItem('intendedRoute');
+                window.location.hash = '#' + intendedRoute;
+            } else {
+                console.log('[Login] No intended route, navigating to home');
+                window.location.hash = '#/';
+            }
 
         } catch (validationError) {
             console.error('[Login] Error validating user:', validationError);
