@@ -71,8 +71,11 @@ export async function init() {
         return;
     }
 
-    // Listener 1: all operations_user documents
-    const usersQuery = query(collection(db, 'users'), where('role', '==', 'operations_user'));
+    // Listener 1: all operations_user and operations_admin documents
+    const usersQuery = query(
+        collection(db, 'users'),
+        where('role', 'in', ['operations_user', 'operations_admin'])
+    );
     usersListener = onSnapshot(usersQuery, (snapshot) => {
         opsUsers = [];
         snapshot.forEach(d => opsUsers.push({ id: d.id, ...d.data() }));
