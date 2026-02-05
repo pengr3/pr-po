@@ -3,7 +3,7 @@
    PR/TR Approval, PO Generation, Historical Data
    ======================================== */
 
-import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc } from '../firebase.js';
+import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
 
 // View state
@@ -13,6 +13,7 @@ let transportRequests = [];
 let poData = [];
 let currentPRForApproval = null;
 let currentPRForRejection = null;
+let projectExpenses = [];
 
 /**
  * Attach all window functions for use in onclick handlers
@@ -38,6 +39,11 @@ function attachWindowFunctions() {
     // PO Functions
     window.refreshPOs = refreshPOs;
 
+    // Project Expense Functions
+    window.refreshProjectExpenses = refreshProjectExpenses;
+    window.showProjectExpenseModal = showProjectExpenseModal;
+    window.closeProjectExpenseModal = closeProjectExpenseModal;
+
     console.log('[Finance] ✅ All window functions attached successfully');
 }
 
@@ -62,12 +68,15 @@ function setupModalListeners() {
         if (e.key === 'Escape') {
             const prModal = document.getElementById('prModal');
             const rejectionModal = document.getElementById('rejectionModal');
+            const projectExpenseModal = document.getElementById('projectExpenseModal');
 
             // Close whichever modal is currently active
             if (prModal?.classList.contains('active')) {
                 closePRModal();
             } else if (rejectionModal?.classList.contains('active')) {
                 closeRejectionModal();
+            } else if (projectExpenseModal?.classList.contains('active')) {
+                closeProjectExpenseModal();
             }
         }
     }, { signal }); // AbortController signal handles cleanup automatically
@@ -96,6 +105,9 @@ export function render(activeTab = 'approvals') {
                     </a>
                     <a href="#/finance/history" class="tab-btn ${activeTab === 'history' ? 'active' : ''}">
                         📊 Historical Data
+                    </a>
+                    <a href="#/finance/projects" class="tab-btn ${activeTab === 'projects' ? 'active' : ''}">
+                        💰 Project List
                     </a>
                 </div>
             </div>
@@ -214,6 +226,34 @@ export function render(activeTab = 'approvals') {
                     </div>
                 </div>
             </section>
+
+            <!-- Tab 4: Project List -->
+            <section id="projects-section" class="section ${activeTab === 'projects' ? 'active' : ''}">
+                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view project expenses.</span></div>' : ''}
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Project Expenses</h2>
+                        <button class="btn btn-secondary" onclick="window.refreshProjectExpenses()">🔄 Refresh</button>
+                    </div>
+                    <p style="margin-bottom: 1rem; color: #666;">Click project name to view expense breakdown by category</p>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Project Code</th>
+                                <th>Project Name</th>
+                                <th>Total Expenses</th>
+                                <th>PO Count</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectExpensesBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 2rem;">Loading project expenses...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
 
         <!-- PR Details Modal -->
@@ -245,6 +285,20 @@ export function render(activeTab = 'approvals') {
                 </div>
             </div>
         </div>
+
+        <!-- Project Expense Modal -->
+        <div id="projectExpenseModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="projectExpenseModalTitle">Project Expenses</h2>
+                    <button class="modal-close" onclick="window.closeProjectExpenseModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="projectExpenseModalBody"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="window.closeProjectExpenseModal()">Close</button>
+                </div>
+            </div>
+        </div>
     `;
 }
 
@@ -267,11 +321,237 @@ export async function init(activeTab = 'approvals') {
         await loadPRs();
         await loadPOs();
 
+        // Load project expenses if on projects tab
+        if (activeTab === 'projects') {
+            await refreshProjectExpenses();
+        }
+
         console.log('Finance view initialized successfully');
     } catch (error) {
         console.error('Error initializing finance view:', error);
         showToast('Error loading finance data', 'error');
     }
+}
+
+// ========================================
+// PROJECT EXPENSE TRACKING
+// ========================================
+
+/**
+ * Refresh project expenses with server-side aggregation
+ */
+async function refreshProjectExpenses() {
+    console.log('[Finance] 🔄 Refreshing project expenses...');
+    showLoading(true);
+
+    try {
+        // Get all projects
+        const projectsSnapshot = await getDocs(collection(db, 'projects'));
+        console.log('[Finance] Found', projectsSnapshot.size, 'projects');
+
+        projectExpenses = [];
+
+        // For each project, aggregate PO expenses
+        for (const projectDoc of projectsSnapshot.docs) {
+            const project = { id: projectDoc.id, ...projectDoc.data() };
+            const projectName = project.project_name;
+
+            console.log('[Finance] Aggregating expenses for:', projectName);
+
+            // Use server-side aggregation for PO totals
+            const posQuery = query(
+                collection(db, 'pos'),
+                where('project_name', '==', projectName)
+            );
+
+            const aggregateSnapshot = await getAggregateFromServer(posQuery, {
+                totalAmount: sum('total_amount'),
+                poCount: count()
+            });
+
+            const totalAmount = aggregateSnapshot.data().totalAmount || 0;
+            const poCount = aggregateSnapshot.data().poCount || 0;
+
+            console.log('[Finance]   -', projectName, ':', '₱' + totalAmount, '(', poCount, 'POs)');
+
+            projectExpenses.push({
+                project_code: project.project_code || 'N/A',
+                project_name: projectName,
+                total_expenses: totalAmount,
+                po_count: poCount
+            });
+        }
+
+        // Sort by total expenses (highest first)
+        projectExpenses.sort((a, b) => b.total_expenses - a.total_expenses);
+
+        console.log('[Finance] ✅ Project expenses loaded:', projectExpenses.length);
+        renderProjectExpenses();
+
+    } catch (error) {
+        console.error('[Finance] Error loading project expenses:', error);
+        showToast('Failed to load project expenses', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Render project expenses table
+ */
+function renderProjectExpenses() {
+    const tbody = document.getElementById('projectExpensesBody');
+
+    if (!tbody) {
+        console.warn('[Finance] projectExpensesBody not found');
+        return;
+    }
+
+    if (projectExpenses.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">💰</div>
+                    <div>No projects found</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = projectExpenses.map(project => `
+        <tr>
+            <td><strong>${project.project_code}</strong></td>
+            <td>
+                <a href="javascript:void(0)" onclick="window.showProjectExpenseModal('${project.project_code}', '${project.project_name.replace(/'/g, "\\'")}')" style="color: #1a73e8; text-decoration: none; font-weight: 600;">
+                    ${project.project_name}
+                </a>
+            </td>
+            <td><strong style="color: #059669;">₱${formatCurrency(project.total_expenses)}</strong></td>
+            <td>${project.po_count}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="window.showProjectExpenseModal('${project.project_code}', '${project.project_name.replace(/'/g, "\\'")}')">View Details</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Show project expense breakdown modal
+ */
+async function showProjectExpenseModal(projectCode, projectName) {
+    console.log('[Finance] Opening expense modal for:', projectName);
+    showLoading(true);
+
+    try {
+        // Get all POs for this project
+        const posQuery = query(
+            collection(db, 'pos'),
+            where('project_name', '==', projectName)
+        );
+
+        const posSnapshot = await getDocs(posQuery);
+        console.log('[Finance] Found', posSnapshot.size, 'POs for', projectName);
+
+        // Parse items and group by category
+        const categoryTotals = {};
+        let grandTotal = 0;
+
+        posSnapshot.forEach(poDoc => {
+            const po = poDoc.data();
+            const items = JSON.parse(po.items_json || '[]');
+
+            items.forEach(item => {
+                const category = item.category || 'Uncategorized';
+                const subtotal = parseFloat(item.subtotal || 0);
+
+                if (!categoryTotals[category]) {
+                    categoryTotals[category] = 0;
+                }
+                categoryTotals[category] += subtotal;
+                grandTotal += subtotal;
+            });
+        });
+
+        console.log('[Finance] Category breakdown:', categoryTotals);
+
+        // Convert to array and sort by amount
+        const categories = Object.entries(categoryTotals)
+            .map(([category, amount]) => ({
+                category,
+                amount,
+                percentage: grandTotal > 0 ? (amount / grandTotal * 100).toFixed(1) : 0
+            }))
+            .sort((a, b) => b.amount - a.amount);
+
+        // Render modal content
+        const modalContent = `
+            <div class="modal-details-grid">
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Project Code:</div>
+                    <div class="modal-detail-value"><strong>${projectCode}</strong></div>
+                </div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Project Name:</div>
+                    <div class="modal-detail-value">${projectName}</div>
+                </div>
+                <div class="modal-detail-item full-width">
+                    <div class="modal-detail-label">Total Expenses:</div>
+                    <div class="modal-detail-value"><strong style="color: #059669; font-size: 1.5rem;">₱${formatCurrency(grandTotal)}</strong></div>
+                </div>
+            </div>
+
+            <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Expenses by Category</h4>
+            ${categories.length > 0 ? `
+                <table class="modal-items-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${categories.map(cat => `
+                            <tr>
+                                <td><strong>${cat.category}</strong></td>
+                                <td>₱${formatCurrency(cat.amount)}</td>
+                                <td>${cat.percentage}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td style="text-align: right; font-weight: 600;">TOTAL:</td>
+                            <td colspan="2"><strong>₱${formatCurrency(grandTotal)}</strong></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            ` : `
+                <div style="text-align: center; padding: 2rem; color: #666;">
+                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📦</div>
+                    <div>No expenses recorded for this project</div>
+                </div>
+            `}
+        `;
+
+        document.getElementById('projectExpenseModalTitle').textContent = `${projectCode} - ${projectName}`;
+        document.getElementById('projectExpenseModalBody').innerHTML = modalContent;
+        document.getElementById('projectExpenseModal').classList.add('active');
+
+    } catch (error) {
+        console.error('[Finance] Error loading project expense details:', error);
+        showToast('Failed to load project details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Close project expense modal
+ */
+function closeProjectExpenseModal() {
+    document.getElementById('projectExpenseModal').classList.remove('active');
 }
 
 /**
@@ -300,6 +580,7 @@ export async function destroy() {
     poData = [];
     currentPRForApproval = null;
     currentPRForRejection = null;
+    projectExpenses = [];
 
     // Clean up window functions
     delete window.refreshPRs;
@@ -312,6 +593,9 @@ export async function destroy() {
     delete window.closeRejectionModal;
     delete window.submitRejection;
     delete window.refreshPOs;
+    delete window.refreshProjectExpenses;
+    delete window.showProjectExpenseModal;
+    delete window.closeProjectExpenseModal;
 
     console.log('[Finance] Finance view destroyed');
 }
