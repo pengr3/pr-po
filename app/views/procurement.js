@@ -78,6 +78,10 @@ function attachWindowFunctions() {
     window.viewPODetails = viewPODetails;
     window.viewPOTimeline = viewPOTimeline;
     window.updatePOStatus = updatePOStatus;
+    window.showProcurementTimeline = showProcurementTimeline;
+    window.closeTimelineModal = closeTimelineModal;
+    window.showSupplierPurchaseHistory = showSupplierPurchaseHistory;
+    window.closeSupplierHistoryModal = closeSupplierHistoryModal;
 
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
@@ -310,6 +314,32 @@ export function render(activeTab = 'mrfs') {
                         <div style="text-align: center; padding: 2rem;">Loading PR-PO records...</div>
                     </div>
                     <div id="prpoPagination"></div>
+                </div>
+
+                <!-- Procurement Timeline Modal -->
+                <div id="timelineModal" class="modal">
+                    <div class="modal-content" style="max-width: 800px;">
+                        <div class="modal-header">
+                            <h2 id="timelineModalTitle">Procurement Timeline</h2>
+                            <button class="modal-close" onclick="window.closeTimelineModal()">&times;</button>
+                        </div>
+                        <div class="modal-body" id="timelineModalBody">
+                            <!-- Dynamically populated with createTimeline() -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Supplier Purchase History Modal -->
+                <div id="supplierHistoryModal" class="modal">
+                    <div class="modal-content" style="max-width: 900px;">
+                        <div class="modal-header">
+                            <h2 id="supplierHistoryModalTitle">Supplier Purchase History</h2>
+                            <button class="modal-close" onclick="window.closeSupplierHistoryModal()">&times;</button>
+                        </div>
+                        <div class="modal-body" id="supplierHistoryModalBody">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -2204,7 +2234,8 @@ async function renderPRPORecords() {
                             docId: doc.id,
                             pr_id: prData.pr_id,
                             total_amount: parseFloat(prData.total_amount || 0),
-                            finance_status: prData.finance_status
+                            finance_status: prData.finance_status,
+                            supplier_name: prData.supplier_name
                         });
                         if (prData.finance_status !== 'Rejected') {
                             totalCost += parseFloat(prData.total_amount || 0);
@@ -2233,6 +2264,7 @@ async function renderPRPORecords() {
                         }
                         return `<div style="display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center;">
                             <a href="javascript:void(0)" onclick="window.viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
+                            ${pr.supplier_name ? `<a href="javascript:void(0)" onclick="window.showSupplierPurchaseHistory('${pr.supplier_name}')" style="color: #1a73e8; text-decoration: none; font-size: 0.7rem; cursor: pointer;">${pr.supplier_name}</a>` : ''}
                             ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
                         </div>`;
                     });
@@ -2294,7 +2326,8 @@ async function renderPRPORecords() {
                             docId: doc.id,
                             po_id: poData.po_id,
                             procurement_status: poData.procurement_status,
-                            is_subcon: poData.is_subcon || false
+                            is_subcon: poData.is_subcon || false,
+                            supplier_name: poData.supplier_name
                         });
                     });
 
@@ -2343,8 +2376,11 @@ async function renderPRPORecords() {
                         const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
 
                         return {
-                            linkHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
-                                <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
+                            linkHtml: `<div style="min-height: 52px; display: flex; flex-direction: column; gap: 2px; justify-content: center;">
+                                <div>
+                                    <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
+                                </div>
+                                ${po.supplier_name ? `<a href="javascript:void(0)" onclick="window.showSupplierPurchaseHistory('${po.supplier_name}')" style="color: #1a73e8; text-decoration: none; font-size: 0.7rem; cursor: pointer;">${po.supplier_name}</a>` : ''}
                             </div>`,
                             statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                 ${showEditControls ? `
@@ -2448,6 +2484,11 @@ async function renderPRPORecords() {
                         ${detailedStatus}
                     </span>
                 </td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
+                    <button class="btn btn-sm btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;" onclick="window.showProcurementTimeline('${mrf.mrf_id}')">
+                        📅 Timeline
+                    </button>
+                </td>
             </tr>
         `;
     }));
@@ -2463,8 +2504,9 @@ async function renderPRPORecords() {
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO Status</th>
-                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Timeline</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO Timeline</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF Status</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -4011,6 +4053,121 @@ function viewPOTimeline(poId) {
     // Show in alert for now (will add proper modal later)
     alert(content);
 };
+
+/**
+ * Show Procurement Timeline
+ * Displays complete procurement audit trail for an MRF (MRF → PRs → TRs → POs)
+ */
+async function showProcurementTimeline(mrfId) {
+    showLoading(true);
+
+    try {
+        // Fetch MRF
+        const mrfQuery = query(
+            collection(db, 'mrfs'),
+            where('mrf_id', '==', mrfId)
+        );
+        const mrfSnapshot = await getDocs(mrfQuery);
+
+        if (mrfSnapshot.empty) {
+            showToast('MRF not found', 'error');
+            showLoading(false);
+            return;
+        }
+
+        const mrf = { id: mrfSnapshot.docs[0].id, ...mrfSnapshot.docs[0].data() };
+
+        // Fetch PRs
+        const prsQuery = query(
+            collection(db, 'prs'),
+            where('mrf_id', '==', mrfId)
+        );
+        const prsSnapshot = await getDocs(prsQuery);
+        const prs = [];
+        prsSnapshot.forEach(doc => prs.push(doc.data()));
+
+        // Fetch TRs
+        const trsQuery = query(
+            collection(db, 'transport_requests'),
+            where('mrf_id', '==', mrfId)
+        );
+        const trsSnapshot = await getDocs(trsQuery);
+        const trs = [];
+        trsSnapshot.forEach(doc => trs.push(doc.data()));
+
+        // Fetch POs
+        const posQuery = query(
+            collection(db, 'pos'),
+            where('mrf_id', '==', mrfId),
+            orderBy('date_issued', 'asc')
+        );
+        const posSnapshot = await getDocs(posQuery);
+        const pos = [];
+        posSnapshot.forEach(doc => pos.push(doc.data()));
+
+        // Build timeline items array
+        const timelineItems = [
+            {
+                title: `📝 MRF Created: ${mrf.mrf_id}`,
+                date: formatDate(mrf.created_at),
+                description: `Requestor: ${mrf.requestor_name} | Project: ${mrf.project_name || 'N/A'}`,
+                status: 'completed'
+            }
+        ];
+
+        // Add PRs
+        prs.forEach(pr => {
+            timelineItems.push({
+                title: `🛒 Purchase Request: ${pr.pr_id}`,
+                date: formatDate(pr.date_generated),
+                description: `Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)}`,
+                status: pr.finance_status === 'Approved' ? 'completed' :
+                        pr.finance_status === 'Rejected' ? 'rejected' : 'pending'
+            });
+        });
+
+        // Add TRs
+        trs.forEach(tr => {
+            timelineItems.push({
+                title: `🚚 Transport Request: ${tr.tr_id}`,
+                date: formatDate(tr.date_submitted),
+                description: `Amount: ₱${formatCurrency(tr.total_amount)}`,
+                status: tr.finance_status === 'Approved' ? 'completed' :
+                        tr.finance_status === 'Rejected' ? 'rejected' : 'pending'
+            });
+        });
+
+        // Add POs
+        pos.forEach(po => {
+            timelineItems.push({
+                title: `📄 Purchase Order: ${po.po_id}`,
+                date: formatDate(po.date_issued),
+                description: `Supplier: ${po.supplier_name} | Status: ${po.procurement_status}`,
+                status: po.procurement_status === 'Delivered' ? 'completed' : 'active'
+            });
+        });
+
+        // Render timeline using createTimeline component
+        const timelineHtml = createTimeline(timelineItems);
+
+        document.getElementById('timelineModalTitle').textContent = `Procurement Timeline - ${mrfId}`;
+        document.getElementById('timelineModalBody').innerHTML = timelineHtml;
+        document.getElementById('timelineModal').classList.add('active');
+
+    } catch (error) {
+        console.error('[Procurement] Error loading timeline:', error);
+        showToast('Failed to load procurement timeline', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Close Timeline Modal
+ */
+function closeTimelineModal() {
+    document.getElementById('timelineModal').classList.remove('active');
+}
 
 // ========================================
 // DOCUMENT GENERATION FUNCTIONS
