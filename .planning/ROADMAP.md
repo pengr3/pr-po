@@ -160,13 +160,13 @@ Plans:
   2. Finance user clicks project name and expense breakdown modal opens showing all POs by category
   3. Procurement user clicks supplier name and modal opens showing all purchases from that supplier
   4. Procurement user clicks Timeline button and modal shows MRF → PRs → POs → Delivered workflow
-  5. Dashboard totals update in real-time when new POs are created
-**Plans**: TBD
+  5. Dashboard totals use manual refresh (not real-time - aggregation queries don't support listeners)
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: TBD
-- [ ] 13-02: TBD
-- [ ] 13-03: TBD
+- [ ] 13-01-PLAN.md — Finance Project List tab with server-side aggregation
+- [ ] 13-02-PLAN.md — Supplier purchase history modal in Procurement
+- [ ] 13-03-PLAN.md — Procurement timeline modal using createTimeline component
 
 ### Phase 14: Workflow Quality Gates
 **Goal**: PO details require complete information before viewing
@@ -202,5 +202,5 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 10. Route Protection | v2.0 | 4/4 | Complete | 2026-02-04 |
 | 11. Security Foundation | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 12. Finance Workflow | v2.1 | 2/2 | Complete | 2026-02-05 |
-| 13. Finance Dashboard | v2.1 | 0/0 | Not started | - |
+| 13. Finance Dashboard | v2.1 | 0/3 | Not started | - |
 | 14. Quality Gates | v2.1 | 0/0 | Not started | - |
