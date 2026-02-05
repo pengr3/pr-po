@@ -16,8 +16,8 @@ Requirements for v2.1 System Refinement milestone. All items are critical as the
 
 ### Finance Workflow
 
-- [ ] **FIN-01**: Transport Request Review button works (no `window.viewTRDetails is not a function` error)
-- [ ] **FIN-02**: Material Purchase Request Review button works (no similar window function error)
+- [x] **FIN-01**: Transport Request Review button works (no `window.viewTRDetails is not a function` error)
+- [x] **FIN-02**: Material Purchase Request Review button works (no similar window function error)
 - [ ] **FIN-03**: Finance tab displays Project List with financial overview table and expense breakdown modal
 
 ### Procurement Features
@@ -60,8 +60,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-02 | Phase 11 | Pending |
 | SEC-03 | Phase 11 | Pending |
 | SEC-04 | Phase 11 | Pending |
-| FIN-01 | Phase 12 | Pending |
-| FIN-02 | Phase 12 | Pending |
+| FIN-01 | Phase 12 | Complete |
+| FIN-02 | Phase 12 | Complete |
 | FIN-03 | Phase 13 | Pending |
 | PROC-01 | Phase 13 | Pending |
 | PROC-02 | Phase 13 | Pending |

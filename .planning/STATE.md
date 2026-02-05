@@ -5,24 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 11 - Security & Permission Foundation
+**Current focus:** Phase 12 - Finance Review Workflow
 
 ## Current Position
 
-Phase: 11 of 14 (Security & Permission Foundation)
+Phase: 12 of 14 (Finance Review Workflow)
 Plan: 2 of 2 complete
 Status: Phase complete
-Last activity: 2026-02-05 - Completed 11-01-PLAN.md (Clients collection Security Rules) and 11-02-PLAN.md (Operations Admin assignment support)
+Last activity: 2026-02-05 - Completed 12-01-PLAN.md (Window function lifecycle fix) and 12-02-PLAN.md (ESC key modal handling)
 
-Progress: [████████████████████████████████████████░░░░░░░░] 76% (29/38 plans complete across all milestones)
+Progress: [██████████████████████████████████████████░░░░░░] 82% (31/38 plans complete across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 2 plans)
+- Total plans completed: 31 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 4 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
-- Average: ~2.1 plans per week
+- Average: ~2.2 plans per week
 
 **By Milestone:**
 
@@ -30,14 +30,15 @@ Progress: [███████████████████████
 |-----------|--------|-------|----------|----------|
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
-| v2.1 Refinement | 4 | 2 complete | In progress | - |
+| v2.1 Refinement | 4 | 4 complete | In progress | - |
 
 **Recent Trend:**
 - Velocity improved from v1.0 to v2.0 (5.9 → 3.8 days/plan)
-- Phase 11 (2 plans) completed in <1 day (Security Rules fixes, small scope)
-- v2.1 focuses on bug fixes (likely faster than feature development)
+- Phase 11 (2 plans) completed in <1 day (Security Rules fixes)
+- Phase 12 (2 plans) completed in <1 day (Window function lifecycle + ESC key handling)
+- v2.1 focuses on bug fixes and workflow improvements (faster execution)
 
-*Updated after Phase 11 completion (11-01 and 11-02)*
+*Updated after Phase 12 completion (12-01 and 12-02)*
 
 ## Accumulated Context
 
@@ -51,6 +52,8 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.0: Two-step deletion (deactivate first) for reversible actions
 - v2.1 (11-01): Follow projects collection pattern for clients Security Rules (consistency across admin-managed collections)
 - v2.1 (11-02): Use Firestore 'in' operator for multi-role queries instead of client-side filtering (more efficient, follows best practices)
+- v2.1 (12-01): attachWindowFunctions() pattern prevents window function lifecycle bugs (router skips destroy on tab switch)
+- v2.1 (12-02): AbortController pattern for event listeners (single abort() call, prevents memory leaks, idempotent)
 
 ### Pending Todos
 
@@ -65,7 +68,7 @@ None yet.
 
 **v2.1 Focus Areas:**
 - ✅ Security Rules missing admin bypass logic (Phase 11) - COMPLETE
-- Window function lifecycle management in finance.js (Phase 12)
+- ✅ Window function lifecycle management in finance.js (Phase 12) - COMPLETE
 - Financial aggregation cost concerns (Phase 13 - use getAggregateFromServer)
 
 **v2.1 Testing Notes:**
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-05 (Phase 11 documentation completion)
-Stopped at: Created 11-01-SUMMARY.md, updated STATE.md and ROADMAP.md - Phase 11 complete (2/2 plans)
+Last session: 2026-02-05 (Phase 12 execution and verification)
+Stopped at: Created 12-01-SUMMARY.md, 12-02-SUMMARY.md, verified phase goal, updated STATE.md and ROADMAP.md - Phase 12 complete (2/2 plans)
 Resume file: None

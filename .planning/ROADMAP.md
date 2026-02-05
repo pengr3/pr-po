@@ -148,8 +148,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md — Fix window function lifecycle for PR/TR review buttons
-- [ ] 12-02-PLAN.md — Add modal ESC key handling with AbortController
+- [x] 12-01-PLAN.md — Fix window function lifecycle for PR/TR review buttons
+- [x] 12-02-PLAN.md — Add modal ESC key handling with AbortController
 
 ### Phase 13: Finance Dashboard & Audit Trails
 **Goal**: Finance can view project expenses, supplier purchase history, and procurement timelines
@@ -201,6 +201,6 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 9. Project Assignments | v2.0 | 3/3 | Complete | 2026-02-04 |
 | 10. Route Protection | v2.0 | 4/4 | Complete | 2026-02-04 |
 | 11. Security Foundation | v2.1 | 2/2 | Complete | 2026-02-05 |
-| 12. Finance Workflow | v2.1 | 0/2 | Not started | - |
+| 12. Finance Workflow | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 13. Finance Dashboard | v2.1 | 0/0 | Not started | - |
 | 14. Quality Gates | v2.1 | 0/0 | Not started | - |
