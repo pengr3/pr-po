@@ -8,7 +8,14 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(taskkill /F /PID 2068)",
-      "Bash(taskkill //F //PID 2068)"
+      "Bash(taskkill //F //PID 2068)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix\\(06-05\\): fix checkbox alignment in permission matrix\n\nReplace positional td:first-child/nth-child\\(2\\) selectors with\n.tab-name/.permission-type class selectors. The rowspan=\"2\" on\ntab-name cells causes nth-child\\(2\\) to target the first checkbox\ncell in Edit rows instead of the Permission label cell.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs\\(06-05\\): complete edit-permission-enforcement plan\n\nTasks completed: 3/3 + 1 checkpoint \\(approved\\)\n- Task 1: Add view-only CSS styles to views.css\n- Task 2: Add edit permission checks to procurement.js\n- Task 3: Add edit permission checks to finance.js\n- Fix: Null-guard mrfActions and conditional PO status dropdowns\n- Fix: Permission matrix checkbox alignment under rowspan\n\nPhase 6 complete. All views enforce access and edit permissions.\n\nSUMMARY: .planning/phases/06-role-infrastructure-real-time-permissions/06-05-SUMMARY.md\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(cat:*)",
+      "Bash(python3:*)",
+      "Bash(readlink:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs\\(06\\): complete role-infrastructure-real-time-permissions phase\n\nPhase 6 verified: 5/5 plans executed, 6/6 must-haves confirmed.\n14 requirements marked complete \\(PERM-01 through PERM-07, PERM-13\nthrough PERM-19\\). Permission system operational across all views.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
