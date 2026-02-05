@@ -1936,7 +1936,7 @@ function renderSuppliersTable() {
         } else {
             return `
                 <tr>
-                    <td>${supplier.supplier_name}</td>
+                    <td class="clickable-supplier" onclick="window.showSupplierPurchaseHistory('${supplier.supplier_name}')">${supplier.supplier_name}</td>
                     <td>${supplier.contact_person}</td>
                     <td>${supplier.email}</td>
                     <td>${supplier.phone}</td>

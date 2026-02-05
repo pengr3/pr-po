@@ -1346,3 +1346,19 @@
 .action-menu-item.action-menu-danger:hover {
     background: var(--danger-light);
 }
+
+/* ========================================
+   CLICKABLE SUPPLIER NAMES
+   ======================================== */
+
+.clickable-supplier {
+    cursor: pointer;
+    color: #1a73e8;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.clickable-supplier:hover {
+    text-decoration: underline;
+    color: #1557b0;
+}
