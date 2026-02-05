@@ -2,93 +2,71 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-04)
+See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Planning next milestone (v2.1+)
+**Current focus:** Phase 11 - Security & Permission Foundation
 
 ## Current Position
 
-Phase: — (v2.0 complete, next milestone not yet planned)
-Plan: —
-Status: Ready for next milestone planning
-Last activity: 2026-02-04 — v2.0 milestone archived
+Phase: 11 of 14 (Security & Permission Foundation)
+Plan: Ready to plan
+Status: Ready to plan
+Last activity: 2026-02-05 - Roadmap created for v2.1 System Refinement milestone
 
-Progress: [███████████] v2.0 complete (38 plans total: 10 from v1.0, 28 from v2.0)
+Progress: [████████████████████████████████████████░░░░░░░░] 71% (27/38 plans complete across all milestones)
 
 ## Performance Metrics
 
-**v1.0 Velocity:**
-- Phases: 1-4 (4 phases)
-- Plans: 10 total
-- Duration: 59 days (2025-12-02 → 2026-01-30)
-- Average: ~6 days per phase
+**Velocity:**
+- Total plans completed: 27 (v1.0: 10 plans, v2.0: 17 plans)
+- v1.0 milestone: 10 plans completed in 59 days
+- v2.0 milestone: 17 plans completed in 64 days
+- Average: ~2.1 plans per week
 
-**v2.0 Velocity:**
-- Phases: 5-10 (6 phases)
-- Plans: 26 total
-- Duration: 64 days (2025-12-02 → 2026-02-04)
-- Average: ~10.7 days per phase
+**By Milestone:**
 
-**Combined Stats:**
-- Total phases: 10
-- Total plans: 38
-- Total duration: ~123 days across both milestones
-- Files modified: 93+ (9 in v1.0, 84 in v2.0)
-- JavaScript LOC: 14,264 lines
+| Milestone | Phases | Plans | Duration | Avg/Plan |
+|-----------|--------|-------|----------|----------|
+| v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
+| v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
+| v2.1 Refinement | 4 | TBD | In progress | - |
+
+**Recent Trend:**
+- Velocity improved from v1.0 to v2.0 (5.9 → 3.8 days/plan)
+- v2.1 focuses on bug fixes (likely faster than feature development)
+
+*Updated after roadmap creation*
 
 ## Accumulated Context
 
-### Recent Milestones
+### Decisions
 
-**v1.0 Core Projects Foundation (Shipped: 2026-01-30)**
-- Project lifecycle tracking with client management
-- Composite project codes (CLMC_CLIENT_YYYY###)
-- Full-page project detail view with inline editing
-- Active/inactive lifecycle management
-- Project-anchored MRF workflow
-- 9,312 lines JavaScript, 4 phases, 10 plans
+Recent decisions affecting current work (see PROJECT.md for full log):
 
-**v2.0 Authentication & Permissions (Shipped: 2026-02-04)**
-- Complete RBAC system with 5 roles
-- Self-registration with invitation codes
-- Real-time permission updates
-- Project assignment system for Operations Users
-- Firebase Security Rules (247 lines, 17/17 tests passing)
-- Super Admin dashboard for user management
-- Multi-layer route protection
-- 14,264 lines JavaScript (+20,115 / -178), 6 phases, 26 plans
-
-### Key Architectural Decisions
-
-See PROJECT.md Key Decisions table for full list. Recent highlights:
-
-**v2.0 decisions:**
-- Real-time permission updates via Firestore listeners (no logout required)
-- Firebase Security Rules for server-side enforcement (prevents console bypass)
-- UUID invitation codes with 3-hour expiration (balance security with UX)
-- Minimum 2 Super Admin safeguard (prevents system lockout)
-- Strict equality (=== false) for permission checks (prevents UI flickering)
+- v2.0: Firebase Security Rules server-side enforcement required (client-side can be bypassed)
+- v2.0: Real-time permission updates via Firestore listeners (no logout needed for permission changes)
+- v2.0: Minimum 2 Super Admin safeguard prevents system lockout
+- v2.0: Two-step deletion (deactivate first) for reversible actions
 
 ### Pending Todos
 
-None - ready for next milestone planning.
+None yet.
 
-### Known Constraints
+### Blockers/Concerns
 
+**Known from v2.0:**
 - Role template seeding requires manual browser console step (one-time, 5 minutes)
 - First Super Admin requires manual Firestore document edit (one-time, 2 minutes)
 - Firestore 'in' query limited to 10 items (project assignments use client-side filtering)
 
+**v2.1 Focus Areas:**
+- Security Rules missing admin bypass logic (Phase 11)
+- Window function lifecycle management in finance.js (Phase 12)
+- Financial aggregation cost concerns (Phase 13 - use getAggregateFromServer)
+
 ## Session Continuity
 
-Last session: 2026-02-04 (v2.0 milestone archived)
-Next: `/gsd:new-milestone` to start planning v2.1+
+Last session: 2026-02-05 (roadmap creation)
+Stopped at: ROADMAP.md and STATE.md created, ready for Phase 11 planning
 Resume file: None
-
----
-
-**Next Steps:**
-
-1. `/gsd:new-milestone` — Start v2.1+ milestone planning with questioning → research → requirements → roadmap
-2. Consider features: Activity logging, document management, payment milestones (see PROJECT.md Future requirements)

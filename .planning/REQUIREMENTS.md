@@ -56,22 +56,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| SEC-04 | TBD | Pending |
-| FIN-01 | TBD | Pending |
-| FIN-02 | TBD | Pending |
-| FIN-03 | TBD | Pending |
-| PROC-01 | TBD | Pending |
-| PROC-02 | TBD | Pending |
-| PROC-03 | TBD | Pending |
+| SEC-01 | Phase 11 | Pending |
+| SEC-02 | Phase 11 | Pending |
+| SEC-03 | Phase 11 | Pending |
+| SEC-04 | Phase 11 | Pending |
+| FIN-01 | Phase 12 | Pending |
+| FIN-02 | Phase 12 | Pending |
+| FIN-03 | Phase 13 | Pending |
+| PROC-01 | Phase 13 | Pending |
+| PROC-02 | Phase 13 | Pending |
+| PROC-03 | Phase 14 | Pending |
 
 **Coverage:**
 - v1 requirements: 10 total
-- Mapped to phases: 0 (pending roadmap creation)
-- Unmapped: 10 ⚠️
+- Mapped to phases: 10/10 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after initial definition*
+*Last updated: 2026-02-05 after roadmap creation*
