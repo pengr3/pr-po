@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 Phase: 13 of 14 (Finance Dashboard & Audit Trails)
 Plan: 3 of 3 complete
 Status: Phase complete
-Last activity: 2026-02-05 - Completed 13-03-PLAN.md (Procurement Timeline Modal)
+Last activity: 2026-02-05 - Completed 13-02-PLAN.md (Supplier Purchase History Modal) - retroactive documentation
 
 Progress: [██████████████████████████████████████████████░░] 87% (33/38 plans complete across all milestones)
 
@@ -36,10 +36,10 @@ Progress: [███████████████████████
 - Velocity improved from v1.0 to v2.0 (5.9 → 3.8 days/plan)
 - Phase 11 (2 plans) completed in <1 day (Security Rules fixes)
 - Phase 12 (2 plans) completed in <1 day (Window function lifecycle + ESC key handling)
-- Phase 13 (3 plans) completed in <15 min total (Project List + Procurement Timeline)
+- Phase 13 (3 plans) completed in <15 min total (Project List + Supplier History + Timeline)
 - v2.1 focuses on bug fixes and workflow improvements (faster execution)
 
-*Updated after Phase 13 completion (13-01, 13-02 skipped, 13-03)*
+*Updated after Phase 13 completion (13-01, 13-02, 13-03)*
 
 ## Accumulated Context
 
@@ -57,6 +57,8 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.1 (12-02): AbortController pattern for event listeners (single abort() call, prevents memory leaks, idempotent)
 - v2.1 (13-01): Use getAggregateFromServer for dashboard totals (1 read per 1000 entries vs 1 per PO, cost-efficient)
 - v2.1 (13-01): Manual refresh button for aggregation instead of real-time listener (Firebase doesn't support real-time aggregation queries)
+- v2.1 (13-02): Server-side aggregation for supplier purchase history (efficient for suppliers with many POs)
+- v2.1 (13-02): Inline clickable supplier names in PR-PO records (maintains compact layout, easy drill-down)
 - v2.1 (13-03): Timeline component reuse for audit trails (DRY principle, consistent visual presentation across app)
 - v2.1 (13-03): Multi-collection audit trail queries by common identifier (mrf_id) for complete procurement workflow visibility
 
@@ -84,6 +86,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-05 (Phase 13 execution)
-Stopped at: Completed Phase 13 (13-01 Project List, 13-02 skipped, 13-03 Procurement Timeline), created 13-03-SUMMARY.md, updated STATE.md - Phase 13 complete (3/3 plans)
+Last session: 2026-02-05 (Phase 13 execution - retroactive 13-02 documentation)
+Stopped at: Completed Phase 13 (13-01 Project List, 13-02 Supplier History, 13-03 Procurement Timeline), created 13-02-SUMMARY.md retroactively (work done in 13-01), updated STATE.md - Phase 13 complete (3/3 plans)
 Resume file: None
