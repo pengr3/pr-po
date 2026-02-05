@@ -158,8 +158,8 @@ service cloud.firestore {
       // Create: super_admin, operations_admin, operations_user, procurement
       allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'procurement']);
 
-      // Update: super_admin, operations_admin, procurement
-      allow update: if hasRole(['super_admin', 'operations_admin', 'procurement']);
+      // Update: super_admin, operations_admin, finance, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']);
 
       // Delete: super_admin, operations_admin
       allow delete: if hasRole(['super_admin', 'operations_admin']);
