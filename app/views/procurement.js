@@ -391,6 +391,110 @@ export async function init(activeTab = 'mrfs') {
     }
 }
 
+// ========================================
+// SUPPLIER PURCHASE HISTORY
+// ========================================
+
+/**
+ * Show supplier purchase history modal
+ * @param {string} supplierName - Supplier name to show history for
+ */
+async function showSupplierPurchaseHistory(supplierName) {
+    console.log('[Procurement] Loading supplier purchase history for:', supplierName);
+    showLoading(true);
+
+    try {
+        const q = query(
+            collection(db, 'pos'),
+            where('supplier_name', '==', supplierName),
+            orderBy('date_issued', 'desc')
+        );
+
+        // Get aggregated totals
+        const aggSnapshot = await getAggregateFromServer(q, {
+            totalPurchases: sum('total_amount'),
+            orderCount: count()
+        });
+
+        const totalPurchases = aggSnapshot.data().totalPurchases || 0;
+        const orderCount = aggSnapshot.data().orderCount || 0;
+
+        console.log('[Procurement] Supplier totals:', { totalPurchases, orderCount });
+
+        // Load PO details for table
+        const posSnapshot = await getDocs(q);
+        const pos = [];
+        posSnapshot.forEach(doc => pos.push({ id: doc.id, ...doc.data() }));
+
+        console.log('[Procurement] Loaded', pos.length, 'POs for supplier');
+
+        // Render modal content
+        const modalContent = `
+            <div class="modal-details-grid">
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Supplier:</div>
+                    <div class="modal-detail-value"><strong>${supplierName}</strong></div>
+                </div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Total Purchase Orders:</div>
+                    <div class="modal-detail-value">${orderCount}</div>
+                </div>
+                <div class="modal-detail-item full-width">
+                    <div class="modal-detail-label">Total Purchases:</div>
+                    <div class="modal-detail-value">
+                        <strong style="color: #059669; font-size: 1.5rem;">₱${formatCurrency(totalPurchases)}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 1rem; font-size: 1rem; font-weight: 600;">Purchase History</h4>
+            <table class="modal-items-table">
+                <thead>
+                    <tr>
+                        <th>PO ID</th>
+                        <th>Project</th>
+                        <th>Date Issued</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${pos.map(po => `
+                        <tr>
+                            <td><strong>${po.po_id}</strong></td>
+                            <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'N/A'}</td>
+                            <td>${formatDate(po.date_issued)}</td>
+                            <td><strong>₱${formatCurrency(po.total_amount)}</strong></td>
+                            <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${po.procurement_status}</span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+        document.getElementById('supplierHistoryModalTitle').textContent = `Supplier Purchase History - ${supplierName}`;
+        document.getElementById('supplierHistoryModalBody').innerHTML = modalContent;
+        document.getElementById('supplierHistoryModal').classList.add('active');
+
+    } catch (error) {
+        console.error('[Procurement] Error loading supplier history:', error);
+        showToast('Failed to load supplier purchase history', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Close supplier history modal
+ */
+function closeSupplierHistoryModal() {
+    document.getElementById('supplierHistoryModal').classList.remove('active');
+}
+
+// ========================================
+// CLEANUP
+// ========================================
+
 /**
  * Cleanup when leaving the view
  */
