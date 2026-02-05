@@ -258,6 +258,9 @@ export async function init(activeTab = 'approvals') {
     // CRITICAL: Re-attach window functions every init (router skips destroy on tab switch)
     attachWindowFunctions();
 
+    // Setup ESC key modal listeners
+    setupModalListeners();
+
     console.log('[Finance] Testing window.viewPRDetails availability:', typeof window.viewPRDetails);
 
     try {
@@ -276,6 +279,12 @@ export async function init(activeTab = 'approvals') {
  */
 export async function destroy() {
     console.log('[Finance] 🔴 Destroying finance view...');
+
+    // Cleanup modal event listeners
+    if (modalAbortController) {
+        modalAbortController.abort();
+        modalAbortController = null;
+    }
 
     // Unsubscribe from all listeners
     listeners.forEach(unsubscribe => {
