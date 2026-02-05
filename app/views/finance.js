@@ -905,14 +905,14 @@ function rejectPR(prId) {
 /**
  * Close Rejection Modal
  */
-window.closeRejectionModal = function() {
+function closeRejectionModal() {
     document.getElementById('rejectionModal').classList.remove('active');
-};
+}
 
 /**
  * Submit Rejection
  */
-window.submitRejection = async function() {
+async function submitRejection() {
     if (window.canEditTab?.('finance') === false) {
         showToast('You do not have permission to edit finance data', 'error');
         return;
@@ -998,7 +998,7 @@ window.submitRejection = async function() {
         showLoading(false);
         currentPRForRejection = null;
     }
-};
+}
 
 // ========================================
 // PO GENERATION
@@ -1177,9 +1177,9 @@ function renderPOs() {
 /**
  * Refresh POs manually
  */
-window.refreshPOs = async function() {
+async function refreshPOs() {
     await loadPOs();
     showToast('PO list refreshed', 'success');
-};
+}
 
 console.log('Finance view module loaded successfully');
