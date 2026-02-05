@@ -132,8 +132,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Add clients collection Security Rules and tests
-- [ ] 11-02-PLAN.md — Enable Operations Admin project assignment support
+- [x] 11-01-PLAN.md — Add clients collection Security Rules and tests
+- [x] 11-02-PLAN.md — Enable Operations Admin project assignment support
 
 ### Phase 12: Finance Review Workflow
 **Goal**: Finance can review and approve PRs and TRs without errors
@@ -200,7 +200,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 8. Role Permissions | v2.0 | 5/5 | Complete | 2026-02-04 |
 | 9. Project Assignments | v2.0 | 3/3 | Complete | 2026-02-04 |
 | 10. Route Protection | v2.0 | 4/4 | Complete | 2026-02-04 |
-| 11. Security Foundation | v2.1 | 0/2 | Not started | - |
+| 11. Security Foundation | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 12. Finance Workflow | v2.1 | 0/0 | Not started | - |
 | 13. Finance Dashboard | v2.1 | 0/0 | Not started | - |
 | 14. Quality Gates | v2.1 | 0/0 | Not started | - |
