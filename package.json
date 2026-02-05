@@ -1,0 +1,14 @@
+{
+  "name": "clmc-procurement-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Security Rules tests for CLMC Procurement",
+  "scripts": {
+    "test": "mocha test/firestore.test.js --exit"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
+    "firebase": "^10.7.1",
+    "mocha": "^10.7.3"
+  }
+}
