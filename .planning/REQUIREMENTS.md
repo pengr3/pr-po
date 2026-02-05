@@ -9,21 +9,21 @@ Requirements for v2.1 System Refinement milestone. All items are critical as the
 
 ### Security & Permissions
 
-- [ ] **SEC-01**: Super Admin can access Clients tab without permission denied errors
-- [ ] **SEC-02**: Super Admin can access Projects tab without permission denied errors
-- [ ] **SEC-03**: Super Admin user documents have proper permission structure OR Security Rules bypass permission checks for admin role
-- [ ] **SEC-04**: Operations Admin role can receive project assignments (assignable by Super Admin or Operations Admin)
+- [x] **SEC-01**: Super Admin can access Clients tab without permission denied errors
+- [x] **SEC-02**: Super Admin can access Projects tab without permission denied errors
+- [x] **SEC-03**: Super Admin user documents have proper permission structure OR Security Rules bypass permission checks for admin role
+- [x] **SEC-04**: Operations Admin role can receive project assignments (assignable by Super Admin or Operations Admin)
 
 ### Finance Workflow
 
 - [x] **FIN-01**: Transport Request Review button works (no `window.viewTRDetails is not a function` error)
 - [x] **FIN-02**: Material Purchase Request Review button works (no similar window function error)
-- [ ] **FIN-03**: Finance tab displays Project List with financial overview table and expense breakdown modal
+- [x] **FIN-03**: Finance tab displays Project List with financial overview table and expense breakdown modal
 
 ### Procurement Features
 
-- [ ] **PROC-01**: Clicking supplier name opens modal showing all purchases from that supplier
-- [ ] **PROC-02**: Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered)
+- [x] **PROC-01**: Clicking supplier name opens modal showing all purchases from that supplier
+- [x] **PROC-02**: Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered)
 - [ ] **PROC-03**: Viewing PO requires Payment Terms, Condition, and Delivery Date to be filled (workflow gate)
 
 ## v2 Requirements
@@ -56,15 +56,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEC-01 | Phase 11 | Pending |
-| SEC-02 | Phase 11 | Pending |
-| SEC-03 | Phase 11 | Pending |
-| SEC-04 | Phase 11 | Pending |
+| SEC-01 | Phase 11 | Complete |
+| SEC-02 | Phase 11 | Complete |
+| SEC-03 | Phase 11 | Complete |
+| SEC-04 | Phase 11 | Complete |
 | FIN-01 | Phase 12 | Complete |
 | FIN-02 | Phase 12 | Complete |
-| FIN-03 | Phase 13 | Pending |
-| PROC-01 | Phase 13 | Pending |
-| PROC-02 | Phase 13 | Pending |
+| FIN-03 | Phase 13 | Complete |
+| PROC-01 | Phase 13 | Complete |
+| PROC-02 | Phase 13 | Complete |
 | PROC-03 | Phase 14 | Pending |
 
 **Coverage:**
