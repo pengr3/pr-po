@@ -12,9 +12,20 @@ Projects tab must work - it's the foundation where project name and code origina
 
 **Shipped:** v2.0 Authentication & Permissions (2026-02-04)
 
-**Next Milestone:** v2.1+ (To be defined)
+**Current Milestone:** v2.1 System Refinement
 
 See `.planning/MILESTONES.md` for full v2.0 accomplishments.
+
+## Current Milestone: v2.1 System Refinement
+
+**Goal:** Fix critical bugs and complete incomplete features from v2.0 to ensure all core workflows function properly.
+
+**Target fixes:**
+- Security Rules permission errors blocking Super Admin access to Clients and Projects
+- Finance review button errors blocking PR/TR approval workflows
+- Incomplete Procurement features (Timeline audit trail, PO details workflow, Supplier purchase history)
+- Missing Finance features (Project List financial overview)
+- Operations Admin project assignment capability
 
 ## Requirements
 
@@ -99,9 +110,25 @@ See `.planning/MILESTONES.md` for full v2.0 accomplishments.
 - ✓ Minimum 2 Super Admin safeguard prevents lockout — v2.0
 - ✓ Navigation visibility control for unauthenticated users — v2.0
 
-### Active (To Be Defined for Next Milestone)
+### Active (v2.1 System Refinement)
 
-(Requirements will be defined during next milestone planning)
+**Procurement Workflow Fixes:**
+- [ ] Supplier click opens modal showing all purchases from that supplier
+- [ ] Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered)
+- [ ] PO viewing blocked until Payment Terms, Condition, Delivery Date are filled
+
+**Finance Workflow Fixes:**
+- [ ] Fix Transport Request Review button error (window.viewTRDetails is not a function)
+- [ ] Fix Material Purchase Request Review button error
+- [ ] Restore Project List tab with financial overview and expense breakdown modal
+
+**Operations Workflow Fixes:**
+- [ ] Allow Operations Admin role to receive project assignments (assignable by Super Admin or Operations Admin)
+
+**Security & Permissions Fixes:**
+- [ ] Fix Clients tab permission denied error for Super Admin
+- [ ] Fix Projects tab permission denied error for Super Admin
+- [ ] Ensure Super Admin has proper permission structure or Security Rules bypass permission checks for admin roles
 
 ### Future (v2.1+)
 
@@ -245,4 +272,4 @@ See `.planning/MILESTONES.md` for full v2.0 accomplishments.
 | Strict equality (=== false) for permission checks | Distinguishes no permission from loading state | ✓ Good - prevents UI flickering |
 
 ---
-*Last updated: 2026-02-04 after v2.0 milestone completion*
+*Last updated: 2026-02-05 after v2.1 milestone planning*
