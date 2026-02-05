@@ -126,6 +126,23 @@ service cloud.firestore {
     }
 
     // =============================================
+    // clients collection
+    // =============================================
+    match /clients/{clientId} {
+      // All active users can read
+      allow read: if isActiveUser();
+
+      // Create: super_admin, operations_admin
+      allow create: if hasRole(['super_admin', 'operations_admin']);
+
+      // Update: super_admin, operations_admin
+      allow update: if hasRole(['super_admin', 'operations_admin']);
+
+      // Delete: super_admin, operations_admin
+      allow delete: if hasRole(['super_admin', 'operations_admin']);
+    }
+
+    // =============================================
     // mrfs collection
     // =============================================
     match /mrfs/{mrfId} {
