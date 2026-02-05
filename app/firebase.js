@@ -22,7 +22,11 @@ import {
     limit,
     Timestamp,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    getAggregateFromServer,
+    sum,
+    count,
+    average
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import {
     getAuth,
@@ -72,7 +76,11 @@ export {
     limit,
     Timestamp,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    getAggregateFromServer,
+    sum,
+    count,
+    average
 };
 
 // Export Auth methods
@@ -102,7 +110,11 @@ window.firestore = {
     limit,
     Timestamp,
     serverTimestamp,
-    writeBatch
+    writeBatch,
+    getAggregateFromServer,
+    sum,
+    count,
+    average
 };
 window.firebaseAuth = {
     createUserWithEmailAndPassword,
