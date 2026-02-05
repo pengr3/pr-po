@@ -763,7 +763,6 @@ async function approvePR(prId) {
         return;
     }
 
-    window.closePRModal();
     showLoading(true);
 
     try {
@@ -792,6 +791,9 @@ async function approvePR(prId) {
         // Generate POs
         const poCount = await generatePOsForPR(pr);
 
+        // Close modal only after successful approval
+        window.closePRModal();
+
         showToast(`✓ PR approved successfully! Generated ${poCount} PO(s).`, 'success');
 
         // Switch to PO tab
@@ -801,7 +803,8 @@ async function approvePR(prId) {
 
     } catch (error) {
         console.error('Error approving PR:', error);
-        showToast('Failed to approve PR', 'error');
+        showToast('Failed to approve PR. Please try again.', 'error');
+        // Modal stays open on error so user can retry
     } finally {
         showLoading(false);
         currentPRForApproval = null;
@@ -827,7 +830,6 @@ async function approveTR(trId) {
         return;
     }
 
-    window.closePRModal();
     showLoading(true);
 
     try {
@@ -853,11 +855,15 @@ async function approveTR(trId) {
             });
         }
 
+        // Close modal only after successful approval
+        window.closePRModal();
+
         showToast('✓ Transport Request approved successfully!', 'success');
 
     } catch (error) {
         console.error('Error approving TR:', error);
-        showToast('Failed to approve TR', 'error');
+        showToast('Failed to approve TR. Please try again.', 'error');
+        // Modal stays open on error so user can retry
     } finally {
         showLoading(false);
         currentPRForApproval = null;
