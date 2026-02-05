@@ -15,6 +15,65 @@ let currentPRForApproval = null;
 let currentPRForRejection = null;
 
 /**
+ * Attach all window functions for use in onclick handlers
+ * This needs to be called every time init() runs to ensure
+ * functions are available after tab navigation
+ */
+function attachWindowFunctions() {
+    console.log('[Finance] Attaching window functions...');
+
+    // PR/TR Review Functions
+    window.refreshPRs = refreshPRs;
+    window.viewPRDetails = viewPRDetails;
+    window.viewTRDetails = viewTRDetails;
+    window.approvePR = approvePR;
+    window.approveTR = approveTR;
+    window.rejectPR = rejectPR;
+
+    // Modal Management
+    window.closePRModal = closePRModal;
+    window.closeRejectionModal = closeRejectionModal;
+    window.submitRejection = submitRejection;
+
+    // PO Functions
+    window.refreshPOs = refreshPOs;
+
+    console.log('[Finance] ✅ All window functions attached successfully');
+}
+
+/**
+ * Setup modal keyboard event listeners
+ * Uses AbortController for clean one-call cleanup
+ */
+let modalAbortController = null;
+
+function setupModalListeners() {
+    // Abort previous listeners if they exist (idempotent)
+    if (modalAbortController) {
+        modalAbortController.abort();
+    }
+
+    // Create new controller for this view lifecycle
+    modalAbortController = new AbortController();
+    const { signal } = modalAbortController;
+
+    // ESC key closes active modal
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const prModal = document.getElementById('prModal');
+            const rejectionModal = document.getElementById('rejectionModal');
+
+            // Close whichever modal is currently active
+            if (prModal?.classList.contains('active')) {
+                closePRModal();
+            } else if (rejectionModal?.classList.contains('active')) {
+                closeRejectionModal();
+            }
+        }
+    }, { signal }); // AbortController signal handles cleanup automatically
+}
+
+/**
  * Render the finance view
  * @param {string} activeTab - Active tab (approvals, pos, history, projects)
  * @returns {string} HTML string for finance view
@@ -194,7 +253,12 @@ export function render(activeTab = 'approvals') {
  * @param {string} activeTab - Active tab to display
  */
 export async function init(activeTab = 'approvals') {
-    console.log('Initializing finance view, tab:', activeTab);
+    console.log('[Finance] 🔵 Initializing finance view, tab:', activeTab);
+
+    // CRITICAL: Re-attach window functions every init (router skips destroy on tab switch)
+    attachWindowFunctions();
+
+    console.log('[Finance] Testing window.viewPRDetails availability:', typeof window.viewPRDetails);
 
     try {
         await loadPRs();
@@ -211,7 +275,7 @@ export async function init(activeTab = 'approvals') {
  * Cleanup when leaving the view
  */
 export async function destroy() {
-    console.log('Destroying finance view...');
+    console.log('[Finance] 🔴 Destroying finance view...');
 
     // Unsubscribe from all listeners
     listeners.forEach(unsubscribe => {
@@ -240,7 +304,7 @@ export async function destroy() {
     delete window.submitRejection;
     delete window.refreshPOs;
 
-    console.log('Finance view destroyed');
+    console.log('[Finance] Finance view destroyed');
 }
 
 // ========================================
@@ -412,10 +476,10 @@ function updateStats() {
 /**
  * Refresh PRs manually
  */
-window.refreshPRs = async function() {
+async function refreshPRs() {
     await loadPRs();
     showToast('PR list refreshed', 'success');
-};
+}
 
 // ========================================
 // PR/TR DETAILS & APPROVAL
@@ -424,7 +488,7 @@ window.refreshPRs = async function() {
 /**
  * View PR Details
  */
-window.viewPRDetails = async function(prId) {
+async function viewPRDetails(prId) {
     showLoading(true);
 
     try {
@@ -549,7 +613,7 @@ window.viewPRDetails = async function(prId) {
 /**
  * View TR Details
  */
-window.viewTRDetails = async function(trId) {
+async function viewTRDetails(trId) {
     showLoading(true);
 
     try {
@@ -674,7 +738,7 @@ window.viewTRDetails = async function(trId) {
 /**
  * Approve PR and generate POs
  */
-window.approvePR = async function(prId) {
+async function approvePR(prId) {
     if (window.canEditTab?.('finance') === false) {
         showToast('You do not have permission to edit finance data', 'error');
         return;
@@ -738,7 +802,7 @@ window.approvePR = async function(prId) {
 /**
  * Approve TR (Transport Request)
  */
-window.approveTR = async function(trId) {
+async function approveTR(trId) {
     if (window.canEditTab?.('finance') === false) {
         showToast('You do not have permission to edit finance data', 'error');
         return;
@@ -794,9 +858,9 @@ window.approveTR = async function(trId) {
 /**
  * Close PR Modal
  */
-window.closePRModal = function() {
+function closePRModal() {
     document.getElementById('prModal').classList.remove('active');
-};
+}
 
 // ========================================
 // REJECTION WORKFLOW
@@ -805,7 +869,7 @@ window.closePRModal = function() {
 /**
  * Reject PR/TR
  */
-window.rejectPR = function(prId) {
+function rejectPR(prId) {
     if (window.canEditTab?.('finance') === false) {
         showToast('You do not have permission to edit finance data', 'error');
         return;
