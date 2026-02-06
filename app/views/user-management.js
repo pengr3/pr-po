@@ -880,16 +880,18 @@ async function handleDeactivateUser(userId) {
             return;
         }
 
-        // Check if user is super_admin
+        // SEC-05: Check if user is super_admin and enforce minimum 2
         if (user.role === 'super_admin') {
             // Count active Super Admins
             const activeSuperAdminCount = countActiveSuperAdmins();
 
+            // SEC-05: Require minimum 2 active Super Admins (block if <= 2)
+            // Logic: If currently 2 SAs and we deactivate one, only 1 would remain
+            // So we block when count <= 2 to maintain minimum of 2
             if (activeSuperAdminCount <= 2) {
-                // Show error modal - cannot deactivate if only 2 Super Admins remain
                 showErrorModal(
                     'Cannot Deactivate Super Admin',
-                    'Cannot deactivate this Super Admin. System requires at least 2 active Super Admins. Promote another user to Super Admin first.'
+                    'System requires at least 2 active Super Admin accounts. Please promote another user to Super Admin before deactivating this account.'
                 );
                 return;
             }
