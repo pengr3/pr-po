@@ -5,23 +5,26 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 13 - Finance Dashboard & Audit Trails
+**Current focus:** Phase 15 - User Data & Permission Improvements (v2.2 Workflow & UX Enhancements)
 
 ## Current Position
 
-Phase: 13 of 14 (Finance Dashboard & Audit Trails)
-Plan: 5 of 5 complete
-Status: Phase complete
-Last activity: 2026-02-06 - Completed 13-04 (Firebase composite indexes for aggregation queries)
+**Milestone:** v2.2 Workflow & UX Enhancements
+Phase: 15 of 19 (User Data & Permission Improvements)
+Plan: 1 of 2 in phase
+Status: Phase in progress
+Last activity: 2026-02-06 - Completed 15-01-PLAN.md
 
-Progress: [██████████████████████████████████████████████████] 95% (36/38 plans complete across all milestones)
+Progress: [████████████████████████████████████████░░░░░░░░] 76% (37/49 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans)
+- Total plans completed: 37 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 1 plan)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
+- v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
+- v2.2 milestone: 1 plan completed (in progress)
 - Average: ~2.3 plans per week
 
 **By Milestone:**
@@ -30,16 +33,17 @@ Progress: [███████████████████████
 |-----------|--------|-------|----------|----------|
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
-| v2.1 Refinement | 3 | 9 complete | In progress | - |
+| v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
+| v2.2 Enhancements | 5 | 1 | <1 day | - |
 
 **Recent Trend:**
-- Velocity improved from v1.0 to v2.0 (5.9 → 3.8 days/plan)
+- v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
 - Phase 11 (2 plans) completed in <1 day (Security Rules fixes)
-- Phase 12 (2 plans) completed in <1 day (Window function lifecycle + ESC key handling)
-- Phase 13 (5 plans) completed in 2 days (Project List + Supplier History + Timeline + Indexes + Gap Closure)
-- v2.1 focuses on bug fixes and workflow improvements (faster execution)
+- Phase 12 (2 plans) completed in <1 day (Window function lifecycle)
+- Phase 13 (5 plans) completed in 2 days (Finance dashboard features)
+- Bug fix milestones execute faster than feature milestones
 
-*Updated after Phase 13 completion (13-04)*
+*Updated after v2.2 roadmap creation (2026-02-06)*
 
 ## Accumulated Context
 
@@ -62,6 +66,8 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.1 (13-03): Timeline component reuse for audit trails (DRY principle, consistent visual presentation across app)
 - v2.1 (13-03): Multi-collection audit trail queries by common identifier (mrf_id) for complete procurement workflow visibility
 - v2.1 (13-05): Move supplier purchase history to Supplier Management tab as primary access point (matches user expectations, feature in logical location)
+- v2.2 (15-01): Use readonly (not disabled) for auto-populated form fields (ensures value submits with form)
+- v2.2 (15-01): Auto-populate user identity fields in init(), resetForm(), and post-submission (persistent across all form lifecycle events)
 
 ### Pending Todos
 
@@ -87,6 +93,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-06 (Phase 13 completion)
-Stopped at: Completed 13-04 (Firebase composite indexes), created SUMMARY.md, updated ROADMAP.md and STATE.md. Phase 13 now complete (5/5 plans).
+Last session: 2026-02-06 (Plan 15-01 execution)
+Stopped at: Completed 15-01-PLAN.md (Auto-populate requestor name in MRF form)
 Resume file: None
+Next action: Execute Plan 15-02 (Auto-populate requestor name in procurement view)
