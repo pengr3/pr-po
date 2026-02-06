@@ -19,7 +19,11 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "project_name",
+          "fieldPath": "mrf_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
           "order": "ASCENDING"
         }
       ]
@@ -29,12 +33,16 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "mrf_id",
+          "fieldPath": "supplier_name",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "date_issued",
-          "order": "ASCENDING"
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "DESCENDING"
         }
       ]
     }

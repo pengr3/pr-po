@@ -82,6 +82,7 @@ function attachWindowFunctions() {
     window.closeTimelineModal = closeTimelineModal;
     window.showSupplierPurchaseHistory = showSupplierPurchaseHistory;
     window.closeSupplierHistoryModal = closeSupplierHistoryModal;
+    window.handleRequiredFieldsSubmit = handleRequiredFieldsSubmit;
 
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
@@ -328,20 +329,33 @@ export function render(activeTab = 'mrfs') {
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Supplier Purchase History Modal -->
-                <div id="supplierHistoryModal" class="modal">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <div class="modal-header">
-                            <h2 id="supplierHistoryModalTitle">Supplier Purchase History</h2>
-                            <button class="modal-close" onclick="window.closeSupplierHistoryModal()">&times;</button>
-                        </div>
-                        <div class="modal-body" id="supplierHistoryModalBody">
-                            <!-- Dynamically populated -->
-                        </div>
+            <!-- Supplier Purchase History Modal (placed outside sections to be accessible from all tabs) -->
+            <div id="supplierHistoryModal" class="modal">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h2 id="supplierHistoryModalTitle">Supplier Purchase History</h2>
+                        <button class="modal-close" onclick="window.closeSupplierHistoryModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="supplierHistoryModalBody">
+                        <!-- Dynamically populated -->
                     </div>
                 </div>
-            </section>
+            </div>
+
+            <!-- PO Required Fields Modal -->
+            <div id="poRequiredFieldsModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Complete PO Information</h3>
+                        <button class="close-btn" onclick="closeModal('poRequiredFieldsModal')">&times;</button>
+                    </div>
+                    <div class="modal-body" id="poRequiredFieldsBody">
+                        <!-- Form content inserted dynamically -->
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -554,6 +568,7 @@ export async function destroy() {
     delete window.viewPODetails;
     delete window.viewPOTimeline;
     delete window.updatePOStatus;
+    delete window.handleRequiredFieldsSubmit;
     delete window.generatePRDocument;
     delete window.generatePODocument;
     delete window.viewPODocument;
@@ -3949,6 +3964,127 @@ async function viewPRDetails(prDocId) {
 }
 
 /**
+ * Check if PO has required fields filled
+ */
+function hasRequiredPOFields(poData) {
+    const defaults = {
+        payment_terms: ['As per agreement', '', null, undefined],
+        condition: ['Standard terms apply', '', null, undefined],
+        delivery_date: ['TBD', '', null, undefined]
+    };
+
+    return !(
+        defaults.payment_terms.includes(poData.payment_terms) ||
+        defaults.condition.includes(poData.condition) ||
+        defaults.delivery_date.includes(poData.delivery_date)
+    );
+}
+
+/**
+ * Show PO Required Fields Form Modal
+ */
+function showPORequiredFieldsForm(poId, poData) {
+    const bodyContent = `
+        <div style="padding: 1.5rem;">
+            <p style="margin-bottom: 1.5rem; color: #475569;">
+                This PO requires additional information before viewing details. Please fill the required fields below:
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="form-group">
+                    <label for="payment_terms" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                        Payment Terms <span style="color: #ef4444;">*</span>
+                    </label>
+                    <textarea
+                        id="payment_terms"
+                        rows="3"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem;"
+                        required
+                    >${poData.payment_terms && !['As per agreement', '', null, undefined].includes(poData.payment_terms) ? poData.payment_terms : ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="condition" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                        Condition <span style="color: #ef4444;">*</span>
+                    </label>
+                    <textarea
+                        id="condition"
+                        rows="3"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem;"
+                        required
+                    >${poData.condition && !['Standard terms apply', '', null, undefined].includes(poData.condition) ? poData.condition : ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="delivery_date" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                        Delivery Date <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input
+                        type="date"
+                        id="delivery_date"
+                        style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem;"
+                        value="${poData.delivery_date && !['TBD', '', null, undefined].includes(poData.delivery_date) ? poData.delivery_date : ''}"
+                        required
+                    />
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
+                <button class="btn btn-secondary" onclick="closeModal('poRequiredFieldsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="handleRequiredFieldsSubmit('${poId}')">Save & View Details</button>
+            </div>
+        </div>
+    `;
+
+    // Update the modal body
+    const modalBody = document.getElementById('poRequiredFieldsBody');
+    if (modalBody) {
+        modalBody.innerHTML = bodyContent;
+        openModal('poRequiredFieldsModal');
+    }
+}
+
+/**
+ * Handle PO Required Fields Form Submission
+ */
+async function handleRequiredFieldsSubmit(poId) {
+    try {
+        // Get form values
+        const payment_terms = document.getElementById('payment_terms')?.value?.trim();
+        const condition = document.getElementById('condition')?.value?.trim();
+        const delivery_date = document.getElementById('delivery_date')?.value?.trim();
+
+        // Validate all fields are non-empty
+        if (!payment_terms || !condition || !delivery_date) {
+            alert('All fields are required. Please fill in all information.');
+            return;
+        }
+
+        showLoading(true);
+
+        // Update PO in Firestore
+        const poRef = doc(db, 'pos', poId);
+        await updateDoc(poRef, {
+            payment_terms,
+            condition,
+            delivery_date
+        });
+
+        // Close modal and show success
+        closeModal('poRequiredFieldsModal');
+        showToast('PO information updated successfully', 'success');
+
+        // Recursively call viewPODetails - now will pass gate
+        viewPODetails(poId);
+
+    } catch (error) {
+        console.error('Error updating PO:', error);
+        showToast('Failed to update PO information', 'error');
+        showLoading(false);
+    }
+}
+
+/**
  * View PO Details
  */
 async function viewPODetails(poId) {
@@ -3965,6 +4101,14 @@ async function viewPODetails(poId) {
         }
 
         const po = { id: poDoc.id, ...poDoc.data() };
+
+        // Quality gate: require complete PO information
+        if (!hasRequiredPOFields(po)) {
+            showLoading(false);
+            showPORequiredFieldsForm(poId, po);
+            return;
+        }
+
         const items = JSON.parse(po.items_json || '[]');
 
         // Determine status color

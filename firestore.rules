@@ -4,6 +4,41 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =============================================
+    // ⚠️ ADDING NEW COLLECTIONS? READ THIS FIRST!
+    // =============================================
+    //
+    // CRITICAL: Every Firestore collection MUST have Security Rules.
+    // Without rules, even Super Admin will be blocked from access.
+    //
+    // TEMPLATE FOR NEW COLLECTIONS:
+    //
+    //   // =============================================
+    //   // [collection_name] collection
+    //   // =============================================
+    //   match /[collection_name]/{docId} {
+    //     // All active users can read
+    //     allow read: if isActiveUser();
+    //
+    //     // Create/Update: super_admin, operations_admin
+    //     allow create: if hasRole(['super_admin', 'operations_admin']);
+    //     allow update: if hasRole(['super_admin', 'operations_admin']);
+    //     allow delete: if hasRole(['super_admin', 'operations_admin']);
+    //   }
+    //
+    // CUSTOMIZATION:
+    // - Adjust roles based on feature (e.g., finance, procurement)
+    // - Add project assignment checks for operations_user filtering
+    // - Restrict delete if needed (audit collections should be append-only)
+    //
+    // WHAT HAPPENS IF YOU FORGET:
+    // - Firestore denies all access by default (no implicit admin access)
+    // - You'll get "Missing or insufficient permissions" errors
+    // - Even Super Admin will be blocked (Phase 11 issue)
+    //
+    // SEE: CLAUDE.md section "Add New View" for full checklist
+    // =============================================
+
+    // =============================================
     // HELPER FUNCTIONS
     // =============================================
 

@@ -10,22 +10,22 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Shipped:** v2.0 Authentication & Permissions (2026-02-04)
+**Shipped:** v2.1 System Refinement (2026-02-06)
 
-**Current Milestone:** v2.1 System Refinement
+**Current Milestone:** Planning next milestone
 
-See `.planning/MILESTONES.md` for full v2.0 accomplishments.
+See `.planning/MILESTONES.md` for full milestone history.
 
-## Current Milestone: v2.1 System Refinement
+## Latest Milestone: v2.1 System Refinement (Shipped 2026-02-06)
 
-**Goal:** Fix critical bugs and complete incomplete features from v2.0 to ensure all core workflows function properly.
+**Goal:** Fixed critical bugs and completed incomplete features from v2.0 to ensure all core workflows function properly.
 
-**Target fixes:**
-- Security Rules permission errors blocking Super Admin access to Clients and Projects
-- Finance review button errors blocking PR/TR approval workflows
-- Incomplete Procurement features (Timeline audit trail, PO details workflow, Supplier purchase history)
-- Missing Finance features (Project List financial overview)
-- Operations Admin project assignment capability
+**Delivered:**
+- Security Rules permission errors eliminated (Super Admin access to Clients and Projects)
+- Finance review workflow restored (PR/TR approval buttons working, ESC key modal dismissal)
+- Procurement features completed (Timeline audit trail, Supplier purchase history, PO quality gates)
+- Finance features delivered (Project List with aggregated expense totals and breakdown modals)
+- Operations Admin project assignment capability enabled
 
 ## Requirements
 
@@ -110,25 +110,25 @@ See `.planning/MILESTONES.md` for full v2.0 accomplishments.
 - ✓ Minimum 2 Super Admin safeguard prevents lockout — v2.0
 - ✓ Navigation visibility control for unauthenticated users — v2.0
 
-### Active (v2.1 System Refinement)
+### Validated (Shipped in v2.1)
 
-**Procurement Workflow Fixes:**
-- [ ] Supplier click opens modal showing all purchases from that supplier
-- [ ] Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered)
-- [ ] PO viewing blocked until Payment Terms, Condition, Delivery Date are filled
+**Security & Permissions (v2.1):**
+- ✓ Super Admin can access Clients tab without permission denied errors — v2.1 (Phase 11)
+- ✓ Super Admin can access Projects tab without permission denied errors — v2.1 (Phase 11)
+- ✓ Super Admin has proper permission structure via Security Rules — v2.1 (Phase 11)
+- ✓ Operations Admin role can receive project assignments — v2.1 (Phase 11)
 
-**Finance Workflow Fixes:**
-- [ ] Fix Transport Request Review button error (window.viewTRDetails is not a function)
-- [ ] Fix Material Purchase Request Review button error
-- [ ] Restore Project List tab with financial overview and expense breakdown modal
+**Finance Workflow (v2.1):**
+- ✓ Transport Request Review button works without errors — v2.1 (Phase 12)
+- ✓ Material Purchase Request Review button works without errors — v2.1 (Phase 12)
+- ✓ Finance tab displays Project List with expense breakdown modal — v2.1 (Phase 13)
 
-**Operations Workflow Fixes:**
-- [ ] Allow Operations Admin role to receive project assignments (assignable by Super Admin or Operations Admin)
+**Procurement Features (v2.1):**
+- ✓ Supplier click opens modal showing all purchases from that supplier — v2.1 (Phase 13)
+- ✓ Timeline button shows full audit trail (MRF → PRs → POs → Delivered) — v2.1 (Phase 13)
+- ✓ PO viewing requires Payment Terms, Condition, and Delivery Date (workflow gate) — v2.1 (Phase 14)
 
-**Security & Permissions Fixes:**
-- [ ] Fix Clients tab permission denied error for Super Admin
-- [ ] Fix Projects tab permission denied error for Super Admin
-- [ ] Ensure Super Admin has proper permission structure or Security Rules bypass permission checks for admin roles
+### Active (Next Milestone)
 
 ### Future (v2.1+)
 
@@ -272,4 +272,4 @@ See `.planning/MILESTONES.md` for full v2.0 accomplishments.
 | Strict equality (=== false) for permission checks | Distinguishes no permission from loading state | ✓ Good - prevents UI flickering |
 
 ---
-*Last updated: 2026-02-05 after v2.1 milestone planning*
+*Last updated: 2026-02-06 after v2.1 milestone completion*
