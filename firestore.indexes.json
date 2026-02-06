@@ -19,16 +19,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "project_name",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "pos",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
           "fieldPath": "mrf_id",
           "order": "ASCENDING"
         },
