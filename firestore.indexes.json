@@ -39,6 +39,10 @@
         {
           "fieldPath": "date_issued",
           "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "DESCENDING"
         }
       ]
     }
