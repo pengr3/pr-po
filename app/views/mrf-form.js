@@ -113,7 +113,6 @@ export function render() {
                             <div class="form-group">
                                 <label for="requestorName">Requestor Name</label>
                                 <input type="text" id="requestorName" readonly required style="background: #f8fafc; cursor: not-allowed; color: #475569;">
-                                <small style="color: #64748b; font-size: 0.8rem;">Auto-populated from your account</small>
                             </div>
                             <div class="form-group">
                                 <label for="dateNeeded">Date Needed *</label>
