@@ -4,11 +4,14 @@
 
 - ✅ **v1.0 Projects & Tracking** - Phases 1-4 (shipped 2026-01-30)
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
-- 🚧 **v2.1 System Refinement** - Phases 11-14 (in progress)
+- ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
+- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-19 (in progress)
 
 ## Overview
 
-v2.1 fixes critical bugs and completes incomplete features from v2.0. The journey starts with security foundation fixes to enable proper testing, then resolves user-blocking workflow errors, builds out financial dashboards with aggregation features, and finishes with data quality gates. Each phase delivers observable improvements that make the system more reliable and complete.
+**v2.1** (shipped) fixed critical bugs and completed incomplete features from v2.0. Security foundation fixes enabled proper testing, finance workflow errors were resolved, and financial dashboards gained aggregation features.
+
+**v2.2** (current) enhances workflows and UX across all major areas. User data auto-population improves efficiency, project detail pages get restructured for clarity, procurement gains comprehensive status tracking with visual indicators, finance gets signature capture and detailed expense breakdowns, and navigation consolidates for cleaner information architecture. Each phase delivers tangible workflow improvements and better data visibility.
 
 ## Phases
 
@@ -115,9 +118,8 @@ Plans:
 
 </details>
 
-## 🚧 v2.1 System Refinement (In Progress)
-
-**Milestone Goal:** Fix critical bugs and complete incomplete features to ensure all core workflows function properly.
+<details>
+<summary>✅ v2.1 System Refinement (Phases 11-13) - SHIPPED 2026-02-06</summary>
 
 ### Phase 11: Security & Permission Foundation
 **Goal**: Super Admin can access all tabs and Operations Admin can be assigned to projects
@@ -170,25 +172,99 @@ Plans:
 - [x] 13-04-PLAN.md — Add Firebase composite indexes for aggregation and timeline queries
 - [x] 13-05-PLAN.md — Move supplier purchase history to Supplier Management tab
 
-### Phase 14: Workflow Quality Gates
-**Goal**: PO details require complete information before viewing
+</details>
+
+## 🚧 v2.2 Workflow & UX Enhancements (In Progress)
+
+**Milestone Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
+
+### Phase 15: User Data & Permission Improvements
+**Goal**: Auto-populate user data and enforce proper project creation permissions
 **Depends on**: Phase 13
-**Requirements**: PROC-03
 **Success Criteria** (what must be TRUE):
-  1. Procurement user cannot view PO details until Payment Terms field is filled
-  2. Procurement user cannot view PO details until Condition field is filled
-  3. Procurement user cannot view PO details until Delivery Date field is filled
-  4. Procurement user sees specific inline error message identifying which required field is missing
-  5. After filling required fields, View PO button works and details modal opens
+  1. MRF form auto-populates "Your Name" from logged-in user (field removed from form)
+  2. Only operation_admin and super_admin roles can create new projects
+  3. Personnel field is required when creating projects
+  4. Personnel field functions as proper user assignment (type name/email and select)
+  5. Project assignments work seamlessly with the new personnel selection
+**Plans**: 2 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — Auto-populate MRF requestor name from logged-in user
+- [ ] 15-02-PLAN.md — Project creation permission guards and personnel user datalist
+
+### Phase 16: Project Detail Page Restructure
+**Goal**: Reorganize project detail page for clarity and better information hierarchy
+**Depends on**: Phase 15
+**Success Criteria** (what must be TRUE):
+  1. Active status toggle appears at top of detail page
+  2. Card 1 displays: Project Code, Name, Client, Assigned Personnel
+  3. Card 2 displays: Budget, Contract Cost, Expense
+  4. Card 3 displays: Internal Status, Project Status
+  5. Layout avoids redundancy and presents information logically
 **Plans**: TBD
 
 Plans:
-- [ ] 14-01: TBD
+- [ ] 16-01: TBD
+
+### Phase 17: Procurement Workflow Overhaul
+**Goal**: Rename tabs, track PR creators, fix supplier modals, implement comprehensive MRF status tracking with visual indicators
+**Depends on**: Phase 15
+**Success Criteria** (what must be TRUE):
+  1. MRF Processing: Generated PRs bear the name of user who clicked Generate PR button
+  2. Supplier Management: Clicking supplier name always opens historical purchases modal
+  3. PR-PO tab renamed to "MRF Records"
+  4. MRF Records: Clickable supplier names removed from PRs/POs columns
+  5. MRF Records: "DATE" column renamed to "Date Needed"
+  6. MRF Records: "PO Timeline" column removed (timeline button remains in Actions)
+  7. MRF Records: PR and corresponding PO displayed side by side
+  8. MRF Records: MRF Status shows "Awaiting PR" (red), "0/n PO Issued" (yellow), "n/n PO Issued" (green)
+  9. MRF Records: "PO Status" column renamed to "Procurement Status"
+  10. MRF Records: Timeline captures timestamps (not just dates) for efficiency measurement
+  11. MRF Records: Columns ordered: MRF ID, Project, Date Needed, PRs, POs, MRF Status, Procurement Status, Actions
+**Plans**: TBD
+
+Plans:
+- [ ] 17-01: TBD
+
+### Phase 18: Finance Workflow & Expense Reporting
+**Goal**: Add signature capture, improve approval flow, remove unused tabs, create comprehensive project expense breakdown
+**Depends on**: Phase 15
+**Success Criteria** (what must be TRUE):
+  1. Pending Approvals: Approval modal includes signature capture
+  2. Pending Approvals: After PO generation, user stays on Pending Approvals tab (no auto-redirect)
+  3. Pending Approvals: Generated PO document includes captured signature
+  4. PR documents capture and display the name of Procurement user who prepared/generated the PR from MRF
+  5. PO documents capture and display the name of Finance user who approved and created the PO
+  6. Historical Data tab removed from Finance navigation
+  7. Project List table shows: Project Name (Code + Name), Client Name, Total Expense, Budget, Remaining Budget, Status
+  8. Clicking project row opens expense breakdown modal
+  9. Expense modal scorecards show: Project Budget, Remaining Budget, Material Purchases, Transport Fees, Subcon Cost, Total Project Cost
+  10. Expense modal has view switcher: Category / Materials / Transport
+  11. All project expenses accurately accounted (materials, transport, delivery fees)
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD
+
+### Phase 19: Navigation Consolidation
+**Goal**: Merge admin tabs into single navigation item for cleaner interface
+**Depends on**: Phase 16, 17, 18
+**Success Criteria** (what must be TRUE):
+  1. Settings, Assignments, and Users tabs merged into single "Admin" navigation item
+  2. Admin navigation item opens submenu or dedicated page with 3 sections
+  3. All existing functionality preserved (no features lost)
+  4. Navigation is cleaner and less cluttered
+  5. Role-based visibility still enforced (only admins see Admin nav item)
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 11 → 12 → 13 → 14
+Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -205,4 +281,8 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 11. Security Foundation | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 12. Finance Workflow | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
-| 14. Quality Gates | v2.1 | 0/0 | Not started | - |
+| 15. User Data & Permissions | v2.2 | 0/2 | Planned | - |
+| 16. Project Detail Restructure | v2.2 | 0/0 | Not started | - |
+| 17. Procurement Overhaul | v2.2 | 0/0 | Not started | - |
+| 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |
+| 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
