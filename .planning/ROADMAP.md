@@ -178,12 +178,12 @@ Plans:
   1. Procurement user cannot view PO details until Payment Terms field is filled
   2. Procurement user cannot view PO details until Condition field is filled
   3. Procurement user cannot view PO details until Delivery Date field is filled
-  4. Procurement user sees specific inline error message identifying which required field is missing
-  5. After filling required fields, View PO button works and details modal opens
-**Plans**: TBD
+  4. After filling required fields, PO details modal opens
+  5. PO with all fields already filled shows details immediately
+**Plans**: 1 plan
 
 Plans:
-- [ ] 14-01: TBD
+- [ ] 14-01-PLAN.md — Add PO quality gate with required fields form
 
 ## Progress
 
@@ -205,4 +205,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 11. Security Foundation | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 12. Finance Workflow | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
-| 14. Quality Gates | v2.1 | 0/0 | Not started | - |
+| 14. Quality Gates | v2.1 | 0/1 | Not started | - |
