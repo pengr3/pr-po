@@ -78,6 +78,10 @@ export function render(activeTab = null) {
     // canEdit === true -> has permission, show controls
     const showEditControls = canEdit !== false;
 
+    // Check role for project creation (only super_admin and operations_admin)
+    const user = window.getCurrentUser?.();
+    const canCreateProject = user?.role === 'super_admin' || user?.role === 'operations_admin';
+
     return `
         <div class="container" style="margin-top: 2rem;">
             ${canEdit === false ? `
@@ -89,7 +93,7 @@ export function render(activeTab = null) {
             <div class="card">
                 <div class="suppliers-header">
                     <h2>Project Management</h2>
-                    ${showEditControls ? `
+                    ${canCreateProject ? `
                         <button class="btn btn-primary" onclick="window.toggleAddProjectForm()">Add Project</button>
                     ` : ''}
                 </div>
@@ -365,6 +369,13 @@ function toggleAddProjectForm() {
         return;
     }
 
+    // Guard: check role for project creation
+    const user = window.getCurrentUser?.();
+    if (!user || (user.role !== 'super_admin' && user.role !== 'operations_admin')) {
+        showToast('Only Operations Admin and Super Admin can create projects', 'error');
+        return;
+    }
+
     const form = document.getElementById('addProjectForm');
     if (!form) return;
 
@@ -397,6 +408,13 @@ async function addProject() {
     // Guard: check edit permission
     if (window.canEditTab?.('projects') === false) {
         showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+
+    // Guard: check role for project creation
+    const user = window.getCurrentUser?.();
+    if (!user || (user.role !== 'super_admin' && user.role !== 'operations_admin')) {
+        showToast('Only Operations Admin and Super Admin can create projects', 'error');
         return;
     }
 
