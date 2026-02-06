@@ -1,5 +1,32 @@
 # Project Milestones: CLMC Procurement System
 
+## v2.1 System Refinement (Shipped: 2026-02-06)
+
+**Delivered:** Critical bug fixes and feature completions making all core workflows functional after v2.0 authentication rollout.
+
+**Phases completed:** 11-14 (10 plans total)
+
+**Key accomplishments:**
+
+- Fixed Security Rules permission errors blocking Super Admin access to Clients and Projects tabs, added 11 test cases validating admin access patterns
+- Restored Finance review workflow by fixing window function lifecycle bugs that broke PR/TR approval buttons, added ESC key modal dismissal with AbortController pattern
+- Built Finance dashboard with Project List tab using server-side aggregated expense totals, supplier purchase history modal, and procurement timeline showing complete MRF → PR → PO audit trail
+- Implemented workflow quality gates requiring Payment Terms, Condition, and Delivery Date before viewing PO details, enforcing data completeness with form modal pattern
+- Enabled Operations Admin role for project assignments, expanding distributed project management capabilities
+
+**Stats:**
+
+- 10+ files created/modified (firebase.js, finance.js, procurement.js, firestore.rules, test suite)
+- 10 feature commits across 4 phases
+- 4 phases, 10 plans, ~25+ tasks
+- 1.6 days from start to ship (2026-02-05 → 2026-02-06)
+
+**Git range:** `feat(11-01)` → `feat(14-01)`
+
+**What's next:** Activity logging and document management (v2.2+) - Enable project activity tracking, BOQ/contract uploads, payment milestone management, and invoice attachments.
+
+---
+
 ## v2.0 Authentication & Permissions (Shipped: 2026-02-04)
 
 **Delivered:** Complete role-based access control system securing the foundation with authentication, granular permissions, and user management.
