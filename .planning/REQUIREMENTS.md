@@ -24,7 +24,7 @@ Requirements for v2.1 System Refinement milestone. All items are critical as the
 
 - [x] **PROC-01**: Clicking supplier name opens modal showing all purchases from that supplier
 - [x] **PROC-02**: Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered)
-- [ ] **PROC-03**: Viewing PO requires Payment Terms, Condition, and Delivery Date to be filled (workflow gate)
+- [x] **PROC-03**: Viewing PO requires Payment Terms, Condition, and Delivery Date to be filled (workflow gate)
 
 ## v2 Requirements
 
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIN-03 | Phase 13 | Complete |
 | PROC-01 | Phase 13 | Complete |
 | PROC-02 | Phase 13 | Complete |
-| PROC-03 | Phase 14 | Pending |
+| PROC-03 | Phase 14 | Complete |
 
 **Coverage:**
 - v1 requirements: 10 total
@@ -74,4 +74,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-05*
-*Last updated: 2026-02-05 after roadmap creation*
+*Last updated: 2026-02-06 after Phase 14 completion*
