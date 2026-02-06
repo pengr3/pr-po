@@ -328,20 +328,20 @@ export function render(activeTab = 'mrfs') {
                         </div>
                     </div>
                 </div>
+            </section>
 
-                <!-- Supplier Purchase History Modal -->
-                <div id="supplierHistoryModal" class="modal">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <div class="modal-header">
-                            <h2 id="supplierHistoryModalTitle">Supplier Purchase History</h2>
-                            <button class="modal-close" onclick="window.closeSupplierHistoryModal()">&times;</button>
-                        </div>
-                        <div class="modal-body" id="supplierHistoryModalBody">
-                            <!-- Dynamically populated -->
-                        </div>
+            <!-- Supplier Purchase History Modal (placed outside sections to be accessible from all tabs) -->
+            <div id="supplierHistoryModal" class="modal">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h2 id="supplierHistoryModalTitle">Supplier Purchase History</h2>
+                        <button class="modal-close" onclick="window.closeSupplierHistoryModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" id="supplierHistoryModalBody">
+                        <!-- Dynamically populated -->
                     </div>
                 </div>
-            </section>
+            </div>
         </div>
     `;
 }
