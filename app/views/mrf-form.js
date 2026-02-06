@@ -227,6 +227,15 @@ export async function init() {
             dateInput.min = new Date().toISOString().split('T')[0];
         }
 
+        // Auto-populate requestor name from current user
+        const user = window.getCurrentUser?.();
+        if (user && user.full_name) {
+            const requestorInput = document.getElementById('requestorName');
+            if (requestorInput) {
+                requestorInput.value = user.full_name;
+            }
+        }
+
         // Load projects
         loadProjects();
 
@@ -494,6 +503,15 @@ window.resetForm = function() {
             input.required = false;
         });
 
+        // Re-populate requestor name after reset
+        const user = window.getCurrentUser?.();
+        if (user && user.full_name) {
+            const requestorInput = document.getElementById('requestorName');
+            if (requestorInput) {
+                requestorInput.value = user.full_name;
+            }
+        }
+
         showAlert('success', 'Form has been reset.');
     }
 };
@@ -566,6 +584,13 @@ async function handleFormSubmit(e) {
                 input.style.display = 'none';
                 input.required = false;
             });
+
+            // Re-populate requestor name after submission reset
+            const currentUser = window.getCurrentUser?.();
+            if (currentUser && currentUser.full_name) {
+                const nameInput = document.getElementById('requestorName');
+                if (nameInput) nameInput.value = currentUser.full_name;
+            }
         }, 2000);
 
     } catch (error) {
