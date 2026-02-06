@@ -37,6 +37,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "pos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supplier_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
