@@ -11,21 +11,21 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 15 of 19 (User Data & Permission Improvements)
-Plan: 1 of 2 in phase
-Status: Phase in progress
-Last activity: 2026-02-06 - Completed 15-01-PLAN.md
+Plan: 2 of 2 in phase
+Status: Phase complete
+Last activity: 2026-02-06 - Completed 15-02-PLAN.md
 
-Progress: [████████████████████████████████████████░░░░░░░░] 76% (37/49 estimated plans across all milestones)
+Progress: [████████████████████████████████████████░░░░░░░░] 78% (38/49 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 1 plan)
+- Total plans completed: 38 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 2 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 1 plan completed (in progress)
-- Average: ~2.3 plans per week
+- v2.2 milestone: 2 plans completed (in progress)
+- Average: ~2.4 plans per week
 
 **By Milestone:**
 
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 1 | <1 day | - |
+| v2.2 Enhancements | 5 | 2 | <1 day | <0.5 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -68,6 +68,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.1 (13-05): Move supplier purchase history to Supplier Management tab as primary access point (matches user expectations, feature in logical location)
 - v2.2 (15-01): Use readonly (not disabled) for auto-populated form fields (ensures value submits with form)
 - v2.2 (15-01): Auto-populate user identity fields in init(), resetForm(), and post-submission (persistent across all form lifecycle events)
+- v2.2 (15-02): Personnel field required for new project creation (enforces accountability)
+- v2.2 (15-02): Store both personnel_user_id and personnel_name (denormalization avoids extra lookups, historical record)
+- v2.2 (15-02): Migrate-on-edit strategy for personnel field (incremental data migration preserves backward compatibility)
 
 ### Pending Todos
 
@@ -93,7 +96,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-06 (Plan 15-01 execution)
-Stopped at: Completed 15-01-PLAN.md (Auto-populate requestor name in MRF form)
+Last session: 2026-02-06 (Plan 15-02 execution)
+Stopped at: Completed 15-02-PLAN.md (Project creation permissions & personnel datalist). Phase 15 complete (2/2 plans).
 Resume file: None
-Next action: Execute Plan 15-02 (Auto-populate requestor name in procurement view)
+Next action: Plan Phase 16 (next in v2.2 roadmap)
