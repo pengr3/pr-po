@@ -9,6 +9,8 @@ import { formatCurrency, formatDate, showLoading, showToast } from '../utils.js'
 let currentProject = null;
 let projectCode = null;
 let listener = null;
+let usersData = [];
+let usersListenerUnsub = null;
 
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -86,6 +88,22 @@ export async function init(activeTab = null, param = null) {
         return;
     }
 
+    // Load active users for personnel datalist
+    const usersQuery = query(collection(db, 'users'), where('status', '==', 'active'));
+    usersListenerUnsub = onSnapshot(usersQuery, (snapshot) => {
+        usersData = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            usersData.push({
+                id: doc.id,
+                full_name: data.full_name || '',
+                email: data.email || ''
+            });
+        });
+        usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
+        populatePersonnelDatalist();
+    });
+
     // Find project by project_code field (not document ID)
     const q = query(collection(db, 'projects'), where('project_code', '==', projectCode));
     listener = onSnapshot(q, (snapshot) => {
@@ -135,6 +153,12 @@ export async function destroy() {
         listener = null;
     }
 
+    if (usersListenerUnsub) {
+        usersListenerUnsub();
+        usersListenerUnsub = null;
+    }
+    usersData = [];
+
     currentProject = null;
     projectCode = null;
 
@@ -143,6 +167,15 @@ export async function destroy() {
     delete window.confirmDelete;
 
     console.log('[ProjectDetail] View destroyed');
+}
+
+// Populate personnel datalist
+function populatePersonnelDatalist() {
+    const datalist = document.getElementById('personnelUsersList');
+    if (!datalist) return;
+    datalist.innerHTML = usersData.map(user =>
+        `<option value="${user.full_name}">${user.full_name} (${user.email})</option>`
+    ).join('');
 }
 
 /**
@@ -274,7 +307,8 @@ function renderProjectDetail() {
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
-                                <input type="text" data-field="personnel" value="${currentProject.personnel || ''}" onblur="window.saveField('personnel', this.value)" placeholder="(Not set)">
+                                <input type="text" data-field="personnel" list="personnelUsersList" value="${currentProject.personnel_name || currentProject.personnel || ''}" onblur="window.saveField('personnel', this.value)" placeholder="Type name to search..." autocomplete="off">
+                                <datalist id="personnelUsersList"></datalist>
                             </div>
                         </div>
                     </div>
@@ -288,6 +322,9 @@ function renderProjectDetail() {
         const field = document.querySelector(`[data-field="${focusedField}"]`);
         if (field) field.focus();
     }
+
+    // Populate personnel datalist
+    populatePersonnelDatalist();
 }
 
 // Save field
@@ -325,7 +362,59 @@ async function saveField(fieldName, newValue) {
     if (fieldName === 'budget' || fieldName === 'contract_cost') {
         valueToSave = newValue ? parseFloat(newValue) : null;
     } else if (fieldName === 'personnel') {
-        valueToSave = newValue.trim() || null;
+        const trimmedValue = newValue.trim();
+        if (trimmedValue) {
+            // Try to match to a real user from the datalist
+            const matchedUser = usersData.find(u =>
+                u.full_name === trimmedValue || u.email === trimmedValue
+            );
+            if (matchedUser) {
+                // Migrate to new format: store user ID and name, clear legacy field
+                try {
+                    await updateDoc(doc(db, 'projects', currentProject.id), {
+                        personnel_user_id: matchedUser.id,
+                        personnel_name: matchedUser.full_name,
+                        personnel: null,
+                        updated_at: new Date().toISOString()
+                    });
+                    showToast('Personnel updated', 'success');
+                } catch (error) {
+                    console.error('[ProjectDetail] Error saving personnel:', error);
+                    showToast('Failed to update personnel', 'error');
+                }
+                return; // Early return -- we handled the save ourselves
+            } else {
+                // Freetext fallback: keep in legacy field, clear new fields
+                try {
+                    await updateDoc(doc(db, 'projects', currentProject.id), {
+                        personnel: trimmedValue,
+                        personnel_user_id: null,
+                        personnel_name: null,
+                        updated_at: new Date().toISOString()
+                    });
+                    showToast('Personnel updated', 'success');
+                } catch (error) {
+                    console.error('[ProjectDetail] Error saving personnel:', error);
+                    showToast('Failed to update personnel', 'error');
+                }
+                return; // Early return
+            }
+        } else {
+            // Field cleared: null out ALL personnel fields
+            try {
+                await updateDoc(doc(db, 'projects', currentProject.id), {
+                    personnel: null,
+                    personnel_user_id: null,
+                    personnel_name: null,
+                    updated_at: new Date().toISOString()
+                });
+                showToast('Personnel cleared', 'success');
+            } catch (error) {
+                console.error('[ProjectDetail] Error clearing personnel:', error);
+                showToast('Failed to clear personnel', 'error');
+            }
+            return; // Early return
+        }
     } else if (fieldName === 'project_name') {
         valueToSave = newValue.trim();
     }
