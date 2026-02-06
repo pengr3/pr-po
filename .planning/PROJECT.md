@@ -10,22 +10,25 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Shipped:** v2.0 Authentication & Permissions (2026-02-04)
+**Shipped:** v2.1 System Refinement (2026-02-06)
 
-**Current Milestone:** v2.1 System Refinement
+**Current Milestone:** v2.2 Workflow & UX Enhancements
 
-See `.planning/MILESTONES.md` for full v2.0 accomplishments.
+See `.planning/MILESTONES.md` for full milestone history.
 
-## Current Milestone: v2.1 System Refinement
+## Current Milestone: v2.2 Workflow & UX Enhancements
 
-**Goal:** Fix critical bugs and complete incomplete features from v2.0 to ensure all core workflows function properly.
+**Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
 
-**Target fixes:**
-- Security Rules permission errors blocking Super Admin access to Clients and Projects
-- Finance review button errors blocking PR/TR approval workflows
-- Incomplete Procurement features (Timeline audit trail, PO details workflow, Supplier purchase history)
-- Missing Finance features (Project List financial overview)
-- Operations Admin project assignment capability
+**Target enhancements:**
+- Auto-populate user data in MRF forms for efficiency
+- Restrict project creation to admin roles only
+- Restructure project detail page with card-based layout
+- Comprehensive procurement status tracking with visual indicators (red/yellow/green)
+- PR creator tracking and side-by-side PR/PO display
+- Finance signature capture in approval workflow
+- Detailed project expense breakdown with category/material/transport views
+- Consolidated admin navigation (Settings/Assignments/Users merged)
 
 ## Requirements
 
