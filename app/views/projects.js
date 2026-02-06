@@ -9,6 +9,7 @@ import { showLoading, showToast, generateProjectCode } from '../utils.js';
 // Global state
 let projectsData = [];
 let clientsData = [];
+let usersData = [];  // Active users for personnel datalist
 let editingProject = null;
 let currentPage = 1;
 const itemsPerPage = 15;
@@ -147,9 +148,10 @@ export function render(activeTab = null) {
                     </div>
 
                     <div class="form-group">
-                        <label>Personnel (Optional)</label>
-                        <input type="text" id="personnel" placeholder="John Doe, Jane Smith">
-                        <small class="form-hint">Freetext field for personnel assignment.</small>
+                        <label>Personnel *</label>
+                        <input type="text" id="personnel" list="personnelUsersList" placeholder="Type name or email to search..." required autocomplete="off">
+                        <datalist id="personnelUsersList"></datalist>
+                        <small class="form-hint">Select an active user from the list. Required for new projects.</small>
                     </div>
 
                     <div class="form-actions">
@@ -261,6 +263,7 @@ export async function init(activeTab = null) {
     }
 
     await loadClients();
+    await loadActiveUsers();
     await loadProjects();
 }
 
@@ -284,6 +287,7 @@ export async function destroy() {
     listeners = [];
     projectsData = [];
     clientsData = [];
+    usersData = [];
     editingProject = null;
     currentPage = 1;
     allProjects = [];
@@ -325,6 +329,69 @@ async function loadClients() {
     } catch (error) {
         console.error('[Projects] Error loading clients:', error);
     }
+}
+
+// Load active users for personnel datalist
+async function loadActiveUsers() {
+    try {
+        const usersQuery = query(
+            collection(db, 'users'),
+            where('status', '==', 'active')
+        );
+
+        const listener = onSnapshot(usersQuery, (snapshot) => {
+            usersData = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                usersData.push({
+                    id: doc.id,
+                    full_name: data.full_name || '',
+                    email: data.email || ''
+                });
+            });
+            usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
+            populatePersonnelDatalist();
+            console.log('[Projects] Active users loaded:', usersData.length);
+        });
+
+        listeners.push(listener);
+    } catch (error) {
+        console.error('[Projects] Error loading users:', error);
+    }
+}
+
+// Populate personnel datalist
+function populatePersonnelDatalist() {
+    const datalist = document.getElementById('personnelUsersList');
+    if (!datalist) return;
+
+    datalist.innerHTML = usersData.map(user =>
+        `<option value="${user.full_name}" data-user-id="${user.id}">${user.full_name} (${user.email})</option>`
+    ).join('');
+}
+
+// Validate personnel selection
+function validatePersonnelSelection() {
+    const personnelInput = document.getElementById('personnel');
+    const selectedValue = personnelInput?.value?.trim();
+
+    if (!selectedValue) {
+        showToast('Personnel field is required', 'error');
+        return null;
+    }
+
+    // Find matching user by full_name or email
+    const selectedUser = usersData.find(u =>
+        u.full_name === selectedValue || u.email === selectedValue
+    );
+
+    if (!selectedUser) {
+        showToast('Please select a valid user from the dropdown list', 'error');
+        personnelInput.focus();
+        return null;
+    }
+
+    return selectedUser;
 }
 
 // Render client dropdown
@@ -395,6 +462,9 @@ function toggleAddProjectForm() {
         document.getElementById('contractCost').value = '';
         document.getElementById('personnel').value = '';
 
+        // Populate datalist
+        populatePersonnelDatalist();
+
         document.getElementById('projectName').focus();
     } else {
         form.style.display = 'none';
@@ -426,13 +496,16 @@ async function addProject() {
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
-    const personnel = document.getElementById('personnel').value.trim();
 
     // Validate required fields
     if (!clientId || !project_name || !internal_status || !project_status) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
+
+    // Validate personnel selection
+    const selectedPersonnel = validatePersonnelSelection();
+    if (!selectedPersonnel) return;
 
     // Validate optional positive numbers (must be > 0, not just >= 0)
     const budget = budgetVal ? parseFloat(budgetVal) : null;
@@ -474,7 +547,8 @@ async function addProject() {
             project_status,
             budget,
             contract_cost,
-            personnel: personnel || null,
+            personnel_user_id: selectedPersonnel.id,
+            personnel_name: selectedPersonnel.full_name,
             active: true,
             created_at: new Date().toISOString()
         });
@@ -723,7 +797,7 @@ function editProject(projectId) {
     document.getElementById('projectStatus').value = project.project_status;
     document.getElementById('projectBudget').value = project.budget || '';
     document.getElementById('contractCost').value = project.contract_cost || '';
-    document.getElementById('personnel').value = project.personnel || '';
+    document.getElementById('personnel').value = project.personnel_name || project.personnel || '';
 }
 
 // Cancel edit
@@ -749,7 +823,35 @@ async function saveEdit() {
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
-    const personnel = document.getElementById('personnel').value.trim();
+    const personnelInput = document.getElementById('personnel');
+    const personnelValue = personnelInput?.value?.trim() || '';
+    let personnelUpdate = {};
+
+    if (personnelValue) {
+        // Try to match to a real user from the datalist
+        const selectedUser = usersData.find(u =>
+            u.full_name === personnelValue || u.email === personnelValue
+        );
+        if (selectedUser) {
+            // Migrate to new format: store user ID and name
+            personnelUpdate = {
+                personnel_user_id: selectedUser.id,
+                personnel_name: selectedUser.full_name,
+                personnel: null  // Clear legacy field when migrating to new format
+            };
+        } else {
+            // Freetext fallback: user typed something not in the datalist
+            // Keep in legacy field only (do not write personnel_user_id)
+            personnelUpdate = {
+                personnel: personnelValue,
+                personnel_user_id: null,
+                personnel_name: null
+            };
+        }
+    } else {
+        // Field cleared: null out ALL personnel fields
+        personnelUpdate = { personnel: null, personnel_user_id: null, personnel_name: null };
+    }
 
     // Validate required fields
     if (!clientId || !project_name || !internal_status || !project_status) {
@@ -794,7 +896,7 @@ async function saveEdit() {
             project_status,
             budget,
             contract_cost,
-            personnel: personnel || null,
+            ...personnelUpdate,
             updated_at: new Date().toISOString()
         });
 
