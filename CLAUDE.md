@@ -214,6 +214,10 @@ const itemName = row.querySelector('input[data-field="item_name"]'); // Wrong se
 }
 ```
 3. Add nav link to `index.html`
+4. **⚠️ CRITICAL: Add Security Rules if using new Firestore collection**
+   - See template at top of `firestore.rules`
+   - Without rules, even Super Admin will be blocked
+   - Default: all active users read, admin roles write
 
 ### Add Field to MRFs
 1. Update form in `app/views/mrf-form.js` or `app/views/procurement.js`
@@ -221,6 +225,14 @@ const itemName = row.querySelector('input[data-field="item_name"]'); // Wrong se
 3. Update Firestore `addDoc()`/`setDoc()` calls
 4. Update display functions
 5. No migration needed - Firestore is schemaless
+
+### Add New Collection or Tab
+1. **First:** Add Security Rules to `firestore.rules` (use template at top of file)
+2. Create collection in code: `collection(db, 'collection_name')`
+3. Add view/tab UI in appropriate view file
+4. Test with Super Admin account first (verifies Security Rules work)
+5. Test with other roles (Finance, Procurement, etc.)
+6. **Why this order matters:** Without Security Rules first, you'll get permission errors even as Super Admin
 
 ### Modify Firebase Queries
 ```javascript
