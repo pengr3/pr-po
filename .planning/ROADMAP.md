@@ -190,8 +190,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Auto-populate MRF requestor name from logged-in user
-- [ ] 15-02-PLAN.md — Project creation permission guards and personnel user datalist
+- [x] 15-01-PLAN.md — Auto-populate MRF requestor name from logged-in user
+- [x] 15-02-PLAN.md — Project creation permission guards and personnel user datalist
 
 ### Phase 16: Project Detail Page Restructure
 **Goal**: Reorganize project detail page for clarity and better information hierarchy
@@ -281,7 +281,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 11. Security Foundation | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 12. Finance Workflow | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
-| 15. User Data & Permissions | v2.2 | 0/2 | Planned | - |
+| 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
 | 16. Project Detail Restructure | v2.2 | 0/0 | Not started | - |
 | 17. Procurement Overhaul | v2.2 | 0/0 | Not started | - |
 | 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |

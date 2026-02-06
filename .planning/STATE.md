@@ -74,7 +74,8 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-None yet.
+**Future Enhancement (beyond v2.2 scope):**
+- Multi-user personnel assignment with chip/tag UI - Transform personnel field from single-select to multi-select. Selected users appear as removable chips/pills (delete whole name, not character-by-character). Common pattern used in email recipients, tag inputs. Requires UI component work + schema change (personnel_user_ids array instead of single ID). User feedback from Phase 15 UAT.
 
 ### Blockers/Concerns
 
@@ -96,7 +97,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-06 (Plan 15-02 execution)
-Stopped at: Completed 15-02-PLAN.md (Project creation permissions & personnel datalist). Phase 15 complete (2/2 plans).
+Last session: 2026-02-06 (Phase 15 execution and verification)
+Stopped at: Phase 15 verified and approved by user. All 5 success criteria passed. Minor UI fix applied (removed hint text). Multi-user personnel assignment identified as future enhancement (beyond Phase 15 scope).
 Resume file: None
-Next action: Plan Phase 16 (next in v2.2 roadmap)
+Next action: Plan Phase 16 (Project Detail Page Restructure)
