@@ -80,6 +80,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (17-02): Table column order follows workflow logic (MRF → PRs → POs → Status → Actions)
 - v2.2 (17-02): Remove redundant columns when functionality exists elsewhere (PO Timeline column removed, timeline button remains in Actions)
 - v2.2 (17-01): Display 'Unknown User' for backward compatibility with old PRs without pr_creator_name field
+- v2.2 (17-03): Color-coded status badges (red/yellow/green) provide at-a-glance workflow progress visibility
+- v2.2 (17-03): Calculate MRF status from PR/PO arrays (not denormalized field) for real-time accuracy
+- v2.2 (17-03): Dual timestamp strategy for PO status updates (_at fields with serverTimestamp + _date fields for backward compatibility)
 - v2.2 (17-04): Single access point for supplier purchase history (Supplier Management tab only, removes inline links from MRF Records)
 
 ### Pending Todos
@@ -108,6 +111,6 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 ## Session Continuity
 
 Last session: 2026-02-07 (Phase 17 execution)
-Stopped at: Completed 17-04-PLAN.md. All 2 tasks completed successfully. Removed inline supplier links from PRs and POs columns in MRF Records table. Supplier purchase history now accessible only via Supplier Management tab. All 6 success criteria met. Phase 17 complete (4/4 plans).
+Stopped at: Completed 17-03-PLAN.md. All 3 tasks completed successfully. Implemented color-coded MRF status badges (red/yellow/green) showing PR/PO progress. Added serverTimestamp() to PO status updates for millisecond-precision timeline tracking. All 9 success criteria met.
 Resume file: None
-Next action: Continue with Phase 18 or later phases as per roadmap
+Next action: Phase 17 complete (4/4 plans already done). Continue with Phase 18 or later phases as per roadmap
