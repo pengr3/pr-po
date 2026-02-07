@@ -3,7 +3,7 @@
    Full-page project detail with inline editing
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast } from '../utils.js';
 
 let currentProject = null;
@@ -11,6 +11,7 @@ let projectCode = null;
 let listener = null;
 let usersData = [];
 let usersListenerUnsub = null;
+let currentExpense = { total: 0, poCount: 0, trCount: 0 };
 
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -106,7 +107,7 @@ export async function init(activeTab = null, param = null) {
 
     // Find project by project_code field (not document ID)
     const q = query(collection(db, 'projects'), where('project_code', '==', projectCode));
-    listener = onSnapshot(q, (snapshot) => {
+    listener = onSnapshot(q, async (snapshot) => {
         if (snapshot.empty) {
             document.getElementById('projectDetailContainer').innerHTML = `
                 <div class="container" style="margin-top: 2rem;">
@@ -123,6 +124,9 @@ export async function init(activeTab = null, param = null) {
 
         const docSnap = snapshot.docs[0];
         currentProject = { id: docSnap.id, ...docSnap.data() };
+
+        // Calculate initial expense
+        await refreshExpense();
 
         // Phase 7: Check project assignment access for operations_user
         if (checkProjectAccess()) {
@@ -165,6 +169,9 @@ export async function destroy() {
     delete window.saveField;
     delete window.toggleActive;
     delete window.confirmDelete;
+    delete window.refreshExpense;
+    delete window.showExpenseModal;
+    delete window.closeExpenseModal;
 
     console.log('[ProjectDetail] View destroyed');
 }
@@ -309,13 +316,27 @@ function renderProjectDetail() {
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Expense</label>
-                            <!-- Expense calculation wired in Task 2 -->
-                            <div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem; cursor: pointer;"
+                                     onclick="window.showExpenseModal()">
+                                    ${currentExpense.total > 0 ? formatCurrency(currentExpense.total) : '—'}
+                                </div>
+                                <button class="btn btn-sm btn-secondary" onclick="window.refreshExpense()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🔄 Refresh</button>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                                Click amount to view breakdown
+                            </div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Budget</label>
-                            <!-- Remaining Budget calculation wired in Task 2 -->
-                            <div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>
+                            ${(() => {
+                                const budget = parseFloat(currentProject.budget || 0);
+                                const remaining = budget - currentExpense.total;
+                                const color = remaining >= 0 ? '#059669' : '#ef4444';
+                                return budget > 0
+                                    ? `<div style="font-weight: 600; color: ${color}; font-size: 1.125rem;">${formatCurrency(remaining)}</div>`
+                                    : `<div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>`;
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -470,6 +491,194 @@ async function saveField(fieldName, newValue) {
     }
 }
 
+// Refresh expense calculation
+async function refreshExpense() {
+    if (!currentProject) return;
+
+    showLoading(true);
+    try {
+        // Aggregate POs for this project
+        const posQuery = query(
+            collection(db, 'pos'),
+            where('project_name', '==', currentProject.project_name)
+        );
+
+        const posAggregate = await getAggregateFromServer(posQuery, {
+            totalAmount: sum('total_amount'),
+            poCount: count()
+        });
+
+        // Aggregate TRs for this project
+        const trsQuery = query(
+            collection(db, 'transport_requests'),
+            where('project_name', '==', currentProject.project_name)
+        );
+
+        const trsAggregate = await getAggregateFromServer(trsQuery, {
+            totalAmount: sum('total_amount'),
+            trCount: count()
+        });
+
+        const poTotal = posAggregate.data().totalAmount || 0;
+        const trTotal = trsAggregate.data().totalAmount || 0;
+
+        currentExpense = {
+            total: poTotal + trTotal,
+            poCount: posAggregate.data().poCount || 0,
+            trCount: trsAggregate.data().trCount || 0
+        };
+
+        // Re-render to show updated expense
+        renderProjectDetail();
+
+        showToast('Expense refreshed', 'success');
+    } catch (error) {
+        console.error('[ProjectDetail] Expense calculation failed:', error);
+        showToast('Failed to calculate expense', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Show expense breakdown modal
+async function showExpenseModal() {
+    if (!currentProject) return;
+
+    showLoading(true);
+    try {
+        // Fetch all POs for this project
+        const posQuery = query(
+            collection(db, 'pos'),
+            where('project_name', '==', currentProject.project_name)
+        );
+
+        const posSnapshot = await getDocs(posQuery);
+        const categoryTotals = {};
+        let materialTotal = 0;
+
+        posSnapshot.forEach(poDoc => {
+            const po = poDoc.data();
+            const items = JSON.parse(po.items_json || '[]');
+
+            items.forEach(item => {
+                const category = item.category || 'Uncategorized';
+                const subtotal = parseFloat(item.subtotal || 0);
+
+                if (!categoryTotals[category]) {
+                    categoryTotals[category] = { amount: 0, items: [] };
+                }
+                categoryTotals[category].amount += subtotal;
+                categoryTotals[category].items.push({
+                    po_id: po.po_id,
+                    item_name: item.item_name,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                    unit_cost: item.unit_cost,
+                    subtotal
+                });
+
+                materialTotal += subtotal;
+            });
+        });
+
+        // Fetch TRs for transport fees
+        const trsQuery = query(
+            collection(db, 'transport_requests'),
+            where('project_name', '==', currentProject.project_name)
+        );
+
+        const trsSnapshot = await getDocs(trsQuery);
+        let transportTotal = 0;
+        trsSnapshot.forEach(trDoc => {
+            const tr = trDoc.data();
+            transportTotal += parseFloat(tr.total_amount || 0);
+        });
+
+        // Create and show modal
+        const modalHTML = `
+            <div id="expenseModal" class="modal active">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3>Project Expense Breakdown</h3>
+                        <button class="modal-close" onclick="window.closeExpenseModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Scorecards -->
+                        <div class="expense-summary-grid">
+                            <div class="expense-summary-card">
+                                <div class="expense-summary-label">Material Purchases</div>
+                                <div class="expense-summary-value">${formatCurrency(materialTotal)}</div>
+                            </div>
+                            <div class="expense-summary-card">
+                                <div class="expense-summary-label">Transport Fees</div>
+                                <div class="expense-summary-value">${formatCurrency(transportTotal)}</div>
+                            </div>
+                            <div class="expense-summary-card total">
+                                <div class="expense-summary-label">Total Expense</div>
+                                <div class="expense-summary-value">${formatCurrency(materialTotal + transportTotal)}</div>
+                            </div>
+                        </div>
+
+                        <!-- Category Breakdown -->
+                        ${Object.keys(categoryTotals).length > 0 ? `
+                            <h4 style="margin-top: 2rem; margin-bottom: 1rem;">By Category</h4>
+                            ${Object.entries(categoryTotals).map(([category, data]) => `
+                                <div class="category-card">
+                                    <div class="category-header">
+                                        <span class="category-name">${category}</span>
+                                        <span class="category-amount">${formatCurrency(data.amount)}</span>
+                                    </div>
+                                    <div class="category-items">
+                                        <table class="modal-items-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>PO ID</th>
+                                                    <th>Item</th>
+                                                    <th>Qty</th>
+                                                    <th>Unit Cost</th>
+                                                    <th style="text-align: right;">Subtotal</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${data.items.map(item => `
+                                                    <tr>
+                                                        <td>${item.po_id}</td>
+                                                        <td>${item.item_name}</td>
+                                                        <td>${item.quantity} ${item.unit}</td>
+                                                        <td>${formatCurrency(item.unit_cost)}</td>
+                                                        <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        ` : '<p style="color: #64748b; text-align: center;">No material purchases recorded.</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Inject modal into DOM
+        const existingModal = document.getElementById('expenseModal');
+        if (existingModal) existingModal.remove();
+
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    } catch (error) {
+        console.error('[ProjectDetail] Expense modal failed:', error);
+        showToast('Failed to load expense breakdown', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+function closeExpenseModal() {
+    const modal = document.getElementById('expenseModal');
+    if (modal) modal.remove();
+}
+
 // Toggle active status
 async function toggleActive(newValue) {
     // Guard: check edit permission
@@ -547,6 +756,9 @@ function attachWindowFunctions() {
     window.saveField = saveField;
     window.toggleActive = toggleActive;
     window.confirmDelete = confirmDelete;
+    window.refreshExpense = refreshExpense;
+    window.showExpenseModal = showExpenseModal;
+    window.closeExpenseModal = closeExpenseModal;
 }
 
 console.log('[ProjectDetail] Module loaded');
