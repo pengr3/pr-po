@@ -687,12 +687,19 @@ async function toggleActive(newValue) {
         return;
     }
 
+    // Confirm deactivation only (Active → Inactive)
+    if (!newValue) {
+        const confirmed = confirm('Deactivate this project? Inactive projects cannot be selected for MRFs.');
+        if (!confirmed) return;
+    }
+
     try {
         const projectRef = doc(db, 'projects', currentProject.id);
         await updateDoc(projectRef, {
             active: newValue,
             updated_at: new Date().toISOString()
         });
+        showToast(`Project ${newValue ? 'activated' : 'deactivated'}`, 'success');
         console.log('[ProjectDetail] Active status updated to:', newValue);
     } catch (error) {
         console.error('[ProjectDetail] Toggle failed:', error);
