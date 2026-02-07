@@ -11,16 +11,16 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 18 of 19 (Finance Workflow & Expense Reporting)
-Plan: 1 of 3 in phase
+Plan: 2 of 3 in phase
 Status: In progress
-Last activity: 2026-02-07 - Completed 18-01-PLAN.md (Signature Capture in Approval Workflow)
+Last activity: 2026-02-07 - Completed 18-02-PLAN.md (Embed Signatures and Attribution in PO/PR Documents)
 
-Progress: [███████████████████████████████████████████░░░░░] 90% (45/50 estimated plans across all milestones)
+Progress: [████████████████████████████████████████████░░░░] 92% (46/50 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 45 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 9 plans)
+- Total plans completed: 46 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 10 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 8 | 1 day | 0.13 days |
+| v2.2 Enhancements | 5 | 10 | 2 days | 0.2 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -94,6 +94,10 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (18-01): Store signature as base64 PNG data URL in Firestore documents (simple, small size, no separate file upload)
 - v2.2 (18-01): New WithSignature function variants alongside legacy approve functions (backward compatibility)
 - v2.2 (18-01): Separate generatePOsForPRWithSignature preserves existing PO ID format while adding signature and attribution
+- v2.2 (18-02): Two-column signature layout (Prepared by left, Approved by right) for PO and PR document templates
+- v2.2 (18-02): Use finance_approver_name (Phase 18-01) with fallback to legacy finance_approver field for backward compatibility
+- v2.2 (18-02): PR creator name (pr_creator_name from Phase 17) displayed in both document header and signature section
+- v2.2 (18-02): Conditional signature image rendering (base64 image when available, empty placeholder when not)
 
 ### Pending Todos
 
@@ -120,7 +124,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-07 (Phase 18 plan 01 execution)
-Stopped at: Completed 18-01-PLAN.md - Signature capture in PR/TR approval modals with validation, user attribution, and base64 storage
+Last session: 2026-02-07 (Phase 18 plan 02 execution)
+Stopped at: Completed 18-02-PLAN.md - Embedded signatures and creator attribution in PO/PR document templates
 Resume file: None
-Next action: Execute 18-02-PLAN.md (Historical Data tab removal and Project List enhancements)
+Next action: Execute 18-03-PLAN.md
