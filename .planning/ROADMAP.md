@@ -222,10 +222,13 @@ Plans:
   9. MRF Records: "PO Status" column renamed to "Procurement Status"
   10. MRF Records: Timeline captures timestamps (not just dates) for efficiency measurement
   11. MRF Records: Columns ordered: MRF ID, Project, Date Needed, PRs, POs, MRF Status, Procurement Status, Actions
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 17-01: TBD
+- [ ] 17-01-PLAN.md — Add user attribution to PR generation
+- [ ] 17-02-PLAN.md — Rename tab and restructure table columns
+- [ ] 17-03-PLAN.md — Implement MRF status tracking with visual badges
+- [ ] 17-04-PLAN.md — Remove inline supplier links and ensure modal consistency
 
 ### Phase 18: Finance Workflow & Expense Reporting
 **Goal**: Add signature capture, improve approval flow, remove unused tabs, create comprehensive project expense breakdown
@@ -283,6 +286,6 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
 | 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
 | 16. Project Detail Restructure | v2.2 | 1/1 | Complete | 2026-02-07 |
-| 17. Procurement Overhaul | v2.2 | 0/0 | Not started | - |
+| 17. Procurement Overhaul | v2.2 | 0/4 | Not started | - |
 | 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |
 | 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
