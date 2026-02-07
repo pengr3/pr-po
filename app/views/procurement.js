@@ -3167,6 +3167,13 @@ async function generatePRandTR() {
 
     if (!currentMRF) return;
 
+    const currentUser = window.getCurrentUser();
+
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
+
     const mrfData = currentMRF;
     console.log('📋📦 Generating PR & TR for MRF:', mrfData.mrf_id);
 
@@ -3360,7 +3367,9 @@ async function generatePRandTR() {
                     total_amount: supplierTotal,
                     finance_status: 'Pending',
                     date_generated: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
+                    created_at: serverTimestamp(),
+                    pr_creator_user_id: currentUser.uid,
+                    pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                 });
                 generatedPRIds.push(prId);
                 nextPRNum++;
