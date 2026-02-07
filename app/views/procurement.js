@@ -2282,6 +2282,61 @@ function filterPRPORecords() {
 }
 
 /**
+ * Calculate MRF status based on PR/PO state
+ * Returns status text and color for badge rendering
+ */
+function calculateMRFStatus(prs, pos) {
+    const prCount = prs.length;
+    const poCount = pos.length;
+
+    if (prCount === 0) {
+        // No PRs generated yet
+        return {
+            status: 'Awaiting PR',
+            color: '#ef4444', // Red
+            description: 'No PRs generated yet'
+        };
+    } else if (poCount === 0) {
+        // PRs exist but no POs
+        return {
+            status: '0/' + prCount + ' PO Issued',
+            color: '#f59e0b', // Yellow
+            description: 'PRs approved, awaiting PO generation'
+        };
+    } else if (poCount === prCount) {
+        // All POs issued
+        return {
+            status: prCount + '/' + prCount + ' PO Issued',
+            color: '#22c55e', // Green
+            description: 'All POs issued'
+        };
+    } else {
+        // Partial PO issuance
+        return {
+            status: poCount + '/' + prCount + ' PO Issued',
+            color: '#f59e0b', // Yellow
+            description: 'Partial PO issuance'
+        };
+    }
+}
+
+/**
+ * Render MRF status badge with color coding
+ */
+function renderMRFStatusBadge(statusObj) {
+    return `<span style="
+        background: ${statusObj.color};
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+        display: inline-block;
+    ">${statusObj.status}</span>`;
+}
+
+/**
  * Render MRF Records Table (merged view)
  */
 async function renderPRPORecords() {
@@ -2319,6 +2374,7 @@ async function renderPRPORecords() {
         let totalCost = 0;
         let prCount = 0;
         let prApprovedCount = 0;
+        let prDataArray = []; // Store for MRF status calculation
 
         if (type === 'Material') {
             try {
@@ -2327,7 +2383,6 @@ async function renderPRPORecords() {
                 const prSnapshot = await getDocs(prQuery);
 
                 if (!prSnapshot.empty) {
-                    const prDataArray = [];
                     prSnapshot.forEach((doc) => {
                         const prData = doc.data();
                         prCount++;
@@ -2414,6 +2469,7 @@ async function renderPRPORecords() {
         let poStatusHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
         let poTimelineHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
         let poCount = 0;
+        let poDataArray = []; // Store for MRF status calculation
 
         if (type === 'Material') {
             try {
@@ -2422,7 +2478,6 @@ async function renderPRPORecords() {
                 const poSnapshot = await getDocs(poQuery);
 
                 if (!poSnapshot.empty) {
-                    const poDataArray = [];
                     poSnapshot.forEach((doc) => {
                         const poData = doc.data();
                         poCount++;
@@ -2574,6 +2629,13 @@ async function renderPRPORecords() {
 
         const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
 
+        // Calculate MRF Status badge (only for Material requests)
+        let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">—</span>';
+        if (type === 'Material') {
+            const statusObj = calculateMRFStatus(prDataArray, poDataArray);
+            mrfStatusHtml = renderMRFStatusBadge(statusObj);
+        }
+
         return `
             <tr>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
@@ -2582,7 +2644,7 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
-                    <span style="color: #64748b; font-size: 0.75rem;">—</span>
+                    ${mrfStatusHtml}
                 </td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
