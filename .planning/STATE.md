@@ -5,22 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 18 - Finance Workflow & Expense Reporting (v2.2 Workflow & UX Enhancements)
+**Current focus:** Phase 18 - Finance Workflow & Expense Reporting (v2.2 Workflow & UX Enhancements) - PHASE COMPLETE
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 18 of 19 (Finance Workflow & Expense Reporting)
-Plan: 2 of 3 in phase
-Status: In progress
-Last activity: 2026-02-07 - Completed 18-02-PLAN.md (Embed Signatures and Attribution in PO/PR Documents)
+Plan: 3 of 3 in phase
+Status: Phase complete
+Last activity: 2026-02-07 - Completed 18-03-PLAN.md (Project Expense Reporting & Historical Data Removal)
 
-Progress: [████████████████████████████████████████████░░░░] 92% (46/50 estimated plans across all milestones)
+Progress: [█████████████████████████████████████████████░░░] 94% (47/50 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 46 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 10 plans)
+- Total plans completed: 47 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 11 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 10 | 2 days | 0.2 days |
+| v2.2 Enhancements | 5 | 11 | 2 days | 0.18 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -98,6 +98,10 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (18-02): Use finance_approver_name (Phase 18-01) with fallback to legacy finance_approver field for backward compatibility
 - v2.2 (18-02): PR creator name (pr_creator_name from Phase 17) displayed in both document header and signature section
 - v2.2 (18-02): Conditional signature image rendering (base64 image when available, empty placeholder when not)
+- v2.2 (18-03): Remove Historical Data tab (was placeholder, Project List provides actual analytics)
+- v2.2 (18-03): Include approved TRs in project expense totals alongside POs for complete cost picture
+- v2.2 (18-03): Separate aggregation queries for materials (non-subcon POs), subcon POs, and approved TRs
+- v2.2 (18-03): Scorecard layout for expense breakdown modal (budget/remaining + categories + total)
 
 ### Pending Todos
 
@@ -124,7 +128,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-07 (Phase 18 plan 02 execution)
-Stopped at: Completed 18-02-PLAN.md - Embedded signatures and creator attribution in PO/PR document templates
+Last session: 2026-02-07 (Phase 18 plan 03 execution)
+Stopped at: Completed 18-03-PLAN.md - Project expense table with budget tracking, TR+PO aggregation, and scorecard breakdown modal
 Resume file: None
-Next action: Execute 18-03-PLAN.md
+Next action: Phase 18 complete. Begin Phase 19 (UX Polish & Navigation) if applicable.
