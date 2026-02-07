@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 17-procurement-workflow-overhaul
 source: 17-01-SUMMARY.md, 17-02-SUMMARY.md, 17-03-SUMMARY.md, 17-04-SUMMARY.md
 started: 2026-02-07T06:15:00Z
-updated: 2026-02-07T12:40:00Z
+updated: 2026-02-07T12:45:00Z
 ---
 
 ## Current Test
@@ -75,17 +75,26 @@ skipped: 0
   reason: "User reported: prepared by displays 'Unknown User' in PR Modal"
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Phase 17-01 implementation incomplete - user attribution fields (pr_creator_user_id, pr_creator_name) only added for NEW PRs, missing in rejected PR update path (lines 3086-3092) and approved PR merge path (lines 3109-3115)"
+  artifacts:
+    - path: "app/views/procurement.js"
+      issue: "Lines 3086-3092: Rejected PR update missing pr_creator_user_id and pr_creator_name"
+    - path: "app/views/procurement.js"
+      issue: "Lines 3109-3115: Approved PR merge missing pr_creator_user_id and pr_creator_name"
+  missing:
+    - "Add pr_creator_user_id and pr_creator_name to rejected PR update path"
+    - "Add pr_creator_user_id and pr_creator_name to approved PR merge path"
+  debug_session: ".planning/debug/pr-creator-shows-unknown-user.md"
 
 - truth: "Clicking a supplier name in the Supplier Management tab opens the purchase history modal"
   status: failed
   reason: "User reported: Basically i can click the suppliers and the console seems to be cooking something, but no modal appears"
   severity: major
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Modal HTML (#supplierHistoryModal) incorrectly placed inside #records-section (lines 333-343), which has display:none when Supplier Management tab is active. Parent's display:none prevents modal from being visible despite modal.active class"
+  artifacts:
+    - path: "app/views/procurement.js"
+      issue: "Lines 333-343: supplierHistoryModal nested inside records-section instead of at section level"
+  missing:
+    - "Move supplierHistoryModal HTML outside all tab-specific sections (after line 344)"
+  debug_session: ".planning/debug/supplier-modal-not-appearing.md"
