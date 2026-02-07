@@ -1409,12 +1409,68 @@
     color: white;
 }
 
+/* Expense Modal Tabs */
+.expense-tabs {
+    display: flex;
+    gap: 0;
+}
+
+.expense-tab {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.expense-tab:hover {
+    color: #1e293b;
+    background: #f8fafc;
+}
+
+.expense-tab.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+}
+
+.expense-tab-content {
+    display: none;
+}
+
+.expense-tab-content.active {
+    display: block;
+}
+
 /* Category Breakdown Cards */
 .category-card {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     margin-bottom: 1.5rem;
     overflow: hidden;
+}
+
+.category-card.collapsible .category-header {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.category-card.collapsible .category-header:hover {
+    background: #f1f5f9;
+}
+
+.category-toggle {
+    font-size: 0.75rem;
+    color: #64748b;
+    transition: transform 0.2s;
+    display: inline-block;
+    width: 1rem;
+}
+
+.category-card.expanded .category-toggle {
+    transform: rotate(0deg);
 }
 
 .category-header {

@@ -260,11 +260,6 @@ function renderProjectDetail() {
                           onclick="window.toggleActive(${!currentProject.active})">
                         ${currentProject.active ? '✓ Active' : '✗ Inactive'}
                     </span>
-                    <span style="color: #64748b; font-size: 0.875rem;">
-                        ${currentProject.active
-                            ? 'Click to deactivate (requires confirmation)'
-                            : 'Click to activate'}
-                    </span>
                 </div>
             </div>
 
@@ -280,7 +275,6 @@ function renderProjectDetail() {
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Project Code</label>
                             <div style="color: #64748b; font-size: 1rem;">${currentProject.project_code}</div>
-                            <small style="color: #94a3b8; font-size: 0.75rem;">Locked field</small>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.25rem;">Project Name *</label>
@@ -289,7 +283,6 @@ function renderProjectDetail() {
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
                             <div style="color: #64748b; font-size: 1rem;">${currentProject.client_code || 'N/A'}</div>
-                            <small style="color: #94a3b8; font-size: 0.75rem;">Linked to project code</small>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
@@ -554,6 +547,7 @@ async function showExpenseModal() {
 
         const posSnapshot = await getDocs(posQuery);
         const categoryTotals = {};
+        const transportCategoryItems = [];
         let materialTotal = 0;
 
         posSnapshot.forEach(poDoc => {
@@ -561,21 +555,44 @@ async function showExpenseModal() {
             const items = JSON.parse(po.items_json || '[]');
 
             items.forEach(item => {
+                // Handle different property name variations (item_name vs itemName, etc.)
+                const itemName = item.item_name || item.itemName || item.name || 'Unnamed Item';
+                const qty = item.quantity || item.qty || 0;
+                const unit = item.unit || 'pcs';
+                const unitCost = parseFloat(item.unit_cost || item.unitCost || item.price || 0);
+                const subtotal = parseFloat(item.subtotal || item.total || (qty * unitCost) || 0);
                 const category = item.category || 'Uncategorized';
-                const subtotal = parseFloat(item.subtotal || 0);
 
-                if (!categoryTotals[category]) {
-                    categoryTotals[category] = { amount: 0, items: [] };
+                // Check if this is a transportation item
+                const isTransportItem = category.toLowerCase().includes('transportation') ||
+                                       category.toLowerCase().includes('hauling');
+
+                if (isTransportItem) {
+                    // Add to transport category items
+                    transportCategoryItems.push({
+                        po_id: po.po_id,
+                        item_name: itemName,
+                        quantity: qty,
+                        unit: unit,
+                        unit_cost: unitCost,
+                        subtotal: subtotal,
+                        category: category
+                    });
+                } else {
+                    // Regular material category
+                    if (!categoryTotals[category]) {
+                        categoryTotals[category] = { amount: 0, items: [], expanded: false };
+                    }
+                    categoryTotals[category].amount += subtotal;
+                    categoryTotals[category].items.push({
+                        po_id: po.po_id,
+                        item_name: itemName,
+                        quantity: qty,
+                        unit: unit,
+                        unit_cost: unitCost,
+                        subtotal: subtotal
+                    });
                 }
-                categoryTotals[category].amount += subtotal;
-                categoryTotals[category].items.push({
-                    po_id: po.po_id,
-                    item_name: item.item_name,
-                    quantity: item.quantity,
-                    unit: item.unit,
-                    unit_cost: item.unit_cost,
-                    subtotal
-                });
 
                 materialTotal += subtotal;
             });
@@ -588,13 +605,26 @@ async function showExpenseModal() {
         );
 
         const trsSnapshot = await getDocs(trsQuery);
+        const transportRequests = [];
         let transportTotal = 0;
+
         trsSnapshot.forEach(trDoc => {
             const tr = trDoc.data();
-            transportTotal += parseFloat(tr.total_amount || 0);
+            const amount = parseFloat(tr.total_amount || 0);
+            transportTotal += amount;
+            transportRequests.push({
+                tr_id: tr.tr_id,
+                supplier: tr.supplier_name || 'N/A',
+                amount: amount,
+                date: tr.date_generated
+            });
         });
 
-        // Create and show modal
+        // Add transport category items to transport total
+        const transportCategoryTotal = transportCategoryItems.reduce((sum, item) => sum + item.subtotal, 0);
+        transportTotal += transportCategoryTotal;
+
+        // Create and show modal with tabs
         const modalHTML = `
             <div id="expenseModal" class="modal active">
                 <div class="modal-content" style="max-width: 900px;">
@@ -607,7 +637,7 @@ async function showExpenseModal() {
                         <div class="expense-summary-grid">
                             <div class="expense-summary-card">
                                 <div class="expense-summary-label">Material Purchases</div>
-                                <div class="expense-summary-value">${formatCurrency(materialTotal)}</div>
+                                <div class="expense-summary-value">${formatCurrency(materialTotal - transportCategoryTotal)}</div>
                             </div>
                             <div class="expense-summary-card">
                                 <div class="expense-summary-label">Transport Fees</div>
@@ -615,46 +645,132 @@ async function showExpenseModal() {
                             </div>
                             <div class="expense-summary-card total">
                                 <div class="expense-summary-label">Total Expense</div>
-                                <div class="expense-summary-value">${formatCurrency(materialTotal + transportTotal)}</div>
+                                <div class="expense-summary-value">${formatCurrency(materialTotal + (transportTotal - transportCategoryTotal))}</div>
                             </div>
                         </div>
 
-                        <!-- Category Breakdown -->
-                        ${Object.keys(categoryTotals).length > 0 ? `
-                            <h4 style="margin-top: 2rem; margin-bottom: 1rem;">By Category</h4>
-                            ${Object.entries(categoryTotals).map(([category, data]) => `
-                                <div class="category-card">
-                                    <div class="category-header">
-                                        <span class="category-name">${category}</span>
-                                        <span class="category-amount">${formatCurrency(data.amount)}</span>
-                                    </div>
-                                    <div class="category-items">
-                                        <table class="modal-items-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>PO ID</th>
-                                                    <th>Item</th>
-                                                    <th>Qty</th>
-                                                    <th>Unit Cost</th>
-                                                    <th style="text-align: right;">Subtotal</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${data.items.map(item => `
+                        <!-- Tab Navigation -->
+                        <div class="expense-tabs" style="margin-top: 2rem; border-bottom: 2px solid #e5e7eb;">
+                            <button class="expense-tab active" onclick="window.switchExpenseTab('category')" data-tab="category">
+                                By Category
+                            </button>
+                            <button class="expense-tab" onclick="window.switchExpenseTab('transport')" data-tab="transport">
+                                Transport Fees
+                            </button>
+                        </div>
+
+                        <!-- By Category Tab Content -->
+                        <div id="categoryTabContent" class="expense-tab-content active" style="margin-top: 1.5rem;">
+                            ${Object.keys(categoryTotals).length > 0 ? `
+                                ${Object.entries(categoryTotals).map(([category, data]) => `
+                                    <div class="category-card collapsible">
+                                        <div class="category-header" onclick="window.toggleCategory(this)">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <span class="category-toggle">▶</span>
+                                                <span class="category-name">${category}</span>
+                                            </div>
+                                            <span class="category-amount">${formatCurrency(data.amount)}</span>
+                                        </div>
+                                        <div class="category-items" style="display: none;">
+                                            <table class="modal-items-table">
+                                                <thead>
                                                     <tr>
-                                                        <td>${item.po_id}</td>
-                                                        <td>${item.item_name}</td>
-                                                        <td>${item.quantity} ${item.unit}</td>
-                                                        <td>${formatCurrency(item.unit_cost)}</td>
-                                                        <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                                                        <th>PO ID</th>
+                                                        <th>Item</th>
+                                                        <th>Qty</th>
+                                                        <th>Unit Cost</th>
+                                                        <th style="text-align: right;">Subtotal</th>
                                                     </tr>
-                                                `).join('')}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody>
+                                                    ${data.items.map(item => `
+                                                        <tr>
+                                                            <td>${item.po_id}</td>
+                                                            <td>${item.item_name}</td>
+                                                            <td>${item.quantity} ${item.unit}</td>
+                                                            <td>${formatCurrency(item.unit_cost)}</td>
+                                                            <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
-                                </div>
-                            `).join('')}
-                        ` : '<p style="color: #64748b; text-align: center;">No material purchases recorded.</p>'}
+                                `).join('')}
+                            ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No material purchases recorded.</p>'}
+                        </div>
+
+                        <!-- Transport Fees Tab Content -->
+                        <div id="transportTabContent" class="expense-tab-content" style="display: none; margin-top: 1.5rem;">
+                            ${transportRequests.length > 0 || transportCategoryItems.length > 0 ? `
+                                ${transportRequests.length > 0 ? `
+                                    <div class="category-card collapsible">
+                                        <div class="category-header" onclick="window.toggleCategory(this)">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <span class="category-toggle">▶</span>
+                                                <span class="category-name">Transport Requests</span>
+                                            </div>
+                                            <span class="category-amount">${formatCurrency(transportRequests.reduce((sum, tr) => sum + tr.amount, 0))}</span>
+                                        </div>
+                                        <div class="category-items" style="display: none;">
+                                            <table class="modal-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>TR ID</th>
+                                                        <th>Supplier</th>
+                                                        <th style="text-align: right;">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${transportRequests.map(tr => `
+                                                        <tr>
+                                                            <td>${tr.tr_id}</td>
+                                                            <td>${tr.supplier}</td>
+                                                            <td style="text-align: right;">${formatCurrency(tr.amount)}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${transportCategoryItems.length > 0 ? `
+                                    <div class="category-card collapsible">
+                                        <div class="category-header" onclick="window.toggleCategory(this)">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <span class="category-toggle">▶</span>
+                                                <span class="category-name">Transportation & Hauling</span>
+                                            </div>
+                                            <span class="category-amount">${formatCurrency(transportCategoryTotal)}</span>
+                                        </div>
+                                        <div class="category-items" style="display: none;">
+                                            <table class="modal-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>PO ID</th>
+                                                        <th>Item</th>
+                                                        <th>Qty</th>
+                                                        <th>Unit Cost</th>
+                                                        <th style="text-align: right;">Subtotal</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${transportCategoryItems.map(item => `
+                                                        <tr>
+                                                            <td>${item.po_id}</td>
+                                                            <td>${item.item_name}</td>
+                                                            <td>${item.quantity} ${item.unit}</td>
+                                                            <td>${formatCurrency(item.unit_cost)}</td>
+                                                            <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No transport fees recorded.</p>'}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -677,6 +793,48 @@ async function showExpenseModal() {
 function closeExpenseModal() {
     const modal = document.getElementById('expenseModal');
     if (modal) modal.remove();
+}
+
+// Switch expense modal tabs
+function switchExpenseTab(tabName) {
+    // Update tab buttons
+    const tabs = document.querySelectorAll('.expense-tab');
+    tabs.forEach(tab => {
+        if (tab.dataset.tab === tabName) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    // Update tab content
+    const categoryContent = document.getElementById('categoryTabContent');
+    const transportContent = document.getElementById('transportTabContent');
+
+    if (tabName === 'category') {
+        categoryContent.style.display = 'block';
+        transportContent.style.display = 'none';
+    } else {
+        categoryContent.style.display = 'none';
+        transportContent.style.display = 'block';
+    }
+}
+
+// Toggle category expansion
+function toggleCategory(headerElement) {
+    const card = headerElement.closest('.category-card');
+    const itemsDiv = card.querySelector('.category-items');
+    const toggle = card.querySelector('.category-toggle');
+
+    if (itemsDiv.style.display === 'none' || !itemsDiv.style.display) {
+        itemsDiv.style.display = 'block';
+        toggle.textContent = '▼';
+        card.classList.add('expanded');
+    } else {
+        itemsDiv.style.display = 'none';
+        toggle.textContent = '▶';
+        card.classList.remove('expanded');
+    }
 }
 
 // Toggle active status
@@ -766,6 +924,8 @@ function attachWindowFunctions() {
     window.refreshExpense = refreshExpense;
     window.showExpenseModal = showExpenseModal;
     window.closeExpenseModal = closeExpenseModal;
+    window.switchExpenseTab = switchExpenseTab;
+    window.toggleCategory = toggleCategory;
 }
 
 console.log('[ProjectDetail] Module loaded');
