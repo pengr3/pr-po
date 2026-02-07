@@ -245,12 +245,13 @@ Plans:
   7. Project List table shows: Project Name (Code + Name), Client Name, Total Expense, Budget, Remaining Budget, Status
   8. Clicking project row opens expense breakdown modal
   9. Expense modal scorecards show: Project Budget, Remaining Budget, Material Purchases, Transport Fees, Subcon Cost, Total Project Cost
-  10. Expense modal has view switcher: Category / Materials / Transport
-  11. All project expenses accurately accounted (materials, transport, delivery fees)
-**Plans**: TBD
+  10. All project expenses accurately accounted (materials, transport, delivery fees)
+**Plans**: 3 plans
 
 Plans:
-- [ ] 18-01: TBD
+- [ ] 18-01-PLAN.md — Add signature capture to approval modals with user attribution
+- [ ] 18-02-PLAN.md — Embed signatures and user names in PO/PR documents
+- [ ] 18-03-PLAN.md — Project expense reporting with category breakdown and tab removal
 
 ### Phase 19: Navigation Consolidation
 **Goal**: Merge admin tabs into single navigation item for cleaner interface
@@ -289,5 +290,5 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
 | 16. Project Detail Restructure | v2.2 | 1/1 | Complete | 2026-02-07 |
 | 17. Procurement Overhaul | v2.2 | 6/6 | Complete | 2026-02-07 |
-| 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |
+| 18. Finance Expense Reporting | v2.2 | 0/3 | Not started | - |
 | 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
