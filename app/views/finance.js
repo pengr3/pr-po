@@ -1,6 +1,6 @@
 /* ========================================
    FINANCE VIEW - Complete Implementation
-   PR/TR Approval, PO Generation, Historical Data
+   PR/TR Approval, PO Generation, Project Expenses
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
@@ -139,7 +139,7 @@ function clearApprovalSignature() {
 
 /**
  * Render the finance view
- * @param {string} activeTab - Active tab (approvals, pos, history, projects)
+ * @param {string} activeTab - Active tab (approvals, pos, projects)
  * @returns {string} HTML string for finance view
  */
 export function render(activeTab = 'approvals') {
@@ -157,9 +157,6 @@ export function render(activeTab = 'approvals') {
                     </a>
                     <a href="#/finance/pos" class="tab-btn ${activeTab === 'pos' ? 'active' : ''}">
                         📄 Purchase Orders
-                    </a>
-                    <a href="#/finance/history" class="tab-btn ${activeTab === 'history' ? 'active' : ''}">
-                        📊 Historical Data
                     </a>
                     <a href="#/finance/projects" class="tab-btn ${activeTab === 'projects' ? 'active' : ''}">
                         💰 Project List
@@ -264,25 +261,7 @@ export function render(activeTab = 'approvals') {
                 </div>
             </section>
 
-            <!-- Tab 3: Historical Data -->
-            <section id="history-section" class="section ${activeTab === 'history' ? 'active' : ''}">
-                ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view historical data.</span></div>' : ''}
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Historical Data & Analytics</h2>
-                    </div>
-                    <div style="text-align: center; padding: 3rem; color: #666;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
-                        <h3>Historical Data & Analytics</h3>
-                        <p>View supplier performance, price trends, and procurement analytics.</p>
-                        <p style="color: var(--gray-700); margin-top: 1rem;">
-                            <em>Coming soon - Analytics dashboard with charts and insights</em>
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Tab 4: Project List -->
+            <!-- Tab 3: Project List -->
             <section id="projects-section" class="section ${activeTab === 'projects' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view project expenses.</span></div>' : ''}
                 <div class="card">
