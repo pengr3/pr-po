@@ -77,6 +77,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (17-01): Follow Phase 15 denormalization pattern for PR creator attribution (pr_creator_user_id + pr_creator_name for audit trail without lookup overhead)
 - v2.2 (17-01): Use serverTimestamp() for created_at instead of client-side Date() (clock-skew protection and millisecond precision)
 - v2.2 (17-02): MRF Records tab name centers view on MRF as source of truth (not PR-PO relationships)
+- v2.2 (17-03): Color-coded status badges for instant workflow visibility (red/yellow/green pattern from Phase 16)
+- v2.2 (17-03): Dual timestamp strategy maintains backward compatibility (_at fields with serverTimestamp, preserve legacy _date fields)
+- v2.2 (17-04): Single canonical access point for related data (supplier purchase history only in Supplier Management tab, not scattered across views)
 - v2.2 (17-02): Table column order follows workflow logic (MRF → PRs → POs → Status → Actions)
 - v2.2 (17-02): Remove redundant columns when functionality exists elsewhere (PO Timeline column removed, timeline button remains in Actions)
 - v2.2 (17-01): Display 'Unknown User' for backward compatibility with old PRs without pr_creator_name field
@@ -111,6 +114,6 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 ## Session Continuity
 
 Last session: 2026-02-07 (Phase 17 execution)
-Stopped at: Completed 17-03-PLAN.md. All 3 tasks completed successfully. Implemented color-coded MRF status badges (red/yellow/green) showing PR/PO progress. Added serverTimestamp() to PO status updates for millisecond-precision timeline tracking. All 9 success criteria met.
+Stopped at: Completed all 4 plans in Phase 17. User attribution for PRs, tab rename to MRF Records, color-coded status badges, supplier modal cleanup. All 11 success criteria verified.
 Resume file: None
-Next action: Phase 17 complete (4/4 plans already done). Continue with Phase 18 or later phases as per roadmap
+Next action: Plan Phase 18 (Finance Workflow & Expense Reporting)

@@ -286,6 +286,6 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
 | 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
 | 16. Project Detail Restructure | v2.2 | 1/1 | Complete | 2026-02-07 |
-| 17. Procurement Overhaul | v2.2 | 0/4 | Not started | - |
+| 17. Procurement Overhaul | v2.2 | 4/4 | Complete | 2026-02-07 |
 | 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |
 | 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
