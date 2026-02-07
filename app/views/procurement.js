@@ -227,7 +227,7 @@ export function render(activeTab = 'mrfs') {
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view records but cannot update PO statuses.</span></div>' : ''}
                 <div class="card">
                     <div class="card-header">
-                        <h2>PR-PO Records</h2>
+                        <h2>MRF Records</h2>
                         <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
                     </div>
 
