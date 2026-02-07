@@ -10,21 +10,21 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 16 of 19 (Project Detail Page Restructure)
+Phase: 17 of 19 (Procurement Workflow Overhaul)
 Plan: 1 of 1 in phase
 Status: Phase complete
-Last activity: 2026-02-07 - Completed 16-01-PLAN.md
+Last activity: 2026-02-07 - Completed 17-01-PLAN.md
 
-Progress: [████████████████████████████████████████░░░░░░░░] 80% (39/49 estimated plans across all milestones)
+Progress: [████████████████████████████████████████░░░░░░░░] 82% (40/49 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 39 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 3 plans)
+- Total plans completed: 40 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 4 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 3 plans completed (in progress)
+- v2.2 milestone: 4 plans completed (in progress)
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 3 | 1 day | 0.33 days |
+| v2.2 Enhancements | 5 | 4 | 1 day | 0.25 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -74,6 +74,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (16-01): Plain text display for locked fields instead of disabled inputs (cleaner UI, more obvious fields are truly locked)
 - v2.2 (16-01): Manual refresh button for expense calculation (follows Phase 13 pattern, Firebase doesn't support real-time aggregation)
 - v2.2 (16-01): Confirmation only for deactivation, not activation (destructive action requires confirmation)
+- v2.2 (17-01): Follow Phase 15 denormalization pattern for PR creator attribution (pr_creator_user_id + pr_creator_name for audit trail without lookup overhead)
+- v2.2 (17-01): Use serverTimestamp() for created_at instead of client-side Date() (clock-skew protection and millisecond precision)
+- v2.2 (17-01): Display 'Unknown User' for backward compatibility with old PRs without pr_creator_name field
 
 ### Pending Todos
 
@@ -100,7 +103,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-07 (Phase 16 execution)
-Stopped at: Completed 16-01-PLAN.md. All 3 tasks completed successfully. Restructured project detail page into 3-card layout with expense tracking, breakdown modal, and badge-style active toggle with confirmation. All 15 success criteria met.
+Last session: 2026-02-07 (Phase 17 execution)
+Stopped at: Completed 17-01-PLAN.md. All 3 tasks completed successfully. Added PR creator attribution (pr_creator_user_id + pr_creator_name) to generatePR() and generatePRandTR() functions. PR Details modal now displays "Prepared By" field. All 6 success criteria met.
 Resume file: None
-Next action: Continue with Phase 17 or verify Phase 16 changes
+Next action: Continue with Phase 18 or verify Phase 17 changes
