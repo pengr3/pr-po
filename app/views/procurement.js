@@ -4,7 +4,7 @@
    Migrated from archive/index.html
    ======================================== */
 
-import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count } from '../firebase.js';
+import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, generateSequentialId } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline } from '../components.js';
 
@@ -2255,7 +2255,7 @@ function updatePOScoreboards(pos) {
 }
 
 /**
- * Filter PR-PO Records
+ * Filter MRF Records
  */
 function filterPRPORecords() {
     const searchInput = document.getElementById('histSearchInput')?.value.toLowerCase() || '';
@@ -2282,7 +2282,7 @@ function filterPRPORecords() {
 }
 
 /**
- * Render PR-PO Records Table (merged view)
+ * Render MRF Records Table (merged view)
  */
 async function renderPRPORecords() {
     const container = document.getElementById('prpoRecordsContainer');
@@ -2624,7 +2624,7 @@ async function renderPRPORecords() {
 }
 
 /**
- * Render PR-PO Records Pagination
+ * Render MRF Records Pagination
  */
 function renderPRPOPagination(totalPages) {
     const paginationDiv = document.getElementById('prpoPagination');
@@ -2873,6 +2873,13 @@ async function generatePR() {
     }
 
     if (!currentMRF) return;
+
+    const currentUser = window.getCurrentUser();
+
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
 
     const mrfData = currentMRF;
     console.log('📋 Generating PR for MRF:', mrfData.mrf_id);
