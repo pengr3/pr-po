@@ -202,10 +202,10 @@ Plans:
   3. Card 2 displays: Budget, Contract Cost, Expense
   4. Card 3 displays: Internal Status, Project Status
   5. Layout avoids redundancy and presents information logically
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 16-01: TBD
+- [ ] 16-01-PLAN.md — Restructure into 3-card layout with expense calculation and breakdown modal
 
 ### Phase 17: Procurement Workflow Overhaul
 **Goal**: Rename tabs, track PR creators, fix supplier modals, implement comprehensive MRF status tracking with visual indicators
@@ -282,7 +282,7 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 12. Finance Workflow | v2.1 | 2/2 | Complete | 2026-02-05 |
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
 | 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
-| 16. Project Detail Restructure | v2.2 | 0/0 | Not started | - |
+| 16. Project Detail Restructure | v2.2 | 1/1 | Ready | - |
 | 17. Procurement Overhaul | v2.2 | 0/0 | Not started | - |
 | 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |
 | 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
