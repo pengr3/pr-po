@@ -229,8 +229,8 @@ Plans:
 - [x] 17-02-PLAN.md — Rename tab and restructure table columns
 - [x] 17-03-PLAN.md — Implement MRF status tracking with visual badges
 - [x] 17-04-PLAN.md — Remove inline supplier links and ensure modal consistency
-- [ ] 17-05-PLAN.md — Complete PR creator attribution (rejected/approved PR paths)
-- [ ] 17-06-PLAN.md — Fix supplier modal visibility (move outside sections)
+- [x] 17-05-PLAN.md — Complete PR creator attribution (rejected/approved PR paths)
+- [x] 17-06-PLAN.md — Fix supplier modal visibility (move outside sections)
 
 ### Phase 18: Finance Workflow & Expense Reporting
 **Goal**: Add signature capture, improve approval flow, remove unused tabs, create comprehensive project expense breakdown
@@ -288,6 +288,6 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 13. Finance Dashboard | v2.1 | 5/5 | Complete | 2026-02-06 |
 | 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
 | 16. Project Detail Restructure | v2.2 | 1/1 | Complete | 2026-02-07 |
-| 17. Procurement Overhaul | v2.2 | 4/6 | Gap closure | 2026-02-07 |
+| 17. Procurement Overhaul | v2.2 | 6/6 | Complete | 2026-02-07 |
 | 18. Finance Expense Reporting | v2.2 | 0/0 | Not started | - |
 | 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
