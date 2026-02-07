@@ -265,27 +265,15 @@ export function render(activeTab = 'approvals') {
             <section id="projects-section" class="section ${activeTab === 'projects' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view project expenses.</span></div>' : ''}
                 <div class="card">
-                    <div class="card-header">
-                        <h2>Project Expenses</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshProjectExpenses()">🔄 Refresh</button>
+                    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2>Project List & Expenses</h2>
+                        <button class="btn btn-secondary" onclick="window.refreshProjectExpenses()" style="font-size: 0.875rem;">
+                            🔄 Refresh Totals
+                        </button>
                     </div>
-                    <p style="margin-bottom: 1rem; color: #666;">Click project name to view expense breakdown by category</p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Project Code</th>
-                                <th>Project Name</th>
-                                <th>Total Expenses</th>
-                                <th>PO Count</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="projectExpensesBody">
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 2rem;">Loading project expenses...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="projectExpensesContainer">
+                        <div style="text-align: center; padding: 2rem;">Loading project expenses...</div>
+                    </div>
                 </div>
             </section>
         </div>
@@ -322,14 +310,13 @@ export function render(activeTab = 'approvals') {
 
         <!-- Project Expense Modal -->
         <div id="projectExpenseModal" class="modal">
-            <div class="modal-content">
+            <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
-                    <h2 id="projectExpenseModalTitle">Project Expenses</h2>
+                    <h2 id="projectExpenseModalTitle">Project Expense Breakdown</h2>
                     <button class="modal-close" onclick="window.closeProjectExpenseModal()">&times;</button>
                 </div>
-                <div class="modal-body" id="projectExpenseModalBody"></div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" onclick="window.closeProjectExpenseModal()">Close</button>
+                <div class="modal-body" id="projectExpenseModalBody">
+                    <div style="text-align: center; padding: 2rem;">Loading expense details...</div>
                 </div>
             </div>
         </div>
@@ -372,59 +359,66 @@ export async function init(activeTab = 'approvals') {
 // ========================================
 
 /**
- * Refresh project expenses with server-side aggregation
+ * Calculate project expenses using server-side aggregation
+ * Source: Phase 13 pattern (getAggregateFromServer)
+ * Note: Uses existing projectExpenses array declared at line 16
  */
 async function refreshProjectExpenses() {
-    console.log('[Finance] 🔄 Refreshing project expenses...');
+    console.log('[Finance] Refreshing project expenses...');
     showLoading(true);
 
     try {
         // Get all projects
         const projectsSnapshot = await getDocs(collection(db, 'projects'));
-        console.log('[Finance] Found', projectsSnapshot.size, 'projects');
+        projectExpenses = []; // Reset existing array
 
-        projectExpenses = [];
-
-        // For each project, aggregate PO expenses
         for (const projectDoc of projectsSnapshot.docs) {
-            const project = { id: projectDoc.id, ...projectDoc.data() };
-            const projectName = project.project_name;
+            const project = projectDoc.data();
 
-            console.log('[Finance] Aggregating expenses for:', projectName);
-
-            // Use server-side aggregation for PO totals
+            // Aggregate PO totals for this project (all POs)
             const posQuery = query(
                 collection(db, 'pos'),
-                where('project_name', '==', projectName)
+                where('project_name', '==', project.project_name)
             );
-
-            const aggregateSnapshot = await getAggregateFromServer(posQuery, {
-                totalAmount: sum('total_amount'),
+            const posAgg = await getAggregateFromServer(posQuery, {
+                totalExpense: sum('total_amount'),
                 poCount: count()
             });
 
-            const totalAmount = aggregateSnapshot.data().totalAmount || 0;
-            const poCount = aggregateSnapshot.data().poCount || 0;
+            // Aggregate Transport Request totals (approved only)
+            const trQuery = query(
+                collection(db, 'transport_requests'),
+                where('project_name', '==', project.project_name),
+                where('finance_status', '==', 'Approved')
+            );
+            const trAgg = await getAggregateFromServer(trQuery, {
+                transportTotal: sum('total_amount'),
+                trCount: count()
+            });
 
-            console.log('[Finance]   -', projectName, ':', '₱' + totalAmount, '(', poCount, 'POs)');
+            const totalExpense = (posAgg.data().totalExpense || 0) + (trAgg.data().transportTotal || 0);
+            const budget = project.budget || 0;
+            const remainingBudget = budget - totalExpense;
 
             projectExpenses.push({
-                project_code: project.project_code || 'N/A',
-                project_name: projectName,
-                total_expenses: totalAmount,
-                po_count: poCount
+                projectCode: project.project_code || 'N/A',
+                projectName: project.project_name,
+                clientCode: project.client_code || 'N/A',
+                totalExpense: totalExpense,
+                budget: budget,
+                remainingBudget: remainingBudget,
+                poCount: posAgg.data().poCount || 0,
+                trCount: trAgg.data().trCount || 0,
+                status: project.status || 'active'
             });
         }
 
-        // Sort by total expenses (highest first)
-        projectExpenses.sort((a, b) => b.total_expenses - a.total_expenses);
-
-        console.log('[Finance] ✅ Project expenses loaded:', projectExpenses.length);
-        renderProjectExpenses();
+        renderProjectExpensesTable();
+        console.log(`[Finance] Loaded ${projectExpenses.length} project expense records`);
 
     } catch (error) {
-        console.error('[Finance] Error loading project expenses:', error);
-        showToast('Failed to load project expenses', 'error');
+        console.error('[Finance] Error calculating project expenses:', error);
+        showToast('Failed to calculate project expenses: ' + error.message, 'error');
     } finally {
         showLoading(false);
     }
@@ -432,150 +426,231 @@ async function refreshProjectExpenses() {
 
 /**
  * Render project expenses table
+ * Uses formatCurrency() imported from utils.js
  */
-function renderProjectExpenses() {
-    const tbody = document.getElementById('projectExpensesBody');
+function renderProjectExpensesTable() {
+    const container = document.getElementById('projectExpensesContainer');
+    if (!container) return;
 
-    if (!tbody) {
-        console.warn('[Finance] projectExpensesBody not found');
+    if (projectExpenses.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                <p>No projects found</p>
+            </div>
+        `;
         return;
     }
 
-    if (projectExpenses.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">💰</div>
-                    <div>No projects found</div>
+    // Build table
+    let tableHTML = `
+        <div style="overflow-x: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Client</th>
+                        <th style="text-align: right;">Budget</th>
+                        <th style="text-align: right;">Total Expense</th>
+                        <th style="text-align: right;">Remaining</th>
+                        <th style="text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    projectExpenses.forEach(proj => {
+        const isOverBudget = proj.remainingBudget < 0;
+        const remainingStyle = isOverBudget ? 'color: #ef4444; font-weight: 600;' : '';
+
+        tableHTML += `
+            <tr onclick="window.showProjectExpenseModal('${proj.projectName.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+                <td>
+                    <div style="font-weight: 600;">${proj.projectName}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">${proj.projectCode}</div>
+                </td>
+                <td>${proj.clientCode}</td>
+                <td style="text-align: right;">₱${formatCurrency(proj.budget)}</td>
+                <td style="text-align: right;">₱${formatCurrency(proj.totalExpense)}</td>
+                <td style="text-align: right; ${remainingStyle}">
+                    ${isOverBudget ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(proj.remainingBudget))}
+                    ${isOverBudget ? ' over' : ''}
+                </td>
+                <td style="text-align: center;">
+                    <span class="badge badge-${proj.status === 'active' ? 'success' : 'secondary'}">
+                        ${proj.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
                 </td>
             </tr>
         `;
-        return;
-    }
+    });
 
-    tbody.innerHTML = projectExpenses.map(project => `
-        <tr>
-            <td><strong>${project.project_code}</strong></td>
-            <td>
-                <a href="javascript:void(0)" onclick="window.showProjectExpenseModal('${project.project_code}', '${project.project_name.replace(/'/g, "\\'")}')" style="color: #1a73e8; text-decoration: none; font-weight: 600;">
-                    ${project.project_name}
-                </a>
-            </td>
-            <td><strong style="color: #059669;">₱${formatCurrency(project.total_expenses)}</strong></td>
-            <td>${project.po_count}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="window.showProjectExpenseModal('${project.project_code}', '${project.project_name.replace(/'/g, "\\'")}')">View Details</button>
-            </td>
-        </tr>
-    `).join('');
+    tableHTML += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = tableHTML;
 }
 
 /**
- * Show project expense breakdown modal
+ * Show detailed expense breakdown modal with category scorecards
+ * Uses formatCurrency() imported from utils.js
  */
-async function showProjectExpenseModal(projectCode, projectName) {
-    console.log('[Finance] Opening expense modal for:', projectName);
+async function showProjectExpenseModal(projectName) {
+    console.log(`[Finance] Loading expense breakdown for: ${projectName}`);
     showLoading(true);
 
     try {
-        // Get all POs for this project
-        const posQuery = query(
-            collection(db, 'pos'),
+        // Get project details
+        const projectQuery = query(
+            collection(db, 'projects'),
             where('project_name', '==', projectName)
         );
+        const projectSnapshot = await getDocs(projectQuery);
+        if (projectSnapshot.empty) {
+            throw new Error('Project not found');
+        }
+        const project = projectSnapshot.docs[0].data();
 
-        const posSnapshot = await getDocs(posQuery);
-        console.log('[Finance] Found', posSnapshot.size, 'POs for', projectName);
-
-        // Parse items and group by category
-        const categoryTotals = {};
-        let grandTotal = 0;
-
-        posSnapshot.forEach(poDoc => {
-            const po = poDoc.data();
-            const items = JSON.parse(po.items_json || '[]');
-
-            items.forEach(item => {
-                const category = item.category || 'Uncategorized';
-                const subtotal = parseFloat(item.subtotal || 0);
-
-                if (!categoryTotals[category]) {
-                    categoryTotals[category] = 0;
-                }
-                categoryTotals[category] += subtotal;
-                grandTotal += subtotal;
-            });
+        // Material POs (non-subcon)
+        const materialQuery = query(
+            collection(db, 'pos'),
+            where('project_name', '==', projectName),
+            where('is_subcon', '==', false)
+        );
+        const materialAgg = await getAggregateFromServer(materialQuery, {
+            materialTotal: sum('total_amount'),
+            materialCount: count()
         });
 
-        console.log('[Finance] Category breakdown:', categoryTotals);
+        // Subcon POs
+        const subconQuery = query(
+            collection(db, 'pos'),
+            where('project_name', '==', projectName),
+            where('is_subcon', '==', true)
+        );
+        const subconAgg = await getAggregateFromServer(subconQuery, {
+            subconTotal: sum('total_amount'),
+            subconCount: count()
+        });
 
-        // Convert to array and sort by amount
-        const categories = Object.entries(categoryTotals)
-            .map(([category, amount]) => ({
-                category,
-                amount,
-                percentage: grandTotal > 0 ? (amount / grandTotal * 100).toFixed(1) : 0
-            }))
-            .sort((a, b) => b.amount - a.amount);
+        // Transport Requests (approved only)
+        const transportQuery = query(
+            collection(db, 'transport_requests'),
+            where('project_name', '==', projectName),
+            where('finance_status', '==', 'Approved')
+        );
+        const transportAgg = await getAggregateFromServer(transportQuery, {
+            transportTotal: sum('total_amount'),
+            transportCount: count()
+        });
 
-        // Render modal content
-        const modalContent = `
-            <div class="modal-details-grid">
-                <div class="modal-detail-item">
-                    <div class="modal-detail-label">Project Code:</div>
-                    <div class="modal-detail-value"><strong>${projectCode}</strong></div>
+        const expenses = {
+            materials: materialAgg.data().materialTotal || 0,
+            materialCount: materialAgg.data().materialCount || 0,
+            transport: transportAgg.data().transportTotal || 0,
+            transportCount: transportAgg.data().transportCount || 0,
+            subcon: subconAgg.data().subconTotal || 0,
+            subconCount: subconAgg.data().subconCount || 0,
+            totalCost: (materialAgg.data().materialTotal || 0) +
+                      (transportAgg.data().transportTotal || 0) +
+                      (subconAgg.data().subconTotal || 0),
+            budget: project.budget || 0,
+            remainingBudget: (project.budget || 0) -
+                           ((materialAgg.data().materialTotal || 0) +
+                            (transportAgg.data().transportTotal || 0) +
+                            (subconAgg.data().subconTotal || 0))
+        };
+
+        // Update modal title
+        document.getElementById('projectExpenseModalTitle').textContent =
+            `Expense Breakdown: ${projectName}`;
+
+        // Render scorecards
+        const modalBody = document.getElementById('projectExpenseModalBody');
+        modalBody.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                <div class="scorecard" style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">
+                        Project Budget
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">
+                        ₱${formatCurrency(expenses.budget)}
+                    </div>
                 </div>
-                <div class="modal-detail-item">
-                    <div class="modal-detail-label">Project Name:</div>
-                    <div class="modal-detail-value">${projectName}</div>
-                </div>
-                <div class="modal-detail-item full-width">
-                    <div class="modal-detail-label">Total Expenses:</div>
-                    <div class="modal-detail-value"><strong style="color: #059669; font-size: 1.5rem;">₱${formatCurrency(grandTotal)}</strong></div>
+                <div class="scorecard" style="background: ${expenses.remainingBudget >= 0 ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${expenses.remainingBudget >= 0 ? '#22c55e' : '#ef4444'}; padding: 1rem; border-radius: 8px;">
+                    <div style="font-size: 0.875rem; color: ${expenses.remainingBudget >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 0.5rem;">
+                        Remaining Budget
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: ${expenses.remainingBudget >= 0 ? '#166534' : '#991b1b'};">
+                        ${expenses.remainingBudget >= 0 ? '' : '⚠️ '}₱${formatCurrency(Math.abs(expenses.remainingBudget))}
+                        ${expenses.remainingBudget < 0 ? ' over' : ''}
+                    </div>
                 </div>
             </div>
 
-            <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Expenses by Category</h4>
-            ${categories.length > 0 ? `
-                <table class="modal-items-table">
-                    <thead>
-                        <tr>
-                            <th>Category</th>
-                            <th>Amount</th>
-                            <th>% of Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${categories.map(cat => `
-                            <tr>
-                                <td><strong>${cat.category}</strong></td>
-                                <td>₱${formatCurrency(cat.amount)}</td>
-                                <td>${cat.percentage}%</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td style="text-align: right; font-weight: 600;">TOTAL:</td>
-                            <td colspan="2"><strong>₱${formatCurrency(grandTotal)}</strong></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            ` : `
-                <div style="text-align: center; padding: 2rem; color: #666;">
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📦</div>
-                    <div>No expenses recorded for this project</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                <div class="scorecard" style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">
+                        Material Purchases
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">
+                        ₱${formatCurrency(expenses.materials)}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                        ${expenses.materialCount} POs
+                    </div>
                 </div>
-            `}
+                <div class="scorecard" style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">
+                        Transport Fees
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">
+                        ₱${formatCurrency(expenses.transport)}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                        ${expenses.transportCount} TRs
+                    </div>
+                </div>
+                <div class="scorecard" style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">
+                        Subcon Cost
+                    </div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">
+                        ₱${formatCurrency(expenses.subcon)}
+                    </div>
+                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                        ${expenses.subconCount} POs
+                    </div>
+                </div>
+            </div>
+
+            <div class="scorecard" style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px;">
+                <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">
+                    Total Project Cost
+                </div>
+                <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">
+                    ₱${formatCurrency(expenses.totalCost)}
+                </div>
+                <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">
+                    ${expenses.materialCount + expenses.transportCount + expenses.subconCount} documents
+                </div>
+            </div>
+
+            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e2e8f0; text-align: center;">
+                <p style="color: #64748b; font-size: 0.875rem; margin: 0;">
+                    Click "Refresh Totals" button to update expense calculations
+                </p>
+            </div>
         `;
 
-        document.getElementById('projectExpenseModalTitle').textContent = `${projectCode} - ${projectName}`;
-        document.getElementById('projectExpenseModalBody').innerHTML = modalContent;
+        // Show modal
         document.getElementById('projectExpenseModal').classList.add('active');
 
     } catch (error) {
-        console.error('[Finance] Error loading project expense details:', error);
-        showToast('Failed to load project details', 'error');
+        console.error('[Finance] Error loading project expense breakdown:', error);
+        showToast('Failed to load expense breakdown: ' + error.message, 'error');
     } finally {
         showLoading(false);
     }
