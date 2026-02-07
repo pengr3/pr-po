@@ -89,6 +89,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (17-04): Single access point for supplier purchase history (Supplier Management tab only, removes inline links from MRF Records)
 - v2.2 (17-05): Gap closure approach - extend existing patterns to edge cases (rejected PR update, approved PR merge) rather than rewrite
 - v2.2 (17-05): PR creator overwrites on update/merge (shows "who prepared this version", not "original creator")
+- v2.2 (17-06): Place modals at container level not nested in sections (CSS parent display:none overrides child display:flex from .modal.active)
 
 ### Pending Todos
 
@@ -115,7 +116,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-07 (Phase 17 gap closure)
-Stopped at: Completed 17-05-PLAN.md (PR creator attribution extended to rejected PR update and approved PR merge paths). UAT Gap 1 resolved.
+Last session: 2026-02-07 (Phase 17 gap closure complete)
+Stopped at: Completed 17-06-PLAN.md (supplier modal visibility fixed). All UAT gaps resolved (Gap 1: PR creator attribution, Gap 2: supplier modal visibility).
 Resume file: None
-Next action: Continue Phase 17 UAT gap closure or proceed to Phase 18 planning
+Next action: Phase 17 complete - proceed to Phase 18 planning (Finance Workflow & Expense Reporting)
