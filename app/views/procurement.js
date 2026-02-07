@@ -70,7 +70,7 @@ function attachWindowFunctions() {
     window.deleteSupplier = deleteSupplier;
     window.changeSuppliersPage = changeSuppliersPage;
 
-    // PR-PO Records Functions
+    // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
     window.filterPRPORecords = filterPRPORecords;
     window.goToPRPOPage = goToPRPOPage;
@@ -118,7 +118,7 @@ export function render(activeTab = 'mrfs') {
                         Supplier Management
                     </a>
                     <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
-                        PR-PO Records
+                        MRF Records
                     </a>
                 </div>
             </div>
@@ -309,9 +309,9 @@ export function render(activeTab = 'mrfs') {
                         </div>
                     </div>
 
-                    <!-- PR-PO Records Container -->
+                    <!-- MRF Records Container -->
                     <div id="prpoRecordsContainer">
-                        <div style="text-align: center; padding: 2rem;">Loading PR-PO records...</div>
+                        <div style="text-align: center; padding: 2rem;">Loading MRF records...</div>
                     </div>
                     <div id="prpoPagination"></div>
                 </div>
@@ -2152,10 +2152,10 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 // ========================================
 
 /**
- * Load PR-PO Records (combines MRFs, PRs, and POs)
+ * Load MRF Records (combines MRFs, PRs, and POs)
  */
 async function loadPRPORecords() {
-    console.log('Loading PR-PO Records...');
+    console.log('Loading MRF Records...');
     showLoading(true);
 
     try {
@@ -2294,8 +2294,8 @@ async function renderPRPORecords() {
     if (filteredPRPORecords.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: #999;">
-                <div style="font-size: 1.125rem; margin-bottom: 0.5rem;">No PR-PO records found</div>
-                <div style="font-size: 0.875rem;">PR-PO records will appear here once processed</div>
+                <div style="font-size: 1.125rem; margin-bottom: 0.5rem;">No MRF records found</div>
+                <div style="font-size: 0.875rem;">MRF records will appear here once processed</div>
             </div>
         `;
         return;
@@ -2581,13 +2581,10 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: top;">${poTimelineHtml}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">
-                    <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.35rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block;">
-                        ${detailedStatus}
-                    </span>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
+                    <span style="color: #64748b; font-size: 0.75rem;">—</span>
                 </td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                     <button class="btn btn-sm btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;" onclick="window.showProcurementTimeline('${mrf.mrf_id}')">
                         📅 Timeline
