@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 17 of 19 (Procurement Workflow Overhaul)
-Plan: 1 of 1 in phase
-Status: Phase complete
-Last activity: 2026-02-07 - Completed 17-01-PLAN.md
+Plan: 2 of 4 in phase
+Status: In progress
+Last activity: 2026-02-07 - Completed 17-02-PLAN.md
 
-Progress: [████████████████████████████████████████░░░░░░░░] 82% (40/49 estimated plans across all milestones)
+Progress: [████████████████████████████████████████░░░░░░░░] 84% (41/49 estimated plans across all milestones)
 
 ## Performance Metrics
 
@@ -76,6 +76,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (16-01): Confirmation only for deactivation, not activation (destructive action requires confirmation)
 - v2.2 (17-01): Follow Phase 15 denormalization pattern for PR creator attribution (pr_creator_user_id + pr_creator_name for audit trail without lookup overhead)
 - v2.2 (17-01): Use serverTimestamp() for created_at instead of client-side Date() (clock-skew protection and millisecond precision)
+- v2.2 (17-02): MRF Records tab name centers view on MRF as source of truth (not PR-PO relationships)
+- v2.2 (17-02): Table column order follows workflow logic (MRF → PRs → POs → Status → Actions)
+- v2.2 (17-02): Remove redundant columns when functionality exists elsewhere (PO Timeline column removed, timeline button remains in Actions)
 - v2.2 (17-01): Display 'Unknown User' for backward compatibility with old PRs without pr_creator_name field
 
 ### Pending Todos
@@ -104,6 +107,6 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 ## Session Continuity
 
 Last session: 2026-02-07 (Phase 17 execution)
-Stopped at: Completed 17-01-PLAN.md. All 3 tasks completed successfully. Added PR creator attribution (pr_creator_user_id + pr_creator_name) to generatePR() and generatePRandTR() functions. PR Details modal now displays "Prepared By" field. All 6 success criteria met.
+Stopped at: Completed 17-02-PLAN.md. All 2 tasks completed successfully. Renamed tab to "MRF Records" and restructured table with 8 columns: MRF ID, Project, Date Needed, PRs, POs, MRF Status (placeholder), Procurement Status, Actions. All 9 success criteria met.
 Resume file: None
-Next action: Continue with Phase 18 or verify Phase 17 changes
+Next action: Continue with Phase 17-03 (MRF Status Badges implementation)
