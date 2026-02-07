@@ -4544,6 +4544,45 @@ function generatePRHTML(data) {
                     margin-top: 40px;
                     page-break-inside: avoid;
                 }
+                .signature-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 30px;
+                    page-break-inside: avoid;
+                }
+                .signature-box {
+                    text-align: center;
+                    min-width: 200px;
+                    flex: 0 0 auto;
+                }
+                .signature-box p {
+                    margin: 0.25rem 0;
+                    font-size: 0.875rem;
+                }
+                .signature-box .sig-label {
+                    font-weight: bold;
+                    font-size: 10pt;
+                    margin-bottom: 0.5rem;
+                }
+                .signature-box img {
+                    max-width: 200px;
+                    height: auto;
+                    max-height: 60px;
+                    margin-bottom: 0.5rem;
+                    display: block;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+                .signature-box .sig-line {
+                    border-top: 1px solid #000;
+                    width: 200px;
+                    margin: 0.5rem auto 0.25rem auto;
+                }
+                .signature-box .sig-placeholder {
+                    height: 60px;
+                    width: 200px;
+                    margin: 0 auto 0.5rem auto;
+                }
                 .signature-line {
                     margin: 25px 0;
                 }
@@ -4572,6 +4611,7 @@ function generatePRHTML(data) {
                     <div class="field"><span class="label">Document No.:</span> ${data.PR_ID}</div>
                     <div class="field"><span class="label">MRF Reference:</span> ${data.MRF_ID}</div>
                     <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                    <div class="field"><span class="label">Prepared by:</span> ${data.PREPARED_BY}</div>
                 </div>
 
                 <div class="section">
@@ -4593,24 +4633,27 @@ function generatePRHTML(data) {
                     <div class="signature-line">
                         <span class="label">Requested By:</span> ${data.REQUESTOR}
                     </div>
-                    <div class="signature-line">
-                        <span class="label">Prepared By:</span> ${data.PROCUREMENT_PIC}
+
+                    <div class="signature-row">
+                        <div class="signature-box">
+                            <p class="sig-label">Prepared by:</p>
+                            <div class="sig-placeholder"></div>
+                            <div class="sig-line"></div>
+                            <p>${data.PREPARED_BY}</p>
+                        </div>
+
+                        <div class="signature-box">
+                            <p class="sig-label">Approved by:</p>
+                            ${data.IS_APPROVED && data.FINANCE_SIGNATURE_URL ? `
+                                <img src="${data.FINANCE_SIGNATURE_URL}" alt="Finance Signature">
+                            ` : `
+                                <div class="sig-placeholder"></div>
+                            `}
+                            <div class="sig-line"></div>
+                            <p>${data.IS_APPROVED ? data.FINANCE_PIC : '_______________________________'}</p>
+                            ${data.IS_APPROVED ? `<p style="font-size: 9pt; color: #666;">Date: ${data.DATE_APPROVED}</p>` : ''}
+                        </div>
                     </div>
-                    ${data.IS_APPROVED ? `
-                    <div class="signature-line">
-                        <span class="label">Approved By:</span> ${data.FINANCE_PIC}
-                    </div>
-                    <div class="signature-line">
-                        <span class="label">Date Approved:</span> ${data.DATE_APPROVED}
-                    </div>
-                    ` : `
-                    <div class="signature-line" style="margin-top: 40px;">
-                        <span class="label">Approved By:</span> _______________________________
-                    </div>
-                    <div class="signature-line">
-                        <span class="label">Date Approved:</span> _______________________________
-                    </div>
-                    `}
                 </div>
             </div>
         </body>
@@ -4730,20 +4773,45 @@ function generatePOHTML(data) {
                 td {
                     font-size: 10pt;
                 }
-                .signature {
-                    margin-top: 60px;
+                .signature-section {
+                    margin-top: 3rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    padding: 0 2rem;
                     page-break-inside: avoid;
                 }
-                .signature-image {
-                    max-width: 200px;
-                    max-height: 60px;
-                    margin: 10px 0;
+                .signature-box {
+                    text-align: center;
+                    min-width: 200px;
                 }
-                .signature-line {
-                    height: 60px;
-                    border-bottom: 1px solid #000;
+                .signature-box p {
+                    margin: 0.25rem 0;
+                    font-size: 0.875rem;
+                }
+                .signature-box .sig-label {
+                    font-weight: bold;
+                    font-size: 10pt;
+                    margin-bottom: 0.5rem;
+                }
+                .signature-box img {
+                    max-width: 200px;
+                    height: auto;
+                    max-height: 60px;
+                    margin-bottom: 0.5rem;
+                    display: block;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+                .sig-line {
+                    border-top: 1px solid #000;
                     width: 200px;
-                    margin: 10px 0;
+                    margin: 0.5rem auto 0.25rem auto;
+                }
+                .sig-placeholder {
+                    height: 60px;
+                    width: 200px;
+                    margin: 0 auto 0.5rem auto;
                 }
             </style>
         </head>
@@ -4783,13 +4851,24 @@ function generatePOHTML(data) {
                     <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
                 </div>
 
-                <div class="signature">
-                    <p><strong>Authorized By:</strong></p>
-                    ${data.SIGNATURE_PLACEHOLDER ?
-                        `<img src="${data.SIGNATURE_PLACEHOLDER}" class="signature-image" alt="Signature">` :
-                        '<div class="signature-line"></div>'
-                    }
-                    <p><strong>${data.FINANCE_PIC}</strong></p>
+                <div class="signature-section">
+                    <div class="signature-box">
+                        <p class="sig-label">Prepared by:</p>
+                        <div class="sig-placeholder"></div>
+                        <div class="sig-line"></div>
+                        <p>${data.PROCUREMENT_PIC}</p>
+                    </div>
+
+                    <div class="signature-box">
+                        <p class="sig-label">Approved by:</p>
+                        ${data.FINANCE_SIGNATURE_URL ? `
+                            <img src="${data.FINANCE_SIGNATURE_URL}" alt="Finance Signature">
+                        ` : `
+                            <div class="sig-placeholder"></div>
+                        `}
+                        <div class="sig-line"></div>
+                        <p>${data.FINANCE_APPROVER}</p>
+                    </div>
                 </div>
             </div>
         </body>
@@ -4869,8 +4948,10 @@ async function generatePRDocument(prDocId) {
             ITEMS_TABLE: generateItemsTableHTML(items, 'PR'),
             TOTAL_COST: formatCurrency(pr.total_amount),
             REQUESTOR: pr.requestor_name,
+            PREPARED_BY: pr.pr_creator_name || pr.procurement_pic || 'Procurement Team',
             PROCUREMENT_PIC: pr.procurement_pic || 'Procurement Team',
-            FINANCE_PIC: pr.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            FINANCE_PIC: pr.finance_approver_name || pr.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            FINANCE_SIGNATURE_URL: pr.finance_signature_url || '',
             DATE_APPROVED: pr.date_approved ? formatDocumentDate(pr.date_approved) : 'Pending',
             IS_APPROVED: pr.finance_status === 'Approved' || pr.date_approved,
             company_info: DOCUMENT_CONFIG.companyInfo
@@ -4923,8 +5004,9 @@ async function generatePODocument(poDocId) {
             PAYMENT_TERMS: po.payment_terms || 'As per agreement',
             CONDITION: po.condition || 'Standard terms apply',
             DELIVERY_DATE: formatDocumentDate(po.delivery_date || 'TBD'),
-            FINANCE_PIC: po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
-            SIGNATURE_PLACEHOLDER: po.finance_signature_url || '',
+            FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            FINANCE_SIGNATURE_URL: po.finance_signature_url || '',
+            PROCUREMENT_PIC: po.procurement_pic || 'Procurement Team',
             company_info: DOCUMENT_CONFIG.companyInfo
         };
 
