@@ -10,22 +10,22 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 15 of 19 (User Data & Permission Improvements)
-Plan: 2 of 2 in phase
+Phase: 16 of 19 (Project Detail Page Restructure)
+Plan: 1 of 1 in phase
 Status: Phase complete
-Last activity: 2026-02-06 - Completed 15-02-PLAN.md
+Last activity: 2026-02-07 - Completed 16-01-PLAN.md
 
-Progress: [████████████████████████████████████████░░░░░░░░] 78% (38/49 estimated plans across all milestones)
+Progress: [████████████████████████████████████████░░░░░░░░] 80% (39/49 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 38 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 2 plans)
+- Total plans completed: 39 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 3 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 2 plans completed (in progress)
-- Average: ~2.4 plans per week
+- v2.2 milestone: 3 plans completed (in progress)
+- Average: ~2.5 plans per week
 
 **By Milestone:**
 
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 2 | <1 day | <0.5 days |
+| v2.2 Enhancements | 5 | 3 | 1 day | 0.33 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -71,6 +71,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (15-02): Personnel field required for new project creation (enforces accountability)
 - v2.2 (15-02): Store both personnel_user_id and personnel_name (denormalization avoids extra lookups, historical record)
 - v2.2 (15-02): Migrate-on-edit strategy for personnel field (incremental data migration preserves backward compatibility)
+- v2.2 (16-01): Plain text display for locked fields instead of disabled inputs (cleaner UI, more obvious fields are truly locked)
+- v2.2 (16-01): Manual refresh button for expense calculation (follows Phase 13 pattern, Firebase doesn't support real-time aggregation)
+- v2.2 (16-01): Confirmation only for deactivation, not activation (destructive action requires confirmation)
 
 ### Pending Todos
 
@@ -97,7 +100,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-06 (Phase 15 execution and verification)
-Stopped at: Phase 15 verified and approved by user. All 5 success criteria passed. Minor UI fix applied (removed hint text). Multi-user personnel assignment identified as future enhancement (beyond Phase 15 scope).
+Last session: 2026-02-07 (Phase 16 execution)
+Stopped at: Completed 16-01-PLAN.md. All 3 tasks completed successfully. Restructured project detail page into 3-card layout with expense tracking, breakdown modal, and badge-style active toggle with confirmation. All 15 success criteria met.
 Resume file: None
-Next action: Plan Phase 16 (Project Detail Page Restructure)
+Next action: Continue with Phase 17 or verify Phase 16 changes
