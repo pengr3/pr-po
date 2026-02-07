@@ -2423,7 +2423,6 @@ async function renderPRPORecords() {
                         }
                         return `<div style="display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center;">
                             <a href="javascript:void(0)" onclick="window.viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
-                            ${pr.supplier_name ? `<a href="javascript:void(0)" onclick="window.showSupplierPurchaseHistory('${pr.supplier_name}')" style="color: #1a73e8; text-decoration: none; font-size: 0.7rem; cursor: pointer;">${pr.supplier_name}</a>` : ''}
                             ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
                         </div>`;
                     });
@@ -2536,10 +2535,7 @@ async function renderPRPORecords() {
 
                         return {
                             linkHtml: `<div style="min-height: 52px; display: flex; flex-direction: column; gap: 2px; justify-content: center;">
-                                <div>
-                                    <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
-                                </div>
-                                ${po.supplier_name ? `<a href="javascript:void(0)" onclick="window.showSupplierPurchaseHistory('${po.supplier_name}')" style="color: #1a73e8; text-decoration: none; font-size: 0.7rem; cursor: pointer;">${po.supplier_name}</a>` : ''}
+                                <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
                             </div>`,
                             statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                 ${showEditControls ? `
@@ -3858,21 +3854,21 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
         if (isSubcon) {
             // SUBCON status timestamps: Pending → Processing → Processed
             if (newStatus === 'Processing' && currentStatus !== 'Processing') {
-                updateData.processing_started_at = new Date().toISOString();
+                updateData.processing_started_at = serverTimestamp(); // Server timestamp for precision
             } else if (newStatus === 'Processed') {
-                updateData.processed_at = new Date().toISOString();
-                updateData.processed_date = new Date().toISOString().split('T')[0];
+                updateData.processed_at = serverTimestamp(); // Server timestamp for precision
+                updateData.processed_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
             }
         } else {
             // Material status timestamps: Pending Procurement → Procuring → Procured → Delivered
             if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
-                updateData.procurement_started_at = new Date().toISOString();
+                updateData.procurement_started_at = serverTimestamp(); // Server timestamp for precision
             } else if (newStatus === 'Procured') {
-                updateData.procured_at = new Date().toISOString();
-                updateData.procured_date = new Date().toISOString().split('T')[0];
+                updateData.procured_at = serverTimestamp(); // Server timestamp for precision
+                updateData.procured_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
             } else if (newStatus === 'Delivered') {
-                updateData.delivered_at = new Date().toISOString();
-                updateData.delivered_date = new Date().toISOString().split('T')[0];
+                updateData.delivered_at = serverTimestamp(); // Server timestamp for precision
+                updateData.delivered_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
                 updateData.delivery_fee = deliveryFee;
             }
         }
