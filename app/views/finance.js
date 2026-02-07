@@ -3,7 +3,7 @@
    PR/TR Approval, PO Generation, Historical Data
    ======================================== */
 
-import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count } from '../firebase.js';
+import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
 
 // View state
@@ -14,6 +14,7 @@ let poData = [];
 let currentPRForApproval = null;
 let currentPRForRejection = null;
 let projectExpenses = [];
+let approvalSignaturePad = null;
 
 /**
  * Attach all window functions for use in onclick handlers
@@ -30,6 +31,11 @@ function attachWindowFunctions() {
     window.approvePR = approvePR;
     window.approveTR = approveTR;
     window.rejectPR = rejectPR;
+
+    // Signature Functions
+    window.clearApprovalSignature = clearApprovalSignature;
+    window.approvePRWithSignature = approvePRWithSignature;
+    window.approveTRWithSignature = approveTRWithSignature;
 
     // Modal Management
     window.closePRModal = closePRModal;
@@ -80,6 +86,55 @@ function setupModalListeners() {
             }
         }
     }, { signal }); // AbortController signal handles cleanup automatically
+}
+
+/**
+ * Initialize signature pad with high-DPI support
+ * Source: https://github.com/szimek/signature_pad README
+ */
+function initializeApprovalSignaturePad() {
+    const canvas = document.getElementById('approvalSignatureCanvas');
+    if (!canvas) return null;
+
+    const signaturePad = new SignaturePad(canvas, {
+        minWidth: 0.5,
+        maxWidth: 2.5,
+        penColor: 'rgb(0, 0, 0)',
+        backgroundColor: 'rgb(255, 255, 255)',
+        throttle: 16 // 60fps
+    });
+
+    // Handle high-DPI displays (retina scaling)
+    function resizeCanvas() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const { width, height } = canvas.getBoundingClientRect();
+
+        // Save signature data before resize to prevent clearing
+        const data = signaturePad.toData();
+
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+
+        // Restore signature after resize
+        if (data && data.length > 0) {
+            signaturePad.fromData(data);
+        }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    return signaturePad;
+}
+
+/**
+ * Clear signature canvas
+ */
+function clearApprovalSignature() {
+    if (approvalSignaturePad) {
+        approvalSignaturePad.clear();
+    }
 }
 
 /**
@@ -574,6 +629,12 @@ export async function destroy() {
     });
     listeners = [];
 
+    // Clean up signature pad
+    if (approvalSignaturePad) {
+        approvalSignaturePad.off();
+        approvalSignaturePad = null;
+    }
+
     // Clear state
     materialPRs = [];
     transportRequests = [];
@@ -596,6 +657,9 @@ export async function destroy() {
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
     delete window.closeProjectExpenseModal;
+    delete window.clearApprovalSignature;
+    delete window.approvePRWithSignature;
+    delete window.approveTRWithSignature;
 
     console.log('[Finance] Finance view destroyed');
 }
@@ -886,14 +950,43 @@ async function viewPRDetails(prId) {
 
         const footer = document.getElementById('prModalFooter');
         footer.innerHTML = `
-            <button class="btn btn-secondary" onclick="window.closePRModal()">Close</button>
             ${showEditControls ? `
-            <button class="btn btn-danger" onclick="window.rejectPR('${pr.id}')">✗ Reject</button>
-            <button class="btn btn-success" onclick="window.approvePR('${pr.id}')">✓ Approve & Generate POs</button>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
+                    Finance Signature <span style="color: #ef4444;">*</span>
+                </label>
+                <canvas id="approvalSignatureCanvas"
+                        style="border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
+                               width: 100%; max-width: 400px; height: 150px; cursor: crosshair; display: block;">
+                </canvas>
+                <button class="btn btn-secondary"
+                        onclick="window.clearApprovalSignature()"
+                        style="margin-top: 0.5rem; font-size: 0.875rem; padding: 0.5rem 1rem;">
+                    Clear Signature
+                </button>
+            </div>
             ` : ''}
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                ${showEditControls ? `
+                    <button class="btn btn-danger" onclick="window.rejectPR('${pr.id}')">
+                        Reject
+                    </button>
+                    <button class="btn btn-primary" onclick="window.approvePRWithSignature('${pr.id}')">
+                        Approve & Generate PO
+                    </button>
+                ` : ''}
+                <button class="btn btn-secondary" onclick="window.closePRModal()">Close</button>
+            </div>
         `;
 
         document.getElementById('prModal').classList.add('active');
+
+        // Initialize signature pad after DOM update
+        if (showEditControls) {
+            requestAnimationFrame(() => {
+                approvalSignaturePad = initializeApprovalSignaturePad();
+            });
+        }
 
     } catch (error) {
         console.error('Error loading PR details:', error);
@@ -1011,14 +1104,43 @@ async function viewTRDetails(trId) {
 
         const footer = document.getElementById('prModalFooter');
         footer.innerHTML = `
-            <button class="btn btn-secondary" onclick="window.closePRModal()">Close</button>
             ${showEditControls ? `
-            <button class="btn btn-danger" onclick="window.rejectPR('${tr.id}')">✗ Reject</button>
-            <button class="btn btn-success" onclick="window.approveTR('${tr.id}')">✓ Approve</button>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
+                    Finance Signature <span style="color: #ef4444;">*</span>
+                </label>
+                <canvas id="approvalSignatureCanvas"
+                        style="border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
+                               width: 100%; max-width: 400px; height: 150px; cursor: crosshair; display: block;">
+                </canvas>
+                <button class="btn btn-secondary"
+                        onclick="window.clearApprovalSignature()"
+                        style="margin-top: 0.5rem; font-size: 0.875rem; padding: 0.5rem 1rem;">
+                    Clear Signature
+                </button>
+            </div>
             ` : ''}
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                ${showEditControls ? `
+                    <button class="btn btn-danger" onclick="window.rejectPR('${tr.id}')">
+                        Reject
+                    </button>
+                    <button class="btn btn-primary" onclick="window.approveTRWithSignature('${tr.id}')">
+                        Approve Transport Request
+                    </button>
+                ` : ''}
+                <button class="btn btn-secondary" onclick="window.closePRModal()">Close</button>
+            </div>
         `;
 
         document.getElementById('prModal').classList.add('active');
+
+        // Initialize signature pad after DOM update
+        if (showEditControls) {
+            requestAnimationFrame(() => {
+                approvalSignaturePad = initializeApprovalSignaturePad();
+            });
+        }
 
     } catch (error) {
         console.error('Error loading TR details:', error);
@@ -1096,6 +1218,171 @@ async function approvePR(prId) {
 };
 
 /**
+ * Approve PR with signature validation and user attribution
+ * Creates PO with embedded signature and finance approver identity
+ */
+async function approvePRWithSignature(prId) {
+    if (window.canEditTab?.('finance') === false) {
+        showToast('You do not have permission to approve PRs', 'error');
+        return;
+    }
+
+    const currentUser = window.getCurrentUser();
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
+
+    // Validate signature exists
+    if (!approvalSignaturePad || approvalSignaturePad.isEmpty()) {
+        showToast('Please provide your signature before approving', 'error');
+        return;
+    }
+
+    // Export signature as base64 PNG
+    const signatureDataURL = approvalSignaturePad.toDataURL('image/png');
+
+    showLoading(true);
+
+    try {
+        // Get PR document
+        const prRef = doc(db, 'prs', prId);
+        const prDoc = await getDoc(prRef);
+
+        if (!prDoc.exists()) {
+            throw new Error('PR not found');
+        }
+
+        const pr = prDoc.data();
+
+        // Update PR status with finance approver attribution
+        await updateDoc(prRef, {
+            finance_status: 'Approved',
+            finance_approver_user_id: currentUser.uid,
+            finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
+            finance_approved_at: serverTimestamp(),
+            date_approved: new Date().toISOString().split('T')[0] // Legacy compatibility
+        });
+
+        // Update MRF status
+        const mrfsRef = collection(db, 'mrfs');
+        const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
+        const mrfSnapshot = await getDocs(mrfQuery);
+
+        if (!mrfSnapshot.empty) {
+            const mrfDoc = mrfSnapshot.docs[0];
+            await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
+                status: 'Finance Approved',
+                updated_at: new Date().toISOString()
+            });
+        }
+
+        // Generate PO using existing generatePOsForPR with signature data
+        const poCount = await generatePOsForPRWithSignature(pr, signatureDataURL, currentUser);
+
+        showToast(`PR approved! Generated ${poCount} PO(s) successfully.`, 'success');
+
+        // Refresh PR list and close modal - STAY on approvals tab
+        await refreshPRs();
+        closePRModal();
+
+    } catch (error) {
+        console.error('[Finance] Error approving PR:', error);
+        showToast('Failed to approve PR: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Generate POs from approved PR with signature and user attribution
+ * @param {Object} pr - PR data
+ * @param {string} signatureDataURL - Base64 signature image
+ * @param {Object} currentUser - Current user object
+ * @returns {number} Number of POs created
+ */
+async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) {
+    console.log('[Finance] Generating POs with signature for PR:', pr.pr_id);
+
+    const items = JSON.parse(pr.items_json || '[]');
+
+    // Group items by supplier
+    const itemsBySupplier = {};
+    items.forEach(item => {
+        const supplier = item.supplier || 'Unknown Supplier';
+        if (!itemsBySupplier[supplier]) {
+            itemsBySupplier[supplier] = [];
+        }
+        itemsBySupplier[supplier].push(item);
+    });
+
+    const suppliers = Object.keys(itemsBySupplier);
+    console.log('[Finance] Creating POs for', suppliers.length, 'supplier(s)');
+
+    // Get next PO number
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const currentMonthPrefix = `PO_${year}_${month}`;
+
+    const posRef = collection(db, 'pos');
+    const allPOsSnapshot = await getDocs(posRef);
+    let maxPONum = 0;
+
+    allPOsSnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data.po_id && data.po_id.startsWith(currentMonthPrefix)) {
+            const match = data.po_id.match(/PO_\d{4}_\d{2}-(\d+)/);
+            if (match) {
+                const num = parseInt(match[1]);
+                if (num > maxPONum) maxPONum = num;
+            }
+        }
+    });
+
+    let nextPONum = maxPONum + 1;
+    let poCount = 0;
+
+    // Create PO for each supplier with signature
+    for (const supplier of suppliers) {
+        const supplierItems = itemsBySupplier[supplier];
+        const supplierTotal = supplierItems.reduce((s, item) => s + parseFloat(item.subtotal || 0), 0);
+
+        const firstWord = supplier.split(/\s+/)[0] || supplier;
+        const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
+        const poId = `PO_${year}_${month}-${String(nextPONum).padStart(3, '0')}-${supplierSlug}`;
+
+        await addDoc(collection(db, 'pos'), {
+            po_id: poId,
+            pr_id: pr.pr_id,
+            mrf_id: pr.mrf_id,
+            supplier_name: supplier,
+            project_code: pr.project_code || '',
+            project_name: pr.project_name,
+            requestor_name: pr.requestor_name,
+            delivery_address: pr.delivery_address || '',
+            items_json: JSON.stringify(supplierItems),
+            total_amount: supplierTotal,
+            procurement_status: 'Pending Procurement',
+            is_subcon: false,
+            finance_approver_user_id: currentUser.uid,
+            finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
+            finance_signature_url: signatureDataURL,
+            date_issued: serverTimestamp(),
+            date_issued_legacy: new Date().toISOString().split('T')[0],
+            created_at: serverTimestamp()
+        });
+
+        console.log('[Finance] Created PO:', poId);
+        nextPONum++;
+        poCount++;
+    }
+
+    console.log('[Finance] Generated', poCount, 'PO(s) for PR:', pr.pr_id);
+    return poCount;
+}
+
+/**
  * Approve TR (Transport Request)
  */
 async function approveTR(trId) {
@@ -1155,10 +1442,92 @@ async function approveTR(trId) {
 };
 
 /**
+ * Approve TR with signature validation and user attribution
+ * Stores signature in TR document
+ */
+async function approveTRWithSignature(trId) {
+    if (window.canEditTab?.('finance') === false) {
+        showToast('You do not have permission to approve transport requests', 'error');
+        return;
+    }
+
+    const currentUser = window.getCurrentUser();
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
+
+    // Validate signature exists
+    if (!approvalSignaturePad || approvalSignaturePad.isEmpty()) {
+        showToast('Please provide your signature before approving', 'error');
+        return;
+    }
+
+    // Export signature as base64 PNG
+    const signatureDataURL = approvalSignaturePad.toDataURL('image/png');
+
+    showLoading(true);
+
+    try {
+        // Get TR document
+        const trRef = doc(db, 'transport_requests', trId);
+        const trDoc = await getDoc(trRef);
+
+        if (!trDoc.exists()) {
+            throw new Error('Transport Request not found');
+        }
+
+        const tr = trDoc.data();
+
+        // Update TR status with finance approver attribution and signature
+        await updateDoc(trRef, {
+            finance_status: 'Approved',
+            finance_approver_user_id: currentUser.uid,
+            finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
+            finance_signature_url: signatureDataURL,
+            finance_approved_at: serverTimestamp(),
+            date_approved: new Date().toISOString().split('T')[0] // Legacy compatibility
+        });
+
+        // Update MRF status
+        const mrfsRef = collection(db, 'mrfs');
+        const mrfQuery = query(mrfsRef, where('mrf_id', '==', tr.mrf_id));
+        const mrfSnapshot = await getDocs(mrfQuery);
+
+        if (!mrfSnapshot.empty) {
+            const mrfDoc = mrfSnapshot.docs[0];
+            await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
+                status: 'Finance Approved',
+                updated_at: new Date().toISOString()
+            });
+        }
+
+        showToast('Transport Request approved successfully!', 'success');
+
+        // Refresh and close modal - STAY on approvals tab
+        await refreshPRs();
+        closePRModal();
+
+    } catch (error) {
+        console.error('[Finance] Error approving TR:', error);
+        showToast('Failed to approve TR: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Close PR Modal
  */
 function closePRModal() {
-    document.getElementById('prModal').classList.remove('active');
+    // Clean up signature pad to prevent memory leaks
+    if (approvalSignaturePad) {
+        approvalSignaturePad.off(); // Remove event listeners
+        approvalSignaturePad = null;
+    }
+
+    const modal = document.getElementById('prModal');
+    modal?.classList.remove('active');
 }
 
 // ========================================
