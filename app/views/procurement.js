@@ -3872,6 +3872,12 @@ async function viewPRDetails(prDocId) {
                         <div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div>
                     </div>
                     <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Prepared By</div>
+                        <div style="padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 4px; color: #1e293b; font-size: 0.875rem;">
+                            ${pr.pr_creator_name || 'Unknown User'}
+                        </div>
+                    </div>
+                    <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
                         <div>${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</div>
                     </div>
