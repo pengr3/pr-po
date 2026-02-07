@@ -555,9 +555,9 @@ async function showExpenseModal() {
             const items = JSON.parse(po.items_json || '[]');
 
             items.forEach(item => {
-                // Handle different property name variations (item_name vs itemName, etc.)
-                const itemName = item.item_name || item.itemName || item.name || 'Unnamed Item';
-                const qty = item.quantity || item.qty || 0;
+                // Handle different property name variations (item vs item_name, qty vs quantity, etc.)
+                const itemName = item.item || item.item_name || item.itemName || item.name || 'Unnamed Item';
+                const qty = item.qty || item.quantity || 0;
                 const unit = item.unit || 'pcs';
                 const unitCost = parseFloat(item.unit_cost || item.unitCost || item.price || 0);
                 const subtotal = parseFloat(item.subtotal || item.total || (qty * unitCost) || 0);
