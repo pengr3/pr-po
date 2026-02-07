@@ -3088,7 +3088,9 @@ async function generatePR() {
                     total_amount: supplierTotal,
                     finance_status: 'Pending',
                     updated_at: new Date().toISOString(),
-                    resubmitted_at: new Date().toISOString()
+                    resubmitted_at: new Date().toISOString(),
+                    pr_creator_user_id: currentUser.uid,
+                    pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                 });
                 generatedPRIds.push(rejectedPR.pr_id);
                 updatedPRIds.push(rejectedPR.pr_id);
@@ -3111,7 +3113,9 @@ async function generatePR() {
                         items_json: JSON.stringify(mergedItems),
                         total_amount: mergedTotal,
                         updated_at: new Date().toISOString(),
-                        items_merged: true
+                        items_merged: true,
+                        pr_creator_user_id: currentUser.uid,
+                        pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                     });
                     mergedPRIds.push(approvedPR.pr_id);
                 }
