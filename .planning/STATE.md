@@ -11,20 +11,20 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 17 of 19 (Procurement Workflow Overhaul)
-Plan: 2 of 4 in phase
-Status: In progress
-Last activity: 2026-02-07 - Completed 17-02-PLAN.md
+Plan: 4 of 4 in phase
+Status: Phase complete
+Last activity: 2026-02-07 - Completed 17-04-PLAN.md
 
-Progress: [████████████████████████████████████████░░░░░░░░] 84% (41/49 estimated plans across all milestones)
+Progress: [█████████████████████████████████████████░░░░░░░] 86% (42/49 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 40 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 4 plans)
+- Total plans completed: 42 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 6 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 4 plans completed (in progress)
+- v2.2 milestone: 6 plans completed (in progress)
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 4 | 1 day | 0.25 days |
+| v2.2 Enhancements | 5 | 6 | 1 day | 0.17 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -80,6 +80,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (17-02): Table column order follows workflow logic (MRF → PRs → POs → Status → Actions)
 - v2.2 (17-02): Remove redundant columns when functionality exists elsewhere (PO Timeline column removed, timeline button remains in Actions)
 - v2.2 (17-01): Display 'Unknown User' for backward compatibility with old PRs without pr_creator_name field
+- v2.2 (17-04): Single access point for supplier purchase history (Supplier Management tab only, removes inline links from MRF Records)
 
 ### Pending Todos
 
@@ -107,6 +108,6 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 ## Session Continuity
 
 Last session: 2026-02-07 (Phase 17 execution)
-Stopped at: Completed 17-02-PLAN.md. All 2 tasks completed successfully. Renamed tab to "MRF Records" and restructured table with 8 columns: MRF ID, Project, Date Needed, PRs, POs, MRF Status (placeholder), Procurement Status, Actions. All 9 success criteria met.
+Stopped at: Completed 17-04-PLAN.md. All 2 tasks completed successfully. Removed inline supplier links from PRs and POs columns in MRF Records table. Supplier purchase history now accessible only via Supplier Management tab. All 6 success criteria met. Phase 17 complete (4/4 plans).
 Resume file: None
-Next action: Continue with Phase 17-03 (MRF Status Badges implementation)
+Next action: Continue with Phase 18 or later phases as per roadmap
