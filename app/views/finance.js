@@ -2312,13 +2312,13 @@ function renderPOs() {
                         <td>${formatDate(po.date_issued)}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
                         <td>
-                            <button class="btn btn-sm btn-secondary" onclick="window.location.hash='#/procurement/tracking'">View in Procurement</button>
+                            <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
                         </td>
                     </tr>
                 `).join('')}
             </tbody>
         </table>
-        ${poData.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs. View all in Procurement > PO Tracking</p>` : ''}
+        ${poData.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
 }
 
