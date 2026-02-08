@@ -5,26 +5,26 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 19 - Navigation Consolidation (v2.2 Workflow & UX Enhancements)
+**Current focus:** Phase 19 - Navigation Consolidation (v2.2 Workflow & UX Enhancements) - COMPLETE
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 19 of 19 (Navigation Consolidation)
-Plan: 1 of 2 in phase
-Status: In progress
-Last activity: 2026-02-08 - Completed 19-01-PLAN.md: Admin wrapper view and router consolidation
+Plan: 2 of 2 in phase
+Status: Phase complete / Milestone complete
+Last activity: 2026-02-08 - Completed 19-02-PLAN.md: Admin dropdown nav, CSS, and auth.js permission filtering
 
-Progress: [██████████████████████████████████████████████████] 99% (52/53 estimated plans across all milestones)
+Progress: [██████████████████████████████████████████████████] 100% (53/53 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 52 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 16 plans)
+- Total plans completed: 53 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 17 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 16 plans completed (in progress)
+- v2.2 milestone: 17 plans completed
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 6 | 16 | 3 days | 0.19 days |
+| v2.2 Enhancements | 6 | 17 | 3 days | 0.18 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -116,6 +116,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (19-01): Admin wrapper view pattern: parent view manages lifecycle of child views via dynamic import and internal section switching
 - v2.2 (19-01): No hash changes during admin section switching (stays #/admin always, sections managed internally)
 - v2.2 (19-01): _pendingAdminSection coordination: dropdown sets window global before navigation, wrapper reads and clears in init()
+- v2.2 (19-02): Non-module inline script for dropdown window functions (onclick handlers require global scope, not module scope)
+- v2.2 (19-02): Container-level permission filtering for .nav-dropdown (hiding container hides trigger + menu together)
+- v2.2 (19-02): Dropdown section order: User Management, Assignments, Settings (most-used first)
 
 ### Pending Todos
 
@@ -142,7 +145,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-08 (Phase 19 Plan 01 complete: admin wrapper view and router consolidation)
-Stopped at: Completed 19-01-PLAN.md - admin.js wrapper created, router consolidated to single /admin route
+Last session: 2026-02-08 (Phase 19 Plan 02 complete: admin dropdown nav, CSS, auth.js permission filtering)
+Stopped at: Completed 19-02-PLAN.md - All v2.2 milestones complete
 Resume file: None
-Next action: Execute 19-02-PLAN.md (dropdown nav, CSS, auth.js updates)
+Next action: v2.2 milestone complete. All 53 plans across 19 phases delivered.
