@@ -15,6 +15,7 @@ let currentPRForApproval = null;
 let currentPRForRejection = null;
 let projectExpenses = [];
 let approvalSignaturePad = null;
+let currentApprovalTarget = null;
 
 /**
  * Attach all window functions for use in onclick handlers
@@ -35,7 +36,11 @@ function attachWindowFunctions() {
     // Signature Functions
     window.clearApprovalSignature = clearApprovalSignature;
     window.approvePRWithSignature = approvePRWithSignature;
-    window.approveTRWithSignature = approveTRWithSignature;
+
+    // Approval Modal Functions
+    window.showApprovalModal = showApprovalModal;
+    window.closeApprovalModal = closeApprovalModal;
+    window.confirmApproval = confirmApproval;
 
     // Modal Management
     window.closePRModal = closePRModal;
@@ -75,9 +80,12 @@ function setupModalListeners() {
             const prModal = document.getElementById('prModal');
             const rejectionModal = document.getElementById('rejectionModal');
             const projectExpenseModal = document.getElementById('projectExpenseModal');
+            const approvalModal = document.getElementById('approvalModal');
 
             // Close whichever modal is currently active
-            if (prModal?.classList.contains('active')) {
+            if (approvalModal?.classList.contains('active')) {
+                closeApprovalModal();
+            } else if (prModal?.classList.contains('active')) {
                 closePRModal();
             } else if (rejectionModal?.classList.contains('active')) {
                 closeRejectionModal();
@@ -304,6 +312,32 @@ export function render(activeTab = 'approvals') {
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="window.closeRejectionModal()">Cancel</button>
                     <button class="btn btn-danger" onclick="window.submitRejection()">Submit Rejection</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approval Modal (separate from PR review modal) -->
+        <div id="approvalModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Approve & Sign</h2>
+                    <button class="modal-close" onclick="window.closeApprovalModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 1rem; color: #475569;">Please draw your signature below to confirm approval.</p>
+                    <canvas id="approvalSignatureCanvas"
+                            style="border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
+                                   width: 100%; max-width: 400px; height: 150px; cursor: crosshair; display: block;">
+                    </canvas>
+                    <button class="btn btn-secondary"
+                            onclick="window.clearApprovalSignature()"
+                            style="margin-top: 0.5rem; font-size: 0.875rem; padding: 0.5rem 1rem;">
+                        Clear Signature
+                    </button>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="window.closeApprovalModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="window.confirmApproval()">Confirm Approval</button>
                 </div>
             </div>
         </div>
@@ -695,6 +729,7 @@ export async function destroy() {
     poData = [];
     currentPRForApproval = null;
     currentPRForRejection = null;
+    currentApprovalTarget = null;
     projectExpenses = [];
 
     // Clean up window functions
@@ -713,7 +748,9 @@ export async function destroy() {
     delete window.closeProjectExpenseModal;
     delete window.clearApprovalSignature;
     delete window.approvePRWithSignature;
-    delete window.approveTRWithSignature;
+    delete window.showApprovalModal;
+    delete window.closeApprovalModal;
+    delete window.confirmApproval;
 
     console.log('[Finance] Finance view destroyed');
 }
@@ -1004,28 +1041,12 @@ async function viewPRDetails(prId) {
 
         const footer = document.getElementById('prModalFooter');
         footer.innerHTML = `
-            ${showEditControls ? `
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
-                    Finance Signature <span style="color: #ef4444;">*</span>
-                </label>
-                <canvas id="approvalSignatureCanvas"
-                        style="border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
-                               width: 100%; max-width: 400px; height: 150px; cursor: crosshair; display: block;">
-                </canvas>
-                <button class="btn btn-secondary"
-                        onclick="window.clearApprovalSignature()"
-                        style="margin-top: 0.5rem; font-size: 0.875rem; padding: 0.5rem 1rem;">
-                    Clear Signature
-                </button>
-            </div>
-            ` : ''}
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                 ${showEditControls ? `
                     <button class="btn btn-danger" onclick="window.rejectPR('${pr.id}')">
                         Reject
                     </button>
-                    <button class="btn btn-primary" onclick="window.approvePRWithSignature('${pr.id}')">
+                    <button class="btn btn-primary" onclick="window.showApprovalModal('${pr.id}', 'pr')">
                         Approve & Generate PO
                     </button>
                 ` : ''}
@@ -1034,13 +1055,6 @@ async function viewPRDetails(prId) {
         `;
 
         document.getElementById('prModal').classList.add('active');
-
-        // Initialize signature pad after DOM update
-        if (showEditControls) {
-            requestAnimationFrame(() => {
-                approvalSignaturePad = initializeApprovalSignaturePad();
-            });
-        }
 
     } catch (error) {
         console.error('Error loading PR details:', error);
@@ -1336,9 +1350,9 @@ async function approvePRWithSignature(prId) {
 
         showToast(`PR approved! Generated ${poCount} PO(s) successfully.`, 'success');
 
-        // Refresh PR list and close modal - STAY on approvals tab
+        // Refresh PR list and close approval modal - STAY on approvals tab
         await refreshPRs();
-        closePRModal();
+        closeApprovalModal();
 
     } catch (error) {
         console.error('[Finance] Error approving PR:', error);
@@ -1567,6 +1581,54 @@ async function approveTRWithSignature(trId) {
         showToast('Failed to approve TR: ' + error.message, 'error');
     } finally {
         showLoading(false);
+    }
+}
+
+/**
+ * Show approval modal with signature canvas
+ * Opens after closing PR review modal for two-step approval flow
+ */
+function showApprovalModal(id, type) {
+    currentApprovalTarget = { id, type };
+
+    // Close the review modal first
+    closePRModal();
+
+    // Open approval modal
+    document.getElementById('approvalModal').classList.add('active');
+
+    // Initialize signature pad after DOM is ready
+    requestAnimationFrame(() => {
+        approvalSignaturePad = initializeApprovalSignaturePad();
+    });
+}
+
+/**
+ * Close approval modal and clean up signature pad
+ */
+function closeApprovalModal() {
+    // Clean up signature pad
+    if (approvalSignaturePad) {
+        approvalSignaturePad.off();
+        approvalSignaturePad = null;
+    }
+
+    document.getElementById('approvalModal')?.classList.remove('active');
+    currentApprovalTarget = null;
+}
+
+/**
+ * Confirm approval from the approval modal
+ * Routes to appropriate approval function based on type
+ */
+async function confirmApproval() {
+    if (!currentApprovalTarget) {
+        showToast('No approval target set. Please try again.', 'error');
+        return;
+    }
+
+    if (currentApprovalTarget.type === 'pr') {
+        await approvePRWithSignature(currentApprovalTarget.id);
     }
 }
 
