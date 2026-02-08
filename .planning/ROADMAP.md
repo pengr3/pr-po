@@ -5,7 +5,7 @@
 - ✅ **v1.0 Projects & Tracking** - Phases 1-4 (shipped 2026-01-30)
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
-- ✅ **v2.2 Workflow & UX Enhancements** - Phases 15-19 (shipped 2026-02-08)
+- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-20 (in progress)
 
 ## Overview
 
@@ -174,7 +174,7 @@ Plans:
 
 </details>
 
-## ✅ v2.2 Workflow & UX Enhancements (Shipped 2026-02-08)
+## 🚧 v2.2 Workflow & UX Enhancements (In Progress)
 
 **Milestone Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
 
@@ -272,10 +272,27 @@ Plans:
 - [x] 19-01-PLAN.md — Create admin wrapper view and consolidate routing
 - [x] 19-02-PLAN.md — Add admin dropdown nav and permission filtering
 
+### Phase 20: Multi-Personnel Pill Selection
+**Goal**: Transform project personnel field from single-select to multi-select with removable pill/chip UI
+**Depends on**: Phase 15
+**Success Criteria** (what must be TRUE):
+  1. Personnel field in project creation allows selecting multiple users
+  2. Selected users appear as removable pills/chips (click X to remove, not character-by-character delete)
+  3. Typing in personnel field filters available users (name or email)
+  4. Project stores array of personnel (personnel_user_ids + personnel_names)
+  5. Project detail page displays all assigned personnel as pills
+  6. Existing single-personnel projects remain backward compatible
+**Plans**: 3 plans
+
+Plans:
+- [ ] 20-01-PLAN.md — Add pill/chip CSS and normalizePersonnel utility function
+- [ ] 20-02-PLAN.md — Transform projects.js personnel to pill multi-select
+- [ ] 20-03-PLAN.md — Transform project-detail.js personnel to pill display/edit
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
+Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 20
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -297,3 +314,4 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 17. Procurement Overhaul | v2.2 | 6/6 | Complete | 2026-02-07 |
 | 18. Finance Expense Reporting | v2.2 | 7/7 | Complete | 2026-02-08 |
 | 19. Navigation Consolidation | v2.2 | 2/2 | Complete | 2026-02-08 |
+| 20. Multi-Personnel Selection | v2.2 | 0/3 | Planning complete | - |
