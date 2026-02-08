@@ -88,6 +88,7 @@ function attachWindowFunctions() {
     window.generatePODocument = generatePODocument;
     window.promptPODocument = promptPODocument;
     window.generatePOWithFields = generatePOWithFields;
+    window.savePODocumentFields = savePODocumentFields;
     window.viewPODocument = viewPODocument;
     window.downloadPODocument = downloadPODocument;
     window.generateAllPODocuments = generateAllPODocuments;
@@ -560,6 +561,7 @@ export async function destroy() {
     delete window.generatePODocument;
     delete window.promptPODocument;
     delete window.generatePOWithFields;
+    delete window.savePODocumentFields;
     delete window.viewPODocument;
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
@@ -4122,6 +4124,34 @@ async function viewPODetails(poId) {
                     ` : ''}
                 </div>
 
+                <!-- Document Details (Editable) -->
+                <div style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin-bottom: 1rem; color: #1e293b;">Document Details</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Terms</label>
+                            <input type="text" id="editPaymentTerms_${po.id}" value="${po.payment_terms || ''}"
+                                   placeholder="e.g., 50% down payment, 50% upon delivery"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Condition</label>
+                            <input type="text" id="editCondition_${po.id}" value="${po.condition || ''}"
+                                   placeholder="e.g., Items must meet quality standards"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Delivery Date</label>
+                            <input type="date" id="editDeliveryDate_${po.id}" value="${po.delivery_date || ''}"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="savePODocumentFields('${po.id}')"
+                            style="margin-top: 1rem;">
+                        Save Document Details
+                    </button>
+                </div>
+
                 <div style="margin-top: 1.5rem;">
                     <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
@@ -4970,6 +5000,13 @@ async function promptPODocument(poDocId) {
         }
         const po = poDoc.data();
 
+        // If all three document fields already exist, skip prompt and generate directly
+        if (po.payment_terms && po.condition && po.delivery_date) {
+            console.log('[Procurement] All PO document fields present - generating directly');
+            await generatePODocument(poDocId);
+            return;
+        }
+
         // Create prompt modal using the codebase's createModal pattern
         let modalContainer = document.getElementById('poDocFieldsModalContainer');
         if (!modalContainer) {
@@ -5014,6 +5051,33 @@ async function promptPODocument(poDocId) {
     } catch (error) {
         console.error('Error loading PO for document prompt:', error);
         showToast('Failed to load PO details', 'error');
+    }
+}
+
+/**
+ * Save PO document fields from the PO Details Modal (editable section)
+ * @param {string} poId - Firestore document ID of the PO
+ */
+async function savePODocumentFields(poId) {
+    const paymentTerms = document.getElementById(`editPaymentTerms_${poId}`)?.value?.trim() || '';
+    const condition = document.getElementById(`editCondition_${poId}`)?.value?.trim() || '';
+    const deliveryDate = document.getElementById(`editDeliveryDate_${poId}`)?.value || '';
+
+    try {
+        const updateData = {};
+        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        if (condition) updateData.condition = condition;
+        if (deliveryDate) updateData.delivery_date = deliveryDate;
+
+        if (Object.keys(updateData).length > 0) {
+            await updateDoc(doc(db, 'pos', poId), updateData);
+            showToast('Document details updated successfully', 'success');
+        } else {
+            showToast('No changes to save', 'info');
+        }
+    } catch (error) {
+        console.error('Error saving document fields:', error);
+        showToast('Failed to save document details', 'error');
     }
 }
 
