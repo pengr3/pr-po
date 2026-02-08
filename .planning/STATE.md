@@ -119,6 +119,8 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (19-02): Non-module inline script for dropdown window functions (onclick handlers require global scope, not module scope)
 - v2.2 (19-02): Container-level permission filtering for .nav-dropdown (hiding container hides trigger + menu together)
 - v2.2 (19-02): Dropdown section order: User Management, Assignments, Settings (most-used first)
+- v2.2 (19-fix): Remove hash update from switchUserMgmtTab (tab switching is internal to admin wrapper, not a route change)
+- v2.2 (19-fix): Update stale Assign Projects link from #/project-assignments to #/admin with _pendingAdminSection
 
 ### Pending Todos
 
@@ -145,7 +147,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-08 (Phase 19 Plan 02 complete: admin dropdown nav, CSS, auth.js permission filtering)
-Stopped at: Completed 19-02-PLAN.md - All v2.2 milestones complete
+Last session: 2026-02-08 (Phase 19 complete: admin wrapper, dropdown nav, permission filtering, stale route fix, verification passed 5/5)
+Stopped at: Phase 19 verified, ROADMAP marked complete, v2.2 milestone shipped
 Resume file: None
-Next action: v2.2 milestone complete. All 53 plans across 19 phases delivered.
+Next action: Audit v2.2 milestone (/gsd:audit-milestone) or manual acceptance testing (/gsd:verify-work)
