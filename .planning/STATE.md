@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 19 - Navigation Consolidation (v2.2 Workflow & UX Enhancements)
+**Current focus:** Phase 18 gap closure (v2.2 Workflow & UX Enhancements)
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 18 of 19 (Finance Workflow & Expense Reporting)
-Plan: 3 of 3 in phase
-Status: Phase complete (verified 10/10)
-Last activity: 2026-02-07 - Phase 18 complete: signature capture, document attribution, project expense reporting
+Plan: 5 of 5 in phase (including gap closure plans 04 and 05)
+Status: Plan 18-05 complete, 18-04 pending
+Last activity: 2026-02-08 - Completed 18-05-PLAN.md (PO/PR document layout fixes and dynamic PO fields)
 
-Progress: [█████████████████████████████████████████████░░░] 94% (47/50 estimated plans across all milestones)
+Progress: [██████████████████████████████████████████████░░] 97% (57/59 estimated plans across all milestones)
 
 ## Performance Metrics
 
@@ -102,6 +102,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (18-03): Include approved TRs in project expense totals alongside POs for complete cost picture
 - v2.2 (18-03): Separate aggregation queries for materials (non-subcon POs), subcon POs, and approved TRs
 - v2.2 (18-03): Scorecard layout for expense breakdown modal (budget/remaining + categories + total)
+- v2.2 (18-05): Save dynamic PO fields (payment_terms, condition, delivery_date) to Firestore before document generation for persistence
+- v2.2 (18-05): PO document shows only "Approved by" section (procurement team does not sign POs)
+- v2.2 (18-05): PR document shows only "Prepared by" as plain text (no signature images, no Approved by section)
 
 ### Pending Todos
 
@@ -128,7 +131,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-07 (Phase 18 execution and verification)
-Stopped at: Phase 18 complete - all 3 plans executed, 10/10 success criteria verified. Signature capture, PO/PR document attribution, project expense reporting with category breakdown delivered.
+Last session: 2026-02-08 (Phase 18 gap closure - plan 05)
+Stopped at: Completed 18-05-PLAN.md - PO/PR document layout fixes and dynamic PO fields. Plan 18-04 still pending.
 Resume file: None
-Next action: Plan Phase 19 (Navigation Consolidation)
+Next action: Execute 18-04-PLAN.md or proceed to Phase 19 (Navigation Consolidation)
