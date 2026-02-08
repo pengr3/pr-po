@@ -32,9 +32,14 @@
                 <a href="#/mrf-form" class="nav-link" data-route="mrf_form">Material Request</a>
                 <a href="#/procurement" class="nav-link" data-route="procurement">Procurement</a>
                 <a href="#/finance" class="nav-link" data-route="finance">Finance</a>
-                <a href="#/role-config" class="nav-link" data-route="role_config">Settings</a>
-                <a href="#/project-assignments" class="nav-link" data-route="role_config">Assignments</a>
-                <a href="#/user-management" class="nav-link" data-route="role_config">Users</a>
+                <div class="nav-dropdown" data-route="role_config">
+                    <button class="nav-link nav-dropdown-trigger" data-route="role_config" onclick="toggleAdminDropdown(event)">Admin</button>
+                    <div class="nav-dropdown-menu" id="adminDropdownMenu">
+                        <a href="#/admin" class="nav-dropdown-item" onclick="setAdminSection('users')">User Management</a>
+                        <a href="#/admin" class="nav-dropdown-item" onclick="setAdminSection('assignments')">Assignments</a>
+                        <a href="#/admin" class="nav-dropdown-item" onclick="setAdminSection('settings')">Settings</a>
+                    </div>
+                </div>
                 <button id="logoutBtn" class="nav-logout-btn" onclick="handleLogout()" style="display: none;">
                     Log Out
                 </button>
@@ -63,6 +68,46 @@
 
     <!-- Global Toast Notification -->
     <div id="toast" class="toast"></div>
+
+    <!-- Admin Dropdown Navigation -->
+    <script>
+        // Admin dropdown toggle
+        window.toggleAdminDropdown = function(event) {
+            event.stopPropagation();
+            var menu = document.getElementById('adminDropdownMenu');
+            menu.classList.toggle('open');
+        };
+
+        // Set admin section before navigation
+        window.setAdminSection = function(section) {
+            // Store desired section so admin.js can read it on init
+            window._pendingAdminSection = section;
+            var menu = document.getElementById('adminDropdownMenu');
+            if (menu) menu.classList.remove('open');
+
+            // If already on admin route, switch section directly
+            if (window.location.hash === '#/admin' || window.location.hash.indexOf('#/admin/') === 0) {
+                if (window.switchAdminSection) {
+                    window.switchAdminSection(section);
+                }
+            }
+            // Otherwise, navigation happens via href="#/admin"
+        };
+
+        // Close dropdown on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.nav-dropdown')) {
+                var menu = document.getElementById('adminDropdownMenu');
+                if (menu) menu.classList.remove('open');
+            }
+        });
+
+        // Close dropdown on navigation
+        window.addEventListener('hashchange', function() {
+            var menu = document.getElementById('adminDropdownMenu');
+            if (menu) menu.classList.remove('open');
+        });
+    </script>
 
     <!-- Load Firebase and Initialize App -->
     <script type="module">
