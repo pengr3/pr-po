@@ -86,6 +86,8 @@ function attachWindowFunctions() {
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
     window.generatePODocument = generatePODocument;
+    window.promptPODocument = promptPODocument;
+    window.generatePOWithFields = generatePOWithFields;
     window.viewPODocument = viewPODocument;
     window.downloadPODocument = downloadPODocument;
     window.generateAllPODocuments = generateAllPODocuments;
@@ -556,6 +558,8 @@ export async function destroy() {
     delete window.updatePOStatus;
     delete window.generatePRDocument;
     delete window.generatePODocument;
+    delete window.promptPODocument;
+    delete window.generatePOWithFields;
     delete window.viewPODocument;
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
@@ -3715,6 +3719,7 @@ function renderPOTrackingTable(pos) {
                 ` : `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${currentStatus}</span>`}
             </td>
             <td>
+                <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')" style="margin-right: 4px;">View PO</button>
                 <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
             </td>
         </tr>
@@ -4160,7 +4165,7 @@ async function viewPODetails(poId) {
             body: modalBodyContent,
             footer: `
                 <button class="btn btn-secondary" onclick="closeModal('poDetailsModal')">Close</button>
-                <button class="btn btn-primary" onclick="window.generatePODocument('${po.id}')">
+                <button class="btn btn-primary" onclick="window.promptPODocument('${po.id}')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -5024,6 +5029,102 @@ async function generatePODocument(poDocId) {
         showLoading(false);
     }
 };
+
+/**
+ * Prompt for PO document fields then generate document
+ * Shows a modal with input fields for payment terms, condition, and delivery date
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function promptPODocument(poDocId) {
+    // Fetch current PO data to pre-fill fields
+    try {
+        const poRef = doc(db, 'pos', poDocId);
+        const poDoc = await getDoc(poRef);
+        if (!poDoc.exists()) {
+            showToast('PO not found', 'error');
+            return;
+        }
+        const po = poDoc.data();
+
+        // Create prompt modal using the codebase's createModal pattern
+        let modalContainer = document.getElementById('poDocFieldsModalContainer');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'poDocFieldsModalContainer';
+            document.body.appendChild(modalContainer);
+        }
+
+        const modalBody = `
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Payment Terms</label>
+                    <input type="text" id="poDocPaymentTerms" value="${po.payment_terms || ''}" placeholder="e.g., 50% down payment, 50% upon delivery"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Condition</label>
+                    <input type="text" id="poDocCondition" value="${po.condition || ''}" placeholder="e.g., Items must meet quality standards"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Delivery Date</label>
+                    <input type="date" id="poDocDeliveryDate" value="${po.delivery_date || ''}"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+            </div>
+        `;
+
+        modalContainer.innerHTML = createModal({
+            id: 'poDocFieldsModal',
+            title: `PO Document Details: ${po.po_id}`,
+            body: modalBody,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('poDocFieldsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="generatePOWithFields('${poDocId}')">Generate PO Document</button>
+            `,
+            size: 'medium'
+        });
+
+        openModal('poDocFieldsModal');
+
+    } catch (error) {
+        console.error('Error loading PO for document prompt:', error);
+        showToast('Failed to load PO details', 'error');
+    }
+}
+
+/**
+ * Save PO document fields and generate the document
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function generatePOWithFields(poDocId) {
+    const paymentTerms = document.getElementById('poDocPaymentTerms')?.value?.trim() || '';
+    const condition = document.getElementById('poDocCondition')?.value?.trim() || '';
+    const deliveryDate = document.getElementById('poDocDeliveryDate')?.value || '';
+
+    try {
+        // Save fields to Firestore so they persist for future views
+        const updateData = {};
+        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        if (condition) updateData.condition = condition;
+        if (deliveryDate) updateData.delivery_date = deliveryDate;
+
+        if (Object.keys(updateData).length > 0) {
+            const poRef = doc(db, 'pos', poDocId);
+            await updateDoc(poRef, updateData);
+        }
+
+        // Close the fields modal
+        closeModal('poDocFieldsModal');
+
+        // Generate the document (it will re-read from Firestore with updated fields)
+        await generatePODocument(poDocId);
+
+    } catch (error) {
+        console.error('Error saving PO fields:', error);
+        showToast('Failed to save PO details', 'error');
+    }
+}
 
 /**
  * View PO Document (wrapper for generatePODocument)
