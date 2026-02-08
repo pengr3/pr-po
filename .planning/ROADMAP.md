@@ -246,12 +246,14 @@ Plans:
   8. Clicking project row opens expense breakdown modal
   9. Expense modal scorecards show: Project Budget, Remaining Budget, Material Purchases, Transport Fees, Subcon Cost, Total Project Cost
   10. All project expenses accurately accounted (materials, transport, delivery fees)
-**Plans**: 3 plans
+**Plans**: 5 plans (3 initial + 2 gap closure)
 
 Plans:
 - [x] 18-01-PLAN.md — Add signature capture to approval modals with user attribution
 - [x] 18-02-PLAN.md — Embed signatures and user names in PO/PR documents
 - [x] 18-03-PLAN.md — Project expense reporting with category breakdown and tab removal
+- [ ] 18-04-PLAN.md — Fix PR approval modal placement and remove TR signature capture
+- [ ] 18-05-PLAN.md — Fix PO/PR document layouts and add dynamic PO fields
 
 ### Phase 19: Navigation Consolidation
 **Goal**: Merge admin tabs into single navigation item for cleaner interface
@@ -290,5 +292,5 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 15. User Data & Permissions | v2.2 | 2/2 | Complete | 2026-02-06 |
 | 16. Project Detail Restructure | v2.2 | 1/1 | Complete | 2026-02-07 |
 | 17. Procurement Overhaul | v2.2 | 6/6 | Complete | 2026-02-07 |
-| 18. Finance Expense Reporting | v2.2 | 3/3 | Complete | 2026-02-07 |
+| 18. Finance Expense Reporting | v2.2 | 3/5 | Gap closure | 2026-02-07 |
 | 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
