@@ -266,10 +266,11 @@ Plans:
   3. All existing functionality preserved (no features lost)
   4. Navigation is cleaner and less cluttered
   5. Role-based visibility still enforced (only admins see Admin nav item)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: TBD
+- [ ] 19-01-PLAN.md — Create admin wrapper view and consolidate routing
+- [ ] 19-02-PLAN.md — Add admin dropdown nav and permission filtering
 
 ## Progress
 
@@ -295,4 +296,4 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19
 | 16. Project Detail Restructure | v2.2 | 1/1 | Complete | 2026-02-07 |
 | 17. Procurement Overhaul | v2.2 | 6/6 | Complete | 2026-02-07 |
 | 18. Finance Expense Reporting | v2.2 | 7/7 | Complete | 2026-02-08 |
-| 19. Navigation Consolidation | v2.2 | 0/0 | Not started | - |
+| 19. Navigation Consolidation | v2.2 | 0/2 | Not started | - |
