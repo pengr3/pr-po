@@ -10,21 +10,21 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 18 of 19 (Finance Workflow & Expense Reporting)
-Plan: 7 of 7 in phase (including gap closure plans 04, 05, 06, and 07)
-Status: Phase complete (all UAT gaps closed, Finance View PO added)
-Last activity: 2026-02-08 - Completed 18-07-PLAN.md: PO document generation in finance.js, View PO button
+Phase: 19 of 19 (Navigation Consolidation)
+Plan: 1 of 2 in phase
+Status: In progress
+Last activity: 2026-02-08 - Completed 19-01-PLAN.md: Admin wrapper view and router consolidation
 
-Progress: [██████████████████████████████████████████████████] 98% (51/52 estimated plans across all milestones)
+Progress: [██████████████████████████████████████████████████] 99% (52/53 estimated plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 15 plans)
+- Total plans completed: 52 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 16 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 15 plans completed (in progress)
+- v2.2 milestone: 16 plans completed (in progress)
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 5 | 15 | 3 days | 0.20 days |
+| v2.2 Enhancements | 6 | 16 | 3 days | 0.19 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -113,6 +113,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (18-06): PR document single inline Prepared by text, duplicate section with underline removed
 - v2.2 (18-07): Duplicate PO document functions from procurement.js to finance.js for independent view access (duplication over shared module)
 - v2.2 (18-07): Finance "View PO" button replaces broken "View in Procurement" link for direct PO document generation
+- v2.2 (19-01): Admin wrapper view pattern: parent view manages lifecycle of child views via dynamic import and internal section switching
+- v2.2 (19-01): No hash changes during admin section switching (stays #/admin always, sections managed internally)
+- v2.2 (19-01): _pendingAdminSection coordination: dropdown sets window global before navigation, wrapper reads and clears in init()
 
 ### Pending Todos
 
@@ -139,8 +142,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ## Session Continuity
 
-Last session: 2026-02-08 (Phase 18 gap closure complete, all 7 plans executed, 16/16 verified)
-Stopped at: Phase 18 complete - all gap closure plans (06-07) executed and verified. Skip-prompt logic, editable PO details, document cosmetics, Finance View PO all working.
+Last session: 2026-02-08 (Phase 19 Plan 01 complete: admin wrapper view and router consolidation)
+Stopped at: Completed 19-01-PLAN.md - admin.js wrapper created, router consolidated to single /admin route
 Resume file: None
-Next action: Plan Phase 19 (Navigation Consolidation)
-Next action: Plan Phase 19 (Navigation Consolidation) or final UAT
+Next action: Execute 19-02-PLAN.md (dropdown nav, CSS, auth.js updates)
