@@ -5,7 +5,6 @@
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
-import { createModal, openModal, closeModal } from '../components.js';
 
 // View state
 let listeners = [];
@@ -51,7 +50,6 @@ function attachWindowFunctions() {
     // PO Functions
     window.refreshPOs = refreshPOs;
     window.promptPODocument = promptPODocument;
-    window.generatePOWithFields = generatePOWithFields;
     window.generatePODocument = generatePODocument;
 
     // Project Expense Functions
@@ -328,16 +326,11 @@ function generatePOHTML(data) {
                     font-size: 10pt;
                 }
                 .signature-section {
-                    margin-top: 3rem;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-end;
-                    padding: 0 2rem;
+                    margin-top: 2rem;
                     page-break-inside: avoid;
                 }
                 .signature-box {
-                    text-align: center;
-                    min-width: 200px;
+                    text-align: left;
                 }
                 .signature-box p {
                     margin: 0.25rem 0;
@@ -354,18 +347,16 @@ function generatePOHTML(data) {
                     max-height: 60px;
                     margin-bottom: 0.5rem;
                     display: block;
-                    margin-left: auto;
-                    margin-right: auto;
                 }
                 .sig-line {
                     border-top: 1px solid #000;
                     width: 200px;
-                    margin: 0.5rem auto 0.25rem auto;
+                    margin: 0.5rem 0 0.25rem 0;
                 }
                 .sig-placeholder {
                     height: 60px;
                     width: 200px;
-                    margin: 0 auto 0.5rem auto;
+                    margin: 0 0 0.5rem 0;
                 }
             </style>
         </head>
@@ -405,7 +396,7 @@ function generatePOHTML(data) {
                     <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
                 </div>
 
-                <div class="signature-section" style="justify-content: flex-start;">
+                <div class="signature-section">
                     <div class="signature-box">
                         <p class="sig-label">Approved by:</p>
                         ${data.FINANCE_SIGNATURE_URL ? `
@@ -517,106 +508,12 @@ async function generatePODocument(poDocId) {
 }
 
 /**
- * Prompt for PO document fields then generate document
- * Shows a modal with input fields for payment terms, condition, and delivery date
+ * View PO document from Finance view
+ * Generates document directly - Finance users view only, Procurement manages document details
  * @param {string} poDocId - Firestore document ID of the PO
  */
 async function promptPODocument(poDocId) {
-    // Fetch current PO data to pre-fill fields
-    try {
-        const poRef = doc(db, 'pos', poDocId);
-        const poDoc = await getDoc(poRef);
-        if (!poDoc.exists()) {
-            showToast('PO not found', 'error');
-            return;
-        }
-        const po = poDoc.data();
-
-        // If all three document fields already exist, skip prompt and generate directly
-        if (po.payment_terms && po.condition && po.delivery_date) {
-            console.log('[Finance] All PO document fields present - generating directly');
-            await generatePODocument(poDocId);
-            return;
-        }
-
-        // Create prompt modal using the codebase's createModal pattern
-        let modalContainer = document.getElementById('poDocFieldsModalContainer');
-        if (!modalContainer) {
-            modalContainer = document.createElement('div');
-            modalContainer.id = 'poDocFieldsModalContainer';
-            document.body.appendChild(modalContainer);
-        }
-
-        const modalBody = `
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Payment Terms</label>
-                    <input type="text" id="poDocPaymentTerms" value="${po.payment_terms || ''}" placeholder="e.g., 50% down payment, 50% upon delivery"
-                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Condition</label>
-                    <input type="text" id="poDocCondition" value="${po.condition || ''}" placeholder="e.g., Items must meet quality standards"
-                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
-                </div>
-                <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Delivery Date</label>
-                    <input type="date" id="poDocDeliveryDate" value="${po.delivery_date || ''}"
-                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
-                </div>
-            </div>
-        `;
-
-        modalContainer.innerHTML = createModal({
-            id: 'poDocFieldsModal',
-            title: `PO Document Details: ${po.po_id}`,
-            body: modalBody,
-            footer: `
-                <button class="btn btn-secondary" onclick="closeModal('poDocFieldsModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="generatePOWithFields('${poDocId}')">Generate PO Document</button>
-            `,
-            size: 'medium'
-        });
-
-        openModal('poDocFieldsModal');
-
-    } catch (error) {
-        console.error('[Finance] Error loading PO for document prompt:', error);
-        showToast('Failed to load PO details', 'error');
-    }
-}
-
-/**
- * Save PO document fields and generate the document
- * @param {string} poDocId - Firestore document ID of the PO
- */
-async function generatePOWithFields(poDocId) {
-    const paymentTerms = document.getElementById('poDocPaymentTerms')?.value?.trim() || '';
-    const condition = document.getElementById('poDocCondition')?.value?.trim() || '';
-    const deliveryDate = document.getElementById('poDocDeliveryDate')?.value || '';
-
-    try {
-        // Save fields to Firestore so they persist for future views
-        const updateData = {};
-        if (paymentTerms) updateData.payment_terms = paymentTerms;
-        if (condition) updateData.condition = condition;
-        if (deliveryDate) updateData.delivery_date = deliveryDate;
-
-        if (Object.keys(updateData).length > 0) {
-            const poRef = doc(db, 'pos', poDocId);
-            await updateDoc(poRef, updateData);
-        }
-
-        // Close the fields modal
-        closeModal('poDocFieldsModal');
-
-        // Generate the document (it will re-read from Firestore with updated fields)
-        await generatePODocument(poDocId);
-
-    } catch (error) {
-        console.error('[Finance] Error saving PO fields:', error);
-        showToast('Failed to save PO details', 'error');
-    }
+    await generatePODocument(poDocId);
 }
 
 /**
@@ -1218,7 +1115,6 @@ export async function destroy() {
     delete window.submitRejection;
     delete window.refreshPOs;
     delete window.promptPODocument;
-    delete window.generatePOWithFields;
     delete window.generatePODocument;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;

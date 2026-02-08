@@ -4619,6 +4619,9 @@ function generatePRHTML(data) {
                     <div style="margin: 8px 0;">
                         <span style="font-weight: bold; display: inline-block; width: 150px;">Requested By:</span> ${data.REQUESTOR}
                     </div>
+                    <div style="margin: 8px 0;">
+                        <span style="font-weight: bold; display: inline-block; width: 150px;">Prepared by:</span> ${data.PREPARED_BY}
+                    </div>
                 </div>
             </div>
         </body>
@@ -4739,16 +4742,11 @@ function generatePOHTML(data) {
                     font-size: 10pt;
                 }
                 .signature-section {
-                    margin-top: 3rem;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-end;
-                    padding: 0 2rem;
+                    margin-top: 2rem;
                     page-break-inside: avoid;
                 }
                 .signature-box {
-                    text-align: center;
-                    min-width: 200px;
+                    text-align: left;
                 }
                 .signature-box p {
                     margin: 0.25rem 0;
@@ -4765,18 +4763,16 @@ function generatePOHTML(data) {
                     max-height: 60px;
                     margin-bottom: 0.5rem;
                     display: block;
-                    margin-left: auto;
-                    margin-right: auto;
                 }
                 .sig-line {
                     border-top: 1px solid #000;
                     width: 200px;
-                    margin: 0.5rem auto 0.25rem auto;
+                    margin: 0.5rem 0 0.25rem 0;
                 }
                 .sig-placeholder {
                     height: 60px;
                     width: 200px;
-                    margin: 0 auto 0.5rem auto;
+                    margin: 0 0 0.5rem 0;
                 }
             </style>
         </head>
@@ -4816,7 +4812,7 @@ function generatePOHTML(data) {
                     <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
                 </div>
 
-                <div class="signature-section" style="justify-content: flex-start;">
+                <div class="signature-section">
                     <div class="signature-box">
                         <p class="sig-label">Approved by:</p>
                         ${data.FINANCE_SIGNATURE_URL ? `
