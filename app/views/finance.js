@@ -1172,28 +1172,12 @@ async function viewTRDetails(trId) {
 
         const footer = document.getElementById('prModalFooter');
         footer.innerHTML = `
-            ${showEditControls ? `
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">
-                    Finance Signature <span style="color: #ef4444;">*</span>
-                </label>
-                <canvas id="approvalSignatureCanvas"
-                        style="border: 1.5px solid #e2e8f0; border-radius: 8px; background: white;
-                               width: 100%; max-width: 400px; height: 150px; cursor: crosshair; display: block;">
-                </canvas>
-                <button class="btn btn-secondary"
-                        onclick="window.clearApprovalSignature()"
-                        style="margin-top: 0.5rem; font-size: 0.875rem; padding: 0.5rem 1rem;">
-                    Clear Signature
-                </button>
-            </div>
-            ` : ''}
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                 ${showEditControls ? `
                     <button class="btn btn-danger" onclick="window.rejectPR('${tr.id}')">
                         Reject
                     </button>
-                    <button class="btn btn-primary" onclick="window.approveTRWithSignature('${tr.id}')">
+                    <button class="btn btn-primary" onclick="window.approveTR('${tr.id}')">
                         Approve Transport Request
                     </button>
                 ` : ''}
@@ -1202,13 +1186,6 @@ async function viewTRDetails(trId) {
         `;
 
         document.getElementById('prModal').classList.add('active');
-
-        // Initialize signature pad after DOM update
-        if (showEditControls) {
-            requestAnimationFrame(() => {
-                approvalSignaturePad = initializeApprovalSignaturePad();
-            });
-        }
 
     } catch (error) {
         console.error('Error loading TR details:', error);
@@ -1508,81 +1485,6 @@ async function approveTR(trId) {
         currentPRForApproval = null;
     }
 };
-
-/**
- * Approve TR with signature validation and user attribution
- * Stores signature in TR document
- */
-async function approveTRWithSignature(trId) {
-    if (window.canEditTab?.('finance') === false) {
-        showToast('You do not have permission to approve transport requests', 'error');
-        return;
-    }
-
-    const currentUser = window.getCurrentUser();
-    if (!currentUser) {
-        showToast('Session expired. Please log in again.', 'error');
-        return;
-    }
-
-    // Validate signature exists
-    if (!approvalSignaturePad || approvalSignaturePad.isEmpty()) {
-        showToast('Please provide your signature before approving', 'error');
-        return;
-    }
-
-    // Export signature as base64 PNG
-    const signatureDataURL = approvalSignaturePad.toDataURL('image/png');
-
-    showLoading(true);
-
-    try {
-        // Get TR document
-        const trRef = doc(db, 'transport_requests', trId);
-        const trDoc = await getDoc(trRef);
-
-        if (!trDoc.exists()) {
-            throw new Error('Transport Request not found');
-        }
-
-        const tr = trDoc.data();
-
-        // Update TR status with finance approver attribution and signature
-        await updateDoc(trRef, {
-            finance_status: 'Approved',
-            finance_approver_user_id: currentUser.uid,
-            finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
-            finance_signature_url: signatureDataURL,
-            finance_approved_at: serverTimestamp(),
-            date_approved: new Date().toISOString().split('T')[0] // Legacy compatibility
-        });
-
-        // Update MRF status
-        const mrfsRef = collection(db, 'mrfs');
-        const mrfQuery = query(mrfsRef, where('mrf_id', '==', tr.mrf_id));
-        const mrfSnapshot = await getDocs(mrfQuery);
-
-        if (!mrfSnapshot.empty) {
-            const mrfDoc = mrfSnapshot.docs[0];
-            await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                status: 'Finance Approved',
-                updated_at: new Date().toISOString()
-            });
-        }
-
-        showToast('Transport Request approved successfully!', 'success');
-
-        // Refresh and close modal - STAY on approvals tab
-        await refreshPRs();
-        closePRModal();
-
-    } catch (error) {
-        console.error('[Finance] Error approving TR:', error);
-        showToast('Failed to approve TR: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
 
 /**
  * Show approval modal with signature canvas
