@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 18-finance-workflow-&-expense-reporting
 source: [18-01-SUMMARY.md, 18-02-SUMMARY.md, 18-03-SUMMARY.md]
 started: 2026-02-07T14:00:00Z
@@ -78,37 +78,74 @@ skipped: 3
   reason: "User reported: Signature canvas should NOT be in the review modal. When user clicks 'Approve & Generate PO', a NEW separate approval modal should appear where the user draws their signature."
   severity: major
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Signature canvas is embedded directly in prModal footer (viewPRDetails lines 1006-1034) instead of a separate approval modal. The rejection workflow correctly uses a separate rejectionModal (rejectPR lines 1594-1610) but the approval workflow does not follow this pattern."
+  artifacts:
+    - path: "app/views/finance.js"
+      issue: "viewPRDetails() lines 1006-1034 embed signature canvas in prModal footer"
+    - path: "app/views/finance.js"
+      issue: "No approvalModal defined in render() lines 282-322"
+  missing:
+    - "Add approvalModal to render() function (follow rejectionModal pattern)"
+    - "Remove signature canvas from viewPRDetails() footer"
+    - "Approve button should close prModal and open approvalModal"
+    - "Initialize signature pad in new modal"
+  debug_session: ".planning/debug/18-signature-modal-placement.md"
 
 - truth: "TR approval has no signature capture, just simple approve/reject buttons"
   status: failed
   reason: "User reported: TR approval should NOT have signature capture. Just a simple approval modal with approve/reject buttons. Signature is only needed for PR approval (which generates POs)."
   severity: major
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "viewTRDetails() (lines 1160-1188) was given identical signature canvas markup as PR modal during Phase 18-02. TR approval doesn't generate POs so signatures are unnecessary. Original simple approveTR() function (lines 1442-1496) still exists and is the correct handler."
+  artifacts:
+    - path: "app/views/finance.js"
+      issue: "viewTRDetails() lines 1161-1176 contain signature canvas HTML"
+    - path: "app/views/finance.js"
+      issue: "approveTRWithSignature() lines 1502-1571 is unnecessary"
+  missing:
+    - "Remove signature canvas from viewTRDetails() footer"
+    - "Change approve button to call approveTR() instead of approveTRWithSignature()"
+    - "Remove approveTRWithSignature() function"
+    - "Remove window.approveTRWithSignature from attachWindowFunctions and destroy"
+  debug_session: ".planning/debug/18-tr-signature-removal.md"
 
 - truth: "PO document has only 'Approved by' section with signature; PR document has only 'Prepared by' section without signature; Payment Terms/Condition/Delivery Date are dynamic fields"
   status: failed
   reason: "User reported: Multiple issues: (1) PO document cannot be accessed from Purchase Orders tab. (2) PO document should only have 'Approved by' section - no 'Prepared by' needed. (3) PR document should only have 'Prepared by' section (by procurement) - no 'Approved by' needed. (4) Payment Terms, Condition, Delivery Date are hardcoded but these should be dynamic fields asked from procurement/finance as they vary per document and supplier."
   severity: major
   test: 6
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Four issues: (1) renderPOTrackingTable() lines 3701-3720 has no direct 'View PO Document' button - only accessible via PO ID click -> modal -> View PO (two steps). (2) generatePOHTML() lines 4855-4860 has unnecessary 'Prepared by' box. (3) generatePRHTML() lines 4645-4655 has unnecessary 'Approved by' box. (4) generatePODocument() lines 5004-5006 hardcodes payment_terms, condition, delivery_date with no UI to set them."
+  artifacts:
+    - path: "app/views/procurement.js"
+      issue: "renderPOTrackingTable() lines 3701-3720 missing View PO Document button"
+    - path: "app/views/procurement.js"
+      issue: "generatePOHTML() lines 4855-4860 has unnecessary 'Prepared by' section"
+    - path: "app/views/procurement.js"
+      issue: "generatePRHTML() lines 4645-4655 has unnecessary 'Approved by' section"
+    - path: "app/views/procurement.js"
+      issue: "generatePODocument() lines 5004-5006 hardcoded payment terms/condition/delivery date"
+  missing:
+    - "Add 'View PO' button to PO Tracking table actions column"
+    - "Remove 'Prepared by' signature box from PO document template"
+    - "Remove 'Approved by' signature box from PR document template"
+    - "Add UI for payment terms, condition, delivery date before PO document generation"
+  debug_session: ".planning/debug/18-document-layout.md"
 
 - truth: "PR document shows only 'Prepared by' with creator name, no signature image, no 'Approved by' section"
   status: failed
   reason: "User reported: PR documents should NOT have signature capture at all. Only need the name auto-filled from the account details of the user who generated the PR. Signatures are only for PO documents (finance approval). PR just needs 'Prepared by' with the creator's name - no signature image, no 'Approved by' section."
   severity: major
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "generatePRHTML() (lines 4430-4662) was implemented with same dual-signature layout as PO template. CSS for signatures (lines 4543-4591), 'Approved by' box (lines 4645-4655), and unnecessary data fields FINANCE_PIC/FINANCE_SIGNATURE_URL/DATE_APPROVED/IS_APPROVED (lines 4953-4956) all need removal. PR header already correctly shows 'Prepared by' at line 4614."
+  artifacts:
+    - path: "app/views/procurement.js"
+      issue: "generatePRHTML() lines 4543-4591 has unnecessary signature CSS"
+    - path: "app/views/procurement.js"
+      issue: "generatePRHTML() lines 4632-4657 has full signature section that should be text-only"
+    - path: "app/views/procurement.js"
+      issue: "generatePRDocument() lines 4953-4956 passes unnecessary signature data fields"
+  missing:
+    - "Remove signature CSS from PR template"
+    - "Replace signature section with simple 'Prepared by' text"
+    - "Remove FINANCE_PIC, FINANCE_SIGNATURE_URL, DATE_APPROVED, IS_APPROVED from PR data assembly"
+  debug_session: ".planning/debug/18-pr-signature-removal.md"
