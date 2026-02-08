@@ -4545,55 +4545,6 @@ function generatePRHTML(data) {
                     margin: 15px 0;
                     text-align: right;
                 }
-                .signatures {
-                    margin-top: 40px;
-                    page-break-inside: avoid;
-                }
-                .signature-row {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-top: 30px;
-                    page-break-inside: avoid;
-                }
-                .signature-box {
-                    text-align: center;
-                    min-width: 200px;
-                    flex: 0 0 auto;
-                }
-                .signature-box p {
-                    margin: 0.25rem 0;
-                    font-size: 0.875rem;
-                }
-                .signature-box .sig-label {
-                    font-weight: bold;
-                    font-size: 10pt;
-                    margin-bottom: 0.5rem;
-                }
-                .signature-box img {
-                    max-width: 200px;
-                    height: auto;
-                    max-height: 60px;
-                    margin-bottom: 0.5rem;
-                    display: block;
-                    margin-left: auto;
-                    margin-right: auto;
-                }
-                .signature-box .sig-line {
-                    border-top: 1px solid #000;
-                    width: 200px;
-                    margin: 0.5rem auto 0.25rem auto;
-                }
-                .signature-box .sig-placeholder {
-                    height: 60px;
-                    width: 200px;
-                    margin: 0 auto 0.5rem auto;
-                }
-                .signature-line {
-                    margin: 25px 0;
-                }
-                .signature-line .label {
-                    width: 120px;
-                }
             </style>
         </head>
         <body>
@@ -4634,29 +4585,15 @@ function generatePRHTML(data) {
                     TOTAL AMOUNT: ₱${data.TOTAL_COST}
                 </div>
 
-                <div class="signatures">
-                    <div class="signature-line">
-                        <span class="label">Requested By:</span> ${data.REQUESTOR}
+                <div style="margin-top: 40px; page-break-inside: avoid;">
+                    <div style="margin: 8px 0;">
+                        <span style="font-weight: bold; display: inline-block; width: 150px;">Requested By:</span> ${data.REQUESTOR}
                     </div>
-
-                    <div class="signature-row">
-                        <div class="signature-box">
-                            <p class="sig-label">Prepared by:</p>
-                            <div class="sig-placeholder"></div>
-                            <div class="sig-line"></div>
-                            <p>${data.PREPARED_BY}</p>
-                        </div>
-
-                        <div class="signature-box">
-                            <p class="sig-label">Approved by:</p>
-                            ${data.IS_APPROVED && data.FINANCE_SIGNATURE_URL ? `
-                                <img src="${data.FINANCE_SIGNATURE_URL}" alt="Finance Signature">
-                            ` : `
-                                <div class="sig-placeholder"></div>
-                            `}
-                            <div class="sig-line"></div>
-                            <p>${data.IS_APPROVED ? data.FINANCE_PIC : '_______________________________'}</p>
-                            ${data.IS_APPROVED ? `<p style="font-size: 9pt; color: #666;">Date: ${data.DATE_APPROVED}</p>` : ''}
+                    <div style="margin-top: 30px;">
+                        <div style="text-align: left; min-width: 200px; display: inline-block;">
+                            <p style="font-weight: bold; font-size: 10pt; margin-bottom: 0.5rem;">Prepared by:</p>
+                            <div style="border-top: 1px solid #000; width: 200px; margin: 0.5rem 0 0.25rem 0;"></div>
+                            <p style="margin: 0.25rem 0; font-size: 0.875rem;">${data.PREPARED_BY}</p>
                         </div>
                     </div>
                 </div>
@@ -4856,14 +4793,7 @@ function generatePOHTML(data) {
                     <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
                 </div>
 
-                <div class="signature-section">
-                    <div class="signature-box">
-                        <p class="sig-label">Prepared by:</p>
-                        <div class="sig-placeholder"></div>
-                        <div class="sig-line"></div>
-                        <p>${data.PROCUREMENT_PIC}</p>
-                    </div>
-
+                <div class="signature-section" style="justify-content: flex-end;">
                     <div class="signature-box">
                         <p class="sig-label">Approved by:</p>
                         ${data.FINANCE_SIGNATURE_URL ? `
@@ -4954,11 +4884,6 @@ async function generatePRDocument(prDocId) {
             TOTAL_COST: formatCurrency(pr.total_amount),
             REQUESTOR: pr.requestor_name,
             PREPARED_BY: pr.pr_creator_name || pr.procurement_pic || 'Procurement Team',
-            PROCUREMENT_PIC: pr.procurement_pic || 'Procurement Team',
-            FINANCE_PIC: pr.finance_approver_name || pr.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
-            FINANCE_SIGNATURE_URL: pr.finance_signature_url || '',
-            DATE_APPROVED: pr.date_approved ? formatDocumentDate(pr.date_approved) : 'Pending',
-            IS_APPROVED: pr.finance_status === 'Approved' || pr.date_approved,
             company_info: DOCUMENT_CONFIG.companyInfo
         };
 
@@ -5011,7 +4936,6 @@ async function generatePODocument(poDocId) {
             DELIVERY_DATE: formatDocumentDate(po.delivery_date || 'TBD'),
             FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
             FINANCE_SIGNATURE_URL: po.finance_signature_url || '',
-            PROCUREMENT_PIC: po.procurement_pic || 'Procurement Team',
             company_info: DOCUMENT_CONFIG.companyInfo
         };
 
