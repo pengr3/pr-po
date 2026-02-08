@@ -4619,13 +4619,6 @@ function generatePRHTML(data) {
                     <div style="margin: 8px 0;">
                         <span style="font-weight: bold; display: inline-block; width: 150px;">Requested By:</span> ${data.REQUESTOR}
                     </div>
-                    <div style="margin-top: 30px;">
-                        <div style="text-align: left; min-width: 200px; display: inline-block;">
-                            <p style="font-weight: bold; font-size: 10pt; margin-bottom: 0.5rem;">Prepared by:</p>
-                            <div style="border-top: 1px solid #000; width: 200px; margin: 0.5rem 0 0.25rem 0;"></div>
-                            <p style="margin: 0.25rem 0; font-size: 0.875rem;">${data.PREPARED_BY}</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </body>
@@ -4823,7 +4816,7 @@ function generatePOHTML(data) {
                     <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
                 </div>
 
-                <div class="signature-section" style="justify-content: flex-end;">
+                <div class="signature-section" style="justify-content: flex-start;">
                     <div class="signature-box">
                         <p class="sig-label">Approved by:</p>
                         ${data.FINANCE_SIGNATURE_URL ? `
