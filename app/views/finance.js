@@ -5,6 +5,7 @@
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
+import { createModal, openModal, closeModal } from '../components.js';
 
 // View state
 let listeners = [];
@@ -49,6 +50,9 @@ function attachWindowFunctions() {
 
     // PO Functions
     window.refreshPOs = refreshPOs;
+    window.promptPODocument = promptPODocument;
+    window.generatePOWithFields = generatePOWithFields;
+    window.generatePODocument = generatePODocument;
 
     // Project Expense Functions
     window.refreshProjectExpenses = refreshProjectExpenses;
@@ -142,6 +146,476 @@ function initializeApprovalSignaturePad() {
 function clearApprovalSignature() {
     if (approvalSignaturePad) {
         approvalSignaturePad.clear();
+    }
+}
+
+// ========================================
+// PO DOCUMENT GENERATION (Finance View)
+// Duplicated from procurement.js for
+// independent finance access
+// ========================================
+
+const DOCUMENT_CONFIG = {
+    defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
+    companyInfo: {
+        name: 'C. Lacsamana Management and Construction Corporation',
+        address: '133 Pinatubo St. City of Mandaluyong City',
+        tel: '09178182993',
+        email: 'cgl@consultclm.com',
+        logo: '/CLMC Registered Logo Cropped (black fill).png'
+    }
+};
+
+/**
+ * Generate HTML table for items
+ * @param {Array} items - Array of item objects
+ * @param {string} type - 'PR' or 'PO'
+ * @returns {string} - HTML table string
+ */
+function generateItemsTableHTML(items, type) {
+    let tableHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">No.</th>
+                    <th style="width: 25%;">Description</th>
+                    ${type === 'PR' ? '<th style="width: 15%;">Category</th>' : ''}
+                    <th style="width: 10%;">Qty</th>
+                    <th style="width: 10%;">Unit</th>
+                    <th style="width: 15%;">Unit Cost</th>
+                    <th style="width: 15%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    items.forEach((item, index) => {
+        const qty = item.qty || item.quantity || 0;
+        const unitCost = parseFloat(item.unit_cost || 0);
+        const subtotal = qty * unitCost;
+
+        tableHTML += `
+            <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td>${item.item || item.item_name}</td>
+                ${type === 'PR' ? `<td>${item.category || 'N/A'}</td>` : ''}
+                <td style="text-align: center;">${qty}</td>
+                <td>${item.unit}</td>
+                <td style="text-align: right;">₱${formatCurrency(unitCost)}</td>
+                <td style="text-align: right;">₱${formatCurrency(subtotal)}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    return tableHTML;
+}
+
+/**
+ * Generate PO HTML document
+ * @param {Object} data - Document data with all placeholders
+ * @returns {string} - Complete HTML document
+ */
+function generatePOHTML(data) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>${data.PO_ID} - Purchase Order</title>
+            <style>
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.4;
+                    color: #000;
+                    max-width: 8.5in;
+                    margin: 0 auto;
+                }
+                .header {
+                    background-color: #000;
+                    color: #fff;
+                    padding: 15px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
+                }
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 22px;
+                }
+                .header-logo {
+                    width: 70px;
+                    height: 70px;
+                    object-fit: contain;
+                }
+                .header-company {
+                    font-size: 16pt;
+                    font-weight: bold;
+                    max-width: 320px;
+                    line-height: 1.3;
+                }
+                .header-right {
+                    text-align: right;
+                    font-size: 8pt;
+                    line-height: 1.6;
+                }
+                .content {
+                    padding: 25px 30px;
+                    margin: 0 0.5in 0.5in 0.5in;
+                }
+                .title {
+                    text-align: center;
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin: 20px 0;
+                    text-decoration: underline;
+                }
+                .section {
+                    margin: 15px 0;
+                }
+                .field {
+                    margin: 8px 0;
+                    page-break-inside: avoid;
+                }
+                .label {
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 150px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 15px 0;
+                    page-break-inside: avoid;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                td {
+                    font-size: 10pt;
+                }
+                .signature-section {
+                    margin-top: 3rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    padding: 0 2rem;
+                    page-break-inside: avoid;
+                }
+                .signature-box {
+                    text-align: center;
+                    min-width: 200px;
+                }
+                .signature-box p {
+                    margin: 0.25rem 0;
+                    font-size: 0.875rem;
+                }
+                .signature-box .sig-label {
+                    font-weight: bold;
+                    font-size: 10pt;
+                    margin-bottom: 0.5rem;
+                }
+                .signature-box img {
+                    max-width: 200px;
+                    height: auto;
+                    max-height: 60px;
+                    margin-bottom: 0.5rem;
+                    display: block;
+                    margin-left: auto;
+                    margin-right: auto;
+                }
+                .sig-line {
+                    border-top: 1px solid #000;
+                    width: 200px;
+                    margin: 0.5rem auto 0.25rem auto;
+                }
+                .sig-placeholder {
+                    height: 60px;
+                    width: 200px;
+                    margin: 0 auto 0.5rem auto;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="header-left">
+                    <img src="${data.company_info.logo}" class="header-logo" alt="Logo">
+                    <div class="header-company">${data.company_info.name}</div>
+                </div>
+                <div class="header-right">
+                    <div>${data.company_info.address}</div>
+                    <div>Tel: ${data.company_info.tel}</div>
+                    <div>Email: ${data.company_info.email}</div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="title">PURCHASE ORDER</div>
+
+                <div class="section">
+                    <div class="field"><span class="label">P.O. No.:</span> ${data.PO_ID}</div>
+                    <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                    <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                    <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+                    <div class="field"><span class="label">Quote Ref:</span> ${data.QUOTE_REF}</div>
+                </div>
+
+                <div class="section">
+                    <h3 style="margin: 10px 0;">Order Details:</h3>
+                    ${data.ITEMS_TABLE}
+                </div>
+
+                <div class="section">
+                    <div class="field"><span class="label">Delivery Address:</span> ${data.DELIVERY_ADDRESS}</div>
+                    <div class="field"><span class="label">Payment Terms:</span> ${data.PAYMENT_TERMS}</div>
+                    <div class="field"><span class="label">Condition:</span> ${data.CONDITION}</div>
+                    <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
+                </div>
+
+                <div class="signature-section" style="justify-content: flex-start;">
+                    <div class="signature-box">
+                        <p class="sig-label">Approved by:</p>
+                        ${data.FINANCE_SIGNATURE_URL ? `
+                            <img src="${data.FINANCE_SIGNATURE_URL}" alt="Finance Signature">
+                        ` : `
+                            <div class="sig-placeholder"></div>
+                        `}
+                        <div class="sig-line"></div>
+                        <p>${data.FINANCE_APPROVER}</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+/**
+ * Open print window with generated HTML
+ * @param {string} html - Complete HTML document
+ * @param {string} filename - Suggested filename
+ */
+function openPrintWindow(html, filename) {
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+        alert('Please allow pop-ups to generate PDF documents');
+        return;
+    }
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    // Wait for content to load, then trigger print
+    printWindow.onload = function() {
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
+}
+
+/**
+ * Format date for documents
+ * @param {string} dateString - ISO date string
+ * @returns {string} - Formatted date
+ */
+function formatDocumentDate(dateString) {
+    if (!dateString || dateString === 'TBD' || dateString === 'Pending') {
+        return dateString;
+    }
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+/**
+ * Generate PO Document
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function generatePODocument(poDocId) {
+    console.log('[Finance] Generating PO document for:', poDocId);
+    showLoading(true);
+
+    try {
+        // Fetch PO data from Firestore
+        const poRef = doc(db, 'pos', poDocId);
+        const poDoc = await getDoc(poRef);
+
+        if (!poDoc.exists()) {
+            throw new Error('PO not found');
+        }
+
+        const po = poDoc.data();
+        const items = JSON.parse(po.items_json || '[]');
+
+        // Prepare document data
+        const documentData = {
+            PO_ID: po.po_id,
+            PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
+            DATE: formatDocumentDate(po.date_issued || new Date().toISOString()),
+            SUPPLIER: po.supplier_name,
+            QUOTE_REF: po.quote_ref || 'N/A',
+            ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
+            DELIVERY_ADDRESS: po.delivery_address,
+            PAYMENT_TERMS: po.payment_terms || 'As per agreement',
+            CONDITION: po.condition || 'Standard terms apply',
+            DELIVERY_DATE: formatDocumentDate(po.delivery_date || 'TBD'),
+            FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            FINANCE_SIGNATURE_URL: po.finance_signature_url || '',
+            company_info: DOCUMENT_CONFIG.companyInfo
+        };
+
+        // Generate HTML and open in print window
+        const html = generatePOHTML(documentData);
+        openPrintWindow(html, documentData.PO_ID);
+
+        showToast('PO document opened. Use browser Print -> Save as PDF', 'success');
+
+    } catch (error) {
+        console.error('[Finance] Error generating PO document:', error);
+        showToast('Failed to generate PO document', 'error');
+        throw error;
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Prompt for PO document fields then generate document
+ * Shows a modal with input fields for payment terms, condition, and delivery date
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function promptPODocument(poDocId) {
+    // Fetch current PO data to pre-fill fields
+    try {
+        const poRef = doc(db, 'pos', poDocId);
+        const poDoc = await getDoc(poRef);
+        if (!poDoc.exists()) {
+            showToast('PO not found', 'error');
+            return;
+        }
+        const po = poDoc.data();
+
+        // If all three document fields already exist, skip prompt and generate directly
+        if (po.payment_terms && po.condition && po.delivery_date) {
+            console.log('[Finance] All PO document fields present - generating directly');
+            await generatePODocument(poDocId);
+            return;
+        }
+
+        // Create prompt modal using the codebase's createModal pattern
+        let modalContainer = document.getElementById('poDocFieldsModalContainer');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'poDocFieldsModalContainer';
+            document.body.appendChild(modalContainer);
+        }
+
+        const modalBody = `
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Payment Terms</label>
+                    <input type="text" id="poDocPaymentTerms" value="${po.payment_terms || ''}" placeholder="e.g., 50% down payment, 50% upon delivery"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Condition</label>
+                    <input type="text" id="poDocCondition" value="${po.condition || ''}" placeholder="e.g., Items must meet quality standards"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Delivery Date</label>
+                    <input type="date" id="poDocDeliveryDate" value="${po.delivery_date || ''}"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+            </div>
+        `;
+
+        modalContainer.innerHTML = createModal({
+            id: 'poDocFieldsModal',
+            title: `PO Document Details: ${po.po_id}`,
+            body: modalBody,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('poDocFieldsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="generatePOWithFields('${poDocId}')">Generate PO Document</button>
+            `,
+            size: 'medium'
+        });
+
+        openModal('poDocFieldsModal');
+
+    } catch (error) {
+        console.error('[Finance] Error loading PO for document prompt:', error);
+        showToast('Failed to load PO details', 'error');
+    }
+}
+
+/**
+ * Save PO document fields and generate the document
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function generatePOWithFields(poDocId) {
+    const paymentTerms = document.getElementById('poDocPaymentTerms')?.value?.trim() || '';
+    const condition = document.getElementById('poDocCondition')?.value?.trim() || '';
+    const deliveryDate = document.getElementById('poDocDeliveryDate')?.value || '';
+
+    try {
+        // Save fields to Firestore so they persist for future views
+        const updateData = {};
+        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        if (condition) updateData.condition = condition;
+        if (deliveryDate) updateData.delivery_date = deliveryDate;
+
+        if (Object.keys(updateData).length > 0) {
+            const poRef = doc(db, 'pos', poDocId);
+            await updateDoc(poRef, updateData);
+        }
+
+        // Close the fields modal
+        closeModal('poDocFieldsModal');
+
+        // Generate the document (it will re-read from Firestore with updated fields)
+        await generatePODocument(poDocId);
+
+    } catch (error) {
+        console.error('[Finance] Error saving PO fields:', error);
+        showToast('Failed to save PO details', 'error');
     }
 }
 
@@ -743,6 +1217,9 @@ export async function destroy() {
     delete window.closeRejectionModal;
     delete window.submitRejection;
     delete window.refreshPOs;
+    delete window.promptPODocument;
+    delete window.generatePOWithFields;
+    delete window.generatePODocument;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
     delete window.closeProjectExpenseModal;
