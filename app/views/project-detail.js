@@ -254,6 +254,10 @@ function renderProjectDetail() {
     const canEdit = window.canEditTab?.('projects');
     const showEditControls = canEdit !== false;
 
+    // Personnel editing restricted to super_admin and operations_admin only
+    const user = window.getCurrentUser?.();
+    const canEditPersonnel = showEditControls && (user?.role === 'super_admin' || user?.role === 'operations_admin');
+
     const focusedField = document.activeElement?.dataset?.field;
 
     container.innerHTML = `
@@ -297,7 +301,7 @@ function renderProjectDetail() {
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
                             <div style="color: #64748b; font-size: 1rem;">${currentProject.client_code || 'N/A'}</div>
                         </div>
-                        ${renderPersonnelPills(showEditControls)}
+                        ${renderPersonnelPills(canEditPersonnel)}
                     </div>
                 </div>
             </div>
