@@ -5,7 +5,7 @@
 - ✅ **v1.0 Projects & Tracking** - Phases 1-4 (shipped 2026-01-30)
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
-- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-20 (in progress)
+- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-21 (in progress)
 
 ## Overview
 
@@ -161,7 +161,7 @@ Plans:
   1. Finance user sees Project List tab with all projects and their expense totals
   2. Finance user clicks project name and expense breakdown modal opens showing all POs by category
   3. Procurement user clicks supplier name and modal opens showing all purchases from that supplier
-  4. Procurement user clicks Timeline button and modal shows MRF → PRs → POs → Delivered workflow
+  4. Procurement user clicks Timeline button and modal shows MRF -> PRs -> POs -> Delivered workflow
   5. Dashboard totals use manual refresh (not real-time - aggregation queries don't support listeners)
 **Plans**: 5 plans
 
@@ -289,10 +289,25 @@ Plans:
 - [x] 20-02-PLAN.md — Transform projects.js personnel to pill multi-select
 - [x] 20-03-PLAN.md — Transform project-detail.js personnel to pill display/edit
 
+### Phase 21: Personnel-Assignment Sync
+**Goal**: Sync project assignments with personnel -- when a user is added/removed as personnel on a project, automatically update their `assigned_project_codes` on the user document so operations users can see assigned projects
+**Depends on**: Phase 20
+**Success Criteria** (what must be TRUE):
+  1. Adding a user as personnel on a project (via Projects tab) adds the project code to their `assigned_project_codes`
+  2. Removing a user as personnel removes the project code from their `assigned_project_codes`
+  3. Operations users can immediately see projects they were assigned to via personnel field
+  4. Editing personnel in project-detail.js also syncs assignments
+  5. Existing project-assignments admin panel continues to work (manual overrides preserved)
+  6. Users with `all_projects: true` are not affected by sync
+**Plans**: 1 plan
+
+Plans:
+- [ ] 21-01-PLAN.md — Add syncPersonnelToAssignments utility and wire into all mutation paths
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 20
+Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -315,3 +330,4 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 20
 | 18. Finance Expense Reporting | v2.2 | 7/7 | Complete | 2026-02-08 |
 | 19. Navigation Consolidation | v2.2 | 2/2 | Complete | 2026-02-08 |
 | 20. Multi-Personnel Selection | v2.2 | 3/3 | Complete | 2026-02-09 |
+| 21. Personnel-Assignment Sync | v2.2 | 0/1 | Not Started | - |
