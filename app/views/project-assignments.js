@@ -248,20 +248,28 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
     if (addedCodes.length === 0 && removedCodes.length === 0) return;
 
     const userName = user?.full_name || user?.email || 'Unknown';
-    console.log(`[ProjectAssignments] Personnel sync — Added: ${addedCodes.length}, Removed: ${removedCodes.length}`);
+    console.log(`[ProjectAssignments] Personnel sync for user ${userName} (${userId})`);
+    console.log(`[ProjectAssignments] Old codes:`, oldCodes, `New codes:`, newCodes);
+    console.log(`[ProjectAssignments] Added:`, addedCodes, `Removed:`, removedCodes);
 
     const errors = [];
 
     // Add user as personnel on newly assigned projects
     for (const code of addedCodes) {
         const project = allProjects.find(p => p.project_code === code);
-        if (!project) continue;
+        if (!project) {
+            console.warn(`[ProjectAssignments] Project not found for code: ${code}`);
+            continue;
+        }
         try {
+            console.log(`[ProjectAssignments] Adding ${userName} to project ${code} (doc: ${project.id})`);
             await updateDoc(doc(db, 'projects', project.id), {
                 personnel_user_ids: arrayUnion(userId),
                 personnel_names: arrayUnion(userName)
             });
+            console.log(`[ProjectAssignments] ✓ Added ${userName} to ${code}`);
         } catch (err) {
+            console.error(`[ProjectAssignments] ✗ Failed to add ${userName} to ${code}:`, err);
             errors.push({ code, action: 'add', error: err.message });
         }
     }
@@ -269,19 +277,27 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
     // Remove user as personnel from unassigned projects
     for (const code of removedCodes) {
         const project = allProjects.find(p => p.project_code === code);
-        if (!project) continue;
+        if (!project) {
+            console.warn(`[ProjectAssignments] Project not found for code: ${code}`);
+            continue;
+        }
         try {
+            console.log(`[ProjectAssignments] Removing ${userName} from project ${code} (doc: ${project.id})`);
             await updateDoc(doc(db, 'projects', project.id), {
                 personnel_user_ids: arrayRemove(userId),
                 personnel_names: arrayRemove(userName)
             });
+            console.log(`[ProjectAssignments] ✓ Removed ${userName} from ${code}`);
         } catch (err) {
+            console.error(`[ProjectAssignments] ✗ Failed to remove ${userName} from ${code}:`, err);
             errors.push({ code, action: 'remove', error: err.message });
         }
     }
 
     if (errors.length > 0) {
         console.warn('[ProjectAssignments] Personnel sync had', errors.length, 'errors:', errors);
+    } else if (addedCodes.length > 0 || removedCodes.length > 0) {
+        console.log('[ProjectAssignments] Personnel sync complete — no errors');
     }
 }
 

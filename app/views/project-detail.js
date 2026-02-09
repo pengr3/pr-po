@@ -136,8 +136,8 @@ export async function init(activeTab = null, param = null) {
         const docSnap = snapshot.docs[0];
         currentProject = { id: docSnap.id, ...docSnap.data() };
 
-        // Calculate initial expense
-        await refreshExpense();
+        // Calculate initial expense (silent — no toast on page load)
+        await refreshExpense(true);
 
         // Phase 7: Check project assignment access for operations_user
         if (checkProjectAccess()) {
@@ -612,7 +612,7 @@ async function saveField(fieldName, newValue) {
 }
 
 // Refresh expense calculation
-async function refreshExpense() {
+async function refreshExpense(silent = false) {
     if (!currentProject) return;
 
     showLoading(true);
@@ -651,7 +651,7 @@ async function refreshExpense() {
         // Re-render to show updated expense
         renderProjectDetail();
 
-        showToast('Expense refreshed', 'success');
+        if (!silent) showToast('Expense refreshed', 'success');
     } catch (error) {
         console.error('[ProjectDetail] Expense calculation failed:', error);
         showToast('Failed to calculate expense', 'error');
