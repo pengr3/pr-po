@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 19 - Navigation Consolidation (v2.2 Workflow & UX Enhancements) - COMPLETE
+**Current focus:** Phase 20 - Multi-Personnel Pill Selection (v2.2 Workflow & UX Enhancements) - COMPLETE
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 19 of 19 (Navigation Consolidation)
-Plan: 2 of 2 in phase
-Status: Phase complete / Milestone complete
-Last activity: 2026-02-08 - Completed 19-02-PLAN.md: Admin dropdown nav, CSS, and auth.js permission filtering
+Phase: 20 of 20 (Multi-Personnel Pill Selection)
+Plan: 3 of 3 in phase (all executed)
+Status: Complete - pending manual verification
+Last activity: 2026-02-09 - Phase 20 executed (3 plans, 2 waves)
 
-Progress: [██████████████████████████████████████████████████] 100% (53/53 plans across all milestones)
+Progress: [██████████████████████████████████████████████████] 100% (56/56 plans across all milestones)
 
 ## Performance Metrics
 
@@ -124,8 +124,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-**Future Enhancement (beyond v2.2 scope):**
-- Multi-user personnel assignment with chip/tag UI - Transform personnel field from single-select to multi-select. Selected users appear as removable chips/pills (delete whole name, not character-by-character). Common pattern used in email recipients, tag inputs. Requires UI component work + schema change (personnel_user_ids array instead of single ID). User feedback from Phase 15 UAT.
+None — all phases complete.
 
 ### Blockers/Concerns
 
@@ -145,9 +144,17 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - Requires manual setup: firebase-tools, emulator start, npm test
 - All tests follow @firebase/rules-unit-testing pattern from Phase 8
 
+### Decisions
+
+- v2.2 (20-01): Parallel arrays (personnel_user_ids[] + personnel_names[]) over array of objects (consistent with assigned_project_codes pattern, simpler Firestore operations)
+- v2.2 (20-01): normalizePersonnel() read-time migration handles 3 legacy formats (Phase 2 freetext, Phase 15 single-user, Phase 20 arrays)
+- v2.2 (20-02): onmousedown with event.preventDefault() for dropdown items (blur fires before onclick, would close dropdown prematurely)
+- v2.2 (20-03): Save-on-action in project-detail.js instead of save-on-blur (pills are multi-element, no single blur moment)
+- v2.2 (20-03): Legacy freetext personnel displays as gray pill (.personnel-pill.legacy CSS class)
+
 ## Session Continuity
 
-Last session: 2026-02-08 (Phase 19 complete: admin wrapper, dropdown nav, permission filtering, stale route fix, verification passed 5/5)
-Stopped at: Phase 19 verified, ROADMAP marked complete, v2.2 milestone shipped
+Last session: 2026-02-09 (Phase 20 planned + executed, all plans complete)
+Stopped at: Phase 20 complete — pending manual UAT verification
 Resume file: None
-Next action: Audit v2.2 milestone (/gsd:audit-milestone) or manual acceptance testing (/gsd:verify-work)
+Next action: Manual verification of Phase 20 (/gsd:verify-work)

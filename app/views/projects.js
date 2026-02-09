@@ -4,13 +4,14 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel } from '../utils.js';
 
 // Global state
 let projectsData = [];
 let clientsData = [];
-let usersData = [];  // Active users for personnel datalist
+let usersData = [];  // Active users for personnel selection
 let editingProject = null;
+let selectedPersonnel = []; // Array of { id: string, name: string } for pill state
 let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
@@ -66,6 +67,10 @@ function attachWindowFunctions() {
     window.applyFilters = applyFilters;
     window.debouncedFilter = debouncedFilter;
     window.sortProjects = sortProjects;
+    window.selectPersonnel = selectPersonnel;
+    window.removePersonnel = removePersonnel;
+    window.filterPersonnelDropdown = filterPersonnelDropdown;
+    window.showPersonnelDropdown = showPersonnelDropdown;
     console.log('[Projects] Window functions attached');
 }
 
@@ -147,11 +152,20 @@ export function render(activeTab = null) {
                         <small class="form-hint">Leave blank if not applicable. Must be positive if provided.</small>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="position: relative;">
                         <label>Personnel *</label>
-                        <input type="text" id="personnel" list="personnelUsersList" placeholder="Type name or email to search..." required autocomplete="off">
-                        <datalist id="personnelUsersList"></datalist>
-                        <small class="form-hint">Select an active user from the list. Required for new projects.</small>
+                        <div class="pill-input-container" id="personnelPillContainer"
+                             onclick="document.getElementById('personnelSearchInput')?.focus()">
+                            <input type="text"
+                                   class="pill-search-input"
+                                   id="personnelSearchInput"
+                                   placeholder="Type name or email..."
+                                   oninput="window.filterPersonnelDropdown(this.value)"
+                                   onfocus="window.showPersonnelDropdown()"
+                                   autocomplete="off">
+                        </div>
+                        <div class="pill-dropdown" id="personnelDropdown" style="display: none;"></div>
+                        <small class="form-hint">Select one or more active users. Required for new projects.</small>
                     </div>
 
                     <div class="form-actions">
@@ -262,6 +276,17 @@ export async function init(activeTab = null) {
         window._projectsAssignmentHandler = assignmentChangeHandler;
     }
 
+    // Click-outside handler to close personnel dropdown
+    const clickOutsideHandler = (e) => {
+        const container = document.getElementById('personnelPillContainer');
+        const dropdown = document.getElementById('personnelDropdown');
+        if (dropdown && container && !container.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    };
+    document.addEventListener('mousedown', clickOutsideHandler);
+    window._personnelClickOutside = clickOutsideHandler;
+
     await loadClients();
     await loadActiveUsers();
     await loadProjects();
@@ -295,6 +320,13 @@ export async function destroy() {
     sortColumn = 'created_at';
     sortDirection = 'desc';
 
+    // Clean up personnel pill state
+    if (window._personnelClickOutside) {
+        document.removeEventListener('mousedown', window._personnelClickOutside);
+        delete window._personnelClickOutside;
+    }
+    selectedPersonnel = [];
+
     delete window.toggleAddProjectForm;
     delete window.addProject;
     delete window.editProject;
@@ -306,6 +338,10 @@ export async function destroy() {
     delete window.applyFilters;
     delete window.debouncedFilter;
     delete window.sortProjects;
+    delete window.selectPersonnel;
+    delete window.removePersonnel;
+    delete window.filterPersonnelDropdown;
+    delete window.showPersonnelDropdown;
 
     console.log('[Projects] View destroyed');
 }
@@ -350,7 +386,6 @@ async function loadActiveUsers() {
                 });
             });
             usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
-            populatePersonnelDatalist();
             console.log('[Projects] Active users loaded:', usersData.length);
         });
 
@@ -360,38 +395,98 @@ async function loadActiveUsers() {
     }
 }
 
-// Populate personnel datalist
-function populatePersonnelDatalist() {
-    const datalist = document.getElementById('personnelUsersList');
-    if (!datalist) return;
+// Pill rendering and interaction functions
+function renderPills() {
+    const container = document.getElementById('personnelPillContainer');
+    if (!container) return;
 
-    datalist.innerHTML = usersData.map(user =>
-        `<option value="${user.full_name}" data-user-id="${user.id}">${user.full_name} (${user.email})</option>`
-    ).join('');
+    const searchInput = document.getElementById('personnelSearchInput');
+    const searchValue = searchInput?.value || '';
+
+    const pillsHtml = selectedPersonnel.map(user => `
+        <span class="personnel-pill ${user.id ? '' : 'legacy'}" data-user-id="${user.id || ''}">
+            ${user.name}
+            <button type="button" class="pill-remove"
+                onmousedown="event.preventDefault(); window.removePersonnel('${user.id || ''}', '${user.name.replace(/'/g, "\\'")}')">&times;</button>
+        </span>
+    `).join('');
+
+    container.innerHTML = `
+        ${pillsHtml}
+        <input type="text"
+               class="pill-search-input"
+               id="personnelSearchInput"
+               placeholder="${selectedPersonnel.length === 0 ? 'Type name or email...' : ''}"
+               value="${searchValue}"
+               oninput="window.filterPersonnelDropdown(this.value)"
+               onfocus="window.showPersonnelDropdown()"
+               autocomplete="off">
+    `;
+
+    const newSearchInput = document.getElementById('personnelSearchInput');
+    if (document.activeElement === container || searchValue) {
+        newSearchInput?.focus();
+    }
 }
 
-// Validate personnel selection
-function validatePersonnelSelection() {
-    const personnelInput = document.getElementById('personnel');
-    const selectedValue = personnelInput?.value?.trim();
+function filterPersonnelDropdown(searchText) {
+    const dropdown = document.getElementById('personnelDropdown');
+    if (!dropdown) return;
 
-    if (!selectedValue) {
-        showToast('Personnel field is required', 'error');
-        return null;
+    const term = searchText.toLowerCase().trim();
+    const selectedIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+
+    const matches = term ? usersData.filter(user =>
+        !selectedIds.includes(user.id) &&
+        (user.full_name.toLowerCase().includes(term) ||
+         user.email.toLowerCase().includes(term))
+    ) : [];
+
+    if (matches.length === 0) {
+        dropdown.style.display = 'none';
+        return;
     }
 
-    // Find matching user by full_name or email
-    const selectedUser = usersData.find(u =>
-        u.full_name === selectedValue || u.email === selectedValue
-    );
+    dropdown.innerHTML = matches.slice(0, 10).map(user => `
+        <div class="pill-dropdown-item"
+             onmousedown="event.preventDefault(); window.selectPersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
+            <strong>${user.full_name}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+        </div>
+    `).join('');
 
-    if (!selectedUser) {
-        showToast('Please select a valid user from the dropdown list', 'error');
-        personnelInput.focus();
-        return null;
+    dropdown.style.display = 'block';
+}
+
+function showPersonnelDropdown() {
+    const searchInput = document.getElementById('personnelSearchInput');
+    if (searchInput?.value?.trim()) {
+        filterPersonnelDropdown(searchInput.value);
     }
+}
 
-    return selectedUser;
+function selectPersonnel(userId, userName) {
+    if (selectedPersonnel.some(u => u.id === userId)) return;
+
+    selectedPersonnel.push({ id: userId, name: userName });
+    renderPills();
+
+    const searchInput = document.getElementById('personnelSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    const dropdown = document.getElementById('personnelDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+}
+
+function removePersonnel(userId, userName) {
+    if (userId) {
+        selectedPersonnel = selectedPersonnel.filter(u => u.id !== userId);
+    } else {
+        selectedPersonnel = selectedPersonnel.filter(u => u.name !== userName);
+    }
+    renderPills();
 }
 
 // Render client dropdown
@@ -460,10 +555,10 @@ function toggleAddProjectForm() {
         document.getElementById('projectStatus').value = '';
         document.getElementById('projectBudget').value = '';
         document.getElementById('contractCost').value = '';
-        document.getElementById('personnel').value = '';
 
-        // Populate datalist
-        populatePersonnelDatalist();
+        // Clear personnel pills
+        selectedPersonnel = [];
+        renderPills();
 
         document.getElementById('projectName').focus();
     } else {
@@ -504,8 +599,10 @@ async function addProject() {
     }
 
     // Validate personnel selection
-    const selectedPersonnel = validatePersonnelSelection();
-    if (!selectedPersonnel) return;
+    if (selectedPersonnel.length === 0) {
+        showToast('Personnel field is required - select at least one user', 'error');
+        return;
+    }
 
     // Validate optional positive numbers (must be > 0, not just >= 0)
     const budget = budgetVal ? parseFloat(budgetVal) : null;
@@ -547,8 +644,11 @@ async function addProject() {
             project_status,
             budget,
             contract_cost,
-            personnel_user_id: selectedPersonnel.id,
-            personnel_name: selectedPersonnel.full_name,
+            personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
+            personnel_names: selectedPersonnel.map(u => u.name),
+            personnel_user_id: null,
+            personnel_name: null,
+            personnel: null,
             active: true,
             created_at: new Date().toISOString()
         });
@@ -797,7 +897,17 @@ function editProject(projectId) {
     document.getElementById('projectStatus').value = project.project_status;
     document.getElementById('projectBudget').value = project.budget || '';
     document.getElementById('contractCost').value = project.contract_cost || '';
-    document.getElementById('personnel').value = project.personnel_name || project.personnel || '';
+
+    // Populate pills from existing personnel data (handles all legacy formats)
+    const normalized = normalizePersonnel(project);
+    selectedPersonnel = [];
+    for (let i = 0; i < normalized.names.length; i++) {
+        selectedPersonnel.push({
+            id: normalized.userIds[i] || '',
+            name: normalized.names[i]
+        });
+    }
+    renderPills();
 }
 
 // Cancel edit
@@ -823,35 +933,15 @@ async function saveEdit() {
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
-    const personnelInput = document.getElementById('personnel');
-    const personnelValue = personnelInput?.value?.trim() || '';
-    let personnelUpdate = {};
 
-    if (personnelValue) {
-        // Try to match to a real user from the datalist
-        const selectedUser = usersData.find(u =>
-            u.full_name === personnelValue || u.email === personnelValue
-        );
-        if (selectedUser) {
-            // Migrate to new format: store user ID and name
-            personnelUpdate = {
-                personnel_user_id: selectedUser.id,
-                personnel_name: selectedUser.full_name,
-                personnel: null  // Clear legacy field when migrating to new format
-            };
-        } else {
-            // Freetext fallback: user typed something not in the datalist
-            // Keep in legacy field only (do not write personnel_user_id)
-            personnelUpdate = {
-                personnel: personnelValue,
-                personnel_user_id: null,
-                personnel_name: null
-            };
-        }
-    } else {
-        // Field cleared: null out ALL personnel fields
-        personnelUpdate = { personnel: null, personnel_user_id: null, personnel_name: null };
-    }
+    // Build personnel payload from pill state
+    const personnelUpdate = {
+        personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
+        personnel_names: selectedPersonnel.map(u => u.name),
+        personnel_user_id: null,
+        personnel_name: null,
+        personnel: null
+    };
 
     // Validate required fields
     if (!clientId || !project_name || !internal_status || !project_status) {

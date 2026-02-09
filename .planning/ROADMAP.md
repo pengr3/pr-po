@@ -285,9 +285,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Add pill/chip CSS and normalizePersonnel utility function
-- [ ] 20-02-PLAN.md — Transform projects.js personnel to pill multi-select
-- [ ] 20-03-PLAN.md — Transform project-detail.js personnel to pill display/edit
+- [x] 20-01-PLAN.md — Add pill/chip CSS and normalizePersonnel utility function
+- [x] 20-02-PLAN.md — Transform projects.js personnel to pill multi-select
+- [x] 20-03-PLAN.md — Transform project-detail.js personnel to pill display/edit
 
 ## Progress
 
@@ -314,4 +314,4 @@ Phases execute in numeric order: 15 → 16 → 17 → 18 → 19 → 20
 | 17. Procurement Overhaul | v2.2 | 6/6 | Complete | 2026-02-07 |
 | 18. Finance Expense Reporting | v2.2 | 7/7 | Complete | 2026-02-08 |
 | 19. Navigation Consolidation | v2.2 | 2/2 | Complete | 2026-02-08 |
-| 20. Multi-Personnel Selection | v2.2 | 0/3 | Planning complete | - |
+| 20. Multi-Personnel Selection | v2.2 | 3/3 | Complete | 2026-02-09 |

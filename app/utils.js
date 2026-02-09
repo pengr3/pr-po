@@ -447,4 +447,50 @@ window.utils = {
 
 window.getAssignedProjectCodes = getAssignedProjectCodes;
 
+/* ========================================
+   PERSONNEL UTILITIES
+   ======================================== */
+
+/**
+ * Normalize personnel data from any legacy format to array format.
+ * Does NOT write back to Firestore (migrate-on-edit strategy from Phase 15).
+ *
+ * Input formats handled:
+ * 1. Phase 20 array format: { personnel_user_ids: [...], personnel_names: [...] }
+ * 2. Phase 15 single-user format: { personnel_user_id: 'id', personnel_name: 'name' }
+ * 3. Phase 2 freetext format: { personnel: 'freetext name' }
+ * 4. Empty/missing: all fields null or absent
+ *
+ * @param {object} project - Project document from Firestore
+ * @returns {{ userIds: string[], names: string[] }}
+ */
+export function normalizePersonnel(project) {
+    // Phase 20 array format
+    if (Array.isArray(project.personnel_user_ids) && project.personnel_user_ids.length > 0) {
+        return {
+            userIds: project.personnel_user_ids,
+            names: project.personnel_names || []
+        };
+    }
+
+    // Phase 15 single-user format
+    if (project.personnel_user_id) {
+        return {
+            userIds: [project.personnel_user_id],
+            names: [project.personnel_name || '']
+        };
+    }
+
+    // Phase 2 freetext format
+    if (project.personnel) {
+        return {
+            userIds: [],
+            names: [project.personnel]
+        };
+    }
+
+    // Empty/missing
+    return { userIds: [], names: [] };
+}
+
 console.log('Utilities module loaded successfully');

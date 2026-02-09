@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel } from '../utils.js';
 
 let currentProject = null;
 let projectCode = null;
@@ -12,6 +12,8 @@ let listener = null;
 let usersData = [];
 let usersListenerUnsub = null;
 let currentExpense = { total: 0, poCount: 0, trCount: 0 };
+let detailSelectedPersonnel = []; // Array of { id: string, name: string } for pill state
+let personnelClickOutsideHandler = null;
 
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -50,6 +52,16 @@ export async function init(activeTab = null, param = null) {
     console.log('[ProjectDetail] Initializing with param:', param);
     projectCode = param;
     attachWindowFunctions();
+
+    // Click-outside handler to close personnel dropdown
+    personnelClickOutsideHandler = (e) => {
+        const container = document.getElementById('detailPillContainer');
+        const dropdown = document.getElementById('detailPersonnelDropdown');
+        if (dropdown && container && !container.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    };
+    document.addEventListener('mousedown', personnelClickOutsideHandler);
 
     // Listen for permission changes and re-render
     const permissionChangeHandler = () => {
@@ -102,7 +114,6 @@ export async function init(activeTab = null, param = null) {
             });
         });
         usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
-        populatePersonnelDatalist();
     });
 
     // Find project by project_code field (not document ID)
@@ -163,6 +174,13 @@ export async function destroy() {
     }
     usersData = [];
 
+    // Clean up personnel pill state
+    if (personnelClickOutsideHandler) {
+        document.removeEventListener('mousedown', personnelClickOutsideHandler);
+        personnelClickOutsideHandler = null;
+    }
+    detailSelectedPersonnel = [];
+
     currentProject = null;
     projectCode = null;
 
@@ -172,17 +190,12 @@ export async function destroy() {
     delete window.refreshExpense;
     delete window.showExpenseModal;
     delete window.closeExpenseModal;
+    delete window.selectDetailPersonnel;
+    delete window.removeDetailPersonnel;
+    delete window.filterDetailPersonnel;
+    delete window.showDetailPersonnelDropdown;
 
     console.log('[ProjectDetail] View destroyed');
-}
-
-// Populate personnel datalist
-function populatePersonnelDatalist() {
-    const datalist = document.getElementById('personnelUsersList');
-    if (!datalist) return;
-    datalist.innerHTML = usersData.map(user =>
-        `<option value="${user.full_name}">${user.full_name} (${user.email})</option>`
-    ).join('');
 }
 
 /**
@@ -284,11 +297,7 @@ function renderProjectDetail() {
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
                             <div style="color: #64748b; font-size: 1rem;">${currentProject.client_code || 'N/A'}</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
-                            <input type="text" data-field="personnel" list="personnelUsersList" value="${currentProject.personnel_name || currentProject.personnel || ''}" onblur="window.saveField('personnel', this.value)" placeholder="Type name to search..." autocomplete="off" ${!showEditControls ? 'disabled' : ''}>
-                            <datalist id="personnelUsersList"></datalist>
-                        </div>
+                        ${renderPersonnelPills(showEditControls)}
                     </div>
                 </div>
             </div>
@@ -368,12 +377,166 @@ function renderProjectDetail() {
 
     // Restore focus if field was focused before re-render
     if (focusedField) {
-        const field = document.querySelector(`[data-field="${focusedField}"]`);
-        if (field) field.focus();
+        if (focusedField === 'personnel-pills') {
+            const searchInput = document.getElementById('detailPersonnelSearch');
+            searchInput?.focus();
+        } else {
+            const field = document.querySelector(`[data-field="${focusedField}"]`);
+            if (field) field.focus();
+        }
+    }
+}
+
+// Personnel pill rendering helper
+function renderPersonnelPills(showEditControls) {
+    const normalized = normalizePersonnel(currentProject);
+
+    // Update module state (but only if search input is not focused, to preserve typing state)
+    const searchFocused = document.activeElement?.id === 'detailPersonnelSearch';
+    if (!searchFocused) {
+        detailSelectedPersonnel = [];
+        for (let i = 0; i < normalized.names.length; i++) {
+            detailSelectedPersonnel.push({
+                id: normalized.userIds[i] || '',
+                name: normalized.names[i]
+            });
+        }
     }
 
-    // Populate personnel datalist
-    populatePersonnelDatalist();
+    const pillsHtml = detailSelectedPersonnel.map(user => `
+        <span class="personnel-pill ${user.id ? '' : 'legacy'}" data-user-id="${user.id || ''}">
+            ${user.name}
+            ${showEditControls ? `<button type="button" class="pill-remove"
+                onmousedown="event.preventDefault(); window.removeDetailPersonnel('${user.id || ''}', '${user.name.replace(/'/g, "\\'")}')">&times;</button>` : ''}
+        </span>
+    `).join('');
+
+    if (!showEditControls) {
+        return `
+            <div class="form-group" style="margin-bottom: 0;">
+                <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
+                <div class="pill-input-container disabled">
+                    ${pillsHtml || '<span style="color: #94a3b8; font-size: 0.875rem;">Not assigned</span>'}
+                </div>
+            </div>`;
+    }
+
+    return `
+        <div class="form-group" style="margin-bottom: 0; position: relative;">
+            <label style="margin-bottom: 0.25rem;">Assigned Personnel</label>
+            <div class="pill-input-container" id="detailPillContainer"
+                 onclick="document.getElementById('detailPersonnelSearch')?.focus()">
+                ${pillsHtml}
+                <input type="text"
+                       class="pill-search-input"
+                       id="detailPersonnelSearch"
+                       data-field="personnel-pills"
+                       placeholder="${detailSelectedPersonnel.length === 0 ? 'Type name or email...' : ''}"
+                       oninput="window.filterDetailPersonnel(this.value)"
+                       onfocus="window.showDetailPersonnelDropdown()"
+                       autocomplete="off">
+            </div>
+            <div class="pill-dropdown" id="detailPersonnelDropdown" style="display: none;"></div>
+        </div>`;
+}
+
+// Personnel pill interaction functions
+function filterDetailPersonnel(searchText) {
+    const dropdown = document.getElementById('detailPersonnelDropdown');
+    if (!dropdown) return;
+
+    const term = searchText.toLowerCase().trim();
+    const selectedIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
+
+    const matches = term ? usersData.filter(user =>
+        !selectedIds.includes(user.id) &&
+        (user.full_name.toLowerCase().includes(term) ||
+         user.email.toLowerCase().includes(term))
+    ) : [];
+
+    if (matches.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+
+    dropdown.innerHTML = matches.slice(0, 10).map(user => `
+        <div class="pill-dropdown-item"
+             onmousedown="event.preventDefault(); window.selectDetailPersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
+            <strong>${user.full_name}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+        </div>
+    `).join('');
+
+    dropdown.style.display = 'block';
+}
+
+function showDetailPersonnelDropdown() {
+    const searchInput = document.getElementById('detailPersonnelSearch');
+    if (searchInput?.value?.trim()) {
+        filterDetailPersonnel(searchInput.value);
+    }
+}
+
+async function selectDetailPersonnel(userId, userName) {
+    if (!currentProject) return;
+    if (detailSelectedPersonnel.some(u => u.id === userId)) return;
+
+    detailSelectedPersonnel.push({ id: userId, name: userName });
+
+    // Save immediately to Firestore
+    try {
+        await updateDoc(doc(db, 'projects', currentProject.id), {
+            personnel_user_ids: detailSelectedPersonnel.map(u => u.id).filter(Boolean),
+            personnel_names: detailSelectedPersonnel.map(u => u.name),
+            personnel_user_id: null,
+            personnel_name: null,
+            personnel: null,
+            updated_at: new Date().toISOString()
+        });
+        console.log('[ProjectDetail] Personnel added:', userName);
+    } catch (error) {
+        console.error('[ProjectDetail] Error saving personnel:', error);
+        showToast('Failed to add personnel', 'error');
+        detailSelectedPersonnel = detailSelectedPersonnel.filter(u => u.id !== userId);
+    }
+
+    // Clear search and close dropdown
+    const searchInput = document.getElementById('detailPersonnelSearch');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    const dropdown = document.getElementById('detailPersonnelDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+}
+
+async function removeDetailPersonnel(userId, userName) {
+    if (!currentProject) return;
+
+    const previousState = [...detailSelectedPersonnel];
+
+    if (userId) {
+        detailSelectedPersonnel = detailSelectedPersonnel.filter(u => u.id !== userId);
+    } else {
+        detailSelectedPersonnel = detailSelectedPersonnel.filter(u => u.name !== userName);
+    }
+
+    // Save immediately to Firestore
+    try {
+        await updateDoc(doc(db, 'projects', currentProject.id), {
+            personnel_user_ids: detailSelectedPersonnel.map(u => u.id).filter(Boolean),
+            personnel_names: detailSelectedPersonnel.map(u => u.name),
+            personnel_user_id: null,
+            personnel_name: null,
+            personnel: null,
+            updated_at: new Date().toISOString()
+        });
+        console.log('[ProjectDetail] Personnel removed:', userName || userId);
+    } catch (error) {
+        console.error('[ProjectDetail] Error removing personnel:', error);
+        showToast('Failed to remove personnel', 'error');
+        detailSelectedPersonnel = previousState;
+    }
 }
 
 // Save field
@@ -410,60 +573,6 @@ async function saveField(fieldName, newValue) {
     let valueToSave = newValue;
     if (fieldName === 'budget' || fieldName === 'contract_cost') {
         valueToSave = newValue ? parseFloat(newValue) : null;
-    } else if (fieldName === 'personnel') {
-        const trimmedValue = newValue.trim();
-        if (trimmedValue) {
-            // Try to match to a real user from the datalist
-            const matchedUser = usersData.find(u =>
-                u.full_name === trimmedValue || u.email === trimmedValue
-            );
-            if (matchedUser) {
-                // Migrate to new format: store user ID and name, clear legacy field
-                try {
-                    await updateDoc(doc(db, 'projects', currentProject.id), {
-                        personnel_user_id: matchedUser.id,
-                        personnel_name: matchedUser.full_name,
-                        personnel: null,
-                        updated_at: new Date().toISOString()
-                    });
-                    showToast('Personnel updated', 'success');
-                } catch (error) {
-                    console.error('[ProjectDetail] Error saving personnel:', error);
-                    showToast('Failed to update personnel', 'error');
-                }
-                return; // Early return -- we handled the save ourselves
-            } else {
-                // Freetext fallback: keep in legacy field, clear new fields
-                try {
-                    await updateDoc(doc(db, 'projects', currentProject.id), {
-                        personnel: trimmedValue,
-                        personnel_user_id: null,
-                        personnel_name: null,
-                        updated_at: new Date().toISOString()
-                    });
-                    showToast('Personnel updated', 'success');
-                } catch (error) {
-                    console.error('[ProjectDetail] Error saving personnel:', error);
-                    showToast('Failed to update personnel', 'error');
-                }
-                return; // Early return
-            }
-        } else {
-            // Field cleared: null out ALL personnel fields
-            try {
-                await updateDoc(doc(db, 'projects', currentProject.id), {
-                    personnel: null,
-                    personnel_user_id: null,
-                    personnel_name: null,
-                    updated_at: new Date().toISOString()
-                });
-                showToast('Personnel cleared', 'success');
-            } catch (error) {
-                console.error('[ProjectDetail] Error clearing personnel:', error);
-                showToast('Failed to clear personnel', 'error');
-            }
-            return; // Early return
-        }
     } else if (fieldName === 'project_name') {
         valueToSave = newValue.trim();
     }
@@ -926,6 +1035,10 @@ function attachWindowFunctions() {
     window.closeExpenseModal = closeExpenseModal;
     window.switchExpenseTab = switchExpenseTab;
     window.toggleCategory = toggleCategory;
+    window.selectDetailPersonnel = selectDetailPersonnel;
+    window.removeDetailPersonnel = removeDetailPersonnel;
+    window.filterDetailPersonnel = filterDetailPersonnel;
+    window.showDetailPersonnelDropdown = showDetailPersonnelDropdown;
 }
 
 console.log('[ProjectDetail] Module loaded');
