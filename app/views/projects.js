@@ -883,7 +883,7 @@ function editProject(projectId) {
         return;
     }
 
-    const project = projectsData.find(p => p.id === projectId);
+    const project = allProjects.find(p => p.id === projectId);
     if (!project) return;
 
     editingProject = projectId;
