@@ -57,11 +57,28 @@ skipped: 0
 ## Gaps
 
 - truth: "Removing a user as personnel removes the project code from their assigned_project_codes"
-  status: failed
+  status: diagnosed
   reason: "User reported: removed a user in a project does not remove that project in that user's project list. This is critical kindly fix"
   severity: blocker
   test: 5
-  root_cause: ""
-  artifacts: []
+  root_cause: "Expected behavior for all_projects users. all_projects:true users see all projects via getAssignedProjectCodes() returning null, bypassing assigned_project_codes filtering entirely. Sync skips arrayUnion on add (correct), so arrayRemove on remove is a no-op. Regular user removal (Test 4) works correctly."
+  artifacts:
+    - path: "app/utils.js"
+      issue: "all_projects skip on addition means project code never enters assigned_project_codes for these users"
+    - path: "app/utils.js"
+      issue: "getAssignedProjectCodes returns null for all_projects users, bypassing filtering"
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/personnel-removal-sync.md"
+
+- truth: "editProject() in projects list view works correctly"
+  status: fixed
+  reason: "Discovered during diagnosis: projectsData variable is never populated, should be allProjects"
+  severity: blocker
+  test: discovered
+  root_cause: "projects.js line 886 used dead variable projectsData instead of allProjects — editProject() silently returned early"
+  artifacts:
+    - path: "app/views/projects.js"
+      issue: "Dead variable projectsData used instead of allProjects in editProject()"
+  missing: []
+  debug_session: ".planning/debug/personnel-removal-sync.md"
+  fix_commit: "2a1650a"
