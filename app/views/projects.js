@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode, normalizePersonnel } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
 
 // Global state
 let projectsData = [];
@@ -653,6 +653,11 @@ async function addProject() {
             created_at: new Date().toISOString()
         });
 
+        // Sync personnel to user assignments (fire-and-forget)
+        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+        syncPersonnelToAssignments(project_code, [], newUserIds)
+            .catch(err => console.error('[Projects] Assignment sync failed:', err));
+
         showToast(`Project "${project_name}" created successfully!`, 'success');
         toggleAddProjectForm();
     } catch (error) {
@@ -974,6 +979,11 @@ async function saveEdit() {
         return;
     }
 
+    // Capture old personnel BEFORE save for sync diff
+    const existingProject = allProjects.find(p => p.id === editingProject);
+    const oldNormalized = normalizePersonnel(existingProject);
+    const oldUserIds = oldNormalized.userIds;
+
     showLoading(true);
 
     try {
@@ -989,6 +999,12 @@ async function saveEdit() {
             ...personnelUpdate,
             updated_at: new Date().toISOString()
         });
+
+        // Sync personnel assignment changes (fire-and-forget)
+        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+        const projectCode = existingProject?.project_code;
+        syncPersonnelToAssignments(projectCode, oldUserIds, newUserIds)
+            .catch(err => console.error('[Projects] Assignment sync failed:', err));
 
         showToast('Project updated successfully', 'success');
         editingProject = null;

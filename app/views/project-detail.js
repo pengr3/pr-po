@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
 
 let currentProject = null;
 let projectCode = null;
@@ -485,6 +485,9 @@ async function selectDetailPersonnel(userId, userName) {
     if (!currentProject) return;
     if (detailSelectedPersonnel.some(u => u.id === userId)) return;
 
+    // Capture old state for sync diff
+    const previousUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
+
     detailSelectedPersonnel.push({ id: userId, name: userName });
 
     // Save immediately to Firestore
@@ -498,6 +501,11 @@ async function selectDetailPersonnel(userId, userName) {
             updated_at: new Date().toISOString()
         });
         console.log('[ProjectDetail] Personnel added:', userName);
+
+        // Sync assignment (fire-and-forget)
+        const newUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
+        syncPersonnelToAssignments(currentProject.project_code, previousUserIds, newUserIds)
+            .catch(err => console.error('[ProjectDetail] Assignment sync failed:', err));
     } catch (error) {
         console.error('[ProjectDetail] Error saving personnel:', error);
         showToast('Failed to add personnel', 'error');
@@ -536,6 +544,12 @@ async function removeDetailPersonnel(userId, userName) {
             updated_at: new Date().toISOString()
         });
         console.log('[ProjectDetail] Personnel removed:', userName || userId);
+
+        // Sync assignment (fire-and-forget)
+        const previousUserIds = previousState.map(u => u.id).filter(Boolean);
+        const newUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
+        syncPersonnelToAssignments(currentProject.project_code, previousUserIds, newUserIds)
+            .catch(err => console.error('[ProjectDetail] Assignment sync failed:', err));
     } catch (error) {
         console.error('[ProjectDetail] Error removing personnel:', error);
         showToast('Failed to remove personnel', 'error');
