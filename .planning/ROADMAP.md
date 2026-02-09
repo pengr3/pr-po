@@ -302,7 +302,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 21-01-PLAN.md — Add syncPersonnelToAssignments utility and wire into all mutation paths
+- [x] 21-01-PLAN.md — Add syncPersonnelToAssignments utility and wire into all mutation paths
 
 ## Progress
 
@@ -330,4 +330,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21
 | 18. Finance Expense Reporting | v2.2 | 7/7 | Complete | 2026-02-08 |
 | 19. Navigation Consolidation | v2.2 | 2/2 | Complete | 2026-02-08 |
 | 20. Multi-Personnel Selection | v2.2 | 3/3 | Complete | 2026-02-09 |
-| 21. Personnel-Assignment Sync | v2.2 | 0/1 | Not Started | - |
+| 21. Personnel-Assignment Sync | v2.2 | 1/1 | Complete | 2026-02-09 |
