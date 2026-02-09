@@ -5,26 +5,26 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 20 - Multi-Personnel Pill Selection (v2.2 Workflow & UX Enhancements) - COMPLETE
+**Current focus:** Phase 21 - Personnel-Assignment Sync (v2.2 Workflow & UX Enhancements) - COMPLETE
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 20 of 20 (Multi-Personnel Pill Selection)
-Plan: 3 of 3 in phase (all executed)
-Status: Complete - pending manual verification
-Last activity: 2026-02-09 - Phase 20 executed (3 plans, 2 waves)
+Phase: 21 of 21 (Personnel-Assignment Sync)
+Plan: 1 of 1 in phase
+Status: Phase complete
+Last activity: 2026-02-09 - Completed 21-01-PLAN.md (personnel-assignment sync)
 
-Progress: [██████████████████████████████████████████████████] 100% (56/56 plans across all milestones)
+Progress: [██████████████████████████████████████████████████] 100% (57/57 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 53 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 17 plans)
+- Total plans completed: 54 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 18 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 17 plans completed
+- v2.2 milestone: 18 plans completed
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 6 | 17 | 3 days | 0.18 days |
+| v2.2 Enhancements | 7 | 18 | 3 days | 0.17 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -121,10 +121,17 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (19-02): Dropdown section order: User Management, Assignments, Settings (most-used first)
 - v2.2 (19-fix): Remove hash update from switchUserMgmtTab (tab switching is internal to admin wrapper, not a route change)
 - v2.2 (19-fix): Update stale Assign Projects link from #/project-assignments to #/admin with _pendingAdminSection
+- v2.2 (21-01): arrayUnion/arrayRemove for atomic personnel-to-assignment sync (idempotent, no race conditions)
+- v2.2 (21-01): Skip all_projects users on additions only (arrayRemove on missing value is no-op)
+- v2.2 (21-01): Fire-and-forget sync pattern (personnel save is primary, sync is secondary enhancement)
 
 ### Pending Todos
 
-None — all phases complete.
+None -- all phases complete.
+
+### Roadmap Evolution
+
+- Phase 21 added: Personnel-Assignment Sync — fix disconnect between project personnel field and user's assigned_project_codes
 
 ### Blockers/Concerns
 
@@ -151,10 +158,13 @@ None — all phases complete.
 - v2.2 (20-02): onmousedown with event.preventDefault() for dropdown items (blur fires before onclick, would close dropdown prematurely)
 - v2.2 (20-03): Save-on-action in project-detail.js instead of save-on-blur (pills are multi-element, no single blur moment)
 - v2.2 (20-03): Legacy freetext personnel displays as gray pill (.personnel-pill.legacy CSS class)
+- v2.2 (21-01): arrayUnion/arrayRemove for atomic personnel-to-assignment sync (idempotent, no race conditions)
+- v2.2 (21-01): Skip all_projects users on additions only (arrayRemove on missing value is no-op)
+- v2.2 (21-01): Fire-and-forget sync pattern (personnel save is primary, sync is secondary enhancement)
 
 ## Session Continuity
 
-Last session: 2026-02-09 (Phase 20 planned + executed, all plans complete)
-Stopped at: Phase 20 complete — pending manual UAT verification
+Last session: 2026-02-09 (Phase 21 complete — personnel-assignment sync)
+Stopped at: Completed 21-01-PLAN.md
 Resume file: None
-Next action: Manual verification of Phase 20 (/gsd:verify-work)
+Next action: All planned phases complete. Milestone v2.2 fully delivered.
