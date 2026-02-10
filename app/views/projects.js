@@ -5,6 +5,7 @@
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
 import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
+import { recordEditHistory } from '../edit-history.js';
 
 // Global state
 let projectsData = [];
@@ -645,7 +646,7 @@ async function addProject() {
         // Generate project code
         const project_code = await generateProjectCode(clientCode);
 
-        await addDoc(collection(db, 'projects'), {
+        const docRef = await addDoc(collection(db, 'projects'), {
             project_code,
             project_name,
             client_id: clientId,
@@ -662,6 +663,17 @@ async function addProject() {
             active: true,
             created_at: new Date().toISOString()
         });
+
+        // Record creation in edit history (fire-and-forget)
+        recordEditHistory(docRef.id, 'create', [
+            { field: 'project_name', old_value: null, new_value: project_name },
+            { field: 'client', old_value: null, new_value: clientCode },
+            { field: 'internal_status', old_value: null, new_value: internal_status },
+            { field: 'project_status', old_value: null, new_value: project_status },
+            ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
+            ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
+            ...(selectedPersonnel.length > 0 ? [{ field: 'personnel', old_value: null, new_value: selectedPersonnel.map(u => u.name).join(', ') }] : [])
+        ]).catch(err => console.error('[EditHistory] addProject failed:', err));
 
         // Sync personnel to user assignments (fire-and-forget)
         const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
@@ -1010,6 +1022,44 @@ async function saveEdit() {
             updated_at: new Date().toISOString()
         });
 
+        // Build diff for edit history
+        const editChanges = [];
+        if (existingProject.project_name !== project_name) {
+            editChanges.push({ field: 'project_name', old_value: existingProject.project_name, new_value: project_name });
+        }
+        if (existingProject.client_code !== clientCode) {
+            editChanges.push({ field: 'client_code', old_value: existingProject.client_code, new_value: clientCode });
+        }
+        if (existingProject.internal_status !== internal_status) {
+            editChanges.push({ field: 'internal_status', old_value: existingProject.internal_status, new_value: internal_status });
+        }
+        if (existingProject.project_status !== project_status) {
+            editChanges.push({ field: 'project_status', old_value: existingProject.project_status, new_value: project_status });
+        }
+        const oldBudget = existingProject.budget != null ? parseFloat(existingProject.budget) : null;
+        if (oldBudget !== budget) {
+            editChanges.push({ field: 'budget', old_value: oldBudget, new_value: budget });
+        }
+        const oldContract = existingProject.contract_cost != null ? parseFloat(existingProject.contract_cost) : null;
+        if (oldContract !== contract_cost) {
+            editChanges.push({ field: 'contract_cost', old_value: oldContract, new_value: contract_cost });
+        }
+        // Check personnel changes
+        const oldPersonnelNames = (existingProject.personnel_names || []).sort().join(',');
+        const newPersonnelNames = selectedPersonnel.map(u => u.name).sort().join(',');
+        if (oldPersonnelNames !== newPersonnelNames) {
+            editChanges.push({
+                field: 'personnel',
+                old_value: existingProject.personnel_names?.join(', ') || '(none)',
+                new_value: selectedPersonnel.map(u => u.name).join(', ') || '(none)'
+            });
+        }
+        // Only record if something actually changed
+        if (editChanges.length > 0) {
+            recordEditHistory(editingProject, 'update', editChanges)
+                .catch(err => console.error('[EditHistory] saveEdit failed:', err));
+        }
+
         // Sync personnel assignment changes (fire-and-forget)
         const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
         const projectCode = existingProject?.project_code;
@@ -1071,6 +1121,11 @@ async function toggleProjectActive(projectId, currentStatus) {
             active: !currentStatus,
             updated_at: new Date().toISOString()
         });
+
+        // Record edit history (fire-and-forget)
+        recordEditHistory(projectId, 'toggle_active', [
+            { field: 'active', old_value: currentStatus, new_value: !currentStatus }
+        ]).catch(err => console.error('[EditHistory] toggleProjectActive failed:', err));
 
         showToast('Project status updated', 'success');
     } catch (error) {
