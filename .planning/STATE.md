@@ -5,22 +5,24 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v2.2 Milestone COMPLETE - All phases shipped
+**Current focus:** v2.2 Phase 25 - Project Edit History
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 23 (Tech Debt Cleanup) - COMPLETE
-Plan: 2 of 2 in phase - COMPLETE
-Status: Milestone complete
-Last activity: 2026-02-10 - Completed 23-02-PLAN.md (dead code removal + Phase 20 verification doc)
+Phase: 25 (Project Edit History)
+Plan: 1 of 2 in phase
+Status: In progress
+Last activity: 2026-02-10 - Completed 25-01-PLAN.md (edit history shared module + security rules)
 
-Progress: [██████████████████████████████████████████████████] 100% (69/69 plans across all milestones)
+Progress: [█████████████████████████████████████████████████░] 97% (70/72 plans across all milestones)
+
+**Next Plan:** 25-02 - Instrument mutation points and add Edit History button
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 69 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 33 plans)
+- Total plans completed: 70 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 34 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
@@ -124,16 +126,22 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (21-01): arrayUnion/arrayRemove for atomic personnel-to-assignment sync (idempotent, no race conditions)
 - v2.2 (21-01): Skip all_projects users on additions only (arrayRemove on missing value is no-op)
 - v2.2 (21-01): Fire-and-forget sync pattern (personnel save is primary, sync is secondary enhancement)
+- v2.2 (25-01): Fire-and-forget pattern for recordEditHistory (catches errors, never blocks primary save)
+- v2.2 (25-01): Append-only subcollection rules for edit_history (allow create, deny update/delete)
+- v2.2 (25-01): ISO timestamp strings for edit history (consistent with project.updated_at, simpler client-side formatting)
 
 ### Pending Todos
 
-- None - v2.2 milestone complete
+- Phase 24: Fix rejection reason passthrough from Finance to Procurement
+- Phase 25: Instrument mutation points in project-detail.js and projects.js (Plan 02)
 
 ### Roadmap Evolution
 
 - Phase 21 added: Personnel-Assignment Sync — fix disconnect between project personnel field and user's assigned_project_codes
 - Phase 22 added after Phase 21: Bug Fixes & UX Improvements — PO date rendering, blank document details, Firestore permissions, delivery fee persistence, sortable table headers
 - Phase 23 added after Phase 22: Tech Debt Cleanup — addresses 5 items from v2.2 milestone audit (TR attribution, section header, dead code, stale comment, missing verification)
+- Phase 24 added: PR/TR Rejection Reason Passthrough — Finance rejection reason not reaching Procurement view
+- Phase 25 added: Project Edit History — audit trail button on project detail showing what changed, when, and by whom
 
 ### Blockers/Concerns
 
@@ -174,9 +182,15 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (23-01): Keep both finance_approver (legacy) and finance_approver_name (new) fields for TR approval backward compatibility
 - v2.2 (23-01): All finance approval functions use getCurrentUser() for attribution (no hardcoded names)
 
+### Decisions
+
+- v2.2 (25-01): Fire-and-forget pattern for recordEditHistory (catches errors, never blocks primary save)
+- v2.2 (25-01): Append-only subcollection rules for edit_history (allow create, deny update/delete)
+- v2.2 (25-01): ISO timestamp strings for edit history (consistent with project.updated_at, simpler client-side formatting)
+
 ## Session Continuity
 
-Last session: 2026-02-10T07:21:35Z
-Stopped at: Completed 23-02-PLAN.md (dead code removal + Phase 20 verification doc)
+Last session: 2026-02-10T08:37:43Z
+Stopped at: Completed 25-01-PLAN.md (edit history shared module + Firestore security rules)
 Resume file: None
-Next action: v2.2 milestone complete. All 69 plans across 4 milestones shipped.
+Next action: Execute 25-02-PLAN.md (instrument mutation points + add Edit History button)
