@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 22 (Bug Fixes & UX Improvements)
-Plan: 1 of 3 in phase
+Plan: 2 of 3 in phase
 Status: In progress
-Last activity: 2026-02-10 - Completed 22-01-PLAN.md (PO date rendering & document defaults)
+Last activity: 2026-02-10 - Completed 22-02-PLAN.md (Firestore permissions & delivery fee fix)
 
-Progress: [█████████████████████████████████████████████████░] 98% (65/66 plans across all milestones)
+Progress: [█████████████████████████████████████████████████░] 99% (66/67 plans across all milestones)
 
 ## Performance Metrics
 
@@ -127,7 +127,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-Phase 22 plans 02 and 03 remaining.
+Phase 22 plan 03 remaining.
 
 ### Roadmap Evolution
 
@@ -164,10 +164,13 @@ Phase 22 plans 02 and 03 remaining.
 - v2.2 (21-01): Fire-and-forget sync pattern (personnel save is primary, sync is secondary enhancement)
 - v2.2 (22-01): formatTimestamp over formatDate for PO dates (handles both Firestore Timestamp and string dates)
 - v2.2 (22-01): Empty string fallback for document fields (blank fields are honest, hardcoded defaults mislead)
+- v2.2 (22-02): Guard loadActiveUsers() with canEditTab check (users collection requires super_admin/operations_admin permissions)
+- v2.2 (22-02): Add delivery fee to total_amount at write time rather than modifying aggregation queries (simpler, no double-counting)
+- v2.2 (22-02): Preserve delivery_fee field separately for display purposes (PO details modal)
 
 ## Session Continuity
 
-Last session: 2026-02-10 (Phase 22 plan 01 complete -- PO date rendering & document defaults)
-Stopped at: Completed 22-01-PLAN.md
+Last session: 2026-02-10 (Phase 22 plan 02 complete -- Firestore permissions & delivery fee fix)
+Stopped at: Completed 22-02-PLAN.md
 Resume file: None
-Next action: Execute 22-02-PLAN.md
+Next action: Execute 22-03-PLAN.md
