@@ -21,6 +21,10 @@ let currentApprovalTarget = null;
 let projectExpenseSortColumn = 'projectName';
 let projectExpenseSortDirection = 'asc';
 
+// Sort state for Purchase Orders
+let poSortColumn = 'date_issued';
+let poSortDirection = 'desc';
+
 /**
  * Attach all window functions for use in onclick handlers
  * This needs to be called every time init() runs to ensure
@@ -61,6 +65,7 @@ function attachWindowFunctions() {
     window.showProjectExpenseModal = showProjectExpenseModal;
     window.closeProjectExpenseModal = closeProjectExpenseModal;
     window.sortProjectExpenses = sortProjectExpenses;
+    window.sortPOs = sortPOs;
 
     console.log('[Finance] ✅ All window functions attached successfully');
 }
@@ -1179,10 +1184,13 @@ export async function destroy() {
     delete window.closeApprovalModal;
     delete window.confirmApproval;
     delete window.sortProjectExpenses;
+    delete window.sortPOs;
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
     projectExpenseSortDirection = 'asc';
+    poSortColumn = 'date_issued';
+    poSortDirection = 'desc';
 
     console.log('[Finance] Finance view destroyed');
 }
@@ -2212,11 +2220,21 @@ async function loadPOs() {
             poData.push({ id: docSnap.id, ...docSnap.data() });
         });
 
-        // Sort by date (newest first)
+        // Sort using current user-selected sort state (default: date_issued desc)
         poData.sort((a, b) => {
-            const dateA = a.date_issued?.toDate ? a.date_issued.toDate() : new Date(a.date_issued || 0);
-            const dateB = b.date_issued?.toDate ? b.date_issued.toDate() : new Date(b.date_issued || 0);
-            return dateB - dateA;
+            let aVal = a[poSortColumn];
+            let bVal = b[poSortColumn];
+            if (poSortColumn === 'date_issued') {
+                aVal = aVal?.toDate ? aVal.toDate() : new Date(aVal || 0);
+                bVal = bVal?.toDate ? bVal.toDate() : new Date(bVal || 0);
+            }
+            if (aVal == null) return poSortDirection === 'asc' ? 1 : -1;
+            if (bVal == null) return poSortDirection === 'asc' ? -1 : 1;
+            if (typeof aVal === 'string') {
+                return poSortDirection === 'asc'
+                    ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            }
+            return poSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
 
         console.log('📄 POs loaded:', poData.length);
@@ -2250,13 +2268,27 @@ function renderPOs() {
         <table>
             <thead>
                 <tr>
-                    <th>PO ID</th>
-                    <th>PR ID</th>
-                    <th>Supplier</th>
-                    <th>Project</th>
-                    <th>Amount</th>
-                    <th>Date Issued</th>
-                    <th>Status</th>
+                    <th onclick="window.sortPOs('po_id')" style="cursor: pointer; user-select: none;">
+                        PO ID <span class="sort-indicator" data-col="po_id"></span>
+                    </th>
+                    <th onclick="window.sortPOs('pr_id')" style="cursor: pointer; user-select: none;">
+                        PR ID <span class="sort-indicator" data-col="pr_id"></span>
+                    </th>
+                    <th onclick="window.sortPOs('supplier_name')" style="cursor: pointer; user-select: none;">
+                        Supplier <span class="sort-indicator" data-col="supplier_name"></span>
+                    </th>
+                    <th onclick="window.sortPOs('project_name')" style="cursor: pointer; user-select: none;">
+                        Project <span class="sort-indicator" data-col="project_name"></span>
+                    </th>
+                    <th onclick="window.sortPOs('total_amount')" style="cursor: pointer; user-select: none;">
+                        Amount <span class="sort-indicator" data-col="total_amount"></span>
+                    </th>
+                    <th onclick="window.sortPOs('date_issued')" style="cursor: pointer; user-select: none;">
+                        Date Issued <span class="sort-indicator" data-col="date_issued"></span>
+                    </th>
+                    <th onclick="window.sortPOs('procurement_status')" style="cursor: pointer; user-select: none;">
+                        Status <span class="sort-indicator" data-col="procurement_status"></span>
+                    </th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -2279,6 +2311,47 @@ function renderPOs() {
         </table>
         ${poData.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
+
+    // Update sort indicators for PO table
+    container.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const col = indicator.dataset.col;
+        if (col === poSortColumn) {
+            indicator.textContent = poSortDirection === 'asc' ? ' \u2191' : ' \u2193';
+            indicator.style.color = '#1a73e8';
+        } else {
+            indicator.textContent = ' \u21C5';
+            indicator.style.color = '#94a3b8';
+        }
+    });
+}
+
+/**
+ * Sort POs by column
+ */
+function sortPOs(column) {
+    if (poSortColumn === column) {
+        poSortDirection = poSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        poSortColumn = column;
+        poSortDirection = 'asc';
+    }
+    // Sort poData - handle Firestore Timestamps for date_issued
+    poData.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
+        if (column === 'date_issued') {
+            aVal = aVal?.toDate ? aVal.toDate() : new Date(aVal || 0);
+            bVal = bVal?.toDate ? bVal.toDate() : new Date(bVal || 0);
+        }
+        if (aVal == null) return poSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return poSortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return poSortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return poSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    renderPOs();
 }
 
 /**
