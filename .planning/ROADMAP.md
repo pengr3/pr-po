@@ -349,7 +349,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 24-01-PLAN.md — Fix field name mismatch, TR rejection visibility, and dynamic rejector attribution
+- [x] 24-01-PLAN.md — Fix field name mismatch, TR rejection visibility, and dynamic rejector attribution
 
 ### Phase 25: Project Edit History
 **Goal**: Add an edit history button to Project Detail page that shows a complete audit trail of all changes — what changed, when, and by whom
@@ -364,8 +364,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — Create edit history shared module and Firestore security rules
-- [ ] 25-02-PLAN.md — Wire edit history into all mutation points and add UI button
+- [x] 25-01-PLAN.md — Create edit history shared module and Firestore security rules
+- [x] 25-02-PLAN.md — Wire edit history into all mutation points and add UI button
 
 ## Progress
 
@@ -396,5 +396,5 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 ->
 | 21. Personnel-Assignment Sync | v2.2 | 1/1 | Complete | 2026-02-09 |
 | 22. Bug Fixes & UX | v2.2 | 3/3 | Complete | 2026-02-10 |
 | 23. Tech Debt Cleanup | v2.2 | 2/2 | Complete | 2026-02-10 |
-| 24. Rejection Reason Passthrough | v2.2 | 0/1 | In Progress | - |
-| 25. Project Edit History | v2.2 | 0/2 | Not Started | - |
+| 24. Rejection Reason Passthrough | v2.2 | 1/1 | Complete | 2026-02-10 |
+| 25. Project Edit History | v2.2 | 2/2 | Complete | 2026-02-10 |
