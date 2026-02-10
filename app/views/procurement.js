@@ -3857,6 +3857,8 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
     showLoading(true);
 
     try {
+        const poRef = doc(db, 'pos', poId); // Declared early: needed in Delivered branch for getDoc
+
         const updateData = {
             procurement_status: newStatus,
             updated_at: new Date().toISOString()
@@ -3881,10 +3883,16 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
                 updateData.delivered_at = serverTimestamp(); // Server timestamp for precision
                 updateData.delivered_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
                 updateData.delivery_fee = deliveryFee;
+                // Add delivery fee to total_amount so expense aggregation
+                // queries (sum('total_amount')) automatically include delivery costs
+                if (deliveryFee > 0) {
+                    const poDoc = await getDoc(poRef);
+                    const currentTotal = poDoc.data()?.total_amount || 0;
+                    updateData.total_amount = currentTotal + deliveryFee;
+                }
             }
         }
 
-        const poRef = doc(db, 'pos', poId);
         await updateDoc(poRef, updateData);
 
         const successMsg = isSubcon
