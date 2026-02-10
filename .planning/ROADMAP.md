@@ -174,7 +174,7 @@ Plans:
 
 </details>
 
-## ✅ v2.2 Workflow & UX Enhancements — SHIPPED 2026-02-10
+## v2.2 Workflow & UX Enhancements
 
 **Milestone Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
 
@@ -337,10 +337,39 @@ Plans:
 - [x] 23-01-PLAN.md — Fix TR approval attribution and cosmetic regressions
 - [x] 23-02-PLAN.md — Remove dead code and add missing verification doc
 
+### Phase 24: PR/TR Rejection Reason Passthrough
+**Goal**: When Finance rejects a PR or TR with a rejection reason, that reason must be stored and displayed back to Procurement users in MRF Processing view
+**Depends on**: Phase 23
+**Success Criteria** (what must be TRUE):
+  1. Finance rejection modal captures rejection reason text
+  2. Rejection reason is stored on the PR/TR document in Firestore
+  3. Procurement MRF Processing view displays the rejection reason (not "No reason provided")
+  4. MRF status reflects the rejection with reason visible
+  5. Existing rejections without reasons still display gracefully
+**Plans**: 1 plan
+
+Plans:
+- [ ] 24-01-PLAN.md — Fix field name mismatch, TR rejection visibility, and dynamic rejector attribution
+
+### Phase 25: Project Edit History
+**Goal**: Add an edit history button to Project Detail page that shows a complete audit trail of all changes — what changed, when, and by whom
+**Depends on**: Phase 23
+**Success Criteria** (what must be TRUE):
+  1. "Edit History" button appears in Project Information card, right-aligned with Active toggle
+  2. Button is clickable for all users with access to the Projects view
+  3. Clicking button opens a modal showing chronological list of all edits
+  4. Each history entry shows: what field changed, old value → new value, timestamp, and user who made the change
+  5. History captures changes from all edit paths (project-detail.js inline editing, projects.js creation)
+  6. History persists across sessions (stored in Firestore)
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 25 to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
+Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23 -> 24 -> 25
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -366,3 +395,5 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 ->
 | 21. Personnel-Assignment Sync | v2.2 | 1/1 | Complete | 2026-02-09 |
 | 22. Bug Fixes & UX | v2.2 | 3/3 | Complete | 2026-02-10 |
 | 23. Tech Debt Cleanup | v2.2 | 2/2 | Complete | 2026-02-10 |
+| 24. Rejection Reason Passthrough | v2.2 | 0/1 | In Progress | - |
+| 25. Project Edit History | v2.2 | 0/0 | Not Started | - |
