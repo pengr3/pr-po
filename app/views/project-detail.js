@@ -6,6 +6,7 @@
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
+import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 
 let currentProject = null;
 let projectCode = null;
@@ -194,6 +195,7 @@ export async function destroy() {
     delete window.removeDetailPersonnel;
     delete window.filterDetailPersonnel;
     delete window.showDetailPersonnelDropdown;
+    delete window.showEditHistory;
 
     console.log('[ProjectDetail] View destroyed');
 }
@@ -283,9 +285,14 @@ function renderProjectDetail() {
             <!-- Card 1 - Project Information -->
             <div class="card" style="margin-bottom: 1.5rem;">
                 <div class="card-body" style="padding: 1.5rem;">
-                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem;">
-                        <h3 style="margin: 0 0 0.25rem 0; font-size: 1.125rem; font-weight: 600;">Project Information</h3>
-                        <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentProject.created_at)}${currentProject.updated_at ? ' | Updated: ' + formatDate(currentProject.updated_at) : ''}</p>
+                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h3 style="margin: 0 0 0.25rem 0; font-size: 1.125rem; font-weight: 600;">Project Information</h3>
+                            <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentProject.created_at)}${currentProject.updated_at ? ' | Updated: ' + formatDate(currentProject.updated_at) : ''}</p>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space: nowrap; padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                            Edit History
+                        </button>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
@@ -500,6 +507,10 @@ async function selectDetailPersonnel(userId, userName) {
             personnel: null,
             updated_at: new Date().toISOString()
         });
+        // Record edit history (fire-and-forget)
+        recordEditHistory(currentProject.id, 'personnel_add', [
+            { field: 'personnel', old_value: null, new_value: userName }
+        ]).catch(err => console.error('[EditHistory] selectPersonnel failed:', err));
         console.log('[ProjectDetail] Personnel added:', userName);
 
         // Sync assignment (fire-and-forget)
@@ -543,6 +554,10 @@ async function removeDetailPersonnel(userId, userName) {
             personnel: null,
             updated_at: new Date().toISOString()
         });
+        // Record edit history (fire-and-forget)
+        recordEditHistory(currentProject.id, 'personnel_remove', [
+            { field: 'personnel', old_value: userName || userId, new_value: null }
+        ]).catch(err => console.error('[EditHistory] removePersonnel failed:', err));
         console.log('[ProjectDetail] Personnel removed:', userName || userId);
 
         // Sync assignment (fire-and-forget)
@@ -595,12 +610,26 @@ async function saveField(fieldName, newValue) {
         valueToSave = newValue.trim();
     }
 
+    // Skip if no actual change (avoids spurious history entries and unnecessary writes)
+    const oldValue = currentProject[fieldName];
+    const normalizedOld = (fieldName === 'budget' || fieldName === 'contract_cost')
+        ? (oldValue != null ? parseFloat(oldValue) : null)
+        : oldValue;
+    if (normalizedOld === valueToSave) {
+        console.log('[ProjectDetail] No change for', fieldName);
+        return true;
+    }
+
     try {
         const projectRef = doc(db, 'projects', currentProject.id);
         await updateDoc(projectRef, {
             [fieldName]: valueToSave,
             updated_at: new Date().toISOString()
         });
+        // Record edit history (fire-and-forget)
+        recordEditHistory(currentProject.id, 'update', [
+            { field: fieldName, old_value: oldValue ?? null, new_value: valueToSave }
+        ]).catch(err => console.error('[EditHistory] saveField failed:', err));
         // Silent success per CONTEXT.md
         console.log('[ProjectDetail] Saved', fieldName);
         return true;
@@ -680,6 +709,10 @@ async function toggleActive(newValue) {
             active: newValue,
             updated_at: new Date().toISOString()
         });
+        // Record edit history (fire-and-forget)
+        recordEditHistory(currentProject.id, 'toggle_active', [
+            { field: 'active', old_value: !newValue, new_value: newValue }
+        ]).catch(err => console.error('[EditHistory] toggleActive failed:', err));
         showToast(`Project ${newValue ? 'activated' : 'deactivated'}`, 'success');
         console.log('[ProjectDetail] Active status updated to:', newValue);
     } catch (error) {
@@ -750,6 +783,7 @@ function attachWindowFunctions() {
     window.removeDetailPersonnel = removeDetailPersonnel;
     window.filterDetailPersonnel = filterDetailPersonnel;
     window.showDetailPersonnelDropdown = showDetailPersonnelDropdown;
+    window.showEditHistory = () => currentProject && showEditHistoryModal(currentProject.id, currentProject.project_code);
 }
 
 console.log('[ProjectDetail] Module loaded');
