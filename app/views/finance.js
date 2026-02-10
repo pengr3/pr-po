@@ -484,9 +484,9 @@ async function generatePODocument(poDocId) {
             QUOTE_REF: po.quote_ref || 'N/A',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
             DELIVERY_ADDRESS: po.delivery_address,
-            PAYMENT_TERMS: po.payment_terms || 'As per agreement',
-            CONDITION: po.condition || 'Standard terms apply',
-            DELIVERY_DATE: formatDocumentDate(po.delivery_date || 'TBD'),
+            PAYMENT_TERMS: po.payment_terms || '',
+            CONDITION: po.condition || '',
+            DELIVERY_DATE: po.delivery_date ? formatDocumentDate(po.delivery_date) : '',
             FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
             FINANCE_SIGNATURE_URL: po.finance_signature_url || '',
             company_info: DOCUMENT_CONFIG.companyInfo
