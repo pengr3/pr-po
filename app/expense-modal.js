@@ -3,7 +3,7 @@
    Unified expense modal used by both Finance and Project Detail views
    ======================================== */
 
-import { db, collection, query, where, getDocs, getAggregateFromServer, sum, count } from './firebase.js';
+import { db, collection, query, where, getDocs } from './firebase.js';
 import { formatCurrency } from './utils.js';
 
 /**
