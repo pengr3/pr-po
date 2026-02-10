@@ -11,20 +11,20 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 23 (Tech Debt Cleanup)
-Plan: 0 of 2 in phase
-Status: Planning
-Last activity: 2026-02-10 - Created Phase 23 from milestone audit tech debt
+Plan: 1 of 2 in phase
+Status: In progress
+Last activity: 2026-02-10 - Completed 23-01-PLAN.md (TR attribution + stale comment fix)
 
-Progress: [████████████████████████████████████████████████░░] 97% (67/69 plans across all milestones)
+Progress: [████████████████████████████████████████████████░░] 99% (68/69 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 67 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 31 plans)
+- Total plans completed: 68 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 32 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 31 plans completed
+- v2.2 milestone: 32 plans completed
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -127,7 +127,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-- Phase 23: Tech Debt Cleanup (2 plans to create and execute)
+- Phase 23: Tech Debt Cleanup (1 plan remaining: 23-02)
 
 ### Roadmap Evolution
 
@@ -171,10 +171,12 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (22-03): Follow projects.js sort pattern exactly for consistency across all sortable tables
 - v2.2 (22-03): Dynamic sort in onSnapshot preserves user sort selection across real-time updates
 - v2.2 (22-03): Pagination resets to page 1 on sort change in Clients view
+- v2.2 (23-01): Keep both finance_approver (legacy) and finance_approver_name (new) fields for TR approval backward compatibility
+- v2.2 (23-01): All finance approval functions use getCurrentUser() for attribution (no hardcoded names)
 
 ## Session Continuity
 
-Last session: 2026-02-10 (Phase 23 created from milestone audit)
-Stopped at: Created Phase 23 gap closure phase
+Last session: 2026-02-10T07:16:27Z
+Stopped at: Completed 23-01-PLAN.md (TR attribution + stale comment fix)
 Resume file: None
-Next action: /gsd:plan-phase 23
+Next action: Execute 23-02-PLAN.md
