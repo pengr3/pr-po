@@ -5,6 +5,7 @@
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp } from '../utils.js';
+import { showExpenseBreakdownModal } from '../expense-modal.js';
 
 // Format PO date - handles Firestore Timestamps, {seconds} objects, and strings
 function formatPODate(po) {
@@ -82,8 +83,8 @@ function attachWindowFunctions() {
 
     // Project Expense Functions
     window.refreshProjectExpenses = refreshProjectExpenses;
-    window.showProjectExpenseModal = showProjectExpenseModal;
-    window.closeProjectExpenseModal = closeProjectExpenseModal;
+    window.showProjectExpenseModal = (name) => showExpenseBreakdownModal(name);
+    // closeProjectExpenseModal replaced by shared _closeExpenseBreakdownModal in expense-modal.js
     window.sortProjectExpenses = sortProjectExpenses;
     window.sortPOs = sortPOs;
 
@@ -111,7 +112,7 @@ function setupModalListeners() {
         if (e.key === 'Escape') {
             const prModal = document.getElementById('prModal');
             const rejectionModal = document.getElementById('rejectionModal');
-            const projectExpenseModal = document.getElementById('projectExpenseModal');
+            const expenseBreakdownModal = document.getElementById('expenseBreakdownModal');
             const approvalModal = document.getElementById('approvalModal');
 
             // Close whichever modal is currently active
@@ -121,8 +122,8 @@ function setupModalListeners() {
                 closePRModal();
             } else if (rejectionModal?.classList.contains('active')) {
                 closeRejectionModal();
-            } else if (projectExpenseModal?.classList.contains('active')) {
-                closeProjectExpenseModal();
+            } else if (expenseBreakdownModal) {
+                window._closeExpenseBreakdownModal();
             }
         }
     }, { signal }); // AbortController signal handles cleanup automatically
@@ -743,18 +744,7 @@ export function render(activeTab = 'approvals') {
             </div>
         </div>
 
-        <!-- Project Expense Modal -->
-        <div id="projectExpenseModal" class="modal">
-            <div class="modal-content" style="max-width: 900px;">
-                <div class="modal-header">
-                    <h2 id="projectExpenseModalTitle">Project Expense Breakdown</h2>
-                    <button class="modal-close" onclick="window.closeProjectExpenseModal()">&times;</button>
-                </div>
-                <div class="modal-body" id="projectExpenseModalBody">
-                    <div style="text-align: center; padding: 2rem;">Loading expense details...</div>
-                </div>
-            </div>
-        </div>
+        <!-- Expense breakdown modal injected dynamically by expense-modal.js -->
     `;
 }
 
@@ -977,176 +967,7 @@ function sortProjectExpenses(column) {
     renderProjectExpensesTable();
 }
 
-/**
- * Show detailed expense breakdown modal with category scorecards
- * Uses formatCurrency() imported from utils.js
- */
-async function showProjectExpenseModal(projectName) {
-    console.log(`[Finance] Loading expense breakdown for: ${projectName}`);
-    showLoading(true);
-
-    try {
-        // Get project details
-        const projectQuery = query(
-            collection(db, 'projects'),
-            where('project_name', '==', projectName)
-        );
-        const projectSnapshot = await getDocs(projectQuery);
-        if (projectSnapshot.empty) {
-            throw new Error('Project not found');
-        }
-        const project = projectSnapshot.docs[0].data();
-
-        // Material POs (non-subcon)
-        const materialQuery = query(
-            collection(db, 'pos'),
-            where('project_name', '==', projectName),
-            where('is_subcon', '==', false)
-        );
-        const materialAgg = await getAggregateFromServer(materialQuery, {
-            materialTotal: sum('total_amount'),
-            materialCount: count(),
-            deliveryFeeTotal: sum('delivery_fee')
-        });
-
-        // Subcon POs
-        const subconQuery = query(
-            collection(db, 'pos'),
-            where('project_name', '==', projectName),
-            where('is_subcon', '==', true)
-        );
-        const subconAgg = await getAggregateFromServer(subconQuery, {
-            subconTotal: sum('total_amount'),
-            subconCount: count()
-        });
-
-        // Transport Requests (approved only)
-        const transportQuery = query(
-            collection(db, 'transport_requests'),
-            where('project_name', '==', projectName),
-            where('finance_status', '==', 'Approved')
-        );
-        const transportAgg = await getAggregateFromServer(transportQuery, {
-            transportTotal: sum('total_amount'),
-            transportCount: count()
-        });
-
-        const rawMaterials = materialAgg.data().materialTotal || 0;
-        const deliveryFees = materialAgg.data().deliveryFeeTotal || 0;
-        const rawTransport = transportAgg.data().transportTotal || 0;
-
-        const expenses = {
-            materials: rawMaterials - deliveryFees,
-            materialCount: materialAgg.data().materialCount || 0,
-            transport: rawTransport + deliveryFees,
-            transportCount: transportAgg.data().transportCount || 0,
-            subcon: subconAgg.data().subconTotal || 0,
-            subconCount: subconAgg.data().subconCount || 0,
-            totalCost: rawMaterials + rawTransport + (subconAgg.data().subconTotal || 0),
-            budget: project.budget || 0,
-            remainingBudget: (project.budget || 0) -
-                           (rawMaterials + rawTransport + (subconAgg.data().subconTotal || 0))
-        };
-
-        // Update modal title
-        document.getElementById('projectExpenseModalTitle').textContent =
-            `Expense Breakdown: ${projectName}`;
-
-        // Render scorecards
-        const modalBody = document.getElementById('projectExpenseModalBody');
-        modalBody.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-                <div class="scorecard" style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px;">
-                    <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">
-                        Project Budget
-                    </div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">
-                        ₱${formatCurrency(expenses.budget)}
-                    </div>
-                </div>
-                <div class="scorecard" style="background: ${expenses.remainingBudget >= 0 ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${expenses.remainingBudget >= 0 ? '#22c55e' : '#ef4444'}; padding: 1rem; border-radius: 8px;">
-                    <div style="font-size: 0.875rem; color: ${expenses.remainingBudget >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 0.5rem;">
-                        Remaining Budget
-                    </div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: ${expenses.remainingBudget >= 0 ? '#166534' : '#991b1b'};">
-                        ${expenses.remainingBudget >= 0 ? '' : '⚠️ '}₱${formatCurrency(Math.abs(expenses.remainingBudget))}
-                        ${expenses.remainingBudget < 0 ? ' over' : ''}
-                    </div>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-                <div class="scorecard" style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">
-                        Material Purchases
-                    </div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">
-                        ₱${formatCurrency(expenses.materials)}
-                    </div>
-                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
-                        ${expenses.materialCount} POs
-                    </div>
-                </div>
-                <div class="scorecard" style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">
-                        Transport Fees
-                    </div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">
-                        ₱${formatCurrency(expenses.transport)}
-                    </div>
-                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
-                        ${expenses.transportCount} TRs
-                    </div>
-                </div>
-                <div class="scorecard" style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">
-                        Subcon Cost
-                    </div>
-                    <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">
-                        ₱${formatCurrency(expenses.subcon)}
-                    </div>
-                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
-                        ${expenses.subconCount} POs
-                    </div>
-                </div>
-            </div>
-
-            <div class="scorecard" style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px;">
-                <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">
-                    Total Project Cost
-                </div>
-                <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">
-                    ₱${formatCurrency(expenses.totalCost)}
-                </div>
-                <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">
-                    ${expenses.materialCount + expenses.transportCount + expenses.subconCount} documents
-                </div>
-            </div>
-
-            <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid #e2e8f0; text-align: center;">
-                <p style="color: #64748b; font-size: 0.875rem; margin: 0;">
-                    Click "Refresh Totals" button to update expense calculations
-                </p>
-            </div>
-        `;
-
-        // Show modal
-        document.getElementById('projectExpenseModal').classList.add('active');
-
-    } catch (error) {
-        console.error('[Finance] Error loading project expense breakdown:', error);
-        showToast('Failed to load expense breakdown: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-/**
- * Close project expense modal
- */
-function closeProjectExpenseModal() {
-    document.getElementById('projectExpenseModal').classList.remove('active');
-}
+// showProjectExpenseModal and closeProjectExpenseModal replaced by shared expense-modal.js
 
 /**
  * Cleanup when leaving the view
@@ -1198,7 +1019,7 @@ export async function destroy() {
     delete window.generatePODocument;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
-    delete window.closeProjectExpenseModal;
+    // closeProjectExpenseModal cleanup not needed - shared modal handles its own window functions
     delete window.clearApprovalSignature;
     delete window.approvePRWithSignature;
     delete window.showApprovalModal;
