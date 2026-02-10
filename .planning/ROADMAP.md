@@ -5,7 +5,7 @@
 - ✅ **v1.0 Projects & Tracking** - Phases 1-4 (shipped 2026-01-30)
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
-- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-22 (in progress)
+- ✅ **v2.2 Workflow & UX Enhancements** - Phases 15-22 (shipped 2026-02-10)
 
 ## Overview
 
@@ -174,7 +174,7 @@ Plans:
 
 </details>
 
-## 🚧 v2.2 Workflow & UX Enhancements (In Progress)
+## ✅ v2.2 Workflow & UX Enhancements (Shipped 2026-02-10)
 
 **Milestone Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
 
@@ -317,9 +317,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 22-01-PLAN.md — Fix PO date rendering and blank document defaults
-- [ ] 22-02-PLAN.md — Fix Firestore permission errors and delivery fee expense totals
-- [ ] 22-03-PLAN.md — Add sortable table headers to Finance and Clients views
+- [x] 22-01-PLAN.md — Fix PO date rendering and blank document defaults
+- [x] 22-02-PLAN.md — Fix Firestore permission errors and delivery fee expense totals
+- [x] 22-03-PLAN.md — Add sortable table headers to Finance and Clients views
 
 ## Progress
 
@@ -348,4 +348,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22
 | 19. Navigation Consolidation | v2.2 | 2/2 | Complete | 2026-02-08 |
 | 20. Multi-Personnel Selection | v2.2 | 3/3 | Complete | 2026-02-09 |
 | 21. Personnel-Assignment Sync | v2.2 | 1/1 | Complete | 2026-02-09 |
-| 22. Bug Fixes & UX | v2.2 | 0/3 | Planned | - |
+| 22. Bug Fixes & UX | v2.2 | 3/3 | Complete | 2026-02-10 |
