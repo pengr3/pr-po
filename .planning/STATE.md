@@ -5,26 +5,26 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 22 - Bug Fixes & UX Improvements (v2.2 Workflow & UX Enhancements) - IN PROGRESS
+**Current focus:** Phase 22 - Bug Fixes & UX Improvements (v2.2 Workflow & UX Enhancements) - COMPLETE
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
 Phase: 22 (Bug Fixes & UX Improvements)
-Plan: 2 of 3 in phase
-Status: In progress
-Last activity: 2026-02-10 - Completed 22-02-PLAN.md (Firestore permissions & delivery fee fix)
+Plan: 3 of 3 in phase
+Status: Phase complete (all milestones complete)
+Last activity: 2026-02-10 - Completed 22-03-PLAN.md (Sortable table headers)
 
-Progress: [█████████████████████████████████████████████████░] 99% (66/67 plans across all milestones)
+Progress: [██████████████████████████████████████████████████] 100% (67/67 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 54 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 18 plans)
+- Total plans completed: 67 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 31 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 18 plans completed
+- v2.2 milestone: 31 plans completed
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -34,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 7 | 18 | 3 days | 0.17 days |
+| v2.2 Enhancements | 8 | 31 | 4 days | 0.13 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -127,7 +127,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-Phase 22 plan 03 remaining.
+None - all milestones complete.
 
 ### Roadmap Evolution
 
@@ -167,10 +167,13 @@ Phase 22 plan 03 remaining.
 - v2.2 (22-02): Guard loadActiveUsers() with canEditTab check (users collection requires super_admin/operations_admin permissions)
 - v2.2 (22-02): Add delivery fee to total_amount at write time rather than modifying aggregation queries (simpler, no double-counting)
 - v2.2 (22-02): Preserve delivery_fee field separately for display purposes (PO details modal)
+- v2.2 (22-03): Follow projects.js sort pattern exactly for consistency across all sortable tables
+- v2.2 (22-03): Dynamic sort in onSnapshot preserves user sort selection across real-time updates
+- v2.2 (22-03): Pagination resets to page 1 on sort change in Clients view
 
 ## Session Continuity
 
-Last session: 2026-02-10 (Phase 22 plan 02 complete -- Firestore permissions & delivery fee fix)
-Stopped at: Completed 22-02-PLAN.md
+Last session: 2026-02-10 (Phase 22 plan 03 complete -- Sortable table headers)
+Stopped at: Completed 22-03-PLAN.md (final plan in all milestones)
 Resume file: None
-Next action: Execute 22-03-PLAN.md
+Next action: All milestones complete
