@@ -123,6 +123,19 @@ service cloud.firestore {
 
       // Delete: super_admin, operations_admin
       allow delete: if hasRole(['super_admin', 'operations_admin']);
+
+      // edit_history subcollection (Phase 25 - append-only audit trail)
+      match /edit_history/{entryId} {
+        // Read: all active users (consistent with project read access)
+        allow read: if isActiveUser();
+
+        // Create: roles that can update projects (same as project update rule)
+        allow create: if hasRole(['super_admin', 'operations_admin', 'finance']);
+
+        // Append-only: no updates or deletes allowed
+        allow update: if false;
+        allow delete: if false;
+      }
     }
 
     // =============================================
