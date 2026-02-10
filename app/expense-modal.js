@@ -107,7 +107,7 @@ export async function showExpenseBreakdownModal(projectName) {
 
     // Calculate totals
     const transportCategoryTotal = transportCategoryItems.reduce((s, item) => s + item.subtotal, 0);
-    const materialsDisplay = materialTotal - transportCategoryTotal - deliveryFeeTotal;
+    const materialsDisplay = materialTotal - transportCategoryTotal;
     const transportDisplay = trTotal + transportCategoryTotal + deliveryFeeTotal;
     const totalCost = materialsDisplay + transportDisplay + subconTotal;
     const budget = parseFloat(project.budget || 0);
