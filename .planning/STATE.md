@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-05)
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 25 (Project Edit History)
-Plan: 1 of 2 in phase
-Status: In progress
-Last activity: 2026-02-10 - Completed 25-01-PLAN.md (edit history shared module + security rules)
+Phase: 24 (PR/TR Rejection Reason Passthrough) - COMPLETE / Phase 25 in progress
+Plan: 24-01 complete, 25-01 complete
+Status: Phase 24 complete, Phase 25 in progress (1 of 2)
+Last activity: 2026-02-10 - Completed 24-01-PLAN.md (rejection reason passthrough fix)
 
-Progress: [█████████████████████████████████████████████████░] 97% (70/72 plans across all milestones)
+Progress: [█████████████████████████████████████████████████░] 99% (71/72 plans across all milestones)
 
 **Next Plan:** 25-02 - Instrument mutation points and add Edit History button
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 70 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 34 plans)
+- Total plans completed: 71 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 35 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
@@ -132,7 +132,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-- Phase 24: Fix rejection reason passthrough from Finance to Procurement
+- ~~Phase 24: Fix rejection reason passthrough from Finance to Procurement~~ COMPLETE
 - Phase 25: Instrument mutation points in project-detail.js and projects.js (Plan 02)
 
 ### Roadmap Evolution
@@ -181,16 +181,16 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (22-03): Pagination resets to page 1 on sort change in Clients view
 - v2.2 (23-01): Keep both finance_approver (legacy) and finance_approver_name (new) fields for TR approval backward compatibility
 - v2.2 (23-01): All finance approval functions use getCurrentUser() for attribution (no hardcoded names)
-
-### Decisions
-
+- v2.2 (24-01): Dual field write (pr_rejection_reason + rejection_reason) for forward/backward compatibility on rejection
+- v2.2 (24-01): Dynamic currentUser attribution for rejected_by with rejected_by_user_id for audit trail
+- v2.2 (24-01): Three-level fallback chain (pr_rejection_reason || rejection_reason || 'No reason provided') for graceful migration
 - v2.2 (25-01): Fire-and-forget pattern for recordEditHistory (catches errors, never blocks primary save)
 - v2.2 (25-01): Append-only subcollection rules for edit_history (allow create, deny update/delete)
 - v2.2 (25-01): ISO timestamp strings for edit history (consistent with project.updated_at, simpler client-side formatting)
 
 ## Session Continuity
 
-Last session: 2026-02-10T08:37:43Z
-Stopped at: Completed 25-01-PLAN.md (edit history shared module + Firestore security rules)
+Last session: 2026-02-10T08:41:00Z
+Stopped at: Completed 24-01-PLAN.md (rejection reason passthrough fix)
 Resume file: None
 Next action: Execute 25-02-PLAN.md (instrument mutation points + add Edit History button)
