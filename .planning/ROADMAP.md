@@ -5,7 +5,7 @@
 - ✅ **v1.0 Projects & Tracking** - Phases 1-4 (shipped 2026-01-30)
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
-- ✅ **v2.2 Workflow & UX Enhancements** - Phases 15-22 (shipped 2026-02-10)
+- 🔧 **v2.2 Workflow & UX Enhancements** - Phases 15-23 (tech debt cleanup remaining)
 
 ## Overview
 
@@ -174,7 +174,7 @@ Plans:
 
 </details>
 
-## ✅ v2.2 Workflow & UX Enhancements (Shipped 2026-02-10)
+## 🔧 v2.2 Workflow & UX Enhancements (Tech Debt Cleanup)
 
 **Milestone Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
 
@@ -321,10 +321,26 @@ Plans:
 - [x] 22-02-PLAN.md — Fix Firestore permission errors and delivery fee expense totals
 - [x] 22-03-PLAN.md — Add sortable table headers to Finance and Clients views
 
+### Phase 23: Tech Debt Cleanup
+**Goal**: Address accumulated tech debt from milestone audit — fix TR approval attribution, correct cosmetic regressions, remove dead code, and add missing documentation
+**Depends on**: Phase 22
+**Gap Closure**: Closes 5 tech debt items from v2.2-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. TR approval captures actual approver name from getCurrentUser() instead of hardcoded value
+  2. Section header in procurement.js shows "MRF Records" (not "PR-PO Records")
+  3. Legacy approvePR() and generatePOsForPR() dead code removed from finance.js
+  4. HTML comment at procurement.js line 228 updated to "MRF Records Section"
+  5. Phase 20 VERIFICATION.md exists documenting UAT results
+**Plans**: TBD
+
+Plans:
+- [ ] 23-01-PLAN.md — Fix TR approval attribution and cosmetic regressions
+- [ ] 23-02-PLAN.md — Remove dead code and add missing verification doc
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22
+Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 -> 23
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -349,3 +365,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22
 | 20. Multi-Personnel Selection | v2.2 | 3/3 | Complete | 2026-02-09 |
 | 21. Personnel-Assignment Sync | v2.2 | 1/1 | Complete | 2026-02-09 |
 | 22. Bug Fixes & UX | v2.2 | 3/3 | Complete | 2026-02-10 |
+| 23. Tech Debt Cleanup | v2.2 | 0/2 | Planned | - |

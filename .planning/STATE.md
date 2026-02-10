@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 22 - Bug Fixes & UX Improvements (v2.2 Workflow & UX Enhancements) - COMPLETE
+**Current focus:** Phase 23 - Tech Debt Cleanup (v2.2 Workflow & UX Enhancements)
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 22 (Bug Fixes & UX Improvements)
-Plan: 3 of 3 in phase
-Status: Phase complete (all milestones complete)
-Last activity: 2026-02-10 - Completed 22-03-PLAN.md (Sortable table headers)
+Phase: 23 (Tech Debt Cleanup)
+Plan: 0 of 2 in phase
+Status: Planning
+Last activity: 2026-02-10 - Created Phase 23 from milestone audit tech debt
 
-Progress: [██████████████████████████████████████████████████] 100% (67/67 plans across all milestones)
+Progress: [████████████████████████████████████████████████░░] 97% (67/69 plans across all milestones)
 
 ## Performance Metrics
 
@@ -127,12 +127,13 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-None - all milestones complete.
+- Phase 23: Tech Debt Cleanup (2 plans to create and execute)
 
 ### Roadmap Evolution
 
 - Phase 21 added: Personnel-Assignment Sync — fix disconnect between project personnel field and user's assigned_project_codes
 - Phase 22 added after Phase 21: Bug Fixes & UX Improvements — PO date rendering, blank document details, Firestore permissions, delivery fee persistence, sortable table headers
+- Phase 23 added after Phase 22: Tech Debt Cleanup — addresses 5 items from v2.2 milestone audit (TR attribution, section header, dead code, stale comment, missing verification)
 
 ### Blockers/Concerns
 
@@ -173,7 +174,7 @@ None - all milestones complete.
 
 ## Session Continuity
 
-Last session: 2026-02-10 (Phase 22 plan 03 complete -- Sortable table headers)
-Stopped at: Completed 22-03-PLAN.md (final plan in all milestones)
+Last session: 2026-02-10 (Phase 23 created from milestone audit)
+Stopped at: Created Phase 23 gap closure phase
 Resume file: None
-Next action: All milestones complete
+Next action: /gsd:plan-phase 23
