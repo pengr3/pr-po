@@ -1828,6 +1828,7 @@ async function submitRejection() {
 
     try {
         const isTransport = request.isTransportRequest || request.tr_id;
+        const currentUser = window.getCurrentUser();
 
         if (isTransport) {
             // Reject TR
@@ -1836,7 +1837,8 @@ async function submitRejection() {
                 finance_status: 'Rejected',
                 rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
-                rejected_by: 'Ma. Thea Angela R. Lacsamana'
+                rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
+                rejected_by_user_id: currentUser?.uid
             });
 
             // Update MRF
@@ -1848,7 +1850,12 @@ async function submitRejection() {
                 const mrfDoc = mrfSnapshot.docs[0];
                 await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
                     status: 'TR Rejected',
+                    rejected_tr_id: request.tr_id || request.pr_id,
+                    pr_rejection_reason: reason,
                     rejection_reason: reason,
+                    is_rejected: true,
+                    rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
+                    rejected_by_user_id: currentUser?.uid,
                     updated_at: new Date().toISOString()
                 });
             }
@@ -1861,7 +1868,8 @@ async function submitRejection() {
                 finance_status: 'Rejected',
                 rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
-                rejected_by: 'Ma. Thea Angela R. Lacsamana'
+                rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
+                rejected_by_user_id: currentUser?.uid
             });
 
             // Update MRF
@@ -1874,8 +1882,11 @@ async function submitRejection() {
                 await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
                     status: 'PR Rejected',
                     rejected_pr_id: request.pr_id,
+                    pr_rejection_reason: reason,
                     rejection_reason: reason,
                     is_rejected: true,
+                    rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
+                    rejected_by_user_id: currentUser?.uid,
                     updated_at: new Date().toISOString()
                 });
             }
