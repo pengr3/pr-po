@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp } from '../utils.js';
 
 // View state
 let listeners = [];
@@ -2154,7 +2154,11 @@ async function loadPOs() {
         });
 
         // Sort by date (newest first)
-        poData.sort((a, b) => new Date(b.date_issued) - new Date(a.date_issued));
+        poData.sort((a, b) => {
+            const dateA = a.date_issued?.toDate ? a.date_issued.toDate() : new Date(a.date_issued || 0);
+            const dateB = b.date_issued?.toDate ? b.date_issued.toDate() : new Date(b.date_issued || 0);
+            return dateB - dateA;
+        });
 
         console.log('📄 POs loaded:', poData.length);
         renderPOs();
@@ -2205,7 +2209,7 @@ function renderPOs() {
                         <td>${po.supplier_name}</td>
                         <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
-                        <td>${formatDate(po.date_issued)}</td>
+                        <td>${formatTimestamp(po.date_issued)}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
