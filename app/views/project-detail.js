@@ -676,9 +676,11 @@ async function showExpenseModal() {
         const categoryTotals = {};
         const transportCategoryItems = [];
         let materialTotal = 0;
+        let deliveryFeeTotal = 0;
 
         posSnapshot.forEach(poDoc => {
             const po = poDoc.data();
+            deliveryFeeTotal += parseFloat(po.delivery_fee || 0);
             const items = JSON.parse(po.items_json || '[]');
 
             items.forEach(item => {
@@ -747,9 +749,9 @@ async function showExpenseModal() {
             });
         });
 
-        // Add transport category items to transport total
+        // Add transport category items and delivery fees to transport total
         const transportCategoryTotal = transportCategoryItems.reduce((sum, item) => sum + item.subtotal, 0);
-        transportTotal += transportCategoryTotal;
+        transportTotal += transportCategoryTotal + deliveryFeeTotal;
 
         // Create and show modal with tabs
         const modalHTML = `
@@ -764,7 +766,7 @@ async function showExpenseModal() {
                         <div class="expense-summary-grid">
                             <div class="expense-summary-card">
                                 <div class="expense-summary-label">Material Purchases</div>
-                                <div class="expense-summary-value">${formatCurrency(materialTotal - transportCategoryTotal)}</div>
+                                <div class="expense-summary-value">${formatCurrency(materialTotal - transportCategoryTotal - deliveryFeeTotal)}</div>
                             </div>
                             <div class="expense-summary-card">
                                 <div class="expense-summary-label">Transport Fees</div>
@@ -772,7 +774,7 @@ async function showExpenseModal() {
                             </div>
                             <div class="expense-summary-card total">
                                 <div class="expense-summary-label">Total Expense</div>
-                                <div class="expense-summary-value">${formatCurrency(materialTotal + (transportTotal - transportCategoryTotal))}</div>
+                                <div class="expense-summary-value">${formatCurrency(materialTotal - deliveryFeeTotal + (transportTotal - transportCategoryTotal))}</div>
                             </div>
                         </div>
 

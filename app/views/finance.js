@@ -1005,7 +1005,8 @@ async function showProjectExpenseModal(projectName) {
         );
         const materialAgg = await getAggregateFromServer(materialQuery, {
             materialTotal: sum('total_amount'),
-            materialCount: count()
+            materialCount: count(),
+            deliveryFeeTotal: sum('delivery_fee')
         });
 
         // Subcon POs
@@ -1030,21 +1031,21 @@ async function showProjectExpenseModal(projectName) {
             transportCount: count()
         });
 
+        const rawMaterials = materialAgg.data().materialTotal || 0;
+        const deliveryFees = materialAgg.data().deliveryFeeTotal || 0;
+        const rawTransport = transportAgg.data().transportTotal || 0;
+
         const expenses = {
-            materials: materialAgg.data().materialTotal || 0,
+            materials: rawMaterials - deliveryFees,
             materialCount: materialAgg.data().materialCount || 0,
-            transport: transportAgg.data().transportTotal || 0,
+            transport: rawTransport + deliveryFees,
             transportCount: transportAgg.data().transportCount || 0,
             subcon: subconAgg.data().subconTotal || 0,
             subconCount: subconAgg.data().subconCount || 0,
-            totalCost: (materialAgg.data().materialTotal || 0) +
-                      (transportAgg.data().transportTotal || 0) +
-                      (subconAgg.data().subconTotal || 0),
+            totalCost: rawMaterials + rawTransport + (subconAgg.data().subconTotal || 0),
             budget: project.budget || 0,
             remainingBudget: (project.budget || 0) -
-                           ((materialAgg.data().materialTotal || 0) +
-                            (transportAgg.data().transportTotal || 0) +
-                            (subconAgg.data().subconTotal || 0))
+                           (rawMaterials + rawTransport + (subconAgg.data().subconTotal || 0))
         };
 
         // Update modal title
