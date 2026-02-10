@@ -677,10 +677,15 @@ async function showExpenseModal() {
         const transportCategoryItems = [];
         let materialTotal = 0;
         let deliveryFeeTotal = 0;
+        const deliveryFeeItems = [];
 
         posSnapshot.forEach(poDoc => {
             const po = poDoc.data();
-            deliveryFeeTotal += parseFloat(po.delivery_fee || 0);
+            const fee = parseFloat(po.delivery_fee || 0);
+            if (fee > 0) {
+                deliveryFeeTotal += fee;
+                deliveryFeeItems.push({ po_id: po.po_id, amount: fee });
+            }
             const items = JSON.parse(po.items_json || '[]');
 
             items.forEach(item => {
@@ -831,7 +836,7 @@ async function showExpenseModal() {
 
                         <!-- Transport Fees Tab Content -->
                         <div id="transportTabContent" class="expense-tab-content" style="display: none; margin-top: 1.5rem;">
-                            ${transportRequests.length > 0 || transportCategoryItems.length > 0 ? `
+                            ${transportRequests.length > 0 || transportCategoryItems.length > 0 || deliveryFeeItems.length > 0 ? `
                                 ${transportRequests.length > 0 ? `
                                     <div class="category-card collapsible">
                                         <div class="category-header" onclick="window.toggleCategory(this)">
@@ -891,6 +896,35 @@ async function showExpenseModal() {
                                                             <td>${item.quantity} ${item.unit}</td>
                                                             <td>${formatCurrency(item.unit_cost)}</td>
                                                             <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                                                        </tr>
+                                                    `).join('')}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${deliveryFeeItems.length > 0 ? `
+                                    <div class="category-card collapsible">
+                                        <div class="category-header" onclick="window.toggleCategory(this)">
+                                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                                <span class="category-toggle">▶</span>
+                                                <span class="category-name">Delivery Fees</span>
+                                            </div>
+                                            <span class="category-amount">${formatCurrency(deliveryFeeTotal)}</span>
+                                        </div>
+                                        <div class="category-items" style="display: none;">
+                                            <table class="modal-items-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>PO ID</th>
+                                                        <th style="text-align: right;">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${deliveryFeeItems.map(item => `
+                                                        <tr>
+                                                            <td>${item.po_id}</td>
+                                                            <td style="text-align: right;">${formatCurrency(item.amount)}</td>
                                                         </tr>
                                                     `).join('')}
                                                 </tbody>
