@@ -3,7 +3,7 @@ status: complete
 phase: 21-personnel-assignment-sync
 source: 21-01-SUMMARY.md
 started: 2026-02-09T20:00:00Z
-updated: 2026-02-09T20:20:00Z
+updated: 2026-02-09T21:00:00Z
 ---
 
 ## Current Test
@@ -33,6 +33,7 @@ expected: If a user has `all_projects: true` on their Firestore document, adding
 result: issue
 reported: "removed a user in a project does not remove that project in that user's project list. This is critical kindly fix"
 severity: blocker
+resolution: diagnosed as expected behavior for all_projects users + discovered dead variable bug in editProject(). Fixed editProject() (projectsData→allProjects), added reverse sync from Admin>Assignments to project personnel, fixed operations_user permission error, suppressed expense toast on page load.
 
 ### 6. Operations user sees assigned project immediately
 expected: Log in as an operations user who was just added as personnel on a project. The project appears in their Projects list without needing to be manually assigned via the Admin > Assignments panel.
@@ -46,39 +47,28 @@ result: pass
 expected: Load the app fresh, navigate to Projects, project detail, and Admin pages. No `syncPersonnelToAssignments is not a function`, `arrayUnion is not a function`, or other import errors appear in the console.
 result: pass
 
+### 9. Admin Assignments reverse sync to project personnel
+expected: Assign a project to a user via Admin > Assignments. The user appears as personnel on the project detail page. Console shows sync logs and toast confirms success.
+result: pass
+
 ## Summary
 
-total: 8
-passed: 7
+total: 9
+passed: 8
 issues: 1
 pending: 0
 skipped: 0
 
 ## Gaps
 
-- truth: "Removing a user as personnel removes the project code from their assigned_project_codes"
-  status: diagnosed
-  reason: "User reported: removed a user in a project does not remove that project in that user's project list. This is critical kindly fix"
+- truth: "all_projects users removal behavior"
+  status: resolved
+  reason: "Expected behavior — all_projects:true users see all projects via getAssignedProjectCodes() returning null. Removal sync is correct (arrayRemove no-op). Additional fixes applied: editProject dead variable, reverse sync from Admin>Assignments, operations_user permission handling, expense toast suppression."
   severity: blocker
   test: 5
-  root_cause: "Expected behavior for all_projects users. all_projects:true users see all projects via getAssignedProjectCodes() returning null, bypassing assigned_project_codes filtering entirely. Sync skips arrayUnion on add (correct), so arrayRemove on remove is a no-op. Regular user removal (Test 4) works correctly."
-  artifacts:
-    - path: "app/utils.js"
-      issue: "all_projects skip on addition means project code never enters assigned_project_codes for these users"
-    - path: "app/utils.js"
-      issue: "getAssignedProjectCodes returns null for all_projects users, bypassing filtering"
-  missing: []
-  debug_session: ".planning/debug/personnel-removal-sync.md"
-
-- truth: "editProject() in projects list view works correctly"
-  status: fixed
-  reason: "Discovered during diagnosis: projectsData variable is never populated, should be allProjects"
-  severity: blocker
-  test: discovered
-  root_cause: "projects.js line 886 used dead variable projectsData instead of allProjects — editProject() silently returned early"
-  artifacts:
-    - path: "app/views/projects.js"
-      issue: "Dead variable projectsData used instead of allProjects in editProject()"
-  missing: []
-  debug_session: ".planning/debug/personnel-removal-sync.md"
-  fix_commit: "2a1650a"
+  root_cause: "all_projects flag overrides assigned_project_codes filtering"
+  fixes_applied:
+    - "fix(21): use allProjects instead of dead projectsData variable in editProject (2a1650a)"
+    - "feat(21): add reverse sync from Admin Assignments to project personnel (f81f8b6)"
+    - "fix(21): suppress expense toast on page load (d5fb923)"
+    - "fix(21): add sync toast notification + fix permission error for operations_user (e12b45d)"
