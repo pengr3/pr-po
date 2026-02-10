@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 21 - Personnel-Assignment Sync (v2.2 Workflow & UX Enhancements) - COMPLETE
+**Current focus:** Phase 22 - Bug Fixes & UX Improvements (v2.2 Workflow & UX Enhancements) - IN PROGRESS
 
 ## Current Position
 
 **Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 21 of 21 (Personnel-Assignment Sync)
-Plan: 1 of 1 in phase
-Status: Phase complete
-Last activity: 2026-02-09 - Completed 21-01-PLAN.md (personnel-assignment sync)
+Phase: 22 (Bug Fixes & UX Improvements)
+Plan: 1 of 3 in phase
+Status: In progress
+Last activity: 2026-02-10 - Completed 22-01-PLAN.md (PO date rendering & document defaults)
 
-Progress: [██████████████████████████████████████████████████] 100% (57/57 plans across all milestones)
+Progress: [█████████████████████████████████████████████████░] 98% (65/66 plans across all milestones)
 
 ## Performance Metrics
 
@@ -127,11 +127,12 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 
 ### Pending Todos
 
-None -- all phases complete.
+Phase 22 plans 02 and 03 remaining.
 
 ### Roadmap Evolution
 
 - Phase 21 added: Personnel-Assignment Sync — fix disconnect between project personnel field and user's assigned_project_codes
+- Phase 22 added after Phase 21: Bug Fixes & UX Improvements — PO date rendering, blank document details, Firestore permissions, delivery fee persistence, sortable table headers
 
 ### Blockers/Concerns
 
@@ -161,10 +162,12 @@ None -- all phases complete.
 - v2.2 (21-01): arrayUnion/arrayRemove for atomic personnel-to-assignment sync (idempotent, no race conditions)
 - v2.2 (21-01): Skip all_projects users on additions only (arrayRemove on missing value is no-op)
 - v2.2 (21-01): Fire-and-forget sync pattern (personnel save is primary, sync is secondary enhancement)
+- v2.2 (22-01): formatTimestamp over formatDate for PO dates (handles both Firestore Timestamp and string dates)
+- v2.2 (22-01): Empty string fallback for document fields (blank fields are honest, hardcoded defaults mislead)
 
 ## Session Continuity
 
-Last session: 2026-02-09 (Phase 21 complete — personnel-assignment sync)
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-02-10 (Phase 22 plan 01 complete -- PO date rendering & document defaults)
+Stopped at: Completed 22-01-PLAN.md
 Resume file: None
-Next action: All planned phases complete. Milestone v2.2 fully delivered.
+Next action: Execute 22-02-PLAN.md
