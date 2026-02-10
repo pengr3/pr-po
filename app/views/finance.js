@@ -489,7 +489,7 @@ async function generatePODocument(poDocId) {
         const documentData = {
             PO_ID: po.po_id,
             PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
-            DATE: formatDocumentDate(po.date_issued || new Date().toISOString()),
+            DATE: formatTimestamp(po.date_issued) || formatDocumentDate(po.date_issued_legacy) || 'N/A',
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
@@ -2300,7 +2300,7 @@ function renderPOs() {
                         <td>${po.supplier_name}</td>
                         <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
-                        <td>${formatTimestamp(po.date_issued)}</td>
+                        <td>${formatTimestamp(po.date_issued) || formatDate(po.date_issued_legacy) || 'N/A'}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>

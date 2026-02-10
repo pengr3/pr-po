@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, generateSequentialId } from '../utils.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline } from '../components.js';
 
 // ========================================
@@ -4953,7 +4953,7 @@ async function generatePODocument(poDocId) {
         const documentData = {
             PO_ID: po.po_id,
             PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
-            DATE: formatDocumentDate(po.date_issued || new Date().toISOString()),
+            DATE: formatTimestamp(po.date_issued) || formatDocumentDate(po.date_issued_legacy) || 'N/A',
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),

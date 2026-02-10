@@ -47,17 +47,25 @@ export function formatDate(dateString) {
  * @returns {string} Formatted date string
  */
 export function formatTimestamp(timestamp) {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return '';
 
     try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        let date;
+        if (timestamp.toDate) {
+            date = timestamp.toDate();
+        } else if (timestamp.seconds != null) {
+            date = new Date(timestamp.seconds * 1000);
+        } else {
+            date = new Date(timestamp);
+        }
+        if (isNaN(date.getTime())) return '';
         return date.toLocaleDateString('en-PH', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
         });
     } catch (error) {
-        return 'N/A';
+        return '';
     }
 }
 
