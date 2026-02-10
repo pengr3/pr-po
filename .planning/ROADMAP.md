@@ -361,10 +361,11 @@ Plans:
   4. Each history entry shows: what field changed, old value → new value, timestamp, and user who made the change
   5. History captures changes from all edit paths (project-detail.js inline editing, projects.js creation)
   6. History persists across sessions (stored in Firestore)
-**Plans**: 0 plans
+**Plans**: 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 25 to break down)
+- [ ] 25-01-PLAN.md — Create edit history shared module and Firestore security rules
+- [ ] 25-02-PLAN.md — Wire edit history into all mutation points and add UI button
 
 ## Progress
 
@@ -396,4 +397,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22 ->
 | 22. Bug Fixes & UX | v2.2 | 3/3 | Complete | 2026-02-10 |
 | 23. Tech Debt Cleanup | v2.2 | 2/2 | Complete | 2026-02-10 |
 | 24. Rejection Reason Passthrough | v2.2 | 0/1 | In Progress | - |
-| 25. Project Edit History | v2.2 | 0/0 | Not Started | - |
+| 25. Project Edit History | v2.2 | 0/2 | Not Started | - |
