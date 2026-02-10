@@ -1718,6 +1718,12 @@ async function approveTR(trId) {
         return;
     }
 
+    const currentUser = window.getCurrentUser();
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
+
     if (!confirm('Approve this Transport Request?')) {
         return;
     }
@@ -1735,7 +1741,9 @@ async function approveTR(trId) {
         const trRef = doc(db, 'transport_requests', tr.id);
         await updateDoc(trRef, {
             finance_status: 'Approved',
-            finance_approver: 'Ma. Thea Angela R. Lacsamana',
+            finance_approver: currentUser.full_name || currentUser.email || 'Finance User',
+            finance_approver_user_id: currentUser.uid,
+            finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             date_approved: new Date().toISOString().split('T')[0],
             approved_at: new Date().toISOString()
         });
