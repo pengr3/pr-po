@@ -5,7 +5,7 @@
 
 import { db, collection, addDoc, getDocs, query, orderBy, doc } from './firebase.js';
 import { createTimeline } from './components.js';
-import { formatDate, formatCurrency, showLoading } from './utils.js';
+import { formatCurrency, showLoading } from './utils.js';
 
 /* ========================================
    INTERNAL HELPERS
@@ -16,6 +16,19 @@ import { formatDate, formatCurrency, showLoading } from './utils.js';
  * @param {string} fieldName - Internal field name
  * @returns {string} Human-readable label
  */
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-PH', {
+            year: 'numeric', month: 'long', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', hour12: true
+        });
+    } catch {
+        return dateString;
+    }
+}
+
 function formatFieldName(fieldName) {
     const fieldLabels = {
         'project_name': 'Project Name',
@@ -116,7 +129,7 @@ export async function showEditHistoryModal(projectDocId, projectCode) {
 
             timelineItems.push({
                 title: `${getActionLabel(entry.action)} by ${entry.user_name}`,
-                date: formatDate(entry.timestamp),
+                date: formatDateTime(entry.timestamp),
                 description: changesDesc,
                 status: 'completed'
             });
