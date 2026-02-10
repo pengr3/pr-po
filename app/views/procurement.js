@@ -616,7 +616,7 @@ async function loadProjects() {
 async function loadMRFs() {
     console.log('🔍 Setting up MRF listener...');
     const mrfsRef = collection(db, 'mrfs');
-    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'Finance Rejected'];
+    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
     console.log('  Querying statuses:', statuses);
     const q = query(mrfsRef, where('status', 'in', statuses));
 
@@ -728,7 +728,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
         const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
 
         // Check if rejected
-        const isRejected = mrf.status === 'PR Rejected';
+        const isRejected = mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
         const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
 
         let urgencyColor, urgencyBg;
@@ -756,7 +756,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                     <span style="font-weight: 600;">
                         ${mrf.mrf_id}
-                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                        ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
                     </span>
                     <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
                         ${mrf.urgency_level || 'Low'}
@@ -765,7 +765,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                 <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
                 ${isRejected ? `
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                        <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
+                        <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
                     </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
@@ -793,7 +793,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
             dateNeeded.setHours(0, 0, 0, 0);
             const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
 
-            const isRejected = mrf.status === 'PR Rejected';
+            const isRejected = mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
             const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
 
             let urgencyColor = '#f59e0b';
@@ -812,7 +812,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                         <span style="font-weight: 600;">
                             ${mrf.mrf_id}
-                            ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                            ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
                         </span>
                         <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
                             ${mrf.urgency_level || 'Low'}
@@ -821,7 +821,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                     <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
                     ${isRejected ? `
                         <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                            <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
+                            <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
                         </div>
                     ` : ''}
                     <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
