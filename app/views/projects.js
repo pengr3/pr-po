@@ -369,6 +369,14 @@ async function loadClients() {
 
 // Load active users for personnel datalist
 async function loadActiveUsers() {
+    // Personnel pill selector is an edit feature - skip for view-only users
+    // Firestore rules only allow super_admin/operations_admin to list users
+    const canEdit = window.canEditTab?.('projects');
+    if (canEdit === false) {
+        console.log('[Projects] Skipping user load (view-only mode)');
+        return;
+    }
+
     try {
         const usersQuery = query(
             collection(db, 'users'),
@@ -387,6 +395,8 @@ async function loadActiveUsers() {
             });
             usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
             console.log('[Projects] Active users loaded:', usersData.length);
+        }, (error) => {
+            console.warn('[Projects] Users listener error (likely permissions):', error.message);
         });
 
         listeners.push(listener);
