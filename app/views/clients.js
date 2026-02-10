@@ -13,6 +13,10 @@ let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
 
+// Sort state
+let sortColumn = 'company_name';
+let sortDirection = 'asc';
+
 // Attach window functions
 function attachWindowFunctions() {
     console.log('[Clients] Attaching window functions...');
@@ -23,6 +27,7 @@ function attachWindowFunctions() {
     window.saveEdit = saveEdit;
     window.deleteClient = deleteClient;
     window.changeClientsPage = changeClientsPage;
+    window.sortClients = sortClients;
     console.log('[Clients] Window functions attached');
 }
 
@@ -81,9 +86,15 @@ export function render(activeTab = null) {
                 <table>
                     <thead>
                         <tr>
-                            <th>Client Code</th>
-                            <th>Company Name</th>
-                            <th>Contact Person</th>
+                            <th onclick="window.sortClients('client_code')" style="cursor: pointer; user-select: none;">
+                                Client Code <span class="sort-indicator" data-col="client_code"></span>
+                            </th>
+                            <th onclick="window.sortClients('company_name')" style="cursor: pointer; user-select: none;">
+                                Company Name <span class="sort-indicator" data-col="company_name"></span>
+                            </th>
+                            <th onclick="window.sortClients('contact_person')" style="cursor: pointer; user-select: none;">
+                                Contact Person <span class="sort-indicator" data-col="contact_person"></span>
+                            </th>
                             <th>Contact Details</th>
                             <th>Actions</th>
                         </tr>
@@ -142,6 +153,11 @@ export async function destroy() {
     delete window.saveEdit;
     delete window.deleteClient;
     delete window.changeClientsPage;
+    delete window.sortClients;
+
+    // Reset sort state
+    sortColumn = 'company_name';
+    sortDirection = 'asc';
 
     console.log('[Clients] View destroyed');
 }
@@ -155,7 +171,18 @@ async function loadClients() {
                 clientsData.push({ id: doc.id, ...doc.data() });
             });
 
-            clientsData.sort((a, b) => a.company_name.localeCompare(b.company_name));
+            // Sort by current user-selected column (default: company_name ascending)
+            clientsData.sort((a, b) => {
+                let aVal = a[sortColumn];
+                let bVal = b[sortColumn];
+                if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+                if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+                if (typeof aVal === 'string') {
+                    return sortDirection === 'asc'
+                        ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                }
+                return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+            });
 
             console.log('[Clients] Loaded:', clientsData.length);
             renderClientsTable();
@@ -165,6 +192,33 @@ async function loadClients() {
     } catch (error) {
         console.error('[Clients] Error loading:', error);
     }
+}
+
+/**
+ * Sort clients by column
+ */
+function sortClients(column) {
+    if (sortColumn === column) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortColumn = column;
+        sortDirection = 'asc';
+    }
+    // Reset pagination
+    currentPage = 1;
+    // Sort the data
+    clientsData.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
+        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return sortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    renderClientsTable();
 }
 
 function renderClientsTable() {
@@ -224,6 +278,18 @@ function renderClientsTable() {
     }).join('');
 
     updatePaginationControls(totalPages, startIndex, endIndex, clientsData.length);
+
+    // Update sort indicators
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const col = indicator.dataset.col;
+        if (col === sortColumn) {
+            indicator.textContent = sortDirection === 'asc' ? ' \u2191' : ' \u2193';
+            indicator.style.color = '#1a73e8';
+        } else {
+            indicator.textContent = ' \u21C5';
+            indicator.style.color = '#94a3b8';
+        }
+    });
 }
 
 function toggleAddClientForm() {
