@@ -296,8 +296,10 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
 
     if (errors.length > 0) {
         console.warn('[ProjectAssignments] Personnel sync had', errors.length, 'errors:', errors);
+        showToast(`Personnel sync: ${errors.length} error(s)`, 'error');
     } else if (addedCodes.length > 0 || removedCodes.length > 0) {
         console.log('[ProjectAssignments] Personnel sync complete — no errors');
+        showToast('Personnel updated on project', 'success');
     }
 }
 

@@ -532,11 +532,20 @@ export async function syncPersonnelToAssignments(projectCode, previousUserIds, n
     // Process additions -- check all_projects flag before adding
     for (const userId of addedUserIds) {
         try {
-            const userDoc = await getDoc(doc(db, 'users', userId));
-            if (userDoc.exists() && userDoc.data().all_projects === true) {
-                console.log(`[PersonnelSync] Skipping ${userId} (all_projects=true)`);
-                continue;
+            // Try to check all_projects flag; skip read errors gracefully
+            // (operations_user can't read other users' docs -- just proceed with the add)
+            let skipUser = false;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists() && userDoc.data().all_projects === true) {
+                    console.log(`[PersonnelSync] Skipping ${userId} (all_projects=true)`);
+                    skipUser = true;
+                }
+            } catch (readErr) {
+                console.log(`[PersonnelSync] Cannot read user ${userId} (permission), proceeding with add`);
             }
+            if (skipUser) continue;
+
             await updateDoc(doc(db, 'users', userId), {
                 assigned_project_codes: arrayUnion(projectCode)
             });
