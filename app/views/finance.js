@@ -6,6 +6,26 @@
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp } from '../utils.js';
 
+// Format PO date - handles Firestore Timestamps, {seconds} objects, and strings
+function formatPODate(po) {
+    const ts = po.date_issued;
+    if (ts) {
+        try {
+            if (typeof ts.toDate === 'function') {
+                return ts.toDate().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+            if (ts.seconds != null) {
+                return new Date(ts.seconds * 1000).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+            const d = new Date(ts);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+            }
+        } catch (e) { /* fall through */ }
+    }
+    return po.date_issued_legacy ? formatDate(po.date_issued_legacy) : 'N/A';
+}
+
 // View state
 let listeners = [];
 let materialPRs = [];
@@ -489,7 +509,7 @@ async function generatePODocument(poDocId) {
         const documentData = {
             PO_ID: po.po_id,
             PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
-            DATE: formatTimestamp(po.date_issued) || formatDocumentDate(po.date_issued_legacy) || 'N/A',
+            DATE: formatPODate({ date_issued: po.date_issued, date_issued_legacy: po.date_issued_legacy }),
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
@@ -2300,7 +2320,7 @@ function renderPOs() {
                         <td>${po.supplier_name}</td>
                         <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
-                        <td>${formatTimestamp(po.date_issued) || formatDate(po.date_issued_legacy) || 'N/A'}</td>
+                        <td>${formatPODate(po)}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
