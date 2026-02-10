@@ -174,7 +174,7 @@ Plans:
 
 </details>
 
-## 🔧 v2.2 Workflow & UX Enhancements (Tech Debt Cleanup)
+## v2.2 Workflow & UX Enhancements (Tech Debt Cleanup)
 
 **Milestone Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
 
@@ -331,7 +331,7 @@ Plans:
   3. Legacy approvePR() and generatePOsForPR() dead code removed from finance.js
   4. HTML comment at procurement.js line 228 updated to "MRF Records Section"
   5. Phase 20 VERIFICATION.md exists documenting UAT results
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
 - [ ] 23-01-PLAN.md — Fix TR approval attribution and cosmetic regressions
