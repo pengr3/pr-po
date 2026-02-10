@@ -17,6 +17,10 @@ let projectExpenses = [];
 let approvalSignaturePad = null;
 let currentApprovalTarget = null;
 
+// Sort state for Project List
+let projectExpenseSortColumn = 'projectName';
+let projectExpenseSortDirection = 'asc';
+
 /**
  * Attach all window functions for use in onclick handlers
  * This needs to be called every time init() runs to ensure
@@ -56,6 +60,7 @@ function attachWindowFunctions() {
     window.refreshProjectExpenses = refreshProjectExpenses;
     window.showProjectExpenseModal = showProjectExpenseModal;
     window.closeProjectExpenseModal = closeProjectExpenseModal;
+    window.sortProjectExpenses = sortProjectExpenses;
 
     console.log('[Finance] ✅ All window functions attached successfully');
 }
@@ -852,12 +857,24 @@ function renderProjectExpensesTable() {
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>Project Name</th>
-                        <th>Client</th>
-                        <th style="text-align: right;">Budget</th>
-                        <th style="text-align: right;">Total Expense</th>
-                        <th style="text-align: right;">Remaining</th>
-                        <th style="text-align: center;">Status</th>
+                        <th onclick="window.sortProjectExpenses('projectName')" style="cursor: pointer; user-select: none;">
+                            Project Name <span class="sort-indicator" data-col="projectName"></span>
+                        </th>
+                        <th onclick="window.sortProjectExpenses('clientCode')" style="cursor: pointer; user-select: none;">
+                            Client <span class="sort-indicator" data-col="clientCode"></span>
+                        </th>
+                        <th onclick="window.sortProjectExpenses('budget')" style="cursor: pointer; user-select: none; text-align: right;">
+                            Budget <span class="sort-indicator" data-col="budget"></span>
+                        </th>
+                        <th onclick="window.sortProjectExpenses('totalExpense')" style="cursor: pointer; user-select: none; text-align: right;">
+                            Total Expense <span class="sort-indicator" data-col="totalExpense"></span>
+                        </th>
+                        <th onclick="window.sortProjectExpenses('remainingBudget')" style="cursor: pointer; user-select: none; text-align: right;">
+                            Remaining <span class="sort-indicator" data-col="remainingBudget"></span>
+                        </th>
+                        <th onclick="window.sortProjectExpenses('status')" style="cursor: pointer; user-select: none; text-align: center;">
+                            Status <span class="sort-indicator" data-col="status"></span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -896,6 +913,43 @@ function renderProjectExpensesTable() {
     `;
 
     container.innerHTML = tableHTML;
+
+    // Update sort indicators for project expenses table
+    container.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const col = indicator.dataset.col;
+        if (col === projectExpenseSortColumn) {
+            indicator.textContent = projectExpenseSortDirection === 'asc' ? ' \u2191' : ' \u2193';
+            indicator.style.color = '#1a73e8';
+        } else {
+            indicator.textContent = ' \u21C5';
+            indicator.style.color = '#94a3b8';
+        }
+    });
+}
+
+/**
+ * Sort project expenses by column
+ */
+function sortProjectExpenses(column) {
+    if (projectExpenseSortColumn === column) {
+        projectExpenseSortDirection = projectExpenseSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        projectExpenseSortColumn = column;
+        projectExpenseSortDirection = 'asc';
+    }
+    // Sort the data
+    projectExpenses.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
+        if (aVal == null) return projectExpenseSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return projectExpenseSortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return projectExpenseSortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return projectExpenseSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    renderProjectExpensesTable();
 }
 
 /**
@@ -1124,6 +1178,11 @@ export async function destroy() {
     delete window.showApprovalModal;
     delete window.closeApprovalModal;
     delete window.confirmApproval;
+    delete window.sortProjectExpenses;
+
+    // Reset sort state
+    projectExpenseSortColumn = 'projectName';
+    projectExpenseSortDirection = 'asc';
 
     console.log('[Finance] Finance view destroyed');
 }
