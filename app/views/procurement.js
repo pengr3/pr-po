@@ -225,7 +225,7 @@ export function render(activeTab = 'mrfs') {
                 </div>
             </section>
 
-            <!-- PR-PO Records Section -->
+            <!-- MRF Records Section -->
             <section id="records-section" class="section ${activeTab === 'records' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view records but cannot update PO statuses.</span></div>' : ''}
                 <div class="card">
