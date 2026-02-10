@@ -58,7 +58,6 @@ function attachWindowFunctions() {
     window.refreshPRs = refreshPRs;
     window.viewPRDetails = viewPRDetails;
     window.viewTRDetails = viewTRDetails;
-    window.approvePR = approvePR;
     window.approveTR = approveTR;
     window.rejectPR = rejectPR;
 
@@ -1008,7 +1007,6 @@ export async function destroy() {
     delete window.refreshPRs;
     delete window.viewPRDetails;
     delete window.viewTRDetails;
-    delete window.approvePR;
     delete window.approveTR;
     delete window.rejectPR;
     delete window.closePRModal;
@@ -1478,73 +1476,6 @@ async function viewTRDetails(trId) {
 };
 
 /**
- * Approve PR and generate POs
- */
-async function approvePR(prId) {
-    if (window.canEditTab?.('finance') === false) {
-        showToast('You do not have permission to edit finance data', 'error');
-        return;
-    }
-
-    if (!confirm('Approve this Purchase Request and generate Purchase Orders?')) {
-        return;
-    }
-
-    const pr = currentPRForApproval;
-    if (!pr || pr.id !== prId) {
-        showToast('PR reference lost. Please refresh and try again.', 'error');
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        // Update PR status
-        const prRef = doc(db, 'prs', pr.id);
-        await updateDoc(prRef, {
-            finance_status: 'Approved',
-            finance_approver: 'Ma. Thea Angela R. Lacsamana',
-            date_approved: new Date().toISOString().split('T')[0],
-            approved_at: new Date().toISOString()
-        });
-
-        // Update MRF status
-        const mrfsRef = collection(db, 'mrfs');
-        const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
-        const mrfSnapshot = await getDocs(mrfQuery);
-
-        if (!mrfSnapshot.empty) {
-            const mrfDoc = mrfSnapshot.docs[0];
-            await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                status: 'Finance Approved',
-                updated_at: new Date().toISOString()
-            });
-        }
-
-        // Generate POs
-        const poCount = await generatePOsForPR(pr);
-
-        // Close modal only after successful approval
-        window.closePRModal();
-
-        showToast(`✓ PR approved successfully! Generated ${poCount} PO(s).`, 'success');
-
-        // Switch to PO tab
-        setTimeout(() => {
-            window.location.hash = '#/finance/pos';
-        }, 1500);
-
-    } catch (error) {
-        console.error('Error approving PR:', error);
-        showToast('Failed to approve PR. Please try again.', 'error');
-        // Modal stays open on error so user can retry
-    } finally {
-        showLoading(false);
-        currentPRForApproval = null;
-    }
-};
-
-/**
  * Approve PR with signature validation and user attribution
  * Creates PO with embedded signature and finance approver identity
  */
@@ -1604,7 +1535,7 @@ async function approvePRWithSignature(prId) {
             });
         }
 
-        // Generate PO using existing generatePOsForPR with signature data
+        // Generate POs with signature data
         const poCount = await generatePOsForPRWithSignature(pr, signatureDataURL, currentUser);
 
         showToast(`PR approved! Generated ${poCount} PO(s) successfully.`, 'success');
@@ -1958,97 +1889,6 @@ async function submitRejection() {
     } finally {
         showLoading(false);
         currentPRForRejection = null;
-    }
-}
-
-// ========================================
-// PO GENERATION
-// ========================================
-
-/**
- * Generate POs from approved PR
- * Returns number of POs created
- */
-async function generatePOsForPR(pr) {
-    console.log('🔄 Generating POs for PR:', pr.pr_id);
-
-    try {
-        const items = JSON.parse(pr.items_json || '[]');
-
-        // Group items by supplier
-        const itemsBySupplier = {};
-        items.forEach(item => {
-            const supplier = item.supplier || 'Unknown Supplier';
-            if (!itemsBySupplier[supplier]) {
-                itemsBySupplier[supplier] = [];
-            }
-            itemsBySupplier[supplier].push(item);
-        });
-
-        const suppliers = Object.keys(itemsBySupplier);
-        console.log('📦 Creating POs for', suppliers.length, 'supplier(s)');
-
-        // Get next PO number
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const currentMonthPrefix = `PO_${year}_${month}`;
-
-        const posRef = collection(db, 'pos');
-        const allPOsSnapshot = await getDocs(posRef);
-        let maxPONum = 0;
-
-        allPOsSnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            if (data.po_id && data.po_id.startsWith(currentMonthPrefix)) {
-                const match = data.po_id.match(/PO_\d{4}_\d{2}-(\d+)/);
-                if (match) {
-                    const num = parseInt(match[1]);
-                    if (num > maxPONum) maxPONum = num;
-                }
-            }
-        });
-
-        let nextPONum = maxPONum + 1;
-        let poCount = 0;
-
-        // Create PO for each supplier
-        for (const supplier of suppliers) {
-            const supplierItems = itemsBySupplier[supplier];
-            const supplierTotal = supplierItems.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
-
-            const firstWord = supplier.split(/\s+/)[0] || supplier;
-            const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
-            const poId = `PO_${year}_${month}-${String(nextPONum).padStart(3, '0')}-${supplierSlug}`;
-
-            await addDoc(collection(db, 'pos'), {
-                po_id: poId,
-                pr_id: pr.pr_id,
-                mrf_id: pr.mrf_id,
-                supplier_name: supplier,
-                project_code: pr.project_code || '',
-                project_name: pr.project_name,
-                requestor_name: pr.requestor_name,
-                delivery_address: pr.delivery_address || '',
-                items_json: JSON.stringify(supplierItems),
-                total_amount: supplierTotal,
-                procurement_status: 'Pending Procurement',
-                date_issued: new Date().toISOString().split('T')[0],
-                created_at: new Date().toISOString(),
-                is_subcon: false
-            });
-
-            console.log('✅ Created PO:', poId);
-            nextPONum++;
-            poCount++;
-        }
-
-        console.log('✅ Generated', poCount, 'PO(s) for PR:', pr.pr_id);
-        return poCount;
-
-    } catch (error) {
-        console.error('Error generating POs:', error);
-        throw error;
     }
 }
 
