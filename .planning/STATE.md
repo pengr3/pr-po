@@ -5,28 +5,26 @@
 See: .planning/PROJECT.md (updated 2026-02-05)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v2.2 Phase 25 - Project Edit History
+**Current focus:** v2.2 Milestone COMPLETE - All phases shipped
 
 ## Current Position
 
-**Milestone:** v2.2 Workflow & UX Enhancements
-Phase: 24 (PR/TR Rejection Reason Passthrough) - COMPLETE / Phase 25 in progress
-Plan: 24-01 complete, 25-01 complete
-Status: Phase 24 complete, Phase 25 in progress (1 of 2)
-Last activity: 2026-02-10 - Completed 24-01-PLAN.md (rejection reason passthrough fix)
+**Milestone:** v2.2 Workflow & UX Enhancements - COMPLETE
+Phase: 25 (Project Edit History) - COMPLETE
+Plan: 25-02 complete (final plan)
+Status: v2.2 milestone complete (all 11 phases, 37 plans shipped)
+Last activity: 2026-02-10 - Completed 25-02-PLAN.md (instrument mutation points + Edit History button)
 
-Progress: [█████████████████████████████████████████████████░] 99% (71/72 plans across all milestones)
-
-**Next Plan:** 25-02 - Instrument mutation points and add Edit History button
+Progress: [██████████████████████████████████████████████████] 100% (72/72 plans across all milestones)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 71 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 35 plans)
+- Total plans completed: 72 (v1.0: 10 plans, v2.0: 17 plans, v2.1: 9 plans, v2.2: 36 plans)
 - v1.0 milestone: 10 plans completed in 59 days
 - v2.0 milestone: 17 plans completed in 64 days
 - v2.1 milestone: 9 plans completed in 2 days (2026-02-05 to 2026-02-06)
-- v2.2 milestone: 33 plans completed
+- v2.2 milestone: 36 plans completed in 5 days (2026-02-06 to 2026-02-10)
 - Average: ~2.5 plans per week
 
 **By Milestone:**
@@ -36,7 +34,7 @@ Progress: [███████████████████████
 | v1.0 Projects | 4 | 10 | 59 days | 5.9 days |
 | v2.0 Auth | 6 | 17 | 64 days | 3.8 days |
 | v2.1 Refinement | 3 | 9 | 2 days | 0.2 days |
-| v2.2 Enhancements | 9 | 33 | 5 days | 0.15 days |
+| v2.2 Enhancements | 11 | 36 | 5 days | 0.14 days |
 
 **Recent Trend:**
 - v2.1 dramatically improved velocity (0.2 days/plan vs 3.8 in v2.0)
@@ -44,8 +42,9 @@ Progress: [███████████████████████
 - Phase 12 (2 plans) completed in <1 day (Window function lifecycle)
 - Phase 13 (5 plans) completed in 2 days (Finance dashboard features)
 - Bug fix milestones execute faster than feature milestones
+- v2.2 sustained high velocity at 0.14 days/plan across 36 plans
 
-*Updated after v2.2 roadmap creation (2026-02-06)*
+*Updated after v2.2 milestone completion (2026-02-10)*
 
 ## Accumulated Context
 
@@ -82,7 +81,7 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (17-03): Color-coded status badges for instant workflow visibility (red/yellow/green pattern from Phase 16)
 - v2.2 (17-03): Dual timestamp strategy maintains backward compatibility (_at fields with serverTimestamp, preserve legacy _date fields)
 - v2.2 (17-04): Single canonical access point for related data (supplier purchase history only in Supplier Management tab, not scattered across views)
-- v2.2 (17-02): Table column order follows workflow logic (MRF → PRs → POs → Status → Actions)
+- v2.2 (17-02): Table column order follows workflow logic (MRF -> PRs -> POs -> Status -> Actions)
 - v2.2 (17-02): Remove redundant columns when functionality exists elsewhere (PO Timeline column removed, timeline button remains in Actions)
 - v2.2 (17-01): Display 'Unknown User' for backward compatibility with old PRs without pr_creator_name field
 - v2.2 (17-03): Color-coded status badges (red/yellow/green) provide at-a-glance workflow progress visibility
@@ -129,11 +128,16 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (25-01): Fire-and-forget pattern for recordEditHistory (catches errors, never blocks primary save)
 - v2.2 (25-01): Append-only subcollection rules for edit_history (allow create, deny update/delete)
 - v2.2 (25-01): ISO timestamp strings for edit history (consistent with project.updated_at, simpler client-side formatting)
+- v2.2 (25-02): No-op check in saveField() with type-aware comparison prevents spurious history entries and unnecessary Firestore writes
+- v2.2 (25-02): Field-level diffing in saveEdit() for intelligent change detection (only records actual changes)
+- v2.2 (25-02): Personnel changes tracked as comma-joined name strings for human-readable history display
 
 ### Pending Todos
 
 - ~~Phase 24: Fix rejection reason passthrough from Finance to Procurement~~ COMPLETE
-- Phase 25: Instrument mutation points in project-detail.js and projects.js (Plan 02)
+- ~~Phase 25: Instrument mutation points in project-detail.js and projects.js (Plan 02)~~ COMPLETE
+
+All v2.2 milestone plans complete. No pending todos.
 
 ### Roadmap Evolution
 
@@ -151,9 +155,9 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - Firestore 'in' query limited to 10 items (project assignments use client-side filtering)
 
 **v2.1 Focus Areas:**
-- ✅ Security Rules missing admin bypass logic (Phase 11) - COMPLETE
-- ✅ Window function lifecycle management in finance.js (Phase 12) - COMPLETE
-- ✅ Financial aggregation cost concerns (Phase 13) - COMPLETE (getAggregateFromServer implemented)
+- Security Rules missing admin bypass logic (Phase 11) - COMPLETE
+- Window function lifecycle management in finance.js (Phase 12) - COMPLETE
+- Financial aggregation cost concerns (Phase 13) - COMPLETE (getAggregateFromServer implemented)
 
 **v2.1 Testing Notes:**
 - Firebase emulator required for Security Rules tests
@@ -187,10 +191,13 @@ Recent decisions affecting current work (see PROJECT.md for full log):
 - v2.2 (25-01): Fire-and-forget pattern for recordEditHistory (catches errors, never blocks primary save)
 - v2.2 (25-01): Append-only subcollection rules for edit_history (allow create, deny update/delete)
 - v2.2 (25-01): ISO timestamp strings for edit history (consistent with project.updated_at, simpler client-side formatting)
+- v2.2 (25-02): No-op check in saveField() with type-aware comparison prevents spurious history entries and unnecessary Firestore writes
+- v2.2 (25-02): Field-level diffing in saveEdit() for intelligent change detection (only records actual changes)
+- v2.2 (25-02): Personnel changes tracked as comma-joined name strings for human-readable history display
 
 ## Session Continuity
 
-Last session: 2026-02-10T08:41:00Z
-Stopped at: Completed 24-01-PLAN.md (rejection reason passthrough fix)
+Last session: 2026-02-10T12:40:00Z
+Stopped at: Completed 25-02-PLAN.md (instrument mutation points + Edit History button)
 Resume file: None
-Next action: Execute 25-02-PLAN.md (instrument mutation points + add Edit History button)
+Next action: v2.2 milestone complete. All 72 plans across 4 milestones shipped.
