@@ -5,7 +5,7 @@
 - ✅ **v1.0 Projects & Tracking** - Phases 1-4 (shipped 2026-01-30)
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
-- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-21 (in progress)
+- 🚧 **v2.2 Workflow & UX Enhancements** - Phases 15-22 (in progress)
 
 ## Overview
 
@@ -304,10 +304,27 @@ Plans:
 Plans:
 - [x] 21-01-PLAN.md — Add syncPersonnelToAssignments utility and wire into all mutation paths
 
+### Phase 22: Bug Fixes & UX Improvements
+**Goal**: Fix PO date rendering, blank document details for unfilled fields, Firestore permission errors, procurement status/delivery fee persistence, and add sortable table headers across views
+**Depends on**: Phase 21
+**Success Criteria** (what must be TRUE):
+  1. PO Issued Date renders correctly (no "Invalid Date") when approving in Finance
+  2. View PO in Finance shows blank fields for delivery_date, condition, payment_terms when procurement hasn't filled them (no default/assumed values)
+  3. No Firestore permission-denied errors on procurement account snapshot listeners
+  4. Procurement status changes (including Delivered with delivery fee) persist to Firestore and appear in history/timeline
+  5. Delivery fees are accounted in project expense totals
+  6. Sortable table headers (click-to-sort) implemented in Finance, Clients, and other applicable views
+**Plans**: 3 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — Fix PO date rendering and blank document defaults
+- [ ] 22-02-PLAN.md — Fix Firestore permission errors and delivery fee expense totals
+- [ ] 22-03-PLAN.md — Add sortable table headers to Finance and Clients views
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21
+Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21 -> 22
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -331,3 +348,4 @@ Phases execute in numeric order: 15 -> 16 -> 17 -> 18 -> 19 -> 20 -> 21
 | 19. Navigation Consolidation | v2.2 | 2/2 | Complete | 2026-02-08 |
 | 20. Multi-Personnel Selection | v2.2 | 3/3 | Complete | 2026-02-09 |
 | 21. Personnel-Assignment Sync | v2.2 | 1/1 | Complete | 2026-02-09 |
+| 22. Bug Fixes & UX | v2.2 | 0/3 | Planned | - |
