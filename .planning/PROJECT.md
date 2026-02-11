@@ -113,25 +113,33 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Minimum 2 Super Admin safeguard prevents lockout — v2.0
 - ✓ Navigation visibility control for unauthenticated users — v2.0
 
-### Active (v2.1 System Refinement)
+**Validated (v2.1 System Refinement):**
+- ✓ Supplier click opens modal showing all purchases from that supplier — v2.1 (Phase 13)
+- ✓ Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered) — v2.1 (Phase 13)
+- ✓ PO viewing blocked until Payment Terms, Condition, Delivery Date are filled — v2.2 (Phase 18)
+- ✓ Fix Transport Request Review button error (window.viewTRDetails is not a function) — v2.1 (Phase 12)
+- ✓ Fix Material Purchase Request Review button error — v2.1 (Phase 12)
+- ✓ Restore Project List tab with financial overview and expense breakdown modal — v2.1 (Phase 13)
+- ✓ Allow Operations Admin role to receive project assignments — v2.1 (Phase 11)
+- ✓ Fix Clients tab permission denied error for Super Admin — v2.1 (Phase 11)
+- ✓ Fix Projects tab permission denied error for Super Admin — v2.1 (Phase 11)
+- ✓ Ensure Super Admin has proper permission structure or Security Rules bypass — v2.1 (Phase 11)
 
-**Procurement Workflow Fixes:**
-- [ ] Supplier click opens modal showing all purchases from that supplier
-- [ ] Timeline button in PR-PO Records shows full audit trail (MRF → PRs → POs → Delivered)
-- [ ] PO viewing blocked until Payment Terms, Condition, Delivery Date are filled
+**Validated (v2.2 Workflow & UX Enhancements):**
+- ✓ Auto-populate user data in MRF forms for efficiency — v2.2 (Phase 15)
+- ✓ Restrict project creation to admin roles only — v2.2 (Phase 15)
+- ✓ Restructure project detail page with card-based layout — v2.2 (Phase 16)
+- ✓ Comprehensive procurement status tracking with visual indicators (red/yellow/green) — v2.2 (Phase 17)
+- ✓ PR creator tracking and side-by-side PR/PO display — v2.2 (Phase 17)
+- ✓ Finance signature capture in approval workflow — v2.2 (Phase 18)
+- ✓ Detailed project expense breakdown with category/material/transport views — v2.2 (Phase 18)
+- ✓ Consolidated admin navigation (Settings/Assignments/Users merged) — v2.2 (Phase 19)
+- ✓ Multi-personnel selection with pill UI and array storage — v2.2 (Phase 20)
+- ✓ Automatic personnel-to-assignment sync for operations users — v2.2 (Phase 21)
 
-**Finance Workflow Fixes:**
-- [ ] Fix Transport Request Review button error (window.viewTRDetails is not a function)
-- [ ] Fix Material Purchase Request Review button error
-- [ ] Restore Project List tab with financial overview and expense breakdown modal
+### Active (v2.3 Planning)
 
-**Operations Workflow Fixes:**
-- [ ] Allow Operations Admin role to receive project assignments (assignable by Super Admin or Operations Admin)
-
-**Security & Permissions Fixes:**
-- [ ] Fix Clients tab permission denied error for Super Admin
-- [ ] Fix Projects tab permission denied error for Super Admin
-- [ ] Ensure Super Admin has proper permission structure or Security Rules bypass permission checks for admin roles
+(Requirements will be defined during v2.3 milestone planning)
 
 ### Future (v2.1+)
 
@@ -275,4 +283,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Strict equality (=== false) for permission checks | Distinguishes no permission from loading state | ✓ Good - prevents UI flickering |
 
 ---
-*Last updated: 2026-02-05 after v2.1 milestone planning*
+*Last updated: 2026-02-11 after v2.2 milestone completion*
