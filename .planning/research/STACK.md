@@ -1,956 +1,511 @@
-# Stack Research: Debugging & Refinement Tools for Firebase/Vanilla JS SPA
+# Stack Research: Services Department Support
 
-**Domain:** Bug fixes and system refinement for v2.1
-**Researched:** 2026-02-05
+**Domain:** Multi-department procurement workflow with role-based isolation
+**Researched:** 2026-02-12
 **Confidence:** HIGH
 
 ## Executive Summary
 
-For debugging and fixing the v2.1 issues (Security Rules permission errors, window function errors, missing features), the recommended stack leverages **Firebase's built-in debugging tools** (Emulator Suite, Rules Playground), **Chrome DevTools**, and **established vanilla JavaScript patterns** for event handling and modal implementation. The existing Firebase v10.7.1 + vanilla JavaScript ES6 architecture remains optimal for this zero-build static SPA.
+**No new libraries or SDK versions needed.** The Services department addition is a pure architectural extension using existing Firebase Firestore v10.7.1 and Firebase Auth v10.7.1 already in use. All required capabilities (multi-collection isolation, role-based access control, shared sequence generation, real-time listeners) are already validated in the current v2.2 codebase.
 
-**Key Focus:** Debug security rules with Firebase Emulator Suite, fix window function scope issues with proper module patterns, implement modals following W3C accessibility standards, and optimize Firestore aggregations for financial calculations.
+This is **NOT** a stack addition project — it's an architectural pattern extension within the proven zero-build vanilla JavaScript + Firebase stack.
 
----
+## Existing Stack (Unchanged)
 
-## Recommended Debugging Tools
+| Technology | Current Version | Purpose | Status |
+|------------|----------------|---------|--------|
+| Firebase Firestore | v10.7.1 (CDN) | Multi-collection database with real-time listeners | ✓ Validated, no changes |
+| Firebase Auth | v10.7.1 (CDN) | Role-based authentication with session persistence | ✓ Validated, no changes |
+| Vanilla JavaScript | ES6 Modules | Zero-build SPA with hash routing | ✓ Validated, no changes |
+| Firebase Security Rules | rules_version 2 | Server-side permission enforcement | ✓ Extension only |
 
-### Firebase Security Rules Testing
+**Deployment:** Netlify (unchanged)
+**No build tools, no new dependencies, no version upgrades needed.**
 
-| Tool | Version | Purpose | Why Recommended |
-|------|---------|---------|-----------------|
-| Firebase Emulator Suite | Latest (via Firebase CLI) | Local testing of Security Rules without affecting production | Industry standard for rules testing, provides detailed debugging output, catches permission errors before deployment |
-| Rules Playground | Web Console | Quick rule simulation in Firebase Console | Zero setup, test individual operations (get/list/create/update/delete), shows which rule allowed/denied request |
-| @firebase/rules-unit-testing | Latest | Automated unit tests for security rules | Enables regression testing, currently have 17 tests passing, can add tests for clients/projects collections |
+## Stack Extension Patterns
 
-**Installation (if not already installed):**
-```bash
-npm install -g firebase-tools
-firebase init emulators  # Select Firestore emulator
-```
+### 1. Multi-Collection Parallel Workflow
 
-**Usage Pattern:**
-```bash
-# Start emulator
-firebase emulators:start --only firestore
+**Pattern:** Mirror the `projects` collection structure for `services` collection
 
-# Run tests
-npm test  # Runs test/firestore.test.js
-```
+**Why existing stack supports this:**
+- Firestore is schemaless — adding new collection requires zero migration
+- Real-time listeners (`onSnapshot`) work identically across collections
+- Security Rules support multiple collection blocks with independent access control
+- Proven pattern: 9 existing collections (users, projects, clients, mrfs, prs, pos, transport_requests, suppliers, deleted_mrfs)
 
-### Chrome DevTools for JavaScript Debugging
-
-| Feature | Purpose | When to Use |
-|---------|---------|-------------|
-| Sources Panel Breakpoints | Pause execution to inspect variables | Debug "function not defined" errors in onclick handlers |
-| Console Panel | View errors, test functions interactively | Check if window functions are properly exposed |
-| Network Panel | Monitor Firestore requests and responses | Debug permission denied errors, see exact request/response |
-| Scope Pane (while paused) | View local, closure, and global scope variables | Verify window namespace pollution, check function availability |
-
-### Browser-Based Development Server
-
-| Tool | Command | Purpose |
-|------|---------|---------|
-| Python HTTP Server | `python -m http.server 8000` | Zero-config local development, currently used |
-| npx http-server | `npx http-server -p 8000` | Alternative with better MIME types |
-
----
-
-## Debugging Techniques by Issue Type
-
-### Issue 1: Security Rules Permission Denied (Clients/Projects Collections)
-
-**Problem:** Super Admin receives "permission denied" when accessing Clients or Projects tabs.
-
-**Root Cause:** Missing collection rules in `firestore.rules` or incorrect role checking logic.
-
-**Debugging Protocol:**
-
-1. **Check if rules exist for collection:**
-   ```bash
-   # In firestore.rules, search for:
-   match /clients/{clientId} {
-   match /projects/{projectId} {
-   ```
-
-2. **Use Rules Playground to test:**
-   - Open Firebase Console → Firestore Database → Rules → Rules Playground
-   - Operation: "Get" or "List"
-   - Path: `/projects/{projectId}` or `/clients/{clientId}`
-   - Auth: Authenticated with Super Admin UID
-   - Click "Run" → See if allowed/denied + which rule matched
-
-3. **Add logging to identify which operation fails:**
-   ```javascript
-   // In app/views/projects.js or clients.js
-   try {
-       const snapshot = await getDocs(collection(db, 'projects'));
-       console.log('[Projects] Successfully fetched projects:', snapshot.size);
-   } catch (error) {
-       console.error('[Projects] Permission denied:', error);
-       console.log('[Projects] Current user:', auth.currentUser?.uid);
-       console.log('[Projects] User role:', window.getUserRole?.());
-   }
-   ```
-
-4. **Verify Security Rules helper functions:**
-   - Ensure `isActiveUser()` and `hasRole()` are defined before collection rules
-   - Confirm role string matches exactly (case-sensitive: `super_admin` not `Super Admin`)
-
-**Expected Rules Structure (if missing):**
+**Implementation:**
 ```javascript
-// firestore.rules
-match /clients/{clientId} {
-  // All active users can read
-  allow read: if isActiveUser();
+// NO NEW CODE PATTERNS — reuse existing project CRUD patterns
+collection(db, 'services')  // vs collection(db, 'projects')
+```
 
-  // Create/Update/Delete: super_admin, operations_admin
-  allow create, update, delete: if hasRole(['super_admin', 'operations_admin']);
+**File changes:**
+- Add `app/views/services.js` (copy `app/views/projects.js` structure)
+- Add `app/views/service-detail.js` (copy `app/views/project-detail.js` structure)
+
+**Confidence:** HIGH — identical to 9 existing collections already working in production
+
+### 2. Department-Scoped Role Isolation
+
+**Pattern:** Extend existing role-based access control with department filtering
+
+**Why existing stack supports this:**
+- Role templates already support custom permission structures (v2.0)
+- Security Rules already enforce role-based filtering (17/17 tests passing)
+- Real-time permission updates via `permissionsChanged` event (v2.0)
+- `getAssignedProjectCodes()` utility already implements scoped filtering for `operations_user`
+
+**Implementation:**
+```javascript
+// EXISTING PATTERN (already working for operations_user):
+function getAssignedProjectCodes() {
+    if (user.role !== 'operations_user') return null; // No filter
+    if (user.all_projects === true) return null;
+    return user.assigned_project_codes || [];
 }
 
+// EXTENSION FOR SERVICES (same pattern, different field):
+function getAssignedServiceCodes() {
+    if (user.role !== 'services_user') return null;
+    if (user.all_services === true) return null;
+    return user.assigned_service_codes || [];
+}
+```
+
+**Firestore Security Rules Extension:**
+```javascript
+// EXISTING PATTERN (projects collection, lines 114-126):
 match /projects/{projectId} {
-  // All active users can read
-  allow read: if isActiveUser();
+    allow read: if isActiveUser();  // All active users
+    allow create: if hasRole(['super_admin', 'operations_admin']);
+    allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+    allow delete: if hasRole(['super_admin', 'operations_admin']);
+}
 
-  // Create/Update/Delete: super_admin, operations_admin
-  allow create, update: if hasRole(['super_admin', 'operations_admin']);
-  allow delete: if hasRole(['super_admin', 'operations_admin']);
+// NEW PATTERN (services collection — identical structure):
+match /services/{serviceId} {
+    allow read: if isActiveUser();  // All active users
+    allow create: if hasRole(['super_admin', 'services_admin']);
+    allow update: if hasRole(['super_admin', 'services_admin', 'finance']);
+    allow delete: if hasRole(['super_admin', 'services_admin']);
 }
 ```
 
-**Verification:**
-```bash
-# Run existing tests
-npm test
-
-# Add new test cases for clients/projects in test/firestore.test.js
-```
-
-### Issue 2: Window Functions Not Defined (Button Click Errors)
-
-**Problem:** `TypeError: window.viewTRDetails is not a function` or `window.viewPRDetails is not a function`.
-
-**Root Cause:** Functions defined in ES6 modules are scoped to module, not automatically exposed to global `window` object. Inline `onclick="window.functionName()"` handlers cannot find them.
-
-**Debugging Protocol:**
-
-1. **Verify function is exposed to window:**
-   ```javascript
-   // Open Chrome DevTools Console
-   console.log(typeof window.viewTRDetails);  // Should be "function", not "undefined"
-   ```
-
-2. **Check module exports pattern:**
-   ```javascript
-   // In app/views/finance.js
-   export async function viewTRDetails(trId) {
-       // ... implementation
-   }
-
-   // REQUIRED: Expose to window for onclick handlers
-   window.viewTRDetails = viewTRDetails;
-   ```
-
-3. **Verify init() was called:**
-   - Router should call `init()` after rendering view
-   - `init()` is where window functions are typically exposed
-   - Check router logs: `console.log('[Router] Calling init for view')`
-
-4. **Check if destroy() removed functions:**
-   ```javascript
-   // In destroy() function
-   export async function destroy() {
-       listeners.forEach(unsubscribe => unsubscribe?.());
-       listeners = [];
-
-       // AVOID deleting window functions if tabs switch without destroy
-       // delete window.viewTRDetails;  // This can cause errors
-   }
-   ```
-
-**Fix Pattern (if function missing):**
+**Role template additions:**
 ```javascript
-// app/views/finance.js
+// EXISTING roles in role_templates collection:
+// super_admin, operations_admin, operations_user, finance, procurement
 
-export async function viewTRDetails(trId) {
-    console.log('[Finance] Viewing TR:', trId);
-    // ... implementation
-}
-
-export async function viewPRDetails(prId) {
-    console.log('[Finance] Viewing PR:', prId);
-    // ... implementation
-}
-
-export async function init(activeTab = 'approvals') {
-    console.log('[Finance] Initializing, active tab:', activeTab);
-
-    // Expose functions to window
-    window.viewTRDetails = viewTRDetails;
-    window.viewPRDetails = viewPRDetails;
-    window.refreshPRs = refreshPRs;
-    window.refreshTRs = refreshTRs;
-
-    // Set up listeners
-    setupRealtimeListeners(activeTab);
-}
-```
-
-**Best Practice (Modern Alternative to onclick):**
-
-Instead of inline onclick handlers, use event delegation (requires more refactoring):
-```javascript
-// In render() - add data attributes instead of onclick
-<button data-action="view-tr" data-tr-id="${tr.tr_id}">Review</button>
-
-// In init() - set up event listener
-document.querySelector('#transportRequestsBody').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="view-tr"]');
-    if (btn) {
-        const trId = btn.dataset.trId;
-        viewTRDetails(trId);
+// NEW roles (same structure, different tabs):
+{
+    role_id: 'services_admin',
+    permissions: {
+        tabs: {
+            dashboard: { access: true, edit: false },
+            services: { access: true, edit: true },  // vs projects
+            mrf_form: { access: true, edit: true },
+            // NO access to projects tab
+        }
     }
-});
+}
 ```
 
-**Why This Matters:** [MDN Event Handling Best Practices](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/Events) recommends `addEventListener()` over inline handlers for separation of concerns.
+**Confidence:** HIGH — exact same pattern as existing `operations_admin` / `operations_user` roles
 
-### Issue 3: Firestore Query Optimization for Financial Aggregations
+### 3. Shared Code Sequence Across Collections
 
-**Problem:** Need to calculate total pending amounts, project expenses, supplier purchase totals efficiently.
+**Pattern:** Modify `generateProjectCode()` to query both `projects` and `services` collections
 
-**Solution:** Use Firestore aggregation queries (available in v10.7.1+).
+**Why existing stack supports this:**
+- `generateProjectCode()` already uses regex parsing for flexible formats (line 211 in utils.js)
+- Firestore `getDocs()` supports parallel collection queries
+- Current implementation uses range queries with composite keys
+- Race condition acknowledged and accepted in v1.0 (line 191 comment)
 
-**Pattern for SUM aggregation:**
+**Implementation:**
 ```javascript
-import { collection, query, where, getAggregateFromServer, sum } from './firebase.js';
+// EXISTING PATTERN (utils.js lines 192-226):
+export async function generateProjectCode(clientCode, year = null) {
+    const currentYear = year || new Date().getFullYear();
 
-// Calculate total pending PR amount
-async function calculatePendingPRTotal() {
+    // Query projects for this client and year
     const q = query(
-        collection(db, 'prs'),
-        where('finance_status', '==', 'Pending')
+        collection(db, 'projects'),
+        where('client_code', '==', clientCode),
+        where('project_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
+        where('project_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
     );
+    const snapshot = await getDocs(q);
 
-    const snapshot = await getAggregateFromServer(q, {
-        totalAmount: sum('total_amount')
+    let maxNum = 0;
+    snapshot.forEach(doc => {
+        const match = code.match(/^CLMC_.+_\d{4}(\d{3})$/);
+        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
     });
 
-    const total = snapshot.data().totalAmount;
-    console.log('[Finance] Total pending:', total);
-    return total;
+    return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
 }
 
-// Calculate project expenses
-async function calculateProjectExpenses(projectCode) {
+// MODIFIED PATTERN (add parallel services query):
+export async function generateProjectOrServiceCode(clientCode, year = null) {
+    const currentYear = year || new Date().getFullYear();
+
+    // Query BOTH projects AND services for this client and year
+    const projectsQuery = query(/* same as above */);
+    const servicesQuery = query(
+        collection(db, 'services'),
+        where('client_code', '==', clientCode),
+        where('service_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
+        where('service_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
+    );
+
+    // Execute queries in parallel
+    const [projectsSnapshot, servicesSnapshot] = await Promise.all([
+        getDocs(projectsQuery),
+        getDocs(servicesQuery)
+    ]);
+
+    // Find max number across BOTH collections
+    let maxNum = 0;
+    projectsSnapshot.forEach(doc => {
+        const match = doc.data().project_code.match(/^CLMC_.+_\d{4}(\d{3})$/);
+        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    });
+    servicesSnapshot.forEach(doc => {
+        const match = doc.data().service_code.match(/^CLMC_.+_\d{4}(\d{3})$/);
+        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+    });
+
+    return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+}
+```
+
+**Firestore capabilities used:**
+- `Promise.all()` for parallel queries (standard JavaScript, not Firebase-specific)
+- Range queries with composite keys (already validated in v1.0)
+- Regex parsing for code extraction (existing pattern)
+
+**Race condition risk:** Same as existing implementation — acceptable for expected usage volume (comment line 191: "Race condition possible with simultaneous creates - acceptable for v1.0")
+
+**Confidence:** HIGH — extends existing validated pattern with parallel query
+
+### 4. Role-Based MRF Dropdown Visibility
+
+**Pattern:** Filter active projects/services by user role before rendering dropdown
+
+**Why existing stack supports this:**
+- `getActiveProjects()` utility already exists (utils.js lines 252-267)
+- Assignment filtering already implemented for `operations_user` (lines 237-246)
+- Client-side filtering pattern validated in project-assignments.js
+
+**Implementation:**
+```javascript
+// EXISTING PATTERN (utils.js lines 252-267):
+export async function getActiveProjects() {
     const q = query(
-        collection(db, 'pos'),
-        where('project_code', '==', projectCode),
-        where('procurement_status', '==', 'Delivered')
+        collection(db, 'projects'),
+        where('status', '==', 'active')
     );
-
-    const snapshot = await getAggregateFromServer(q, {
-        totalSpent: sum('total_amount')
-    });
-
-    return snapshot.data().totalSpent || 0;
-}
-```
-
-**Key Benefits:**
-- Firestore calculates server-side, transmits only result (not all documents)
-- Saves billed document reads (1 aggregation ≠ N document reads)
-- Faster than fetching all docs and calculating client-side
-
-**Note:** Aggregation counts as 1 read for pricing, regardless of documents matched.
-
-**Sources:**
-- [Firebase Aggregation Queries](https://firebase.google.com/docs/firestore/query-data/aggregation-queries)
-- [Aggregate with SUM and AVG](https://cloud.google.com/blog/products/databases/aggregate-with-sum-and-avg-in-firestore)
-
-### Issue 4: Modal Implementation Best Practices
-
-**Problem:** Need modals for audit trail, supplier purchase history, PO details, project expenses.
-
-**Recommended Pattern:** Accessible modal following W3C ARIA Authoring Practices.
-
-**Reference Implementation (Vanilla JS):**
-```javascript
-// Modal HTML structure
-function renderModal(id, title, content) {
-    return `
-        <div id="${id}" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="${id}-title" style="display: none;">
-            <div class="modal-container">
-                <div class="modal-header">
-                    <h2 id="${id}-title">${title}</h2>
-                    <button class="modal-close" aria-label="Close dialog" data-modal-close="${id}">&times;</button>
-                </div>
-                <div class="modal-body">
-                    ${content}
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" data-modal-close="${id}">Close</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
 }
 
-// Modal control functions
-function showModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (!modal) return;
+// EXTENSION (add parallel services query):
+export async function getActiveProjectsAndServices() {
+    const user = window.getCurrentUser?.();
+    const role = user?.role;
 
-    modal.style.display = 'flex';
+    // Determine which collections to query based on role
+    const queries = [];
 
-    // Focus management: save previous focus
-    window.previousFocus = document.activeElement;
+    if (!role) return []; // Not logged in
 
-    // Focus first focusable element in modal
-    const firstFocusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-    firstFocusable?.focus();
-
-    // Trap focus within modal
-    modal.addEventListener('keydown', trapFocus);
-
-    // Close on Escape
-    modal.addEventListener('keydown', closeOnEscape);
-
-    console.log('[Modal] Opened:', modalId);
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (!modal) return;
-
-    modal.style.display = 'none';
-
-    // Restore focus to element that opened modal
-    window.previousFocus?.focus();
-
-    // Remove event listeners
-    modal.removeEventListener('keydown', trapFocus);
-    modal.removeEventListener('keydown', closeOnEscape);
-
-    console.log('[Modal] Closed:', modalId);
-}
-
-function trapFocus(e) {
-    if (e.key !== 'Tab') return;
-
-    const modal = e.currentTarget;
-    const focusableElements = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-    const firstFocusable = focusableElements[0];
-    const lastFocusable = focusableElements[focusableElements.length - 1];
-
-    if (e.shiftKey && document.activeElement === firstFocusable) {
-        lastFocusable.focus();
-        e.preventDefault();
-    } else if (!e.shiftKey && document.activeElement === lastFocusable) {
-        firstFocusable.focus();
-        e.preventDefault();
-    }
-}
-
-function closeOnEscape(e) {
-    if (e.key === 'Escape') {
-        const modalId = e.currentTarget.id;
-        closeModal(modalId);
-    }
-}
-
-// Event delegation for close buttons
-document.addEventListener('click', (e) => {
-    const closeBtn = e.target.closest('[data-modal-close]');
-    if (closeBtn) {
-        const modalId = closeBtn.dataset.modalClose;
-        closeModal(modalId);
+    // Operations roles see only Projects
+    if (role === 'operations_admin' || role === 'operations_user') {
+        queries.push(
+            getDocs(query(collection(db, 'projects'), where('status', '==', 'active')))
+        );
     }
 
-    // Close on overlay click (optional)
-    if (e.target.classList.contains('modal-overlay')) {
-        const modalId = e.target.id;
-        closeModal(modalId);
+    // Services roles see only Services
+    if (role === 'services_admin' || role === 'services_user') {
+        queries.push(
+            getDocs(query(collection(db, 'services'), where('status', '==', 'active')))
+        );
     }
-});
 
-// Expose to window for onclick handlers
-window.showModal = showModal;
-window.closeModal = closeModal;
-```
-
-**CSS Requirements:**
-```css
-/* styles/components.css */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-container {
-    background: white;
-    border-radius: 8px;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--gray-600);
-}
-
-.modal-close:hover {
-    color: var(--gray-900);
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.modal-footer {
-    padding: 1.5rem;
-    border-top: 1px solid var(--gray-200);
-    text-align: right;
-}
-```
-
-**Accessibility Features (W3C Compliant):**
-- `role="dialog"` and `aria-modal="true"` for screen readers
-- `aria-labelledby` references modal title
-- Focus trap (Tab/Shift+Tab cycle within modal)
-- Escape key closes modal
-- Focus restoration when closing
-- Keyboard-accessible close button
-
-**Sources:**
-- [W3C Modal Dialog Example](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/dialog/)
-- [Micromodal.js](https://micromodal.vercel.app/) (reference implementation)
-- [Creating Accessible Dialogs](https://www.smashingmagazine.com/2021/07/accessible-dialog-from-scratch/)
-
----
-
-## Firebase Firestore Real-Time Listener Management
-
-**Critical Pattern:** Prevent memory leaks by properly unsubscribing listeners.
-
-**Current Pattern (Good):**
-```javascript
-// app/views/finance.js
-let listeners = [];
-
-export async function init(activeTab = 'approvals') {
-    const listener = onSnapshot(collection(db, 'prs'), (snapshot) => {
-        // Handle updates
-    });
-    listeners.push(listener);
-}
-
-export async function destroy() {
-    listeners.forEach(unsubscribe => unsubscribe?.());
-    listeners = [];
-}
-```
-
-**Known Issue:** Router skips `destroy()` when switching tabs within same view.
-
-**Why This Matters:** Every `onSnapshot()` that isn't unsubscribed keeps listening, consuming memory and bandwidth. With 10-15 listeners, browser tabs can crash.
-
-**Verification:**
-```javascript
-// In init()
-console.log('[Finance] Active listeners before init:', listeners.length);
-
-// In destroy()
-console.log('[Finance] Unsubscribing', listeners.length, 'listeners');
-```
-
-**Best Practice:** If router doesn't call `destroy()` on tab switch, manually clean up tab-specific listeners:
-```javascript
-export async function init(activeTab = 'approvals') {
-    // Clean up previous tab's listeners
-    listeners.forEach(unsubscribe => unsubscribe?.());
-    listeners = [];
-
-    // Set up new tab's listeners
-    if (activeTab === 'approvals') {
-        const prListener = onSnapshot(collection(db, 'prs'), ...);
-        listeners.push(prListener);
-    } else if (activeTab === 'pos') {
-        const poListener = onSnapshot(collection(db, 'pos'), ...);
-        listeners.push(poListener);
+    // Cross-department roles see both
+    if (role === 'super_admin' || role === 'finance' || role === 'procurement') {
+        queries.push(
+            getDocs(query(collection(db, 'projects'), where('status', '==', 'active'))),
+            getDocs(query(collection(db, 'services'), where('status', '==', 'active')))
+        );
     }
-}
-```
 
-**Source:** [Firebase Real-Time Listeners Memory Leak](https://github.com/firebase/firebase-js-sdk/issues/4416)
-
----
-
-## Chrome DevTools Debugging Workflows
-
-### Workflow 1: Debug "Function Not Defined" Error
-
-**Steps:**
-1. Open DevTools (F12) → Console tab
-2. See error: `Uncaught ReferenceError: window.viewTRDetails is not a function`
-3. In Console, type: `window.viewTRDetails` → Check if returns `undefined` or function
-4. If `undefined`:
-   - Go to Sources tab → Navigate to `app/views/finance.js`
-   - Search for `window.viewTRDetails =`
-   - If missing, add: `window.viewTRDetails = viewTRDetails;` in `init()`
-5. Refresh page and test again
-6. If still fails, check if `init()` was called:
-   - Add breakpoint at start of `init()`
-   - Reload page
-   - Debugger should pause → if not, router isn't calling `init()`
-
-### Workflow 2: Debug Permission Denied Error
-
-**Steps:**
-1. Open DevTools → Network tab
-2. Filter: "firestore.googleapis.com"
-3. Trigger the operation that fails (e.g., click Projects tab)
-4. Find the failed request (Status: 400 or 403, red)
-5. Click request → Response tab → See error:
-   ```json
-   {
-     "error": {
-       "code": 403,
-       "message": "Missing or insufficient permissions.",
-       "status": "PERMISSION_DENIED"
-     }
-   }
-   ```
-6. Check Console for custom error message:
-   ```
-   [Projects] Permission denied: FirebaseError: Missing or insufficient permissions
-   [Projects] Current user: abc123
-   [Projects] User role: super_admin
-   ```
-7. Verify Security Rules:
-   - Open Firebase Console → Firestore → Rules
-   - Search for `match /projects/{projectId}`
-   - Test in Rules Playground with actual user UID and role
-
-### Workflow 3: Debug Real-Time Listener Not Updating UI
-
-**Steps:**
-1. Open DevTools → Console tab
-2. Add logging to onSnapshot callback:
-   ```javascript
-   onSnapshot(collection(db, 'prs'), (snapshot) => {
-       console.log('[Finance] Snapshot received, size:', snapshot.size);
-       snapshot.docChanges().forEach((change) => {
-           console.log('[Finance] Doc change:', change.type, change.doc.id);
-       });
-   });
-   ```
-3. Trigger change in Firestore (e.g., approve a PR from another tab)
-4. Check Console for logs:
-   - If "Snapshot received" appears → listener is working, issue is in UI update
-   - If no logs → listener not set up or was unsubscribed
-5. If listener working but UI not updating:
-   - Add breakpoint in render function (e.g., `renderPRsTable()`)
-   - Check if function is called
-   - Verify DOM element exists: `document.getElementById('materialPRsBody')`
-
-**Source:** [Chrome DevTools Debugging Guide](https://developer.chrome.com/docs/devtools/javascript)
-
----
-
-## Testing Strategy for v2.1 Fixes
-
-### Security Rules Testing
-
-**Current State:** 17 tests passing in `test/firestore.test.js`
-
-**Add Tests for Missing Collections:**
-```javascript
-// test/firestore.test.js
-
-describe("clients collection", () => {
-  beforeEach(seedUsers);
-
-  it("super_admin can create client", async () => {
-    const superAdminDb = testEnv.authenticatedContext("active-super-admin").firestore();
-    await assertSucceeds(
-      setDoc(doc(superAdminDb, "clients", "CLIENT-001"), {
-        client_code: "CLIENT-001",
-        company_name: "Test Company",
-        contact_person: "John Doe",
-        contact_details: "john@test.com"
-      })
+    // Execute queries in parallel and merge results
+    const snapshots = await Promise.all(queries);
+    return snapshots.flatMap(snapshot =>
+        snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     );
-  });
-
-  it("operations_admin can update client", async () => {
-    // Seed a client first
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      const db = context.firestore();
-      await setDoc(doc(db, "clients", "CLIENT-001"), {
-        client_code: "CLIENT-001",
-        company_name: "Test Company"
-      });
-    });
-
-    const opsAdminDb = testEnv.authenticatedContext("active-ops-admin").firestore();
-    await assertSucceeds(
-      updateDoc(doc(opsAdminDb, "clients", "CLIENT-001"), {
-        company_name: "Updated Company"
-      })
-    );
-  });
-
-  it("finance CANNOT create client", async () => {
-    const financeDb = testEnv.authenticatedContext("active-finance").firestore();
-    await assertFails(
-      setDoc(doc(financeDb, "clients", "CLIENT-002"), {
-        client_code: "CLIENT-002",
-        company_name: "Fail Company"
-      })
-    );
-  });
-});
-
-describe("projects collection", () => {
-  beforeEach(seedUsers);
-
-  it("super_admin can read all projects", async () => {
-    const superAdminDb = testEnv.authenticatedContext("active-super-admin").firestore();
-    await assertSucceeds(getDocs(collection(superAdminDb, "projects")));
-  });
-
-  it("operations_user can read projects (not scoped)", async () => {
-    const opsUserDb = testEnv.authenticatedContext("active-ops-user").firestore();
-    await assertSucceeds(getDocs(collection(opsUserDb, "projects")));
-  });
-});
-```
-
-**Run Tests:**
-```bash
-# Start Firestore emulator
-firebase emulators:start --only firestore
-
-# In another terminal, run tests
-npm test
-```
-
-### Manual Testing Checklist
-
-**Security Rules:**
-- [ ] Super Admin can access Clients tab without permission error
-- [ ] Super Admin can access Projects tab without permission error
-- [ ] Operations Admin can create/edit clients and projects
-- [ ] Finance cannot modify clients or projects
-- [ ] Operations User can view but not modify clients/projects
-
-**Window Functions:**
-- [ ] Material PR Review button works (no "window.viewPRDetails is not a function")
-- [ ] Transport Request Review button works (no "window.viewTRDetails is not a function")
-- [ ] All onclick handlers in Finance view functional
-- [ ] All onclick handlers in Procurement view functional
-
-**Modals:**
-- [ ] Audit trail modal opens and displays data
-- [ ] Supplier purchase history modal opens
-- [ ] PO details modal shows payment terms, condition, delivery date
-- [ ] Project expenses modal shows breakdown
-- [ ] All modals close with Escape key
-- [ ] All modals close with X button
-- [ ] Focus returns to trigger button after closing
-
-**Financial Calculations:**
-- [ ] Pending amount totals correct (use aggregation query)
-- [ ] Project expenses calculate correctly
-- [ ] Supplier purchase history totals correct
-
----
-
-## Common Pitfalls & Prevention
-
-### Pitfall 1: Security Rules Don't Match Collection Name
-
-**Problem:** Rule defined for `match /project/{id}` but collection is `projects` (plural).
-
-**Detection:** Permission denied error even for Super Admin.
-
-**Prevention:** Always verify collection name matches Firestore Console exactly.
-
-### Pitfall 2: Window Functions Deleted on Tab Switch
-
-**Problem:** Router skips `destroy()` when switching tabs, but if `destroy()` runs later, it deletes window functions used by other tabs.
-
-**Detection:** Function works initially, then becomes undefined after navigating to another view and back.
-
-**Prevention:** Don't delete window functions in `destroy()` if they're shared across tabs:
-```javascript
-// AVOID in destroy()
-delete window.viewTRDetails;
-
-// INSTEAD: Let them persist, or namespace them
-window.financeView = {
-    viewTRDetails: viewTRDetails,
-    viewPRDetails: viewPRDetails
-};
-```
-
-### Pitfall 3: Aggregation Query on Non-Numeric Fields
-
-**Problem:** `sum('field_name')` on string field returns 0 or error.
-
-**Detection:** Total always shows 0 even with data.
-
-**Prevention:** Verify field is stored as number in Firestore:
-```javascript
-// WRONG - stores as string
-await setDoc(doc(db, 'prs', 'PR-001'), {
-    total_amount: "1500.00"  // String
-});
-
-// CORRECT - stores as number
-await setDoc(doc(db, 'prs', 'PR-001'), {
-    total_amount: 1500.00  // Number
-});
-```
-
-### Pitfall 4: Modal Focus Trap Breaks Browser Back Button
-
-**Problem:** Focus trap prevents clicking browser back button.
-
-**Detection:** Can't use browser navigation while modal is open.
-
-**Prevention:** Don't trap focus on browser UI elements, only within modal:
-```javascript
-function trapFocus(e) {
-    if (e.key !== 'Tab') return;
-
-    const modal = e.currentTarget;  // Only trap within this modal
-    // ... focus trap logic
 }
 ```
 
-### Pitfall 5: Case-Sensitive Role Matching in Security Rules
+**Confidence:** HIGH — combines two existing validated patterns (role checking + active filtering)
 
-**Problem:** Security rules use `getUserRole() == 'super_admin'` but user doc has `role: 'Super Admin'`.
+## Security Rules Extension
 
-**Detection:** Super Admin can't access anything despite having role.
+**Current state:** 247 lines, 17/17 tests passing, production deployed
 
-**Prevention:** Standardize role string format (snake_case recommended):
-- Firestore: `super_admin`, `operations_admin`, `operations_user`, `finance`, `procurement`
-- UI: Display as "Super Admin" but store as `super_admin`
+**Changes needed:**
+1. Add `services` collection block (mirror `projects` structure)
+2. Add `isAssignedToService()` helper (mirror `isAssignedToProject()` pattern)
+3. Extend `hasRole()` checks to include `services_admin` and `services_user`
 
-**Source:** [Firestore Security Rules Best Practices](https://firebase.google.com/docs/firestore/security/rules-structure)
+**Pattern:**
+```javascript
+// EXISTING HELPER (lines 35-47):
+function isAssignedToProject(projectCode) {
+    return getUserData().all_projects == true ||
+           projectCode in getUserData().assigned_project_codes;
+}
 
----
+// NEW HELPER (identical pattern for services):
+function isAssignedToService(serviceCode) {
+    return getUserData().all_services == true ||
+           serviceCode in getUserData().assigned_service_codes;
+}
+
+// EXISTING COLLECTION (lines 114-126):
+match /projects/{projectId} {
+    allow read: if isActiveUser();
+    allow create: if hasRole(['super_admin', 'operations_admin']);
+    // ...
+}
+
+// NEW COLLECTION (mirror structure):
+match /services/{serviceId} {
+    allow read: if isActiveUser();
+    allow create: if hasRole(['super_admin', 'services_admin']);
+    allow update: if hasRole(['super_admin', 'services_admin', 'finance']);
+    allow delete: if hasRole(['super_admin', 'services_admin']);
+
+    // Edit history subcollection (same pattern as projects)
+    match /edit_history/{entryId} {
+        allow read: if isActiveUser();
+        allow create: if hasRole(['super_admin', 'services_admin', 'finance']);
+        allow update: if false;  // Append-only
+        allow delete: if false;
+    }
+}
+
+// EXTEND MRF/PR/PO LIST RULES (lines 166-169, 189-192, 211-215):
+// Add services_user filtering alongside operations_user
+allow list: if isActiveUser() && (
+    hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
+    (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+    (isRole('services_user') && isLegacyOrAssigned(resource.data.service_code))  // NEW
+);
+```
+
+**Testing pattern:**
+```javascript
+// EXISTING TEST PATTERN (firestore.test.js lines 64-71):
+await setDoc(doc(db, "users", "active-ops-user"), {
+    role: "operations_user",
+    assigned_project_codes: ["CLMC_TEST_2026001"],
+    all_projects: false,
+});
+
+// NEW TEST (mirror pattern for services_user):
+await setDoc(doc(db, "users", "active-services-user"), {
+    role: "services_user",
+    assigned_service_codes: ["CLMC_VENDOR_2026001"],
+    all_services: false,
+});
+
+// Test services collection access
+it("services_user can read assigned service", async () => {
+    const servicesUserDb = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(getDoc(doc(servicesUserDb, "services", "assigned-service")));
+});
+```
+
+**Estimated new rules:** +30 lines (services collection block + helper function)
+**Estimated new tests:** +5 tests (mirror existing project tests)
+
+**Confidence:** HIGH — exact pattern replication of existing validated rules
+
+## Permission System Extension
+
+**Current state:** Real-time permission updates via Firestore listeners (permissions.js)
+
+**Changes needed:**
+1. Add `services` tab to permission matrix
+2. Extend role templates with 2 new roles (services_admin, services_user)
+
+**Pattern:**
+```javascript
+// EXISTING PERMISSION CHECK (permissions.js lines 36-40):
+export function hasTabAccess(tabId) {
+    if (!currentPermissions || !currentPermissions.tabs) return undefined;
+    return currentPermissions.tabs[tabId]?.access || false;
+}
+
+// NO CHANGES NEEDED — function already generic
+
+// NEW ROLE TEMPLATES (firestore data):
+{
+    role_id: 'services_admin',
+    permissions: {
+        tabs: {
+            dashboard: { access: true, edit: false },
+            services: { access: true, edit: true },     // NEW tab
+            mrf_form: { access: true, edit: true },
+            procurement: { access: true, edit: true },
+            // projects tab: no access (department isolation)
+        }
+    }
+}
+
+{
+    role_id: 'services_user',
+    permissions: {
+        tabs: {
+            dashboard: { access: true, edit: false },
+            services: { access: true, edit: false },    // View-only
+            mrf_form: { access: true, edit: true },
+            // projects/procurement tabs: no access
+        }
+    }
+}
+```
+
+**Navigation visibility:**
+```javascript
+// EXISTING PATTERN (index.html navigation, uses hasTabAccess()):
+<a href="#/projects" class="nav-link" data-tab="projects">Projects</a>
+<a href="#/services" class="nav-link" data-tab="services">Services</a>  // NEW
+
+// NO JavaScript CHANGES — router.js already filters nav by hasTabAccess()
+```
+
+**Confidence:** HIGH — zero code changes to permission system, only data additions
+
+## Code Generation Pattern Modifications
+
+**Current implementation:** `generateProjectCode()` in utils.js (lines 192-226)
+
+**Required changes:**
+1. Rename to `generateCode()` (generic function)
+2. Add `collectionType` parameter ('project' or 'service')
+3. Query both collections for max number calculation
+4. Return code with appropriate field name (project_code or service_code)
+
+**Backward compatibility:**
+```javascript
+// KEEP EXISTING FUNCTION (for backward compatibility):
+export async function generateProjectCode(clientCode, year = null) {
+    return generateCode('project', clientCode, year);
+}
+
+// ADD NEW GENERIC FUNCTION:
+export async function generateCode(type, clientCode, year = null) {
+    // Query both collections, return max + 1
+    // Same pattern as existing, extended with parallel query
+}
+
+// ADD SERVICE WRAPPER:
+export async function generateServiceCode(clientCode, year = null) {
+    return generateCode('service', clientCode, year);
+}
+```
+
+**Migration risk:** NONE — existing callers continue using `generateProjectCode()`, services use new `generateServiceCode()`
+
+**Confidence:** HIGH — additive changes only, no breaking modifications
+
+## Integration Points
+
+### What Changes
+
+| Component | Current | After Services Addition | Change Type |
+|-----------|---------|------------------------|-------------|
+| Firebase SDK | v10.7.1 | v10.7.1 | No change |
+| Security Rules | 247 lines, 9 collections | ~280 lines, 10 collections | Extension |
+| Role templates | 5 roles | 7 roles | Addition |
+| Permission checks | 7 tabs | 8 tabs | Addition |
+| Code generation | 1 function | 3 functions (backward compatible) | Extension |
+| MRF form | Project dropdown | Project/Service dropdown (filtered) | Logic change |
+
+### What Stays the Same
+
+| Component | Why Unchanged |
+|-----------|---------------|
+| Firebase version | All required features already available in v10.7.1 |
+| Auth system | Role-based access already supports N roles |
+| Real-time listeners | `onSnapshot()` works identically across all collections |
+| Router | Hash routing already supports `/services` path |
+| Finance workflow | Approves PRs regardless of project vs service origin |
+| Procurement workflow | Creates POs regardless of department |
+| Supplier management | Shared across all departments |
+| Client management | Shared across all departments |
 
 ## Version Compatibility
 
-| Package | Current Version | Latest Version | Upgrade Needed? |
-|---------|----------------|----------------|-----------------|
-| firebase-app | 10.7.1 | 12.8.0 | Optional (10.7.1 stable) |
-| firebase-firestore | 10.7.1 | 12.8.0 | Optional (aggregation works in 10.7.1) |
-| firebase-auth | 10.7.1 | 12.8.0 | No (auth unchanged) |
-| @firebase/rules-unit-testing | Should match SDK | 3.0.4 | Check package.json |
+**No compatibility concerns** — all extensions use existing Firebase v10.7.1 APIs already in use.
 
-**Aggregation Query Support:** Available since Firebase JS SDK v9.18.0 (March 2023), confirmed working in v10.7.1.
-
-**No breaking changes expected** for v10 → v12 upgrade if needed later.
-
----
+| Current Pattern | Services Extension | API Used |
+|----------------|-------------------|----------|
+| `collection(db, 'projects')` | `collection(db, 'services')` | Same API |
+| `hasRole(['operations_admin'])` | `hasRole(['services_admin'])` | Same Security Rules helper |
+| `user.assigned_project_codes` | `user.assigned_service_codes` | Same Firestore field pattern |
+| `project_code: 'CLMC_X_2026001'` | `service_code: 'CLMC_X_2026001'` | Same string format |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `eval()` to create window functions dynamically | Security risk, CSP violation | Explicit `window.functionName = functionName` |
-| Modal libraries (Bootstrap Modal, etc.) | Adds dependencies, breaks zero-build pattern | Vanilla JS modal with W3C ARIA patterns |
-| jQuery for event delegation | Unnecessary dependency | Native `addEventListener()` with event delegation |
-| Client-side role checks without Security Rules | Can be bypassed via console/DevTools | Always enforce with Security Rules |
-| `getCountFromServer()` without where clause | Counts all docs, expensive | Add `where()` filters before counting |
-| Fetching all docs for aggregation | Wastes reads, slow | Use `getAggregateFromServer()` with `sum()` |
-| Global error handlers (`window.onerror`) | Hides specific errors | Try/catch blocks with contextual logging |
+| Firebase SDK upgrade | v10.7.1 has all needed features; upgrade risks breaking changes | Keep v10.7.1 (validated) |
+| Separate Firebase project | Security Rules enforce isolation; separate project adds complexity | Single project, multi-collection |
+| Client-side only filtering | Bypassable via console; fails requirement "Firebase Security Rules enforcement" | Security Rules + client filtering |
+| New permission system | Existing system supports N roles and M tabs | Extend role_templates data |
+| Build tools for tree-shaking | Zero-build architecture is core constraint | Keep CDN imports |
 
----
+## Installation
 
-## Known Limitations & Workarounds
+**NO INSTALLATION NEEDED** — all required technologies already installed and validated.
 
-### Limitation 1: Security Rules Error Messages Not Specific
+### Verification
 
-**Problem:** "Missing or insufficient permissions" doesn't say which rule failed or which field caused issue.
-
-**Workaround:** Use Rules Playground to test specific operations, add console logging to client code to identify which operation failed.
-
-**Source:** [GitHub Issue #1006 - Meaningful Debug Info](https://github.com/firebase/firebase-js-sdk/issues/1006)
-
-### Limitation 2: Firestore 'in' Query Limited to 10 Items
-
-**Problem:** `where('project_code', 'in', assignedProjects)` fails if `assignedProjects.length > 10`.
-
-**Current Workaround:** Client-side filtering (already implemented for project assignments).
-
-**Source:** Firestore query limitations documented at [Firestore Query Best Practices](https://estuary.dev/blog/firestore-query-best-practices/)
-
-### Limitation 3: Aggregation Queries Don't Support Complex Filtering
-
-**Problem:** Can't filter aggregation results client-side (e.g., "sum only if status = X and urgency = Y").
-
-**Workaround:** Use compound `where()` clauses before aggregation:
-```javascript
-const q = query(
-    collection(db, 'prs'),
-    where('finance_status', '==', 'Pending'),
-    where('urgency_level', '==', 'Critical')
-);
-const snapshot = await getAggregateFromServer(q, { total: sum('total_amount') });
+Current versions already in use:
+```html
+<!-- app/firebase.js lines 7-41 -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+</script>
 ```
-
-### Limitation 4: ES6 Modules Don't Auto-Expose to Window
-
-**Problem:** Functions in modules are scoped to module by design (feature, not bug).
-
-**Workaround (Current):** Explicitly assign to `window` in `init()`:
-```javascript
-window.viewTRDetails = viewTRDetails;
-```
-
-**Better Long-Term:** Migrate from inline onclick to `addEventListener()` (requires refactoring HTML).
-
-**Source:** [JavaScript Module Patterns](https://addyosmani.com/blog/essential-js-namespacing/)
-
----
-
-## Security Considerations
-
-### 1. CSP Headers Already Configured
-
-Current `_headers` file includes Content-Security-Policy. Verify no inline scripts break CSP:
-```
-Content-Security-Policy: default-src 'self'; script-src 'self' https://www.gstatic.com; ...
-```
-
-**Issue:** Inline `onclick="window.functionName()"` is allowed, but inline scripts (`<script>...</script>`) are blocked. This is correct.
-
-### 2. Security Rules Are Single Source of Truth
-
-**Critical:** Client-side permission checks (`canEditTab()`) are for UX only. Security Rules enforce permissions server-side.
-
-**Test:** Try bypassing UI restrictions via Console:
-```javascript
-// In browser console, try as Finance user:
-await setDoc(doc(db, 'clients', 'HACKED'), { client_code: 'HACKED' });
-// Should fail with permission denied
-```
-
-### 3. Firebase API Key Exposure Is Safe
-
-The `apiKey` in `app/firebase.js` is **public by design**. It identifies the Firebase project, not an authorization token. Security is enforced by Security Rules.
-
-**Source:** [Firebase API Key Safety](https://firebase.google.com/docs/projects/api-keys)
-
-### 4. Rate Limiting for Expensive Queries
-
-**Risk:** Aggregation queries are cheap (1 read), but malicious user could spam them.
-
-**Mitigation:** Firebase has built-in quota limits (50K reads/day free tier). Monitor in Firebase Console → Usage tab.
-
----
-
-## Implementation Checklist for v2.1
-
-**Security Rules Fixes:**
-- [ ] Add `clients` collection rules (if missing)
-- [ ] Add `projects` collection rules (if missing)
-- [ ] Verify `hasRole()` includes correct role names
-- [ ] Test with Rules Playground (Super Admin, Operations Admin, Finance, Operations User)
-- [ ] Add unit tests for clients/projects collections
-- [ ] Run full test suite: `npm test`
-
-**Window Function Fixes:**
-- [ ] Verify `window.viewPRDetails` exposed in `finance.js init()`
-- [ ] Verify `window.viewTRDetails` exposed in `finance.js init()`
-- [ ] Verify `window.refreshPRs` exposed
-- [ ] Verify `window.refreshTRs` exposed
-- [ ] Test all onclick handlers in Finance view
-- [ ] Add console logs to confirm functions exist: `console.log('window.viewTRDetails:', typeof window.viewTRDetails)`
-
-**Modal Implementation:**
-- [ ] Create modal utility functions (`showModal`, `closeModal`, `trapFocus`)
-- [ ] Add modal CSS to `styles/components.css`
-- [ ] Implement audit trail modal (Timeline button)
-- [ ] Implement supplier purchase history modal (Supplier name click)
-- [ ] Implement PO details modal (Payment Terms, Condition, Delivery Date)
-- [ ] Implement project expenses modal (Project List financial overview)
-- [ ] Test keyboard navigation (Tab, Shift+Tab, Escape)
-- [ ] Test focus restoration
-
-**Financial Calculations:**
-- [ ] Implement `calculatePendingPRTotal()` using `getAggregateFromServer()`
-- [ ] Implement `calculateProjectExpenses(projectCode)`
-- [ ] Implement `calculateSupplierPurchaseHistory(supplierName)`
-- [ ] Verify fields are numeric (not string) in Firestore
-- [ ] Test with real data
-
-**Operations Admin Assignment:**
-- [ ] Verify Operations Admin can be assigned to projects (update Security Rules or client logic)
-- [ ] Test project assignment UI for Operations Admin role
-- [ ] Verify assignments appear in Project Assignments view
-
----
 
 ## Sources
 
-**Firebase Official Documentation (HIGH confidence):**
-- [Test Security Rules with Emulator](https://firebase.google.com/docs/firestore/security/test-rules-emulator)
-- [Rules Playground Simulator](https://firebase.google.com/docs/rules/simulator)
-- [Firestore Aggregation Queries](https://firebase.google.com/docs/firestore/query-data/aggregation-queries)
-- [Aggregate with SUM and AVG](https://cloud.google.com/blog/products/databases/aggregate-with-sum-and-avg-in-firestore)
-- [Real-Time Updates with onSnapshot](https://firebase.google.com/docs/firestore/query-data/listen)
-- [Security Rules Structure](https://firebase.google.com/docs/firestore/security/rules-structure)
+**HIGH Confidence — All findings from existing codebase analysis:**
 
-**Browser DevTools (HIGH confidence):**
-- [Debug JavaScript - Chrome DevTools](https://developer.chrome.com/docs/devtools/javascript)
-- [JavaScript Debugging Reference](https://developer.chrome.com/docs/devtools/javascript/reference/)
+- **Firebase SDK v10.7.1:** C:\Users\Admin\Roaming\pr-po\app\firebase.js (lines 7-41) — Current production version
+- **Security Rules patterns:** C:\Users\Admin\Roaming\pr-po\firestore.rules (247 lines) — 17/17 tests passing
+- **Multi-collection precedent:** 9 existing collections (users, projects, clients, mrfs, prs, pos, transport_requests, suppliers, deleted_mrfs)
+- **Role-based filtering:** app/utils.js `getAssignedProjectCodes()` (lines 237-246) — Validated for operations_user
+- **Permission system:** app/permissions.js (133 lines) — Real-time updates via `permissionsChanged` event
+- **Code generation:** app/utils.js `generateProjectCode()` (lines 192-226) — Regex-based parsing, race condition acknowledged
+- **Test patterns:** test/firestore.test.js (336 lines, 17 tests) — Seed users, role checks, assignment filtering
 
-**Accessibility Standards (HIGH confidence):**
-- [W3C Modal Dialog Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/examples/dialog/)
-- [Creating Accessible Dialogs - Smashing Magazine](https://www.smashingmagazine.com/2021/07/accessible-dialog-from-scratch/)
-- [Micromodal.js - Accessible Modal Library](https://micromodal.vercel.app/)
-
-**JavaScript Best Practices (MEDIUM confidence):**
-- [MDN - Introduction to Events](https://developer.mozilla.org/en-US/docs/Learn_web_development/Core/Scripting/Events)
-- [MDN - addEventListener](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener)
-- [JavaScript Namespacing - Addy Osmani](https://addyosmani.com/blog/essential-js-namespacing/)
-- [Module Pattern - Software Patterns Lexicon](https://softwarepatternslexicon.com/patterns-js/4/1/)
-
-**Community Resources (MEDIUM confidence):**
-- [Firestore Permission Denied - Medium](https://medium.com/firebase-tips-tricks/how-to-fix-firestore-error-permission-denied-missing-or-insufficient-permissions-777d591f404)
-- [Firestore Query Best Practices 2026](https://estuary.dev/blog/firestore-query-best-practices/)
-- [Firebase Memory Leak Issue #4416](https://github.com/firebase/firebase-js-sdk/issues/4416)
-- [Permission Denied Debug Info Issue #1006](https://github.com/firebase/firebase-js-sdk/issues/1006)
+**No external research needed** — all capabilities already exist in v2.2 codebase.
 
 ---
-
-*Stack research for: v2.1 System Refinement - Debugging & Bug Fixes*
-*Researched: 2026-02-05*
-*Confidence: HIGH (official Firebase docs + W3C standards verified for all critical techniques)*
+*Stack research for: Services Department Support*
+*Researched: 2026-02-12*
+*Confidence: HIGH — All findings from validated v2.2 production codebase*
