@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to projects with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Multi-user system with 5 roles, invitation-only registration, granular permissions, and project assignments for Operations Users. Built with vanilla JavaScript and Firebase.
+A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. Built with vanilla JavaScript and Firebase.
 
 ## Core Value
 
@@ -10,25 +10,26 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Shipped:** v2.1 System Refinement (2026-02-06)
+**Shipped:** v2.2 Workflow & UX Enhancements (2026-02-10)
 
-**Current Milestone:** v2.2 Workflow & UX Enhancements
+**Current Milestone:** v2.3 Services Department Support
 
 See `.planning/MILESTONES.md` for full milestone history.
 
-## Current Milestone: v2.2 Workflow & UX Enhancements
+## Current Milestone: v2.3 Services Department Support
 
-**Goal:** Enhance workflows and UX across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
+**Goal:** Enable parallel workflows for Services department alongside existing Projects department with complete role-based isolation and shared procurement pipeline.
 
-**Target enhancements:**
-- Auto-populate user data in MRF forms for efficiency
-- Restrict project creation to admin roles only
-- Restructure project detail page with card-based layout
-- Comprehensive procurement status tracking with visual indicators (red/yellow/green)
-- PR creator tracking and side-by-side PR/PO display
-- Finance signature capture in approval workflow
-- Detailed project expense breakdown with category/material/transport views
-- Consolidated admin navigation (Settings/Assignments/Users merged)
+**Target features:**
+- Services collection with service_type field (one-time or recurring services)
+- Services tab with sub-tabs for Services and Recurring work
+- Two new roles (services_admin, services_user) mirroring operations roles for Services scope
+- Shared code sequence (CLMC_CLIENT_YYYY###) across Projects and Services
+- Role-based MRF dropdown visibility (operations sees Projects, services sees Services)
+- Department isolation (operations roles → Projects only, services roles → Services only)
+- Assignment-based access for services_user (mirrors operations_user pattern)
+- Complete Firebase Security Rules enforcement for services collection
+- Finance and Procurement remain cross-department (approve work from both departments)
 
 ## Requirements
 
@@ -137,9 +138,31 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Multi-personnel selection with pill UI and array storage — v2.2 (Phase 20)
 - ✓ Automatic personnel-to-assignment sync for operations users — v2.2 (Phase 21)
 
-### Active (v2.3 Planning)
+### Active (v2.3 Services Department Support)
 
-(Requirements will be defined during v2.3 milestone planning)
+**Services Management:**
+- Services collection with CRUD operations mirroring Projects functionality
+- Service code generation sharing CLMC_CLIENT_YYYY### sequence with Projects
+- Services tab with sub-tabs: Services (one-time work), Recurring (contract-based work)
+- service_type field differentiation ('one-time' or 'recurring')
+- Same fields as Projects: budget, contract_cost, personnel, internal_status, project_status, active/inactive
+- Services detail page with inline editing and auto-save (mirror Projects pattern)
+- Assignment system for services_user (see only assigned services)
+
+**Role & Permission System:**
+- services_admin role with full Services tab access (create/edit/delete, manage assignments)
+- services_user role with assignment-based Services tab access
+- Department isolation: operations roles see only Projects tab, services roles see only Services tab
+- Super Admin bypass for both departments
+- Finance and Procurement cross-department access (approve PRs/POs from both departments)
+- Firebase Security Rules enforcement for services collection
+- Role template configuration in Super Admin settings
+
+**MRF Integration:**
+- Role-based dropdown visibility in MRF form (operations users see Projects, services users see Services)
+- Denormalized storage (service_code + service_name) for performance
+- Services appear in MRF lists, details, and procurement workflow
+- Backward compatibility with existing project-based MRFs
 
 ### Future (v2.1+)
 
@@ -283,4 +306,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Strict equality (=== false) for permission checks | Distinguishes no permission from loading state | ✓ Good - prevents UI flickering |
 
 ---
-*Last updated: 2026-02-11 after v2.2 milestone completion*
+*Last updated: 2026-02-12 after v2.3 milestone initialization*
