@@ -130,13 +130,77 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (To be populated by roadmapper) | | |
+| ROLE-01 | Phase 26 | Pending |
+| ROLE-02 | Phase 26 | Pending |
+| ROLE-03 | Phase 26 | Pending |
+| ROLE-04 | Phase 26 | Pending |
+| ROLE-05 | Phase 26 | Pending |
+| ROLE-06 | Phase 26 | Pending |
+| ROLE-07 | Phase 26 | Pending |
+| ROLE-08 | Phase 26 | Pending |
+| ROLE-09 | Phase 26 | Pending |
+| ROLE-10 | Phase 26 | Pending |
+| ROLE-11 | Phase 26 | Pending |
+| SEC-01 | Phase 26 | Pending |
+| SEC-02 | Phase 26 | Pending |
+| SEC-03 | Phase 26 | Pending |
+| SEC-04 | Phase 26 | Pending |
+| SEC-05 | Phase 26 | Pending |
+| SEC-06 | Phase 26 | Pending |
+| SEC-07 | Phase 26 | Pending |
+| SEC-08 | Phase 26 | Pending |
+| SERV-02 | Phase 27 | Pending |
+| SERV-01 | Phase 28 | Pending |
+| SERV-03 | Phase 28 | Pending |
+| SERV-04 | Phase 28 | Pending |
+| SERV-05 | Phase 28 | Pending |
+| SERV-06 | Phase 28 | Pending |
+| SERV-07 | Phase 28 | Pending |
+| SERV-08 | Phase 28 | Pending |
+| SERV-09 | Phase 28 | Pending |
+| SERV-10 | Phase 28 | Pending |
+| SERV-11 | Phase 28 | Pending |
+| SERV-12 | Phase 28 | Pending |
+| UI-01 | Phase 28 | Pending |
+| UI-02 | Phase 28 | Pending |
+| UI-03 | Phase 28 | Pending |
+| UI-04 | Phase 28 | Pending |
+| UI-05 | Phase 28 | Pending |
+| UI-06 | Phase 28 | Pending |
+| UI-07 | Phase 28 | Pending |
+| UI-08 | Phase 28 | Pending |
+| ASSIGN-01 | Phase 28 | Pending |
+| ASSIGN-02 | Phase 28 | Pending |
+| ASSIGN-03 | Phase 28 | Pending |
+| ASSIGN-04 | Phase 28 | Pending |
+| ASSIGN-05 | Phase 28 | Pending |
+| ASSIGN-06 | Phase 28 | Pending |
+| MRF-01 | Phase 29 | Pending |
+| MRF-02 | Phase 29 | Pending |
+| MRF-03 | Phase 29 | Pending |
+| MRF-04 | Phase 29 | Pending |
+| MRF-05 | Phase 29 | Pending |
+| MRF-06 | Phase 29 | Pending |
+| MRF-07 | Phase 29 | Pending |
+| MRF-08 | Phase 29 | Pending |
+| MRF-09 | Phase 29 | Pending |
+| MRF-10 | Phase 29 | Pending |
+| CROSS-01 | Phase 30 | Pending |
+| CROSS-02 | Phase 30 | Pending |
+| CROSS-03 | Phase 30 | Pending |
+| CROSS-04 | Phase 30 | Pending |
+| CROSS-05 | Phase 30 | Pending |
+| CROSS-06 | Phase 30 | Pending |
+| CROSS-07 | Phase 30 | Pending |
+| DASH-01 | Phase 31 | Pending |
+| DASH-02 | Phase 31 | Pending |
+| DASH-03 | Phase 31 | Pending |
 
 **Coverage:**
 - v2.3 requirements: 54 total
-- Mapped to phases: (pending roadmap)
-- Unmapped: (pending roadmap)
+- Mapped to phases: 54/54 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-12*
-*Last updated: 2026-02-12 after initial definition*
+*Last updated: 2026-02-12 after roadmap creation (6 phases, 100% coverage)*
