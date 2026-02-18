@@ -11,6 +11,8 @@ const routePermissionMap = {
     '/clients': 'clients',
     '/projects': 'projects',
     '/project-detail': 'projects',  // Detail view uses projects permission
+    '/services': 'services',
+    '/service-detail': 'services',  // Detail view uses services permission
     '/mrf-form': 'mrf_form',
     '/procurement': 'procurement',
     '/finance': 'finance',
@@ -63,6 +65,17 @@ const routes = {
         name: 'Project Detail',
         load: () => import('./views/project-detail.js'),
         title: 'Project Details | CLMC Procurement'
+    },
+    '/services': {
+        name: 'Services',
+        load: () => import('./views/services.js'),
+        title: 'Services | CLMC Procurement',
+        defaultTab: 'services'
+    },
+    '/service-detail': {
+        name: 'Service Detail',
+        load: () => import('./views/service-detail.js'),
+        title: 'Service Details | CLMC Procurement'
     },
     '/register': {
         name: 'Register',
@@ -356,6 +369,12 @@ function handleHashChange() {
         return;
     }
 
+    // Handle detail routes: #/services/detail/CODE -> navigate to /service-detail with param
+    if (path === '/services' && tab === 'detail' && subpath) {
+        navigate('/service-detail', null, subpath);
+        return;
+    }
+
     navigate(path, tab);
 }
 
@@ -387,6 +406,8 @@ export function handleInitialRoute() {
     // Handle detail routes on initial load
     if (path === '/projects' && tab === 'detail' && subpath) {
         navigate('/project-detail', null, subpath);
+    } else if (path === '/services' && tab === 'detail' && subpath) {
+        navigate('/service-detail', null, subpath);
     } else {
         navigate(path, tab);
     }
