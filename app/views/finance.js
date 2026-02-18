@@ -27,6 +27,23 @@ function formatPODate(po) {
     return po.date_issued_legacy ? formatDate(po.date_issued_legacy) : 'N/A';
 }
 
+/**
+ * Returns a display label for an MRF, PR, TR, or PO document.
+ * Checks department field first, then falls back to service_code presence.
+ * @param {object} doc - Any document with project_code/project_name or service_code/service_name
+ * @returns {string}
+ */
+function getMRFLabel(doc) {
+    if (doc.department === 'services' || (!doc.department && doc.service_code)) {
+        return doc.service_code
+            ? `${doc.service_code} - ${doc.service_name || 'No service'}`
+            : 'No service';
+    }
+    return doc.project_code
+        ? `${doc.project_code} - ${doc.project_name || 'No project'}`
+        : (doc.project_name || 'No project');
+}
+
 // View state
 let listeners = [];
 let materialPRs = [];
@@ -508,7 +525,7 @@ async function generatePODocument(poDocId) {
         // Prepare document data
         const documentData = {
             PO_ID: po.po_id,
-            PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
+            PROJECT: getMRFLabel(po),
             DATE: formatPODate({ date_issued: po.date_issued, date_issued_legacy: po.date_issued_legacy }),
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
@@ -1122,7 +1139,7 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td>${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</td>
+                <td>${getMRFLabel(pr)}</td>
                 <td>${formatDate(pr.date_generated)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
@@ -1171,7 +1188,7 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td>${tr.project_code ? tr.project_code + ' - ' : ''}${tr.project_name || 'No project'}</td>
+                <td>${getMRFLabel(tr)}</td>
                 <td>${formatDate(tr.date_submitted)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
@@ -1254,7 +1271,7 @@ async function viewPRDetails(prId) {
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Project:</div>
-                    <div class="modal-detail-value">${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</div>
+                    <div class="modal-detail-value">${getMRFLabel(pr)}</div>
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Requestor:</div>
@@ -1387,7 +1404,7 @@ async function viewTRDetails(trId) {
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Project:</div>
-                    <div>${tr.project_code ? tr.project_code + ' - ' : ''}${tr.project_name || 'No project'}</div>
+                    <div>${getMRFLabel(tr)}</div>
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Requestor:</div>
@@ -1617,6 +1634,9 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
             supplier_name: supplier,
             project_code: pr.project_code || '',
             project_name: pr.project_name,
+            service_code: pr.service_code || '',
+            service_name: pr.service_name || '',
+            department: pr.department || 'projects',
             requestor_name: pr.requestor_name,
             delivery_address: pr.delivery_address || '',
             items_json: JSON.stringify(supplierItems),
@@ -1999,7 +2019,7 @@ function renderPOs() {
                         <td><strong>${po.po_id}</strong></td>
                         <td>${po.pr_id}</td>
                         <td>${po.supplier_name}</td>
-                        <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
+                        <td>${getMRFLabel(po)}</td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
