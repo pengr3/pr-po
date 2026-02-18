@@ -158,19 +158,6 @@ export async function getUserDocument(userId) {
             ...userDoc.data()
         };
     } catch (error) {
-        // Firebase auth token may not have propagated to Firestore yet on first
-        // onAuthStateChanged event — retry once after a short delay.
-        if (error.code === 'permission-denied') {
-            await new Promise(resolve => setTimeout(resolve, 600));
-            try {
-                const retryDoc = await getDoc(doc(db, 'users', userId));
-                if (!retryDoc.exists()) return null;
-                return { id: retryDoc.id, ...retryDoc.data() };
-            } catch (retryError) {
-                console.error('[Auth] Error getting user document (retry):', retryError);
-                return null;
-            }
-        }
         console.error('[Auth] Error getting user document:', error);
         return null;
     }
@@ -216,6 +203,11 @@ export function initAuthObserver() {
 
         if (user) {
             console.log('[Auth] User signed in:', user.email);
+
+            // Ensure auth token is propagated to Firestore before any query.
+            // onAuthStateChanged fires before the Firestore WebSocket receives the
+            // new token; awaiting getIdToken() flushes that propagation.
+            await user.getIdToken();
 
             // Fetch user document from Firestore
             try {
@@ -346,6 +338,8 @@ export function initAuthObserver() {
                                 });
                             }
                         }
+                    }, (error) => {
+                        console.error('[Auth] User document listener error:', error);
                     });
                 } else {
                     console.warn('[Auth] User document not found for:', user.email);
