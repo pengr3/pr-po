@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 29 of 31 (MRF Integration) — IN PROGRESS
-Plan: 2 of 3 in current phase
-Status: Plan 02 complete — MRF/PR/TR submission stores department, service_code, service_name fields
-Last activity: 2026-02-18 — Completed 29-02: handleFormSubmit() and saveNewMRF() store service fields; 4 PR/TR addDoc paths updated
+Phase: 29 of 31 (MRF Integration) — COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase 29 complete — getMRFLabel() helper in procurement.js and finance.js; all 17 display sites updated; PO addDoc carries service fields
+Last activity: 2026-02-18 — Completed 29-03: getMRFLabel() added to both files; 10 sites in procurement.js, 7 in finance.js updated; PO creation extended with service_code/service_name/department
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -46,6 +46,7 @@ Progress: [████████████████████░░░
 | Phase 28-services-view P03 | 25 | 2 tasks | 3 files |
 | Phase 29-mrf-integration P01 | 15 | 2 tasks | 1 files |
 | Phase 29-mrf-integration P02 | 20 | 2 tasks | 2 files |
+| Phase 29-mrf-integration P03 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting v2.3 work:
 - 29-02: department field is binary string discriminator ('projects' vs 'services') stored denormalized on MRF/PR/TR — avoids joins in display code
 - 29-02: cachedServicesForNewMRF uses getDocs (one-time fetch) not onSnapshot — services change rarely, inline form doesn't need real-time updates
 - 29-02: submitTransportRequest() TR addDoc also needed service fields (4th path) — was not in plan, auto-fixed under Rule 2
+- [Phase 29-mrf-integration]: getMRFLabel() uses dual-condition check (department === 'services' OR service_code fallback) to handle both new docs and pre-existing docs without department field
+- [Phase 29-mrf-integration]: Dropdown builder (projectOptions map) left with old ternary intentionally — it maps projectsData array, not MRF/PR/PO documents, so getMRFLabel() is inappropriate there
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 29-02-PLAN.md (Phase 29 Plan 02 — MRF/PR/TR service field storage)
+Stopped at: Completed 29-03-PLAN.md (Phase 29 Plan 03 — MRF display labels for services department)
 Resume file: None
-Next action: /gsd:execute-phase 29 Plan 03 (MRF display updates for services department)
+Next action: /gsd:execute-phase 30 (next phase per ROADMAP.md)

@@ -78,7 +78,7 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **MRF-07**: MRF stores denormalized service_code and service_name for performance
 - [x] **MRF-08**: MRF stores department field ('projects' or 'services')
 - [x] **MRF-09**: Services-linked MRFs appear in procurement workflow (PR generation)
-- [ ] **MRF-10**: Service code and name displayed in MRF lists and detail views
+- [x] **MRF-10**: Service code and name displayed in MRF lists and detail views
 
 ### Cross-Department Workflows
 
@@ -184,7 +184,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRF-07 | Phase 29 | Complete |
 | MRF-08 | Phase 29 | Complete |
 | MRF-09 | Phase 29 | Complete |
-| MRF-10 | Phase 29 | Pending |
+| MRF-10 | Phase 29 | Complete |
 | CROSS-01 | Phase 30 | Pending |
 | CROSS-02 | Phase 30 | Pending |
 | CROSS-03 | Phase 30 | Pending |
