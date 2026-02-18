@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 26 of 31 (Security & Roles Foundation)
-Plan: 2 of 2 in current phase
+Plan: 3 of 3 in current phase
 Status: Phase complete
-Last activity: 2026-02-18 — Completed 26-02: services roles UI extension (user-management.js + role-config.js)
+Last activity: 2026-02-18 — Completed 26-03: services collection security rules tests (firestore.test.js, 13 new tests)
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -39,6 +39,7 @@ Progress: [████████████████████░░░
 - Trend: Stable - high velocity maintained
 
 *Updated after v2.3 roadmap creation*
+| Phase 26-security-roles-foundation P03 | 15 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,7 @@ Recent decisions affecting v2.3 work:
 - 26-02: Reuse roleSpecificFields spread pattern from operations roles for services roles (both confirmApproval and handleEditRole)
 - 26-02: ROLE_ORDER/TABS/ROLE_LABELS are single source of truth for permission matrix — adding entries is sufficient
 - 26-02: getPermissionValue || false fallback handles missing services key in existing role templates — no migration needed
+- [Phase 26-security-roles-foundation]: Test 13 uses getDocs(query) not getDoc to validate list-scoping (allow list rule) — critical distinction from allow get, which is intentionally broad for services_user
 
 ### Pending Todos
 
@@ -70,6 +72,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 26-02-PLAN.md (Phase 26 plan 2 of 2)
+Stopped at: Completed 26-03-PLAN.md (Phase 26 plan 3 of 3 - phase fully complete)
 Resume file: None
 Next action: /gsd:plan-phase 27

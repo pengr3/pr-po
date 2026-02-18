@@ -55,8 +55,8 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **SEC-04**: services_user cannot write to services collection
 - [x] **SEC-05**: Super Admin bypasses services role checks
 - [x] **SEC-06**: Finance and Procurement can read services for cross-department workflows
-- [ ] **SEC-07**: Security Rules validated with automated tests (emulator)
-- [ ] **SEC-08**: Department field enforced on all new MRFs, PRs, POs, TRs going forward
+- [x] **SEC-07**: Security Rules validated with automated tests (emulator)
+- [x] **SEC-08**: Department field enforced on all new MRFs, PRs, POs, TRs going forward
 
 ### Assignment System
 
@@ -147,8 +147,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-04 | Phase 26 | Complete |
 | SEC-05 | Phase 26 | Complete |
 | SEC-06 | Phase 26 | Complete |
-| SEC-07 | Phase 26 | Pending |
-| SEC-08 | Phase 26 | Pending |
+| SEC-07 | Phase 26 | Complete |
+| SEC-08 | Phase 26 | Complete |
 | SERV-02 | Phase 27 | Pending |
 | SERV-01 | Phase 28 | Pending |
 | SERV-03 | Phase 28 | Pending |
