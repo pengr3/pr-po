@@ -23,6 +23,10 @@ const SECTIONS = {
     settings: {
         label: 'Settings',
         load: () => import('./role-config.js')
+    },
+    service_assignments: {
+        label: 'Service Assignments',
+        load: () => import('./service-assignments.js')
     }
 };
 
