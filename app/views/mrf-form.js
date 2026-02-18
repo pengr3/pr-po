@@ -9,6 +9,8 @@ import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '..
 // View state
 let projectsListener = null;
 let cachedProjects = [];   // Holds the latest projects from the onSnapshot callback
+let servicesListener = null;
+let cachedServices = [];   // Holds the latest services from the onSnapshot callback
 
 /**
  * Render the MRF submission form
@@ -248,10 +250,25 @@ export async function init() {
         // Load projects
         loadProjects();
 
-        // Phase 7: Re-populate dropdown when assignments change
+        // Role-based dropdown visibility (MRF-01, MRF-02, MRF-03)
+        const role = user?.role || '';
+        const showProjects = ['super_admin', 'finance', 'procurement', 'operations_admin', 'operations_user'].includes(role);
+        const showServices = ['super_admin', 'finance', 'procurement', 'services_admin', 'services_user'].includes(role);
+
+        const projectGroup = document.getElementById('projectNameGroup');
+        const serviceGroup = document.getElementById('serviceNameGroup');
+        if (projectGroup) projectGroup.style.display = showProjects ? '' : 'none';
+        if (serviceGroup) serviceGroup.style.display = showServices ? '' : 'none';
+
+        if (showServices) {
+            loadServices();
+        }
+
+        // Phase 7: Re-populate dropdowns when assignments change
         const assignmentChangeHandler = () => {
-            console.log('[MRFForm] Assignments changed, re-populating project dropdown...');
+            console.log('[MRFForm] Assignments changed, re-populating dropdowns...');
             populateProjectDropdown();
+            populateServiceDropdown(); // also refresh services for services_user
         };
         window.addEventListener('assignmentsChanged', assignmentChangeHandler);
         window._mrfFormAssignmentHandler = assignmentChangeHandler;
@@ -337,6 +354,79 @@ function populateProjectDropdown() {
         option.textContent = `${project.project_code} - ${project.project_name}`;
         option.dataset.projectName = project.project_name;
         projectSelect.appendChild(option);
+    });
+}
+
+/**
+ * Load services from Firebase with real-time updates
+ */
+function loadServices() {
+    const serviceSelect = document.getElementById('serviceName');
+    if (!serviceSelect) return;
+
+    try {
+        const servicesRef = collection(db, 'services');
+        // CRITICAL: services use boolean active field, NOT status string
+        const q = query(servicesRef, where('active', '==', true));
+
+        servicesListener = onSnapshot(q, (snapshot) => {
+            cachedServices = [];
+            snapshot.forEach(doc => {
+                cachedServices.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Sort by created_at descending (most recent first, MRF-06)
+            cachedServices.sort((a, b) => {
+                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return bTime - aTime;
+            });
+
+            populateServiceDropdown();
+        }, (error) => {
+            console.error('Error loading services:', error);
+            serviceSelect.innerHTML = '<option value="">Error loading services</option>';
+        });
+    } catch (error) {
+        console.error('Error setting up services listener:', error);
+        serviceSelect.innerHTML = '<option value="">Error loading services</option>';
+    }
+}
+
+/**
+ * Populate the service dropdown from cachedServices, applying assignment filter
+ * for services_user. Called by the onSnapshot callback and by the
+ * assignmentsChanged event handler.
+ */
+function populateServiceDropdown() {
+    const serviceSelect = document.getElementById('serviceName');
+    if (!serviceSelect) return;
+
+    // Filter to assigned services for services_user; services_admin gets null (no filter)
+    const assignedCodes = window.getAssignedServiceCodes?.();
+    let services = cachedServices;
+    if (assignedCodes !== null) {
+        services = cachedServices.filter(s => assignedCodes.includes(s.service_code));
+    }
+
+    serviceSelect.innerHTML = '<option value="">-- Select a service --</option>';
+
+    if (services.length === 0) {
+        if (assignedCodes !== null) {
+            serviceSelect.innerHTML = '<option value="" disabled>No services assigned -- contact your admin</option>';
+        } else {
+            serviceSelect.innerHTML = '<option value="">No active services available</option>';
+        }
+        return;
+    }
+
+    services.forEach(service => {
+        const option = document.createElement('option');
+        option.value = service.service_code;
+        // MRF-04: format "CLMC_CODE_YYYY### - Service Name"
+        option.textContent = `${service.service_code} - ${service.service_name}`;
+        option.dataset.serviceName = service.service_name;
+        serviceSelect.appendChild(option);
     });
 }
 
@@ -626,6 +716,11 @@ export async function destroy() {
         projectsListener();
         projectsListener = null;
     }
+    if (servicesListener) {
+        servicesListener();
+        servicesListener = null;
+    }
+    cachedServices = [];
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');
