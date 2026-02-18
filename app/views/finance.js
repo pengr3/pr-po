@@ -44,6 +44,19 @@ function getMRFLabel(doc) {
         : (doc.project_name || 'No project');
 }
 
+/**
+ * Returns a styled department badge HTML span for a PR, TR, or PO document.
+ * @param {object} doc - Document with optional department/service_code fields
+ * @returns {string} HTML span string
+ */
+function getDeptBadgeHTML(doc) {
+    const isServices = doc.department === 'services' || (!doc.department && doc.service_code);
+    const label = isServices ? 'Services' : 'Projects';
+    const bg    = isServices ? '#ede9fe' : '#dbeafe';
+    const color = isServices ? '#6d28d9' : '#1d4ed8';
+    return `<span style="background:${bg};color:${color};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${label}</span>`;
+}
+
 // View state
 let listeners = [];
 let materialPRs = [];
@@ -62,6 +75,20 @@ let projectExpenseSortDirection = 'asc';
 // Sort state for Purchase Orders
 let poSortColumn = 'date_issued';
 let poSortDirection = 'desc';
+
+// Department filter state for Pending Approvals and POs
+let activeDeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
+
+/**
+ * Apply department filter to all three finance tables.
+ * Called by the dept filter dropdown onchange handler.
+ */
+function applyFinanceDeptFilter(value) {
+    activeDeptFilter = value;
+    renderMaterialPRs();
+    renderTransportRequests();
+    renderPOs();
+}
 
 /**
  * Attach all window functions for use in onclick handlers
@@ -103,6 +130,7 @@ function attachWindowFunctions() {
     // closeProjectExpenseModal replaced by shared _closeExpenseBreakdownModal in expense-modal.js
     window.sortProjectExpenses = sortProjectExpenses;
     window.sortPOs = sortPOs;
+    window.applyFinanceDeptFilter = applyFinanceDeptFilter;
 
     console.log('[Finance] ✅ All window functions attached successfully');
 }
@@ -1042,6 +1070,8 @@ export async function destroy() {
     delete window.confirmApproval;
     delete window.sortProjectExpenses;
     delete window.sortPOs;
+    delete window.applyFinanceDeptFilter;
+    activeDeptFilter = '';
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
