@@ -82,12 +82,12 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 ### Cross-Department Workflows
 
-- [ ] **CROSS-01**: Finance Pending Approvals shows PRs/TRs from both Projects and Services
+- [x] **CROSS-01**: Finance Pending Approvals shows PRs/TRs from both Projects and Services
 - [ ] **CROSS-02**: Procurement PO Tracking shows POs from both Projects and Services
-- [ ] **CROSS-03**: Department badge/indicator visible in Finance and Procurement lists
-- [ ] **CROSS-04**: Optional department filter dropdown in Finance and Procurement views
-- [ ] **CROSS-05**: PR generation works for Services-linked MRFs
-- [ ] **CROSS-06**: PO creation works for Services-linked PRs
+- [x] **CROSS-03**: Department badge/indicator visible in Finance and Procurement lists
+- [x] **CROSS-04**: Optional department filter dropdown in Finance and Procurement views
+- [x] **CROSS-05**: PR generation works for Services-linked MRFs
+- [x] **CROSS-06**: PO creation works for Services-linked PRs
 - [ ] **CROSS-07**: Timeline audit trail shows department context
 
 ### Dashboard Integration
@@ -185,12 +185,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRF-08 | Phase 29 | Complete |
 | MRF-09 | Phase 29 | Complete |
 | MRF-10 | Phase 29 | Complete |
-| CROSS-01 | Phase 30 | Pending |
+| CROSS-01 | Phase 30 | Complete |
 | CROSS-02 | Phase 30 | Pending |
-| CROSS-03 | Phase 30 | Pending |
-| CROSS-04 | Phase 30 | Pending |
-| CROSS-05 | Phase 30 | Pending |
-| CROSS-06 | Phase 30 | Pending |
+| CROSS-03 | Phase 30 | Complete |
+| CROSS-04 | Phase 30 | Complete |
+| CROSS-05 | Phase 30 | Complete |
+| CROSS-06 | Phase 30 | Complete |
 | CROSS-07 | Phase 30 | Pending |
 | DASH-01 | Phase 31 | Pending |
 | DASH-02 | Phase 31 | Pending |

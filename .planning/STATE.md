@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 29 - MRF Integration (v2.3 Services Department Support)
+**Current focus:** Phase 30 - Cross-Department Workflows (v2.3 Services Department Support)
 
 ## Current Position
 
-Phase: 29 of 31 (MRF Integration) — COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 29 complete — getMRFLabel() helper in procurement.js and finance.js; all 17 display sites updated; PO addDoc carries service fields
-Last activity: 2026-02-18 — Completed 29-03: getMRFLabel() added to both files; 10 sites in procurement.js, 7 in finance.js updated; PO creation extended with service_code/service_name/department
+Phase: 30 of 31 (Cross-Department Workflows) — IN PROGRESS
+Plan: 1 of 2 in current phase
+Status: Phase 30 Plan 01 complete — department badges and filter dropdown added to all three Finance tables (Material PRs, Transport Requests, Purchase Orders)
+Last activity: 2026-02-18 — Completed 30-01: getDeptBadgeHTML() added; activeDeptFilter state and applyFinanceDeptFilter window function registered; filter dropdown in render(); badges in all table rows and PR/TR detail modals
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -47,6 +47,7 @@ Progress: [████████████████████░░░
 | Phase 29-mrf-integration P01 | 15 | 2 tasks | 1 files |
 | Phase 29-mrf-integration P02 | 20 | 2 tasks | 2 files |
 | Phase 29-mrf-integration P03 | 15 | 2 tasks | 2 files |
+| Phase 30-cross-department-workflows P01 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting v2.3 work:
 - 29-02: submitTransportRequest() TR addDoc also needed service fields (4th path) — was not in plan, auto-fixed under Rule 2
 - [Phase 29-mrf-integration]: getMRFLabel() uses dual-condition check (department === 'services' OR service_code fallback) to handle both new docs and pre-existing docs without department field
 - [Phase 29-mrf-integration]: Dropdown builder (projectOptions map) left with old ternary intentionally — it maps projectsData array, not MRF/PR/PO documents, so getMRFLabel() is inappropriate there
+- [Phase 30]: activeDeptFilter defaults '' (empty string) not null; filter uses (pr.department || 'projects') for legacy-doc compatibility
+- [Phase 30]: applyFinanceDeptFilter re-renders all three tables on every filter change (client-side, instant, no new Firestore queries)
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 29-03-PLAN.md (Phase 29 Plan 03 — MRF display labels for services department)
+Stopped at: Completed 30-01-PLAN.md (Phase 30 Plan 01 — Department badges and filter for finance view)
 Resume file: None
-Next action: /gsd:execute-phase 30 (next phase per ROADMAP.md)
+Next action: Continue Phase 30 — execute 30-02-PLAN.md
