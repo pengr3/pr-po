@@ -22,18 +22,21 @@ const TABS = [
     { id: 'dashboard', label: 'Dashboard (Home)' },
     { id: 'clients', label: 'Clients' },
     { id: 'projects', label: 'Projects' },
+    { id: 'services', label: 'Services' },
     { id: 'mrf_form', label: 'Material Request' },
     { id: 'procurement', label: 'Procurement' },
     { id: 'finance', label: 'Finance' },
     { id: 'role_config', label: 'Role Configuration' }
 ];
 
-const ROLE_ORDER = ['super_admin', 'operations_admin', 'operations_user', 'finance', 'procurement'];
+const ROLE_ORDER = ['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'finance', 'procurement'];
 
 const ROLE_LABELS = {
     super_admin: 'Super Admin',
     operations_admin: 'Operations Admin',
     operations_user: 'Operations User',
+    services_admin: 'Services Admin',
+    services_user: 'Services User',
     finance: 'Finance',
     procurement: 'Procurement'
 };
