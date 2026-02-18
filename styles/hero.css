@@ -89,7 +89,7 @@
     justify-content: center;
     gap: 3rem;
     flex-wrap: wrap;
-    max-width: 900px;
+    max-width: 1200px;   /* was 900px — widened for both-mode 5-stat layout */
     width: 100%;
     padding: 2rem;
     background: white;
@@ -134,6 +134,35 @@
     0%, 20% { content: '.'; }
     40% { content: '..'; }
     60%, 100% { content: '...'; }
+}
+
+/* Department Stat Groups (both-mode: super_admin, finance, procurement) */
+.stat-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+
+.stat-group-items {
+    display: flex;
+    gap: 3rem;
+}
+
+.stat-group-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+}
+
+.stat-group-divider {
+    width: 1px;
+    background: var(--gray-200);
+    align-self: stretch;
+    margin: 0.5rem 1rem;
 }
 
 /* Hero Decorative Elements */
