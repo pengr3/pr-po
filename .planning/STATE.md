@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 29 of 31 (MRF Integration) — IN PROGRESS
-Plan: 1 of 3 in current phase
-Status: Plan 01 complete — role-based dropdown visibility in mrf-form.js
-Last activity: 2026-02-18 — Completed 29-01: serviceNameGroup HTML, loadServices(), populateServiceDropdown(), role-aware init() in mrf-form.js
+Plan: 2 of 3 in current phase
+Status: Plan 02 complete — MRF/PR/TR submission stores department, service_code, service_name fields
+Last activity: 2026-02-18 — Completed 29-02: handleFormSubmit() and saveNewMRF() store service fields; 4 PR/TR addDoc paths updated
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 94 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 1)
+- Total plans completed: 95 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 2)
 - Average duration: Not yet tracked systematically
 - Total execution time: ~95+ days across 4 milestones
 
@@ -45,6 +45,7 @@ Progress: [████████████████████░░░
 | Phase 28-services-view P02 | 20 | 2 tasks | 3 files |
 | Phase 28-services-view P03 | 25 | 2 tasks | 3 files |
 | Phase 29-mrf-integration P01 | 15 | 2 tasks | 1 files |
+| Phase 29-mrf-integration P02 | 20 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Recent decisions affecting v2.3 work:
 - 29-01: projectNameGroup/serviceNameGroup are wrapper divs controlled via style.display in init() — no required attribute on hidden selects avoids browser native validation firing on hidden fields
 - 29-01: loadProjects() called for all roles (even services-only) to avoid listener gaps; projectGroup display:none hides it visually
 - 29-01: services_admin gets null from getAssignedServiceCodes() (no filter) — services_user gets array filter; mirrors operations role pattern exactly
+- 29-02: department field is binary string discriminator ('projects' vs 'services') stored denormalized on MRF/PR/TR — avoids joins in display code
+- 29-02: cachedServicesForNewMRF uses getDocs (one-time fetch) not onSnapshot — services change rarely, inline form doesn't need real-time updates
+- 29-02: submitTransportRequest() TR addDoc also needed service fields (4th path) — was not in plan, auto-fixed under Rule 2
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 29-01-PLAN.md (Phase 29 Plan 01 — role-based MRF dropdown visibility)
+Stopped at: Completed 29-02-PLAN.md (Phase 29 Plan 02 — MRF/PR/TR service field storage)
 Resume file: None
-Next action: /gsd:execute-phase 29 Plan 02 (MRF form submission with service_code field)
+Next action: /gsd:execute-phase 29 Plan 03 (MRF display updates for services department)
