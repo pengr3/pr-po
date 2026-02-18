@@ -382,7 +382,7 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31
 | 23. Rejection Reason Passthrough | v2.2 | 2/2 | Complete | 2026-02-10 |
 | 24. Edit History Instrumentation | v2.2 | 2/2 | Complete | 2026-02-10 |
 | 25. Edit History Timeline Modal | v2.2 | 2/2 | Complete | 2026-02-10 |
-| 26. Security & Roles Foundation | v2.3 | 0/2 | Not started | - |
+| 26. Security & Roles Foundation | 2/3 | In Progress|  | - |
 | 27. Code Generation | v2.3 | 0/1 | Not started | - |
 | 28. Services View | v2.3 | 0/3 | Not started | - |
 | 29. MRF Integration | v2.3 | 0/2 | Not started | - |

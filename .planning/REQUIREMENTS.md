@@ -41,11 +41,11 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [ ] **ROLE-04**: services_admin can manage service assignments
 - [ ] **ROLE-05**: services_admin sees all services regardless of assignment
 - [ ] **ROLE-06**: services_user sees only assigned services
-- [ ] **ROLE-07**: Super Admin can configure services_admin and services_user permissions in Settings
+- [x] **ROLE-07**: Super Admin can configure services_admin and services_user permissions in Settings
 - [ ] **ROLE-08**: Super Admin sees both Projects and Services tabs
 - [ ] **ROLE-09**: Finance role sees both Projects and Services department work
 - [ ] **ROLE-10**: Procurement role sees both Projects and Services department work
-- [ ] **ROLE-11**: Permission changes take effect immediately (real-time updates)
+- [x] **ROLE-11**: Permission changes take effect immediately (real-time updates)
 
 ### Security Rules
 
@@ -136,11 +136,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROLE-04 | Phase 26 | Pending |
 | ROLE-05 | Phase 26 | Pending |
 | ROLE-06 | Phase 26 | Pending |
-| ROLE-07 | Phase 26 | Pending |
+| ROLE-07 | Phase 26 | Complete |
 | ROLE-08 | Phase 26 | Pending |
 | ROLE-09 | Phase 26 | Pending |
 | ROLE-10 | Phase 26 | Pending |
-| ROLE-11 | Phase 26 | Pending |
+| ROLE-11 | Phase 26 | Complete |
 | SEC-01 | Phase 26 | Pending |
 | SEC-02 | Phase 26 | Pending |
 | SEC-03 | Phase 26 | Pending |
