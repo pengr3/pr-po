@@ -647,14 +647,23 @@ export function render(activeTab = 'approvals') {
                 <div class="card">
                     <div class="card-header">
                         <h2>🛒 Material Purchase Requests</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshPRs()">🔄 Refresh</button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="deptFilterApprovals"
+                                    onchange="window.applyFinanceDeptFilter(this.value)"
+                                    style="padding:0.35rem 0.6rem;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.875rem;color:#475569;">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="window.refreshPRs()">🔄 Refresh</button>
+                        </div>
                     </div>
                     <table>
                         <thead>
                             <tr>
                                 <th>PR ID</th>
                                 <th>MRF ID</th>
-                                <th>Project</th>
+                                <th>Department / Project</th>
                                 <th>Date</th>
                                 <th>Urgency</th>
                                 <th>Total Cost</th>
@@ -1140,19 +1149,23 @@ async function loadPRs() {
 function renderMaterialPRs() {
     const tbody = document.getElementById('materialPRsBody');
 
-    if (materialPRs.length === 0) {
+    const filtered = activeDeptFilter
+        ? materialPRs.filter(pr => (pr.department || 'projects') === activeDeptFilter)
+        : materialPRs;
+
+    if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">✓</div>
-                    <div>No pending material PRs</div>
+                    <div>No pending material PRs${activeDeptFilter ? ' for ' + (activeDeptFilter === 'services' ? 'Services' : 'Projects') : ''}</div>
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = materialPRs.map(pr => {
+    tbody.innerHTML = filtered.map(pr => {
         const items = JSON.parse(pr.items_json || '[]');
         const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
         const urgencyLevel = pr.urgency_level || 'Low';
@@ -1169,7 +1182,7 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td>${getMRFLabel(pr)}</td>
+                <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</td>
                 <td>${formatDate(pr.date_generated)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
@@ -1189,19 +1202,23 @@ function renderMaterialPRs() {
 function renderTransportRequests() {
     const tbody = document.getElementById('transportRequestsBody');
 
-    if (transportRequests.length === 0) {
+    const filtered = activeDeptFilter
+        ? transportRequests.filter(tr => (tr.department || 'projects') === activeDeptFilter)
+        : transportRequests;
+
+    if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">✓</div>
-                    <div>No pending transport requests</div>
+                    <div>No pending transport requests${activeDeptFilter ? ' for ' + (activeDeptFilter === 'services' ? 'Services' : 'Projects') : ''}</div>
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = transportRequests.map(tr => {
+    tbody.innerHTML = filtered.map(tr => {
         const items = JSON.parse(tr.items_json || '[]');
         const serviceType = items[0]?.category || 'Transportation';
         const urgencyLevel = tr.urgency_level || 'Low';
@@ -1218,7 +1235,7 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td>${getMRFLabel(tr)}</td>
+                <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</td>
                 <td>${formatDate(tr.date_submitted)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
@@ -1300,8 +1317,8 @@ async function viewPRDetails(prId) {
                     <div class="modal-detail-value">${pr.mrf_id}</div>
                 </div>
                 <div class="modal-detail-item">
-                    <div class="modal-detail-label">Project:</div>
-                    <div class="modal-detail-value">${getMRFLabel(pr)}</div>
+                    <div class="modal-detail-label">Department:</div>
+                    <div class="modal-detail-value" style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</div>
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Requestor:</div>
@@ -1433,8 +1450,8 @@ async function viewTRDetails(trId) {
                     <div>${tr.mrf_id}</div>
                 </div>
                 <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Project:</div>
-                    <div>${getMRFLabel(tr)}</div>
+                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Department:</div>
+                    <div style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</div>
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Requestor:</div>
@@ -2001,7 +2018,11 @@ async function loadPOs() {
 function renderPOs() {
     const container = document.getElementById('poList');
 
-    if (poData.length === 0) {
+    const filteredPOs = activeDeptFilter
+        ? poData.filter(po => (po.department || 'projects') === activeDeptFilter)
+        : poData;
+
+    if (filteredPOs.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: #666;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
@@ -2013,7 +2034,7 @@ function renderPOs() {
     }
 
     // Show only recent 20 POs
-    const recentPOs = poData.slice(0, 20);
+    const recentPOs = filteredPOs.slice(0, 20);
 
     container.innerHTML = `
         <table>
@@ -2049,7 +2070,7 @@ function renderPOs() {
                         <td><strong>${po.po_id}</strong></td>
                         <td>${po.pr_id}</td>
                         <td>${po.supplier_name}</td>
-                        <td>${getMRFLabel(po)}</td>
+                        <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
@@ -2060,7 +2081,7 @@ function renderPOs() {
                 `).join('')}
             </tbody>
         </table>
-        ${poData.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
+        ${filteredPOs.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
 
     // Update sort indicators for PO table
