@@ -282,6 +282,8 @@ export function initAuthObserver() {
                             // Capture previous assignment state for change detection (Phase 7)
                             const previousAssignedCodes = currentUser?.assigned_project_codes;
                             const previousAllProjects = currentUser?.all_projects;
+                            const previousAssignedServiceCodes = currentUser?.assigned_service_codes;
+                            const previousAllServices = currentUser?.all_services;
                             currentUser = { uid: user.uid, ...updatedUserData };
 
                             console.log('[Auth] User document updated:', updatedUserData.status);
@@ -303,7 +305,9 @@ export function initAuthObserver() {
                             const newAssignedCodes = updatedUserData.assigned_project_codes;
                             const newAllProjects = updatedUserData.all_projects;
                             if (JSON.stringify(newAssignedCodes) !== JSON.stringify(previousAssignedCodes) ||
-                                newAllProjects !== previousAllProjects) {
+                                newAllProjects !== previousAllProjects ||
+                                JSON.stringify(updatedUserData.assigned_service_codes) !== JSON.stringify(previousAssignedServiceCodes) ||
+                                updatedUserData.all_services !== previousAllServices) {
                                 console.log('[Auth] Assignments changed, dispatching event');
                                 window.dispatchEvent(new CustomEvent('assignmentsChanged', {
                                     detail: { user: currentUser }
