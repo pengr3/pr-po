@@ -333,11 +333,11 @@ Plans:
   4. PR generation works for Services-linked MRFs (generates PRs with service_code)
   5. PO creation works for Services-linked PRs (issues POs with correct department context)
   6. Timeline audit trail shows department context (Projects badge vs Services badge)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 30-01: TBD
-- [ ] 30-02: TBD
+- [ ] 30-01-PLAN.md — finance.js dept badges + filter dropdown for Material PRs, Transport Requests, POs + modal badge updates (Wave 1)
+- [ ] 30-02-PLAN.md — procurement.js dept badges + filter dropdown for PO Tracking + showProcurementTimeline dept-aware descriptions (Wave 1)
 
 #### Phase 31: Dashboard Integration
 **Goal**: Dashboard shows Services department statistics alongside Projects
