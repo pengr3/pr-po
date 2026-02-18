@@ -29,6 +29,7 @@ let prpoCurrentPage = 1;
 const prpoItemsPerPage = 10;
 
 let cachedAllMRFs = [];   // Holds raw MRF snapshot for re-filtering on assignment change
+let cachedServicesForNewMRF = [];   // Holds active services for the inline New MRF form dropdown
 
 // Firebase listeners for cleanup
 let listeners = [];
@@ -379,6 +380,7 @@ export async function init(activeTab = 'mrfs') {
     try {
         // Load all data
         await loadProjects();
+        await loadServicesForNewMRF();
         await loadSuppliers();
         await loadMRFs();
 
@@ -577,6 +579,26 @@ export async function destroy() {
 /**
  * Load active projects from Firebase
  */
+async function loadServicesForNewMRF() {
+    try {
+        const q = query(collection(db, 'services'), where('active', '==', true));
+        const snapshot = await getDocs(q);
+        cachedServicesForNewMRF = [];
+        snapshot.forEach(docSnap => {
+            cachedServicesForNewMRF.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        // Sort most-recent first to match mrf-form.js ordering
+        cachedServicesForNewMRF.sort((a, b) => {
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTime - aTime;
+        });
+        console.log('[Procurement] Services for New MRF loaded:', cachedServicesForNewMRF.length);
+    } catch (error) {
+        console.error('[Procurement] Error loading services for new MRF:', error);
+    }
+}
+
 async function loadProjects() {
     try {
         const q = query(
@@ -972,12 +994,23 @@ function renderMRFDetails(mrf, isNew = false) {
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Project *</div>
                 ${isNew ? `
-                    <select id="projectName" required style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                    <select id="projectName" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
                         <option value="">-- Select a project --</option>
                         ${projectOptions}
                     </select>
-                ` : `<div style="font-weight: 600;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>`}
+                ` : `<div style="font-weight: 600;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || (mrf.department === 'services' ? '(Services MRF)' : 'No project')}</div>`}
             </div>
+            ${isNew && cachedServicesForNewMRF.length > 0 ? `
+            <div>
+                <div style="font-size: 0.75rem; color: #5f6368;">Service (if services MRF)</div>
+                <select id="saveNewMRF_serviceName" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                    <option value="">-- Select a service (optional) --</option>
+                    ${cachedServicesForNewMRF.map(s =>
+                        `<option value="${s.service_code}" data-service-name="${s.service_name}">${s.service_code} - ${s.service_name}</option>`
+                    ).join('')}
+                </select>
+            </div>
+            ` : ''}
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Requestor *</div>
                 ${isNew ? `
@@ -1444,23 +1477,35 @@ async function saveNewMRF() {
 
     // Collect form data
     const requestType = document.getElementById('requestType')?.value || 'material';
-    const selectedProjectCode = document.getElementById('projectName')?.value?.trim();
+    const selectedProjectCode = document.getElementById('projectName')?.value?.trim() || '';
     const requestorName = document.getElementById('requestorName')?.value?.trim();
     const dateNeeded = document.getElementById('dateNeeded')?.value;
     const urgencyLevel = document.getElementById('urgencyLevel')?.value || 'Low';
     const deliveryAddress = document.getElementById('deliveryAddress')?.value?.trim();
 
-    // Validate required fields
-    if (!selectedProjectCode) {
-        showToast('Please select a project', 'error');
+    // Collect service selection for roles that see the services dropdown
+    const serviceSelectEl = document.getElementById('saveNewMRF_serviceName');
+    const serviceCode = serviceSelectEl?.value?.trim() || '';
+    const serviceSelectedOption = serviceSelectEl?.options[serviceSelectEl?.selectedIndex];
+    const serviceName = serviceSelectedOption?.dataset?.serviceName || '';
+    const hasService = !!serviceCode;
+    const hasProject = !!selectedProjectCode;
+    const department = hasService ? 'services' : 'projects';
+
+    // Validate: must select a project or service
+    if (!hasProject && !hasService) {
+        showToast('Please select a project or service', 'error');
         return;
     }
 
-    // Find the selected project to get both code and name
-    const selectedProject = projectsData.find(p => p.project_code === selectedProjectCode);
-    if (!selectedProject) {
-        showToast('Selected project not found', 'error');
-        return;
+    // Find the selected project to get both code and name (only needed when project selected)
+    let selectedProject = null;
+    if (hasProject) {
+        selectedProject = projectsData.find(p => p.project_code === selectedProjectCode);
+        if (!selectedProject) {
+            showToast('Selected project not found', 'error');
+            return;
+        }
     }
     if (!requestorName) {
         showToast('Please enter requestor name', 'error');
@@ -1553,8 +1598,11 @@ async function saveNewMRF() {
             mrf_id: mrfId,
             request_type: requestType,
             urgency_level: urgencyLevel,
-            project_code: selectedProject.project_code,
-            project_name: selectedProject.project_name,
+            department: department,
+            project_code: hasProject ? selectedProject.project_code : '',
+            project_name: hasProject ? selectedProject.project_name : '',
+            service_code: hasService ? serviceCode : '',
+            service_name: hasService ? serviceName : '',
             requestor_name: requestorName,
             date_needed: dateNeeded,
             date_submitted: new Date().toISOString().split('T')[0],
@@ -2877,6 +2925,9 @@ async function submitTransportRequest() {
             mrf_doc_id: mrfData.id,
             project_code: mrfData.project_code || '',
             project_name: mrfData.project_name,
+            service_code: mrfData.service_code || '',
+            service_name: mrfData.service_name || '',
+            department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
@@ -3141,6 +3192,9 @@ async function generatePR() {
                     supplier_name: supplier,
                     project_code: mrfData.project_code || '',
                     project_name: mrfData.project_name,
+                    service_code: mrfData.service_code || '',
+                    service_name: mrfData.service_name || '',
+                    department: mrfData.department || 'projects',
                     requestor_name: mrfData.requestor_name,
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(supplierItems),
@@ -3426,6 +3480,9 @@ async function generatePRandTR() {
                     supplier_name: supplier,
                     project_code: mrfData.project_code || '',
                     project_name: mrfData.project_name,
+                    service_code: mrfData.service_code || '',
+                    service_name: mrfData.service_name || '',
+                    department: mrfData.department || 'projects',
                     requestor_name: mrfData.requestor_name,
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(supplierItems),
@@ -3488,6 +3545,9 @@ async function generatePRandTR() {
             mrf_doc_id: mrfData.id,
             project_code: mrfData.project_code || '',
             project_name: mrfData.project_name,
+            service_code: mrfData.service_code || '',
+            service_name: mrfData.service_name || '',
+            department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
