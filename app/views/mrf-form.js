@@ -625,9 +625,28 @@ async function handleFormSubmit(e) {
     const requestType = document.querySelector('input[name="requestType"]:checked').value;
     const urgencyLevel = document.querySelector('input[name="urgencyLevel"]:checked').value;
     const projectSelect = document.getElementById('projectName');
-    const projectCode = projectSelect.value.trim(); // Now stores the code
-    const selectedOption = projectSelect.options[projectSelect.selectedIndex];
-    const projectName = selectedOption?.dataset?.projectName || ''; // Get name from data attribute
+    const projectCode = projectSelect?.value?.trim() || '';
+    const selectedOption = projectSelect?.options[projectSelect?.selectedIndex];
+    const projectName = selectedOption?.dataset?.projectName || '';
+
+    // Collect service selection (may be hidden for operations roles)
+    const serviceSelect = document.getElementById('serviceName');
+    const serviceCode = serviceSelect?.value?.trim() || '';
+    const serviceSelectedOption = serviceSelect?.options[serviceSelect?.selectedIndex];
+    const serviceName = serviceSelectedOption?.dataset?.serviceName || '';
+
+    // Determine department from which dropdown has a value
+    const hasProject = !!projectCode;
+    const hasService = !!serviceCode;
+
+    // Validate: must select one (dropdowns are mutually visible by role, so both at once is rare)
+    if (!hasProject && !hasService) {
+        showAlert('error', 'Please select a project or service for this request.');
+        return;
+    }
+
+    const department = hasService ? 'services' : 'projects';
+
     const requestorName = document.getElementById('requestorName').value.trim();
     const dateNeeded = document.getElementById('dateNeeded').value;
     const deliveryAddress = document.getElementById('deliveryAddress').value.trim();
@@ -652,8 +671,11 @@ async function handleFormSubmit(e) {
             mrf_id: mrfId,
             request_type: requestType,
             urgency_level: urgencyLevel,
-            project_code: projectCode,    // NEW: stable reference
-            project_name: projectName,    // KEEP: for display (denormalized)
+            department: department,                              // MRF-08: 'projects' or 'services'
+            project_code: hasProject ? projectCode : '',        // empty string for services MRFs
+            project_name: hasProject ? projectName : '',        // empty string for services MRFs
+            service_code: hasService ? serviceCode : '',        // MRF-07: denormalized
+            service_name: hasService ? serviceName : '',        // MRF-07: denormalized
             requestor_name: requestorName,
             date_needed: dateNeeded,
             date_submitted: new Date().toISOString().split('T')[0],
