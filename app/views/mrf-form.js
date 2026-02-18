@@ -104,11 +104,21 @@ export function render() {
                     <div style="margin-bottom: 2rem;">
                         <h2 style="font-size: 1.25rem; font-weight: 600; color: var(--gray-800); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--gray-200);">Basic Information</h2>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
-                            <div class="form-group">
-                                <label for="projectName">Project Name *</label>
-                                <select id="projectName" required>
-                                    <option value="">Loading projects...</option>
-                                </select>
+                            <div id="projectNameGroup">
+                                <div class="form-group">
+                                    <label for="projectName">Project Name *</label>
+                                    <select id="projectName">
+                                        <option value="">Loading projects...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="serviceNameGroup">
+                                <div class="form-group">
+                                    <label for="serviceName">Service *</label>
+                                    <select id="serviceName">
+                                        <option value="">Loading services...</option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="requestorName">Requestor Name</label>
