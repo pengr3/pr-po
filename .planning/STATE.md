@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 30 of 31 (Cross-Department Workflows) — IN PROGRESS
-Plan: 1 of 2 in current phase
-Status: Phase 30 Plan 01 complete — department badges and filter dropdown added to all three Finance tables (Material PRs, Transport Requests, Purchase Orders)
-Last activity: 2026-02-18 — Completed 30-01: getDeptBadgeHTML() added; activeDeptFilter state and applyFinanceDeptFilter window function registered; filter dropdown in render(); badges in all table rows and PR/TR detail modals
+Phase: 30 of 31 (Cross-Department Workflows) — COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase 30 complete — department badges + filter dropdowns in Finance (30-01) and Procurement PO Tracking table (30-02); timeline modal uses getMRFLabel() + dept text
+Last activity: 2026-02-18 — Completed 30-02: getDeptBadgeHTML() + activePODeptFilter + applyPODeptFilter added to procurement.js; filter dropdown in MRF Records card header; displayPos pattern for paginated filtering; showProcurementTimeline() uses deptLabel+getMRFLabel()
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -48,6 +48,7 @@ Progress: [████████████████████░░░
 | Phase 29-mrf-integration P02 | 20 | 2 tasks | 2 files |
 | Phase 29-mrf-integration P03 | 15 | 2 tasks | 2 files |
 | Phase 30-cross-department-workflows P01 | 2 | 2 tasks | 1 files |
+| Phase 30-cross-department-workflows P02 | 3 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 29-mrf-integration]: Dropdown builder (projectOptions map) left with old ternary intentionally — it maps projectsData array, not MRF/PR/PO documents, so getMRFLabel() is inappropriate there
 - [Phase 30]: activeDeptFilter defaults '' (empty string) not null; filter uses (pr.department || 'projects') for legacy-doc compatibility
 - [Phase 30]: applyFinanceDeptFilter re-renders all three tables on every filter change (client-side, instant, no new Firestore queries)
+- 30-02: displayPos pattern — derive filtered array from function param AFTER scoreboard calculation; scoreboards always show global totals from full pos array
+- 30-02: getDeptBadgeHTML() uses same dual-condition as getMRFLabel() to handle legacy docs without department field
+- 30-02: Fixed pre-existing missing window. prefix on viewPODetails PO row link (Rule 1 auto-fix)
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 30-01-PLAN.md (Phase 30 Plan 01 — Department badges and filter for finance view)
+Stopped at: Completed 30-02-PLAN.md (Phase 30 Plan 02 — Department badges and filter for Procurement PO Tracking)
 Resume file: None
-Next action: Continue Phase 30 — execute 30-02-PLAN.md
+Next action: /gsd:execute-phase 31 (next phase per ROADMAP.md)
