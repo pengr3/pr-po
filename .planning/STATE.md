@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 26 - Security & Roles Foundation (v2.3 Services Department Support)
+**Current focus:** Phase 27 - Code Generation (v2.3 Services Department Support)
 
 ## Current Position
 
-Phase: 26 of 31 (Security & Roles Foundation)
-Plan: 3 of 3 in current phase
+Phase: 27 of 31 (Code Generation)
+Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-18 — Completed 26-03: services collection security rules tests (firestore.test.js, 13 new tests)
+Last activity: 2026-02-18 — Completed 27-01: generateServiceCode() and getAssignedServiceCodes() added to app/utils.js
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 93 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43)
+- Total plans completed: 94 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 1)
 - Average duration: Not yet tracked systematically
 - Total execution time: ~95+ days across 4 milestones
 
@@ -40,6 +40,7 @@ Progress: [████████████████████░░░
 
 *Updated after v2.3 roadmap creation*
 | Phase 26-security-roles-foundation P03 | 15 | 1 tasks | 1 files |
+| Phase 27-code-generation P01 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ Recent decisions affecting v2.3 work:
 - 26-02: ROLE_ORDER/TABS/ROLE_LABELS are single source of truth for permission matrix — adding entries is sufficient
 - 26-02: getPermissionValue || false fallback handles missing services key in existing role templates — no migration needed
 - [Phase 26-security-roles-foundation]: Test 13 uses getDocs(query) not getDoc to validate list-scoping (allow list rule) — critical distinction from allow get, which is intentionally broad for services_user
+- 27-01: generateServiceCode() queries both projects AND services via Promise.all for shared CLMC_CLIENT_YYYY### sequence (SERV-02) — prevents collision between service and project codes
+- 27-01: getAssignedServiceCodes() role guard uses services_user (not services_admin) — services_admin gets null (no filter), which is intentionally correct
+- 27-01: Service documents MUST store client_code field for range query to work — Phase 28 prerequisite
 
 ### Pending Todos
 
@@ -72,6 +76,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 26-03-PLAN.md (Phase 26 plan 3 of 3 - phase fully complete)
+Stopped at: Completed 27-01-PLAN.md (Phase 27 plan 1 of 1 - phase fully complete)
 Resume file: None
-Next action: /gsd:plan-phase 27
+Next action: /gsd:execute-phase 28

@@ -383,7 +383,7 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31
 | 24. Edit History Instrumentation | v2.2 | 2/2 | Complete | 2026-02-10 |
 | 25. Edit History Timeline Modal | v2.2 | 2/2 | Complete | 2026-02-10 |
 | 26. Security & Roles Foundation | 3/3 | Complete    | 2026-02-18 | - |
-| 27. Code Generation | v2.3 | 0/1 | Not started | - |
+| 27. Code Generation | 1/1 | Complete   | 2026-02-18 | - |
 | 28. Services View | v2.3 | 0/3 | Not started | - |
 | 29. MRF Integration | v2.3 | 0/2 | Not started | - |
 | 30. Cross-Department Workflows | v2.3 | 0/2 | Not started | - |

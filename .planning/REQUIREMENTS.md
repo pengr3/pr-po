@@ -10,7 +10,7 @@ Requirements for Services department integration. Each maps to roadmap phases.
 ### Services Management
 
 - [ ] **SERV-01**: Admin can create services with auto-generated code (CLMC_CLIENT_YYYY###)
-- [ ] **SERV-02**: Service code generation shares sequence with Projects (global counter per client/year)
+- [x] **SERV-02**: Service code generation shares sequence with Projects (global counter per client/year)
 - [ ] **SERV-03**: Service record includes service_type field ('one-time' or 'recurring')
 - [ ] **SERV-04**: Admin can edit existing services with inline editing and auto-save
 - [ ] **SERV-05**: Admin can delete services (with confirmation)
@@ -149,7 +149,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-06 | Phase 26 | Complete |
 | SEC-07 | Phase 26 | Complete |
 | SEC-08 | Phase 29 | Pending |
-| SERV-02 | Phase 27 | Pending |
+| SERV-02 | Phase 27 | Complete |
 | SERV-01 | Phase 28 | Pending |
 | SERV-03 | Phase 28 | Pending |
 | SERV-04 | Phase 28 | Pending |
