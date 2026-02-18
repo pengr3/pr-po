@@ -296,12 +296,12 @@ Plans:
   8. Active/inactive flag controls whether service appears in MRF dropdown
   9. Services list supports filtering by service_type, status, client and search by code or name
   10. Service detail page includes expense breakdown showing linked MRFs/PRs/POs
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 28-01: TBD
-- [ ] 28-02: TBD
-- [ ] 28-03: TBD
+- [ ] 28-01-PLAN.md — syncServicePersonnelToAssignments() in utils.js + role_templates permissions seed script (Wave 1)
+- [ ] 28-02-PLAN.md — app/views/services.js list view with sub-tabs/CRUD/filtering + router.js routes + index.html nav link (Wave 2)
+- [ ] 28-03-PLAN.md — app/views/service-detail.js detail page + service-assignments.js admin panel + admin.js 4th section (Wave 2)
 
 #### Phase 29: MRF Integration
 **Goal**: Role-based dropdown visibility connects Services to procurement workflow
