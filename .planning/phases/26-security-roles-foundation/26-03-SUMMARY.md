@@ -35,7 +35,7 @@ patterns-established:
   - "Services collection tests mirror operations collection pattern: seeded in seedUsers(), describe block at end of file"
   - "Delete test seeds disposable doc inline with withSecurityRulesDisabled to avoid test interdependency"
 
-requirements-completed: [SEC-07, SEC-08]
+requirements-completed: [SEC-07]
 
 # Metrics
 duration: 15min
