@@ -260,11 +260,12 @@ Plans:
   3. Super Admin bypasses services role checks and can access both departments
   4. Finance and Procurement roles can read services collection for cross-department workflows
   5. Security Rules tests pass for all services collection scenarios (automated emulator tests)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 26-01: TBD
-- [ ] 26-02: TBD
+- [ ] 26-01-PLAN.md — Security Rules: services collection block + isAssignedToService() helper + sync-role-permissions.js setDoc fix and new role templates
+- [ ] 26-02-PLAN.md — UI: user-management.js services role dropdowns/roleLabels/approval fields + role-config.js ROLE_ORDER/TABS/ROLE_LABELS extensions
+- [ ] 26-03-PLAN.md — Tests: firestore.test.js seedUsers() extension + services collection describe block (12 tests, SEC-07)
 
 #### Phase 27: Code Generation
 **Goal**: Services and Projects share CLMC_CLIENT_YYYY### sequence without collisions
