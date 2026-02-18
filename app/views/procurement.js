@@ -8,6 +8,23 @@ import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, que
 import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline } from '../components.js';
 
+/**
+ * Returns a display label for an MRF, PR, TR, or PO document.
+ * Checks department field first, then falls back to service_code presence.
+ * @param {object} doc - Any document with project_code/project_name or service_code/service_name
+ * @returns {string}
+ */
+function getMRFLabel(doc) {
+    if (doc.department === 'services' || (!doc.department && doc.service_code)) {
+        return doc.service_code
+            ? `${doc.service_code} - ${doc.service_name || 'No service'}`
+            : 'No service';
+    }
+    return doc.project_code
+        ? `${doc.project_code} - ${doc.project_name || 'No project'}`
+        : (doc.project_name || 'No project');
+}
+
 // ========================================
 // GLOBAL STATE
 // ========================================
@@ -467,7 +484,7 @@ async function showSupplierPurchaseHistory(supplierName) {
                     ${pos.map(po => `
                         <tr>
                             <td><strong>${po.po_id}</strong></td>
-                            <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'N/A'}</td>
+                            <td>${getMRFLabel(po)}</td>
                             <td>${formatDate(po.date_issued)}</td>
                             <td><strong>₱${formatCurrency(po.total_amount)}</strong></td>
                             <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${po.procurement_status}</span></td>
@@ -784,7 +801,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                         ${mrf.urgency_level || 'Low'}
                     </span>
                 </div>
-                <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
+                <div style="font-size: 0.875rem; color: #5f6368;">${getMRFLabel(mrf)}</div>
                 ${isRejected ? `
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
                         <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
@@ -840,7 +857,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                             ${mrf.urgency_level || 'Low'}
                         </span>
                     </div>
-                    <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${getMRFLabel(mrf)}</div>
                     ${isRejected ? `
                         <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
                             <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
@@ -998,7 +1015,7 @@ function renderMRFDetails(mrf, isNew = false) {
                         <option value="">-- Select a project --</option>
                         ${projectOptions}
                     </select>
-                ` : `<div style="font-weight: 600;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || (mrf.department === 'services' ? '(Services MRF)' : 'No project')}</div>`}
+                ` : `<div style="font-weight: 600;">${getMRFLabel(mrf)}</div>`}
             </div>
             ${isNew && cachedServicesForNewMRF.length > 0 ? `
             <div>
@@ -2689,7 +2706,7 @@ async function renderPRPORecords() {
         return `
             <tr>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${getMRFLabel(mrf)}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
@@ -3768,7 +3785,7 @@ function renderPOTrackingTable(pos) {
         <tr>
             <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
             <td>${po.supplier_name}</td>
-            <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
+            <td>${getMRFLabel(po)}</td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
             <td>${new Date(po.date_issued).toLocaleDateString()}</td>
             <td>
@@ -4013,7 +4030,7 @@ async function viewPRDetails(prDocId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</div>
+                        <div>${getMRFLabel(pr)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div>
@@ -4170,7 +4187,7 @@ async function viewPODetails(poId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</div>
+                        <div>${getMRFLabel(po)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
@@ -4964,7 +4981,7 @@ async function generatePRDocument(prDocId) {
             PR_ID: pr.pr_id,
             MRF_ID: pr.mrf_id,
             DATE: formatDocumentDate(pr.date_generated || new Date().toISOString()),
-            PROJECT: pr.project_code ? `${pr.project_code} - ${pr.project_name}` : pr.project_name,
+            PROJECT: getMRFLabel(pr),
             ADDRESS: pr.delivery_address,
             SUPPLIER: pr.supplier_name || 'Not specified',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PR'),
@@ -5012,7 +5029,7 @@ async function generatePODocument(poDocId) {
         // Prepare document data
         const documentData = {
             PO_ID: po.po_id,
-            PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
+            PROJECT: getMRFLabel(po),
             DATE: formatTimestamp(po.date_issued) || formatDocumentDate(po.date_issued_legacy) || 'N/A',
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
