@@ -396,6 +396,8 @@ async function loadServiceClients() {
 
             console.log('[Services] Clients loaded:', clientsData.length);
             renderServiceClientDropdown();
+        }, (error) => {
+            console.error('[Services] Error loading clients:', error);
         });
 
         listeners.push(listener);
@@ -876,6 +878,8 @@ async function loadServices() {
 
             // Apply filters (which will also sort and render)
             applyServiceFilters();
+        }, (error) => {
+            console.error('[Services] Error loading services:', error);
         });
 
         listeners.push(listener);

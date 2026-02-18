@@ -204,6 +204,12 @@ export function initAuthObserver() {
         if (user) {
             console.log('[Auth] User signed in:', user.email);
 
+            // Force a token refresh so Firestore WebSocket receives valid auth BEFORE
+            // any collection listener starts. Without this, listeners that use
+            // getUserData() in security rules fail on the first onAuthStateChanged
+            // event (which fires with the cached, unvalidated token).
+            try { await user.getIdToken(true); } catch (e) { console.warn('[Auth] Token refresh failed:', e); }
+
             // Use a single onSnapshot for both initial load and real-time updates.
             // getDoc() internally creates an onSnapshot without an error callback,
             // which causes Firebase SDK to log "Uncaught Error in snapshot listener"
