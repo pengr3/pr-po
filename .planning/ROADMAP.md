@@ -315,11 +315,12 @@ Plans:
   5. MRF stores denormalized service_code and service_name plus department field ('projects' or 'services')
   6. Service code and name display correctly in MRF lists and detail views
   7. Services-linked MRFs appear in procurement workflow (PR generation works)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 29-01: TBD
-- [ ] 29-02: TBD
+- [ ] 29-01-PLAN.md — mrf-form.js role-based dropdown UI: Services dropdown HTML + loadServices() + role-aware init() (Wave 1)
+- [ ] 29-02-PLAN.md — mrf-form.js submission handler + department/service fields + procurement.js saveNewMRF() + PR/TR creation service fields (Wave 2)
+- [ ] 29-03-PLAN.md — getMRFLabel() helper + 10 display locations in procurement.js + 7 display locations in finance.js + PO addDoc service fields (Wave 3)
 
 #### Phase 30: Cross-Department Workflows
 **Goal**: Finance and Procurement approve work from both departments in unified interface
