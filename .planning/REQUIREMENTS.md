@@ -69,12 +69,12 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 ### MRF Integration
 
-- [ ] **MRF-01**: MRF form shows Projects dropdown for operations_admin and operations_user
-- [ ] **MRF-02**: MRF form shows Services dropdown for services_admin and services_user
-- [ ] **MRF-03**: Super Admin, Finance, Procurement see both Projects and Services dropdowns
-- [ ] **MRF-04**: Services dropdown displays format: "CLMC_CODE_YYYY### - Service Name"
-- [ ] **MRF-05**: Services dropdown shows only active services (inactive excluded)
-- [ ] **MRF-06**: Services dropdown sorted by most recent first
+- [x] **MRF-01**: MRF form shows Projects dropdown for operations_admin and operations_user
+- [x] **MRF-02**: MRF form shows Services dropdown for services_admin and services_user
+- [x] **MRF-03**: Super Admin, Finance, Procurement see both Projects and Services dropdowns
+- [x] **MRF-04**: Services dropdown displays format: "CLMC_CODE_YYYY### - Service Name"
+- [x] **MRF-05**: Services dropdown shows only active services (inactive excluded)
+- [x] **MRF-06**: Services dropdown sorted by most recent first
 - [ ] **MRF-07**: MRF stores denormalized service_code and service_name for performance
 - [ ] **MRF-08**: MRF stores department field ('projects' or 'services')
 - [ ] **MRF-09**: Services-linked MRFs appear in procurement workflow (PR generation)
@@ -175,12 +175,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSIGN-04 | Phase 28 | Complete |
 | ASSIGN-05 | Phase 28 | Complete |
 | ASSIGN-06 | Phase 28 | Complete |
-| MRF-01 | Phase 29 | Pending |
-| MRF-02 | Phase 29 | Pending |
-| MRF-03 | Phase 29 | Pending |
-| MRF-04 | Phase 29 | Pending |
-| MRF-05 | Phase 29 | Pending |
-| MRF-06 | Phase 29 | Pending |
+| MRF-01 | Phase 29 | Complete |
+| MRF-02 | Phase 29 | Complete |
+| MRF-03 | Phase 29 | Complete |
+| MRF-04 | Phase 29 | Complete |
+| MRF-05 | Phase 29 | Complete |
+| MRF-06 | Phase 29 | Complete |
 | MRF-07 | Phase 29 | Pending |
 | MRF-08 | Phase 29 | Pending |
 | MRF-09 | Phase 29 | Pending |

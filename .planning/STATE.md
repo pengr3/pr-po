@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 28 - Services View (v2.3 Services Department Support)
+**Current focus:** Phase 29 - MRF Integration (v2.3 Services Department Support)
 
 ## Current Position
 
-Phase: 28 of 31 (Services View) — PHASE COMPLETE
-Plan: 3 of 3 in current phase
-Status: All plans complete — Phase 28 done
-Last activity: 2026-02-18 — Completed 28-03: service-detail.js (3-card inline editing), service-assignments.js (services_user assignment panel), admin.js (Service Assignments 4th section)
+Phase: 29 of 31 (MRF Integration) — IN PROGRESS
+Plan: 1 of 3 in current phase
+Status: Plan 01 complete — role-based dropdown visibility in mrf-form.js
+Last activity: 2026-02-18 — Completed 29-01: serviceNameGroup HTML, loadServices(), populateServiceDropdown(), role-aware init() in mrf-form.js
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -44,6 +44,7 @@ Progress: [████████████████████░░░
 | Phase 28-services-view P01 | 15 | 3 tasks | 3 files |
 | Phase 28-services-view P02 | 20 | 2 tasks | 3 files |
 | Phase 28-services-view P03 | 25 | 2 tasks | 3 files |
+| Phase 29-mrf-integration P01 | 15 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 28-services-view]: recordEditHistory called with service doc ID — reuses same subcollection pattern as projects
 - [Phase 28-services-view]: service-assignments.js queries all services (not filtered by active) so admin can assign inactive services
 - [Phase 28-services-view]: Expense breakdown is stub with Phase 29 message — no aggregation query until MRF-Service integration
+- 29-01: projectNameGroup/serviceNameGroup are wrapper divs controlled via style.display in init() — no required attribute on hidden selects avoids browser native validation firing on hidden fields
+- 29-01: loadProjects() called for all roles (even services-only) to avoid listener gaps; projectGroup display:none hides it visually
+- 29-01: services_admin gets null from getAssignedServiceCodes() (no filter) — services_user gets array filter; mirrors operations role pattern exactly
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 28-03-PLAN.md (Phase 28 complete — all 3 plans done)
+Stopped at: Completed 29-01-PLAN.md (Phase 29 Plan 01 — role-based MRF dropdown visibility)
 Resume file: None
-Next action: /gsd:execute-phase 29 (MRF-Service integration)
+Next action: /gsd:execute-phase 29 Plan 02 (MRF form submission with service_code field)
