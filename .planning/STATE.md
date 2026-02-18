@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 27 - Code Generation (v2.3 Services Department Support)
+**Current focus:** Phase 28 - Services View (v2.3 Services Department Support)
 
 ## Current Position
 
-Phase: 27 of 31 (Code Generation)
-Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-02-18 — Completed 27-01: generateServiceCode() and getAssignedServiceCodes() added to app/utils.js
+Phase: 28 of 31 (Services View)
+Plan: 1 of 3 in current phase
+Status: Plan 01 complete
+Last activity: 2026-02-18 — Completed 28-01: syncServicePersonnelToAssignments(), auth.js service change detection, role_templates seed script
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -41,6 +41,7 @@ Progress: [████████████████████░░░
 *Updated after v2.3 roadmap creation*
 | Phase 26-security-roles-foundation P03 | 15 | 1 tasks | 1 files |
 | Phase 27-code-generation P01 | 5 | 1 tasks | 1 files |
+| Phase 28-services-view P01 | 15 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -64,6 +65,9 @@ Recent decisions affecting v2.3 work:
 - 27-01: generateServiceCode() queries both projects AND services via Promise.all for shared CLMC_CLIENT_YYYY### sequence (SERV-02) — prevents collision between service and project codes
 - 27-01: getAssignedServiceCodes() role guard uses services_user (not services_admin) — services_admin gets null (no filter), which is intentionally correct
 - 27-01: Service documents MUST store client_code field for range query to work — Phase 28 prerequisite
+- 28-01: syncServicePersonnelToAssignments registered as standalone window function (not in window.utils) — mirrors syncPersonnelToAssignments precedent
+- 28-01: Seed script covers procurement_staff in addition to the 6 specified roles — safe inclusion (read-only access=true/edit=false)
+- 28-01: JSON.stringify() comparison used for assigned_service_codes in auth.js condition — matches existing assigned_project_codes pattern
 
 ### Pending Todos
 
@@ -76,6 +80,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 27-01-PLAN.md (Phase 27 plan 1 of 1 - phase fully complete)
+Stopped at: Completed 28-01-PLAN.md (Phase 28 plan 1 of 3)
 Resume file: None
-Next action: /gsd:execute-phase 28
+Next action: /gsd:execute-phase 28 (plans 02-03 remaining)

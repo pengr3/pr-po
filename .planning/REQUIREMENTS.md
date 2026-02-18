@@ -30,8 +30,8 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [ ] **UI-04**: Recurring sub-tab shows only services with service_type='recurring'
 - [ ] **UI-05**: Services list view displays: Code, Name, Client, Service Type, Internal Status, Project Status
 - [ ] **UI-06**: Clicking service row navigates to full service detail page
-- [ ] **UI-07**: Services tab hidden from operations_admin and operations_user roles
-- [ ] **UI-08**: Projects tab hidden from services_admin and services_user roles
+- [x] **UI-07**: Services tab hidden from operations_admin and operations_user roles
+- [x] **UI-08**: Projects tab hidden from services_admin and services_user roles
 
 ### Role & Permission System
 
@@ -62,10 +62,10 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 - [ ] **ASSIGN-01**: services_admin can assign services_user to services via personnel field
 - [ ] **ASSIGN-02**: Multi-personnel selection UI with pill display (reuse Projects pattern)
-- [ ] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
+- [x] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
 - [ ] **ASSIGN-04**: services_user filtered views show only assigned services
 - [ ] **ASSIGN-05**: User management page allows assigning services_user to specific services
-- [ ] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
+- [x] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
 
 ### MRF Integration
 
@@ -167,14 +167,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-04 | Phase 28 | Pending |
 | UI-05 | Phase 28 | Pending |
 | UI-06 | Phase 28 | Pending |
-| UI-07 | Phase 28 | Pending |
-| UI-08 | Phase 28 | Pending |
+| UI-07 | Phase 28 | Complete |
+| UI-08 | Phase 28 | Complete |
 | ASSIGN-01 | Phase 28 | Pending |
 | ASSIGN-02 | Phase 28 | Pending |
-| ASSIGN-03 | Phase 28 | Pending |
+| ASSIGN-03 | Phase 28 | Complete |
 | ASSIGN-04 | Phase 28 | Pending |
 | ASSIGN-05 | Phase 28 | Pending |
-| ASSIGN-06 | Phase 28 | Pending |
+| ASSIGN-06 | Phase 28 | Complete |
 | MRF-01 | Phase 29 | Pending |
 | MRF-02 | Phase 29 | Pending |
 | MRF-03 | Phase 29 | Pending |
