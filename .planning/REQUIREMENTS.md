@@ -9,27 +9,27 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 ### Services Management
 
-- [ ] **SERV-01**: Admin can create services with auto-generated code (CLMC_CLIENT_YYYY###)
+- [x] **SERV-01**: Admin can create services with auto-generated code (CLMC_CLIENT_YYYY###)
 - [x] **SERV-02**: Service code generation shares sequence with Projects (global counter per client/year)
-- [ ] **SERV-03**: Service record includes service_type field ('one-time' or 'recurring')
+- [x] **SERV-03**: Service record includes service_type field ('one-time' or 'recurring')
 - [ ] **SERV-04**: Admin can edit existing services with inline editing and auto-save
-- [ ] **SERV-05**: Admin can delete services (with confirmation)
-- [ ] **SERV-06**: Admin can view list of all services with sorting and filtering
-- [ ] **SERV-07**: Admin can filter services by service_type, status, client
-- [ ] **SERV-08**: Admin can search services by service code or name
-- [ ] **SERV-09**: Service has same fields as Projects (budget, contract_cost, personnel, internal_status, project_status, active/inactive)
+- [x] **SERV-05**: Admin can delete services (with confirmation)
+- [x] **SERV-06**: Admin can view list of all services with sorting and filtering
+- [x] **SERV-07**: Admin can filter services by service_type, status, client
+- [x] **SERV-08**: Admin can search services by service code or name
+- [x] **SERV-09**: Service has same fields as Projects (budget, contract_cost, personnel, internal_status, project_status, active/inactive)
 - [ ] **SERV-10**: Service detail page shows comprehensive information with card-based layout
 - [ ] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
-- [ ] **SERV-12**: Active/inactive flag controls whether service appears in MRF dropdown
+- [x] **SERV-12**: Active/inactive flag controls whether service appears in MRF dropdown
 
 ### Services Tab UI
 
-- [ ] **UI-01**: Services tab appears in navigation for services_admin and services_user roles
-- [ ] **UI-02**: Services tab has two sub-tabs: Services and Recurring
-- [ ] **UI-03**: Services sub-tab shows only services with service_type='one-time'
-- [ ] **UI-04**: Recurring sub-tab shows only services with service_type='recurring'
-- [ ] **UI-05**: Services list view displays: Code, Name, Client, Service Type, Internal Status, Project Status
-- [ ] **UI-06**: Clicking service row navigates to full service detail page
+- [x] **UI-01**: Services tab appears in navigation for services_admin and services_user roles
+- [x] **UI-02**: Services tab has two sub-tabs: Services and Recurring
+- [x] **UI-03**: Services sub-tab shows only services with service_type='one-time'
+- [x] **UI-04**: Recurring sub-tab shows only services with service_type='recurring'
+- [x] **UI-05**: Services list view displays: Code, Name, Client, Service Type, Internal Status, Project Status
+- [x] **UI-06**: Clicking service row navigates to full service detail page
 - [x] **UI-07**: Services tab hidden from operations_admin and operations_user roles
 - [x] **UI-08**: Projects tab hidden from services_admin and services_user roles
 
@@ -60,10 +60,10 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 ### Assignment System
 
-- [ ] **ASSIGN-01**: services_admin can assign services_user to services via personnel field
-- [ ] **ASSIGN-02**: Multi-personnel selection UI with pill display (reuse Projects pattern)
+- [x] **ASSIGN-01**: services_admin can assign services_user to services via personnel field
+- [x] **ASSIGN-02**: Multi-personnel selection UI with pill display (reuse Projects pattern)
 - [x] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
-- [ ] **ASSIGN-04**: services_user filtered views show only assigned services
+- [x] **ASSIGN-04**: services_user filtered views show only assigned services
 - [ ] **ASSIGN-05**: User management page allows assigning services_user to specific services
 - [x] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
 
@@ -150,29 +150,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-07 | Phase 26 | Complete |
 | SEC-08 | Phase 29 | Pending |
 | SERV-02 | Phase 27 | Complete |
-| SERV-01 | Phase 28 | Pending |
-| SERV-03 | Phase 28 | Pending |
+| SERV-01 | Phase 28 | Complete |
+| SERV-03 | Phase 28 | Complete |
 | SERV-04 | Phase 28 | Pending |
-| SERV-05 | Phase 28 | Pending |
-| SERV-06 | Phase 28 | Pending |
-| SERV-07 | Phase 28 | Pending |
-| SERV-08 | Phase 28 | Pending |
-| SERV-09 | Phase 28 | Pending |
+| SERV-05 | Phase 28 | Complete |
+| SERV-06 | Phase 28 | Complete |
+| SERV-07 | Phase 28 | Complete |
+| SERV-08 | Phase 28 | Complete |
+| SERV-09 | Phase 28 | Complete |
 | SERV-10 | Phase 28 | Pending |
 | SERV-11 | Phase 28 | Pending |
-| SERV-12 | Phase 28 | Pending |
-| UI-01 | Phase 28 | Pending |
-| UI-02 | Phase 28 | Pending |
-| UI-03 | Phase 28 | Pending |
-| UI-04 | Phase 28 | Pending |
-| UI-05 | Phase 28 | Pending |
-| UI-06 | Phase 28 | Pending |
+| SERV-12 | Phase 28 | Complete |
+| UI-01 | Phase 28 | Complete |
+| UI-02 | Phase 28 | Complete |
+| UI-03 | Phase 28 | Complete |
+| UI-04 | Phase 28 | Complete |
+| UI-05 | Phase 28 | Complete |
+| UI-06 | Phase 28 | Complete |
 | UI-07 | Phase 28 | Complete |
 | UI-08 | Phase 28 | Complete |
-| ASSIGN-01 | Phase 28 | Pending |
-| ASSIGN-02 | Phase 28 | Pending |
+| ASSIGN-01 | Phase 28 | Complete |
+| ASSIGN-02 | Phase 28 | Complete |
 | ASSIGN-03 | Phase 28 | Complete |
-| ASSIGN-04 | Phase 28 | Pending |
+| ASSIGN-04 | Phase 28 | Complete |
 | ASSIGN-05 | Phase 28 | Pending |
 | ASSIGN-06 | Phase 28 | Complete |
 | MRF-01 | Phase 29 | Pending |
