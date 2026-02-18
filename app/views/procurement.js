@@ -278,7 +278,16 @@ export function render(activeTab = 'mrfs') {
                 <div class="card">
                     <div class="card-header">
                         <h2>MRF Records</h2>
-                        <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="deptFilterPOTracking"
+                                    onchange="window.applyPODeptFilter(this.value)"
+                                    style="padding:0.35rem 0.6rem;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.875rem;color:#475569;">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                        </div>
                     </div>
 
                     <!-- PO Scoreboards -->
@@ -3761,7 +3770,12 @@ function renderPOTrackingTable(pos) {
     document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
     document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
 
-    if (pos.length === 0) {
+    // Apply department filter before pagination
+    const displayPos = activePODeptFilter
+        ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
+        : pos;
+
+    if (displayPos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
         // Hide pagination if no results
         const paginationDiv = document.getElementById('poPagination');
@@ -3770,10 +3784,10 @@ function renderPOTrackingTable(pos) {
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(pos.length / poItemsPerPage);
+    const totalPages = Math.ceil(displayPos.length / poItemsPerPage);
     const startIndex = (poCurrentPage - 1) * poItemsPerPage;
-    const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
-    const pageItems = pos.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + poItemsPerPage, displayPos.length);
+    const pageItems = displayPos.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageItems.map(po => {
         const isSubcon = po.is_subcon;
@@ -3814,9 +3828,9 @@ function renderPOTrackingTable(pos) {
 
         return `
         <tr>
-            <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
+            <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
             <td>${po.supplier_name}</td>
-            <td>${getMRFLabel(po)}</td>
+            <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
             <td>${new Date(po.date_issued).toLocaleDateString()}</td>
             <td>
@@ -3836,7 +3850,7 @@ function renderPOTrackingTable(pos) {
     `}).join('');
 
     // Update pagination controls
-    updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
+    updatePOPaginationControls(totalPages, startIndex, endIndex, displayPos.length);
 }
 
 /**
@@ -4443,11 +4457,12 @@ async function showProcurementTimeline(mrfId) {
         posSnapshot.forEach(doc => pos.push(doc.data()));
 
         // Build timeline items array
+        const deptLabel = mrf.department === 'services' ? 'Service' : 'Project';
         const timelineItems = [
             {
                 title: `📝 MRF Created: ${mrf.mrf_id}`,
                 date: formatDate(mrf.created_at),
-                description: `Requestor: ${mrf.requestor_name} | Project: ${mrf.project_name || 'N/A'}`,
+                description: `Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}`,
                 status: 'completed'
             }
         ];
@@ -4457,7 +4472,7 @@ async function showProcurementTimeline(mrfId) {
             timelineItems.push({
                 title: `🛒 Purchase Request: ${pr.pr_id}`,
                 date: formatDate(pr.date_generated),
-                description: `Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)}`,
+                description: `Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)} | Dept: ${pr.department === 'services' ? 'Services' : 'Projects'}`,
                 status: pr.finance_status === 'Approved' ? 'completed' :
                         pr.finance_status === 'Rejected' ? 'rejected' : 'pending'
             });
@@ -4468,7 +4483,7 @@ async function showProcurementTimeline(mrfId) {
             timelineItems.push({
                 title: `🚚 Transport Request: ${tr.tr_id}`,
                 date: formatDate(tr.date_submitted),
-                description: `Amount: ₱${formatCurrency(tr.total_amount)}`,
+                description: `Amount: ₱${formatCurrency(tr.total_amount)} | Dept: ${tr.department === 'services' ? 'Services' : 'Projects'}`,
                 status: tr.finance_status === 'Approved' ? 'completed' :
                         tr.finance_status === 'Rejected' ? 'rejected' : 'pending'
             });
@@ -4479,7 +4494,7 @@ async function showProcurementTimeline(mrfId) {
             timelineItems.push({
                 title: `📄 Purchase Order: ${po.po_id}`,
                 date: formatDate(po.date_issued),
-                description: `Supplier: ${po.supplier_name} | Status: ${po.procurement_status}`,
+                description: `Supplier: ${po.supplier_name} | Status: ${po.procurement_status} | ${po.department === 'services' ? 'Services' : 'Projects'}`,
                 status: po.procurement_status === 'Delivered' ? 'completed' : 'active'
             });
         });
