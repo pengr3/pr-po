@@ -276,10 +276,10 @@ Plans:
   2. Creating a service immediately after a project increments the shared sequence correctly
   3. getAssignedServiceCodes() utility returns services_user's assigned service codes
   4. Users collection includes assigned_service_codes array and all_services boolean flag
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 27-01: TBD
+- [ ] 27-01-PLAN.md — Add generateServiceCode() and getAssignedServiceCodes() to app/utils.js (SERV-02)
 
 #### Phase 28: Services View
 **Goal**: Services CRUD with service_type differentiation and assignment system
