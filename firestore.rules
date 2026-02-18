@@ -46,6 +46,14 @@ service cloud.firestore {
              isAssignedToProject(projectCode);
     }
 
+    // Check if a services_user is assigned to a given service_code.
+    // Only call this after confirming role is services_user (short-circuit guard).
+    // all_services == true means unrestricted access (mirrors all_projects for operations_admin).
+    function isAssignedToService(serviceCode) {
+      return getUserData().all_services == true ||
+             serviceCode in getUserData().assigned_service_codes;
+    }
+
     // =============================================
     // users collection
     // =============================================
@@ -295,6 +303,32 @@ service cloud.firestore {
       // No update or delete - archive is append-only
       allow update: if false;
       allow delete: if false;
+    }
+
+    // =============================================
+    // services collection
+    // =============================================
+    match /services/{serviceId} {
+      // Get (single document): super_admin, services roles, finance, procurement
+      // services_user can get individual docs — more permissive than list
+      allow get: if hasRole(['super_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
+
+      // List (collection query): scoped by assignment for services_user
+      // CRITICAL: isAssignedToService() is ONLY called when isRole('services_user') is true
+      // (short-circuit || prevents accessing assigned_service_codes on non-services_user docs)
+      allow list: if isActiveUser() && (
+        hasRole(['super_admin', 'services_admin', 'finance', 'procurement']) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+      );
+
+      // Create: super_admin and services_admin only (SEC-04: services_user CANNOT write)
+      allow create: if hasRole(['super_admin', 'services_admin']);
+
+      // Update: super_admin and services_admin only
+      allow update: if hasRole(['super_admin', 'services_admin']);
+
+      // Delete: super_admin and services_admin only
+      allow delete: if hasRole(['super_admin', 'services_admin']);
     }
   }
 }
