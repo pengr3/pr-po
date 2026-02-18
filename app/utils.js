@@ -246,6 +246,82 @@ export function getAssignedProjectCodes() {
 }
 
 /**
+ * Generate composite service code: CLMC_CLIENT_YYYY###
+ * Shares sequence with Projects collection to prevent collisions (SERV-02).
+ * Queries BOTH projects and services for the max sequence number so that
+ * services and projects never receive the same CLMC code for a given client/year.
+ *
+ * @param {string} clientCode - Client code (e.g., "ACME")
+ * @param {number|null} year - Year for the code (defaults to current year)
+ * @returns {Promise<string>} Generated service code (e.g., CLMC_ACME_2026003)
+ *
+ * Note: Race condition possible with simultaneous creates — acceptable at current scale.
+ * IMPORTANT: Service documents MUST store a client_code field for this query to work.
+ * Future: if collision risk grows, migrate to a counter document with FieldValue.increment().
+ */
+export async function generateServiceCode(clientCode, year = null) {
+    try {
+        const currentYear = year || new Date().getFullYear();
+        const rangeMin = `CLMC_${clientCode}_${currentYear}000`;
+        const rangeMax = `CLMC_${clientCode}_${currentYear}999`;
+
+        // Query BOTH collections in parallel (shared sequence, SERV-02)
+        const [projectsSnap, servicesSnap] = await Promise.all([
+            getDocs(query(
+                collection(db, 'projects'),
+                where('client_code', '==', clientCode),
+                where('project_code', '>=', rangeMin),
+                where('project_code', '<=', rangeMax)
+            )),
+            getDocs(query(
+                collection(db, 'services'),
+                where('client_code', '==', clientCode),
+                where('service_code', '>=', rangeMin),
+                where('service_code', '<=', rangeMax)
+            ))
+        ]);
+
+        const codeRegex = /^CLMC_.+_\d{4}(\d{3})$/;
+        let maxNum = 0;
+
+        projectsSnap.forEach(d => {
+            const match = d.data().project_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        });
+
+        servicesSnap.forEach(d => {
+            const match = d.data().service_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        });
+
+        return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+    } catch (error) {
+        console.error('[Services] Error generating service code:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get the set of service codes the current user is allowed to see.
+ * Returns null if no filtering should be applied (all roles except services_user,
+ * or services_user with all_services flag set).
+ * Returns an array of service_code strings if the user is scoped to specific services.
+ * Returns an empty array if the user is services_user with no assignments at all.
+ *
+ * @returns {string[]|null} Array of allowed service_codes, or null for "no filter"
+ */
+export function getAssignedServiceCodes() {
+    const user = window.getCurrentUser?.();
+    if (!user) return null;                           // Not logged in -- no filter
+    if (user.role !== 'services_user') return null;  // Only services_user is scoped
+
+    if (user.all_services === true) return null;      // "All services" escape hatch
+
+    // Return the array if present, otherwise empty array (zero assignments)
+    return Array.isArray(user.assigned_service_codes) ? user.assigned_service_codes : [];
+}
+
+/**
  * Get all active projects
  * @returns {Promise<Array>} Array of active projects
  */
@@ -440,6 +516,8 @@ window.utils = {
     showAlert,
     generateSequentialId,
     getAssignedProjectCodes,
+    generateServiceCode,
+    getAssignedServiceCodes,
     getActiveProjects,
     getAllSuppliers,
     calculateTotal,
@@ -454,6 +532,8 @@ window.utils = {
 };
 
 window.getAssignedProjectCodes = getAssignedProjectCodes;
+window.generateServiceCode = generateServiceCode;
+window.getAssignedServiceCodes = getAssignedServiceCodes;
 
 /* ========================================
    PERSONNEL UTILITIES
