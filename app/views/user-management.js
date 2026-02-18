@@ -427,6 +427,8 @@ function renderUsersTable() {
             'super_admin': 'Super Admin',
             'operations_admin': 'Operations Admin',
             'operations_user': 'Operations User',
+            'services_admin': 'Services Admin',
+            'services_user': 'Services User',
             'finance': 'Finance',
             'procurement': 'Procurement'
         };
@@ -643,6 +645,8 @@ function openApprovalModal(userId) {
                 <option value="operations_user">Operations User</option>
                 <option value="super_admin">Super Admin</option>
                 <option value="operations_admin">Operations Admin</option>
+                <option value="services_admin">Services Admin</option>
+                <option value="services_user">Services User</option>
                 <option value="finance">Finance</option>
                 <option value="procurement">Procurement</option>
             </select>
@@ -720,13 +724,30 @@ async function confirmApproval() {
             return;
         }
 
+        // Build role-specific fields
+        const roleSpecificFields = {};
+        if (selectedRole === 'services_admin') {
+            roleSpecificFields.all_services = true;
+            roleSpecificFields.assigned_service_codes = [];
+        } else if (selectedRole === 'services_user') {
+            roleSpecificFields.all_services = false;
+            roleSpecificFields.assigned_service_codes = [];
+        } else if (selectedRole === 'operations_admin') {
+            roleSpecificFields.all_projects = true;
+            roleSpecificFields.assigned_project_codes = [];
+        } else if (selectedRole === 'operations_user') {
+            roleSpecificFields.all_projects = false;
+            roleSpecificFields.assigned_project_codes = [];
+        }
+
         // Update user document
         await updateDoc(doc(db, 'users', selectedUserForApproval), {
             status: 'active',
             role: selectedRole,
             approved_at: serverTimestamp(),
             approved_by: currentUser.uid,
-            updated_at: serverTimestamp()
+            updated_at: serverTimestamp(),
+            ...roleSpecificFields
         });
 
         // Close modal
@@ -1390,11 +1411,28 @@ async function handleEditRole(userId) {
         // Get current user for audit trail
         const currentUser = window.getCurrentUser?.();
 
+        // Build role-specific fields for the new role
+        const roleSpecificFields = {};
+        if (newRole === 'services_admin') {
+            roleSpecificFields.all_services = true;
+            roleSpecificFields.assigned_service_codes = [];
+        } else if (newRole === 'services_user') {
+            roleSpecificFields.all_services = false;
+            roleSpecificFields.assigned_service_codes = [];
+        } else if (newRole === 'operations_admin') {
+            roleSpecificFields.all_projects = true;
+            roleSpecificFields.assigned_project_codes = [];
+        } else if (newRole === 'operations_user') {
+            roleSpecificFields.all_projects = false;
+            roleSpecificFields.assigned_project_codes = [];
+        }
+
         // Update user document
         await updateDoc(doc(db, 'users', userId), {
             role: newRole,
             role_changed_at: serverTimestamp(),
-            role_changed_by: currentUser?.uid || 'unknown'
+            role_changed_by: currentUser?.uid || 'unknown',
+            ...roleSpecificFields
         });
 
         showToast('Role updated', 'success');
@@ -1442,6 +1480,8 @@ function showRoleEditModal(user) {
             'super_admin': 'Super Admin',
             'operations_admin': 'Operations Admin',
             'operations_user': 'Operations User',
+            'services_admin': 'Services Admin',
+            'services_user': 'Services User',
             'finance': 'Finance',
             'procurement': 'Procurement'
         };
@@ -1472,6 +1512,8 @@ function showRoleEditModal(user) {
                     <option value="operations_user" ${user.role === 'operations_user' ? 'selected' : ''}>Operations User</option>
                     <option value="super_admin" ${user.role === 'super_admin' ? 'selected' : ''}>Super Admin</option>
                     <option value="operations_admin" ${user.role === 'operations_admin' ? 'selected' : ''}>Operations Admin</option>
+                    <option value="services_admin" ${user.role === 'services_admin' ? 'selected' : ''}>Services Admin</option>
+                    <option value="services_user" ${user.role === 'services_user' ? 'selected' : ''}>Services User</option>
                     <option value="finance" ${user.role === 'finance' ? 'selected' : ''}>Finance</option>
                     <option value="procurement" ${user.role === 'procurement' ? 'selected' : ''}>Procurement</option>
                 </select>
