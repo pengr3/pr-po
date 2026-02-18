@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 28 of 31 (Services View)
-Plan: 2 of 3 in current phase
-Status: Plan 02 complete
-Last activity: 2026-02-18 — Completed 28-02: services.js list view, router.js /services routes, index.html Services nav link
+Phase: 28 of 31 (Services View) — PHASE COMPLETE
+Plan: 3 of 3 in current phase
+Status: All plans complete — Phase 28 done
+Last activity: 2026-02-18 — Completed 28-03: service-detail.js (3-card inline editing), service-assignments.js (services_user assignment panel), admin.js (Service Assignments 4th section)
 
 Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
 
@@ -43,6 +43,7 @@ Progress: [████████████████████░░░
 | Phase 27-code-generation P01 | 5 | 1 tasks | 1 files |
 | Phase 28-services-view P01 | 15 | 3 tasks | 3 files |
 | Phase 28-services-view P02 | 20 | 2 tasks | 3 files |
+| Phase 28-services-view P03 | 25 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,9 @@ Recent decisions affecting v2.3 work:
 - 28-01: JSON.stringify() comparison used for assigned_service_codes in auth.js condition — matches existing assigned_project_codes pattern
 - [Phase 28]: currentActiveTab is module-level variable in services.js so sub-tab state persists across router re-renders
 - [Phase 28]: service-detail route defined in router.js before service-detail.js exists — enables #/services/detail/CODE links from list view to resolve after 28-03
+- [Phase 28-services-view]: recordEditHistory called with service doc ID — reuses same subcollection pattern as projects
+- [Phase 28-services-view]: service-assignments.js queries all services (not filtered by active) so admin can assign inactive services
+- [Phase 28-services-view]: Expense breakdown is stub with Phase 29 message — no aggregation query until MRF-Service integration
 
 ### Pending Todos
 
@@ -83,6 +87,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 28-02-PLAN.md (Phase 28 plan 2 of 3)
+Stopped at: Completed 28-03-PLAN.md (Phase 28 complete — all 3 plans done)
 Resume file: None
-Next action: /gsd:execute-phase 28 (plan 03 remaining)
+Next action: /gsd:execute-phase 29 (MRF-Service integration)

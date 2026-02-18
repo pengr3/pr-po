@@ -12,14 +12,14 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **SERV-01**: Admin can create services with auto-generated code (CLMC_CLIENT_YYYY###)
 - [x] **SERV-02**: Service code generation shares sequence with Projects (global counter per client/year)
 - [x] **SERV-03**: Service record includes service_type field ('one-time' or 'recurring')
-- [ ] **SERV-04**: Admin can edit existing services with inline editing and auto-save
+- [x] **SERV-04**: Admin can edit existing services with inline editing and auto-save
 - [x] **SERV-05**: Admin can delete services (with confirmation)
 - [x] **SERV-06**: Admin can view list of all services with sorting and filtering
 - [x] **SERV-07**: Admin can filter services by service_type, status, client
 - [x] **SERV-08**: Admin can search services by service code or name
 - [x] **SERV-09**: Service has same fields as Projects (budget, contract_cost, personnel, internal_status, project_status, active/inactive)
-- [ ] **SERV-10**: Service detail page shows comprehensive information with card-based layout
-- [ ] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
+- [x] **SERV-10**: Service detail page shows comprehensive information with card-based layout
+- [x] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
 - [x] **SERV-12**: Active/inactive flag controls whether service appears in MRF dropdown
 
 ### Services Tab UI
@@ -64,7 +64,7 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **ASSIGN-02**: Multi-personnel selection UI with pill display (reuse Projects pattern)
 - [x] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
 - [x] **ASSIGN-04**: services_user filtered views show only assigned services
-- [ ] **ASSIGN-05**: User management page allows assigning services_user to specific services
+- [x] **ASSIGN-05**: User management page allows assigning services_user to specific services
 - [x] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
 
 ### MRF Integration
@@ -152,14 +152,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SERV-02 | Phase 27 | Complete |
 | SERV-01 | Phase 28 | Complete |
 | SERV-03 | Phase 28 | Complete |
-| SERV-04 | Phase 28 | Pending |
+| SERV-04 | Phase 28 | Complete |
 | SERV-05 | Phase 28 | Complete |
 | SERV-06 | Phase 28 | Complete |
 | SERV-07 | Phase 28 | Complete |
 | SERV-08 | Phase 28 | Complete |
 | SERV-09 | Phase 28 | Complete |
-| SERV-10 | Phase 28 | Pending |
-| SERV-11 | Phase 28 | Pending |
+| SERV-10 | Phase 28 | Complete |
+| SERV-11 | Phase 28 | Complete |
 | SERV-12 | Phase 28 | Complete |
 | UI-01 | Phase 28 | Complete |
 | UI-02 | Phase 28 | Complete |
@@ -173,7 +173,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSIGN-02 | Phase 28 | Complete |
 | ASSIGN-03 | Phase 28 | Complete |
 | ASSIGN-04 | Phase 28 | Complete |
-| ASSIGN-05 | Phase 28 | Pending |
+| ASSIGN-05 | Phase 28 | Complete |
 | ASSIGN-06 | Phase 28 | Complete |
 | MRF-01 | Phase 29 | Pending |
 | MRF-02 | Phase 29 | Pending |
