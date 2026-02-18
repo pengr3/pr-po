@@ -35,26 +35,26 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 ### Role & Permission System
 
-- [ ] **ROLE-01**: services_admin role created with same permissions as operations_admin (for Services scope)
-- [ ] **ROLE-02**: services_user role created with same permissions as operations_user (for Services scope)
-- [ ] **ROLE-03**: services_admin can create, edit, delete services
-- [ ] **ROLE-04**: services_admin can manage service assignments
-- [ ] **ROLE-05**: services_admin sees all services regardless of assignment
-- [ ] **ROLE-06**: services_user sees only assigned services
+- [x] **ROLE-01**: services_admin role created with same permissions as operations_admin (for Services scope)
+- [x] **ROLE-02**: services_user role created with same permissions as operations_user (for Services scope)
+- [x] **ROLE-03**: services_admin can create, edit, delete services
+- [x] **ROLE-04**: services_admin can manage service assignments
+- [x] **ROLE-05**: services_admin sees all services regardless of assignment
+- [x] **ROLE-06**: services_user sees only assigned services
 - [x] **ROLE-07**: Super Admin can configure services_admin and services_user permissions in Settings
-- [ ] **ROLE-08**: Super Admin sees both Projects and Services tabs
-- [ ] **ROLE-09**: Finance role sees both Projects and Services department work
-- [ ] **ROLE-10**: Procurement role sees both Projects and Services department work
+- [x] **ROLE-08**: Super Admin sees both Projects and Services tabs
+- [x] **ROLE-09**: Finance role sees both Projects and Services department work
+- [x] **ROLE-10**: Procurement role sees both Projects and Services department work
 - [x] **ROLE-11**: Permission changes take effect immediately (real-time updates)
 
 ### Security Rules
 
-- [ ] **SEC-01**: Firebase Security Rules enforce services collection access by role
-- [ ] **SEC-02**: services_admin can read/write all services
-- [ ] **SEC-03**: services_user can read only assigned services
-- [ ] **SEC-04**: services_user cannot write to services collection
-- [ ] **SEC-05**: Super Admin bypasses services role checks
-- [ ] **SEC-06**: Finance and Procurement can read services for cross-department workflows
+- [x] **SEC-01**: Firebase Security Rules enforce services collection access by role
+- [x] **SEC-02**: services_admin can read/write all services
+- [x] **SEC-03**: services_user can read only assigned services
+- [x] **SEC-04**: services_user cannot write to services collection
+- [x] **SEC-05**: Super Admin bypasses services role checks
+- [x] **SEC-06**: Finance and Procurement can read services for cross-department workflows
 - [ ] **SEC-07**: Security Rules validated with automated tests (emulator)
 - [ ] **SEC-08**: Department field enforced on all new MRFs, PRs, POs, TRs going forward
 
@@ -130,23 +130,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ROLE-01 | Phase 26 | Pending |
-| ROLE-02 | Phase 26 | Pending |
-| ROLE-03 | Phase 26 | Pending |
-| ROLE-04 | Phase 26 | Pending |
-| ROLE-05 | Phase 26 | Pending |
-| ROLE-06 | Phase 26 | Pending |
+| ROLE-01 | Phase 26 | Complete |
+| ROLE-02 | Phase 26 | Complete |
+| ROLE-03 | Phase 26 | Complete |
+| ROLE-04 | Phase 26 | Complete |
+| ROLE-05 | Phase 26 | Complete |
+| ROLE-06 | Phase 26 | Complete |
 | ROLE-07 | Phase 26 | Complete |
-| ROLE-08 | Phase 26 | Pending |
-| ROLE-09 | Phase 26 | Pending |
-| ROLE-10 | Phase 26 | Pending |
+| ROLE-08 | Phase 26 | Complete |
+| ROLE-09 | Phase 26 | Complete |
+| ROLE-10 | Phase 26 | Complete |
 | ROLE-11 | Phase 26 | Complete |
-| SEC-01 | Phase 26 | Pending |
-| SEC-02 | Phase 26 | Pending |
-| SEC-03 | Phase 26 | Pending |
-| SEC-04 | Phase 26 | Pending |
-| SEC-05 | Phase 26 | Pending |
-| SEC-06 | Phase 26 | Pending |
+| SEC-01 | Phase 26 | Complete |
+| SEC-02 | Phase 26 | Complete |
+| SEC-03 | Phase 26 | Complete |
+| SEC-04 | Phase 26 | Complete |
+| SEC-05 | Phase 26 | Complete |
+| SEC-06 | Phase 26 | Complete |
 | SEC-07 | Phase 26 | Pending |
 | SEC-08 | Phase 26 | Pending |
 | SERV-02 | Phase 27 | Pending |

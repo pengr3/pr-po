@@ -52,6 +52,9 @@ Recent decisions affecting v2.3 work:
 - Phase 27: Parallel query pattern for shared sequence (acceptable race condition risk at current scale)
 - Phase 29: MRF form integration modifies existing code (higher risk, comes after Services UI validated)
 - v2.3 General: No data migration needed (existing data is sample/practice data)
+- 26-01: isRole('services_user') short-circuit guard before isAssignedToService() prevents evaluation on non-services_user docs (Pitfall 1 avoided)
+- 26-01: services_user excluded from create/update/delete — read-only (SEC-04); finance/procurement can read but not write services
+- 26-01: setDoc used (not updateDoc) in sync script NOT FOUND branch to create missing role_template documents
 - 26-02: Reuse roleSpecificFields spread pattern from operations roles for services roles (both confirmApproval and handleEditRole)
 - 26-02: ROLE_ORDER/TABS/ROLE_LABELS are single source of truth for permission matrix — adding entries is sufficient
 - 26-02: getPermissionValue || false fallback handles missing services key in existing role templates — no migration needed
