@@ -158,6 +158,19 @@ export async function getUserDocument(userId) {
             ...userDoc.data()
         };
     } catch (error) {
+        // Firebase auth token may not have propagated to Firestore yet on first
+        // onAuthStateChanged event — retry once after a short delay.
+        if (error.code === 'permission-denied') {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            try {
+                const retryDoc = await getDoc(doc(db, 'users', userId));
+                if (!retryDoc.exists()) return null;
+                return { id: retryDoc.id, ...retryDoc.data() };
+            } catch (retryError) {
+                console.error('[Auth] Error getting user document (retry):', retryError);
+                return null;
+            }
+        }
         console.error('[Auth] Error getting user document:', error);
         return null;
     }
