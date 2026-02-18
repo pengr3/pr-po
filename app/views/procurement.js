@@ -25,6 +25,19 @@ function getMRFLabel(doc) {
         : (doc.project_name || 'No project');
 }
 
+/**
+ * Returns a styled department badge HTML span for a PO document.
+ * @param {object} doc - Document with optional department/service_code fields
+ * @returns {string} HTML span string
+ */
+function getDeptBadgeHTML(doc) {
+    const isServices = doc.department === 'services' || (!doc.department && doc.service_code);
+    const label = isServices ? 'Services' : 'Projects';
+    const bg    = isServices ? '#ede9fe' : '#dbeafe';
+    const color = isServices ? '#6d28d9' : '#1d4ed8';
+    return `<span style="background:${bg};color:${color};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${label}</span>`;
+}
+
 // ========================================
 // GLOBAL STATE
 // ========================================
@@ -48,8 +61,23 @@ const prpoItemsPerPage = 10;
 let cachedAllMRFs = [];   // Holds raw MRF snapshot for re-filtering on assignment change
 let cachedServicesForNewMRF = [];   // Holds active services for the inline New MRF form dropdown
 
+// Department filter state for PO Tracking table
+let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
+
 // Firebase listeners for cleanup
 let listeners = [];
+
+/**
+ * Apply department filter to PO Tracking table.
+ * Called by the dept filter dropdown onchange handler.
+ */
+function applyPODeptFilter(value) {
+    activePODeptFilter = value;
+    const filtered = activePODeptFilter
+        ? poData.filter(po => (po.department || 'projects') === activePODeptFilter)
+        : poData;
+    renderPOTrackingTable(filtered);
+}
 
 // ========================================
 // WINDOW FUNCTIONS ATTACHMENT
@@ -97,6 +125,7 @@ function attachWindowFunctions() {
     window.viewPOTimeline = viewPOTimeline;
     window.updatePOStatus = updatePOStatus;
     window.showProcurementTimeline = showProcurementTimeline;
+    window.applyPODeptFilter = applyPODeptFilter;
     window.closeTimelineModal = closeTimelineModal;
     window.showSupplierPurchaseHistory = showSupplierPurchaseHistory;
     window.closeSupplierHistoryModal = closeSupplierHistoryModal;
@@ -584,6 +613,8 @@ export async function destroy() {
     delete window.viewPODocument;
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
+    delete window.applyPODeptFilter;
+    activePODeptFilter = '';
 
     console.log('[Procurement] 🗑️ All window functions deleted');
     console.log('[Procurement] ✅ Procurement view destroyed');
