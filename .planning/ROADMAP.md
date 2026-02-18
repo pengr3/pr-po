@@ -340,17 +340,17 @@ Plans:
 - [ ] 30-02-PLAN.md — procurement.js dept badges + filter dropdown for PO Tracking + showProcurementTimeline dept-aware descriptions (Wave 1)
 
 #### Phase 31: Dashboard Integration
-**Goal**: Dashboard shows Services department statistics alongside Projects
+**Goal**: Dashboard shows Services department statistics alongside Projects, with role-aware visibility
 **Depends on**: Phase 30
-**Requirements**: DASH-01 to DASH-03
+**Requirements**: DASH-01, DASH-02 (DASH-03 deferred)
 **Success Criteria** (what must be TRUE):
   1. Dashboard shows active services count (separate from projects count)
-  2. Dashboard shows Services-linked MRFs count with status breakdown
-  3. Dashboard shows department breakdown chart (Projects vs Services work distribution)
-**Plans**: TBD
+  2. Dashboard shows Services-linked MRFs count (Pending status)
+  3. Operations roles see only Projects stats; Services roles see only Services stats; dual-dept roles see both groups with labels
+**Plans**: 1 plan
 
 Plans:
-- [ ] 31-01: TBD
+- [ ] 31-01-PLAN.md — home.js role-aware stats (getDashboardMode, loadStats branching, both-mode group labels) + hero.css stat-group CSS (Wave 1)
 
 ## Progress
 
