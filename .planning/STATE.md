@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 32 of 34 (Fix Assignment Rules) — COMPLETE
+Phase: 33 of 34 (Service Expense Breakdown) — COMPLETE
 Plan: 1 of 1 in current phase
-Status: Phase 32 complete — Firestore rules updated (services_admin get/list/update on services_user docs); 6 emulator tests passing; production rules deployed; query scoping fix for services_user; edit_history create rule gap closed
-Last activity: 2026-02-19 — Completed 32-01: users collection rules fix, services_user query scoping, edit_history gap, human verification passed
+Status: Phase 33 complete — refreshServiceExpense() added to service-detail.js; getAggregateFromServer queries mrfs/prs/pos by service_code; Financial Summary stub replaced with three live scorecards; SERV-11 satisfied
+Last activity: 2026-02-19 — Completed 33-01: expense aggregation wired, scorecard HTML live, destroy cleanup implemented
 
-Progress: [████████████████████████████░░] 94% (32/34 gap-closure phases complete)
+Progress: [█████████████████████████████░] 97% (33/34 gap-closure phases complete)
 
 ## Performance Metrics
 
@@ -99,6 +99,10 @@ Recent decisions affecting v2.3 work:
 - [Phase 32]: services_admin update rule uses get().data.role (fresh read) not resource.data.role — prevents bypassing role scope by changing role field in same update; mirrors ops_admin pattern
 - [Phase 32]: services_user Firestore list rule evaluates isAssignedToService() per document — unscoped queries are denied entirely; fix is query-side scoping with where('service_code', 'in', assignedCodes) at call site
 - [Phase 32]: services_admin missing from edit_history create rule — services.js reuses recordEditHistory() writing to projects subcollection; added services_admin to the create condition
+- [Phase 33]: refreshServiceExpense calls renderServiceDetail; renderServiceDetail never calls refreshServiceExpense — anti-loop pattern, same as project-detail.js
+- [Phase 33]: onSnapshot callback made async; refreshServiceExpense(true) awaited before render so initial load shows real aggregation data, not zeros
+- [Phase 33]: Em dash shown when prTotal/poTotal is 0 — handles services with no Phase-29 linked documents cleanly
+- [Phase 33]: destroy() resets currentServiceExpense to zeros — prevents stale expense data when navigating between services
 
 ### Pending Todos
 
@@ -111,6 +115,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 32-fix-assignment-rules/32-01-PLAN.md
+Stopped at: Completed 33-service-expense-breakdown/33-01-PLAN.md
 Resume file: None
-Next action: Phase 33 — services admin assignment UI (or continue gap closure phases)
+Next action: Phase 34 — final gap-closure phase (or v2.3 milestone completion)

@@ -19,7 +19,7 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **SERV-08**: Admin can search services by service code or name
 - [x] **SERV-09**: Service has same fields as Projects (budget, contract_cost, personnel, internal_status, project_status, active/inactive)
 - [x] **SERV-10**: Service detail page shows comprehensive information with card-based layout
-- [ ] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
+- [x] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
 - [x] **SERV-12**: Active/inactive flag controls whether service appears in MRF dropdown
 
 ### Services Tab UI
@@ -159,7 +159,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SERV-08 | Phase 28 | Complete |
 | SERV-09 | Phase 28 | Complete |
 | SERV-10 | Phase 28 | Complete |
-| SERV-11 | Phase 33 | Pending |
+| SERV-11 | Phase 33 | Complete |
 | SERV-12 | Phase 28 | Complete |
 | UI-01 | Phase 28 | Complete |
 | UI-02 | Phase 28 | Complete |
