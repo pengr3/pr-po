@@ -367,7 +367,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 32-01-PLAN.md — firestore.rules: add services_admin to users update rule + services_admin get permission for user docs + deploy rules
+- [ ] 32-01-PLAN.md — firestore.rules: add services_admin to users get/list/update rules (scoped to services_user docs) + 6 emulator tests + production deploy
 
 #### Phase 33: Service Expense Breakdown
 **Goal**: Replace stub in service-detail.js with real aggregation query showing MRFs/PRs/POs linked to service
