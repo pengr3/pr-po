@@ -151,3 +151,16 @@ None - no external service configuration required. Role template documents creat
 ---
 *Phase: 32-fix-assignment-rules*
 *Completed: 2026-02-19*
+
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/32-fix-assignment-rules/32-01-SUMMARY.md
+- FOUND: firestore.rules
+- FOUND: test/firestore.test.js
+- FOUND: app/views/services.js
+- FOUND: app/views/mrf-form.js
+- FOUND commit 6b271d9 (fix 32-01 users rules)
+- FOUND commit 3743f0b (test 32-01 emulator tests + deploy)
+- FOUND commit 9ffc0f1 (fix services_user query scoping)
+- FOUND commit 6e6daac (fix edit_history create rule)
+- FOUND commit d75f631 (docs 32-01 complete metadata)
