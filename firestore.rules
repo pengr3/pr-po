@@ -58,26 +58,28 @@ service cloud.firestore {
     // users collection
     // =============================================
     match /users/{userId} {
-      // Get: own doc OR super_admin OR (operations_admin AND target is operations_user)
+      // Get: own doc OR super_admin OR (operations_admin AND target is operations_user) OR (services_admin AND target is services_user)
       allow get: if isSignedIn() && (
         request.auth.uid == userId ||
         isRole('super_admin') ||
-        (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user')
+        (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
+        (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user')
       );
 
-      // List: super_admin OR (operations_admin - filtered by client to operations_user only)
-      // Note: operations_admin's list access must be filtered client-side to operations_user docs
-      allow list: if isRole('super_admin') || isRole('operations_admin');
+      // List: super_admin OR operations_admin OR services_admin
+      // Note: operations_admin and services_admin list access must be filtered client-side to their respective user roles
+      allow list: if isRole('super_admin') || isRole('operations_admin') || isRole('services_admin');
 
       // Create: signed-in user creating own doc AND status is 'pending'
       allow create: if isSignedIn() &&
                        request.auth.uid == userId &&
                        request.resource.data.status == 'pending';
 
-      // Update: super_admin OR (operations_admin AND target is operations_user) OR own doc
+      // Update: super_admin OR (operations_admin AND target is operations_user) OR (services_admin AND target is services_user) OR own doc
       allow update: if isSignedIn() && (
         isRole('super_admin') ||
         (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
+        (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user') ||
         request.auth.uid == userId
       );
 
