@@ -1191,7 +1191,7 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</span></td>
                 <td>${formatDate(pr.date_generated)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
@@ -1244,7 +1244,7 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</span></td>
                 <td>${formatDate(tr.date_submitted)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
@@ -2079,7 +2079,7 @@ function renderPOs() {
                         <td><strong>${po.po_id}</strong></td>
                         <td>${po.pr_id}</td>
                         <td>${po.supplier_name}</td>
-                        <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</td>
+                        <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
                         <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>

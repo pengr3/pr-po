@@ -106,19 +106,13 @@ export function render() {
                     <div style="margin-bottom: 2rem;">
                         <h2 style="font-size: 1.25rem; font-weight: 600; color: var(--gray-800); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--gray-200);">Basic Information</h2>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
-                            <div id="projectNameGroup">
+                            <div id="projectServiceGroup" style="grid-column: 1 / -1;">
                                 <div class="form-group">
-                                    <label for="projectName">Project Name *</label>
-                                    <select id="projectName">
-                                        <option value="">Loading projects...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div id="serviceNameGroup">
-                                <div class="form-group">
-                                    <label for="serviceName">Service *</label>
-                                    <select id="serviceName">
-                                        <option value="">Loading services...</option>
+                                    <label id="projectServiceLabel" for="projectServiceSelect">Project / Service *</label>
+                                    <select id="projectServiceSelect">
+                                        <option value="">Loading...</option>
+                                        <optgroup id="projectsOptgroup" label="Projects"></optgroup>
+                                        <optgroup id="servicesOptgroup" label="Services"></optgroup>
                                     </select>
                                 </div>
                             </div>
@@ -255,10 +249,25 @@ export async function init() {
         const showProjects = ['super_admin', 'finance', 'procurement', 'operations_admin', 'operations_user'].includes(role);
         const showServices = ['super_admin', 'finance', 'procurement', 'services_admin', 'services_user'].includes(role);
 
-        const projectGroup = document.getElementById('projectNameGroup');
-        const serviceGroup = document.getElementById('serviceNameGroup');
-        if (projectGroup) projectGroup.style.display = showProjects ? '' : 'none';
-        if (serviceGroup) serviceGroup.style.display = showServices ? '' : 'none';
+        // Update combined dropdown label and placeholder for single-dept roles
+        const psl = document.getElementById('projectServiceLabel');
+        const pss = document.getElementById('projectServiceSelect');
+        if (psl && pss) {
+            if (!showServices) {
+                psl.textContent = 'Project *';
+                pss.options[0].textContent = '-- Select a project --';
+            } else if (!showProjects) {
+                psl.textContent = 'Service *';
+                pss.options[0].textContent = '-- Select a service --';
+            } else {
+                pss.options[0].textContent = '-- Select a project or service --';
+            }
+        }
+
+        const projectsOptgroup = document.getElementById('projectsOptgroup');
+        const servicesOptgroup = document.getElementById('servicesOptgroup');
+        if (projectsOptgroup) projectsOptgroup.hidden = !showProjects;
+        if (servicesOptgroup) servicesOptgroup.hidden = !showServices;
 
         if (showServices) {
             loadServices();
@@ -287,8 +296,7 @@ export async function init() {
  * Load projects from Firebase
  */
 function loadProjects() {
-    const projectSelect = document.getElementById('projectName');
-    if (!projectSelect) return;
+    if (!document.getElementById('projectsOptgroup')) return;
 
     try {
         const projectsRef = collection(db, 'projects');
@@ -311,11 +319,9 @@ function loadProjects() {
             populateProjectDropdown();
         }, (error) => {
             console.error('Error loading projects:', error);
-            projectSelect.innerHTML = '<option value="">Error loading projects</option>';
         });
     } catch (error) {
         console.error('Error setting up projects listener:', error);
-        projectSelect.innerHTML = '<option value="">Error loading projects</option>';
     }
 }
 
@@ -325,8 +331,8 @@ function loadProjects() {
  * assignmentsChanged event handler.
  */
 function populateProjectDropdown() {
-    const projectSelect = document.getElementById('projectName');
-    if (!projectSelect) return;
+    const optgroup = document.getElementById('projectsOptgroup');
+    if (!optgroup) return;
 
     // Phase 7: Filter to assigned projects for operations_user
     const assignedCodes = window.getAssignedProjectCodes?.();
@@ -335,25 +341,15 @@ function populateProjectDropdown() {
         projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
     }
 
-    // Clear and rebuild dropdown
-    projectSelect.innerHTML = '<option value="">-- Select a project --</option>';
-
-    if (projects.length === 0) {
-        // Distinct hint for operations_user with zero assignments vs truly empty collection
-        if (assignedCodes !== null) {
-            projectSelect.innerHTML = '<option value="" disabled>No projects assigned -- contact your admin</option>';
-        } else {
-            projectSelect.innerHTML = '<option value="">No projects available</option>';
-        }
-        return;
-    }
+    optgroup.innerHTML = '';
 
     projects.forEach(project => {
         const option = document.createElement('option');
         option.value = project.project_code;
         option.textContent = `${project.project_code} - ${project.project_name}`;
+        option.dataset.type = 'project';
         option.dataset.projectName = project.project_name;
-        projectSelect.appendChild(option);
+        optgroup.appendChild(option);
     });
 }
 
@@ -361,8 +357,7 @@ function populateProjectDropdown() {
  * Load services from Firebase with real-time updates
  */
 function loadServices() {
-    const serviceSelect = document.getElementById('serviceName');
-    if (!serviceSelect) return;
+    if (!document.getElementById('servicesOptgroup')) return;
 
     try {
         const servicesRef = collection(db, 'services');
@@ -375,7 +370,6 @@ function loadServices() {
         if (assignedCodes !== null) {
             // services_user: scope by assignment; active filtered client-side below
             if (assignedCodes.length === 0) {
-                serviceSelect.innerHTML = '<option value="" disabled>No services assigned -- contact your admin</option>';
                 return;
             }
             q = query(servicesRef, where('service_code', 'in', assignedCodes));
@@ -400,11 +394,9 @@ function loadServices() {
             populateServiceDropdown();
         }, (error) => {
             console.error('Error loading services:', error);
-            serviceSelect.innerHTML = '<option value="">Error loading services</option>';
         });
     } catch (error) {
         console.error('Error setting up services listener:', error);
-        serviceSelect.innerHTML = '<option value="">Error loading services</option>';
     }
 }
 
@@ -414,8 +406,8 @@ function loadServices() {
  * assignmentsChanged event handler.
  */
 function populateServiceDropdown() {
-    const serviceSelect = document.getElementById('serviceName');
-    if (!serviceSelect) return;
+    const optgroup = document.getElementById('servicesOptgroup');
+    if (!optgroup) return;
 
     // Filter to assigned services for services_user; services_admin gets null (no filter)
     // Also enforce active=true for services_user (their query doesn't include that filter)
@@ -425,24 +417,16 @@ function populateServiceDropdown() {
         services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
     }
 
-    serviceSelect.innerHTML = '<option value="">-- Select a service --</option>';
-
-    if (services.length === 0) {
-        if (assignedCodes !== null) {
-            serviceSelect.innerHTML = '<option value="" disabled>No services assigned -- contact your admin</option>';
-        } else {
-            serviceSelect.innerHTML = '<option value="">No active services available</option>';
-        }
-        return;
-    }
+    optgroup.innerHTML = '';
 
     services.forEach(service => {
         const option = document.createElement('option');
         option.value = service.service_code;
         // MRF-04: format "CLMC_CODE_YYYY### - Service Name"
         option.textContent = `${service.service_code} - ${service.service_name}`;
+        option.dataset.type = 'service';
         option.dataset.serviceName = service.service_name;
-        serviceSelect.appendChild(option);
+        optgroup.appendChild(option);
     });
 }
 
@@ -640,22 +624,19 @@ async function handleFormSubmit(e) {
     // Collect form data
     const requestType = document.querySelector('input[name="requestType"]:checked').value;
     const urgencyLevel = document.querySelector('input[name="urgencyLevel"]:checked').value;
-    const projectSelect = document.getElementById('projectName');
-    const projectCode = projectSelect?.value?.trim() || '';
-    const selectedOption = projectSelect?.options[projectSelect?.selectedIndex];
-    const projectName = selectedOption?.dataset?.projectName || '';
+    const pss = document.getElementById('projectServiceSelect');
+    const selectedOption = pss?.options[pss?.selectedIndex];
+    const selectedType = selectedOption?.dataset?.type || '';
+    const selectedCode = pss?.value?.trim() || '';
 
-    // Collect service selection (may be hidden for operations roles)
-    const serviceSelect = document.getElementById('serviceName');
-    const serviceCode = serviceSelect?.value?.trim() || '';
-    const serviceSelectedOption = serviceSelect?.options[serviceSelect?.selectedIndex];
-    const serviceName = serviceSelectedOption?.dataset?.serviceName || '';
+    const projectCode = selectedType === 'project' ? selectedCode : '';
+    const projectName = selectedType === 'project' ? (selectedOption?.dataset?.projectName || '') : '';
+    const serviceCode = selectedType === 'service' ? selectedCode : '';
+    const serviceName = selectedType === 'service' ? (selectedOption?.dataset?.serviceName || '') : '';
 
-    // Determine department from which dropdown has a value
     const hasProject = !!projectCode;
     const hasService = !!serviceCode;
 
-    // Validate: must select one (dropdowns are mutually visible by role, so both at once is rare)
     if (!hasProject && !hasService) {
         showAlert('error', 'Please select a project or service for this request.');
         return;

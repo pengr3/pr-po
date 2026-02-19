@@ -3830,7 +3830,7 @@ function renderPOTrackingTable(pos) {
         <tr>
             <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
             <td>${po.supplier_name}</td>
-            <td style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</td>
+            <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
             <td>${new Date(po.date_issued).toLocaleDateString()}</td>
             <td>
