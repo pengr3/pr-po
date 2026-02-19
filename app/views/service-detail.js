@@ -356,27 +356,29 @@ function renderServiceDetail() {
                                    step="0.01"
                                    ${!showEditControls ? 'disabled' : ''}>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0; grid-column: 1 / -1;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                                <label style="margin-bottom: 0; font-weight: 600; color: #1e293b;">Expense Breakdown</label>
-                                <button class="btn btn-sm btn-secondary" onclick="window.refreshServiceExpense()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Refresh</button>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Expense</label>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem;">
+                                    ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal) : '—'}
+                                </div>
+                                <button class="btn btn-sm btn-secondary" onclick="window.refreshServiceExpense()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🔄 Refresh</button>
                             </div>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
-                                    <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">MRFs Linked</div>
-                                    <div style="font-size: 1.25rem; font-weight: 600; color: #1e293b;">${currentServiceExpense.mrfCount}</div>
-                                </div>
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
-                                    <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">PR Total</div>
-                                    <div style="font-size: 1.25rem; font-weight: 600; color: #1e293b;">${currentServiceExpense.prTotal > 0 ? 'PHP ' + formatCurrency(currentServiceExpense.prTotal) : '—'}</div>
-                                    ${currentServiceExpense.prCount > 0 ? `<div style="font-size: 0.7rem; color: #94a3b8;">${currentServiceExpense.prCount} PR${currentServiceExpense.prCount !== 1 ? 's' : ''}</div>` : ''}
-                                </div>
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; text-align: center;">
-                                    <div style="font-size: 0.75rem; color: #64748b; margin-bottom: 0.25rem;">PO Total</div>
-                                    <div style="font-size: 1.25rem; font-weight: 600; color: #1e293b;">${currentServiceExpense.poTotal > 0 ? 'PHP ' + formatCurrency(currentServiceExpense.poTotal) : '—'}</div>
-                                    ${currentServiceExpense.poCount > 0 ? `<div style="font-size: 0.7rem; color: #94a3b8;">${currentServiceExpense.poCount} PO${currentServiceExpense.poCount !== 1 ? 's' : ''}</div>` : ''}
-                                </div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                                ${currentServiceExpense.mrfCount} MRF${currentServiceExpense.mrfCount !== 1 ? 's' : ''} linked · ${currentServiceExpense.prCount} PR${currentServiceExpense.prCount !== 1 ? 's' : ''} · ${currentServiceExpense.poCount} PO${currentServiceExpense.poCount !== 1 ? 's' : ''}
                             </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Budget</label>
+                            ${(() => {
+                                const budget = parseFloat(currentService.budget || 0);
+                                const total = currentServiceExpense.prTotal + currentServiceExpense.poTotal;
+                                const remaining = budget - total;
+                                const color = remaining >= 0 ? '#059669' : '#ef4444';
+                                return budget > 0
+                                    ? `<div style="font-weight: 600; color: ${color}; font-size: 1.125rem;">${formatCurrency(remaining)}</div>`
+                                    : `<div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>`;
+                            })()}
                         </div>
                     </div>
                 </div>
