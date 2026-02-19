@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 33 of 34 (Service Expense Breakdown) — COMPLETE
-Plan: 1 of 1 in current phase
-Status: Phase 33 complete — refreshServiceExpense() added to service-detail.js; getAggregateFromServer queries mrfs/prs/pos by service_code; Financial Summary stub replaced with three live scorecards; SERV-11 satisfied
-Last activity: 2026-02-19 — Completed 33-01: expense aggregation wired, scorecard HTML live, destroy cleanup implemented
+Phase: 34 of 34 (Documentation Minor Fixes) — COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase 34 plan 02 complete — Finance Tab 2 (Purchase Orders) card-header updated with <select id="deptFilterPOs"> department filter dropdown; HTML-only change, no new JS; CROSS-04 fully closed across all three Finance sub-tabs; DASH-01 and DASH-02 satisfied
+Last activity: 2026-02-19 — Completed 34-02: department filter dropdown added to Finance Purchase Orders tab
 
-Progress: [█████████████████████████████░] 97% (33/34 gap-closure phases complete)
+Progress: [██████████████████████████████] 100% (34/34 gap-closure phases complete)
 
 ## Performance Metrics
 
@@ -103,6 +103,8 @@ Recent decisions affecting v2.3 work:
 - [Phase 33]: onSnapshot callback made async; refreshServiceExpense(true) awaited before render so initial load shows real aggregation data, not zeros
 - [Phase 33]: Em dash shown when prTotal/poTotal is 0 — handles services with no Phase-29 linked documents cleanly
 - [Phase 33]: destroy() resets currentServiceExpense to zeros — prevents stale expense data when navigating between services
+- [Phase 34-02]: deptFilterPOs uses unique id to avoid DOM collision with Tab 1's deptFilterApprovals — both call same applyFinanceDeptFilter() handler which was already registered in Phase 30
+- [Phase 34-02]: No new window registrations added — HTML-only gap closure when filter logic pre-exists is the correct pattern
 
 ### Pending Todos
 
@@ -115,6 +117,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 33-service-expense-breakdown/33-01-PLAN.md
+Stopped at: Completed 34-documentation-minor-fixes/34-02-PLAN.md
 Resume file: None
-Next action: Phase 34 — final gap-closure phase (or v2.3 milestone completion)
+Next action: v2.3 milestone complete — all 34 gap-closure phases executed

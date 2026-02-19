@@ -56,7 +56,7 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **SEC-05**: Super Admin bypasses services role checks
 - [x] **SEC-06**: Finance and Procurement can read services for cross-department workflows
 - [x] **SEC-07**: Security Rules validated with automated tests (emulator)
-- [ ] **SEC-08**: Department field enforced on all new MRFs, PRs, POs, TRs going forward
+- [x] **SEC-08**: Department field enforced on all new MRFs, PRs, POs, TRs going forward
 
 ### Assignment System
 
@@ -92,9 +92,8 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 ### Dashboard Integration
 
-- [ ] **DASH-01**: Dashboard shows Services department statistics (active services count)
-- [ ] **DASH-02**: Dashboard shows Services-linked MRFs count
-- [ ] **DASH-03**: Dashboard shows department breakdown (Projects vs Services)
+- [x] **DASH-01**: Dashboard shows Services department statistics (active services count)
+- [x] **DASH-02**: Dashboard shows Services-linked MRFs count
 
 ## Future Requirements
 
@@ -110,6 +109,9 @@ Deferred to v2.4+
 - **CAT-01**: Service categories/tags (HVAC, electrical, pest control, etc.)
 - **CAT-02**: Filter services by category
 - **CAT-03**: Category-based reporting
+
+### Dashboard Enhancements
+- **DASH-03**: Dashboard shows department breakdown (Projects vs Services) — deferred to v2.4+
 
 ## Out of Scope
 
@@ -192,8 +194,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CROSS-05 | Phase 30 | Complete |
 | CROSS-06 | Phase 30 | Complete |
 | CROSS-07 | Phase 30 | Complete |
-| DASH-01 | Phase 34 | Pending |
-| DASH-02 | Phase 34 | Pending |
+| DASH-01 | Phase 34 | Complete |
+| DASH-02 | Phase 34 | Complete |
 | DASH-03 | Deferred to v2.4+ | N/A |
 
 **Coverage:**
