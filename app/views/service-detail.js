@@ -4,7 +4,7 @@
    personnel assignment pills, and expense stub
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 
@@ -17,6 +17,7 @@ let selectedDetailPersonnel = []; // Array of { id: string, name: string } for p
 let listener = null;
 let usersListenerUnsub = null;
 let personnelClickOutsideHandler = null;
+let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0 };
 
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -120,7 +121,7 @@ export async function init(activeTab = null, param = null) {
 
     // Find service by service_code field
     const q = query(collection(db, 'services'), where('service_code', '==', serviceParam));
-    listener = onSnapshot(q, (snapshot) => {
+    listener = onSnapshot(q, async (snapshot) => {
         if (snapshot.empty) {
             document.getElementById('serviceDetailContainer').innerHTML = `
                 <div class="container" style="margin-top: 2rem;">
@@ -139,10 +140,11 @@ export async function init(activeTab = null, param = null) {
         currentServiceDocId = docSnap.id;
         currentService = { id: docSnap.id, ...docSnap.data() };
 
-        // Check access for services_user role
-        if (checkServiceAccess()) {
-            renderServiceDetail();
-        }
+        if (!checkServiceAccess()) return;
+
+        await refreshServiceExpense(true);
+        // Note: refreshServiceExpense() calls renderServiceDetail() on success.
+        // On error it catches silently — currentServiceExpense retains last known values.
     });
 }
 
@@ -177,6 +179,7 @@ export async function destroy() {
         personnelClickOutsideHandler = null;
     }
     selectedDetailPersonnel = [];
+    currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0 };
 
     currentService = null;
     currentServiceDocId = null;
@@ -188,6 +191,7 @@ export async function destroy() {
     delete window.removeDetailServicePersonnel;
     delete window.filterDetailServicePersonnelDropdown;
     delete window.showDetailServicePersonnelDropdown;
+    delete window.refreshServiceExpense;
 
     console.log('[ServiceDetail] View destroyed');
 }
@@ -716,6 +720,63 @@ function clearServiceFieldError(fieldName) {
     field.style.borderColor = '';
 }
 
+// Refresh service expense aggregation
+async function refreshServiceExpense(silent = false) {
+    if (!currentService?.service_code) return;
+
+    showLoading(true);
+    try {
+        const code = currentService.service_code;
+
+        // MRFs: count only — no total_amount field on MRF documents
+        const mrfsQuery = query(
+            collection(db, 'mrfs'),
+            where('service_code', '==', code)
+        );
+        const mrfsAgg = await getAggregateFromServer(mrfsQuery, {
+            mrfCount: count()
+        });
+
+        // PRs: sum total_amount + count
+        const prsQuery = query(
+            collection(db, 'prs'),
+            where('service_code', '==', code)
+        );
+        const prsAgg = await getAggregateFromServer(prsQuery, {
+            prTotal: sum('total_amount'),
+            prCount: count()
+        });
+
+        // POs: sum total_amount + count
+        const posQuery = query(
+            collection(db, 'pos'),
+            where('service_code', '==', code)
+        );
+        const posAgg = await getAggregateFromServer(posQuery, {
+            poTotal: sum('total_amount'),
+            poCount: count()
+        });
+
+        currentServiceExpense = {
+            mrfCount: mrfsAgg.data().mrfCount || 0,
+            prTotal: prsAgg.data().prTotal || 0,
+            prCount: prsAgg.data().prCount || 0,
+            poTotal: posAgg.data().poTotal || 0,
+            poCount: posAgg.data().poCount || 0
+        };
+
+        // Re-render to show updated expense (does NOT call refreshServiceExpense — no loop)
+        renderServiceDetail();
+
+        if (!silent) showToast('Expense refreshed', 'success');
+    } catch (error) {
+        console.error('[ServiceDetail] Expense aggregation failed:', error);
+        if (!silent) showToast('Failed to calculate expense', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveServiceField = saveServiceField;
@@ -724,6 +785,7 @@ function attachWindowFunctions() {
     window.removeDetailServicePersonnel = removeDetailServicePersonnel;
     window.filterDetailServicePersonnelDropdown = filterDetailServicePersonnelDropdown;
     window.showDetailServicePersonnelDropdown = showDetailServicePersonnelDropdown;
+    window.refreshServiceExpense = refreshServiceExpense;
 }
 
 console.log('[ServiceDetail] Module loaded');
