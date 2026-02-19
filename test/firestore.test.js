@@ -634,3 +634,57 @@ describe("services collection - role access", () => {
     );
   });
 });
+
+// =============================================
+// Test Suite: services_admin User Document Access
+// =============================================
+
+describe("services_admin user document access", () => {
+  beforeEach(seedUsers);
+
+  it("services_admin can get a services_user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(getDoc(doc(db, "users", "active-services-user")));
+  });
+
+  it("services_admin can list users collection", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(getDocs(query(collection(db, "users"), where("role", "==", "services_user"))));
+  });
+
+  it("services_admin can update assigned_service_codes on a services_user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "active-services-user"), {
+        assigned_service_codes: ["SVC-001", "SVC-002"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT update an operations_admin document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-ops-admin"), {
+        assigned_service_codes: ["SVC-001"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT update a finance user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-finance"), {
+        assigned_service_codes: ["SVC-001"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT update a super_admin document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-super-admin"), {
+        assigned_service_codes: ["SVC-001"]
+      })
+    );
+  });
+});
