@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 Phase: 34 of 34 (Documentation Minor Fixes) — COMPLETE
 Plan: 2 of 2 in current phase
-Status: Phase 34 plan 02 complete — Finance Tab 2 (Purchase Orders) card-header updated with <select id="deptFilterPOs"> department filter dropdown; HTML-only change, no new JS; CROSS-04 fully closed across all three Finance sub-tabs; DASH-01 and DASH-02 satisfied
-Last activity: 2026-02-19 — Completed 34-02: department filter dropdown added to Finance Purchase Orders tab
+Status: Phase 34 complete — Plan 01: Phase 31 VERIFICATION.md created (5/5 truths verified, DASH-01/DASH-02 SATISFIED), REQUIREMENTS.md corrected (SEC-08/DASH-01/DASH-02 checked, DASH-03 moved to Future Requirements, traceability corrected to implementing phases); Plan 02: Finance POs department filter dropdown added
+Last activity: 2026-02-19 — Completed 34-01: Phase 31 verification documented, REQUIREMENTS.md gap-closure complete
 
 Progress: [██████████████████████████████] 100% (34/34 gap-closure phases complete)
 
@@ -49,6 +49,7 @@ Progress: [███████████████████████
 | Phase 29-mrf-integration P03 | 15 | 2 tasks | 2 files |
 | Phase 30-cross-department-workflows P01 | 2 | 2 tasks | 1 files |
 | Phase 30-cross-department-workflows P02 | 3 | 2 tasks | 1 files |
+| Phase 34-documentation-minor-fixes P01 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,8 @@ Recent decisions affecting v2.3 work:
 - [Phase 33]: destroy() resets currentServiceExpense to zeros — prevents stale expense data when navigating between services
 - [Phase 34-02]: deptFilterPOs uses unique id to avoid DOM collision with Tab 1's deptFilterApprovals — both call same applyFinanceDeptFilter() handler which was already registered in Phase 30
 - [Phase 34-02]: No new window registrations added — HTML-only gap closure when filter logic pre-exists is the correct pattern
+- [Phase 34-01]: DASH-01/DASH-02 traceability points to Phase 31 (implementing phase), not Phase 34 (verifying phase)
+- [Phase 34-01]: SEC-08 traceability corrected to Phase 29 where department field was added to mrf-form.js, procurement.js, finance.js
 
 ### Pending Todos
 
