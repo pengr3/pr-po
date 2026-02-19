@@ -150,7 +150,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SEC-05 | Phase 26 | Complete |
 | SEC-06 | Phase 26 | Complete |
 | SEC-07 | Phase 26 | Complete |
-| SEC-08 | Phase 34 | Pending |
+| SEC-08 | Phase 29 | Complete |
 | SERV-02 | Phase 27 | Complete |
 | SERV-01 | Phase 28 | Complete |
 | SERV-03 | Phase 28 | Complete |
@@ -194,9 +194,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CROSS-05 | Phase 30 | Complete |
 | CROSS-06 | Phase 30 | Complete |
 | CROSS-07 | Phase 30 | Complete |
-| DASH-01 | Phase 34 | Complete |
-| DASH-02 | Phase 34 | Complete |
-| DASH-03 | Deferred to v2.4+ | N/A |
+| DASH-01 | Phase 31 | Complete |
+| DASH-02 | Phase 31 | Complete |
 
 **Coverage:**
 - v2.3 requirements: 65 total (54 original + CROSS-01-07, DASH-01-03, SEC-08 added during v2.3)
