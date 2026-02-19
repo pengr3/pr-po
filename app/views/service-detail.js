@@ -788,6 +788,7 @@ async function refreshServiceExpense(silent = false) {
     } catch (error) {
         console.error('[ServiceDetail] Expense aggregation failed:', error);
         if (!silent) showToast('Failed to calculate expense', 'error');
+        renderServiceDetail(); // Render page with zeroed expense data rather than leaving blank
     } finally {
         showLoading(false);
     }
