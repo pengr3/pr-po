@@ -868,7 +868,24 @@ function updateServiceSortIndicators() {
 // Load services with real-time listener
 async function loadServices() {
     try {
-        const listener = onSnapshot(collection(db, 'services'), (snapshot) => {
+        // ASSIGN-04: services_user may only read their assigned services.
+        // An unscoped collection query would include docs they're not assigned to,
+        // which Firestore's per-document list rule would deny for the entire query.
+        const assignedCodes = getAssignedServiceCodes();
+        let servicesQuery;
+        if (assignedCodes !== null) {
+            // services_user: scope query to assigned service_codes only
+            if (assignedCodes.length === 0) {
+                allServices = [];
+                applyServiceFilters();
+                return;
+            }
+            servicesQuery = query(collection(db, 'services'), where('service_code', 'in', assignedCodes));
+        } else {
+            servicesQuery = collection(db, 'services');
+        }
+
+        const listener = onSnapshot(servicesQuery, (snapshot) => {
             allServices = [];
             snapshot.forEach(doc => {
                 allServices.push({ id: doc.id, ...doc.data() });

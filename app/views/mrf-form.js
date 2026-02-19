@@ -366,8 +366,23 @@ function loadServices() {
 
     try {
         const servicesRef = collection(db, 'services');
-        // CRITICAL: services use boolean active field, NOT status string
-        const q = query(servicesRef, where('active', '==', true));
+
+        // ASSIGN-04: services_user may only read their assigned services.
+        // An unscoped query would include docs they're not assigned to, which
+        // Firestore's per-document list rule denies for the entire query.
+        const assignedCodes = window.getAssignedServiceCodes?.();
+        let q;
+        if (assignedCodes !== null) {
+            // services_user: scope by assignment; active filtered client-side below
+            if (assignedCodes.length === 0) {
+                serviceSelect.innerHTML = '<option value="" disabled>No services assigned -- contact your admin</option>';
+                return;
+            }
+            q = query(servicesRef, where('service_code', 'in', assignedCodes));
+        } else {
+            // All other roles: active filter in query (no per-document rule restriction)
+            q = query(servicesRef, where('active', '==', true));
+        }
 
         servicesListener = onSnapshot(q, (snapshot) => {
             cachedServices = [];
@@ -403,10 +418,11 @@ function populateServiceDropdown() {
     if (!serviceSelect) return;
 
     // Filter to assigned services for services_user; services_admin gets null (no filter)
+    // Also enforce active=true for services_user (their query doesn't include that filter)
     const assignedCodes = window.getAssignedServiceCodes?.();
     let services = cachedServices;
     if (assignedCodes !== null) {
-        services = cachedServices.filter(s => assignedCodes.includes(s.service_code));
+        services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
     }
 
     serviceSelect.innerHTML = '<option value="">-- Select a service --</option>';
