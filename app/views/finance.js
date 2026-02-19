@@ -716,7 +716,16 @@ export function render(activeTab = 'approvals') {
                 <div class="card">
                     <div class="card-header">
                         <h2>Recently Generated Purchase Orders</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="deptFilterPOs"
+                                    onchange="window.applyFinanceDeptFilter(this.value)"
+                                    style="padding:0.35rem 0.6rem;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.875rem;color:#475569;">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
+                        </div>
                     </div>
                     <div id="poList">
                         <div style="text-align: center; padding: 2rem;">Loading purchase orders...</div>
