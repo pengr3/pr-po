@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 31 of 31 (Dashboard Integration) — COMPLETE
+Phase: 32 of 34 (Fix Assignment Rules) — COMPLETE
 Plan: 1 of 1 in current phase
-Status: Phase 31 complete — role-aware dashboard stats with getDashboardMode() branching; services Firestore Security Rules deployed (Phase 26 gap fixed); services roles added to mrfs/prs/pos/transport_requests rules
-Last activity: 2026-02-19 — Completed 31-01: getDashboardMode(), mode-branched loadStats(), stat-group CSS for both-mode; hotfix deployed services collection rules to Firebase (missing since Phase 26)
+Status: Phase 32 complete — Firestore rules updated (services_admin get/list/update on services_user docs); 6 emulator tests passing; production rules deployed; query scoping fix for services_user; edit_history create rule gap closed
+Last activity: 2026-02-19 — Completed 32-01: users collection rules fix, services_user query scoping, edit_history gap, human verification passed
 
-Progress: [██████████████████████████████] 100% (31/31 phases complete — v2.3 milestone done)
+Progress: [████████████████████████████░░] 94% (32/34 gap-closure phases complete)
 
 ## Performance Metrics
 
@@ -96,6 +96,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 31]: getDashboardMode() returns 'both' for cross-dept roles (super_admin/finance/procurement) — unknown roles default to 'both' (safe fallback)
 - [Phase 31]: services Firestore Security Rules never deployed since Phase 26 — root cause of all permission-denied errors on services collection for every role
 - [Phase 31]: services roles (services_admin/services_user) added to mrfs/prs/pos/transport_requests rules — services_admin unrestricted list, services_user scoped via isAssignedToService(resource.data.service_code)
+- [Phase 32]: services_admin update rule uses get().data.role (fresh read) not resource.data.role — prevents bypassing role scope by changing role field in same update; mirrors ops_admin pattern
+- [Phase 32]: services_user Firestore list rule evaluates isAssignedToService() per document — unscoped queries are denied entirely; fix is query-side scoping with where('service_code', 'in', assignedCodes) at call site
+- [Phase 32]: services_admin missing from edit_history create rule — services.js reuses recordEditHistory() writing to projects subcollection; added services_admin to the create condition
 
 ### Pending Todos
 
@@ -108,6 +111,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 31 complete. All 31 phases of v2.3 done. Security rules deployed.
+Stopped at: Completed 32-fix-assignment-rules/32-01-PLAN.md
 Resume file: None
-Next action: /gsd:audit-milestone (v2.3 Services Department Support milestone audit before archiving)
+Next action: Phase 33 — services admin assignment UI (or continue gap closure phases)

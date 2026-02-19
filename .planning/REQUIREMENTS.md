@@ -40,18 +40,18 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **ROLE-03**: services_admin can create, edit, delete services
 - [x] **ROLE-04**: services_admin can manage service assignments
 - [x] **ROLE-05**: services_admin sees all services regardless of assignment
-- [ ] **ROLE-06**: services_user sees only assigned services
+- [x] **ROLE-06**: services_user sees only assigned services
 - [x] **ROLE-07**: Super Admin can configure services_admin and services_user permissions in Settings
 - [x] **ROLE-08**: Super Admin sees both Projects and Services tabs
 - [x] **ROLE-09**: Finance role sees both Projects and Services department work
 - [x] **ROLE-10**: Procurement role sees both Projects and Services department work
-- [ ] **ROLE-11**: Permission changes take effect immediately (real-time updates)
+- [x] **ROLE-11**: Permission changes take effect immediately (real-time updates)
 
 ### Security Rules
 
 - [x] **SEC-01**: Firebase Security Rules enforce services collection access by role
 - [x] **SEC-02**: services_admin can read/write all services
-- [ ] **SEC-03**: services_user can read only assigned services
+- [x] **SEC-03**: services_user can read only assigned services
 - [x] **SEC-04**: services_user cannot write to services collection
 - [x] **SEC-05**: Super Admin bypasses services role checks
 - [x] **SEC-06**: Finance and Procurement can read services for cross-department workflows
@@ -62,10 +62,10 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 - [x] **ASSIGN-01**: services_admin can assign services_user to services via personnel field
 - [x] **ASSIGN-02**: Multi-personnel selection UI with pill display (reuse Projects pattern)
-- [ ] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
-- [ ] **ASSIGN-04**: services_user filtered views show only assigned services
+- [x] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
+- [x] **ASSIGN-04**: services_user filtered views show only assigned services
 - [x] **ASSIGN-05**: User management page allows assigning services_user to specific services
-- [ ] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
+- [x] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
 
 ### MRF Integration
 
@@ -135,15 +135,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROLE-03 | Phase 26 | Complete |
 | ROLE-04 | Phase 26 | Complete |
 | ROLE-05 | Phase 26 | Complete |
-| ROLE-06 | Phase 32 | Pending |
+| ROLE-06 | Phase 32 | Complete |
 | ROLE-07 | Phase 26 | Complete |
 | ROLE-08 | Phase 26 | Complete |
 | ROLE-09 | Phase 26 | Complete |
 | ROLE-10 | Phase 26 | Complete |
-| ROLE-11 | Phase 32 | Pending |
+| ROLE-11 | Phase 32 | Complete |
 | SEC-01 | Phase 26 | Complete |
 | SEC-02 | Phase 26 | Complete |
-| SEC-03 | Phase 32 | Pending |
+| SEC-03 | Phase 32 | Complete |
 | SEC-04 | Phase 26 | Complete |
 | SEC-05 | Phase 26 | Complete |
 | SEC-06 | Phase 26 | Complete |
@@ -171,10 +171,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-08 | Phase 28 | Complete |
 | ASSIGN-01 | Phase 28 | Complete |
 | ASSIGN-02 | Phase 28 | Complete |
-| ASSIGN-03 | Phase 32 | Pending |
-| ASSIGN-04 | Phase 32 | Pending |
+| ASSIGN-03 | Phase 32 | Complete |
+| ASSIGN-04 | Phase 32 | Complete |
 | ASSIGN-05 | Phase 28 | Complete |
-| ASSIGN-06 | Phase 32 | Pending |
+| ASSIGN-06 | Phase 32 | Complete |
 | MRF-01 | Phase 29 | Complete |
 | MRF-02 | Phase 29 | Complete |
 | MRF-03 | Phase 29 | Complete |
