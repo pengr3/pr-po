@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 30 of 31 (Cross-Department Workflows) — COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase 30 complete — department badges + filter dropdowns in Finance (30-01) and Procurement PO Tracking table (30-02); timeline modal uses getMRFLabel() + dept text
-Last activity: 2026-02-18 — Completed 30-02: getDeptBadgeHTML() + activePODeptFilter + applyPODeptFilter added to procurement.js; filter dropdown in MRF Records card header; displayPos pattern for paginated filtering; showProcurementTimeline() uses deptLabel+getMRFLabel()
+Phase: 31 of 31 (Dashboard Integration) — COMPLETE
+Plan: 1 of 1 in current phase
+Status: Phase 31 complete — role-aware dashboard stats with getDashboardMode() branching; services Firestore Security Rules deployed (Phase 26 gap fixed); services roles added to mrfs/prs/pos/transport_requests rules
+Last activity: 2026-02-19 — Completed 31-01: getDashboardMode(), mode-branched loadStats(), stat-group CSS for both-mode; hotfix deployed services collection rules to Firebase (missing since Phase 26)
 
-Progress: [████████████████████░░░░░░░░░░] 80% (25/31 phases complete)
+Progress: [██████████████████████████████] 100% (31/31 phases complete — v2.3 milestone done)
 
 ## Performance Metrics
 
@@ -93,6 +93,9 @@ Recent decisions affecting v2.3 work:
 - 30-02: displayPos pattern — derive filtered array from function param AFTER scoreboard calculation; scoreboards always show global totals from full pos array
 - 30-02: getDeptBadgeHTML() uses same dual-condition as getMRFLabel() to handle legacy docs without department field
 - 30-02: Fixed pre-existing missing window. prefix on viewPODetails PO row link (Rule 1 auto-fix)
+- [Phase 31]: getDashboardMode() returns 'both' for cross-dept roles (super_admin/finance/procurement) — unknown roles default to 'both' (safe fallback)
+- [Phase 31]: services Firestore Security Rules never deployed since Phase 26 — root cause of all permission-denied errors on services collection for every role
+- [Phase 31]: services roles (services_admin/services_user) added to mrfs/prs/pos/transport_requests rules — services_admin unrestricted list, services_user scoped via isAssignedToService(resource.data.service_code)
 
 ### Pending Todos
 
@@ -104,7 +107,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Completed 30-02-PLAN.md (Phase 30 Plan 02 — Department badges and filter for Procurement PO Tracking)
+Last session: 2026-02-19
+Stopped at: Phase 31 complete. All 31 phases of v2.3 done. Security rules deployed.
 Resume file: None
-Next action: /gsd:execute-phase 31 (next phase per ROADMAP.md)
+Next action: /gsd:audit-milestone (v2.3 Services Department Support milestone audit before archiving)
