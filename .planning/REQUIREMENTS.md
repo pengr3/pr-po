@@ -19,7 +19,7 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **SERV-08**: Admin can search services by service code or name
 - [x] **SERV-09**: Service has same fields as Projects (budget, contract_cost, personnel, internal_status, project_status, active/inactive)
 - [x] **SERV-10**: Service detail page shows comprehensive information with card-based layout
-- [x] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
+- [ ] **SERV-11**: Service detail page includes expense breakdown (MRFs/PRs/POs linked to service)
 - [x] **SERV-12**: Active/inactive flag controls whether service appears in MRF dropdown
 
 ### Services Tab UI
@@ -40,18 +40,18 @@ Requirements for Services department integration. Each maps to roadmap phases.
 - [x] **ROLE-03**: services_admin can create, edit, delete services
 - [x] **ROLE-04**: services_admin can manage service assignments
 - [x] **ROLE-05**: services_admin sees all services regardless of assignment
-- [x] **ROLE-06**: services_user sees only assigned services
+- [ ] **ROLE-06**: services_user sees only assigned services
 - [x] **ROLE-07**: Super Admin can configure services_admin and services_user permissions in Settings
 - [x] **ROLE-08**: Super Admin sees both Projects and Services tabs
 - [x] **ROLE-09**: Finance role sees both Projects and Services department work
 - [x] **ROLE-10**: Procurement role sees both Projects and Services department work
-- [x] **ROLE-11**: Permission changes take effect immediately (real-time updates)
+- [ ] **ROLE-11**: Permission changes take effect immediately (real-time updates)
 
 ### Security Rules
 
 - [x] **SEC-01**: Firebase Security Rules enforce services collection access by role
 - [x] **SEC-02**: services_admin can read/write all services
-- [x] **SEC-03**: services_user can read only assigned services
+- [ ] **SEC-03**: services_user can read only assigned services
 - [x] **SEC-04**: services_user cannot write to services collection
 - [x] **SEC-05**: Super Admin bypasses services role checks
 - [x] **SEC-06**: Finance and Procurement can read services for cross-department workflows
@@ -62,10 +62,10 @@ Requirements for Services department integration. Each maps to roadmap phases.
 
 - [x] **ASSIGN-01**: services_admin can assign services_user to services via personnel field
 - [x] **ASSIGN-02**: Multi-personnel selection UI with pill display (reuse Projects pattern)
-- [x] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
-- [x] **ASSIGN-04**: services_user filtered views show only assigned services
+- [ ] **ASSIGN-03**: Personnel changes automatically sync to user's assigned_service_codes array
+- [ ] **ASSIGN-04**: services_user filtered views show only assigned services
 - [x] **ASSIGN-05**: User management page allows assigning services_user to specific services
-- [x] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
+- [ ] **ASSIGN-06**: Assignment changes propagate via real-time listeners (no logout required)
 
 ### MRF Integration
 
@@ -83,12 +83,12 @@ Requirements for Services department integration. Each maps to roadmap phases.
 ### Cross-Department Workflows
 
 - [x] **CROSS-01**: Finance Pending Approvals shows PRs/TRs from both Projects and Services
-- [ ] **CROSS-02**: Procurement PO Tracking shows POs from both Projects and Services
+- [x] **CROSS-02**: Procurement PO Tracking shows POs from both Projects and Services
 - [x] **CROSS-03**: Department badge/indicator visible in Finance and Procurement lists
 - [x] **CROSS-04**: Optional department filter dropdown in Finance and Procurement views
 - [x] **CROSS-05**: PR generation works for Services-linked MRFs
 - [x] **CROSS-06**: PO creation works for Services-linked PRs
-- [ ] **CROSS-07**: Timeline audit trail shows department context
+- [x] **CROSS-07**: Timeline audit trail shows department context
 
 ### Dashboard Integration
 
@@ -135,20 +135,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ROLE-03 | Phase 26 | Complete |
 | ROLE-04 | Phase 26 | Complete |
 | ROLE-05 | Phase 26 | Complete |
-| ROLE-06 | Phase 26 | Complete |
+| ROLE-06 | Phase 32 | Pending |
 | ROLE-07 | Phase 26 | Complete |
 | ROLE-08 | Phase 26 | Complete |
 | ROLE-09 | Phase 26 | Complete |
 | ROLE-10 | Phase 26 | Complete |
-| ROLE-11 | Phase 26 | Complete |
+| ROLE-11 | Phase 32 | Pending |
 | SEC-01 | Phase 26 | Complete |
 | SEC-02 | Phase 26 | Complete |
-| SEC-03 | Phase 26 | Complete |
+| SEC-03 | Phase 32 | Pending |
 | SEC-04 | Phase 26 | Complete |
 | SEC-05 | Phase 26 | Complete |
 | SEC-06 | Phase 26 | Complete |
 | SEC-07 | Phase 26 | Complete |
-| SEC-08 | Phase 29 | Pending |
+| SEC-08 | Phase 34 | Pending |
 | SERV-02 | Phase 27 | Complete |
 | SERV-01 | Phase 28 | Complete |
 | SERV-03 | Phase 28 | Complete |
@@ -159,7 +159,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SERV-08 | Phase 28 | Complete |
 | SERV-09 | Phase 28 | Complete |
 | SERV-10 | Phase 28 | Complete |
-| SERV-11 | Phase 28 | Complete |
+| SERV-11 | Phase 33 | Pending |
 | SERV-12 | Phase 28 | Complete |
 | UI-01 | Phase 28 | Complete |
 | UI-02 | Phase 28 | Complete |
@@ -171,10 +171,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-08 | Phase 28 | Complete |
 | ASSIGN-01 | Phase 28 | Complete |
 | ASSIGN-02 | Phase 28 | Complete |
-| ASSIGN-03 | Phase 28 | Complete |
-| ASSIGN-04 | Phase 28 | Complete |
+| ASSIGN-03 | Phase 32 | Pending |
+| ASSIGN-04 | Phase 32 | Pending |
 | ASSIGN-05 | Phase 28 | Complete |
-| ASSIGN-06 | Phase 28 | Complete |
+| ASSIGN-06 | Phase 32 | Pending |
 | MRF-01 | Phase 29 | Complete |
 | MRF-02 | Phase 29 | Complete |
 | MRF-03 | Phase 29 | Complete |
@@ -186,21 +186,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRF-09 | Phase 29 | Complete |
 | MRF-10 | Phase 29 | Complete |
 | CROSS-01 | Phase 30 | Complete |
-| CROSS-02 | Phase 30 | Pending |
+| CROSS-02 | Phase 30 | Complete |
 | CROSS-03 | Phase 30 | Complete |
 | CROSS-04 | Phase 30 | Complete |
 | CROSS-05 | Phase 30 | Complete |
 | CROSS-06 | Phase 30 | Complete |
-| CROSS-07 | Phase 30 | Pending |
-| DASH-01 | Phase 31 | Pending |
-| DASH-02 | Phase 31 | Pending |
-| DASH-03 | Phase 31 | Pending |
+| CROSS-07 | Phase 30 | Complete |
+| DASH-01 | Phase 34 | Pending |
+| DASH-02 | Phase 34 | Pending |
+| DASH-03 | Deferred to v2.4+ | N/A |
 
 **Coverage:**
-- v2.3 requirements: 54 total
-- Mapped to phases: 54/54 (100%)
+- v2.3 requirements: 65 total (54 original + CROSS-01-07, DASH-01-03, SEC-08 added during v2.3)
+- Mapped to phases: 65/65 (100%)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-12*
-*Last updated: 2026-02-12 after roadmap creation (6 phases, 100% coverage)*
+*Last updated: 2026-02-19 after gap closure phases 32-34 added (audit gaps addressed)*

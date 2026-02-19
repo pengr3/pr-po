@@ -6,7 +6,7 @@
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
 - ✅ **v2.2 Workflow & UX Enhancements** - Phases 15-25 (shipped 2026-02-10)
-- 🚧 **v2.3 Services Department Support** - Phases 26-31 (in progress)
+- 🚧 **v2.3 Services Department Support** - Phases 26-34 (in progress)
 
 ## Phases
 
@@ -352,10 +352,59 @@ Plans:
 Plans:
 - [ ] 31-01-PLAN.md — home.js role-aware stats (getDashboardMode, loadStats branching, both-mode group labels) + hero.css stat-group CSS (Wave 1)
 
+#### Phase 32: Fix Firestore Assignment Rules
+**Goal**: Add services_admin to users update rule so assignment sync writes succeed and all dependent requirements are satisfied
+**Depends on**: Phase 31
+**Requirements**: ASSIGN-03, ASSIGN-04, ASSIGN-06, ROLE-06, ROLE-11, SEC-03
+**Gap Closure**: Closes P0 gap from audit — root cause of 6 cascading unsatisfied requirements
+**Success Criteria** (what must be TRUE):
+  1. services_admin can write assigned_service_codes to services_user documents via updateDoc
+  2. syncServicePersonnelToAssignments() completes without Firestore permission-denied error
+  3. services_user's assigned_service_codes array is populated after services_admin assigns them via personnel field
+  4. getAssignedServiceCodes() returns the correct codes for services_user (non-empty)
+  5. services_user sees only assigned services in the filtered list view
+  6. assignmentsChanged event fires and real-time propagation works for service assignments
+**Plans**: 1 plan
+
+Plans:
+- [ ] 32-01-PLAN.md — firestore.rules: add services_admin to users update rule + services_admin get permission for user docs + deploy rules
+
+#### Phase 33: Service Expense Breakdown
+**Goal**: Replace stub in service-detail.js with real aggregation query showing MRFs/PRs/POs linked to service
+**Depends on**: Phase 32
+**Requirements**: SERV-11
+**Gap Closure**: Closes SERV-11 audit gap — stub message left from Phase 28, Phase 29 data exists but was never wired
+**Success Criteria** (what must be TRUE):
+  1. service-detail.js queries mrfs, prs, and pos filtered by service_code
+  2. Expense breakdown card shows total MRF value, PR value, and PO value linked to service
+  3. Expense breakdown mirrors Projects expense breakdown pattern
+  4. Static stub message "Expense tracking requires MRF-Service integration" is replaced
+**Plans**: 1 plan
+
+Plans:
+- [ ] 33-01-PLAN.md — service-detail.js: aggregation query (mrfs/prs/pos by service_code) + expense breakdown render replacing static stub
+
+#### Phase 34: Documentation & Minor Fixes
+**Goal**: Phase 31 verification, REQUIREMENTS.md cleanup, and Finance PO department filter gap
+**Depends on**: Phase 33
+**Requirements**: DASH-01, DASH-02, SEC-08 (formal verification), DASH-03 (traceability cleanup)
+**Gap Closure**: Closes documentation gaps from audit — Phase 31 missing VERIFICATION.md, unchecked checkboxes, coverage count discrepancy, Finance PO filter gap
+**Success Criteria** (what must be TRUE):
+  1. Phase 31 VERIFICATION.md exists and confirms DASH-01 and DASH-02 are satisfied
+  2. REQUIREMENTS.md checkboxes for DASH-01, DASH-02, SEC-08 are checked [x]
+  3. DASH-03 moved from traceability table to Future Requirements section
+  4. REQUIREMENTS.md coverage count updated to reflect 65 actual requirements
+  5. Finance Pending Approvals PO tab has department filter dropdown (closes CROSS-04 partial gap)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 34-01-PLAN.md — Create 31-VERIFICATION.md + update REQUIREMENTS.md (checkboxes, coverage count, DASH-03 traceability)
+- [ ] 34-02-PLAN.md — finance.js: add department filter dropdown to Purchase Orders tab (Tab 2)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31
+Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 → 33 → 34
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -389,3 +438,6 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31
 | 29. MRF Integration | 3/3 | Complete    | 2026-02-18 | - |
 | 30. Cross-Department Workflows | 2/2 | Complete    | 2026-02-18 | - |
 | 31. Dashboard Integration | v2.3 | 0/1 | Not started | - |
+| 32. Fix Firestore Assignment Rules | v2.3 | 0/1 | Not started | - |
+| 33. Service Expense Breakdown | v2.3 | 0/1 | Not started | - |
+| 34. Documentation & Minor Fixes | v2.3 | 0/2 | Not started | - |
