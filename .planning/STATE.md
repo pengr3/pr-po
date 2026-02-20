@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 34 of 34 (Documentation Minor Fixes) — COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase 34 complete — Plan 01: Phase 31 VERIFICATION.md created (5/5 truths verified, DASH-01/DASH-02 SATISFIED), REQUIREMENTS.md corrected (SEC-08/DASH-01/DASH-02 checked, DASH-03 moved to Future Requirements, traceability corrected to implementing phases); Plan 02: Finance POs department filter dropdown added
-Last activity: 2026-02-19 — Completed 34-01: Phase 31 verification documented, REQUIREMENTS.md gap-closure complete
+Phase: 35 of 35 (For the Gaps Found During Audit for v2.3) — IN PROGRESS
+Plan: 1 of ? in current phase
+Status: Phase 35 plan 01 complete — Service edit history path defect fixed: edit-history.js parameterized with collectionName, all service call sites corrected to 'services', Edit History button added to service-detail.js Card 1 header, Firestore services/edit_history rule deployed
+Last activity: 2026-02-20 — Completed 35-01: SERV-04 and SERV-09 satisfied
 
 Progress: [██████████████████████████████] 100% (34/34 gap-closure phases complete)
 
@@ -108,6 +108,13 @@ Recent decisions affecting v2.3 work:
 - [Phase 34-02]: No new window registrations added — HTML-only gap closure when filter logic pre-exists is the correct pattern
 - [Phase 34-01]: DASH-01/DASH-02 traceability points to Phase 31 (implementing phase), not Phase 34 (verifying phase)
 - [Phase 34-01]: SEC-08 traceability corrected to Phase 29 where department field was added to mrf-form.js, procurement.js, finance.js
+- [Phase 35-01]: edit-history.js collectionName defaults to 'projects' — zero changes at project-detail.js call sites (backward-compatible optional param)
+- [Phase 35-01]: services_user gets read access to services/edit_history — audit trail visibility needed for assigned services, not just admin roles
+- [Phase 35-01]: No data migration for orphaned history at projects/{serviceDocId}/edit_history — low-value testing/development records
+
+### Roadmap Evolution
+
+- Phase 35 added: for the gaps found during audit for v 2.3
 
 ### Pending Todos
 
@@ -119,7 +126,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Completed 34-documentation-minor-fixes/34-02-PLAN.md
+Last session: 2026-02-20
+Stopped at: Completed 35-for-the-gaps-found-during-audit-for-v-2-3/35-01-PLAN.md
 Resume file: None
-Next action: v2.3 milestone complete — all 34 gap-closure phases executed
+Next action: Continue Phase 35 — remaining gap closure plans
