@@ -196,10 +196,11 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted (tracks their MRFs)
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted (tracks their MRFs); services_user service-scoped
       allow list: if isActiveUser() && (
         hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
       // Create: super_admin, operations_admin, procurement
@@ -219,10 +220,11 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted; services_user service-scoped
       allow list: if isActiveUser() && (
         hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
       // Create: super_admin, finance (Finance issues POs after approving PRs)
