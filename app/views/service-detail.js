@@ -6,7 +6,8 @@
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes } from '../utils.js';
-import { recordEditHistory } from '../edit-history.js';
+import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
+import { showServiceExpenseBreakdownModal } from '../expense-modal.js';
 
 let currentService = null;
 let currentServiceDocId = null;
@@ -192,6 +193,8 @@ export async function destroy() {
     delete window.filterDetailServicePersonnelDropdown;
     delete window.showDetailServicePersonnelDropdown;
     delete window.refreshServiceExpense;
+    delete window.showServiceExpenseModal;
+    delete window.showEditHistory;
 
     console.log('[ServiceDetail] View destroyed');
 }
@@ -285,6 +288,9 @@ function renderServiceDetail() {
                             <h3 style="margin: 0 0 0.25rem 0; font-size: 1.125rem; font-weight: 600;">Service Information</h3>
                             <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentService.created_at)}${currentService.updated_at ? ' | Updated: ' + formatDate(currentService.updated_at) : ''}</p>
                         </div>
+                        <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space: nowrap; padding: 0.4rem 0.75rem; font-size: 0.8rem;">
+                            Edit History
+                        </button>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
@@ -359,13 +365,14 @@ function renderServiceDetail() {
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Expense</label>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem;">
+                                <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem; cursor: pointer;"
+                                     onclick="window.showServiceExpenseModal()">
                                     ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal) : '—'}
                                 </div>
                                 <button class="btn btn-sm btn-secondary" onclick="window.refreshServiceExpense()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🔄 Refresh</button>
                             </div>
                             <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
-                                ${currentServiceExpense.mrfCount} MRF${currentServiceExpense.mrfCount !== 1 ? 's' : ''} linked · ${currentServiceExpense.prCount} PR${currentServiceExpense.prCount !== 1 ? 's' : ''} · ${currentServiceExpense.poCount} PO${currentServiceExpense.poCount !== 1 ? 's' : ''}
+                                Click amount to view breakdown
                             </div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
@@ -538,7 +545,7 @@ async function selectDetailServicePersonnel(userId, userName) {
         // Record edit history (fire-and-forget)
         recordEditHistory(currentServiceDocId, 'personnel_add', [
             { field: 'personnel', old_value: null, new_value: userName }
-        ]).catch(err => console.error('[EditHistory] selectDetailServicePersonnel failed:', err));
+        ], 'services').catch(err => console.error('[EditHistory] selectDetailServicePersonnel failed:', err));
 
         // Sync assignments (fire-and-forget)
         syncServicePersonnelToAssignments(currentService.service_code, previousUserIds, newUserIds)
@@ -593,7 +600,7 @@ async function removeDetailServicePersonnel(userId, userName) {
         // Record edit history (fire-and-forget)
         recordEditHistory(currentServiceDocId, 'personnel_remove', [
             { field: 'personnel', old_value: userName || userId, new_value: null }
-        ]).catch(err => console.error('[EditHistory] removeDetailServicePersonnel failed:', err));
+        ], 'services').catch(err => console.error('[EditHistory] removeDetailServicePersonnel failed:', err));
 
         // Sync assignments (fire-and-forget)
         syncServicePersonnelToAssignments(currentService.service_code, previousUserIds, newUserIds)
@@ -669,7 +676,7 @@ async function saveServiceField(fieldName, newValue) {
         // Record edit history (fire-and-forget)
         recordEditHistory(currentServiceDocId, 'update', [
             { field: fieldName, old_value: oldValue ?? null, new_value: valueToSave }
-        ]).catch(err => console.error('[EditHistory] saveServiceField failed:', err));
+        ], 'services').catch(err => console.error('[EditHistory] saveServiceField failed:', err));
 
         currentService = { ...currentService, [fieldName]: valueToSave };
         console.log('[ServiceDetail] Saved', fieldName);
@@ -703,7 +710,7 @@ async function toggleServiceDetailActive(newValue) {
         // Record edit history (fire-and-forget)
         recordEditHistory(currentServiceDocId, 'toggle_active', [
             { field: 'active', old_value: !newValue, new_value: newValue }
-        ]).catch(err => console.error('[EditHistory] toggleServiceDetailActive failed:', err));
+        ], 'services').catch(err => console.error('[EditHistory] toggleServiceDetailActive failed:', err));
 
         showToast(`Service ${newValue ? 'activated' : 'deactivated'}`, 'success');
         console.log('[ServiceDetail] Active status updated to:', newValue);
@@ -805,6 +812,10 @@ function attachWindowFunctions() {
     window.filterDetailServicePersonnelDropdown = filterDetailServicePersonnelDropdown;
     window.showDetailServicePersonnelDropdown = showDetailServicePersonnelDropdown;
     window.refreshServiceExpense = refreshServiceExpense;
+    window.showServiceExpenseModal = () => currentService &&
+        showServiceExpenseBreakdownModal(currentService.service_code, currentService.service_name, currentService.budget);
+    window.showEditHistory = () => currentService && currentServiceDocId &&
+        showEditHistoryModal(currentServiceDocId, currentService.service_code, 'services');
 }
 
 console.log('[ServiceDetail] Module loaded');
