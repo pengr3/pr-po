@@ -340,7 +340,7 @@ service cloud.firestore {
       // edit_history subcollection — append-only audit trail for service edits
       match /edit_history/{entryId} {
         allow read: if hasRole(['super_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
-        allow create: if hasRole(['super_admin', 'services_admin']);
+        allow create: if hasRole(['super_admin', 'services_admin', 'services_user']);
         allow update: if false;
         allow delete: if false;
       }
