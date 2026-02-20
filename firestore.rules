@@ -330,8 +330,9 @@ service cloud.firestore {
       // Create: super_admin and services_admin only (SEC-04: services_user CANNOT write)
       allow create: if hasRole(['super_admin', 'services_admin']);
 
-      // Update: super_admin and services_admin only
-      allow update: if hasRole(['super_admin', 'services_admin']);
+      // Update: super_admin and services_admin unrestricted; services_user scoped to assigned services
+      allow update: if hasRole(['super_admin', 'services_admin']) ||
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
 
       // Delete: super_admin and services_admin only
       allow delete: if hasRole(['super_admin', 'services_admin']);

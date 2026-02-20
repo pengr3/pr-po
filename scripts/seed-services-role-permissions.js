@@ -38,7 +38,7 @@
         },
         services_user: {
             'tabs.services.access': true,
-            'tabs.services.edit': false,
+            'tabs.services.edit': true,
             'tabs.projects.access': false,
             'tabs.projects.edit': false
         },
@@ -52,7 +52,7 @@
         },
         super_admin: {
             'tabs.services.access': true,
-            'tabs.services.edit': false
+            'tabs.services.edit': true
         },
         finance_staff: {
             'tabs.services.access': true,

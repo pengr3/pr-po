@@ -655,7 +655,7 @@ async function saveServiceField(fieldName, newValue) {
     }
     // Role check: matches Firestore services update rule (prevents misleading permission-denied errors)
     const _saveUser = window.getCurrentUser?.();
-    if (!['super_admin', 'services_admin'].includes(_saveUser?.role)) {
+    if (!['super_admin', 'services_admin', 'services_user'].includes(_saveUser?.role)) {
         showToast('Your role does not permit editing services', 'error');
         return false;
     }
@@ -730,7 +730,7 @@ async function toggleServiceDetailActive(newValue) {
     }
     // Role check: matches Firestore services update rule
     const _toggleUser = window.getCurrentUser?.();
-    if (!['super_admin', 'services_admin'].includes(_toggleUser?.role)) {
+    if (!['super_admin', 'services_admin', 'services_user'].includes(_toggleUser?.role)) {
         showToast('Your role does not permit editing services', 'error');
         return;
     }
