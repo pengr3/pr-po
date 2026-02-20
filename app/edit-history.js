@@ -84,10 +84,10 @@ function getActionLabel(action) {
  * @param {string} action - One of: 'create', 'update', 'toggle_active', 'personnel_add', 'personnel_remove'
  * @param {Array<{field: string, old_value: *, new_value: *}>} changes - Array of field changes
  */
-export async function recordEditHistory(projectDocId, action, changes) {
+export async function recordEditHistory(projectDocId, action, changes, collectionName = 'projects') {
     try {
         const user = window.getCurrentUser?.();
-        const historyRef = collection(db, 'projects', projectDocId, 'edit_history');
+        const historyRef = collection(db, collectionName, projectDocId, 'edit_history');
         await addDoc(historyRef, {
             timestamp: new Date().toISOString(),
             user_id: user?.uid || 'unknown',
@@ -112,11 +112,11 @@ export async function recordEditHistory(projectDocId, action, changes) {
  * @param {string} projectDocId - Firestore document ID of the project
  * @param {string} projectCode - Project code for display in modal header
  */
-export async function showEditHistoryModal(projectDocId, projectCode) {
+export async function showEditHistoryModal(projectDocId, projectCode, collectionName = 'projects') {
     showLoading(true);
 
     try {
-        const historyRef = collection(db, 'projects', projectDocId, 'edit_history');
+        const historyRef = collection(db, collectionName, projectDocId, 'edit_history');
         const q = query(historyRef, orderBy('timestamp', 'desc'));
         const snapshot = await getDocs(q);
 
