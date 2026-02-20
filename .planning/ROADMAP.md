@@ -401,21 +401,25 @@ Plans:
 - [ ] 34-01-PLAN.md — Create 31-VERIFICATION.md + update REQUIREMENTS.md (checkboxes, coverage count, DASH-03 traceability)
 - [ ] 34-02-PLAN.md — finance.js: add department filter dropdown to Purchase Orders tab (Tab 2)
 
-#### Phase 35: Fix Service Edit History Path Defect (v2.3 Tech Debt)
-**Goal**: Fix the service edit history path defect — edit-history.js gains optional collectionName parameter, service-detail.js gains Edit History button and corrected call sites, services.js call sites corrected, and Firestore security rule added for services/edit_history subcollection
+#### Phase 35: Fix Service Edit History Path Defect + UAT Gap Closure (v2.3 Tech Debt)
+**Goal**: Fix the service edit history path defect (plan 01) and close UAT-identified gaps: services_user permission guard race condition and missing prs/pos Firestore list rules for services_user
 **Depends on**: Phase 34
 **Requirements**: SERV-04, SERV-09
-**Gap Closure**: Closes tech debt from v2.3 audit — edit-history.js hardcodes 'projects' collection name, silently writing service audit trail to wrong path
+**Gap Closure**: Plan 01 closes edit history path defect. Plans 02-03 close UAT-identified gaps: services_user sees edit controls (race condition) and 403 on expense aggregation (missing Firestore rules)
 **Success Criteria** (what must be TRUE):
   1. All service edit operations write audit entries to services/{docId}/edit_history (not projects/)
   2. Edit History button visible in service detail Card 1 header
   3. Edit History modal opens and displays entries scoped to the correct service
   4. All project edit history calls remain unchanged and continue to work
   5. Firestore security rule for services/edit_history subcollection deployed to production
-**Plans**: 1 plan
+  6. services_user sees service detail in read-only mode from first render (no edit control flash)
+  7. services_user can view expense breakdown without 403 Forbidden errors in console
+**Plans**: 3 plans
 
 Plans:
 - [ ] 35-01-PLAN.md — edit-history.js collectionName param + service-detail.js Edit History button/call sites + services.js call sites + firestore.rules subcollection rule + deploy
+- [ ] 35-02-PLAN.md — service-detail.js: fix canEdit === true guard + saveServiceField !== true guard + canReadTab defense in refreshServiceExpense()
+- [ ] 35-03-PLAN.md — firestore.rules: add services_user branch to prs list rule + pos list rule + deploy
 
 ## Progress
 
@@ -457,4 +461,4 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 | 32. Fix Firestore Assignment Rules | 1/1 | Complete    | 2026-02-19 | - |
 | 33. Service Expense Breakdown | 1/1 | Complete    | 2026-02-19 | - |
 | 34. Documentation & Minor Fixes | 2/2 | Complete    | 2026-02-19 | - |
-| 35. Fix Service Edit History Path Defect | 1/1 | Complete    | 2026-02-20 | - |
+| 35. Fix Service Edit History + UAT Gap Closure | 1/3 | In Progress | 2026-02-20 | - |
