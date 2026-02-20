@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 35 of 35 (For the Gaps Found During Audit for v2.3) — IN PROGRESS
-Plan: 2 of ? in current phase
-Status: Phase 35 plan 02 complete — Permission guard race condition fixed: canEdit === true in renderServiceDetail, canEditTab !== true in saveServiceField and toggleServiceDetailActive, hasTabAccess defense-in-depth guard in refreshServiceExpense
-Last activity: 2026-02-20 — Completed 35-02: SERV-04 satisfied (permission guard tightened)
+Phase: 35 of 35 (For the Gaps Found During Audit for v2.3) — COMPLETE
+Plan: 3 of 3 in current phase
+Status: Phase 35 plan 03 complete — services_user service-scoped list branch added to prs and pos Firestore rules; all 4 cross-department collections now consistent; rules deployed to production
+Last activity: 2026-02-20 — Completed 35-03: Firestore rules prs/pos services_user access gap closed
 
 Progress: [██████████████████████████████] 100% (34/34 gap-closure phases complete)
 
@@ -50,6 +50,7 @@ Progress: [███████████████████████
 | Phase 30-cross-department-workflows P01 | 2 | 2 tasks | 1 files |
 | Phase 30-cross-department-workflows P02 | 3 | 2 tasks | 1 files |
 | Phase 34-documentation-minor-fixes P01 | 15 | 2 tasks | 2 files |
+| Phase 35-for-the-gaps-found-during-audit-for-v-2-3 P03 | 8 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,7 @@ Recent decisions affecting v2.3 work:
 - [Phase 35-02]: canEdit === true in renderServiceDetail treats permission loading (undefined) as read-only — eliminates flash of edit controls for services_user
 - [Phase 35-02]: canEditTab !== true in saveServiceField/toggleServiceDetailActive blocks Firestore writes during permission load race (undefined state = blocked)
 - [Phase 35-02]: hasTabAccess === false (not !== true) in refreshServiceExpense — services_user has read access (true), so !== true would incorrectly block them; only explicit false skips aggregation
+- [Phase 35-for-the-gaps-found-during-audit-for-v-2-3]: services_user prs/pos list rule matches mrfs/transport_requests pattern exactly — intentional consistency across all 4 cross-department procurement collections
 
 ### Roadmap Evolution
 
@@ -130,6 +132,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 35-for-the-gaps-found-during-audit-for-v-2-3/35-02-PLAN.md
+Stopped at: Completed 35-for-the-gaps-found-during-audit-for-v-2-3/35-03-PLAN.md
 Resume file: None
-Next action: Continue Phase 35 — remaining gap closure plans (35-03: Firestore rules for services_user prs/pos access)
+Next action: Phase 35 complete — all v2.3 audit gaps closed (edit history path, permission guard race, services_user prs/pos Firestore access)
