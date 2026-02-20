@@ -120,6 +120,7 @@ Recent decisions affecting v2.3 work:
 ### Roadmap Evolution
 
 - Phase 35 added: for the gaps found during audit for v 2.3
+- Phase 36 added: fix the Expense Breakdown modal in services, export the one we've been using in projects
 
 ### Pending Todos
 
@@ -132,6 +133,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 35-for-the-gaps-found-during-audit-for-v-2-3/35-03-PLAN.md
-Resume file: None
-Next action: Phase 35 complete — all v2.3 audit gaps closed (edit history path, permission guard race, services_user prs/pos Firestore access)
+Stopped at: Phase 36 context gathered
+Resume file: .planning/phases/36-fix-the-expense-breakdown-modal-in-services-export-the-one-we-ve-been-using-in-projects/36-CONTEXT.md
+Next action: /gsd:plan-phase 36
