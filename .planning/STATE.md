@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 35 of 35 (For the Gaps Found During Audit for v2.3) — IN PROGRESS
-Plan: 1 of ? in current phase
-Status: Phase 35 plan 01 complete — Service edit history path defect fixed: edit-history.js parameterized with collectionName, all service call sites corrected to 'services', Edit History button added to service-detail.js Card 1 header, Firestore services/edit_history rule deployed
-Last activity: 2026-02-20 — Completed 35-01: SERV-04 and SERV-09 satisfied
+Plan: 2 of ? in current phase
+Status: Phase 35 plan 02 complete — Permission guard race condition fixed: canEdit === true in renderServiceDetail, canEditTab !== true in saveServiceField and toggleServiceDetailActive, hasTabAccess defense-in-depth guard in refreshServiceExpense
+Last activity: 2026-02-20 — Completed 35-02: SERV-04 satisfied (permission guard tightened)
 
 Progress: [██████████████████████████████] 100% (34/34 gap-closure phases complete)
 
@@ -111,6 +111,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 35-01]: edit-history.js collectionName defaults to 'projects' — zero changes at project-detail.js call sites (backward-compatible optional param)
 - [Phase 35-01]: services_user gets read access to services/edit_history — audit trail visibility needed for assigned services, not just admin roles
 - [Phase 35-01]: No data migration for orphaned history at projects/{serviceDocId}/edit_history — low-value testing/development records
+- [Phase 35-02]: canEdit === true in renderServiceDetail treats permission loading (undefined) as read-only — eliminates flash of edit controls for services_user
+- [Phase 35-02]: canEditTab !== true in saveServiceField/toggleServiceDetailActive blocks Firestore writes during permission load race (undefined state = blocked)
+- [Phase 35-02]: hasTabAccess === false (not !== true) in refreshServiceExpense — services_user has read access (true), so !== true would incorrectly block them; only explicit false skips aggregation
 
 ### Roadmap Evolution
 
@@ -127,6 +130,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 35-for-the-gaps-found-during-audit-for-v-2-3/35-01-PLAN.md
+Stopped at: Completed 35-for-the-gaps-found-during-audit-for-v-2-3/35-02-PLAN.md
 Resume file: None
-Next action: Continue Phase 35 — remaining gap closure plans
+Next action: Continue Phase 35 — remaining gap closure plans (35-03: Firestore rules for services_user prs/pos access)
