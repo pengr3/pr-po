@@ -247,7 +247,7 @@ function renderServiceDetail() {
     if (!container || !currentService) return;
 
     const canEdit = window.canEditTab?.('services');
-    const showEditControls = canEdit !== false;
+    const showEditControls = canEdit === true;
 
     // Personnel editing restricted to super_admin and services_admin only
     const user = window.getCurrentUser?.();
@@ -621,7 +621,7 @@ async function removeDetailServicePersonnel(userId, userName) {
 // Save field — inline edit handler
 async function saveServiceField(fieldName, newValue) {
     // Guard: check edit permission
-    if (window.canEditTab?.('services') === false) {
+    if (window.canEditTab?.('services') !== true) {
         showToast('You do not have permission to edit services', 'error');
         return false;
     }
@@ -690,7 +690,7 @@ async function saveServiceField(fieldName, newValue) {
 
 // Toggle active status
 async function toggleServiceDetailActive(newValue) {
-    if (window.canEditTab?.('services') === false) {
+    if (window.canEditTab?.('services') !== true) {
         showToast('You do not have permission to edit services', 'error');
         return;
     }
