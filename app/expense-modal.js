@@ -334,4 +334,144 @@ window._toggleExpenseCategory = function(headerEl) {
     }
 };
 
+/**
+ * Show expense breakdown modal for a service
+ * Mirrors project expense modal visual structure — Budget row, scorecards, total, collapsible sections
+ * @param {string} serviceCode - The service_code to query by
+ * @param {string} serviceName - Display name for the modal header
+ * @param {number} budget - Service budget amount
+ */
+export async function showServiceExpenseBreakdownModal(serviceCode, serviceName, budget) {
+    const existingModal = document.getElementById('serviceExpenseBreakdownModal');
+    if (existingModal) existingModal.remove();
+
+    // Fetch PRs and POs linked to this service
+    const [prsSnap, posSnap] = await Promise.all([
+        getDocs(query(collection(db, 'prs'), where('service_code', '==', serviceCode))),
+        getDocs(query(collection(db, 'pos'), where('service_code', '==', serviceCode)))
+    ]);
+
+    const prs = prsSnap.docs.map(d => d.data());
+    const pos = posSnap.docs.map(d => d.data());
+
+    const prTotal = prs.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
+    const poTotal = pos.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
+    const totalCost = poTotal;
+    const budgetNum = parseFloat(budget || 0);
+    const remaining = budgetNum - totalCost;
+
+    // PR collapsible section — same category-card pattern as project modal
+    const prHTML = prs.length > 0
+        ? `<div class="category-card collapsible">
+            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="category-toggle">▶</span>
+                    <span class="category-name">Purchase Requests</span>
+                </div>
+                <span class="category-amount">${formatCurrency(prTotal)}</span>
+            </div>
+            <div class="category-items" style="display: none;">
+                <table class="modal-items-table">
+                    <thead><tr><th>PR ID</th><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
+                    <tbody>
+                        ${prs.map(p => `
+                            <tr>
+                                <td>${p.pr_id}</td>
+                                <td>${p.supplier_name || '—'}</td>
+                                <td style="text-align: right;">${formatCurrency(parseFloat(p.total_amount || 0))}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`
+        : '<p style="color: #64748b; text-align: center; padding: 1rem;">No PRs linked to this service.</p>';
+
+    // PO collapsible section — same category-card pattern as project modal
+    const poHTML = pos.length > 0
+        ? `<div class="category-card collapsible">
+            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="category-toggle">▶</span>
+                    <span class="category-name">Purchase Orders</span>
+                </div>
+                <span class="category-amount">${formatCurrency(poTotal)}</span>
+            </div>
+            <div class="category-items" style="display: none;">
+                <table class="modal-items-table">
+                    <thead><tr><th>PO ID</th><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
+                    <tbody>
+                        ${pos.map(p => `
+                            <tr>
+                                <td>${p.po_id}</td>
+                                <td>${p.supplier_name || '—'}</td>
+                                <td style="text-align: right;">${formatCurrency(parseFloat(p.total_amount || 0))}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`
+        : '<p style="color: #64748b; text-align: center; padding: 1rem;">No POs linked to this service.</p>';
+
+    const modalHTML = `
+        <div id="serviceExpenseBreakdownModal" class="modal active">
+            <div class="modal-content" style="max-width: 900px;">
+                <div class="modal-header">
+                    <h3>Expense Breakdown: ${serviceName}</h3>
+                    <button class="modal-close" onclick="window._closeServiceExpenseBreakdownModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Budget Row -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px;">
+                            <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Service Budget</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">₱${formatCurrency(budgetNum)}</div>
+                        </div>
+                        <div style="background: ${remaining >= 0 ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${remaining >= 0 ? '#22c55e' : '#ef4444'}; padding: 1rem; border-radius: 8px;">
+                            <div style="font-size: 0.875rem; color: ${remaining >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 0.5rem;">Remaining Budget</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: ${remaining >= 0 ? '#166534' : '#991b1b'};">
+                                ${remaining < 0 ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(remaining))}${remaining < 0 ? ' over' : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scorecards: PR Total + PO Total -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">PR Total</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(prTotal)}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${prs.length} PRs</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">PO Total</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(poTotal)}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${pos.length} POs</div>
+                        </div>
+                    </div>
+
+                    <!-- Total Cost -->
+                    <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+                        <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Service Cost</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">₱${formatCurrency(totalCost)}</div>
+                        <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">${prs.length + pos.length} documents</div>
+                    </div>
+
+                    <!-- PRs and POs — collapsible sections, no tabs -->
+                    ${prHTML}
+                    <div style="margin-top: 1rem;"></div>
+                    ${poHTML}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+window._closeServiceExpenseBreakdownModal = function() {
+    const modal = document.getElementById('serviceExpenseBreakdownModal');
+    if (modal) modal.remove();
+};
+
 console.log('Expense modal module loaded successfully');

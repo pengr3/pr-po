@@ -105,48 +105,76 @@ export async function init(activeTab = null, param = null) {
         return;
     }
 
-    // Load active users for personnel datalist
-    const usersQuery = query(collection(db, 'users'), where('status', '==', 'active'));
-    usersListenerUnsub = onSnapshot(usersQuery, (snapshot) => {
-        usersData = [];
-        snapshot.forEach(d => {
-            const data = d.data();
-            usersData.push({
-                id: d.id,
-                full_name: data.full_name || '',
-                email: data.email || ''
-            });
-        });
-        usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
-    });
+    // Load active users for personnel datalist — only needed for admin roles that can edit personnel
+    const currentUser = window.getCurrentUser?.();
+    if (currentUser?.role === 'services_admin' || currentUser?.role === 'super_admin') {
+        const usersQuery = query(collection(db, 'users'), where('status', '==', 'active'));
+        usersListenerUnsub = onSnapshot(usersQuery,
+            (snapshot) => {
+                usersData = [];
+                snapshot.forEach(d => {
+                    const data = d.data();
+                    usersData.push({
+                        id: d.id,
+                        full_name: data.full_name || '',
+                        email: data.email || ''
+                    });
+                });
+                usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
+            },
+            (error) => { console.error('[ServiceDetail] Users listener error:', error.message); }
+        );
+    }
 
     // Find service by service_code field
     const q = query(collection(db, 'services'), where('service_code', '==', serviceParam));
-    listener = onSnapshot(q, async (snapshot) => {
-        if (snapshot.empty) {
-            document.getElementById('serviceDetailContainer').innerHTML = `
-                <div class="container" style="margin-top: 2rem;">
-                    <div class="card">
-                        <div class="card-body">
-                            <p>Service not found.</p>
-                            <a href="#/services" class="btn btn-primary">Back to Services</a>
+    listener = onSnapshot(q,
+        async (snapshot) => {
+            if (snapshot.empty) {
+                document.getElementById('serviceDetailContainer').innerHTML = `
+                    <div class="container" style="margin-top: 2rem;">
+                        <div class="card">
+                            <div class="card-body">
+                                <p>Service not found.</p>
+                                <a href="#/services" class="btn btn-primary">Back to Services</a>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            return;
+                `;
+                return;
+            }
+
+            const docSnap = snapshot.docs[0];
+            currentServiceDocId = docSnap.id;
+            currentService = { id: docSnap.id, ...docSnap.data() };
+
+            if (!checkServiceAccess()) return;
+
+            await refreshServiceExpense(true);
+            // Note: refreshServiceExpense() calls renderServiceDetail() on success.
+            // On error it catches silently — currentServiceExpense retains last known values.
+        },
+        (error) => {
+            console.error('[ServiceDetail] Services listener error:', error.message);
+            if (error.code === 'permission-denied') {
+                const container = document.getElementById('serviceDetailContainer');
+                if (container) container.innerHTML = `
+                    <div class="container" style="margin-top: 2rem;">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">🔒</div>
+                                    <h3>Access Denied</h3>
+                                    <p>You do not have permission to view this service.</p>
+                                    <a href="#/services" class="btn btn-primary" style="margin-top: 1rem;">Back to Services</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
         }
-
-        const docSnap = snapshot.docs[0];
-        currentServiceDocId = docSnap.id;
-        currentService = { id: docSnap.id, ...docSnap.data() };
-
-        if (!checkServiceAccess()) return;
-
-        await refreshServiceExpense(true);
-        // Note: refreshServiceExpense() calls renderServiceDetail() on success.
-        // On error it catches silently — currentServiceExpense retains last known values.
-    });
+    );
 }
 
 // Cleanup
@@ -625,6 +653,12 @@ async function saveServiceField(fieldName, newValue) {
         showToast('You do not have permission to edit services', 'error');
         return false;
     }
+    // Role check: matches Firestore services update rule (prevents misleading permission-denied errors)
+    const _saveUser = window.getCurrentUser?.();
+    if (!['super_admin', 'services_admin'].includes(_saveUser?.role)) {
+        showToast('Your role does not permit editing services', 'error');
+        return false;
+    }
 
     // Locked fields — never save
     if (['service_code', 'client_id', 'client_code', 'service_type'].includes(fieldName)) {
@@ -692,6 +726,12 @@ async function saveServiceField(fieldName, newValue) {
 async function toggleServiceDetailActive(newValue) {
     if (window.canEditTab?.('services') !== true) {
         showToast('You do not have permission to edit services', 'error');
+        return;
+    }
+    // Role check: matches Firestore services update rule
+    const _toggleUser = window.getCurrentUser?.();
+    if (!['super_admin', 'services_admin'].includes(_toggleUser?.role)) {
+        showToast('Your role does not permit editing services', 'error');
         return;
     }
 
