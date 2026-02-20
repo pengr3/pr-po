@@ -723,7 +723,7 @@ async function addService() {
             ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
             ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
             ...(newUserNames.length > 0 ? [{ field: 'personnel', old_value: null, new_value: newUserNames.join(', ') }] : [])
-        ]).catch(err => console.error('[EditHistory] addService failed:', err));
+        ], 'services').catch(err => console.error('[EditHistory] addService failed:', err));
 
         // Sync personnel to service assignments (fire-and-forget)
         syncServicePersonnelToAssignments(service_code, [], newUserIds)
@@ -1145,7 +1145,7 @@ async function saveServiceEdit() {
         }
         // Only record if something actually changed
         if (editChanges.length > 0) {
-            recordEditHistory(editingService, 'update', editChanges)
+            recordEditHistory(editingService, 'update', editChanges, 'services')
                 .catch(err => console.error('[EditHistory] saveServiceEdit failed:', err));
         }
 
@@ -1221,7 +1221,7 @@ async function toggleServiceActive(serviceId, currentStatus) {
         // Record edit history (fire-and-forget)
         recordEditHistory(serviceId, 'toggle_active', [
             { field: 'active', old_value: currentStatus, new_value: !currentStatus }
-        ]).catch(err => console.error('[EditHistory] toggleServiceActive failed:', err));
+        ], 'services').catch(err => console.error('[EditHistory] toggleServiceActive failed:', err));
 
         showToast('Service status updated', 'success');
     } catch (error) {

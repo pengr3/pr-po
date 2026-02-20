@@ -333,6 +333,14 @@ service cloud.firestore {
 
       // Delete: super_admin and services_admin only
       allow delete: if hasRole(['super_admin', 'services_admin']);
+
+      // edit_history subcollection — append-only audit trail for service edits
+      match /edit_history/{entryId} {
+        allow read: if hasRole(['super_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
+        allow create: if hasRole(['super_admin', 'services_admin']);
+        allow update: if false;
+        allow delete: if false;
+      }
     }
   }
 }
