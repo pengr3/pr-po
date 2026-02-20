@@ -336,7 +336,8 @@ window._toggleExpenseCategory = function(headerEl) {
 
 /**
  * Show expense breakdown modal for a service
- * Mirrors project expense modal visual structure — Budget row, scorecards, total, collapsible sections
+ * Mirrors project expense modal visual structure exactly —
+ * Budget row, 3 scorecards, total cost box, tabs with collapsible rows
  * @param {string} serviceCode - The service_code to query by
  * @param {string} serviceName - Display name for the modal header
  * @param {number} budget - Service budget amount
@@ -345,74 +346,105 @@ export async function showServiceExpenseBreakdownModal(serviceCode, serviceName,
     const existingModal = document.getElementById('serviceExpenseBreakdownModal');
     if (existingModal) existingModal.remove();
 
-    // Fetch PRs and POs linked to this service
-    const [prsSnap, posSnap] = await Promise.all([
+    // Fetch MRFs, PRs, and POs linked to this service
+    const [mrfsSnap, prsSnap, posSnap] = await Promise.all([
+        getDocs(query(collection(db, 'mrfs'), where('service_code', '==', serviceCode))),
         getDocs(query(collection(db, 'prs'), where('service_code', '==', serviceCode))),
         getDocs(query(collection(db, 'pos'), where('service_code', '==', serviceCode)))
     ]);
 
+    const mrfs = mrfsSnap.docs.map(d => d.data());
     const prs = prsSnap.docs.map(d => d.data());
     const pos = posSnap.docs.map(d => d.data());
 
+    const mrfCount = mrfs.length;
     const prTotal = prs.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
     const poTotal = pos.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
     const totalCost = poTotal;
     const budgetNum = parseFloat(budget || 0);
     const remaining = budgetNum - totalCost;
 
-    // PR collapsible section — same category-card pattern as project modal
+    // Build PR collapsible rows — mirrors category-card pattern from project modal
     const prHTML = prs.length > 0
-        ? `<div class="category-card collapsible">
-            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span class="category-toggle">▶</span>
-                    <span class="category-name">Purchase Requests</span>
+        ? prs.map(pr => {
+            const items = JSON.parse(pr.items_json || '[]');
+            const amount = parseFloat(pr.total_amount || 0);
+            return `
+                <div class="category-card collapsible">
+                    <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="category-toggle">▶</span>
+                            <span class="category-name">${pr.pr_id}</span>
+                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.25rem;">${pr.supplier_name || 'N/A'}</span>
+                        </div>
+                        <span class="category-amount">${formatCurrency(amount)}</span>
+                    </div>
+                    <div class="category-items" style="display: none;">
+                        ${items.length > 0 ? `
+                            <table class="modal-items-table">
+                                <thead><tr><th>Item</th><th>Qty</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
+                                <tbody>
+                                    ${items.map(item => {
+                                        const qty = item.qty || item.quantity || 0;
+                                        const unit = item.unit || 'pcs';
+                                        const unitCost = parseFloat(item.unit_cost || item.unitCost || 0);
+                                        const subtotal = parseFloat(item.subtotal || (qty * unitCost) || 0);
+                                        return `<tr>
+                                            <td>${item.item || item.item_name || 'Unnamed'}</td>
+                                            <td>${qty} ${unit}</td>
+                                            <td>${formatCurrency(unitCost)}</td>
+                                            <td style="text-align: right;">${formatCurrency(subtotal)}</td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p style="color: #64748b; padding: 0.5rem 1rem; margin: 0;">No items listed.</p>'}
+                    </div>
                 </div>
-                <span class="category-amount">${formatCurrency(prTotal)}</span>
-            </div>
-            <div class="category-items" style="display: none;">
-                <table class="modal-items-table">
-                    <thead><tr><th>PR ID</th><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
-                    <tbody>
-                        ${prs.map(p => `
-                            <tr>
-                                <td>${p.pr_id}</td>
-                                <td>${p.supplier_name || '—'}</td>
-                                <td style="text-align: right;">${formatCurrency(parseFloat(p.total_amount || 0))}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>`
-        : '<p style="color: #64748b; text-align: center; padding: 1rem;">No PRs linked to this service.</p>';
+            `;
+        }).join('')
+        : '<p style="color: #64748b; text-align: center; padding: 2rem;">No purchase requests linked to this service.</p>';
 
-    // PO collapsible section — same category-card pattern as project modal
+    // Build PO collapsible rows — mirrors category-card pattern from project modal
     const poHTML = pos.length > 0
-        ? `<div class="category-card collapsible">
-            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span class="category-toggle">▶</span>
-                    <span class="category-name">Purchase Orders</span>
+        ? pos.map(po => {
+            const items = JSON.parse(po.items_json || '[]');
+            const amount = parseFloat(po.total_amount || 0);
+            return `
+                <div class="category-card collapsible">
+                    <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="category-toggle">▶</span>
+                            <span class="category-name">${po.po_id}</span>
+                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.25rem;">${po.supplier_name || 'N/A'}</span>
+                        </div>
+                        <span class="category-amount">${formatCurrency(amount)}</span>
+                    </div>
+                    <div class="category-items" style="display: none;">
+                        ${items.length > 0 ? `
+                            <table class="modal-items-table">
+                                <thead><tr><th>Item</th><th>Qty</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
+                                <tbody>
+                                    ${items.map(item => {
+                                        const qty = item.qty || item.quantity || 0;
+                                        const unit = item.unit || 'pcs';
+                                        const unitCost = parseFloat(item.unit_cost || item.unitCost || 0);
+                                        const subtotal = parseFloat(item.subtotal || (qty * unitCost) || 0);
+                                        return `<tr>
+                                            <td>${item.item || item.item_name || 'Unnamed'}</td>
+                                            <td>${qty} ${unit}</td>
+                                            <td>${formatCurrency(unitCost)}</td>
+                                            <td style="text-align: right;">${formatCurrency(subtotal)}</td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p style="color: #64748b; padding: 0.5rem 1rem; margin: 0;">No items listed.</p>'}
+                    </div>
                 </div>
-                <span class="category-amount">${formatCurrency(poTotal)}</span>
-            </div>
-            <div class="category-items" style="display: none;">
-                <table class="modal-items-table">
-                    <thead><tr><th>PO ID</th><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
-                    <tbody>
-                        ${pos.map(p => `
-                            <tr>
-                                <td>${p.po_id}</td>
-                                <td>${p.supplier_name || '—'}</td>
-                                <td style="text-align: right;">${formatCurrency(parseFloat(p.total_amount || 0))}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        </div>`
-        : '<p style="color: #64748b; text-align: center; padding: 1rem;">No POs linked to this service.</p>';
+            `;
+        }).join('')
+        : '<p style="color: #64748b; text-align: center; padding: 2rem;">No purchase orders linked to this service.</p>';
 
     const modalHTML = `
         <div id="serviceExpenseBreakdownModal" class="modal active">
@@ -436,17 +468,22 @@ export async function showServiceExpenseBreakdownModal(serviceCode, serviceName,
                         </div>
                     </div>
 
-                    <!-- Scorecards: PR Total + PO Total -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <!-- Category Scorecards — mirrors project modal (3 columns) -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">MRFs Linked</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">${mrfCount}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${mrfCount} request${mrfCount !== 1 ? 's' : ''}</div>
+                        </div>
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">PR Total</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(prTotal)}</div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${prs.length} PRs</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${prs.length} PR${prs.length !== 1 ? 's' : ''}</div>
                         </div>
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">PO Total</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(poTotal)}</div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${pos.length} POs</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${pos.length} PO${pos.length !== 1 ? 's' : ''}</div>
                         </div>
                     </div>
 
@@ -454,13 +491,30 @@ export async function showServiceExpenseBreakdownModal(serviceCode, serviceName,
                     <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
                         <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Service Cost</div>
                         <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">₱${formatCurrency(totalCost)}</div>
-                        <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">${prs.length + pos.length} documents</div>
+                        <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">${prs.length + pos.length} document${(prs.length + pos.length) !== 1 ? 's' : ''}</div>
                     </div>
 
-                    <!-- PRs and POs — collapsible sections, no tabs -->
-                    ${prHTML}
-                    <div style="margin-top: 1rem;"></div>
-                    ${poHTML}
+                    <!-- Tab Navigation — mirrors project modal -->
+                    <div style="border-bottom: 2px solid #e5e7eb;">
+                        <button class="svc-expense-tab active" onclick="window._switchSvcExpBreakdownTab('prs')" data-tab="prs"
+                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #1a73e8; border-bottom: 2px solid #1a73e8; margin-bottom: -2px;">
+                            Purchase Requests
+                        </button>
+                        <button class="svc-expense-tab" onclick="window._switchSvcExpBreakdownTab('pos')" data-tab="pos"
+                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
+                            Purchase Orders
+                        </button>
+                    </div>
+
+                    <!-- Purchase Requests Tab -->
+                    <div id="svcExpBreakdownPRTab" style="margin-top: 1.5rem;">
+                        ${prHTML}
+                    </div>
+
+                    <!-- Purchase Orders Tab -->
+                    <div id="svcExpBreakdownPOTab" style="display: none; margin-top: 1.5rem;">
+                        ${poHTML}
+                    </div>
                 </div>
             </div>
         </div>
@@ -472,6 +526,28 @@ export async function showServiceExpenseBreakdownModal(serviceCode, serviceName,
 window._closeServiceExpenseBreakdownModal = function() {
     const modal = document.getElementById('serviceExpenseBreakdownModal');
     if (modal) modal.remove();
+};
+
+window._switchSvcExpBreakdownTab = function(tab) {
+    const prTab = document.getElementById('svcExpBreakdownPRTab');
+    const poTab = document.getElementById('svcExpBreakdownPOTab');
+    if (!prTab || !poTab) return;
+
+    const buttons = document.querySelectorAll('#serviceExpenseBreakdownModal .svc-expense-tab');
+    buttons.forEach(btn => {
+        if (btn.dataset.tab === tab) {
+            btn.style.color = '#1a73e8';
+            btn.style.borderBottom = '2px solid #1a73e8';
+            btn.classList.add('active');
+        } else {
+            btn.style.color = '#64748b';
+            btn.style.borderBottom = 'none';
+            btn.classList.remove('active');
+        }
+    });
+
+    prTab.style.display = tab === 'prs' ? 'block' : 'none';
+    poTab.style.display = tab === 'pos' ? 'block' : 'none';
 };
 
 console.log('Expense modal module loaded successfully');
