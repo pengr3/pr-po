@@ -749,6 +749,11 @@ function clearServiceFieldError(fieldName) {
 async function refreshServiceExpense(silent = false) {
     if (!currentService?.service_code) return;
 
+    // Defense-in-depth: skip aggregation if user cannot read services tab
+    // Primary fix for services_user 403 is in Plan 03 (Firestore prs/pos rules)
+    const canRead = window.hasTabAccess?.('services');
+    if (canRead === false) return;
+
     showLoading(true);
     try {
         const code = currentService.service_code;
