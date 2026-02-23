@@ -126,7 +126,7 @@ function attachWindowFunctions() {
 
     // Project Expense Functions
     window.refreshProjectExpenses = refreshProjectExpenses;
-    window.showProjectExpenseModal = (name) => showExpenseBreakdownModal(name);
+    window.showProjectExpenseModal = (name) => showExpenseBreakdownModal(name, { mode: 'project' });
     // closeProjectExpenseModal replaced by shared _closeExpenseBreakdownModal in expense-modal.js
     window.sortProjectExpenses = sortProjectExpenses;
     window.sortPOs = sortPOs;

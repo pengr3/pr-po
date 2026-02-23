@@ -7,7 +7,7 @@
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
-import { showServiceExpenseBreakdownModal } from '../expense-modal.js';
+import { showExpenseBreakdownModal } from '../expense-modal.js';
 
 let currentService = null;
 let currentServiceDocId = null;
@@ -858,7 +858,11 @@ function attachWindowFunctions() {
     window.showDetailServicePersonnelDropdown = showDetailServicePersonnelDropdown;
     window.refreshServiceExpense = refreshServiceExpense;
     window.showServiceExpenseModal = () => currentService &&
-        showServiceExpenseBreakdownModal(currentService.service_code, currentService.service_name, currentService.budget);
+        showExpenseBreakdownModal(currentService.service_code, {
+            mode: 'service',
+            displayName: currentService.service_name,
+            budget: currentService.budget
+        });
     window.showEditHistory = () => currentService && currentServiceDocId &&
         showEditHistoryModal(currentServiceDocId, currentService.service_code, 'services');
 }
