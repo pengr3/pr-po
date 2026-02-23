@@ -462,3 +462,12 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 | 33. Service Expense Breakdown | 1/1 | Complete    | 2026-02-19 | - |
 | 34. Documentation & Minor Fixes | 2/2 | Complete    | 2026-02-19 | - |
 | 35. Fix Service Edit History + UAT Gap Closure | 3/3 | Complete   | 2026-02-20 | - |
+
+### Phase 36: fix the Expense Breakdown modal in services, export the one we've been using in projects
+
+**Goal:** Unify expense breakdown modal — delete showServiceExpenseBreakdownModal and merge into one showExpenseBreakdownModal(identifier, options) with mode branching; services modal now shows Material/Transport/Subcon scorecards and By Category/Transport Fees tabs identical to projects modal
+**Depends on:** Phase 35
+**Plans:** 1 plan
+
+Plans:
+- [ ] 36-01-PLAN.md — Unify expense-modal.js and update three call sites (service-detail, project-detail, finance)
