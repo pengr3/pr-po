@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 35 of 35 (For the Gaps Found During Audit for v2.3) — COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 35 plan 03 complete — services_user service-scoped list branch added to prs and pos Firestore rules; all 4 cross-department collections now consistent; rules deployed to production
-Last activity: 2026-02-20 — Completed 35-03: Firestore rules prs/pos services_user access gap closed
+Phase: 36 of 36 (Fix the Expense Breakdown Modal in Services) — COMPLETE
+Plan: 1 of 1 in current phase
+Status: Phase 36 plan 01 complete — unified showExpenseBreakdownModal with mode branching; services modal now shows correct Material/Transport/Subcon scorecards and By Category/Transport Fees tabs; TRs now included for services
+Last activity: 2026-02-23 — Completed 36-01: Services expense modal unified with project modal
 
-Progress: [██████████████████████████████] 100% (34/34 gap-closure phases complete)
+Progress: [██████████████████████████████] 100% (35/35 phases complete)
 
 ## Performance Metrics
 
@@ -121,6 +121,8 @@ Recent decisions affecting v2.3 work:
 
 - Phase 35 added: for the gaps found during audit for v 2.3
 - Phase 36 added: fix the Expense Breakdown modal in services, export the one we've been using in projects
+- [Phase 36-01]: Unified showExpenseBreakdownModal eliminates divergent implementations — mode branching only at query level, all display logic shared; services modal now correct
+- [Phase 36-01]: showServiceExpenseBreakdownModal removed; old implementation omitted transport_requests from service expense breakdown — now included via service_code query
 
 ### Pending Todos
 
@@ -132,7 +134,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Phase 36 context gathered
-Resume file: .planning/phases/36-fix-the-expense-breakdown-modal-in-services-export-the-one-we-ve-been-using-in-projects/36-CONTEXT.md
-Next action: /gsd:plan-phase 36
+Last session: 2026-02-23
+Stopped at: Completed Phase 36-01: Fix Service Expense Breakdown Modal

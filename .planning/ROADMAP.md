@@ -467,7 +467,7 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 
 **Goal:** Unify expense breakdown modal — delete showServiceExpenseBreakdownModal and merge into one showExpenseBreakdownModal(identifier, options) with mode branching; services modal now shows Material/Transport/Subcon scorecards and By Category/Transport Fees tabs identical to projects modal
 **Depends on:** Phase 35
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 36-01-PLAN.md — Unify expense-modal.js and update three call sites (service-detail, project-detail, finance)
