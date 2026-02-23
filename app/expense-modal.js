@@ -1,29 +1,52 @@
 /* ========================================
    EXPENSE BREAKDOWN MODAL - Shared Module
-   Unified expense modal used by both Finance and Project Detail views
+   Unified expense modal used by Finance, Project Detail, and Service Detail views
    ======================================== */
 
 import { db, collection, query, where, getDocs } from './firebase.js';
 import { formatCurrency } from './utils.js';
 
 /**
- * Show unified expense breakdown modal for a project
- * Combines Finance-style scorecards with item-level category breakdown
- * @param {string} projectName - The project name to show expenses for
+ * Show unified expense breakdown modal for a project or service.
+ * @param {string} identifier - project_name (mode='project') or service_code (mode='service')
+ * @param {object} [options]
+ * @param {string} [options.mode='project'] - 'project' | 'service'
+ * @param {string} [options.displayName] - Display name for modal header (falls back to identifier)
+ * @param {number} [options.budget] - Budget amount; only used in service mode (project mode fetches it)
  */
-export async function showExpenseBreakdownModal(projectName) {
-    // Show loading indicator
+export async function showExpenseBreakdownModal(identifier, { mode = 'project', displayName, budget } = {}) {
+    // Remove any existing instance of this modal
     const existingModal = document.getElementById('expenseBreakdownModal');
     if (existingModal) existingModal.remove();
 
-    // Fetch project data for budget
-    const projectQuery = query(collection(db, 'projects'), where('project_name', '==', projectName));
-    const projectSnapshot = await getDocs(projectQuery);
-    const project = projectSnapshot.docs.length > 0 ? projectSnapshot.docs[0].data() : {};
+    // -----------------------------------------------------------------------
+    // Query branching — only this section differs between modes
+    // -----------------------------------------------------------------------
+    let posSnapshot, trsSnapshot;
 
-    // Fetch all POs for this project
-    const posQuery = query(collection(db, 'pos'), where('project_name', '==', projectName));
-    const posSnapshot = await getDocs(posQuery);
+    if (mode === 'service') {
+        // identifier = service_code; budget passed in via options
+        budget = parseFloat(budget || 0);
+        [posSnapshot, trsSnapshot] = await Promise.all([
+            getDocs(query(collection(db, 'pos'), where('service_code', '==', identifier))),
+            getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', identifier)))
+        ]);
+    } else {
+        // identifier = project_name; budget fetched from projects collection
+        const projectSnapshot = await getDocs(
+            query(collection(db, 'projects'), where('project_name', '==', identifier))
+        );
+        const project = projectSnapshot.docs[0]?.data() || {};
+        budget = parseFloat(project.budget || 0);
+        [posSnapshot, trsSnapshot] = await Promise.all([
+            getDocs(query(collection(db, 'pos'), where('project_name', '==', identifier))),
+            getDocs(query(collection(db, 'transport_requests'), where('project_name', '==', identifier)))
+        ]);
+    }
+
+    // -----------------------------------------------------------------------
+    // All downstream logic is identical for both modes
+    // -----------------------------------------------------------------------
 
     // Parse items from POs for category breakdown
     const categoryTotals = {};
@@ -86,11 +109,6 @@ export async function showExpenseBreakdownModal(projectName) {
     });
 
     // Fetch TRs
-    const trsQuery = query(
-        collection(db, 'transport_requests'),
-        where('project_name', '==', projectName)
-    );
-    const trsSnapshot = await getDocs(trsQuery);
     const transportRequests = [];
     let trTotal = 0;
 
@@ -110,7 +128,6 @@ export async function showExpenseBreakdownModal(projectName) {
     const materialsDisplay = materialTotal - transportCategoryTotal;
     const transportDisplay = trTotal + transportCategoryTotal + deliveryFeeTotal;
     const totalCost = materialsDisplay + transportDisplay + subconTotal;
-    const budget = parseFloat(project.budget || 0);
     const remaining = budget - totalCost;
 
     // Build category sections HTML
@@ -119,7 +136,7 @@ export async function showExpenseBreakdownModal(projectName) {
             <div class="category-card collapsible">
                 <div class="category-header" onclick="window._toggleExpenseCategory(this)">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="category-toggle">▶</span>
+                        <span class="category-toggle">&#9654;</span>
                         <span class="category-name">${category}</span>
                     </div>
                     <span class="category-amount">${formatCurrency(data.amount)}</span>
@@ -149,7 +166,7 @@ export async function showExpenseBreakdownModal(projectName) {
             <div class="category-card collapsible">
                 <div class="category-header" onclick="window._toggleExpenseCategory(this)">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="category-toggle">▶</span>
+                        <span class="category-toggle">&#9654;</span>
                         <span class="category-name">Transport Requests</span>
                     </div>
                     <span class="category-amount">${formatCurrency(transportRequests.reduce((s, tr) => s + tr.amount, 0))}</span>
@@ -170,8 +187,8 @@ export async function showExpenseBreakdownModal(projectName) {
             <div class="category-card collapsible">
                 <div class="category-header" onclick="window._toggleExpenseCategory(this)">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="category-toggle">▶</span>
-                        <span class="category-name">Transportation & Hauling</span>
+                        <span class="category-toggle">&#9654;</span>
+                        <span class="category-name">Transportation &amp; Hauling</span>
                     </div>
                     <span class="category-amount">${formatCurrency(transportCategoryTotal)}</span>
                 </div>
@@ -195,7 +212,7 @@ export async function showExpenseBreakdownModal(projectName) {
             <div class="category-card collapsible">
                 <div class="category-header" onclick="window._toggleExpenseCategory(this)">
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="category-toggle">▶</span>
+                        <span class="category-toggle">&#9654;</span>
                         <span class="category-name">Delivery Fees</span>
                     </div>
                     <span class="category-amount">${formatCurrency(deliveryFeeTotal)}</span>
@@ -215,24 +232,25 @@ export async function showExpenseBreakdownModal(projectName) {
     ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No transport fees recorded.</p>';
 
     // Render unified modal
+    const title = displayName || identifier;
     const modalHTML = `
         <div id="expenseBreakdownModal" class="modal active">
             <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
-                    <h3>Expense Breakdown: ${projectName}</h3>
+                    <h3>Expense Breakdown: ${title}</h3>
                     <button class="modal-close" onclick="window._closeExpenseBreakdownModal()">&times;</button>
                 </div>
                 <div class="modal-body">
                     <!-- Budget Row -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
                         <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px;">
-                            <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Project Budget</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">₱${formatCurrency(budget)}</div>
+                            <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Budget</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">&#8369;${formatCurrency(budget)}</div>
                         </div>
                         <div style="background: ${remaining >= 0 ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${remaining >= 0 ? '#22c55e' : '#ef4444'}; padding: 1rem; border-radius: 8px;">
                             <div style="font-size: 0.875rem; color: ${remaining >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 0.5rem;">Remaining Budget</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: ${remaining >= 0 ? '#166534' : '#991b1b'};">
-                                ${remaining < 0 ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(remaining))}${remaining < 0 ? ' over' : ''}
+                                ${remaining < 0 ? '&#9888;&#65039; ' : ''}&#8369;${formatCurrency(Math.abs(remaining))}${remaining < 0 ? ' over' : ''}
                             </div>
                         </div>
                     </div>
@@ -241,25 +259,25 @@ export async function showExpenseBreakdownModal(projectName) {
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Material Purchases</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(materialsDisplay)}</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(materialsDisplay)}</div>
                             <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${materialCount} POs</div>
                         </div>
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Transport Fees</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(transportDisplay)}</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(transportDisplay)}</div>
                             <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${transportRequests.length} TRs</div>
                         </div>
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Subcon Cost</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(subconTotal)}</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(subconTotal)}</div>
                             <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${subconCount} POs</div>
                         </div>
                     </div>
 
                     <!-- Total Cost -->
                     <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
-                        <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Project Cost</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">₱${formatCurrency(totalCost)}</div>
+                        <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Cost</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">&#8369;${formatCurrency(totalCost)}</div>
                         <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">${materialCount + transportRequests.length + subconCount} documents</div>
                     </div>
 
@@ -327,227 +345,11 @@ window._toggleExpenseCategory = function(headerEl) {
     const toggle = card.querySelector('.category-toggle');
     if (items.style.display === 'none') {
         items.style.display = 'block';
-        toggle.textContent = '▼';
+        toggle.innerHTML = '&#9660;';
     } else {
         items.style.display = 'none';
-        toggle.textContent = '▶';
+        toggle.innerHTML = '&#9654;';
     }
-};
-
-/**
- * Show expense breakdown modal for a service
- * Mirrors project expense modal visual structure exactly —
- * Budget row, 3 scorecards, total cost box, tabs with collapsible rows
- * @param {string} serviceCode - The service_code to query by
- * @param {string} serviceName - Display name for the modal header
- * @param {number} budget - Service budget amount
- */
-export async function showServiceExpenseBreakdownModal(serviceCode, serviceName, budget) {
-    const existingModal = document.getElementById('serviceExpenseBreakdownModal');
-    if (existingModal) existingModal.remove();
-
-    // Fetch MRFs, PRs, and POs linked to this service
-    const [mrfsSnap, prsSnap, posSnap] = await Promise.all([
-        getDocs(query(collection(db, 'mrfs'), where('service_code', '==', serviceCode))),
-        getDocs(query(collection(db, 'prs'), where('service_code', '==', serviceCode))),
-        getDocs(query(collection(db, 'pos'), where('service_code', '==', serviceCode)))
-    ]);
-
-    const mrfs = mrfsSnap.docs.map(d => d.data());
-    const prs = prsSnap.docs.map(d => d.data());
-    const pos = posSnap.docs.map(d => d.data());
-
-    const mrfCount = mrfs.length;
-    const prTotal = prs.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
-    const poTotal = pos.reduce((s, p) => s + parseFloat(p.total_amount || 0), 0);
-    const totalCost = poTotal;
-    const budgetNum = parseFloat(budget || 0);
-    const remaining = budgetNum - totalCost;
-
-    // Build PR collapsible rows — mirrors category-card pattern from project modal
-    const prHTML = prs.length > 0
-        ? prs.map(pr => {
-            const items = JSON.parse(pr.items_json || '[]');
-            const amount = parseFloat(pr.total_amount || 0);
-            return `
-                <div class="category-card collapsible">
-                    <div class="category-header" onclick="window._toggleExpenseCategory(this)">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <span class="category-toggle">▶</span>
-                            <span class="category-name">${pr.pr_id}</span>
-                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.25rem;">${pr.supplier_name || 'N/A'}</span>
-                        </div>
-                        <span class="category-amount">${formatCurrency(amount)}</span>
-                    </div>
-                    <div class="category-items" style="display: none;">
-                        ${items.length > 0 ? `
-                            <table class="modal-items-table">
-                                <thead><tr><th>Item</th><th>Qty</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
-                                <tbody>
-                                    ${items.map(item => {
-                                        const qty = item.qty || item.quantity || 0;
-                                        const unit = item.unit || 'pcs';
-                                        const unitCost = parseFloat(item.unit_cost || item.unitCost || 0);
-                                        const subtotal = parseFloat(item.subtotal || (qty * unitCost) || 0);
-                                        return `<tr>
-                                            <td>${item.item || item.item_name || 'Unnamed'}</td>
-                                            <td>${qty} ${unit}</td>
-                                            <td>${formatCurrency(unitCost)}</td>
-                                            <td style="text-align: right;">${formatCurrency(subtotal)}</td>
-                                        </tr>`;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        ` : '<p style="color: #64748b; padding: 0.5rem 1rem; margin: 0;">No items listed.</p>'}
-                    </div>
-                </div>
-            `;
-        }).join('')
-        : '<p style="color: #64748b; text-align: center; padding: 2rem;">No purchase requests linked to this service.</p>';
-
-    // Build PO collapsible rows — mirrors category-card pattern from project modal
-    const poHTML = pos.length > 0
-        ? pos.map(po => {
-            const items = JSON.parse(po.items_json || '[]');
-            const amount = parseFloat(po.total_amount || 0);
-            return `
-                <div class="category-card collapsible">
-                    <div class="category-header" onclick="window._toggleExpenseCategory(this)">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <span class="category-toggle">▶</span>
-                            <span class="category-name">${po.po_id}</span>
-                            <span style="color: #64748b; font-size: 0.8rem; margin-left: 0.25rem;">${po.supplier_name || 'N/A'}</span>
-                        </div>
-                        <span class="category-amount">${formatCurrency(amount)}</span>
-                    </div>
-                    <div class="category-items" style="display: none;">
-                        ${items.length > 0 ? `
-                            <table class="modal-items-table">
-                                <thead><tr><th>Item</th><th>Qty</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
-                                <tbody>
-                                    ${items.map(item => {
-                                        const qty = item.qty || item.quantity || 0;
-                                        const unit = item.unit || 'pcs';
-                                        const unitCost = parseFloat(item.unit_cost || item.unitCost || 0);
-                                        const subtotal = parseFloat(item.subtotal || (qty * unitCost) || 0);
-                                        return `<tr>
-                                            <td>${item.item || item.item_name || 'Unnamed'}</td>
-                                            <td>${qty} ${unit}</td>
-                                            <td>${formatCurrency(unitCost)}</td>
-                                            <td style="text-align: right;">${formatCurrency(subtotal)}</td>
-                                        </tr>`;
-                                    }).join('')}
-                                </tbody>
-                            </table>
-                        ` : '<p style="color: #64748b; padding: 0.5rem 1rem; margin: 0;">No items listed.</p>'}
-                    </div>
-                </div>
-            `;
-        }).join('')
-        : '<p style="color: #64748b; text-align: center; padding: 2rem;">No purchase orders linked to this service.</p>';
-
-    const modalHTML = `
-        <div id="serviceExpenseBreakdownModal" class="modal active">
-            <div class="modal-content" style="max-width: 900px;">
-                <div class="modal-header">
-                    <h3>Expense Breakdown: ${serviceName}</h3>
-                    <button class="modal-close" onclick="window._closeServiceExpenseBreakdownModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <!-- Budget Row -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
-                        <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px;">
-                            <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Service Budget</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">₱${formatCurrency(budgetNum)}</div>
-                        </div>
-                        <div style="background: ${remaining >= 0 ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${remaining >= 0 ? '#22c55e' : '#ef4444'}; padding: 1rem; border-radius: 8px;">
-                            <div style="font-size: 0.875rem; color: ${remaining >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 0.5rem;">Remaining Budget</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: ${remaining >= 0 ? '#166534' : '#991b1b'};">
-                                ${remaining < 0 ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(remaining))}${remaining < 0 ? ' over' : ''}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Category Scorecards — mirrors project modal (3 columns) -->
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">MRFs Linked</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">${mrfCount}</div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${mrfCount} request${mrfCount !== 1 ? 's' : ''}</div>
-                        </div>
-                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">PR Total</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(prTotal)}</div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${prs.length} PR${prs.length !== 1 ? 's' : ''}</div>
-                        </div>
-                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">PO Total</div>
-                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">₱${formatCurrency(poTotal)}</div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${pos.length} PO${pos.length !== 1 ? 's' : ''}</div>
-                        </div>
-                    </div>
-
-                    <!-- Total Cost -->
-                    <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
-                        <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Service Cost</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">₱${formatCurrency(totalCost)}</div>
-                        <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">${prs.length + pos.length} document${(prs.length + pos.length) !== 1 ? 's' : ''}</div>
-                    </div>
-
-                    <!-- Tab Navigation — mirrors project modal -->
-                    <div style="border-bottom: 2px solid #e5e7eb;">
-                        <button class="svc-expense-tab active" onclick="window._switchSvcExpBreakdownTab('prs')" data-tab="prs"
-                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #1a73e8; border-bottom: 2px solid #1a73e8; margin-bottom: -2px;">
-                            Purchase Requests
-                        </button>
-                        <button class="svc-expense-tab" onclick="window._switchSvcExpBreakdownTab('pos')" data-tab="pos"
-                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
-                            Purchase Orders
-                        </button>
-                    </div>
-
-                    <!-- Purchase Requests Tab -->
-                    <div id="svcExpBreakdownPRTab" style="margin-top: 1.5rem;">
-                        ${prHTML}
-                    </div>
-
-                    <!-- Purchase Orders Tab -->
-                    <div id="svcExpBreakdownPOTab" style="display: none; margin-top: 1.5rem;">
-                        ${poHTML}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-}
-
-window._closeServiceExpenseBreakdownModal = function() {
-    const modal = document.getElementById('serviceExpenseBreakdownModal');
-    if (modal) modal.remove();
-};
-
-window._switchSvcExpBreakdownTab = function(tab) {
-    const prTab = document.getElementById('svcExpBreakdownPRTab');
-    const poTab = document.getElementById('svcExpBreakdownPOTab');
-    if (!prTab || !poTab) return;
-
-    const buttons = document.querySelectorAll('#serviceExpenseBreakdownModal .svc-expense-tab');
-    buttons.forEach(btn => {
-        if (btn.dataset.tab === tab) {
-            btn.style.color = '#1a73e8';
-            btn.style.borderBottom = '2px solid #1a73e8';
-            btn.classList.add('active');
-        } else {
-            btn.style.color = '#64748b';
-            btn.style.borderBottom = 'none';
-            btn.classList.remove('active');
-        }
-    });
-
-    prTab.style.display = tab === 'prs' ? 'block' : 'none';
-    poTab.style.display = tab === 'pos' ? 'block' : 'none';
 };
 
 console.log('Expense modal module loaded successfully');
