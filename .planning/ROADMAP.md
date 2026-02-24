@@ -487,7 +487,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 37-01-PLAN.md — Documentation cleanup: Phase 28 VERIFICATION.md + Phase 26 frontmatter fix + ROADMAP.md progress table + delete .continue-here files
+- [x] 37-01-PLAN.md — Documentation cleanup: Phase 28 VERIFICATION.md + Phase 26 frontmatter fix + ROADMAP.md progress table + delete .continue-here files
 
 #### Phase 38: Code Quality & DRY Cleanup
 **Goal:** Close code tech debt — extract duplicate helpers to shared module, fix procurement scoreboard global totals, remove dead code, fix hardcoded approver name, correct section header
@@ -502,5 +502,5 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 38-01-PLAN.md — Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
-- [ ] 38-02-PLAN.md — Fix hardcoded approver name + add audit trail fields to all approval flows + full dead code and debug log sweep
+- [x] 38-01-PLAN.md — Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
+- [x] 38-02-PLAN.md — Fix hardcoded approver name + add audit trail fields to all approval flows + full dead code and debug log sweep
