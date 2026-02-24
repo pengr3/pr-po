@@ -407,9 +407,10 @@ export async function init(activeTab = 'mrfs') {
         await loadSuppliers();
         await loadMRFs();
 
-        // Load PR-PO records if on records tab
+        // Load PR-PO records and PO data (for scoreboards) if on records tab
         if (activeTab === 'records') {
             await loadPRPORecords();
+            await loadPOTracking();
         }
 
         console.log('[Procurement] ✅ Procurement view initialized successfully');
