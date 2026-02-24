@@ -180,45 +180,53 @@ export async function generateSequentialId(collectionName, prefix, year = null) 
 
 /**
  * Generate composite project code: CLMC_CLIENT_YYYY###
+ * Shares sequence with Services collection to prevent collisions (CODE-01).
+ * Queries BOTH projects and services for the max sequence number so that
+ * projects and services never receive the same CLMC code for a given client/year.
+ *
  * @param {string} clientCode - Client code (e.g., "ACME")
- * @param {number} year - Year for the project code (defaults to current year)
- * @returns {Promise<string>} Generated project code
+ * @param {number|null} year - Year for the project code (defaults to current year)
+ * @returns {Promise<string>} Generated project code (e.g., CLMC_ACME_2026001)
  *
- * Example output: CLMC_ACME_2026001, CLMC_ACME_2026002
- *
- * Note: Uses regex parsing to handle client codes with underscores (e.g., ACME_INC)
- * Race condition possible with simultaneous creates - acceptable for v1.0
+ * Note: Race condition possible with simultaneous creates — acceptable at current scale.
+ * IMPORTANT: Service documents MUST store a client_code field for this query to work.
  */
 export async function generateProjectCode(clientCode, year = null) {
     try {
         const currentYear = year || new Date().getFullYear();
+        const rangeMin = `CLMC_${clientCode}_${currentYear}000`;
+        const rangeMax = `CLMC_${clientCode}_${currentYear}999`;
 
-        // Query projects for this client and year using range query
-        const q = query(
-            collection(db, 'projects'),
-            where('client_code', '==', clientCode),
-            where('project_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
-            where('project_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
-        );
+        // Query BOTH collections in parallel — shared sequence prevents collisions (CODE-01)
+        const [projectsSnap, servicesSnap] = await Promise.all([
+            getDocs(query(
+                collection(db, 'projects'),
+                where('client_code', '==', clientCode),
+                where('project_code', '>=', rangeMin),
+                where('project_code', '<=', rangeMax)
+            )),
+            getDocs(query(
+                collection(db, 'services'),
+                where('client_code', '==', clientCode),
+                where('service_code', '>=', rangeMin),
+                where('service_code', '<=', rangeMax)
+            ))
+        ]);
 
-        const snapshot = await getDocs(q);
-
+        const codeRegex = /^CLMC_.+_\d{4}(\d{3})$/;
         let maxNum = 0;
-        snapshot.forEach(doc => {
-            const code = doc.data().project_code;
-            // Use regex to extract 3-digit number - handles client codes with underscores
-            // Pattern: CLMC_{anything}_YYYY###
-            const match = code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-            if (match) {
-                const num = parseInt(match[1]);
-                if (num > maxNum) {
-                    maxNum = num;
-                }
-            }
+
+        projectsSnap.forEach(d => {
+            const match = d.data().project_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
         });
 
-        const newNum = maxNum + 1;
-        return `CLMC_${clientCode}_${currentYear}${String(newNum).padStart(3, '0')}`;
+        servicesSnap.forEach(d => {
+            const match = d.data().service_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        });
+
+        return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
     } catch (error) {
         console.error('[Projects] Error generating project code:', error);
         throw error;
@@ -437,7 +445,20 @@ export function getStatusClass(status) {
         'rejected': 'rejected',
         'completed': 'approved',
         'active': 'approved',
-        'inactive': 'rejected'
+        'inactive': 'rejected',
+        // Procurement statuses
+        'pending procurement': 'pending',
+        'procuring': 'procuring',
+        'procured': 'approved',
+        'delivered': 'delivered',
+        // Finance statuses
+        'finance approved': 'approved',
+        'finance rejected': 'rejected',
+        'pr rejected': 'rejected',
+        'tr rejected': 'rejected',
+        // PR generation statuses
+        'pr generated': 'procuring',
+        'po issued': 'procuring',
     };
 
     return statusMap[statusLower] || 'pending';
