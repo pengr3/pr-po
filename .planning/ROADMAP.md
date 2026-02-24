@@ -464,7 +464,8 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 | 35. Fix Service Edit History + UAT Gap Closure | v2.3 | 3/3 | Complete | 2026-02-20 |
 | 36. Fix Expense Breakdown Modal | v2.3 | 1/1 | Complete | 2026-02-23 |
 | 37. Documentation & File Cleanup | v2.3 | 1/1 | Complete | 2026-02-24 |
-| 38. Code Quality & DRY Cleanup | v2.3 | Complete    | 2026-02-24 | 2026-02-24 |
+| 38. Code Quality & DRY Cleanup | v2.3 | 2/2 | Complete | 2026-02-24 |
+| 39. Admin Assignments Overhaul, Badge Styling, Project Code Fix | v2.3 | 1/3 | In progress | - |
 
 ### Phase 36: fix the Expense Breakdown modal in services, export the one we've been using in projects
 
@@ -513,6 +514,6 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
+- [x] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
 - [ ] 39-02-PLAN.md — Unified assignments.js module (table+modal) replacing project-assignments.js + service-assignments.js + admin.js update
 - [ ] 39-03-PLAN.md — Badge sweep across procurement.js, finance.js, home.js (PR-code-as-badge + inline style cleanup)
