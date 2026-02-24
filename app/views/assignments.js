@@ -167,7 +167,7 @@ export async function init(subTab = null) {
     // Listener 1: all approved users with assignable roles
     const usersQuery = query(
         collection(db, 'users'),
-        where('status', '==', 'approved')
+        where('status', '==', 'active')
     );
     const usersUnsub = onSnapshot(usersQuery, (snapshot) => {
         usersData = [];
