@@ -3726,6 +3726,9 @@ function renderPOTrackingTable(pos) {
     document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
     document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
 
+    // MRF Records tab has scoreboards but no PO table body — exit after scoreboards
+    if (!tbody) return;
+
     // Apply department filter before pagination
     const displayPos = activePODeptFilter
         ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
