@@ -43,10 +43,7 @@ let listeners = [];
  */
 function applyPODeptFilter(value) {
     activePODeptFilter = value;
-    const filtered = activePODeptFilter
-        ? poData.filter(po => (po.department || 'projects') === activePODeptFilter)
-        : poData;
-    renderPOTrackingTable(filtered);
+    renderPOTrackingTable(poData);
 }
 
 // ========================================
