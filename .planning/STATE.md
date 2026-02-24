@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 39 of 39 (Admin Assignments Overhaul, Badge Styling, Project Code Uniqueness Fix) — In progress
-Plan: 2 of 4 in current phase
-Status: Phase 39 plan 02 complete — unified assignments.js replaces project-assignments.js and service-assignments.js; admin.js SECTIONS reduced from 4 to 3
-Last activity: 2026-02-24 — Completed 39-02: Admin Assignments Overhaul (table+modal interface)
+Plan: 3 of 4 in current phase
+Status: Phase 39 plan 03 complete — badge sweep across procurement.js, finance.js; PR codes in MRF History as badge-links; all #fef3c7 inline styles replaced with CSS classes
+Last activity: 2026-02-24 — Completed 39-03: Badge Sweep (Procurement, Finance, Home views)
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -141,6 +141,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 39-02]: saveManageModal removes modal from DOM before await updateDoc — immediate feedback, avoids UI race if write is slow
 - [Phase 39-02]: syncAssignmentToPersonnel fires only for type==='projects'; services intentionally have no reverse sync (asymmetry preserved from Phase 28)
 - [Phase 39-02]: project-assignments.js and service-assignments.js left as unreferenced dead code — no risky deletes, can be cleaned in future phase
+- [Phase 39-03]: home.js has no status badges — dashboard shows stat cards only, no badge sweep needed there
+- [Phase 39-03]: Urgency badges (urgencyColors map in finance.js) intentionally left as-is — urgency styling is separate from procurement/finance status scope
+- [Phase 39-03]: PR-code-as-badge pattern: <a class='status-badge {statusClass}' onclick='...'>PR-YYYY-###</a> replaces stacked div+link+separate badge
 
 ### Pending Todos
 
@@ -153,5 +156,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed Phase 39-02: Admin Assignments Overhaul (unified assignments.js module)
+Stopped at: Completed Phase 39-03: Badge Sweep across Procurement, Finance, and Home views
 Resume file: None
