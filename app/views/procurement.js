@@ -660,18 +660,14 @@ async function loadProjects() {
  * Load MRFs with real-time updates
  */
 async function loadMRFs() {
-    console.log('🔍 Setting up MRF listener...');
     const mrfsRef = collection(db, 'mrfs');
     const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
-    console.log('  Querying statuses:', statuses);
     const q = query(mrfsRef, where('status', 'in', statuses));
 
     const listener = onSnapshot(q, (snapshot) => {
-        console.log('🔔 MRF snapshot received, documents:', snapshot.size);
         const allMRFs = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            console.log('  ', doc.id, '- Status:', data.status, '- Type:', data.request_type, '- MRF ID:', data.mrf_id);
             allMRFs.push({ id: doc.id, ...data });
         });
 
@@ -703,7 +699,6 @@ async function loadMRFs() {
         materialMRFs.sort(sortByDeadline);
         transportMRFs.sort(sortByDeadline);
 
-        console.log('  Rendering - Material:', materialMRFs.length, 'Transport:', transportMRFs.length);
         renderMRFList(materialMRFs, transportMRFs);
     }, (error) => {
         console.error('  MRF listener error:', error);
@@ -747,10 +742,6 @@ function reFilterAndRenderMRFs() {
  * Render MRF list
  */
 function renderMRFList(materialMRFs, transportMRFs) {
-    console.log('🎨 Rendering MRF list...');
-    console.log('  Material MRFs to render:', materialMRFs.length);
-    console.log('  Transport MRFs to render:', transportMRFs.length);
-
     const mrfList = document.getElementById('mrfList');
     if (!mrfList) {
         console.error('❌ mrfList element not found!');
@@ -881,9 +872,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
         }).join('');
     }
 
-    console.log('✅ Setting innerHTML, total length:', html.length, 'chars');
     mrfList.innerHTML = html;
-    console.log('✅ MRF list rendered successfully');
 
     // Clear MRF details if no pending MRFs
     if (materialMRFs.length === 0 && transportMRFs.length === 0) {

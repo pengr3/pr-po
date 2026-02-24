@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
@@ -1091,7 +1091,6 @@ async function loadPRs() {
             const pr = { id: docSnap.id, ...docSnap.data() };
             // Only include non-transport PRs
             if (!pr.pr_id?.startsWith('TR-') && pr.request_type !== 'service') {
-                console.log('  Material PR:', pr.pr_id, 'Status:', pr.finance_status);
                 materialPRs.push(pr);
             }
         });
@@ -1112,7 +1111,6 @@ async function loadPRs() {
 
         snapshot.forEach((docSnap) => {
             const tr = { id: docSnap.id, ...docSnap.data() };
-            console.log('  Transport:', tr.tr_id, 'Status:', tr.finance_status, 'Cost:', tr.total_amount);
             transportRequests.push(tr);
         });
 
