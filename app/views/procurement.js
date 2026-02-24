@@ -38,12 +38,13 @@ let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services'
 let listeners = [];
 
 /**
- * Apply department filter to PO Tracking table.
+ * Apply department filter to scoreboards and MRF Records table.
  * Called by the dept filter dropdown onchange handler.
  */
 function applyPODeptFilter(value) {
     activePODeptFilter = value;
     renderPOTrackingTable(poData);
+    filterPRPORecords();
 }
 
 // ========================================
@@ -2330,6 +2331,10 @@ function filterPRPORecords() {
     const poStatusFilter = document.getElementById('poStatusFilter')?.value || '';
 
     filteredPRPORecords = allPRPORecords.filter(mrf => {
+        // Department filter
+        const mrfDept = mrf.department || (mrf.service_code ? 'services' : 'projects');
+        const matchesDept = !activePODeptFilter || mrfDept === activePODeptFilter;
+
         // Search filter
         const matchesSearch = !searchInput ||
             (mrf.mrf_id && mrf.mrf_id.toLowerCase().includes(searchInput)) ||
@@ -2338,10 +2343,7 @@ function filterPRPORecords() {
         // MRF status filter
         const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
 
-        // Note: PO status filter would require checking related POs
-        // For now, we only filter by MRF status and search
-
-        return matchesSearch && matchesMRFStatus;
+        return matchesDept && matchesSearch && matchesMRFStatus;
     });
 
     prpoCurrentPage = 1;
@@ -3683,7 +3685,11 @@ function renderPOTrackingTable(pos) {
     const canEdit = window.canEditTab?.('procurement');
     const showEditControls = canEdit !== false;
 
-    // Calculate separate scoreboard counts for Materials and Subcon
+    // Filter POs by department if active, then calculate scoreboard counts
+    const scoreboardPos = activePODeptFilter
+        ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
+        : pos;
+
     const materialCounts = {
         pending: 0,      // Pending Procurement
         procuring: 0,    // Procuring
@@ -3697,7 +3703,7 @@ function renderPOTrackingTable(pos) {
         processed: 0     // Processed
     };
 
-    pos.forEach(po => {
+    scoreboardPos.forEach(po => {
         const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
         const status = po.procurement_status || defaultStatus;
 
