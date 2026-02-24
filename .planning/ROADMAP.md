@@ -504,3 +504,15 @@ Plans:
 Plans:
 - [x] 38-01-PLAN.md — Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
 - [x] 38-02-PLAN.md — Fix hardcoded approver name + add audit trail fields to all approval flows + full dead code and debug log sweep
+
+### Phase 39: Admin Assignments Overhaul, Badge Styling, and Project Code Fix
+
+**Goal:** Replace bloated per-user assignment pages with compact table+modal interface, standardize all status badge colors across every view (orange/green/red/blue), and fix project code generation to query both collections preventing code collisions
+**Depends on:** Phase 38
+**Requirements:** ADMIN-01 to ADMIN-04, BADGE-01 to BADGE-03, CODE-01
+**Plans:** 3 plans
+
+Plans:
+- [ ] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
+- [ ] 39-02-PLAN.md — Unified assignments.js module (table+modal) replacing project-assignments.js + service-assignments.js + admin.js update
+- [ ] 39-03-PLAN.md — Badge sweep across procurement.js, finance.js, home.js (PR-code-as-badge + inline style cleanup)
