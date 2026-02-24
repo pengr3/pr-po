@@ -6,37 +6,7 @@
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
 import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId } from '../utils.js';
-import { createStatusBadge, createModal, openModal, closeModal, createTimeline } from '../components.js';
-
-/**
- * Returns a display label for an MRF, PR, TR, or PO document.
- * Checks department field first, then falls back to service_code presence.
- * @param {object} doc - Any document with project_code/project_name or service_code/service_name
- * @returns {string}
- */
-function getMRFLabel(doc) {
-    if (doc.department === 'services' || (!doc.department && doc.service_code)) {
-        return doc.service_code
-            ? `${doc.service_code} - ${doc.service_name || 'No service'}`
-            : 'No service';
-    }
-    return doc.project_code
-        ? `${doc.project_code} - ${doc.project_name || 'No project'}`
-        : (doc.project_name || 'No project');
-}
-
-/**
- * Returns a styled department badge HTML span for a PO document.
- * @param {object} doc - Document with optional department/service_code fields
- * @returns {string} HTML span string
- */
-function getDeptBadgeHTML(doc) {
-    const isServices = doc.department === 'services' || (!doc.department && doc.service_code);
-    const label = isServices ? 'Services' : 'Projects';
-    const bg    = isServices ? '#ede9fe' : '#dbeafe';
-    const color = isServices ? '#6d28d9' : '#1d4ed8';
-    return `<span style="background:${bg};color:${color};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${label}</span>`;
-}
+import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
 // ========================================
 // GLOBAL STATE
