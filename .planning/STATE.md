@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 37 of 38 (Documentation & File Cleanup) — COMPLETE
+Phase: 38 of 38 (Code Quality DRY Cleanup) — COMPLETE
 Plan: 1 of 1 in current phase
-Status: Phase 37 plan 01 complete — 28-VERIFICATION.md created with 21 requirement verifications; ROADMAP.md progress table fixed; stale .continue-here.md files deleted
-Last activity: 2026-02-24 — Completed 37-01: Documentation & File Cleanup
+Status: Phase 38 plan 01 complete — getMRFLabel/getDeptBadgeHTML extracted to components.js; PO Tracking scoreboard fixed to show global totals
+Last activity: 2026-02-24 — Completed 38-01: Code Quality DRY Cleanup
 
-Progress: [█████████████████████████████░] 97% (36/37 phases complete)
+Progress: [██████████████████████████████] 100% (38/38 phases complete)
 
 ## Performance Metrics
 
@@ -126,6 +126,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 37-01]: 21 individual requirement IDs verified for Phase 28 (not 17) — ROADMAP.md range notation "SERV-03-10" counted as one entry, actual IDs are 10 SERV + 8 UI + 3 ASSIGN = 21
 - [Phase 37-01]: Phase 26 26-03-SUMMARY.md already correct with [SEC-07] only — no modification needed
 
+- [Phase 38-01]: getMRFLabel/getDeptBadgeHTML extracted to components.js as named exports — single definition, zero new dependencies (functions only read object properties)
+- [Phase 38-01]: applyPODeptFilter passes full poData to renderPOTrackingTable; displayPos derived internally — scoreboards always reflect global totals, single-filter architecture
+
 ### Pending Todos
 
 None yet.
@@ -137,5 +140,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed Phase 37-01: Documentation & File Cleanup
+Stopped at: Completed Phase 38-01: Code Quality DRY Cleanup
 Resume file: None
