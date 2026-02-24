@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, getStatusClass } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
@@ -1165,7 +1165,7 @@ function renderMaterialPRs() {
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
                 <td>${supplier}</td>
-                <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">Pending</span></td>
+                <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewPRDetails('${pr.id}')">Review</button>
                 </td>
@@ -1218,7 +1218,7 @@ function renderTransportRequests() {
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
                 <td>${serviceType}</td>
-                <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">Pending</span></td>
+                <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewTRDetails('${tr.id}')">Review</button>
                 </td>
@@ -2059,7 +2059,7 @@ function renderPOs() {
                         <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
-                        <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
+                        <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending'}</span></td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
                         </td>
