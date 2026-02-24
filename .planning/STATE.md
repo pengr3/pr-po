@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 30 - Cross-Department Workflows (v2.3 Services Department Support)
+**Current focus:** Phase 37 - Documentation & File Cleanup (v2.3 Tech Debt Closure)
 
 ## Current Position
 
-Phase: 36 of 36 (Fix the Expense Breakdown Modal in Services) — COMPLETE
+Phase: 37 of 38 (Documentation & File Cleanup) — COMPLETE
 Plan: 1 of 1 in current phase
-Status: Phase 36 plan 01 complete — unified showExpenseBreakdownModal with mode branching; services modal now shows correct Material/Transport/Subcon scorecards and By Category/Transport Fees tabs; TRs now included for services
-Last activity: 2026-02-23 — Completed 36-01: Services expense modal unified with project modal
+Status: Phase 37 plan 01 complete — 28-VERIFICATION.md created with 21 requirement verifications; ROADMAP.md progress table fixed; stale .continue-here.md files deleted
+Last activity: 2026-02-24 — Completed 37-01: Documentation & File Cleanup
 
-Progress: [██████████████████████████████] 100% (35/35 phases complete)
+Progress: [█████████████████████████████░] 97% (36/37 phases complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 95 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 2)
+- Total plans completed: 96 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 3)
 - Average duration: Not yet tracked systematically
 - Total execution time: ~95+ days across 4 milestones
 
@@ -123,6 +123,8 @@ Recent decisions affecting v2.3 work:
 - Phase 36 added: fix the Expense Breakdown modal in services, export the one we've been using in projects
 - [Phase 36-01]: Unified showExpenseBreakdownModal eliminates divergent implementations — mode branching only at query level, all display logic shared; services modal now correct
 - [Phase 36-01]: showServiceExpenseBreakdownModal removed; old implementation omitted transport_requests from service expense breakdown — now included via service_code query
+- [Phase 37-01]: 21 individual requirement IDs verified for Phase 28 (not 17) — ROADMAP.md range notation "SERV-03-10" counted as one entry, actual IDs are 10 SERV + 8 UI + 3 ASSIGN = 21
+- [Phase 37-01]: Phase 26 26-03-SUMMARY.md already correct with [SEC-07] only — no modification needed
 
 ### Pending Todos
 
@@ -134,5 +136,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed Phase 36-01: Fix Service Expense Breakdown Modal
+Last session: 2026-02-24
+Stopped at: Completed Phase 37-01: Documentation & File Cleanup
+Resume file: None
