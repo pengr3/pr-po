@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 37 - Documentation & File Cleanup (v2.3 Tech Debt Closure)
+**Current focus:** Phase 39 - Admin Assignments Overhaul, Badge Styling, Project Code Uniqueness Fix
 
 ## Current Position
 
-Phase: 38 of 38 (Code Quality DRY Cleanup) — COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase 38 plan 02 complete — hardcoded personal name removed; approved_by_name/approved_by_uid added to all 4 finance approval/rejection flows; debug log sweep done
-Last activity: 2026-02-24 — Completed 38-02: Code Quality DRY Cleanup (all plans done)
+Phase: 39 of 39 (Admin Assignments Overhaul, Badge Styling, Project Code Uniqueness Fix) — In progress
+Plan: 1 of 3 in current phase
+Status: Phase 39 plan 01 complete — generateProjectCode dual-collection fix + getStatusClass extended + badge CSS infrastructure added
+Last activity: 2026-02-24 — Completed 39-01: Project Code Uniqueness Fix + Badge CSS Infrastructure
 
-Progress: [██████████████████████████████] 100% (38/38 phases complete)
+Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
 ## Performance Metrics
 
@@ -131,6 +131,11 @@ Recent decisions affecting v2.3 work:
 - [Phase 38-02]: approved_by_name/approved_by_uid written on BOTH approval and rejection finance paths — approved_by_* captures "who acted", finance_status distinguishes the action type; enables single-field actor queries
 - [Phase 38-02]: DOCUMENT_CONFIG.defaultFinancePIC uses 'Finance Approver' not personal name — generic fallback for POs missing finance_approver_name field
 - [Phase 38-02]: Per-item loop console.log removed from loadPRs and loadMRFs — inner-loop logs fire once per Firestore document per snapshot update; high noise, no debugging value over count-level logs
+- Phase 39 added: Admin assignments overhaul, badge styling improvements, and project code uniqueness fix
+- [Phase 39-01]: generateProjectCode now queries both projects AND services via Promise.all — mirrors generateServiceCode (Phase 27 pattern), closes CODE-01 collision gap
+- [Phase 39-01]: procured maps to 'approved' CSS class; pending procurement maps to 'pending' — no new CSS classes needed for these two states
+- [Phase 39-01]: delivered gets .status-badge.delivered (own green class for independent styling), procuring gets .status-badge.procuring (blue = in-progress)
+- [Phase 39-01]: badge-secondary added as standalone class (not .status-badge.secondary) — matches finance.js usage pattern
 
 ### Pending Todos
 
@@ -143,5 +148,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed Phase 38-02: Code Quality DRY Cleanup (phase complete, all plans done)
+Stopped at: Completed Phase 39-01: Project Code Uniqueness Fix + Badge CSS Infrastructure
 Resume file: None
