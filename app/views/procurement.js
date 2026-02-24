@@ -4496,7 +4496,7 @@ function closeTimelineModal() {
  * Document Configuration
  */
 const DOCUMENT_CONFIG = {
-    defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
+    defaultFinancePIC: 'Finance Approver',
     companyInfo: {
         name: 'C. Lacsamana Management and Construction Corporation',
         address: '133 Pinatubo St. City of Mandaluyong City',

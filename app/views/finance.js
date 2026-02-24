@@ -200,7 +200,7 @@ function clearApprovalSignature() {
 // ========================================
 
 const DOCUMENT_CONFIG = {
-    defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
+    defaultFinancePIC: 'Finance Approver',
     companyInfo: {
         name: 'C. Lacsamana Management and Construction Corporation',
         address: '133 Pinatubo St. City of Mandaluyong City',
@@ -1563,7 +1563,9 @@ async function approvePRWithSignature(prId) {
             finance_approver_user_id: currentUser.uid,
             finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             finance_approved_at: serverTimestamp(),
-            date_approved: new Date().toISOString().split('T')[0] // Legacy compatibility
+            date_approved: new Date().toISOString().split('T')[0], // Legacy compatibility
+            approved_by_name: currentUser.full_name || currentUser.email || 'Finance User',
+            approved_by_uid: currentUser.uid
         });
 
         // Update MRF status
@@ -1723,7 +1725,9 @@ async function approveTR(trId) {
             finance_approver_user_id: currentUser.uid,
             finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             date_approved: new Date().toISOString().split('T')[0],
-            approved_at: new Date().toISOString()
+            approved_at: new Date().toISOString(),
+            approved_by_name: currentUser.full_name || currentUser.email || 'Finance User',
+            approved_by_uid: currentUser.uid
         });
 
         // Update MRF status
@@ -1885,7 +1889,9 @@ async function submitRejection() {
                 rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
                 rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
-                rejected_by_user_id: currentUser?.uid
+                rejected_by_user_id: currentUser?.uid,
+                approved_by_name: currentUser?.full_name || currentUser?.email || 'Finance User',
+                approved_by_uid: currentUser?.uid
             });
 
             // Update MRF
@@ -1916,7 +1922,9 @@ async function submitRejection() {
                 rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
                 rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
-                rejected_by_user_id: currentUser?.uid
+                rejected_by_user_id: currentUser?.uid,
+                approved_by_name: currentUser?.full_name || currentUser?.email || 'Finance User',
+                approved_by_uid: currentUser?.uid
             });
 
             // Update MRF
