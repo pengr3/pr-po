@@ -516,4 +516,4 @@ Plans:
 Plans:
 - [x] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
 - [x] 39-02-PLAN.md — Unified assignments.js module (table+modal) replacing project-assignments.js + service-assignments.js + admin.js update
-- [ ] 39-03-PLAN.md — Badge sweep across procurement.js, finance.js, home.js (PR-code-as-badge + inline style cleanup)
+- [x] 39-03-PLAN.md — Badge sweep across procurement.js, finance.js, home.js (PR-code-as-badge + inline style cleanup)
