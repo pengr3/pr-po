@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 39 of 39 (Admin Assignments Overhaul, Badge Styling, Project Code Uniqueness Fix) — In progress
-Plan: 1 of 3 in current phase
-Status: Phase 39 plan 01 complete — generateProjectCode dual-collection fix + getStatusClass extended + badge CSS infrastructure added
-Last activity: 2026-02-24 — Completed 39-01: Project Code Uniqueness Fix + Badge CSS Infrastructure
+Plan: 2 of 4 in current phase
+Status: Phase 39 plan 02 complete — unified assignments.js replaces project-assignments.js and service-assignments.js; admin.js SECTIONS reduced from 4 to 3
+Last activity: 2026-02-24 — Completed 39-02: Admin Assignments Overhaul (table+modal interface)
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -136,6 +136,11 @@ Recent decisions affecting v2.3 work:
 - [Phase 39-01]: procured maps to 'approved' CSS class; pending procurement maps to 'pending' — no new CSS classes needed for these two states
 - [Phase 39-01]: delivered gets .status-badge.delivered (own green class for independent styling), procuring gets .status-badge.procuring (blue = in-progress)
 - [Phase 39-01]: badge-secondary added as standalone class (not .status-badge.secondary) — matches finance.js usage pattern
+- [Phase 39-02]: assignments.js loads approved users (where status==approved) then filters client-side by sub-tab role scope — simpler than multiple parallel role-filtered queries
+- [Phase 39-02]: pendingModalCodes (Set) exposed as window._pendingModalCodes for inline onchange handlers — module closure not accessible from HTML attribute handlers
+- [Phase 39-02]: saveManageModal removes modal from DOM before await updateDoc — immediate feedback, avoids UI race if write is slow
+- [Phase 39-02]: syncAssignmentToPersonnel fires only for type==='projects'; services intentionally have no reverse sync (asymmetry preserved from Phase 28)
+- [Phase 39-02]: project-assignments.js and service-assignments.js left as unreferenced dead code — no risky deletes, can be cleaned in future phase
 
 ### Pending Todos
 
@@ -148,5 +153,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed Phase 39-01: Project Code Uniqueness Fix + Badge CSS Infrastructure
+Stopped at: Completed Phase 39-02: Admin Assignments Overhaul (unified assignments.js module)
 Resume file: None
