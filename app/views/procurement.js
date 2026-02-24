@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId } from '../utils.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
 // ========================================
@@ -494,7 +494,7 @@ async function showSupplierPurchaseHistory(supplierName) {
                             <td>${getMRFLabel(po)}</td>
                             <td>${formatDate(po.date_issued)}</td>
                             <td><strong>₱${formatCurrency(po.total_amount)}</strong></td>
-                            <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${po.procurement_status}</span></td>
+                            <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status}</span></td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -2479,22 +2479,13 @@ async function renderPRPORecords() {
                     });
 
                     const prIds = prDataArray.map(pr => {
-                        let badgeColor = '#6b7280';
-                        let badgeText = '';
-                        if (pr.finance_status === 'Rejected') {
-                            badgeColor = '#dc2626';
-                            badgeText = 'REJECTED';
-                        } else if (pr.finance_status === 'Approved') {
-                            badgeColor = '#16a34a';
-                            badgeText = 'APPROVED';
-                        } else if (pr.finance_status === 'Pending') {
-                            badgeColor = '#f59e0b';
-                            badgeText = 'PENDING';
-                        }
-                        return `<div style="display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center;">
-                            <a href="javascript:void(0)" onclick="window.viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
-                            ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
-                        </div>`;
+                        const statusClass = getStatusClass(pr.finance_status || 'Pending');
+                        return `<a href="javascript:void(0)"
+                            onclick="window.viewPRDetails('${pr.docId}')"
+                            class="status-badge ${statusClass}"
+                            style="font-size: 0.75rem; text-decoration: none; cursor: pointer; display: inline-block; margin-bottom: 0.25rem;">
+                            ${pr.pr_id}
+                        </a>`;
                     });
                     prHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + prIds.join('') + '</div>';
                 }
@@ -4049,7 +4040,7 @@ async function viewPRDetails(prDocId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
-                        <div><span style="background: ${pr.finance_status === 'Approved' ? '#d1fae5' : pr.finance_status === 'Rejected' ? '#fee2e2' : '#fef3c7'}; color: ${pr.finance_status === 'Approved' ? '#065f46' : pr.finance_status === 'Rejected' ? '#991b1b' : '#92400e'}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${pr.finance_status || 'Pending'}</span></div>
+                        <div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${pr.finance_status || 'Pending'}</span></div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
