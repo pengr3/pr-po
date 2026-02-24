@@ -462,6 +462,9 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 | 33. Service Expense Breakdown | 1/1 | Complete    | 2026-02-19 | - |
 | 34. Documentation & Minor Fixes | 2/2 | Complete    | 2026-02-19 | - |
 | 35. Fix Service Edit History + UAT Gap Closure | 3/3 | Complete   | 2026-02-20 | - |
+| 36. Fix Expense Breakdown Modal | v2.3 | 1/1 | Complete | 2026-02-23 |
+| 37. Documentation & File Cleanup | v2.3 | 0/1 | Not started | - |
+| 38. Code Quality & DRY Cleanup | v2.3 | 0/2 | Not started | - |
 
 ### Phase 36: fix the Expense Breakdown modal in services, export the one we've been using in projects
 
@@ -471,3 +474,33 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 
 Plans:
 - [ ] 36-01-PLAN.md — Unify expense-modal.js and update three call sites (service-detail, project-detail, finance)
+
+#### Phase 37: Documentation & File Cleanup
+**Goal:** Close documentation tech debt — generate Phase 28 VERIFICATION.md, fix Phase 26 SUMMARY.md frontmatter, update ROADMAP.md progress table, delete stale .continue-here files
+**Depends on:** Phase 36
+**Tech Debt Closure:** Items 1, 2, 4, 5 from v2.3 audit
+**Success Criteria** (what must be TRUE):
+  1. Phase 28 VERIFICATION.md exists and confirms all 17 mapped requirements (SERV-01, SERV-03-10, SERV-12, UI-01-08, ASSIGN-01-02, ASSIGN-05) are satisfied
+  2. Phase 26 26-03-SUMMARY.md frontmatter no longer lists SEC-08 in requirements-completed
+  3. ROADMAP.md progress table shows Phase 31 as Complete (not "0/1 Not started") and column alignment is consistent for phases 26-36
+  4. Stale .continue-here files deleted from phases 25 and 36
+**Plans**: 1 plan
+
+Plans:
+- [ ] 37-01-PLAN.md — Documentation cleanup: Phase 28 VERIFICATION.md + Phase 26 frontmatter fix + ROADMAP.md progress table + delete .continue-here files
+
+#### Phase 38: Code Quality & DRY Cleanup
+**Goal:** Close code tech debt — extract duplicate helpers to shared module, fix procurement scoreboard global totals, remove dead code, fix hardcoded approver name, correct section header
+**Depends on:** Phase 37
+**Tech Debt Closure:** Items 3, 6, 7 from v2.3 audit + 3 items carried from v2.2
+**Success Criteria** (what must be TRUE):
+  1. getMRFLabel() and getDeptBadgeHTML() defined once in shared module (utils.js or components.js), imported by finance.js and procurement.js
+  2. Procurement PO Tracking scoreboard shows global totals when department filter is active (scoreboards calculated before filter applied)
+  3. TR approval uses dynamic finance approver name (not hardcoded string)
+  4. Dead approvePR() and generatePOsForPR() functions removed from finance.js
+  5. Section header reads "MRF Records" instead of "PR-PO Records"
+**Plans**: 2 plans
+
+Plans:
+- [ ] 38-01-PLAN.md — Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
+- [ ] 38-02-PLAN.md — Remove dead code (approvePR/generatePOsForPR) + fix hardcoded approver name + fix section header
