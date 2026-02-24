@@ -2363,28 +2363,28 @@ function calculateMRFStatus(prs, pos) {
         // No PRs generated yet
         return {
             status: 'Awaiting PR',
-            color: '#ef4444', // Red
+            badgeClass: 'rejected',
             description: 'No PRs generated yet'
         };
     } else if (poCount === 0) {
         // PRs exist but no POs
         return {
             status: '0/' + prCount + ' PO Issued',
-            color: '#f59e0b', // Yellow
+            badgeClass: 'pending',
             description: 'PRs approved, awaiting PO generation'
         };
     } else if (poCount === prCount) {
         // All POs issued
         return {
             status: prCount + '/' + prCount + ' PO Issued',
-            color: '#22c55e', // Green
+            badgeClass: 'approved',
             description: 'All POs issued'
         };
     } else {
         // Partial PO issuance
         return {
             status: poCount + '/' + prCount + ' PO Issued',
-            color: '#f59e0b', // Yellow
+            badgeClass: 'procuring',
             description: 'Partial PO issuance'
         };
     }
@@ -2394,16 +2394,7 @@ function calculateMRFStatus(prs, pos) {
  * Render MRF status badge with color coding
  */
 function renderMRFStatusBadge(statusObj) {
-    return `<span style="
-        background: ${statusObj.color};
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        white-space: nowrap;
-        display: inline-block;
-    ">${statusObj.status}</span>`;
+    return `<span class="status-badge ${statusObj.badgeClass}">${statusObj.status}</span>`;
 }
 
 /**
