@@ -18,15 +18,11 @@ const SECTIONS = {
     },
     assignments: {
         label: 'Assignments',
-        load: () => import('./project-assignments.js')
+        load: () => import('./assignments.js')
     },
     settings: {
         label: 'Settings',
         load: () => import('./role-config.js')
-    },
-    service_assignments: {
-        label: 'Service Assignments',
-        load: () => import('./service-assignments.js')
     }
 };
 
