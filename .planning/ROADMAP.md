@@ -503,4 +503,4 @@ Plans:
 
 Plans:
 - [ ] 38-01-PLAN.md — Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
-- [ ] 38-02-PLAN.md — Remove dead code (approvePR/generatePOsForPR) + fix hardcoded approver name + fix section header
+- [ ] 38-02-PLAN.md — Fix hardcoded approver name + add audit trail fields to all approval flows + full dead code and debug log sweep
