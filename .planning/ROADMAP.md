@@ -465,7 +465,7 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 | 36. Fix Expense Breakdown Modal | v2.3 | 1/1 | Complete | 2026-02-23 |
 | 37. Documentation & File Cleanup | v2.3 | 1/1 | Complete | 2026-02-24 |
 | 38. Code Quality & DRY Cleanup | v2.3 | 2/2 | Complete | 2026-02-24 |
-| 39. Admin Assignments Overhaul, Badge Styling, Project Code Fix | v2.3 | 1/3 | In progress | - |
+| 39. Admin Assignments Overhaul, Badge Styling, Project Code Fix | v2.3 | Complete    | 2026-02-24 | - |
 
 ### Phase 36: fix the Expense Breakdown modal in services, export the one we've been using in projects
 
@@ -511,7 +511,7 @@ Plans:
 **Goal:** Replace bloated per-user assignment pages with compact table+modal interface, standardize all status badge colors across every view (orange/green/red/blue), and fix project code generation to query both collections preventing code collisions
 **Depends on:** Phase 38
 **Requirements:** ADMIN-01 to ADMIN-04, BADGE-01 to BADGE-03, CODE-01
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
