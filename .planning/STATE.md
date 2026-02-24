@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 38 of 38 (Code Quality DRY Cleanup) — COMPLETE
-Plan: 1 of 1 in current phase
-Status: Phase 38 plan 01 complete — getMRFLabel/getDeptBadgeHTML extracted to components.js; PO Tracking scoreboard fixed to show global totals
-Last activity: 2026-02-24 — Completed 38-01: Code Quality DRY Cleanup
+Plan: 2 of 2 in current phase
+Status: Phase 38 plan 02 complete — hardcoded personal name removed; approved_by_name/approved_by_uid added to all 4 finance approval/rejection flows; debug log sweep done
+Last activity: 2026-02-24 — Completed 38-02: Code Quality DRY Cleanup (all plans done)
 
 Progress: [██████████████████████████████] 100% (38/38 phases complete)
 
@@ -128,6 +128,9 @@ Recent decisions affecting v2.3 work:
 
 - [Phase 38-01]: getMRFLabel/getDeptBadgeHTML extracted to components.js as named exports — single definition, zero new dependencies (functions only read object properties)
 - [Phase 38-01]: applyPODeptFilter passes full poData to renderPOTrackingTable; displayPos derived internally — scoreboards always reflect global totals, single-filter architecture
+- [Phase 38-02]: approved_by_name/approved_by_uid written on BOTH approval and rejection finance paths — approved_by_* captures "who acted", finance_status distinguishes the action type; enables single-field actor queries
+- [Phase 38-02]: DOCUMENT_CONFIG.defaultFinancePIC uses 'Finance Approver' not personal name — generic fallback for POs missing finance_approver_name field
+- [Phase 38-02]: Per-item loop console.log removed from loadPRs and loadMRFs — inner-loop logs fire once per Firestore document per snapshot update; high noise, no debugging value over count-level logs
 
 ### Pending Todos
 
@@ -140,5 +143,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed Phase 38-01: Code Quality DRY Cleanup
+Stopped at: Completed Phase 38-02: Code Quality DRY Cleanup (phase complete, all plans done)
 Resume file: None
