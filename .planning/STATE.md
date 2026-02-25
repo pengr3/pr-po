@@ -144,6 +144,7 @@ Recent decisions affecting v2.3 work:
 - [Phase 39-03]: home.js has no status badges — dashboard shows stat cards only, no badge sweep needed there
 - [Phase 39-03]: Urgency badges (urgencyColors map in finance.js) intentionally left as-is — urgency styling is separate from procurement/finance status scope
 - [Phase 39-03]: PR-code-as-badge pattern: <a class='status-badge {statusClass}' onclick='...'>PR-YYYY-###</a> replaces stacked div+link+separate badge
+- Phase 40 added: UI/UX revisions - MRF request type label, client detail modal, services tab cleanup, MRF tracking for requestors, MRF search improvements, and procurement timeline fixes
 
 ### Pending Todos
 
@@ -155,6 +156,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed Phase 39-03: Badge Sweep across Procurement, Finance, and Home views
-Resume file: None
+Last session: 2026-02-25
+Stopped at: Phase 40 context gathered — ready for planning
+Resume file: .planning/phases/40-ui-ux-revisions-mrf-request-type-label-client-detail-modal-services-tab-cleanup-mrf-tracking-for-requestors-mrf-search-improvements-and-procurement-timeline-fixes/40-CONTEXT.md
