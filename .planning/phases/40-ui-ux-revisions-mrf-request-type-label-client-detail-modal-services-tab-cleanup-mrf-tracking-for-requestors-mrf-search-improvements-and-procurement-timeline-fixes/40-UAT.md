@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 40-ui-ux-revisions
 source: [40-01-SUMMARY.md, 40-02-SUMMARY.md, 40-03-SUMMARY.md, 40-04-SUMMARY.md]
 started: 2026-02-25T14:00:00Z
@@ -73,7 +73,16 @@ skipped: 0
   reason: "User reported: Fail, i want it to appear exactly the same as how MRF Records appear. Basically the same view from different POVs"
   severity: major
   test: 10
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "mrf-records.js renders a simplified MRF-only table (7 columns, no sub-queries) instead of the full renderPRPORecords() pipeline from procurement.js (8 columns with async PR/PO sub-rows, computed MRF status, procurement status per PO, timeline button). Missing: calculateMRFStatus(), renderMRFStatusBadge(), per-row PR/PO getDocs queries, request_type branching, formatTimestamp import."
+  artifacts:
+    - path: "app/views/mrf-records.js"
+      issue: "Renders simplified MRF-level table without PR/PO sub-queries or computed status"
+    - path: "app/views/procurement.js"
+      issue: "Contains the full renderPRPORecords() pipeline (~300 lines) that needs to be shared"
+  missing:
+    - "Rewrite mrf-records.js to replicate full renderPRPORecords() async pipeline with PR/PO sub-rows"
+    - "Extract calculateMRFStatus() and renderMRFStatusBadge() from procurement.js into shared scope"
+    - "Add formatTimestamp import to mrf-records.js"
+    - "Match the 8-column table structure: MRF ID, Project, Date Needed, PRs, POs, MRF Status, Procurement Status, Actions"
+    - "Use read-only PO status badges (not editable dropdown) since requestors should not update procurement status"
   debug_session: ""
