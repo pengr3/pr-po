@@ -256,9 +256,6 @@ export function render(activeTab = null) {
                             <th onclick="window.sortServices('client_code')" style="cursor: pointer; user-select: none;">
                                 Client <span class="sort-indicator" data-col="client_code"></span>
                             </th>
-                            <th onclick="window.sortServices('service_type')" style="cursor: pointer; user-select: none;">
-                                Service Type <span class="sort-indicator" data-col="service_type"></span>
-                            </th>
                             <th onclick="window.sortServices('internal_status')" style="cursor: pointer; user-select: none;">
                                 Internal Status <span class="sort-indicator" data-col="internal_status"></span>
                             </th>
@@ -273,7 +270,7 @@ export function render(activeTab = null) {
                     </thead>
                     <tbody id="servicesTableBody">
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 2rem;">Loading services...</td>
+                            <td colspan="7" style="text-align: center; padding: 2rem;">Loading services...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -911,7 +908,7 @@ function renderServicesTable() {
     if (!tbody) return;
 
     if (filteredServices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No services found matching filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No services found matching filters.</td></tr>';
         const paginationDiv = document.getElementById('servicesPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
@@ -936,9 +933,6 @@ function renderServicesTable() {
         const client = clientsData.find(c => c.id === service.client_id);
         const clientName = client ? client.company_name : service.client_code;
 
-        // Format service type for display
-        const serviceTypeDisplay = service.service_type === 'recurring' ? 'Recurring' : 'One-Time';
-
         return `
             <tr onclick="window.location.hash = '#/services/detail/${service.service_code}'"
                 style="cursor: pointer;"
@@ -946,7 +940,6 @@ function renderServicesTable() {
                 <td><strong>${service.service_code || ''}</strong></td>
                 <td>${service.service_name || ''}</td>
                 <td>${clientName || ''}</td>
-                <td>${serviceTypeDisplay}</td>
                 <td>${service.internal_status || ''}</td>
                 <td>${service.project_status || ''}</td>
                 <td>
