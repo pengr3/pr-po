@@ -53,6 +53,7 @@ Progress: [███████████████████████
 | Phase 35-for-the-gaps-found-during-audit-for-v-2-3 P03 | 8 | 2 tasks | 1 files |
 | Phase 40-ui-ux-revisions P01 | 2 | 2 tasks | 3 files |
 | Phase 40-ui-ux-revisions P02 | 15 | 1 tasks | 1 files |
+| Phase 40-ui-ux-revisions P03 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 40-02]: closeClientDetailModal() removes container from DOM entirely (not just hides) - prevents stale content on re-open
 - [Phase 40-02]: stopPropagation on actions <td> covers both Edit and Delete buttons - single point isolation
 - [Phase 40-02]: editingClient guard in showClientDetail() returns early when row is in edit mode - no conditional onclick needed in template
+- [Phase 40-03]: posByPR map groups POs by pr_id with '_unlinked' sentinel for orphan POs — avoids null-key collisions
+- [Phase 40-03]: Timeline CSS added to views.css (not components.css) — kept adjacent to existing .timeline-item rules already there
+- [Phase 40-03]: createTimeline() import retained but not called in showProcurementTimeline — custom HTML needed for nesting support
 
 ### Roadmap Evolution
 
@@ -164,5 +168,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 40-01-PLAN.md — MRF label rename, search extension, Services column cleanup
+Stopped at: Completed 40-03-PLAN.md: Procurement timeline fixes — PR->PO grouping, Invalid Date fix, emojis removed
 Resume file: .planning/phases/40-ui-ux-revisions-mrf-request-type-label-client-detail-modal-services-tab-cleanup-mrf-tracking-for-requestors-mrf-search-improvements-and-procurement-timeline-fixes/40-CONTEXT.md
