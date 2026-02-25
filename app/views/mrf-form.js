@@ -66,7 +66,7 @@ export function render() {
                             <div class="radio-group">
                                 <div class="radio-option">
                                     <input type="radio" id="typeMaterial" name="requestType" value="material" checked>
-                                    <label for="typeMaterial">Material Request</label>
+                                    <label for="typeMaterial">Material/Sub Contractor</label>
                                 </div>
                                 <div class="radio-option">
                                     <input type="radio" id="typeService" name="requestType" value="service">

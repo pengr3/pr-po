@@ -2339,7 +2339,9 @@ function filterPRPORecords() {
         // Search filter
         const matchesSearch = !searchInput ||
             (mrf.mrf_id && mrf.mrf_id.toLowerCase().includes(searchInput)) ||
-            (mrf.project_name && mrf.project_name.toLowerCase().includes(searchInput));
+            (mrf.project_name && mrf.project_name.toLowerCase().includes(searchInput)) ||
+            (mrf.requestor_name && mrf.requestor_name.toLowerCase().includes(searchInput)) ||
+            (mrf.service_name && mrf.service_name.toLowerCase().includes(searchInput));
 
         // MRF status filter
         const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
