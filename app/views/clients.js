@@ -3,8 +3,9 @@
    Client management with CRUD operations
    ======================================== */
 
-import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from '../firebase.js';
-import { showLoading, showToast } from '../utils.js';
+import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from '../firebase.js';
+import { showLoading, showToast, formatCurrency } from '../utils.js';
+import { createModal, openModal, closeModal } from '../components.js';
 
 // Global state
 let clientsData = [];
@@ -28,6 +29,8 @@ function attachWindowFunctions() {
     window.deleteClient = deleteClient;
     window.changeClientsPage = changeClientsPage;
     window.sortClients = sortClients;
+    window.showClientDetail = showClientDetail;
+    window.closeClientDetailModal = closeClientDetailModal;
     console.log('[Clients] Window functions attached');
 }
 
@@ -154,6 +157,12 @@ export async function destroy() {
     delete window.deleteClient;
     delete window.changeClientsPage;
     delete window.sortClients;
+    delete window.showClientDetail;
+    delete window.closeClientDetailModal;
+
+    // Remove client detail modal if open
+    const existingModal = document.getElementById('clientDetailModalContainer');
+    if (existingModal) existingModal.remove();
 
     // Reset sort state
     sortColumn = 'company_name';
@@ -191,6 +200,157 @@ async function loadClients() {
         listeners.push(listener);
     } catch (error) {
         console.error('[Clients] Error loading:', error);
+    }
+}
+
+/**
+ * Close client detail modal
+ */
+function closeClientDetailModal() {
+    closeModal('clientDetailModal');
+    const container = document.getElementById('clientDetailModalContainer');
+    if (container) container.remove();
+}
+
+/**
+ * Show client detail modal with linked projects and services
+ */
+async function showClientDetail(clientId) {
+    // If row is in edit mode, do nothing
+    if (editingClient === clientId) return;
+
+    const client = clientsData.find(c => c.id === clientId);
+    if (!client) return;
+
+    showLoading(true);
+
+    try {
+        // Fetch linked projects and services in parallel
+        const [projectsSnap, servicesSnap] = await Promise.all([
+            getDocs(query(collection(db, 'projects'), where('client_code', '==', client.client_code))),
+            getDocs(query(collection(db, 'services'), where('client_code', '==', client.client_code)))
+        ]);
+
+        const linkedProjects = [];
+        projectsSnap.forEach(d => linkedProjects.push({ id: d.id, ...d.data() }));
+
+        const linkedServices = [];
+        servicesSnap.forEach(d => linkedServices.push({ id: d.id, ...d.data() }));
+
+        // Build client info section
+        const clientInfoHtml = `
+            <div class="modal-details-grid" style="margin-bottom: 2rem;">
+                <div class="modal-detail-item">
+                    <span class="modal-detail-label">Client Code</span>
+                    <span class="modal-detail-value"><strong>${client.client_code || '—'}</strong></span>
+                </div>
+                <div class="modal-detail-item">
+                    <span class="modal-detail-label">Company Name</span>
+                    <span class="modal-detail-value">${client.company_name || '—'}</span>
+                </div>
+                <div class="modal-detail-item">
+                    <span class="modal-detail-label">Contact Person</span>
+                    <span class="modal-detail-value">${client.contact_person || '—'}</span>
+                </div>
+                <div class="modal-detail-item">
+                    <span class="modal-detail-label">Contact Details</span>
+                    <span class="modal-detail-value">${client.contact_details || '—'}</span>
+                </div>
+            </div>
+        `;
+
+        // Build linked projects section
+        let projectsHtml;
+        if (linkedProjects.length === 0) {
+            projectsHtml = `<p style="color: #64748b; font-style: italic; margin: 0.5rem 0 1.5rem;">No projects linked to this client.</p>`;
+        } else {
+            const rows = linkedProjects.map(p => `
+                <tr>
+                    <td><a href="#/projects/detail/${encodeURIComponent(p.project_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none; font-weight: 500;">${p.project_code || '—'}</a></td>
+                    <td><a href="#/projects/detail/${encodeURIComponent(p.project_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none;">${p.project_name || '—'}</a></td>
+                    <td style="text-align: right;">${p.budget != null ? '\u20B1' + formatCurrency(p.budget) : '—'}</td>
+                    <td style="text-align: right;">${p.contract_cost != null ? '\u20B1' + formatCurrency(p.contract_cost) : '—'}</td>
+                </tr>
+            `).join('');
+            projectsHtml = `
+                <div style="overflow-x: auto; margin-bottom: 1.5rem;">
+                    <table class="modal-items-table">
+                        <thead>
+                            <tr>
+                                <th>Project Code</th>
+                                <th>Project Name</th>
+                                <th style="text-align: right;">Budget</th>
+                                <th style="text-align: right;">Contract Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        // Build linked services section
+        let servicesHtml;
+        if (linkedServices.length === 0) {
+            servicesHtml = `<p style="color: #64748b; font-style: italic; margin: 0.5rem 0 0;">No services linked to this client.</p>`;
+        } else {
+            const rows = linkedServices.map(s => `
+                <tr>
+                    <td><a href="#/services/detail/${encodeURIComponent(s.service_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none; font-weight: 500;">${s.service_code || '—'}</a></td>
+                    <td><a href="#/services/detail/${encodeURIComponent(s.service_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none;">${s.service_name || '—'}</a></td>
+                    <td style="text-align: right;">${s.budget != null ? '\u20B1' + formatCurrency(s.budget) : '—'}</td>
+                    <td style="text-align: right;">${s.contract_cost != null ? '\u20B1' + formatCurrency(s.contract_cost) : '—'}</td>
+                </tr>
+            `).join('');
+            servicesHtml = `
+                <div style="overflow-x: auto; margin-bottom: 0;">
+                    <table class="modal-items-table">
+                        <thead>
+                            <tr>
+                                <th>Service Code</th>
+                                <th>Service Name</th>
+                                <th style="text-align: right;">Budget</th>
+                                <th style="text-align: right;">Contract Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        const modalBody = `
+            <h4 style="margin: 0 0 0.75rem; color: #1e293b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">Client Information</h4>
+            ${clientInfoHtml}
+            <h4 style="margin: 0 0 0.75rem; color: #1e293b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">Linked Projects (${linkedProjects.length})</h4>
+            ${projectsHtml}
+            <h4 style="margin: 0 0 0.75rem; color: #1e293b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">Linked Services (${linkedServices.length})</h4>
+            ${servicesHtml}
+        `;
+
+        // Reuse or create modal container
+        let container = document.getElementById('clientDetailModalContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'clientDetailModalContainer';
+            document.body.appendChild(container);
+        }
+
+        container.innerHTML = createModal({
+            id: 'clientDetailModal',
+            title: `${client.company_name} (${client.client_code})`,
+            body: modalBody,
+            footer: `<button class="btn btn-secondary" onclick="window.closeClientDetailModal()">Close</button>`,
+            size: 'large'
+        });
+
+        openModal('clientDetailModal');
+
+    } catch (error) {
+        console.error('[Clients] Error loading client detail:', error);
+        showToast('Failed to load client details', 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
@@ -257,18 +417,18 @@ function renderClientsTable() {
             `;
         } else {
             return `
-                <tr>
+                <tr onclick="window.showClientDetail('${client.id}')" style="cursor: pointer;" class="clickable-row">
                     <td><strong>${client.client_code}</strong></td>
                     <td>${client.company_name}</td>
                     <td>${client.contact_person}</td>
                     <td>${client.contact_details}</td>
                     ${showEditControls ? `
-                        <td style="white-space: nowrap;">
-                            <button class="btn btn-sm btn-primary" onclick="editClient('${client.id}')">Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteClient('${client.id}', '${client.company_name.replace(/'/g, "\\'")}')">Delete</button>
+                        <td style="white-space: nowrap;" onclick="event.stopPropagation()">
+                            <button class="btn btn-sm btn-primary" onclick="window.editClient('${client.id}')">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="window.deleteClient('${client.id}', '${client.company_name.replace(/'/g, "\\'")}')">Delete</button>
                         </td>
                     ` : `
-                        <td class="actions-cell">
+                        <td class="actions-cell" onclick="event.stopPropagation()">
                             <span class="view-only-badge">View Only</span>
                         </td>
                     `}
