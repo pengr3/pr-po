@@ -47,7 +47,8 @@ const routes = {
     '/mrf-form': {
         name: 'Material Request',
         load: () => import('./views/mrf-form.js'),
-        title: 'Submit MRF | CLMC Procurement'
+        title: 'Submit MRF | CLMC Procurement',
+        defaultTab: 'form'
     },
     '/procurement': {
         name: 'Procurement',
