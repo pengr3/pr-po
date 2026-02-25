@@ -492,7 +492,7 @@ async function showSupplierPurchaseHistory(supplierName) {
                         <tr>
                             <td><strong>${po.po_id}</strong></td>
                             <td>${getMRFLabel(po)}</td>
-                            <td>${formatDate(po.date_issued)}</td>
+                            <td>${formatTimestamp(po.date_issued) || 'N/A'}</td>
                             <td><strong>₱${formatCurrency(po.total_amount)}</strong></td>
                             <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status}</span></td>
                         </tr>
@@ -2690,7 +2690,7 @@ async function renderPRPORecords() {
             <tr>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${getMRFLabel(mrf)}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${mrf.date_needed ? formatDate(mrf.date_needed) : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A')}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
@@ -2699,7 +2699,7 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                     <button class="btn btn-sm btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;" onclick="window.showProcurementTimeline('${mrf.mrf_id}')">
-                        📅 Timeline
+                        Timeline
                     </button>
                 </td>
             </tr>
@@ -3782,7 +3782,7 @@ function renderPOTrackingTable(pos) {
             <td>${po.supplier_name}</td>
             <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-            <td>${new Date(po.date_issued).toLocaleDateString()}</td>
+            <td>${formatTimestamp(po.date_issued) || 'N/A'}</td>
             <td>
                 ${showEditControls ? `
                 <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
@@ -4186,7 +4186,7 @@ async function viewPODetails(poId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
-                        <div>${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'N/A'}</div>
+                        <div>${formatTimestamp(po.date_issued) || 'N/A'}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
@@ -4321,12 +4321,12 @@ function viewPOTimeline(poId) {
         const currentStatus = po.procurement_status || defaultStatus;
 
         content = `SUBCON Timeline: ${po.po_id}\n\n`;
-        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'Pending'}\n`;
-        content += `${po.processing_started_at ? '✓' : '○'} Processing Started: ${po.processing_started_at ? new Date(po.processing_started_at).toLocaleDateString() : 'Not started'}\n`;
+        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${formatTimestamp(po.date_issued) || 'Pending'}\n`;
+        content += `${po.processing_started_at ? '✓' : '○'} Processing Started: ${formatTimestamp(po.processing_started_at) || 'Not started'}\n`;
         if (po.processing_started_at && po.date_issued) {
             content += `  Time to start: ${calculateDays(po.date_issued, po.processing_started_at)}\n`;
         }
-        content += `${po.processed_at || po.processed_date ? '✓' : '○'} Processed: ${(po.processed_at || po.processed_date) ? new Date(po.processed_at || po.processed_date).toLocaleDateString() : 'Not yet processed'}\n`;
+        content += `${po.processed_at || po.processed_date ? '✓' : '○'} Processed: ${(po.processed_at || po.processed_date) ? formatTimestamp(po.processed_at || po.processed_date) || 'Not yet processed' : 'Not yet processed'}\n`;
         if ((po.processed_at || po.processed_date) && po.processing_started_at) {
             content += `  Processing time: ${calculateDays(po.processing_started_at, po.processed_at || po.processed_date)}\n`;
         }
@@ -4336,13 +4336,13 @@ function viewPOTimeline(poId) {
     } else {
         // Material Timeline: PO Issued → Procurement Started → Items Procured → Delivered
         content = `Material Timeline: ${po.po_id}\n\n`;
-        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'Pending'}\n`;
-        content += `${po.procurement_started_at ? '✓' : '○'} Procurement Started: ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleDateString() : 'Not started'}\n`;
-        content += `${po.procured_at || po.procured_date ? '✓' : '○'} Items Procured: ${(po.procured_at || po.procured_date) ? new Date(po.procured_at || po.procured_date).toLocaleDateString() : 'Not yet procured'}\n`;
+        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${formatTimestamp(po.date_issued) || 'Pending'}\n`;
+        content += `${po.procurement_started_at ? '✓' : '○'} Procurement Started: ${formatTimestamp(po.procurement_started_at) || 'Not started'}\n`;
+        content += `${po.procured_at || po.procured_date ? '✓' : '○'} Items Procured: ${(po.procured_at || po.procured_date) ? formatTimestamp(po.procured_at || po.procured_date) || 'Not yet procured' : 'Not yet procured'}\n`;
         if ((po.procured_at || po.procured_date) && po.procurement_started_at) {
             content += `  Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}\n`;
         }
-        content += `${po.delivered_at || po.delivered_date ? '✓' : '○'} Delivered: ${(po.delivered_at || po.delivered_date) ? new Date(po.delivered_at || po.delivered_date).toLocaleDateString() : 'Not yet delivered'}\n`;
+        content += `${po.delivered_at || po.delivered_date ? '✓' : '○'} Delivered: ${(po.delivered_at || po.delivered_date) ? formatTimestamp(po.delivered_at || po.delivered_date) || 'Not yet delivered' : 'Not yet delivered'}\n`;
         if ((po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date)) {
             content += `  Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}\n`;
         }
@@ -4406,51 +4406,98 @@ async function showProcurementTimeline(mrfId) {
         const pos = [];
         posSnapshot.forEach(doc => pos.push(doc.data()));
 
-        // Build timeline items array
-        const deptLabel = mrf.department === 'services' ? 'Service' : 'Project';
-        const timelineItems = [
-            {
-                title: `📝 MRF Created: ${mrf.mrf_id}`,
-                date: formatDate(mrf.created_at),
-                description: `Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}`,
-                status: 'completed'
-            }
-        ];
-
-        // Add PRs
-        prs.forEach(pr => {
-            timelineItems.push({
-                title: `🛒 Purchase Request: ${pr.pr_id}`,
-                date: formatDate(pr.date_generated),
-                description: `Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)} | Dept: ${pr.department === 'services' ? 'Services' : 'Projects'}`,
-                status: pr.finance_status === 'Approved' ? 'completed' :
-                        pr.finance_status === 'Rejected' ? 'rejected' : 'pending'
-            });
-        });
-
-        // Add TRs
-        trs.forEach(tr => {
-            timelineItems.push({
-                title: `🚚 Transport Request: ${tr.tr_id}`,
-                date: formatDate(tr.date_submitted),
-                description: `Amount: ₱${formatCurrency(tr.total_amount)} | Dept: ${tr.department === 'services' ? 'Services' : 'Projects'}`,
-                status: tr.finance_status === 'Approved' ? 'completed' :
-                        tr.finance_status === 'Rejected' ? 'rejected' : 'pending'
-            });
-        });
-
-        // Add POs
+        // Group POs by pr_id for parent-child pairing
+        const posByPR = {};
         pos.forEach(po => {
-            timelineItems.push({
-                title: `📄 Purchase Order: ${po.po_id}`,
-                date: formatDate(po.date_issued),
-                description: `Supplier: ${po.supplier_name} | Status: ${po.procurement_status} | ${po.department === 'services' ? 'Services' : 'Projects'}`,
-                status: po.procurement_status === 'Delivered' ? 'completed' : 'active'
-            });
+            const prId = po.pr_id || '_unlinked';
+            if (!posByPR[prId]) posByPR[prId] = [];
+            posByPR[prId].push(po);
         });
 
-        // Render timeline using createTimeline component
-        const timelineHtml = createTimeline(timelineItems);
+        // Helper: get status class for PR/TR finance_status
+        const getPRStatusClass = (financeStatus) => {
+            if (financeStatus === 'Approved') return 'completed';
+            if (financeStatus === 'Rejected') return 'rejected';
+            return 'pending';
+        };
+
+        // Helper: get status class for PO procurement_status
+        const getPOStatusClass = (procStatus) => {
+            if (procStatus === 'Delivered' || procStatus === 'Processed') return 'completed';
+            if (procStatus === 'Procuring' || procStatus === 'Processing') return 'active';
+            return 'pending';
+        };
+
+        // Build custom timeline HTML with PR->PO nesting
+        const deptLabel = mrf.department === 'services' ? 'Service' : 'Project';
+        let timelineHtml = '<div class="timeline">';
+
+        // 1. MRF Created entry
+        timelineHtml += `
+            <div class="timeline-item completed">
+                <div class="timeline-item-title">MRF Created: ${mrf.mrf_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(mrf.created_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}</div>
+            </div>`;
+
+        // 2. PRs with nested child POs
+        prs.forEach(pr => {
+            const prStatusClass = getPRStatusClass(pr.finance_status);
+            const childPOs = posByPR[pr.pr_id] || [];
+
+            const childHtml = childPOs.map(po => {
+                const poStatusClass = getPOStatusClass(po.procurement_status);
+                return `
+                <div class="timeline-child-item ${poStatusClass}">
+                    <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                    <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
+                    <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                    <div class="timeline-procurement-status">
+                        <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">
+                            ${po.procurement_status || 'Pending Procurement'}
+                        </span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            timelineHtml += `
+            <div class="timeline-item ${prStatusClass}">
+                <div class="timeline-item-title">Purchase Request: ${pr.pr_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
+                <div class="timeline-item-description">Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)}</div>
+                ${childPOs.length > 0 ? `<div class="timeline-children">${childHtml}</div>` : ''}
+            </div>`;
+        });
+
+        // 3. TRs as standalone items
+        trs.forEach(tr => {
+            const trStatusClass = getPRStatusClass(tr.finance_status);
+            timelineHtml += `
+            <div class="timeline-item ${trStatusClass}">
+                <div class="timeline-item-title">Transport Request: ${tr.tr_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
+                <div class="timeline-item-description">Amount: ₱${formatCurrency(tr.total_amount)}</div>
+            </div>`;
+        });
+
+        // 4. Orphan POs (not linked to any PR)
+        const orphanPOs = posByPR['_unlinked'] || [];
+        orphanPOs.forEach(po => {
+            const poStatusClass = getPOStatusClass(po.procurement_status);
+            timelineHtml += `
+            <div class="timeline-item ${poStatusClass}">
+                <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
+                <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                <div class="timeline-procurement-status">
+                    <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">
+                        ${po.procurement_status || 'Pending Procurement'}
+                    </span>
+                </div>
+            </div>`;
+        });
+
+        timelineHtml += '</div>';
 
         document.getElementById('timelineModalTitle').textContent = `Procurement Timeline - ${mrfId}`;
         document.getElementById('timelineModalBody').innerHTML = timelineHtml;
