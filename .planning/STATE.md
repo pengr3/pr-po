@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
-Plan: 1 of N in current phase
-Status: Phase 40 plan 01 complete — MRF radio label renamed, MRF Records search extended to requestor_name/service_name, Service Type column removed from Services tables
-Last activity: 2026-02-25 — Completed 40-01: MRF Label Rename, Search Extension, Services Column Cleanup
+Plan: 4 of N in current phase
+Status: Phase 40 plan 04 complete — My Requests sub-tab added to Material Request view, shared mrf-records.js module created
+Last activity: 2026-02-25 — Completed 40-04: MRF Tracking for Requestors (My Requests sub-tab)
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -54,6 +54,7 @@ Progress: [███████████████████████
 | Phase 40-ui-ux-revisions P01 | 2 | 2 tasks | 3 files |
 | Phase 40-ui-ux-revisions P02 | 15 | 1 tasks | 1 files |
 | Phase 40-ui-ux-revisions P03 | 2 | 2 tasks | 2 files |
+| Phase 40-ui-ux-revisions P04 | 25 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,10 @@ Recent decisions affecting v2.3 work:
 - [Phase 40-03]: posByPR map groups POs by pr_id with '_unlinked' sentinel for orphan POs — avoids null-key collisions
 - [Phase 40-03]: Timeline CSS added to views.css (not components.css) — kept adjacent to existing .timeline-item rules already there
 - [Phase 40-03]: createTimeline() import retained but not called in showProcurementTimeline — custom HTML needed for nesting support
+- [Phase 40-04]: Simpler MRF-level My Requests table (no PR/PO sub-rows) chosen over full procurement extraction — plan explicitly allowed alternative; procurement.js renderPRPORecords kept unchanged (zero regression risk)
+- [Phase 40-04]: createMRFRecordsController uses instance-scoped state (closure) with containerId-namespaced window pagination functions — prevents cross-instance state leakage between Procurement and My Requests
+- [Phase 40-04]: statusFilter: null in My Requests fetches ALL MRF statuses — requestors need to track Pending requests too, not just historical statuses
+- [Phase 40-04]: Dynamic import('./mrf-records.js') in initMyRequests — lazy load, only fetched when user navigates to My Requests tab
 
 ### Roadmap Evolution
 
@@ -168,5 +173,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 40-03-PLAN.md: Procurement timeline fixes — PR->PO grouping, Invalid Date fix, emojis removed
+Stopped at: Completed 40-04-PLAN.md: MRF Tracking for Requestors — My Requests sub-tab, shared mrf-records.js module
 Resume file: .planning/phases/40-ui-ux-revisions-mrf-request-type-label-client-detail-modal-services-tab-cleanup-mrf-tracking-for-requestors-mrf-search-improvements-and-procurement-timeline-fixes/40-CONTEXT.md
