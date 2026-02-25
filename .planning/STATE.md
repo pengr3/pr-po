@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 39 - Admin Assignments Overhaul, Badge Styling, Project Code Uniqueness Fix
+**Current focus:** Phase 40 - UI/UX Revisions
 
 ## Current Position
 
-Phase: 39 of 39 (Admin Assignments Overhaul, Badge Styling, Project Code Uniqueness Fix) — In progress
-Plan: 3 of 4 in current phase
-Status: Phase 39 plan 03 complete — badge sweep across procurement.js, finance.js; PR codes in MRF History as badge-links; all #fef3c7 inline styles replaced with CSS classes
-Last activity: 2026-02-24 — Completed 39-03: Badge Sweep (Procurement, Finance, Home views)
+Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
+Plan: 1 of N in current phase
+Status: Phase 40 plan 01 complete — MRF radio label renamed, MRF Records search extended to requestor_name/service_name, Service Type column removed from Services tables
+Last activity: 2026-02-25 — Completed 40-01: MRF Label Rename, Search Extension, Services Column Cleanup
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -51,6 +51,8 @@ Progress: [███████████████████████
 | Phase 30-cross-department-workflows P02 | 3 | 2 tasks | 1 files |
 | Phase 34-documentation-minor-fixes P01 | 15 | 2 tasks | 2 files |
 | Phase 35-for-the-gaps-found-during-audit-for-v-2-3 P03 | 8 | 2 tasks | 1 files |
+| Phase 40-ui-ux-revisions P01 | 2 | 2 tasks | 3 files |
+| Phase 40-ui-ux-revisions P02 | 15 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -116,6 +118,11 @@ Recent decisions affecting v2.3 work:
 - [Phase 35-02]: canEditTab !== true in saveServiceField/toggleServiceDetailActive blocks Firestore writes during permission load race (undefined state = blocked)
 - [Phase 35-02]: hasTabAccess === false (not !== true) in refreshServiceExpense — services_user has read access (true), so !== true would incorrectly block them; only explicit false skips aggregation
 - [Phase 35-for-the-gaps-found-during-audit-for-v-2-3]: services_user prs/pos list rule matches mrfs/transport_requests pattern exactly — intentional consistency across all 4 cross-department procurement collections
+- [Phase 40-ui-ux-revisions]: &&-short-circuit null guard used for service_name search in filterPRPORecords — legacy MRF docs pre-Phase-29 lack service_name field; .toLowerCase() on undefined throws TypeError
+- [Phase 40-ui-ux-revisions]: serviceTypeDisplay variable and td removed from renderServicesTable while retaining service_type data field — sub-tabs already separate one-time vs recurring; column was visual noise
+- [Phase 40-02]: closeClientDetailModal() removes container from DOM entirely (not just hides) - prevents stale content on re-open
+- [Phase 40-02]: stopPropagation on actions <td> covers both Edit and Delete buttons - single point isolation
+- [Phase 40-02]: editingClient guard in showClientDetail() returns early when row is in edit mode - no conditional onclick needed in template
 
 ### Roadmap Evolution
 
@@ -157,5 +164,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Phase 40 context gathered — ready for planning
+Stopped at: Completed 40-01-PLAN.md — MRF label rename, search extension, Services column cleanup
 Resume file: .planning/phases/40-ui-ux-revisions-mrf-request-type-label-client-detail-modal-services-tab-cleanup-mrf-tracking-for-requestors-mrf-search-improvements-and-procurement-timeline-fixes/40-CONTEXT.md
