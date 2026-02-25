@@ -517,3 +517,16 @@ Plans:
 - [x] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
 - [x] 39-02-PLAN.md — Unified assignments.js module (table+modal) replacing project-assignments.js + service-assignments.js + admin.js update
 - [x] 39-03-PLAN.md — Badge sweep across procurement.js, finance.js, home.js (PR-code-as-badge + inline style cleanup)
+
+### Phase 40: UI/UX revisions - MRF request type label, client detail modal, services tab cleanup, MRF tracking for requestors, MRF search improvements, and procurement timeline fixes
+
+**Goal:** Six surgical UI/UX revisions: rename MRF request type label, add client detail modal with linked projects/services, remove redundant Services tab column, fix procurement timeline (emojis, Invalid Date, PR->PO grouping, procurement status), extend MRF search, and add "My Requests" sub-tab for requestor MRF tracking
+**Depends on:** Phase 39
+**Requirements:** UX-01 to UX-06
+**Plans:** 4 plans
+
+Plans:
+- [ ] 40-01-PLAN.md — Trivial UI fixes: MRF label rename + MRF search improvements + Services tab column cleanup
+- [ ] 40-02-PLAN.md — Client detail modal with linked projects/services and clickable detail links
+- [ ] 40-03-PLAN.md — Procurement timeline fixes: emoji removal, Invalid Date fix, PR->PO grouping, procurement status per PO
+- [ ] 40-04-PLAN.md — MRF tracking: shared MRF Records module extraction + My Requests sub-tab in Material Request view
