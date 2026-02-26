@@ -74,6 +74,285 @@ const statusColors = {
 };
 
 /**
+ * Show PR detail modal (read-only).
+ * Self-contained copy of procurement.js viewPRDetails, minus document generation button.
+ * Takes the Firestore document ID (not pr_id string).
+ */
+async function viewPRDetailsLocal(prDocId) {
+    showLoading(true);
+    try {
+        const prDoc = await getDoc(doc(db, 'prs', prDocId));
+        if (!prDoc.exists()) { showToast('PR not found', 'error'); return; }
+        const pr = { id: prDoc.id, ...prDoc.data() };
+        const items = JSON.parse(pr.items_json || '[]');
+
+        const body = `
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">PR ID</div><div style="font-weight: 600;">${pr.pr_id}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${pr.mrf_id}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Prepared By</div><div style="padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 4px; color: #1e293b; font-size: 0.875rem;">${pr.pr_creator_name || 'Unknown User'}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Project</div><div>${getMRFLabel(pr)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div><div>${pr.date_generated}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Status</div><div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${pr.finance_status || 'Pending'}</span></div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div><div style="font-weight: 600;">PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Requestor</div><div>${pr.requestor_name}</div></div>
+                </div>
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Delivery Address</div>
+                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${pr.delivery_address || 'N/A'}</div>
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead><tr style="background: #f3f4f6;">
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                        </tr></thead>
+                        <tbody>${items.map(item => `
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+        let container = document.getElementById('mrfRecordsPRModalContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'mrfRecordsPRModalContainer';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = createModal({
+            id: 'mrfRecordsPRModal',
+            title: `Purchase Request Details: ${pr.pr_id}`,
+            body,
+            footer: `<button class="btn btn-secondary" onclick="closeModal('mrfRecordsPRModal')">Close</button>`,
+            size: 'large'
+        });
+        openModal('mrfRecordsPRModal');
+    } catch (error) {
+        console.error('[MRFRecords] Error loading PR details:', error);
+        showToast('Failed to load PR details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Show PO detail modal (read-only).
+ * Self-contained copy of procurement.js viewPODetails, minus editable Document Details
+ * section and document generation button — requestors cannot edit PO fields.
+ * Takes the Firestore document ID (not po_id string).
+ */
+async function viewPODetailsLocal(poDocId) {
+    showLoading(true);
+    try {
+        const poDoc = await getDoc(doc(db, 'pos', poDocId));
+        if (!poDoc.exists()) { showToast('PO not found', 'error'); return; }
+        const po = { id: poDoc.id, ...poDoc.data() };
+        const items = JSON.parse(po.items_json || '[]');
+
+        const isSubcon = po.is_subcon || false;
+        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+
+        let statusBg = '#fef3c7', statusColor = '#92400e';
+        if (isSubcon) {
+            if (status === 'Processed') { statusBg = '#d1fae5'; statusColor = '#065f46'; }
+            else if (status === 'Processing') { statusBg = '#dbeafe'; statusColor = '#1e40af'; }
+        } else {
+            if (status === 'Delivered') { statusBg = '#d1fae5'; statusColor = '#065f46'; }
+            else if (status === 'Procured') { statusBg = '#dbeafe'; statusColor = '#1e40af'; }
+            else if (status === 'Procuring') { statusBg = '#fef3c7'; statusColor = '#92400e'; }
+        }
+
+        const body = `
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">PO ID</div><div style="font-weight: 600;">${po.po_id}${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${po.mrf_id || 'N/A'}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${po.supplier_name}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Project</div><div>${getMRFLabel(po)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div><div>${formatTimestamp(po.date_issued) || 'N/A'}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Status</div><div><span style="background: ${statusBg}; color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${status}</span></div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div><div style="font-weight: 600;">PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div></div>
+                    ${po.delivery_fee ? `<div><div style="font-size: 0.75rem; color: #5f6368;">Delivery Fee</div><div style="font-weight: 600;">PHP ${parseFloat(po.delivery_fee).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div></div>` : ''}
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead><tr style="background: #f3f4f6;">
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                        </tr></thead>
+                        <tbody>${items.map(item => `
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+        let container = document.getElementById('mrfRecordsPOModalContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'mrfRecordsPOModalContainer';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = createModal({
+            id: 'mrfRecordsPOModal',
+            title: `Purchase Order Details: ${po.po_id}`,
+            body,
+            footer: `<button class="btn btn-secondary" onclick="closeModal('mrfRecordsPOModal')">Close</button>`,
+            size: 'large'
+        });
+        openModal('mrfRecordsPOModal');
+    } catch (error) {
+        console.error('[MRFRecords] Error loading PO details:', error);
+        showToast('Failed to load PO details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Show procurement timeline modal for an MRF (read-only).
+ * Self-contained copy of procurement.js showProcurementTimeline.
+ * Injects a timeline modal div into document.body — removes it on close.
+ * Uses same timeline CSS classes as procurement.js (already in views.css).
+ */
+async function showTimelineLocal(mrfId) {
+    showLoading(true);
+    try {
+        const mrfQuery = query(collection(db, 'mrfs'), where('mrf_id', '==', mrfId));
+        const mrfSnapshot = await getDocs(mrfQuery);
+        if (mrfSnapshot.empty) { showToast('MRF not found', 'error'); return; }
+        const mrf = { id: mrfSnapshot.docs[0].id, ...mrfSnapshot.docs[0].data() };
+
+        const prsSnapshot = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', mrfId)));
+        const prs = [];
+        prsSnapshot.forEach(d => prs.push(d.data()));
+
+        const trsSnapshot = await getDocs(query(collection(db, 'transport_requests'), where('mrf_id', '==', mrfId)));
+        const trs = [];
+        trsSnapshot.forEach(d => trs.push(d.data()));
+
+        const posSnapshot = await getDocs(query(collection(db, 'pos'), where('mrf_id', '==', mrfId), orderBy('date_issued', 'asc')));
+        const pos = [];
+        posSnapshot.forEach(d => pos.push(d.data()));
+
+        const posByPR = {};
+        pos.forEach(po => {
+            const prId = po.pr_id || '_unlinked';
+            if (!posByPR[prId]) posByPR[prId] = [];
+            posByPR[prId].push(po);
+        });
+
+        const getPRStatusClass = s => s === 'Approved' ? 'completed' : s === 'Rejected' ? 'rejected' : 'pending';
+        const getPOStatusClass = s => (s === 'Delivered' || s === 'Processed') ? 'completed' : (s === 'Procuring' || s === 'Processing') ? 'active' : 'pending';
+
+        const deptLabel = mrf.department === 'services' ? 'Service' : 'Project';
+        let timelineHtml = '<div class="timeline">';
+
+        timelineHtml += `
+            <div class="timeline-item completed">
+                <div class="timeline-item-title">MRF Created: ${mrf.mrf_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(mrf.created_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}</div>
+            </div>`;
+
+        prs.forEach(pr => {
+            const prStatusClass = getPRStatusClass(pr.finance_status);
+            const childPOs = posByPR[pr.pr_id] || [];
+            const childHtml = childPOs.map(po => `
+                <div class="timeline-child-item ${getPOStatusClass(po.procurement_status)}">
+                    <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                    <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
+                    <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                    <div class="timeline-procurement-status">
+                        <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending Procurement'}</span>
+                    </div>
+                </div>`).join('');
+
+            timelineHtml += `
+            <div class="timeline-item ${prStatusClass}">
+                <div class="timeline-item-title">Purchase Request: ${pr.pr_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
+                <div class="timeline-item-description">Supplier: ${pr.supplier_name} | Amount: \u20b1${formatCurrency(pr.total_amount)}</div>
+                ${childPOs.length > 0 ? `<div class="timeline-children">${childHtml}</div>` : ''}
+            </div>`;
+        });
+
+        trs.forEach(tr => {
+            timelineHtml += `
+            <div class="timeline-item ${getPRStatusClass(tr.finance_status)}">
+                <div class="timeline-item-title">Transport Request: ${tr.tr_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
+                <div class="timeline-item-description">Amount: \u20b1${formatCurrency(tr.total_amount)}</div>
+            </div>`;
+        });
+
+        (posByPR['_unlinked'] || []).forEach(po => {
+            timelineHtml += `
+            <div class="timeline-item ${getPOStatusClass(po.procurement_status)}">
+                <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
+                <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                <div class="timeline-procurement-status">
+                    <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending Procurement'}</span>
+                </div>
+            </div>`;
+        });
+
+        timelineHtml += '</div>';
+
+        // Remove any existing timeline modal container
+        const existing = document.getElementById('mrfRecordsTimelineContainer');
+        if (existing) existing.remove();
+
+        const container = document.createElement('div');
+        container.id = 'mrfRecordsTimelineContainer';
+        container.innerHTML = `
+            <div id="mrfRecordsTimelineModal" class="modal active">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2>Procurement Timeline - ${mrfId}</h2>
+                        <button class="modal-close" onclick="document.getElementById('mrfRecordsTimelineContainer').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                        ${timelineHtml}
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(container);
+
+    } catch (error) {
+        console.error('[MRFRecords] Error loading timeline:', error);
+        showToast('Failed to load procurement timeline', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Create an MRF Records controller instance.
  * Each call returns an independent controller with its own pagination state,
  * preventing state leakage between Procurement and My Requests instances.
@@ -269,14 +548,14 @@ export function createMRFRecordsController(options) {
                             return numA - numB;
                         });
 
-                        // Render as non-clickable status-badge spans (no onclick — window.viewPRDetails
-                        // is a procurement.js function not available in mrf-form context)
+                        // Render as clickable anchor badges — opens local PR detail modal
                         const prSpans = prDataArray.map(pr => {
                             const statusClass = getStatusClass(pr.finance_status || 'Pending');
-                            return `<span class="status-badge ${statusClass}"
-                                style="font-size: 0.75rem; display: inline-block; margin-bottom: 0.25rem;">
+                            return `<a class="status-badge ${statusClass}"
+                                style="font-size: 0.75rem; display: inline-block; margin-bottom: 0.25rem; cursor: pointer; text-decoration: none;"
+                                onclick="window['_mrfRecordsViewPR_${containerId}']('${pr.docId}')">
                                 ${pr.pr_id}
-                            </span>`;
+                            </a>`;
                         });
                         prHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + prSpans.join('') + '</div>';
                     }
@@ -329,9 +608,10 @@ export function createMRFRecordsController(options) {
                                 : '';
 
                             return {
-                                // PO ID as green-styled text (not clickable — window.viewPODetails unavailable here)
+                                // PO ID as clickable anchor — opens local PO detail modal
                                 linkHtml: `<div style="min-height: 52px; display: flex; flex-direction: column; gap: 2px; justify-content: center;">
-                                    <span style="color: #34a853; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</span>${subconBadge}
+                                    <a style="color: #34a853; font-weight: 600; font-size: 0.8rem; word-break: break-word; cursor: pointer; text-decoration: none;"
+                                       onclick="window['_mrfRecordsViewPO_${containerId}']('${po.docId}')">${po.po_id}</a>${subconBadge}
                                 </div>`,
                                 statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                     ${statusBadge}
@@ -371,6 +651,13 @@ export function createMRFRecordsController(options) {
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">${mrfStatusHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
+                        <button class="btn btn-sm btn-secondary"
+                            onclick="window['_mrfRecordsTimeline_${containerId}'](${JSON.stringify(mrf.mrf_id)})"
+                            style="font-size: 0.75rem; padding: 0.25rem 0.5rem; white-space: nowrap;">
+                            Timeline
+                        </button>
+                    </td>
                 </tr>
             `;
         }));
@@ -386,6 +673,7 @@ export function createMRFRecordsController(options) {
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF Status</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Procurement Status</th>
+                        <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -455,6 +743,12 @@ export function createMRFRecordsController(options) {
         await render();
     };
 
+    // Register instance-scoped modal window functions
+    // Use containerId prefix to prevent collision if multiple controller instances exist
+    window[`_mrfRecordsViewPR_${containerId}`] = viewPRDetailsLocal;
+    window[`_mrfRecordsViewPO_${containerId}`] = viewPODetailsLocal;
+    window[`_mrfRecordsTimeline_${containerId}`] = showTimelineLocal;
+
     // ------------------------------------------------
     // DESTROY
     // ------------------------------------------------
@@ -464,6 +758,9 @@ export function createMRFRecordsController(options) {
      */
     function destroy() {
         delete window[`_mrfRecordsGoToPage_${containerId}`];
+        delete window[`_mrfRecordsViewPR_${containerId}`];
+        delete window[`_mrfRecordsViewPO_${containerId}`];
+        delete window[`_mrfRecordsTimeline_${containerId}`];
     }
 
     // ------------------------------------------------
