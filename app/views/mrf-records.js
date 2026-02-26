@@ -653,7 +653,7 @@ export function createMRFRecordsController(options) {
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                         <button class="btn btn-sm btn-secondary"
-                            onclick="window['_mrfRecordsTimeline_${containerId}'](${JSON.stringify(mrf.mrf_id)})"
+                            onclick="window['_mrfRecordsTimeline_${containerId}']('${mrf.mrf_id}')"
                             style="font-size: 0.75rem; padding: 0.25rem 0.5rem; white-space: nowrap;">
                             Timeline
                         </button>
