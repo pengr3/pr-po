@@ -1,79 +1,40 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T06:46:45.776Z"
+milestone: v2.4
+milestone_name: Productivity & Polish
+status: defining_requirements
+last_updated: "2026-02-26T00:00:00.000Z"
 progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 105
-  completed_plans: 106
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T05:56:02.684Z"
-progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 105
-  completed_plans: 106
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T05:33:03.157Z"
-progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 104
-  completed_plans: 105
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T03:03:38.387Z"
-progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 103
-  completed_plans: 104
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-12)
+See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 40 - UI/UX Revisions
+**Current focus:** Milestone v2.4 — Productivity & Polish
 
 ## Current Position
 
-Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
-Plan: 7 of 7 in current phase
-Status: Phase 40 plan 07 complete — My Requests PR/PO detail modals now have View PR/View PO document generation buttons (all UAT gaps closed)
-Last activity: 2026-02-26 — Completed 40-07: View PR/PO document generation buttons in My Requests modals
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-26 — Milestone v2.4 started
 
-Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
+Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 96 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 3)
+- Total plans completed: 106 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 34 — phases 26-40)
 - Average duration: Not yet tracked systematically
-- Total execution time: ~95+ days across 4 milestones
+- Total execution time: ~95+ days across 5 milestones
 
 **By Milestone:**
 
@@ -83,33 +44,12 @@ Progress: [███████████████████████
 | v2.0 | 6 | 64 | 10.7 |
 | v2.1 | 3 | 2 | 0.7 |
 | v2.2 | 11 | 5 | 0.5 |
-| v2.3 | 6 | - | - |
+| v2.3 | 15 | 8 | 0.5 |
 
 **Recent Trend:**
-- v2.1: 0.2 days per plan (dramatic improvement from v2.0)
 - v2.2: 0.14 days per plan (sustained high velocity)
+- v2.3: 0.5 days/phase (15 phases, 8 days)
 - Trend: Stable - high velocity maintained
-
-*Updated after v2.3 roadmap creation*
-| Phase 26-security-roles-foundation P03 | 15 | 1 tasks | 1 files |
-| Phase 27-code-generation P01 | 5 | 1 tasks | 1 files |
-| Phase 28-services-view P01 | 15 | 3 tasks | 3 files |
-| Phase 28-services-view P02 | 20 | 2 tasks | 3 files |
-| Phase 28-services-view P03 | 25 | 2 tasks | 3 files |
-| Phase 29-mrf-integration P01 | 15 | 2 tasks | 1 files |
-| Phase 29-mrf-integration P02 | 20 | 2 tasks | 2 files |
-| Phase 29-mrf-integration P03 | 15 | 2 tasks | 2 files |
-| Phase 30-cross-department-workflows P01 | 2 | 2 tasks | 1 files |
-| Phase 30-cross-department-workflows P02 | 3 | 2 tasks | 1 files |
-| Phase 34-documentation-minor-fixes P01 | 15 | 2 tasks | 2 files |
-| Phase 35-for-the-gaps-found-during-audit-for-v-2-3 P03 | 8 | 2 tasks | 1 files |
-| Phase 40-ui-ux-revisions P01 | 2 | 2 tasks | 3 files |
-| Phase 40-ui-ux-revisions P02 | 15 | 1 tasks | 1 files |
-| Phase 40-ui-ux-revisions P03 | 2 | 2 tasks | 2 files |
-| Phase 40-ui-ux-revisions P04 | 25 | 2 tasks | 3 files |
-| Phase 40-ui-ux-revisions P05 | 15 | 2 tasks | 2 files |
-| Phase 40 P06 | 225 | 2 tasks | 1 files |
-| Phase 40-ui-ux-revisions P07 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -186,7 +126,7 @@ Recent decisions affecting v2.3 work:
 - [Phase 40-04]: Simpler MRF-level My Requests table (no PR/PO sub-rows) chosen over full procurement extraction — plan explicitly allowed alternative; procurement.js renderPRPORecords kept unchanged (zero regression risk)
 - [Phase 40-04]: createMRFRecordsController uses instance-scoped state (closure) with containerId-namespaced window pagination functions — prevents cross-instance state leakage between Procurement and My Requests
 - [Phase 40-04]: statusFilter: null in My Requests fetches ALL MRF statuses — requestors need to track Pending requests too, not just historical statuses
-- [Phase 40-04]: Dynamic import('./mrf-records.js') in initMyRequests — lazy load, only fetched when user navigates to My Requests tab
+- [Phase 40-04]: Dynamic import('./mrf-records.js') in mrf-form.js — lazy load, only fetched when user navigates to My Requests tab
 - [Phase 40-ui-ux-revisions]: PRs rendered as non-clickable spans (not <a> onclick) — window.viewPRDetails unavailable in mrf-form context; same for POs and viewPODetails
 - [Phase 40-ui-ux-revisions]: Procurement Status column shows read-only colored spans (not editable selects) — requestors see but cannot modify PO procurement status in My Requests
 - [Phase 40-ui-ux-revisions]: calculateMRFStatus duplicated locally in mrf-records.js (not extracted from procurement.js) — avoids touching 3761-line file, zero regression risk
@@ -203,7 +143,6 @@ Recent decisions affecting v2.3 work:
 - [Phase 36-01]: showServiceExpenseBreakdownModal removed; old implementation omitted transport_requests from service expense breakdown — now included via service_code query
 - [Phase 37-01]: 21 individual requirement IDs verified for Phase 28 (not 17) — ROADMAP.md range notation "SERV-03-10" counted as one entry, actual IDs are 10 SERV + 8 UI + 3 ASSIGN = 21
 - [Phase 37-01]: Phase 26 26-03-SUMMARY.md already correct with [SEC-07] only — no modification needed
-
 - [Phase 38-01]: getMRFLabel/getDeptBadgeHTML extracted to components.js as named exports — single definition, zero new dependencies (functions only read object properties)
 - [Phase 38-01]: applyPODeptFilter passes full poData to renderPOTrackingTable; displayPos derived internally — scoreboards always reflect global totals, single-filter architecture
 - [Phase 38-02]: approved_by_name/approved_by_uid written on BOTH approval and rejection finance paths — approved_by_* captures "who acted", finance_status distinguishes the action type; enables single-field actor queries
@@ -226,13 +165,13 @@ Recent decisions affecting v2.3 work:
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-None yet.
+None.
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 40-07-PLAN.md (View PR/PO document generation buttons in My Requests modals — all UAT gaps closed)
+Stopped at: Milestone v2.4 initialized — requirements definition next

@@ -8,6 +8,17 @@ A zero-build static SPA for managing engineering procurement workflows (MRFs, PR
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
+## Current Milestone: v2.4 Productivity & Polish
+
+**Goal:** Export data, clean up dead code, standardize navigation UI, fix MRF creation in Procurement, and replace logo placeholder.
+
+**Target features:**
+- CSV export for MRFs, PRs, and POs for data portability
+- Remove dead/unreferenced code (project-assignments.js, service-assignments.js, other orphans)
+- Replace CL placeholder with company logo on registration page
+- Standardize navigation (remove underlines, emojis across all nav elements)
+- Unify MRF creation dropdown in Procurement view to match mrf-form.js pattern
+
 ## Current State
 
 **Shipped:** v2.3 Services Department Support (2026-02-26)
@@ -165,9 +176,13 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Client detail modal with linked projects/services — v2.3 (Phase 40)
 - ✓ Procurement timeline fixes (emoji removal, Invalid Date, PR->PO grouping) — v2.3 (Phase 40)
 
-### Active (v2.4+)
+### Active (v2.4 - Productivity & Polish)
 
-No active milestone. Run `/gsd:new-milestone` to plan v2.4.
+- [ ] CSV export for MRF list, PR list, and PO list
+- [ ] Remove unreferenced dead code (project-assignments.js, service-assignments.js, and other orphans)
+- [ ] Replace CL logo placeholder with company logo on registration page
+- [ ] Standardize navigation across all views (remove underlines, remove emojis)
+- [ ] Procurement > MRF Processing creation form uses unified project/service dropdown matching mrf-form.js
 
 ### Future (v2.4+)
 
@@ -330,4 +345,4 @@ No active milestone. Run `/gsd:new-milestone` to plan v2.4.
 | Phase 40: createMRFRecordsController factory with containerId-namespaced window functions — prevents cross-instance state leakage | My Requests and Procurement both need MRF records tables; factory isolates state per instance | ✓ Good - zero cross-instance interference |
 
 ---
-*Last updated: 2026-02-26 after v2.3 milestone*
+*Last updated: 2026-02-26 after v2.4 milestone start*
