@@ -112,3 +112,11 @@ None - no external service configuration required.
 ---
 *Phase: 35-for-the-gaps-found-during-audit-for-v-2-3*
 *Completed: 2026-02-20*
+
+## Self-Check: PASSED
+
+- FOUND: app/views/service-detail.js (modified)
+- FOUND: .planning/phases/35-for-the-gaps-found-during-audit-for-v-2-3/35-02-SUMMARY.md
+- FOUND: commit a6d62c1 (Task 1 - canEdit guard fixes)
+- FOUND: commit 61d0525 (Task 2 - refreshServiceExpense guard)
+- FOUND: commit 8b189db (metadata - SUMMARY, STATE, ROADMAP)
