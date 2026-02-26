@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Services Department Support
 status: unknown
-last_updated: "2026-02-26T03:09:40.885Z"
+last_updated: "2026-02-26T05:33:03.157Z"
 progress:
   total_phases: 39
   completed_phases: 37
-  total_plans: 103
-  completed_plans: 104
+  total_plans: 104
+  completed_plans: 105
 ---
 
 ---
@@ -36,9 +36,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
-Plan: 5 of 5 in current phase
-Status: Phase 40 plan 05 complete — My Requests table rewritten to match Procurement MRF Records layout with async PR/PO sub-rows
-Last activity: 2026-02-26 — Completed 40-05: My Requests full MRF Records layout (gap closure)
+Plan: 6 of 6 in current phase
+Status: Phase 40 plan 06 complete — My Requests table now has clickable PR/PO modals and Timeline button (3 UAT gaps closed)
+Last activity: 2026-02-26 — Completed 40-06: Clickable PR/PO detail modals and Timeline button in My Requests
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -82,6 +82,7 @@ Progress: [███████████████████████
 | Phase 40-ui-ux-revisions P03 | 2 | 2 tasks | 2 files |
 | Phase 40-ui-ux-revisions P04 | 25 | 2 tasks | 3 files |
 | Phase 40-ui-ux-revisions P05 | 15 | 2 tasks | 2 files |
+| Phase 40 P06 | 225 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,8 @@ Recent decisions affecting v2.3 work:
 - [Phase 40-ui-ux-revisions]: PRs rendered as non-clickable spans (not <a> onclick) — window.viewPRDetails unavailable in mrf-form context; same for POs and viewPODetails
 - [Phase 40-ui-ux-revisions]: Procurement Status column shows read-only colored spans (not editable selects) — requestors see but cannot modify PO procurement status in My Requests
 - [Phase 40-ui-ux-revisions]: calculateMRFStatus duplicated locally in mrf-records.js (not extracted from procurement.js) — avoids touching 3761-line file, zero regression risk
+- [Phase 40]: viewPRDetailsLocal/viewPODetailsLocal use createModal pattern (matches procurement.js) while showTimelineLocal injects raw modal div into body (matches timeline pattern from 40-03)
+- [Phase 40]: Instance-scoped window functions prefixed with containerId prevent collision between Procurement and My Requests controller instances
 
 ### Roadmap Evolution
 
@@ -203,4 +206,4 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 40-05-PLAN.md (My Requests full MRF Records layout — async PR/PO sub-rows matching Procurement view)
+Stopped at: Completed 40-06-PLAN.md (My Requests clickable PR/PO detail modals and Timeline button — 3 UAT gaps closed)
