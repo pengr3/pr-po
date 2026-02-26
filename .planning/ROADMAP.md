@@ -6,7 +6,7 @@
 - ✅ **v2.0 Authentication & Permissions** - Phases 5-10 (shipped 2026-02-04)
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
 - ✅ **v2.2 Workflow & UX Enhancements** - Phases 15-25 (shipped 2026-02-10)
-- 🚧 **v2.3 Services Department Support** - Phases 26-34 (in progress)
+- ✅ **v2.3 Services Department Support** - Phases 26-40 (shipped 2026-02-26)
 
 ## Phases
 
@@ -139,7 +139,7 @@ Plans:
 
 ### Phase 13: Finance Dashboard Features
 **Goal**: Project List tab with aggregated expense totals and breakdown modals
-**Plans**: 3 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 13-01: Project List tab with getAggregateFromServer
@@ -246,185 +246,139 @@ Plans:
 
 </details>
 
-### 🚧 v2.3 Services Department Support (In Progress)
+<details>
+<summary>✅ v2.3 Services Department Support (Phases 26-40) - SHIPPED 2026-02-26</summary>
 
-**Milestone Goal:** Enable parallel workflows for Projects and Services departments with complete role-based isolation and shared procurement pipeline.
-
-#### Phase 26: Security & Roles Foundation
+### Phase 26: Security & Roles Foundation
 **Goal**: Firebase Security Rules and role templates enable Services department isolation
-**Depends on**: Phase 25
-**Requirements**: ROLE-01 to ROLE-11, SEC-01 to SEC-08
-**Success Criteria** (what must be TRUE):
-  1. services_admin role can create, read, update, delete documents in services collection
-  2. services_user role can read only assigned services (filtered by assigned_service_codes array)
-  3. Super Admin bypasses services role checks and can access both departments
-  4. Finance and Procurement roles can read services collection for cross-department workflows
-  5. Security Rules tests pass for all services collection scenarios (automated emulator tests)
 **Plans**: 3 plans
 
 Plans:
-- [ ] 26-01-PLAN.md — Security Rules: services collection block + isAssignedToService() helper + sync-role-permissions.js setDoc fix and new role templates
-- [ ] 26-02-PLAN.md — UI: user-management.js services role dropdowns/roleLabels/approval fields + role-config.js ROLE_ORDER/TABS/ROLE_LABELS extensions
-- [ ] 26-03-PLAN.md — Tests: firestore.test.js seedUsers() extension + services collection describe block (12 tests, SEC-07)
+- [x] 26-01: Security Rules for services collection + isAssignedToService() + role templates
+- [x] 26-02: User-management services role dropdowns + role-config ROLE_ORDER/TABS/ROLE_LABELS
+- [x] 26-03: Firestore emulator tests — 12 services collection tests (SEC-07)
 
-#### Phase 27: Code Generation
+### Phase 27: Code Generation
 **Goal**: Services and Projects share CLMC_CLIENT_YYYY### sequence without collisions
-**Depends on**: Phase 26
-**Requirements**: SERV-02
-**Success Criteria** (what must be TRUE):
-  1. generateServiceCode() queries both projects and services collections for max sequence number
-  2. Creating a service immediately after a project increments the shared sequence correctly
-  3. getAssignedServiceCodes() utility returns services_user's assigned service codes
-  4. Users collection includes assigned_service_codes array and all_services boolean flag
 **Plans**: 1 plan
 
 Plans:
-- [ ] 27-01-PLAN.md — Add generateServiceCode() and getAssignedServiceCodes() to app/utils.js (SERV-02)
+- [x] 27-01: Add generateServiceCode() and getAssignedServiceCodes() to app/utils.js (SERV-02)
 
-#### Phase 28: Services View
+### Phase 28: Services View
 **Goal**: Services CRUD with service_type differentiation and assignment system
-**Depends on**: Phase 27
-**Requirements**: SERV-01, SERV-03 to SERV-12, UI-01 to UI-08, ASSIGN-01 to ASSIGN-06
-**Success Criteria** (what must be TRUE):
-  1. services_admin can create services with service_type selection (one-time or recurring)
-  2. Services tab appears in navigation for services roles and has two sub-tabs (Services, Recurring)
-  3. Services sub-tab shows only service_type='one-time', Recurring shows only service_type='recurring'
-  4. Service detail page shows comprehensive information with card-based layout (mirrors Projects)
-  5. services_admin can assign personnel to services via multi-personnel selection UI
-  6. Personnel changes automatically sync to user's assigned_service_codes array (no logout required)
-  7. services_user sees only assigned services in filtered views
-  8. Active/inactive flag controls whether service appears in MRF dropdown
-  9. Services list supports filtering by service_type, status, client and search by code or name
-  10. Service detail page includes expense breakdown showing linked MRFs/PRs/POs
 **Plans**: 3 plans
 
 Plans:
-- [ ] 28-01-PLAN.md — syncServicePersonnelToAssignments() in utils.js + role_templates permissions seed script (Wave 1)
-- [ ] 28-02-PLAN.md — app/views/services.js list view with sub-tabs/CRUD/filtering + router.js routes + index.html nav link (Wave 2)
-- [ ] 28-03-PLAN.md — app/views/service-detail.js detail page + service-assignments.js admin panel + admin.js 4th section (Wave 2)
+- [x] 28-01: syncServicePersonnelToAssignments() in utils.js + role_templates permissions seed script
+- [x] 28-02: app/views/services.js list view with sub-tabs/CRUD/filtering + router.js routes + index.html nav link
+- [x] 28-03: app/views/service-detail.js detail page + service-assignments.js admin panel + admin.js 4th section
 
-#### Phase 29: MRF Integration
+### Phase 29: MRF Integration
 **Goal**: Role-based dropdown visibility connects Services to procurement workflow
-**Depends on**: Phase 28
-**Requirements**: MRF-01 to MRF-10
-**Success Criteria** (what must be TRUE):
-  1. operations_admin and operations_user see Projects dropdown in MRF form (Services dropdown hidden)
-  2. services_admin and services_user see Services dropdown in MRF form (Projects dropdown hidden)
-  3. Super Admin, Finance, Procurement see both Projects and Services dropdowns with clear labels
-  4. Services dropdown displays format "CLMC_CODE_YYYY### - Service Name" and shows only active services
-  5. MRF stores denormalized service_code and service_name plus department field ('projects' or 'services')
-  6. Service code and name display correctly in MRF lists and detail views
-  7. Services-linked MRFs appear in procurement workflow (PR generation works)
 **Plans**: 3 plans
 
 Plans:
-- [ ] 29-01-PLAN.md — mrf-form.js role-based dropdown UI: Services dropdown HTML + loadServices() + role-aware init() (Wave 1)
-- [ ] 29-02-PLAN.md — mrf-form.js submission handler + department/service fields + procurement.js saveNewMRF() + PR/TR creation service fields (Wave 2)
-- [ ] 29-03-PLAN.md — getMRFLabel() helper + 10 display locations in procurement.js + 7 display locations in finance.js + PO addDoc service fields (Wave 3)
+- [x] 29-01: mrf-form.js role-based dropdown UI: Services dropdown HTML + loadServices() + role-aware init()
+- [x] 29-02: mrf-form.js submission handler + department/service fields + procurement.js saveNewMRF() + PR/TR creation service fields
+- [x] 29-03: getMRFLabel() helper + display locations in procurement.js + finance.js + PO addDoc service fields
 
-#### Phase 30: Cross-Department Workflows
+### Phase 30: Cross-Department Workflows
 **Goal**: Finance and Procurement approve work from both departments in unified interface
-**Depends on**: Phase 29
-**Requirements**: CROSS-01 to CROSS-07
-**Success Criteria** (what must be TRUE):
-  1. Finance Pending Approvals shows PRs/TRs from both Projects and Services with department badges
-  2. Procurement PO Tracking shows POs from both Projects and Services with department indicators
-  3. Optional department filter dropdown allows filtering by Projects or Services (or show all)
-  4. PR generation works for Services-linked MRFs (generates PRs with service_code)
-  5. PO creation works for Services-linked PRs (issues POs with correct department context)
-  6. Timeline audit trail shows department context (Projects badge vs Services badge)
 **Plans**: 2 plans
 
 Plans:
-- [ ] 30-01-PLAN.md — finance.js dept badges + filter dropdown for Material PRs, Transport Requests, POs + modal badge updates (Wave 1)
-- [ ] 30-02-PLAN.md — procurement.js dept badges + filter dropdown for PO Tracking + showProcurementTimeline dept-aware descriptions (Wave 1)
+- [x] 30-01: finance.js dept badges + filter dropdown for Material PRs, Transport Requests, POs + modal badge updates
+- [x] 30-02: procurement.js dept badges + filter dropdown for PO Tracking + showProcurementTimeline dept-aware descriptions
 
-#### Phase 31: Dashboard Integration
+### Phase 31: Dashboard Integration
 **Goal**: Dashboard shows Services department statistics alongside Projects, with role-aware visibility
-**Depends on**: Phase 30
-**Requirements**: DASH-01, DASH-02 (DASH-03 deferred)
-**Success Criteria** (what must be TRUE):
-  1. Dashboard shows active services count (separate from projects count)
-  2. Dashboard shows Services-linked MRFs count (Pending status)
-  3. Operations roles see only Projects stats; Services roles see only Services stats; dual-dept roles see both groups with labels
 **Plans**: 1 plan
 
 Plans:
-- [ ] 31-01-PLAN.md — home.js role-aware stats (getDashboardMode, loadStats branching, both-mode group labels) + hero.css stat-group CSS (Wave 1)
+- [x] 31-01: home.js role-aware stats (getDashboardMode, loadStats branching, both-mode group labels) + hero.css stat-group CSS
 
-#### Phase 32: Fix Firestore Assignment Rules
-**Goal**: Add services_admin to users update rule so assignment sync writes succeed and all dependent requirements are satisfied
-**Depends on**: Phase 31
-**Requirements**: ASSIGN-03, ASSIGN-04, ASSIGN-06, ROLE-06, ROLE-11, SEC-03
-**Gap Closure**: Closes P0 gap from audit — root cause of 6 cascading unsatisfied requirements
-**Success Criteria** (what must be TRUE):
-  1. services_admin can write assigned_service_codes to services_user documents via updateDoc
-  2. syncServicePersonnelToAssignments() completes without Firestore permission-denied error
-  3. services_user's assigned_service_codes array is populated after services_admin assigns them via personnel field
-  4. getAssignedServiceCodes() returns the correct codes for services_user (non-empty)
-  5. services_user sees only assigned services in the filtered list view
-  6. assignmentsChanged event fires and real-time propagation works for service assignments
+### Phase 32: Fix Firestore Assignment Rules
+**Goal**: Add services_admin to users update rule so assignment sync writes succeed
 **Plans**: 1 plan
 
 Plans:
-- [ ] 32-01-PLAN.md — firestore.rules: add services_admin to users get/list/update rules (scoped to services_user docs) + 6 emulator tests + production deploy
+- [x] 32-01: firestore.rules: add services_admin to users get/list/update rules + 6 emulator tests + production deploy
 
-#### Phase 33: Service Expense Breakdown
-**Goal**: Replace stub in service-detail.js with real aggregation query showing MRFs/PRs/POs linked to service
-**Depends on**: Phase 32
-**Requirements**: SERV-11
-**Gap Closure**: Closes SERV-11 audit gap — stub message left from Phase 28, Phase 29 data exists but was never wired
-**Success Criteria** (what must be TRUE):
-  1. service-detail.js queries mrfs, prs, and pos filtered by service_code
-  2. Expense breakdown card shows total MRF value, PR value, and PO value linked to service
-  3. Expense breakdown mirrors Projects expense breakdown pattern
-  4. Static stub message "Expense tracking requires MRF-Service integration" is replaced
+### Phase 33: Service Expense Breakdown
+**Goal**: Replace stub in service-detail.js with real aggregation query
 **Plans**: 1 plan
 
 Plans:
-- [ ] 33-01-PLAN.md — service-detail.js: aggregation query (mrfs/prs/pos by service_code) + expense breakdown render replacing static stub
+- [x] 33-01: service-detail.js: aggregation query (mrfs/prs/pos by service_code) + expense breakdown render
 
-#### Phase 34: Documentation & Minor Fixes
+### Phase 34: Documentation & Minor Fixes
 **Goal**: Phase 31 verification, REQUIREMENTS.md cleanup, and Finance PO department filter gap
-**Depends on**: Phase 33
-**Requirements**: DASH-01, DASH-02, SEC-08 (formal verification), DASH-03 (traceability cleanup)
-**Gap Closure**: Closes documentation gaps from audit — Phase 31 missing VERIFICATION.md, unchecked checkboxes, coverage count discrepancy, Finance PO filter gap
-**Success Criteria** (what must be TRUE):
-  1. Phase 31 VERIFICATION.md exists and confirms DASH-01 and DASH-02 are satisfied
-  2. REQUIREMENTS.md checkboxes for DASH-01, DASH-02, SEC-08 are checked [x]
-  3. DASH-03 moved from traceability table to Future Requirements section
-  4. REQUIREMENTS.md coverage count updated to reflect 65 actual requirements
-  5. Finance Pending Approvals PO tab has department filter dropdown (closes CROSS-04 partial gap)
 **Plans**: 2 plans
 
 Plans:
-- [ ] 34-01-PLAN.md — Create 31-VERIFICATION.md + update REQUIREMENTS.md (checkboxes, coverage count, DASH-03 traceability)
-- [ ] 34-02-PLAN.md — finance.js: add department filter dropdown to Purchase Orders tab (Tab 2)
+- [x] 34-01: Create 31-VERIFICATION.md + update REQUIREMENTS.md (checkboxes, coverage count, DASH-03 traceability)
+- [x] 34-02: finance.js: add department filter dropdown to Purchase Orders tab (Tab 2)
 
-#### Phase 35: Fix Service Edit History Path Defect + UAT Gap Closure (v2.3 Tech Debt)
-**Goal**: Fix the service edit history path defect (plan 01) and close UAT-identified gaps: services_user permission guard race condition and missing prs/pos Firestore list rules for services_user
-**Depends on**: Phase 34
-**Requirements**: SERV-04, SERV-09
-**Gap Closure**: Plan 01 closes edit history path defect. Plans 02-03 close UAT-identified gaps: services_user sees edit controls (race condition) and 403 on expense aggregation (missing Firestore rules)
-**Success Criteria** (what must be TRUE):
-  1. All service edit operations write audit entries to services/{docId}/edit_history (not projects/)
-  2. Edit History button visible in service detail Card 1 header
-  3. Edit History modal opens and displays entries scoped to the correct service
-  4. All project edit history calls remain unchanged and continue to work
-  5. Firestore security rule for services/edit_history subcollection deployed to production
-  6. services_user sees service detail in read-only mode from first render (no edit control flash)
-  7. services_user can view expense breakdown without 403 Forbidden errors in console
+### Phase 35: Fix Service Edit History Path Defect + UAT Gap Closure
+**Goal**: Fix service edit history path defect and close UAT-identified gaps
 **Plans**: 3 plans
 
 Plans:
-- [ ] 35-01-PLAN.md — edit-history.js collectionName param + service-detail.js Edit History button/call sites + services.js call sites + firestore.rules subcollection rule + deploy
-- [ ] 35-02-PLAN.md — service-detail.js: fix canEdit === true guard + saveServiceField !== true guard + canReadTab defense in refreshServiceExpense()
-- [ ] 35-03-PLAN.md — firestore.rules: add services_user branch to prs list rule + pos list rule + deploy
+- [x] 35-01: edit-history.js collectionName param + service-detail.js Edit History button/call sites + firestore.rules subcollection rule + deploy
+- [x] 35-02: service-detail.js: fix canEdit === true guard + saveServiceField !== true guard + canReadTab defense
+- [x] 35-03: firestore.rules: add services_user branch to prs list rule + pos list rule + deploy
+
+### Phase 36: Fix Expense Breakdown Modal
+**Goal**: Unify expense breakdown modal — single showExpenseBreakdownModal with mode branching
+**Plans**: 1 plan
+
+Plans:
+- [x] 36-01: Unify expense-modal.js and update three call sites (service-detail, project-detail, finance)
+
+### Phase 37: Documentation & File Cleanup
+**Goal**: Close documentation tech debt — Phase 28 VERIFICATION.md, Phase 26 SUMMARY.md fix, ROADMAP.md updates
+**Plans**: 1 plan
+
+Plans:
+- [x] 37-01: Documentation cleanup: Phase 28 VERIFICATION.md + Phase 26 frontmatter fix + ROADMAP.md progress table + delete .continue-here files
+
+### Phase 38: Code Quality & DRY Cleanup
+**Goal**: Extract duplicate helpers to shared module, fix procurement scoreboard, remove dead code
+**Plans**: 2 plans
+
+Plans:
+- [x] 38-01: Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
+- [x] 38-02: Fix hardcoded approver name + add audit trail fields to all approval flows + dead code and debug log sweep
+
+### Phase 39: Admin Assignments Overhaul, Badge Styling, and Project Code Fix
+**Goal**: Replace bloated per-user assignment pages with compact table+modal interface, standardize badge colors, fix project code collisions
+**Plans**: 3 plans
+
+Plans:
+- [x] 39-01: Fix generateProjectCode dual-collection query + badge CSS infrastructure
+- [x] 39-02: Unified assignments.js module (table+modal) replacing project-assignments.js + service-assignments.js + admin.js update
+- [x] 39-03: Badge sweep across procurement.js, finance.js, home.js
+
+### Phase 40: UI/UX Revisions
+**Goal**: MRF request type label, client detail modal, services tab cleanup, My Requests sub-tab, MRF search improvements, procurement timeline fixes
+**Plans**: 7 plans
+
+Plans:
+- [x] 40-01: Trivial UI fixes: MRF label rename + MRF search improvements + Services tab column cleanup
+- [x] 40-02: Client detail modal with linked projects/services and clickable detail links
+- [x] 40-03: Procurement timeline fixes: emoji removal, Invalid Date fix, PR->PO grouping, procurement status per PO
+- [x] 40-04: MRF tracking: shared MRF Records module extraction + My Requests sub-tab in Material Request view
+- [x] 40-05: Gap closure: rewrite mrf-records.js to match full Procurement MRF Records table layout with async PR/PO sub-rows
+- [x] 40-06: Gap closure: add clickable PR/PO detail modals and Timeline button to My Requests table
+- [x] 40-07: View PR/PO document generation buttons in My Requests modals
+
+</details>
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 → 33 → 34 → 35 → 36 → 37 → 38
+All phases complete. v2.4 can be added via /gsd:new-milestone.
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -465,70 +419,5 @@ Phases execute in numeric order: 26 → 27 → 28 → 29 → 30 → 31 → 32 �
 | 36. Fix Expense Breakdown Modal | v2.3 | 1/1 | Complete | 2026-02-23 |
 | 37. Documentation & File Cleanup | v2.3 | 1/1 | Complete | 2026-02-24 |
 | 38. Code Quality & DRY Cleanup | v2.3 | 2/2 | Complete | 2026-02-24 |
-| 39. Admin Assignments Overhaul, Badge Styling, Project Code Fix | v2.3 | Complete    | 2026-02-24 | - |
-
-### Phase 36: fix the Expense Breakdown modal in services, export the one we've been using in projects
-
-**Goal:** Unify expense breakdown modal — delete showServiceExpenseBreakdownModal and merge into one showExpenseBreakdownModal(identifier, options) with mode branching; services modal now shows Material/Transport/Subcon scorecards and By Category/Transport Fees tabs identical to projects modal
-**Depends on:** Phase 35
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] 36-01-PLAN.md — Unify expense-modal.js and update three call sites (service-detail, project-detail, finance)
-
-#### Phase 37: Documentation & File Cleanup
-**Goal:** Close documentation tech debt — generate Phase 28 VERIFICATION.md, fix Phase 26 SUMMARY.md frontmatter, update ROADMAP.md progress table, delete stale .continue-here files
-**Depends on:** Phase 36
-**Tech Debt Closure:** Items 1, 2, 4, 5 from v2.3 audit
-**Success Criteria** (what must be TRUE):
-  1. Phase 28 VERIFICATION.md exists and confirms all 17 mapped requirements (SERV-01, SERV-03-10, SERV-12, UI-01-08, ASSIGN-01-02, ASSIGN-05) are satisfied
-  2. Phase 26 26-03-SUMMARY.md frontmatter no longer lists SEC-08 in requirements-completed
-  3. ROADMAP.md progress table shows Phase 31 as Complete (not "0/1 Not started") and column alignment is consistent for phases 26-36
-  4. Stale .continue-here files deleted from phases 25 and 36
-**Plans**: 1 plan
-
-Plans:
-- [x] 37-01-PLAN.md — Documentation cleanup: Phase 28 VERIFICATION.md + Phase 26 frontmatter fix + ROADMAP.md progress table + delete .continue-here files
-
-#### Phase 38: Code Quality & DRY Cleanup
-**Goal:** Close code tech debt — extract duplicate helpers to shared module, fix procurement scoreboard global totals, remove dead code, fix hardcoded approver name, correct section header
-**Depends on:** Phase 37
-**Tech Debt Closure:** Items 3, 6, 7 from v2.3 audit + 3 items carried from v2.2
-**Success Criteria** (what must be TRUE):
-  1. getMRFLabel() and getDeptBadgeHTML() defined once in shared module (utils.js or components.js), imported by finance.js and procurement.js
-  2. Procurement PO Tracking scoreboard shows global totals when department filter is active (scoreboards calculated before filter applied)
-  3. TR approval uses dynamic finance approver name (not hardcoded string)
-  4. Dead approvePR() and generatePOsForPR() functions removed from finance.js
-  5. Section header reads "MRF Records" instead of "PR-PO Records"
-**Plans**: 2 plans
-
-Plans:
-- [x] 38-01-PLAN.md — Extract getMRFLabel()/getDeptBadgeHTML() to components.js + fix procurement scoreboard global totals
-- [x] 38-02-PLAN.md — Fix hardcoded approver name + add audit trail fields to all approval flows + full dead code and debug log sweep
-
-### Phase 39: Admin Assignments Overhaul, Badge Styling, and Project Code Fix
-
-**Goal:** Replace bloated per-user assignment pages with compact table+modal interface, standardize all status badge colors across every view (orange/green/red/blue), and fix project code generation to query both collections preventing code collisions
-**Depends on:** Phase 38
-**Requirements:** ADMIN-01 to ADMIN-04, BADGE-01 to BADGE-03, CODE-01
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 39-01-PLAN.md — Fix generateProjectCode dual-collection query + badge CSS infrastructure (getStatusClass extension + new CSS classes)
-- [x] 39-02-PLAN.md — Unified assignments.js module (table+modal) replacing project-assignments.js + service-assignments.js + admin.js update
-- [x] 39-03-PLAN.md — Badge sweep across procurement.js, finance.js, home.js (PR-code-as-badge + inline style cleanup)
-
-### Phase 40: UI/UX revisions - MRF request type label, client detail modal, services tab cleanup, MRF tracking for requestors, MRF search improvements, and procurement timeline fixes
-
-**Goal:** Six surgical UI/UX revisions: rename MRF request type label, add client detail modal with linked projects/services, remove redundant Services tab column, fix procurement timeline (emojis, Invalid Date, PR->PO grouping, procurement status), extend MRF search, and add "My Requests" sub-tab for requestor MRF tracking
-**Depends on:** Phase 39
-**Requirements:** UX-01 to UX-06
-**Plans:** 7/7 plans complete
-
-Plans:
-- [ ] 40-01-PLAN.md — Trivial UI fixes: MRF label rename + MRF search improvements + Services tab column cleanup
-- [ ] 40-02-PLAN.md — Client detail modal with linked projects/services and clickable detail links
-- [ ] 40-03-PLAN.md — Procurement timeline fixes: emoji removal, Invalid Date fix, PR->PO grouping, procurement status per PO
-- [ ] 40-04-PLAN.md — MRF tracking: shared MRF Records module extraction + My Requests sub-tab in Material Request view
-- [ ] 40-05-PLAN.md — Gap closure: rewrite mrf-records.js to match full Procurement MRF Records table layout with async PR/PO sub-rows
-- [ ] 40-06-PLAN.md — Gap closure: add clickable PR/PO detail modals and Timeline button to My Requests table (self-contained in mrf-records.js)
+| 39. Admin Assignments Overhaul, Badge Styling, Code Fix | v2.3 | 3/3 | Complete | 2026-02-24 |
+| 40. UI/UX Revisions | v2.3 | 7/7 | Complete | 2026-02-26 |

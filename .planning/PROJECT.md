@@ -10,26 +10,9 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Shipped:** v2.2 Workflow & UX Enhancements (2026-02-10)
-
-**Current Milestone:** v2.3 Services Department Support
+**Shipped:** v2.3 Services Department Support (2026-02-26)
 
 See `.planning/MILESTONES.md` for full milestone history.
-
-## Current Milestone: v2.3 Services Department Support
-
-**Goal:** Enable parallel workflows for Services department alongside existing Projects department with complete role-based isolation and shared procurement pipeline.
-
-**Target features:**
-- Services collection with service_type field (one-time or recurring services)
-- Services tab with sub-tabs for Services and Recurring work
-- Two new roles (services_admin, services_user) mirroring operations roles for Services scope
-- Shared code sequence (CLMC_CLIENT_YYYY###) across Projects and Services
-- Role-based MRF dropdown visibility (operations sees Projects, services sees Services)
-- Department isolation (operations roles → Projects only, services roles → Services only)
-- Assignment-based access for services_user (mirrors operations_user pattern)
-- Complete Firebase Security Rules enforcement for services collection
-- Finance and Procurement remain cross-department (approve work from both departments)
 
 ## Requirements
 
@@ -138,33 +121,55 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Multi-personnel selection with pill UI and array storage — v2.2 (Phase 20)
 - ✓ Automatic personnel-to-assignment sync for operations users — v2.2 (Phase 21)
 
-### Active (v2.3 Services Department Support)
+### Validated (Shipped in v2.3)
 
 **Services Management:**
-- Services collection with CRUD operations mirroring Projects functionality
-- Service code generation sharing CLMC_CLIENT_YYYY### sequence with Projects
-- Services tab with sub-tabs: Services (one-time work), Recurring (contract-based work)
-- service_type field differentiation ('one-time' or 'recurring')
-- Same fields as Projects: budget, contract_cost, personnel, internal_status, project_status, active/inactive
-- Services detail page with inline editing and auto-save (mirror Projects pattern)
-- Assignment system for services_user (see only assigned services)
+- ✓ Services collection with CRUD operations mirroring Projects functionality — v2.3 (Phase 28)
+- ✓ Service code generation sharing CLMC_CLIENT_YYYY### sequence with Projects — v2.3 (Phase 27)
+- ✓ Services tab with sub-tabs: Services (one-time work), Recurring (contract-based work) — v2.3 (Phase 28)
+- ✓ service_type field differentiation ('one-time' or 'recurring') — v2.3 (Phase 28)
+- ✓ Same fields as Projects: budget, contract_cost, personnel, internal_status, project_status, active/inactive — v2.3 (Phase 28)
+- ✓ Services detail page with inline editing and auto-save — v2.3 (Phase 28)
+- ✓ Assignment system for services_user (see only assigned services) — v2.3 (Phase 28, 32, 39)
+- ✓ Service detail page includes expense breakdown (MRFs/PRs/POs linked to service) — v2.3 (Phase 33, 36)
 
 **Role & Permission System:**
-- services_admin role with full Services tab access (create/edit/delete, manage assignments)
-- services_user role with assignment-based Services tab access
-- Department isolation: operations roles see only Projects tab, services roles see only Services tab
-- Super Admin bypass for both departments
-- Finance and Procurement cross-department access (approve PRs/POs from both departments)
-- Firebase Security Rules enforcement for services collection
-- Role template configuration in Super Admin settings
+- ✓ services_admin role with full Services tab access (create/edit/delete, manage assignments) — v2.3 (Phase 26)
+- ✓ services_user role with assignment-based Services tab access — v2.3 (Phase 26)
+- ✓ Department isolation: operations roles see only Projects tab, services roles see only Services tab — v2.3 (Phase 26, 28)
+- ✓ Super Admin bypass for both departments — v2.3 (Phase 26)
+- ✓ Finance and Procurement cross-department access — v2.3 (Phase 30)
+- ✓ Firebase Security Rules enforcement for services collection — v2.3 (Phase 26, 32, 35)
+- ✓ Role template configuration in Super Admin settings — v2.3 (Phase 26)
 
 **MRF Integration:**
-- Role-based dropdown visibility in MRF form (operations users see Projects, services users see Services)
-- Denormalized storage (service_code + service_name) for performance
-- Services appear in MRF lists, details, and procurement workflow
-- Backward compatibility with existing project-based MRFs
+- ✓ Role-based dropdown visibility in MRF form (operations users see Projects, services users see Services) — v2.3 (Phase 29)
+- ✓ Denormalized storage (service_code + service_name) for performance — v2.3 (Phase 29)
+- ✓ Services appear in MRF lists, details, and procurement workflow — v2.3 (Phase 29, 30)
+- ✓ Backward compatibility with existing project-based MRFs — v2.3 (Phase 29)
 
-### Future (v2.1+)
+**Cross-Department & Dashboard:**
+- ✓ Finance Pending Approvals shows PRs/TRs from both Projects and Services with department badges — v2.3 (Phase 30)
+- ✓ Procurement PO Tracking shows POs from both Projects and Services with department indicators — v2.3 (Phase 30)
+- ✓ Department filter dropdown in Finance and Procurement views — v2.3 (Phase 30, 34)
+- ✓ Dashboard shows active services count and Services-linked MRFs count — v2.3 (Phase 31)
+- ✓ Dashboard role-aware stats (operations sees Projects only, services sees Services only, dual-dept sees both) — v2.3 (Phase 31)
+
+**Code Quality & UX (v2.3 Phase 36-40):**
+- ✓ Unified expense breakdown modal (project + service modes in single showExpenseBreakdownModal) — v2.3 (Phase 36)
+- ✓ getMRFLabel() and getDeptBadgeHTML() defined once in components.js — v2.3 (Phase 38)
+- ✓ Admin Assignments overhaul with unified table+modal interface — v2.3 (Phase 39)
+- ✓ Badge color standardization across all procurement statuses — v2.3 (Phase 39)
+- ✓ generateProjectCode() queries both collections preventing code collisions — v2.3 (Phase 39)
+- ✓ My Requests sub-tab for requestor MRF self-service tracking — v2.3 (Phase 40)
+- ✓ Client detail modal with linked projects/services — v2.3 (Phase 40)
+- ✓ Procurement timeline fixes (emoji removal, Invalid Date, PR->PO grouping) — v2.3 (Phase 40)
+
+### Active (v2.4+)
+
+No active milestone. Run `/gsd:new-milestone` to plan v2.4.
+
+### Future (v2.4+)
 
 #### Activity Logging
 - Structured activity entries on projects
@@ -239,15 +244,25 @@ See `.planning/MILESTONES.md` for full milestone history.
 - 100% requirements coverage (51/51), all phases verified
 - Firebase Security Rules: 247 lines, 17/17 tests passing
 
+**Shipped v2.3 (2026-02-26):**
+- 15 phases, 34 plans, 142 files changed, +27,307/-895 lines
+- New collections: services
+- New files: app/views/services.js, app/views/service-detail.js, app/views/mrf-records.js, app/views/assignments.js, app/expense-modal.js, app/edit-history.js
+- 65/65 requirements satisfied
+- 7 roles (added services_admin, services_user)
+
 **Current Codebase State:**
-- Auth System: app/auth.js (416 lines), app/permissions.js (133 lines)
-- Auth Views: register.js (320 lines), login.js (176 lines), pending.js (219 lines)
-- Admin Views: role-config.js (430 lines), user-management.js (1758 lines), project-assignments.js (255 lines)
-- Client/Project CRUD: clients.js (371 lines), projects.js (596 lines), project-detail.js (309 lines)
-- MRF/Procurement: mrf-form.js (updated with assignments), procurement.js (updated with permissions)
-- Finance: finance.js (updated with permissions)
-- Security: firestore.rules (247 lines), test/firestore.test.js (336 lines, 17 tests)
-- Utils: app/utils.js (includes getAssignedProjectCodes, generateProjectCode)
+- Auth System: app/auth.js, app/permissions.js
+- Auth Views: register.js, login.js, pending.js
+- Admin Views: role-config.js, user-management.js, assignments.js (unified, replaces project-assignments.js + service-assignments.js)
+- Client/Project CRUD: clients.js, projects.js, project-detail.js
+- Services CRUD: services.js, service-detail.js
+- MRF/Procurement: mrf-form.js (with My Requests sub-tab), mrf-records.js, procurement.js
+- Finance: finance.js (with cross-department dept badges and filters)
+- Shared Modules: app/expense-modal.js (unified project+service modal), app/edit-history.js
+- Security: firestore.rules (services rules deployed), test/firestore.test.js
+- Utils: app/utils.js (generateServiceCode, generateProjectCode, getAssignedServiceCodes, syncServicePersonnelToAssignments)
+- Components: app/components.js (getMRFLabel, getDeptBadgeHTML as named exports)
 
 **Technical Environment:**
 - Frontend: Vanilla JavaScript ES6 modules, no framework
@@ -259,14 +274,15 @@ See `.planning/MILESTONES.md` for full milestone history.
 **User Feedback Themes:**
 - v1.0: Project tracking working as expected
 - v1.0: Need for access control (✓ delivered in v2.0)
-- Desired: Document upload for project files (deferred to v2.1+)
-- Desired: Activity logging on projects (deferred to v2.1+)
-- Desired: Payment milestone tracking (deferred to v2.1+)
+- Desired: Document upload for project files (deferred to v2.4+)
+- Desired: Activity logging on projects (deferred to v2.4+)
+- Desired: Payment milestone tracking (deferred to v2.4+)
 
 **Known Issues:**
 - Role template seeding requires manual browser console step (one-time, 5 minutes)
 - First Super Admin requires manual Firestore document edit (one-time, 2 minutes)
 - Firestore 'in' query limited to 10 items (project assignments use client-side filtering)
+- Dead code: project-assignments.js and service-assignments.js remain unreferenced (replaced by assignments.js in P39, cleanup candidates for v2.4)
 
 ## Constraints
 
@@ -304,6 +320,14 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Minimum 2 Super Admin safeguard | Prevents complete system lockout | ✓ Good - enforced at deactivation and role change |
 | Two-step deletion (deactivate first) | Reversible action before permanent deletion | ✓ Good - safety mechanism validated |
 | Strict equality (=== false) for permission checks | Distinguishes no permission from loading state | ✓ Good - prevents UI flickering |
+| Phase 26: Services mirrors Projects (reuse patterns, duplicate UI modules) | Fastest path to parallel department — copy then adapt; avoids premature abstraction | ✓ Good - reduced Services build time significantly |
+| Phase 27: Parallel query for shared sequence (acceptable race condition at current scale) | Promise.all on projects+services for max code number; collision probability negligible at current user count | ✓ Good - no collision observed in production |
+| Phase 29: Department field stored as binary string discriminator ('projects'/'services') | Denormalized on MRF/PR/TR avoids joins in all display code; dual-condition check handles legacy docs without field | ✓ Good - consistent pattern across 20+ display locations |
+| Phase 35: canEdit === true guard (treats undefined as read-only) eliminates flash of edit controls | Strict equality blocks renders during permission-loading race; services_user sees read-only from first render | ✓ Good - no edit-control flash observed |
+| Phase 36: Unified showExpenseBreakdownModal with mode branching — single definition eliminates divergent implementations | Services modal was missing transport_requests; unified function fixed gap and prevents future divergence | ✓ Good - single export, 3 consumers, zero divergence |
+| Phase 38: getMRFLabel/getDeptBadgeHTML extracted to components.js as named exports | Duplicate definitions in finance.js and procurement.js — single source of truth removes drift risk | ✓ Good - clean import pattern adopted |
+| Phase 39: assignments.js replaces project-assignments.js + service-assignments.js — unified admin UI | Per-user assignment pages were bloated; table+modal pattern handles both departments in one view | ✓ Good - admin UX significantly improved |
+| Phase 40: createMRFRecordsController factory with containerId-namespaced window functions — prevents cross-instance state leakage | My Requests and Procurement both need MRF records tables; factory isolates state per instance | ✓ Good - zero cross-instance interference |
 
 ---
-*Last updated: 2026-02-12 after v2.3 milestone initialization*
+*Last updated: 2026-02-26 after v2.3 milestone*
