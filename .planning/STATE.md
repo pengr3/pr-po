@@ -1,3 +1,16 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: Services Department Support
+status: unknown
+last_updated: "2026-02-26T03:03:38.387Z"
+progress:
+  total_phases: 39
+  completed_phases: 37
+  total_plans: 103
+  completed_plans: 104
+---
+
 # Project State
 
 ## Project Reference
@@ -10,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
-Plan: 4 of N in current phase
-Status: Phase 40 plan 04 complete — My Requests sub-tab added to Material Request view, shared mrf-records.js module created
-Last activity: 2026-02-25 — Completed 40-04: MRF Tracking for Requestors (My Requests sub-tab)
+Plan: 5 of 5 in current phase
+Status: Phase 40 plan 05 complete — My Requests table rewritten to match Procurement MRF Records layout with async PR/PO sub-rows
+Last activity: 2026-02-26 — Completed 40-05: My Requests full MRF Records layout (gap closure)
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -55,6 +68,7 @@ Progress: [███████████████████████
 | Phase 40-ui-ux-revisions P02 | 15 | 1 tasks | 1 files |
 | Phase 40-ui-ux-revisions P03 | 2 | 2 tasks | 2 files |
 | Phase 40-ui-ux-revisions P04 | 25 | 2 tasks | 3 files |
+| Phase 40-ui-ux-revisions P05 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -132,6 +146,9 @@ Recent decisions affecting v2.3 work:
 - [Phase 40-04]: createMRFRecordsController uses instance-scoped state (closure) with containerId-namespaced window pagination functions — prevents cross-instance state leakage between Procurement and My Requests
 - [Phase 40-04]: statusFilter: null in My Requests fetches ALL MRF statuses — requestors need to track Pending requests too, not just historical statuses
 - [Phase 40-04]: Dynamic import('./mrf-records.js') in initMyRequests — lazy load, only fetched when user navigates to My Requests tab
+- [Phase 40-ui-ux-revisions]: PRs rendered as non-clickable spans (not <a> onclick) — window.viewPRDetails unavailable in mrf-form context; same for POs and viewPODetails
+- [Phase 40-ui-ux-revisions]: Procurement Status column shows read-only colored spans (not editable selects) — requestors see but cannot modify PO procurement status in My Requests
+- [Phase 40-ui-ux-revisions]: calculateMRFStatus duplicated locally in mrf-records.js (not extracted from procurement.js) — avoids touching 3761-line file, zero regression risk
 
 ### Roadmap Evolution
 
@@ -172,6 +189,5 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Completed 40-04-PLAN.md: MRF Tracking for Requestors — My Requests sub-tab, shared mrf-records.js module
-Resume file: .planning/phases/40-ui-ux-revisions-mrf-request-type-label-client-detail-modal-services-tab-cleanup-mrf-tracking-for-requestors-mrf-search-improvements-and-procurement-timeline-fixes/40-CONTEXT.md
+Last session: 2026-02-26
+Stopped at: Completed 40-05-PLAN.md (My Requests full MRF Records layout — async PR/PO sub-rows matching Procurement view)
