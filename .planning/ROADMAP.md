@@ -523,7 +523,7 @@ Plans:
 **Goal:** Six surgical UI/UX revisions: rename MRF request type label, add client detail modal with linked projects/services, remove redundant Services tab column, fix procurement timeline (emojis, Invalid Date, PR->PO grouping, procurement status), extend MRF search, and add "My Requests" sub-tab for requestor MRF tracking
 **Depends on:** Phase 39
 **Requirements:** UX-01 to UX-06
-**Plans:** 6/6 plans complete
+**Plans:** 7/7 plans complete
 
 Plans:
 - [ ] 40-01-PLAN.md — Trivial UI fixes: MRF label rename + MRF search improvements + Services tab column cleanup

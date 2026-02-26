@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Services Department Support
 status: unknown
-last_updated: "2026-02-26T05:38:23.012Z"
+last_updated: "2026-02-26T05:56:02.684Z"
 progress:
   total_phases: 39
   completed_phases: 37
-  total_plans: 104
-  completed_plans: 105
+  total_plans: 105
+  completed_plans: 106
 ---
 
 ---
@@ -49,9 +49,9 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
-Plan: 6 of 6 in current phase
-Status: Phase 40 plan 06 complete — My Requests table now has clickable PR/PO modals and Timeline button (3 UAT gaps closed)
-Last activity: 2026-02-26 — Completed 40-06: Clickable PR/PO detail modals and Timeline button in My Requests
+Plan: 7 of 7 in current phase
+Status: Phase 40 plan 07 complete — My Requests PR/PO detail modals now have View PR/View PO document generation buttons (all UAT gaps closed)
+Last activity: 2026-02-26 — Completed 40-07: View PR/PO document generation buttons in My Requests modals
 
 Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
 
@@ -96,6 +96,7 @@ Progress: [███████████████████████
 | Phase 40-ui-ux-revisions P04 | 25 | 2 tasks | 3 files |
 | Phase 40-ui-ux-revisions P05 | 15 | 2 tasks | 2 files |
 | Phase 40 P06 | 225 | 2 tasks | 1 files |
+| Phase 40-ui-ux-revisions P07 | 2 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,8 @@ Recent decisions affecting v2.3 work:
 - [Phase 40-ui-ux-revisions]: calculateMRFStatus duplicated locally in mrf-records.js (not extracted from procurement.js) — avoids touching 3761-line file, zero regression risk
 - [Phase 40]: viewPRDetailsLocal/viewPODetailsLocal use createModal pattern (matches procurement.js) while showTimelineLocal injects raw modal div into body (matches timeline pattern from 40-03)
 - [Phase 40]: Instance-scoped window functions prefixed with containerId prevent collision between Procurement and My Requests controller instances
+- [Phase 40-ui-ux-revisions]: DOCUMENT_CONFIG_LOCAL and all helper functions use 'Local' suffix to avoid window namespace collision with procurement.js equivalents
+- [Phase 40-ui-ux-revisions]: window.generatePRDocumentLocal/generatePODocumentLocal registered in factory (not module level) and cleaned up in destroy() — same lifecycle as other window functions in createMRFRecordsController
 
 ### Roadmap Evolution
 
@@ -219,4 +222,4 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed 40-06-PLAN.md (My Requests clickable PR/PO detail modals and Timeline button — 3 UAT gaps closed)
+Stopped at: Completed 40-07-PLAN.md (View PR/PO document generation buttons in My Requests modals — all UAT gaps closed)
