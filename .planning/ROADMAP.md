@@ -523,7 +523,7 @@ Plans:
 **Goal:** Six surgical UI/UX revisions: rename MRF request type label, add client detail modal with linked projects/services, remove redundant Services tab column, fix procurement timeline (emojis, Invalid Date, PR->PO grouping, procurement status), extend MRF search, and add "My Requests" sub-tab for requestor MRF tracking
 **Depends on:** Phase 39
 **Requirements:** UX-01 to UX-06
-**Plans:** 5/5 plans complete
+**Plans:** 6 plans (5 complete + 1 gap closure)
 
 Plans:
 - [ ] 40-01-PLAN.md — Trivial UI fixes: MRF label rename + MRF search improvements + Services tab column cleanup
@@ -531,3 +531,4 @@ Plans:
 - [ ] 40-03-PLAN.md — Procurement timeline fixes: emoji removal, Invalid Date fix, PR->PO grouping, procurement status per PO
 - [ ] 40-04-PLAN.md — MRF tracking: shared MRF Records module extraction + My Requests sub-tab in Material Request view
 - [ ] 40-05-PLAN.md — Gap closure: rewrite mrf-records.js to match full Procurement MRF Records table layout with async PR/PO sub-rows
+- [ ] 40-06-PLAN.md — Gap closure: add clickable PR/PO detail modals and Timeline button to My Requests table (self-contained in mrf-records.js)
