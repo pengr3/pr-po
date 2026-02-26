@@ -49,37 +49,37 @@ function renderMyRequestsView(tabNav) {
                 <div class="card">
                     <div class="card-header">
                         <h2>My Requests</h2>
-                        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                            <input type="text"
-                                id="myRequestsSearch"
-                                placeholder="Search by MRF ID, project, service, requestor..."
-                                oninput="window._myRequestsFilter()"
-                                style="padding: 0.35rem 0.6rem; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem; color: #475569; min-width: 240px;">
-                            <select id="myRequestsStatusFilter"
-                                onchange="window._myRequestsFilter()"
-                                style="padding: 0.35rem 0.6rem; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem; color: #475569;">
-                                <option value="">All Statuses</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Approved">Approved</option>
-                                <option value="Rejected">Rejected</option>
-                                <option value="TR Submitted">TR Submitted</option>
-                                <option value="PR Generated">PR Generated</option>
-                                <option value="PR Rejected">PR Rejected</option>
-                                <option value="Finance Approved">Finance Approved</option>
-                                <option value="PO Issued">PO Issued</option>
-                                <option value="Delivered">Delivered</option>
-                                <option value="Completed">Completed</option>
-                            </select>
-                            <select id="myRequestsUrgencyFilter"
-                                onchange="window._myRequestsFilter()"
-                                style="padding: 0.35rem 0.6rem; border: 1.5px solid #e2e8f0; border-radius: 6px; font-size: 0.875rem; color: #475569;">
-                                <option value="">All Urgencies</option>
-                                <option value="Low">Low</option>
-                                <option value="Medium">Medium</option>
-                                <option value="High">High</option>
-                                <option value="Critical">Critical</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="window._myRequestsReload()">Refresh</button>
+                        <button class="btn btn-secondary" onclick="window._myRequestsReload()">Refresh</button>
+                    </div>
+                    <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                            <div class="filter-group">
+                                <label>MRF Status</label>
+                                <select id="myRequestsStatusFilter" onchange="window._myRequestsFilter()">
+                                    <option value="">All MRF Statuses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="PR Generated">PR Generated</option>
+                                    <option value="TR Submitted">TR Submitted</option>
+                                    <option value="Finance Approved">Finance Approved</option>
+                                    <option value="PO Issued">PO Issued</option>
+                                    <option value="Delivered">Delivered</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Urgency</label>
+                                <select id="myRequestsUrgencyFilter" onchange="window._myRequestsFilter()">
+                                    <option value="">All Urgencies</option>
+                                    <option value="Low">Low</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label>Search</label>
+                                <input type="text" id="myRequestsSearch" placeholder="MRF ID, Project..." onkeyup="window._myRequestsFilter()">
+                            </div>
                         </div>
                     </div>
                     <div id="myRequestsContainer" style="overflow-x: auto; padding: 0 0 1rem 0;">
