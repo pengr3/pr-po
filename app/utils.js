@@ -3,7 +3,7 @@
    Shared utility functions used across views
    ======================================== */
 
-import { db, collection, getDocs, query, where, orderBy, limit } from './firebase.js';
+import { db, collection, getDocs, getDoc, updateDoc, doc, query, where, orderBy, limit, arrayUnion, arrayRemove } from './firebase.js';
 
 /* ========================================
    FORMATTING UTILITIES
@@ -47,17 +47,25 @@ export function formatDate(dateString) {
  * @returns {string} Formatted date string
  */
 export function formatTimestamp(timestamp) {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return '';
 
     try {
-        const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        let date;
+        if (timestamp.toDate) {
+            date = timestamp.toDate();
+        } else if (timestamp.seconds != null) {
+            date = new Date(timestamp.seconds * 1000);
+        } else {
+            date = new Date(timestamp);
+        }
+        if (isNaN(date.getTime())) return '';
         return date.toLocaleDateString('en-PH', {
             year: 'numeric',
             month: 'long',
             day: 'numeric'
         });
     } catch (error) {
-        return 'N/A';
+        return '';
     }
 }
 
@@ -446,5 +454,132 @@ window.utils = {
 };
 
 window.getAssignedProjectCodes = getAssignedProjectCodes;
+
+/* ========================================
+   PERSONNEL UTILITIES
+   ======================================== */
+
+/**
+ * Normalize personnel data from any legacy format to array format.
+ * Does NOT write back to Firestore (migrate-on-edit strategy from Phase 15).
+ *
+ * Input formats handled:
+ * 1. Phase 20 array format: { personnel_user_ids: [...], personnel_names: [...] }
+ * 2. Phase 15 single-user format: { personnel_user_id: 'id', personnel_name: 'name' }
+ * 3. Phase 2 freetext format: { personnel: 'freetext name' }
+ * 4. Empty/missing: all fields null or absent
+ *
+ * @param {object} project - Project document from Firestore
+ * @returns {{ userIds: string[], names: string[] }}
+ */
+export function normalizePersonnel(project) {
+    // Phase 20 array format
+    if (Array.isArray(project.personnel_user_ids) && project.personnel_user_ids.length > 0) {
+        return {
+            userIds: project.personnel_user_ids,
+            names: project.personnel_names || []
+        };
+    }
+
+    // Phase 15 single-user format
+    if (project.personnel_user_id) {
+        return {
+            userIds: [project.personnel_user_id],
+            names: [project.personnel_name || '']
+        };
+    }
+
+    // Phase 2 freetext format
+    if (project.personnel) {
+        return {
+            userIds: [],
+            names: [project.personnel]
+        };
+    }
+
+    // Empty/missing
+    return { userIds: [], names: [] };
+}
+
+/* ========================================
+   PERSONNEL-ASSIGNMENT SYNC
+   ======================================== */
+
+/**
+ * Sync personnel assignments to user assigned_project_codes.
+ * When personnel are added/removed from a project, atomically update
+ * each affected user's assigned_project_codes using arrayUnion/arrayRemove.
+ *
+ * Designed to be called fire-and-forget (.catch()) -- never blocks the caller.
+ *
+ * @param {string} projectCode - The project_code to add/remove from users
+ * @param {string[]} previousUserIds - User IDs before the mutation
+ * @param {string[]} newUserIds - User IDs after the mutation
+ * @returns {Promise<Array>} Array of errors (empty if all succeeded)
+ */
+export async function syncPersonnelToAssignments(projectCode, previousUserIds, newUserIds) {
+    if (!projectCode) {
+        console.warn('[PersonnelSync] No project_code provided, skipping sync (legacy project?)');
+        return [];
+    }
+
+    const prevSet = new Set((previousUserIds || []).filter(Boolean));
+    const newSet = new Set((newUserIds || []).filter(Boolean));
+
+    const addedUserIds = [...newSet].filter(id => !prevSet.has(id));
+    const removedUserIds = [...prevSet].filter(id => !newSet.has(id));
+
+    console.log(`[PersonnelSync] Syncing for project: ${projectCode} | Added: ${addedUserIds.length}, Removed: ${removedUserIds.length}`);
+
+    if (addedUserIds.length === 0 && removedUserIds.length === 0) {
+        return [];
+    }
+
+    const errors = [];
+
+    // Process additions -- check all_projects flag before adding
+    for (const userId of addedUserIds) {
+        try {
+            // Try to check all_projects flag; skip read errors gracefully
+            // (operations_user can't read other users' docs -- just proceed with the add)
+            let skipUser = false;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists() && userDoc.data().all_projects === true) {
+                    console.log(`[PersonnelSync] Skipping ${userId} (all_projects=true)`);
+                    skipUser = true;
+                }
+            } catch (readErr) {
+                console.log(`[PersonnelSync] Cannot read user ${userId} (permission), proceeding with add`);
+            }
+            if (skipUser) continue;
+
+            await updateDoc(doc(db, 'users', userId), {
+                assigned_project_codes: arrayUnion(projectCode)
+            });
+        } catch (err) {
+            console.error(`[PersonnelSync] Failed to add project to user ${userId}:`, err);
+            errors.push(err);
+        }
+    }
+
+    // Process removals -- arrayRemove on non-existent value is a no-op
+    for (const userId of removedUserIds) {
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                assigned_project_codes: arrayRemove(projectCode)
+            });
+        } catch (err) {
+            console.error(`[PersonnelSync] Failed to remove project from user ${userId}:`, err);
+            errors.push(err);
+        }
+    }
+
+    if (errors.length > 0) {
+        console.warn(`[PersonnelSync] Completed with ${errors.length} error(s)`);
+    }
+
+    return errors;
+}
 
 console.log('Utilities module loaded successfully');

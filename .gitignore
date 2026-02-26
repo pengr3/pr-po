@@ -1,0 +1,10 @@
+# Credentials & secrets
+service-account.json
+*-firebase-adminsdk-*.json
+
+# Firebase debug
+firestore-debug.log
+firebase-debug.log
+
+# Dependencies
+node_modules/

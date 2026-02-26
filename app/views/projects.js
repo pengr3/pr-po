@@ -4,12 +4,15 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
+import { recordEditHistory } from '../edit-history.js';
 
 // Global state
 let projectsData = [];
 let clientsData = [];
+let usersData = [];  // Active users for personnel selection
 let editingProject = null;
+let selectedPersonnel = []; // Array of { id: string, name: string } for pill state
 let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
@@ -65,6 +68,10 @@ function attachWindowFunctions() {
     window.applyFilters = applyFilters;
     window.debouncedFilter = debouncedFilter;
     window.sortProjects = sortProjects;
+    window.selectPersonnel = selectPersonnel;
+    window.removePersonnel = removePersonnel;
+    window.filterPersonnelDropdown = filterPersonnelDropdown;
+    window.showPersonnelDropdown = showPersonnelDropdown;
     console.log('[Projects] Window functions attached');
 }
 
@@ -78,6 +85,10 @@ export function render(activeTab = null) {
     // canEdit === true -> has permission, show controls
     const showEditControls = canEdit !== false;
 
+    // Check role for project creation (only super_admin and operations_admin)
+    const user = window.getCurrentUser?.();
+    const canCreateProject = user?.role === 'super_admin' || user?.role === 'operations_admin';
+
     return `
         <div class="container" style="margin-top: 2rem;">
             ${canEdit === false ? `
@@ -89,7 +100,7 @@ export function render(activeTab = null) {
             <div class="card">
                 <div class="suppliers-header">
                     <h2>Project Management</h2>
-                    ${showEditControls ? `
+                    ${canCreateProject ? `
                         <button class="btn btn-primary" onclick="window.toggleAddProjectForm()">Add Project</button>
                     ` : ''}
                 </div>
@@ -142,10 +153,20 @@ export function render(activeTab = null) {
                         <small class="form-hint">Leave blank if not applicable. Must be positive if provided.</small>
                     </div>
 
-                    <div class="form-group">
-                        <label>Personnel (Optional)</label>
-                        <input type="text" id="personnel" placeholder="John Doe, Jane Smith">
-                        <small class="form-hint">Freetext field for personnel assignment.</small>
+                    <div class="form-group" style="position: relative;">
+                        <label>Personnel *</label>
+                        <div class="pill-input-container" id="personnelPillContainer"
+                             onclick="document.getElementById('personnelSearchInput')?.focus()">
+                            <input type="text"
+                                   class="pill-search-input"
+                                   id="personnelSearchInput"
+                                   placeholder="Type name or email..."
+                                   oninput="window.filterPersonnelDropdown(this.value)"
+                                   onfocus="window.showPersonnelDropdown()"
+                                   autocomplete="off">
+                        </div>
+                        <div class="pill-dropdown" id="personnelDropdown" style="display: none;"></div>
+                        <small class="form-hint">Select one or more active users. Required for new projects.</small>
                     </div>
 
                     <div class="form-actions">
@@ -256,7 +277,19 @@ export async function init(activeTab = null) {
         window._projectsAssignmentHandler = assignmentChangeHandler;
     }
 
+    // Click-outside handler to close personnel dropdown
+    const clickOutsideHandler = (e) => {
+        const container = document.getElementById('personnelPillContainer');
+        const dropdown = document.getElementById('personnelDropdown');
+        if (dropdown && container && !container.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    };
+    document.addEventListener('mousedown', clickOutsideHandler);
+    window._personnelClickOutside = clickOutsideHandler;
+
     await loadClients();
+    await loadActiveUsers();
     await loadProjects();
 }
 
@@ -280,12 +313,20 @@ export async function destroy() {
     listeners = [];
     projectsData = [];
     clientsData = [];
+    usersData = [];
     editingProject = null;
     currentPage = 1;
     allProjects = [];
     filteredProjects = [];
     sortColumn = 'created_at';
     sortDirection = 'desc';
+
+    // Clean up personnel pill state
+    if (window._personnelClickOutside) {
+        document.removeEventListener('mousedown', window._personnelClickOutside);
+        delete window._personnelClickOutside;
+    }
+    selectedPersonnel = [];
 
     delete window.toggleAddProjectForm;
     delete window.addProject;
@@ -298,6 +339,10 @@ export async function destroy() {
     delete window.applyFilters;
     delete window.debouncedFilter;
     delete window.sortProjects;
+    delete window.selectPersonnel;
+    delete window.removePersonnel;
+    delete window.filterPersonnelDropdown;
+    delete window.showPersonnelDropdown;
 
     console.log('[Projects] View destroyed');
 }
@@ -321,6 +366,138 @@ async function loadClients() {
     } catch (error) {
         console.error('[Projects] Error loading clients:', error);
     }
+}
+
+// Load active users for personnel datalist
+async function loadActiveUsers() {
+    // Personnel pill selector is an edit feature - skip for view-only users
+    // Firestore rules only allow super_admin/operations_admin to list users
+    const canEdit = window.canEditTab?.('projects');
+    if (canEdit === false) {
+        console.log('[Projects] Skipping user load (view-only mode)');
+        return;
+    }
+
+    try {
+        const usersQuery = query(
+            collection(db, 'users'),
+            where('status', '==', 'active')
+        );
+
+        const listener = onSnapshot(usersQuery, (snapshot) => {
+            usersData = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                usersData.push({
+                    id: doc.id,
+                    full_name: data.full_name || '',
+                    email: data.email || ''
+                });
+            });
+            usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
+            console.log('[Projects] Active users loaded:', usersData.length);
+        }, (error) => {
+            console.warn('[Projects] Users listener error (likely permissions):', error.message);
+        });
+
+        listeners.push(listener);
+    } catch (error) {
+        console.error('[Projects] Error loading users:', error);
+    }
+}
+
+// Pill rendering and interaction functions
+function renderPills() {
+    const container = document.getElementById('personnelPillContainer');
+    if (!container) return;
+
+    const searchInput = document.getElementById('personnelSearchInput');
+    const searchValue = searchInput?.value || '';
+
+    const pillsHtml = selectedPersonnel.map(user => `
+        <span class="personnel-pill ${user.id ? '' : 'legacy'}" data-user-id="${user.id || ''}">
+            ${user.name}
+            <button type="button" class="pill-remove"
+                onmousedown="event.preventDefault(); window.removePersonnel('${user.id || ''}', '${user.name.replace(/'/g, "\\'")}')">&times;</button>
+        </span>
+    `).join('');
+
+    container.innerHTML = `
+        ${pillsHtml}
+        <input type="text"
+               class="pill-search-input"
+               id="personnelSearchInput"
+               placeholder="${selectedPersonnel.length === 0 ? 'Type name or email...' : ''}"
+               value="${searchValue}"
+               oninput="window.filterPersonnelDropdown(this.value)"
+               onfocus="window.showPersonnelDropdown()"
+               autocomplete="off">
+    `;
+
+    const newSearchInput = document.getElementById('personnelSearchInput');
+    if (document.activeElement === container || searchValue) {
+        newSearchInput?.focus();
+    }
+}
+
+function filterPersonnelDropdown(searchText) {
+    const dropdown = document.getElementById('personnelDropdown');
+    if (!dropdown) return;
+
+    const term = searchText.toLowerCase().trim();
+    const selectedIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+
+    const matches = term ? usersData.filter(user =>
+        !selectedIds.includes(user.id) &&
+        (user.full_name.toLowerCase().includes(term) ||
+         user.email.toLowerCase().includes(term))
+    ) : [];
+
+    if (matches.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+
+    dropdown.innerHTML = matches.slice(0, 10).map(user => `
+        <div class="pill-dropdown-item"
+             onmousedown="event.preventDefault(); window.selectPersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
+            <strong>${user.full_name}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+        </div>
+    `).join('');
+
+    dropdown.style.display = 'block';
+}
+
+function showPersonnelDropdown() {
+    const searchInput = document.getElementById('personnelSearchInput');
+    if (searchInput?.value?.trim()) {
+        filterPersonnelDropdown(searchInput.value);
+    }
+}
+
+function selectPersonnel(userId, userName) {
+    if (selectedPersonnel.some(u => u.id === userId)) return;
+
+    selectedPersonnel.push({ id: userId, name: userName });
+    renderPills();
+
+    const searchInput = document.getElementById('personnelSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    const dropdown = document.getElementById('personnelDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+}
+
+function removePersonnel(userId, userName) {
+    if (userId) {
+        selectedPersonnel = selectedPersonnel.filter(u => u.id !== userId);
+    } else {
+        selectedPersonnel = selectedPersonnel.filter(u => u.name !== userName);
+    }
+    renderPills();
 }
 
 // Render client dropdown
@@ -365,6 +542,13 @@ function toggleAddProjectForm() {
         return;
     }
 
+    // Guard: check role for project creation
+    const user = window.getCurrentUser?.();
+    if (!user || (user.role !== 'super_admin' && user.role !== 'operations_admin')) {
+        showToast('Only Operations Admin and Super Admin can create projects', 'error');
+        return;
+    }
+
     const form = document.getElementById('addProjectForm');
     if (!form) return;
 
@@ -382,7 +566,10 @@ function toggleAddProjectForm() {
         document.getElementById('projectStatus').value = '';
         document.getElementById('projectBudget').value = '';
         document.getElementById('contractCost').value = '';
-        document.getElementById('personnel').value = '';
+
+        // Clear personnel pills
+        selectedPersonnel = [];
+        renderPills();
 
         document.getElementById('projectName').focus();
     } else {
@@ -400,6 +587,13 @@ async function addProject() {
         return;
     }
 
+    // Guard: check role for project creation
+    const user = window.getCurrentUser?.();
+    if (!user || (user.role !== 'super_admin' && user.role !== 'operations_admin')) {
+        showToast('Only Operations Admin and Super Admin can create projects', 'error');
+        return;
+    }
+
     const clientSelect = document.getElementById('projectClient');
     const clientId = clientSelect.value;
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
@@ -408,11 +602,16 @@ async function addProject() {
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
-    const personnel = document.getElementById('personnel').value.trim();
 
     // Validate required fields
     if (!clientId || !project_name || !internal_status || !project_status) {
         showToast('Please fill in all required fields', 'error');
+        return;
+    }
+
+    // Validate personnel selection
+    if (selectedPersonnel.length === 0) {
+        showToast('Personnel field is required - select at least one user', 'error');
         return;
     }
 
@@ -447,7 +646,7 @@ async function addProject() {
         // Generate project code
         const project_code = await generateProjectCode(clientCode);
 
-        await addDoc(collection(db, 'projects'), {
+        const docRef = await addDoc(collection(db, 'projects'), {
             project_code,
             project_name,
             client_id: clientId,
@@ -456,10 +655,30 @@ async function addProject() {
             project_status,
             budget,
             contract_cost,
-            personnel: personnel || null,
+            personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
+            personnel_names: selectedPersonnel.map(u => u.name),
+            personnel_user_id: null,
+            personnel_name: null,
+            personnel: null,
             active: true,
             created_at: new Date().toISOString()
         });
+
+        // Record creation in edit history (fire-and-forget)
+        recordEditHistory(docRef.id, 'create', [
+            { field: 'project_name', old_value: null, new_value: project_name },
+            { field: 'client', old_value: null, new_value: clientCode },
+            { field: 'internal_status', old_value: null, new_value: internal_status },
+            { field: 'project_status', old_value: null, new_value: project_status },
+            ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
+            ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
+            ...(selectedPersonnel.length > 0 ? [{ field: 'personnel', old_value: null, new_value: selectedPersonnel.map(u => u.name).join(', ') }] : [])
+        ]).catch(err => console.error('[EditHistory] addProject failed:', err));
+
+        // Sync personnel to user assignments (fire-and-forget)
+        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+        syncPersonnelToAssignments(project_code, [], newUserIds)
+            .catch(err => console.error('[Projects] Assignment sync failed:', err));
 
         showToast(`Project "${project_name}" created successfully!`, 'success');
         toggleAddProjectForm();
@@ -686,7 +905,7 @@ function editProject(projectId) {
         return;
     }
 
-    const project = projectsData.find(p => p.id === projectId);
+    const project = allProjects.find(p => p.id === projectId);
     if (!project) return;
 
     editingProject = projectId;
@@ -705,7 +924,17 @@ function editProject(projectId) {
     document.getElementById('projectStatus').value = project.project_status;
     document.getElementById('projectBudget').value = project.budget || '';
     document.getElementById('contractCost').value = project.contract_cost || '';
-    document.getElementById('personnel').value = project.personnel || '';
+
+    // Populate pills from existing personnel data (handles all legacy formats)
+    const normalized = normalizePersonnel(project);
+    selectedPersonnel = [];
+    for (let i = 0; i < normalized.names.length; i++) {
+        selectedPersonnel.push({
+            id: normalized.userIds[i] || '',
+            name: normalized.names[i]
+        });
+    }
+    renderPills();
 }
 
 // Cancel edit
@@ -731,7 +960,15 @@ async function saveEdit() {
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
-    const personnel = document.getElementById('personnel').value.trim();
+
+    // Build personnel payload from pill state
+    const personnelUpdate = {
+        personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
+        personnel_names: selectedPersonnel.map(u => u.name),
+        personnel_user_id: null,
+        personnel_name: null,
+        personnel: null
+    };
 
     // Validate required fields
     if (!clientId || !project_name || !internal_status || !project_status) {
@@ -764,6 +1001,11 @@ async function saveEdit() {
         return;
     }
 
+    // Capture old personnel BEFORE save for sync diff
+    const existingProject = allProjects.find(p => p.id === editingProject);
+    const oldNormalized = normalizePersonnel(existingProject);
+    const oldUserIds = oldNormalized.userIds;
+
     showLoading(true);
 
     try {
@@ -776,9 +1018,53 @@ async function saveEdit() {
             project_status,
             budget,
             contract_cost,
-            personnel: personnel || null,
+            ...personnelUpdate,
             updated_at: new Date().toISOString()
         });
+
+        // Build diff for edit history
+        const editChanges = [];
+        if (existingProject.project_name !== project_name) {
+            editChanges.push({ field: 'project_name', old_value: existingProject.project_name, new_value: project_name });
+        }
+        if (existingProject.client_code !== clientCode) {
+            editChanges.push({ field: 'client_code', old_value: existingProject.client_code, new_value: clientCode });
+        }
+        if (existingProject.internal_status !== internal_status) {
+            editChanges.push({ field: 'internal_status', old_value: existingProject.internal_status, new_value: internal_status });
+        }
+        if (existingProject.project_status !== project_status) {
+            editChanges.push({ field: 'project_status', old_value: existingProject.project_status, new_value: project_status });
+        }
+        const oldBudget = existingProject.budget != null ? parseFloat(existingProject.budget) : null;
+        if (oldBudget !== budget) {
+            editChanges.push({ field: 'budget', old_value: oldBudget, new_value: budget });
+        }
+        const oldContract = existingProject.contract_cost != null ? parseFloat(existingProject.contract_cost) : null;
+        if (oldContract !== contract_cost) {
+            editChanges.push({ field: 'contract_cost', old_value: oldContract, new_value: contract_cost });
+        }
+        // Check personnel changes
+        const oldPersonnelNames = (existingProject.personnel_names || []).sort().join(',');
+        const newPersonnelNames = selectedPersonnel.map(u => u.name).sort().join(',');
+        if (oldPersonnelNames !== newPersonnelNames) {
+            editChanges.push({
+                field: 'personnel',
+                old_value: existingProject.personnel_names?.join(', ') || '(none)',
+                new_value: selectedPersonnel.map(u => u.name).join(', ') || '(none)'
+            });
+        }
+        // Only record if something actually changed
+        if (editChanges.length > 0) {
+            recordEditHistory(editingProject, 'update', editChanges)
+                .catch(err => console.error('[EditHistory] saveEdit failed:', err));
+        }
+
+        // Sync personnel assignment changes (fire-and-forget)
+        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+        const projectCode = existingProject?.project_code;
+        syncPersonnelToAssignments(projectCode, oldUserIds, newUserIds)
+            .catch(err => console.error('[Projects] Assignment sync failed:', err));
 
         showToast('Project updated successfully', 'success');
         editingProject = null;
@@ -835,6 +1121,11 @@ async function toggleProjectActive(projectId, currentStatus) {
             active: !currentStatus,
             updated_at: new Date().toISOString()
         });
+
+        // Record edit history (fire-and-forget)
+        recordEditHistory(projectId, 'toggle_active', [
+            { field: 'active', old_value: currentStatus, new_value: !currentStatus }
+        ]).catch(err => console.error('[EditHistory] toggleProjectActive failed:', err));
 
         showToast('Project status updated', 'success');
     } catch (error) {

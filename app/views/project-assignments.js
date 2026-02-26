@@ -3,7 +3,7 @@
    Admin panel for assigning projects to Operations Users
    ======================================== */
 
-import { db, collection, onSnapshot, updateDoc, doc, query, where } from '../firebase.js';
+import { db, collection, onSnapshot, updateDoc, doc, query, where, arrayUnion, arrayRemove } from '../firebase.js';
 import { showToast } from '../utils.js';
 
 // Module-level state
@@ -210,17 +210,96 @@ async function handleAllProjectsChange(checkbox) {
  * @param {string} userId - The target user's document ID
  */
 async function handleProjectCheckboxChange(userId) {
-    const codes = readCheckedProjectCodes(userId);
+    // Capture old assignments before updating
+    const user = opsUsers.find(u => u.id === userId);
+    const oldCodes = Array.isArray(user?.assigned_project_codes) ? user.assigned_project_codes : [];
+    const newCodes = readCheckedProjectCodes(userId);
 
     try {
         await updateDoc(doc(db, 'users', userId), {
             all_projects: false,
-            assigned_project_codes: codes
+            assigned_project_codes: newCodes
         });
-        console.log('[ProjectAssignments] Updated assigned_project_codes for', userId, ':', codes);
+        console.log('[ProjectAssignments] Updated assigned_project_codes for', userId, ':', newCodes);
+
+        // Reverse sync: update project personnel to match assignment changes
+        syncAssignmentToPersonnel(userId, user, oldCodes, newCodes)
+            .catch(err => console.error('[ProjectAssignments] Personnel sync failed:', err));
     } catch (error) {
         console.error('[ProjectAssignments] Error updating assignments:', error);
         showToast('Error saving assignment change', 'error');
+    }
+}
+
+/**
+ * Reverse sync: when assignments change, update project documents' personnel arrays.
+ * Fire-and-forget — errors are logged but do not block the assignment save.
+ * @param {string} userId - The user's document ID
+ * @param {object} user - The user object (from opsUsers) with full_name
+ * @param {string[]} oldCodes - Previous assigned_project_codes
+ * @param {string[]} newCodes - New assigned_project_codes
+ */
+async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
+    const oldSet = new Set(oldCodes);
+    const newSet = new Set(newCodes);
+    const addedCodes = newCodes.filter(c => !oldSet.has(c));
+    const removedCodes = oldCodes.filter(c => !newSet.has(c));
+
+    if (addedCodes.length === 0 && removedCodes.length === 0) return;
+
+    const userName = user?.full_name || user?.email || 'Unknown';
+    console.log(`[ProjectAssignments] Personnel sync for user ${userName} (${userId})`);
+    console.log(`[ProjectAssignments] Old codes:`, oldCodes, `New codes:`, newCodes);
+    console.log(`[ProjectAssignments] Added:`, addedCodes, `Removed:`, removedCodes);
+
+    const errors = [];
+
+    // Add user as personnel on newly assigned projects
+    for (const code of addedCodes) {
+        const project = allProjects.find(p => p.project_code === code);
+        if (!project) {
+            console.warn(`[ProjectAssignments] Project not found for code: ${code}`);
+            continue;
+        }
+        try {
+            console.log(`[ProjectAssignments] Adding ${userName} to project ${code} (doc: ${project.id})`);
+            await updateDoc(doc(db, 'projects', project.id), {
+                personnel_user_ids: arrayUnion(userId),
+                personnel_names: arrayUnion(userName)
+            });
+            console.log(`[ProjectAssignments] ✓ Added ${userName} to ${code}`);
+        } catch (err) {
+            console.error(`[ProjectAssignments] ✗ Failed to add ${userName} to ${code}:`, err);
+            errors.push({ code, action: 'add', error: err.message });
+        }
+    }
+
+    // Remove user as personnel from unassigned projects
+    for (const code of removedCodes) {
+        const project = allProjects.find(p => p.project_code === code);
+        if (!project) {
+            console.warn(`[ProjectAssignments] Project not found for code: ${code}`);
+            continue;
+        }
+        try {
+            console.log(`[ProjectAssignments] Removing ${userName} from project ${code} (doc: ${project.id})`);
+            await updateDoc(doc(db, 'projects', project.id), {
+                personnel_user_ids: arrayRemove(userId),
+                personnel_names: arrayRemove(userName)
+            });
+            console.log(`[ProjectAssignments] ✓ Removed ${userName} from ${code}`);
+        } catch (err) {
+            console.error(`[ProjectAssignments] ✗ Failed to remove ${userName} from ${code}:`, err);
+            errors.push({ code, action: 'remove', error: err.message });
+        }
+    }
+
+    if (errors.length > 0) {
+        console.warn('[ProjectAssignments] Personnel sync had', errors.length, 'errors:', errors);
+        showToast(`Personnel sync: ${errors.length} error(s)`, 'error');
+    } else if (addedCodes.length > 0 || removedCodes.length > 0) {
+        console.log('[ProjectAssignments] Personnel sync complete — no errors');
+        showToast('Personnel updated on project', 'success');
     }
 }
 

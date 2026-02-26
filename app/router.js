@@ -14,9 +14,7 @@ const routePermissionMap = {
     '/mrf-form': 'mrf_form',
     '/procurement': 'procurement',
     '/finance': 'finance',
-    '/role-config': 'role_config',   // Admin route (future)
-    '/project-assignments': 'role_config',   // Shares role_config gate with Settings
-    '/user-management': 'role_config'        // Shares role_config gate with Settings
+    '/admin': 'role_config'
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -81,20 +79,11 @@ const routes = {
         load: () => import('./views/pending.js'),
         title: 'Pending Approval | CLMC Procurement'
     },
-    '/role-config': {
-        name: 'Role Configuration',
-        load: () => import('./views/role-config.js'),
-        title: 'Role Configuration | CLMC Procurement'
-    },
-    '/project-assignments': {
-        name: 'Project Assignments',
-        load: () => import('./views/project-assignments.js'),
-        title: 'Project Assignments | CLMC Procurement'
-    },
-    '/user-management': {
-        name: 'User Management',
-        load: () => import('./views/user-management.js'),
-        title: 'User Management | CLMC Procurement'
+    '/admin': {
+        name: 'Admin',
+        load: () => import('./views/admin.js'),
+        title: 'Admin | CLMC Procurement',
+        defaultTab: 'users'
     }
 };
 
@@ -152,6 +141,16 @@ function updateNavigation(path) {
             link.classList.add('active');
         }
     });
+
+    // Handle admin dropdown active state
+    const adminDropdown = document.querySelector('.nav-dropdown-trigger');
+    if (adminDropdown) {
+        if (path === '/admin') {
+            adminDropdown.classList.add('active');
+        } else {
+            adminDropdown.classList.remove('active');
+        }
+    }
 
     // Update page title
     const route = routes[path];

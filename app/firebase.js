@@ -26,7 +26,9 @@ import {
     getAggregateFromServer,
     sum,
     count,
-    average
+    average,
+    arrayUnion,
+    arrayRemove
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import {
     getAuth,
@@ -80,7 +82,9 @@ export {
     getAggregateFromServer,
     sum,
     count,
-    average
+    average,
+    arrayUnion,
+    arrayRemove
 };
 
 // Export Auth methods
@@ -114,7 +118,9 @@ window.firestore = {
     getAggregateFromServer,
     sum,
     count,
-    average
+    average,
+    arrayUnion,
+    arrayRemove
 };
 window.firebaseAuth = {
     createUserWithEmailAndPassword,

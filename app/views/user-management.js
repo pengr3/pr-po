@@ -263,8 +263,7 @@ function switchUserMgmtTab(tabId) {
     document.getElementById('usersTab').style.display = tabId === 'users' ? 'block' : 'none';
     document.getElementById('codesTab').style.display = tabId === 'codes' ? 'block' : 'none';
 
-    // Update URL hash
-    window.location.hash = `#/user-management/${tabId}`;
+    // No hash update -- tab switching is internal to admin wrapper
 }
 
 /* ========================================
@@ -459,7 +458,7 @@ function renderUsersTable() {
                     Edit Role
                 </button>
                 ${user.role === 'operations_user' ? `
-                    <a href="#/project-assignments" class="action-menu-item" style="display: block; color: inherit; text-decoration: none;">
+                    <a href="#/admin" class="action-menu-item" onclick="window._pendingAdminSection='assignments'" style="display: block; color: inherit; text-decoration: none;">
                         Assign Projects
                     </a>
                 ` : ''}

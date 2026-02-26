@@ -411,6 +411,14 @@ function updateNavForAuth(user) {
 
             link.style.display = hasAccess ? '' : 'none';
         });
+
+        // Handle dropdown containers (Admin dropdown)
+        const dropdowns = document.querySelectorAll('.nav-dropdown[data-route]');
+        dropdowns.forEach(dropdown => {
+            const route = dropdown.getAttribute('data-route');
+            const hasAccess = permissions?.tabs?.[route]?.access ?? true;
+            dropdown.style.display = hasAccess ? '' : 'none';
+        });
     } else {
         // Hide logout button for unauthenticated users
         if (logoutBtn) logoutBtn.style.display = 'none';
@@ -419,6 +427,12 @@ function updateNavForAuth(user) {
         // Only auth pages (login/register) should be accessible
         navLinks.forEach(link => {
             link.style.display = 'none';
+        });
+
+        // Also hide dropdown containers
+        const dropdowns = document.querySelectorAll('.nav-dropdown[data-route]');
+        dropdowns.forEach(dropdown => {
+            dropdown.style.display = 'none';
         });
 
         console.log('[Auth] Navigation hidden for unauthenticated user');

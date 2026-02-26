@@ -4,8 +4,8 @@
    Migrated from archive/index.html
    ======================================== */
 
-import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, generateSequentialId } from '../utils.js';
+import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline } from '../components.js';
 
 // ========================================
@@ -70,7 +70,7 @@ function attachWindowFunctions() {
     window.deleteSupplier = deleteSupplier;
     window.changeSuppliersPage = changeSuppliersPage;
 
-    // PR-PO Records Functions
+    // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
     window.filterPRPORecords = filterPRPORecords;
     window.goToPRPOPage = goToPRPOPage;
@@ -82,11 +82,13 @@ function attachWindowFunctions() {
     window.closeTimelineModal = closeTimelineModal;
     window.showSupplierPurchaseHistory = showSupplierPurchaseHistory;
     window.closeSupplierHistoryModal = closeSupplierHistoryModal;
-    window.handleRequiredFieldsSubmit = handleRequiredFieldsSubmit;
 
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
     window.generatePODocument = generatePODocument;
+    window.promptPODocument = promptPODocument;
+    window.generatePOWithFields = generatePOWithFields;
+    window.savePODocumentFields = savePODocumentFields;
     window.viewPODocument = viewPODocument;
     window.downloadPODocument = downloadPODocument;
     window.generateAllPODocuments = generateAllPODocuments;
@@ -119,7 +121,7 @@ export function render(activeTab = 'mrfs') {
                         Supplier Management
                     </a>
                     <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
-                        PR-PO Records
+                        MRF Records
                     </a>
                 </div>
             </div>
@@ -223,12 +225,12 @@ export function render(activeTab = 'mrfs') {
                 </div>
             </section>
 
-            <!-- PR-PO Records Section -->
+            <!-- MRF Records Section -->
             <section id="records-section" class="section ${activeTab === 'records' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view records but cannot update PO statuses.</span></div>' : ''}
                 <div class="card">
                     <div class="card-header">
-                        <h2>PR-PO Records</h2>
+                        <h2>MRF Records</h2>
                         <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
                     </div>
 
@@ -310,9 +312,9 @@ export function render(activeTab = 'mrfs') {
                         </div>
                     </div>
 
-                    <!-- PR-PO Records Container -->
+                    <!-- MRF Records Container -->
                     <div id="prpoRecordsContainer">
-                        <div style="text-align: center; padding: 2rem;">Loading PR-PO records...</div>
+                        <div style="text-align: center; padding: 2rem;">Loading MRF records...</div>
                     </div>
                     <div id="prpoPagination"></div>
                 </div>
@@ -331,7 +333,7 @@ export function render(activeTab = 'mrfs') {
                 </div>
             </section>
 
-            <!-- Supplier Purchase History Modal (placed outside sections to be accessible from all tabs) -->
+            <!-- Supplier Purchase History Modal -->
             <div id="supplierHistoryModal" class="modal">
                 <div class="modal-content" style="max-width: 900px;">
                     <div class="modal-header">
@@ -340,19 +342,6 @@ export function render(activeTab = 'mrfs') {
                     </div>
                     <div class="modal-body" id="supplierHistoryModalBody">
                         <!-- Dynamically populated -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- PO Required Fields Modal -->
-            <div id="poRequiredFieldsModal" class="modal">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>Complete PO Information</h3>
-                        <button class="close-btn" onclick="closeModal('poRequiredFieldsModal')">&times;</button>
-                    </div>
-                    <div class="modal-body" id="poRequiredFieldsBody">
-                        <!-- Form content inserted dynamically -->
                     </div>
                 </div>
             </div>
@@ -568,9 +557,11 @@ export async function destroy() {
     delete window.viewPODetails;
     delete window.viewPOTimeline;
     delete window.updatePOStatus;
-    delete window.handleRequiredFieldsSubmit;
     delete window.generatePRDocument;
     delete window.generatePODocument;
+    delete window.promptPODocument;
+    delete window.generatePOWithFields;
+    delete window.savePODocumentFields;
     delete window.viewPODocument;
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
@@ -625,7 +616,7 @@ async function loadProjects() {
 async function loadMRFs() {
     console.log('🔍 Setting up MRF listener...');
     const mrfsRef = collection(db, 'mrfs');
-    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'Finance Rejected'];
+    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
     console.log('  Querying statuses:', statuses);
     const q = query(mrfsRef, where('status', 'in', statuses));
 
@@ -737,7 +728,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
         const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
 
         // Check if rejected
-        const isRejected = mrf.status === 'PR Rejected';
+        const isRejected = mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
         const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
 
         let urgencyColor, urgencyBg;
@@ -765,7 +756,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                     <span style="font-weight: 600;">
                         ${mrf.mrf_id}
-                        ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                        ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
                     </span>
                     <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
                         ${mrf.urgency_level || 'Low'}
@@ -774,7 +765,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                 <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
                 ${isRejected ? `
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                        <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
+                        <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
                     </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
@@ -802,7 +793,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
             dateNeeded.setHours(0, 0, 0, 0);
             const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
 
-            const isRejected = mrf.status === 'PR Rejected';
+            const isRejected = mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
             const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
 
             let urgencyColor = '#f59e0b';
@@ -821,7 +812,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                         <span style="font-weight: 600;">
                             ${mrf.mrf_id}
-                            ${isRejected ? '<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">PR REJECTED</span>' : ''}
+                            ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
                         </span>
                         <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
                             ${mrf.urgency_level || 'Low'}
@@ -830,7 +821,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                     <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
                     ${isRejected ? `
                         <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                            <strong>Reason:</strong> ${mrf.pr_rejection_reason || 'No reason provided'}
+                            <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
                         </div>
                     ` : ''}
                     <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
@@ -2167,10 +2158,10 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 // ========================================
 
 /**
- * Load PR-PO Records (combines MRFs, PRs, and POs)
+ * Load MRF Records (combines MRFs, PRs, and POs)
  */
 async function loadPRPORecords() {
-    console.log('Loading PR-PO Records...');
+    console.log('Loading MRF Records...');
     showLoading(true);
 
     try {
@@ -2270,7 +2261,7 @@ function updatePOScoreboards(pos) {
 }
 
 /**
- * Filter PR-PO Records
+ * Filter MRF Records
  */
 function filterPRPORecords() {
     const searchInput = document.getElementById('histSearchInput')?.value.toLowerCase() || '';
@@ -2297,7 +2288,62 @@ function filterPRPORecords() {
 }
 
 /**
- * Render PR-PO Records Table (merged view)
+ * Calculate MRF status based on PR/PO state
+ * Returns status text and color for badge rendering
+ */
+function calculateMRFStatus(prs, pos) {
+    const prCount = prs.length;
+    const poCount = pos.length;
+
+    if (prCount === 0) {
+        // No PRs generated yet
+        return {
+            status: 'Awaiting PR',
+            color: '#ef4444', // Red
+            description: 'No PRs generated yet'
+        };
+    } else if (poCount === 0) {
+        // PRs exist but no POs
+        return {
+            status: '0/' + prCount + ' PO Issued',
+            color: '#f59e0b', // Yellow
+            description: 'PRs approved, awaiting PO generation'
+        };
+    } else if (poCount === prCount) {
+        // All POs issued
+        return {
+            status: prCount + '/' + prCount + ' PO Issued',
+            color: '#22c55e', // Green
+            description: 'All POs issued'
+        };
+    } else {
+        // Partial PO issuance
+        return {
+            status: poCount + '/' + prCount + ' PO Issued',
+            color: '#f59e0b', // Yellow
+            description: 'Partial PO issuance'
+        };
+    }
+}
+
+/**
+ * Render MRF status badge with color coding
+ */
+function renderMRFStatusBadge(statusObj) {
+    return `<span style="
+        background: ${statusObj.color};
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        white-space: nowrap;
+        display: inline-block;
+    ">${statusObj.status}</span>`;
+}
+
+/**
+ * Render MRF Records Table (merged view)
  */
 async function renderPRPORecords() {
     const container = document.getElementById('prpoRecordsContainer');
@@ -2309,8 +2355,8 @@ async function renderPRPORecords() {
     if (filteredPRPORecords.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: #999;">
-                <div style="font-size: 1.125rem; margin-bottom: 0.5rem;">No PR-PO records found</div>
-                <div style="font-size: 0.875rem;">PR-PO records will appear here once processed</div>
+                <div style="font-size: 1.125rem; margin-bottom: 0.5rem;">No MRF records found</div>
+                <div style="font-size: 0.875rem;">MRF records will appear here once processed</div>
             </div>
         `;
         return;
@@ -2334,6 +2380,7 @@ async function renderPRPORecords() {
         let totalCost = 0;
         let prCount = 0;
         let prApprovedCount = 0;
+        let prDataArray = []; // Store for MRF status calculation
 
         if (type === 'Material') {
             try {
@@ -2342,7 +2389,6 @@ async function renderPRPORecords() {
                 const prSnapshot = await getDocs(prQuery);
 
                 if (!prSnapshot.empty) {
-                    const prDataArray = [];
                     prSnapshot.forEach((doc) => {
                         const prData = doc.data();
                         prCount++;
@@ -2383,7 +2429,6 @@ async function renderPRPORecords() {
                         }
                         return `<div style="display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center;">
                             <a href="javascript:void(0)" onclick="window.viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
-                            ${pr.supplier_name ? `<a href="javascript:void(0)" onclick="window.showSupplierPurchaseHistory('${pr.supplier_name}')" style="color: #1a73e8; text-decoration: none; font-size: 0.7rem; cursor: pointer;">${pr.supplier_name}</a>` : ''}
                             ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
                         </div>`;
                     });
@@ -2429,6 +2474,7 @@ async function renderPRPORecords() {
         let poStatusHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
         let poTimelineHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
         let poCount = 0;
+        let poDataArray = []; // Store for MRF status calculation
 
         if (type === 'Material') {
             try {
@@ -2437,7 +2483,6 @@ async function renderPRPORecords() {
                 const poSnapshot = await getDocs(poQuery);
 
                 if (!poSnapshot.empty) {
-                    const poDataArray = [];
                     poSnapshot.forEach((doc) => {
                         const poData = doc.data();
                         poCount++;
@@ -2496,10 +2541,7 @@ async function renderPRPORecords() {
 
                         return {
                             linkHtml: `<div style="min-height: 52px; display: flex; flex-direction: column; gap: 2px; justify-content: center;">
-                                <div>
-                                    <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
-                                </div>
-                                ${po.supplier_name ? `<a href="javascript:void(0)" onclick="window.showSupplierPurchaseHistory('${po.supplier_name}')" style="color: #1a73e8; text-decoration: none; font-size: 0.7rem; cursor: pointer;">${po.supplier_name}</a>` : ''}
+                                <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
                             </div>`,
                             statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                 ${showEditControls ? `
@@ -2589,6 +2631,13 @@ async function renderPRPORecords() {
 
         const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
 
+        // Calculate MRF Status badge (only for Material requests)
+        let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">—</span>';
+        if (type === 'Material') {
+            const statusObj = calculateMRFStatus(prDataArray, poDataArray);
+            mrfStatusHtml = renderMRFStatusBadge(statusObj);
+        }
+
         return `
             <tr>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
@@ -2596,13 +2645,10 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: top;">${poTimelineHtml}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">
-                    <span style="background: ${statusColor}20; color: ${statusColor}; padding: 0.35rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; display: inline-block;">
-                        ${detailedStatus}
-                    </span>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
+                    ${mrfStatusHtml}
                 </td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                     <button class="btn btn-sm btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;" onclick="window.showProcurementTimeline('${mrf.mrf_id}')">
                         📅 Timeline
@@ -2619,12 +2665,11 @@ async function renderPRPORecords() {
                 <tr style="background: #f8f9fa;">
                     <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF ID</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
-                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date Needed</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO Status</th>
-                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PO Timeline</th>
                     <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF Status</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Procurement Status</th>
                     <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                 </tr>
             </thead>
@@ -2639,7 +2684,7 @@ async function renderPRPORecords() {
 }
 
 /**
- * Render PR-PO Records Pagination
+ * Render MRF Records Pagination
  */
 function renderPRPOPagination(totalPages) {
     const paginationDiv = document.getElementById('prpoPagination');
@@ -2889,6 +2934,13 @@ async function generatePR() {
 
     if (!currentMRF) return;
 
+    const currentUser = window.getCurrentUser();
+
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
+
     const mrfData = currentMRF;
     console.log('📋 Generating PR for MRF:', mrfData.mrf_id);
 
@@ -3042,7 +3094,9 @@ async function generatePR() {
                     total_amount: supplierTotal,
                     finance_status: 'Pending',
                     updated_at: new Date().toISOString(),
-                    resubmitted_at: new Date().toISOString()
+                    resubmitted_at: new Date().toISOString(),
+                    pr_creator_user_id: currentUser.uid,
+                    pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                 });
                 generatedPRIds.push(rejectedPR.pr_id);
                 updatedPRIds.push(rejectedPR.pr_id);
@@ -3065,7 +3119,9 @@ async function generatePR() {
                         items_json: JSON.stringify(mergedItems),
                         total_amount: mergedTotal,
                         updated_at: new Date().toISOString(),
-                        items_merged: true
+                        items_merged: true,
+                        pr_creator_user_id: currentUser.uid,
+                        pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                     });
                     mergedPRIds.push(approvedPR.pr_id);
                 }
@@ -3091,7 +3147,9 @@ async function generatePR() {
                     total_amount: supplierTotal,
                     finance_status: 'Pending',
                     date_generated: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
+                    created_at: serverTimestamp(),
+                    pr_creator_user_id: currentUser.uid,
+                    pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                 };
 
                 await addDoc(collection(db, 'prs'), prDoc);
@@ -3173,6 +3231,13 @@ async function generatePRandTR() {
     }
 
     if (!currentMRF) return;
+
+    const currentUser = window.getCurrentUser();
+
+    if (!currentUser) {
+        showToast('Session expired. Please log in again.', 'error');
+        return;
+    }
 
     const mrfData = currentMRF;
     console.log('📋📦 Generating PR & TR for MRF:', mrfData.mrf_id);
@@ -3367,7 +3432,9 @@ async function generatePRandTR() {
                     total_amount: supplierTotal,
                     finance_status: 'Pending',
                     date_generated: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
+                    created_at: serverTimestamp(),
+                    pr_creator_user_id: currentUser.uid,
+                    pr_creator_name: currentUser.full_name || currentUser.email || 'Unknown User'
                 });
                 generatedPRIds.push(prId);
                 nextPRNum++;
@@ -3654,6 +3721,7 @@ function renderPOTrackingTable(pos) {
                 ` : `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${currentStatus}</span>`}
             </td>
             <td>
+                <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')" style="margin-right: 4px;">View PO</button>
                 <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
             </td>
         </tr>
@@ -3789,6 +3857,8 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
     showLoading(true);
 
     try {
+        const poRef = doc(db, 'pos', poId); // Declared early: needed in Delivered branch for getDoc
+
         const updateData = {
             procurement_status: newStatus,
             updated_at: new Date().toISOString()
@@ -3797,26 +3867,32 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
         if (isSubcon) {
             // SUBCON status timestamps: Pending → Processing → Processed
             if (newStatus === 'Processing' && currentStatus !== 'Processing') {
-                updateData.processing_started_at = new Date().toISOString();
+                updateData.processing_started_at = serverTimestamp(); // Server timestamp for precision
             } else if (newStatus === 'Processed') {
-                updateData.processed_at = new Date().toISOString();
-                updateData.processed_date = new Date().toISOString().split('T')[0];
+                updateData.processed_at = serverTimestamp(); // Server timestamp for precision
+                updateData.processed_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
             }
         } else {
             // Material status timestamps: Pending Procurement → Procuring → Procured → Delivered
             if (newStatus === 'Procuring' && currentStatus !== 'Procuring') {
-                updateData.procurement_started_at = new Date().toISOString();
+                updateData.procurement_started_at = serverTimestamp(); // Server timestamp for precision
             } else if (newStatus === 'Procured') {
-                updateData.procured_at = new Date().toISOString();
-                updateData.procured_date = new Date().toISOString().split('T')[0];
+                updateData.procured_at = serverTimestamp(); // Server timestamp for precision
+                updateData.procured_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
             } else if (newStatus === 'Delivered') {
-                updateData.delivered_at = new Date().toISOString();
-                updateData.delivered_date = new Date().toISOString().split('T')[0];
+                updateData.delivered_at = serverTimestamp(); // Server timestamp for precision
+                updateData.delivered_date = new Date().toISOString().split('T')[0]; // Keep for backward compat
                 updateData.delivery_fee = deliveryFee;
+                // Add delivery fee to total_amount so expense aggregation
+                // queries (sum('total_amount')) automatically include delivery costs
+                if (deliveryFee > 0) {
+                    const poDoc = await getDoc(poRef);
+                    const currentTotal = poDoc.data()?.total_amount || 0;
+                    updateData.total_amount = currentTotal + deliveryFee;
+                }
             }
         }
 
-        const poRef = doc(db, 'pos', poId);
         await updateDoc(poRef, updateData);
 
         const successMsg = isSubcon
@@ -3868,6 +3944,12 @@ async function viewPRDetails(prDocId) {
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
                         <div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Prepared By</div>
+                        <div style="padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 4px; color: #1e293b; font-size: 0.875rem;">
+                            ${pr.pr_creator_name || 'Unknown User'}
+                        </div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
@@ -3964,127 +4046,6 @@ async function viewPRDetails(prDocId) {
 }
 
 /**
- * Check if PO has required fields filled
- */
-function hasRequiredPOFields(poData) {
-    const defaults = {
-        payment_terms: ['As per agreement', '', null, undefined],
-        condition: ['Standard terms apply', '', null, undefined],
-        delivery_date: ['TBD', '', null, undefined]
-    };
-
-    return !(
-        defaults.payment_terms.includes(poData.payment_terms) ||
-        defaults.condition.includes(poData.condition) ||
-        defaults.delivery_date.includes(poData.delivery_date)
-    );
-}
-
-/**
- * Show PO Required Fields Form Modal
- */
-function showPORequiredFieldsForm(poId, poData) {
-    const bodyContent = `
-        <div style="padding: 1.5rem;">
-            <p style="margin-bottom: 1.5rem; color: #475569;">
-                This PO requires additional information before viewing details. Please fill the required fields below:
-            </p>
-
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div class="form-group">
-                    <label for="payment_terms" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                        Payment Terms <span style="color: #ef4444;">*</span>
-                    </label>
-                    <textarea
-                        id="payment_terms"
-                        rows="3"
-                        style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem;"
-                        required
-                    >${poData.payment_terms && !['As per agreement', '', null, undefined].includes(poData.payment_terms) ? poData.payment_terms : ''}</textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="condition" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                        Condition <span style="color: #ef4444;">*</span>
-                    </label>
-                    <textarea
-                        id="condition"
-                        rows="3"
-                        style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem;"
-                        required
-                    >${poData.condition && !['Standard terms apply', '', null, undefined].includes(poData.condition) ? poData.condition : ''}</textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="delivery_date" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
-                        Delivery Date <span style="color: #ef4444;">*</span>
-                    </label>
-                    <input
-                        type="date"
-                        id="delivery_date"
-                        style="width: 100%; padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem;"
-                        value="${poData.delivery_date && !['TBD', '', null, undefined].includes(poData.delivery_date) ? poData.delivery_date : ''}"
-                        required
-                    />
-                </div>
-            </div>
-
-            <div style="margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem;">
-                <button class="btn btn-secondary" onclick="closeModal('poRequiredFieldsModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="handleRequiredFieldsSubmit('${poId}')">Save & View Details</button>
-            </div>
-        </div>
-    `;
-
-    // Update the modal body
-    const modalBody = document.getElementById('poRequiredFieldsBody');
-    if (modalBody) {
-        modalBody.innerHTML = bodyContent;
-        openModal('poRequiredFieldsModal');
-    }
-}
-
-/**
- * Handle PO Required Fields Form Submission
- */
-async function handleRequiredFieldsSubmit(poId) {
-    try {
-        // Get form values
-        const payment_terms = document.getElementById('payment_terms')?.value?.trim();
-        const condition = document.getElementById('condition')?.value?.trim();
-        const delivery_date = document.getElementById('delivery_date')?.value?.trim();
-
-        // Validate all fields are non-empty
-        if (!payment_terms || !condition || !delivery_date) {
-            alert('All fields are required. Please fill in all information.');
-            return;
-        }
-
-        showLoading(true);
-
-        // Update PO in Firestore
-        const poRef = doc(db, 'pos', poId);
-        await updateDoc(poRef, {
-            payment_terms,
-            condition,
-            delivery_date
-        });
-
-        // Close modal and show success
-        closeModal('poRequiredFieldsModal');
-        showToast('PO information updated successfully', 'success');
-
-        // Recursively call viewPODetails - now will pass gate
-        viewPODetails(poId);
-
-    } catch (error) {
-        console.error('Error updating PO:', error);
-        showToast('Failed to update PO information', 'error');
-        showLoading(false);
-    }
-}
-
-/**
  * View PO Details
  */
 async function viewPODetails(poId) {
@@ -4101,14 +4062,6 @@ async function viewPODetails(poId) {
         }
 
         const po = { id: poDoc.id, ...poDoc.data() };
-
-        // Quality gate: require complete PO information
-        if (!hasRequiredPOFields(po)) {
-            showLoading(false);
-            showPORequiredFieldsForm(poId, po);
-            return;
-        }
-
         const items = JSON.parse(po.items_json || '[]');
 
         // Determine status color
@@ -4179,6 +4132,34 @@ async function viewPODetails(poId) {
                     ` : ''}
                 </div>
 
+                <!-- Document Details (Editable) -->
+                <div style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin-bottom: 1rem; color: #1e293b;">Document Details</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Terms</label>
+                            <input type="text" id="editPaymentTerms_${po.id}" value="${po.payment_terms || ''}"
+                                   placeholder="e.g., 50% down payment, 50% upon delivery"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Condition</label>
+                            <input type="text" id="editCondition_${po.id}" value="${po.condition || ''}"
+                                   placeholder="e.g., Items must meet quality standards"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Delivery Date</label>
+                            <input type="date" id="editDeliveryDate_${po.id}" value="${po.delivery_date || ''}"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="savePODocumentFields('${po.id}')"
+                            style="margin-top: 1rem;">
+                        Save Document Details
+                    </button>
+                </div>
+
                 <div style="margin-top: 1.5rem;">
                     <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
@@ -4222,7 +4203,7 @@ async function viewPODetails(poId) {
             body: modalBodyContent,
             footer: `
                 <button class="btn btn-secondary" onclick="closeModal('poDetailsModal')">Close</button>
-                <button class="btn btn-primary" onclick="window.generatePODocument('${po.id}')">
+                <button class="btn btn-primary" onclick="window.promptPODocument('${po.id}')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
@@ -4602,16 +4583,6 @@ function generatePRHTML(data) {
                     margin: 15px 0;
                     text-align: right;
                 }
-                .signatures {
-                    margin-top: 40px;
-                    page-break-inside: avoid;
-                }
-                .signature-line {
-                    margin: 25px 0;
-                }
-                .signature-line .label {
-                    width: 120px;
-                }
             </style>
         </head>
         <body>
@@ -4634,6 +4605,7 @@ function generatePRHTML(data) {
                     <div class="field"><span class="label">Document No.:</span> ${data.PR_ID}</div>
                     <div class="field"><span class="label">MRF Reference:</span> ${data.MRF_ID}</div>
                     <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                    <div class="field"><span class="label">Prepared by:</span> ${data.PREPARED_BY}</div>
                 </div>
 
                 <div class="section">
@@ -4651,28 +4623,13 @@ function generatePRHTML(data) {
                     TOTAL AMOUNT: ₱${data.TOTAL_COST}
                 </div>
 
-                <div class="signatures">
-                    <div class="signature-line">
-                        <span class="label">Requested By:</span> ${data.REQUESTOR}
+                <div style="margin-top: 40px; page-break-inside: avoid;">
+                    <div style="margin: 8px 0;">
+                        <span style="font-weight: bold; display: inline-block; width: 150px;">Requested By:</span> ${data.REQUESTOR}
                     </div>
-                    <div class="signature-line">
-                        <span class="label">Prepared By:</span> ${data.PROCUREMENT_PIC}
+                    <div style="margin: 8px 0;">
+                        <span style="font-weight: bold; display: inline-block; width: 150px;">Prepared by:</span> ${data.PREPARED_BY}
                     </div>
-                    ${data.IS_APPROVED ? `
-                    <div class="signature-line">
-                        <span class="label">Approved By:</span> ${data.FINANCE_PIC}
-                    </div>
-                    <div class="signature-line">
-                        <span class="label">Date Approved:</span> ${data.DATE_APPROVED}
-                    </div>
-                    ` : `
-                    <div class="signature-line" style="margin-top: 40px;">
-                        <span class="label">Approved By:</span> _______________________________
-                    </div>
-                    <div class="signature-line">
-                        <span class="label">Date Approved:</span> _______________________________
-                    </div>
-                    `}
                 </div>
             </div>
         </body>
@@ -4792,20 +4749,38 @@ function generatePOHTML(data) {
                 td {
                     font-size: 10pt;
                 }
-                .signature {
-                    margin-top: 60px;
+                .signature-section {
+                    margin-top: 2rem;
                     page-break-inside: avoid;
                 }
-                .signature-image {
-                    max-width: 200px;
-                    max-height: 60px;
-                    margin: 10px 0;
+                .signature-box {
+                    text-align: left;
                 }
-                .signature-line {
-                    height: 60px;
-                    border-bottom: 1px solid #000;
+                .signature-box p {
+                    margin: 0.25rem 0;
+                    font-size: 0.875rem;
+                }
+                .signature-box .sig-label {
+                    font-weight: bold;
+                    font-size: 10pt;
+                    margin-bottom: 0.5rem;
+                }
+                .signature-box img {
+                    max-width: 200px;
+                    height: auto;
+                    max-height: 60px;
+                    margin-bottom: 0.5rem;
+                    display: block;
+                }
+                .sig-line {
+                    border-top: 1px solid #000;
                     width: 200px;
-                    margin: 10px 0;
+                    margin: 0.5rem 0 0.25rem 0;
+                }
+                .sig-placeholder {
+                    height: 60px;
+                    width: 200px;
+                    margin: 0 0 0.5rem 0;
                 }
             </style>
         </head>
@@ -4845,13 +4820,17 @@ function generatePOHTML(data) {
                     <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
                 </div>
 
-                <div class="signature">
-                    <p><strong>Authorized By:</strong></p>
-                    ${data.SIGNATURE_PLACEHOLDER ?
-                        `<img src="${data.SIGNATURE_PLACEHOLDER}" class="signature-image" alt="Signature">` :
-                        '<div class="signature-line"></div>'
-                    }
-                    <p><strong>${data.FINANCE_PIC}</strong></p>
+                <div class="signature-section">
+                    <div class="signature-box">
+                        <p class="sig-label">Approved by:</p>
+                        ${data.FINANCE_SIGNATURE_URL ? `
+                            <img src="${data.FINANCE_SIGNATURE_URL}" alt="Finance Signature">
+                        ` : `
+                            <div class="sig-placeholder"></div>
+                        `}
+                        <div class="sig-line"></div>
+                        <p>${data.FINANCE_APPROVER}</p>
+                    </div>
                 </div>
             </div>
         </body>
@@ -4931,10 +4910,7 @@ async function generatePRDocument(prDocId) {
             ITEMS_TABLE: generateItemsTableHTML(items, 'PR'),
             TOTAL_COST: formatCurrency(pr.total_amount),
             REQUESTOR: pr.requestor_name,
-            PROCUREMENT_PIC: pr.procurement_pic || 'Procurement Team',
-            FINANCE_PIC: pr.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
-            DATE_APPROVED: pr.date_approved ? formatDocumentDate(pr.date_approved) : 'Pending',
-            IS_APPROVED: pr.finance_status === 'Approved' || pr.date_approved,
+            PREPARED_BY: pr.pr_creator_name || pr.procurement_pic || 'Procurement Team',
             company_info: DOCUMENT_CONFIG.companyInfo
         };
 
@@ -4977,16 +4953,16 @@ async function generatePODocument(poDocId) {
         const documentData = {
             PO_ID: po.po_id,
             PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
-            DATE: formatDocumentDate(po.date_issued || new Date().toISOString()),
+            DATE: formatTimestamp(po.date_issued) || formatDocumentDate(po.date_issued_legacy) || 'N/A',
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
             DELIVERY_ADDRESS: po.delivery_address,
-            PAYMENT_TERMS: po.payment_terms || 'As per agreement',
-            CONDITION: po.condition || 'Standard terms apply',
-            DELIVERY_DATE: formatDocumentDate(po.delivery_date || 'TBD'),
-            FINANCE_PIC: po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
-            SIGNATURE_PLACEHOLDER: po.finance_signature_url || '',
+            PAYMENT_TERMS: po.payment_terms || '',
+            CONDITION: po.condition || '',
+            DELIVERY_DATE: po.delivery_date ? formatDocumentDate(po.delivery_date) : '',
+            FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
+            FINANCE_SIGNATURE_URL: po.finance_signature_url || '',
             company_info: DOCUMENT_CONFIG.companyInfo
         };
 
@@ -5004,6 +4980,136 @@ async function generatePODocument(poDocId) {
         showLoading(false);
     }
 };
+
+/**
+ * Prompt for PO document fields then generate document
+ * Shows a modal with input fields for payment terms, condition, and delivery date
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function promptPODocument(poDocId) {
+    // Fetch current PO data to pre-fill fields
+    try {
+        const poRef = doc(db, 'pos', poDocId);
+        const poDoc = await getDoc(poRef);
+        if (!poDoc.exists()) {
+            showToast('PO not found', 'error');
+            return;
+        }
+        const po = poDoc.data();
+
+        // If all three document fields already exist, skip prompt and generate directly
+        if (po.payment_terms && po.condition && po.delivery_date) {
+            console.log('[Procurement] All PO document fields present - generating directly');
+            await generatePODocument(poDocId);
+            return;
+        }
+
+        // Create prompt modal using the codebase's createModal pattern
+        let modalContainer = document.getElementById('poDocFieldsModalContainer');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'poDocFieldsModalContainer';
+            document.body.appendChild(modalContainer);
+        }
+
+        const modalBody = `
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Payment Terms</label>
+                    <input type="text" id="poDocPaymentTerms" value="${po.payment_terms || ''}" placeholder="e.g., 50% down payment, 50% upon delivery"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Condition</label>
+                    <input type="text" id="poDocCondition" value="${po.condition || ''}" placeholder="e.g., Items must meet quality standards"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Delivery Date</label>
+                    <input type="date" id="poDocDeliveryDate" value="${po.delivery_date || ''}"
+                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                </div>
+            </div>
+        `;
+
+        modalContainer.innerHTML = createModal({
+            id: 'poDocFieldsModal',
+            title: `PO Document Details: ${po.po_id}`,
+            body: modalBody,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('poDocFieldsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="generatePOWithFields('${poDocId}')">Generate PO Document</button>
+            `,
+            size: 'medium'
+        });
+
+        openModal('poDocFieldsModal');
+
+    } catch (error) {
+        console.error('Error loading PO for document prompt:', error);
+        showToast('Failed to load PO details', 'error');
+    }
+}
+
+/**
+ * Save PO document fields from the PO Details Modal (editable section)
+ * @param {string} poId - Firestore document ID of the PO
+ */
+async function savePODocumentFields(poId) {
+    const paymentTerms = document.getElementById(`editPaymentTerms_${poId}`)?.value?.trim() || '';
+    const condition = document.getElementById(`editCondition_${poId}`)?.value?.trim() || '';
+    const deliveryDate = document.getElementById(`editDeliveryDate_${poId}`)?.value || '';
+
+    try {
+        const updateData = {};
+        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        if (condition) updateData.condition = condition;
+        if (deliveryDate) updateData.delivery_date = deliveryDate;
+
+        if (Object.keys(updateData).length > 0) {
+            await updateDoc(doc(db, 'pos', poId), updateData);
+            showToast('Document details updated successfully', 'success');
+        } else {
+            showToast('No changes to save', 'info');
+        }
+    } catch (error) {
+        console.error('Error saving document fields:', error);
+        showToast('Failed to save document details', 'error');
+    }
+}
+
+/**
+ * Save PO document fields and generate the document
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function generatePOWithFields(poDocId) {
+    const paymentTerms = document.getElementById('poDocPaymentTerms')?.value?.trim() || '';
+    const condition = document.getElementById('poDocCondition')?.value?.trim() || '';
+    const deliveryDate = document.getElementById('poDocDeliveryDate')?.value || '';
+
+    try {
+        // Save fields to Firestore so they persist for future views
+        const updateData = {};
+        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        if (condition) updateData.condition = condition;
+        if (deliveryDate) updateData.delivery_date = deliveryDate;
+
+        if (Object.keys(updateData).length > 0) {
+            const poRef = doc(db, 'pos', poDocId);
+            await updateDoc(poRef, updateData);
+        }
+
+        // Close the fields modal
+        closeModal('poDocFieldsModal');
+
+        // Generate the document (it will re-read from Firestore with updated fields)
+        await generatePODocument(poDocId);
+
+    } catch (error) {
+        console.error('Error saving PO fields:', error);
+        showToast('Failed to save PO details', 'error');
+    }
+}
 
 /**
  * View PO Document (wrapper for generatePODocument)
