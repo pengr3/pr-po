@@ -80,35 +80,33 @@
 
 ## Traceability
 
-*Populated during roadmap creation.*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EXP-01 | — | Pending |
-| EXP-02 | — | Pending |
-| EXP-03 | — | Pending |
-| EXP-04 | — | Pending |
-| EXP-05 | — | Pending |
-| EXP-06 | — | Pending |
-| EXP-07 | — | Pending |
-| RES-01 | — | Pending |
-| RES-02 | — | Pending |
-| RES-03 | — | Pending |
-| RES-04 | — | Pending |
-| RES-05 | — | Pending |
-| CLN-01 | — | Pending |
-| CLN-02 | — | Pending |
-| BRD-01 | — | Pending |
-| NAV-01 | — | Pending |
-| NAV-02 | — | Pending |
-| NAV-03 | — | Pending |
-| MRF-01 | — | Pending |
+| EXP-01 | Phase 41 | Pending |
+| EXP-02 | Phase 41 | Pending |
+| EXP-03 | Phase 41 | Pending |
+| EXP-04 | Phase 41 | Pending |
+| EXP-05 | Phase 41 | Pending |
+| EXP-06 | Phase 42 | Pending |
+| EXP-07 | Phase 42 | Pending |
+| RES-01 | Phase 43 | Pending |
+| RES-02 | Phase 44 | Pending |
+| RES-03 | Phase 44 | Pending |
+| RES-04 | Phase 44 | Pending |
+| RES-05 | Phase 44 | Pending |
+| CLN-01 | Phase 46 | Pending |
+| CLN-02 | Phase 46 | Pending |
+| BRD-01 | Phase 45 | Pending |
+| NAV-01 | Phase 45 | Pending |
+| NAV-02 | Phase 45 | Pending |
+| NAV-03 | Phase 45 | Pending |
+| MRF-01 | Phase 46 | Pending |
 
 **Coverage:**
 - v2.4 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-26*
-*Last updated: 2026-02-26 after initial definition*
+*Last updated: 2026-02-26 after roadmap creation*

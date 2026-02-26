@@ -7,6 +7,7 @@
 - ✅ **v2.1 System Refinement** - Phases 11-13 (shipped 2026-02-06)
 - ✅ **v2.2 Workflow & UX Enhancements** - Phases 15-25 (shipped 2026-02-10)
 - ✅ **v2.3 Services Department Support** - Phases 26-40 (shipped 2026-02-26)
+- 🚧 **v2.4 Productivity & Polish** - Phases 41-46 (in progress)
 
 ## Phases
 
@@ -375,10 +376,80 @@ Plans:
 
 </details>
 
+### 🚧 v2.4 Productivity & Polish (In Progress)
+
+**Milestone Goal:** Export data from key list views and detail pages, make the app usable at narrow viewport widths, remove dead code, polish branding and navigation UI, and fix MRF creation in Procurement.
+
+## Phase Details
+
+### Phase 41: List View Exports
+**Goal**: Users can export data from all major list views as CSV files
+**Depends on**: Phase 40
+**Requirements**: EXP-01, EXP-02, EXP-03, EXP-04, EXP-05
+**Success Criteria** (what must be TRUE):
+  1. User can click an Export button on the MRF Records list and download a CSV containing all visible rows
+  2. User can click an Export button on the PR/PO Records list and download a CSV with PR and PO data
+  3. User can click an Export button on the PO Tracking list and download a CSV of PO tracking records
+  4. User can click an Export button on the Projects list and download a CSV of all projects
+  5. User can click an Export button on the Services list and download a CSV of all services
+**Plans**: TBD
+
+### Phase 42: Detail Page Exports
+**Goal**: Users can export expense breakdown data from project and service detail pages
+**Depends on**: Phase 41
+**Requirements**: EXP-06, EXP-07
+**Success Criteria** (what must be TRUE):
+  1. User can click Export on a project's expense breakdown and download a CSV with MRF, PR, and PO line items for that project
+  2. User can click Export on a service's expense breakdown and download a CSV with MRF, PR, and PO line items for that service
+**Plans**: TBD
+
+### Phase 43: Mobile Hamburger Navigation
+**Goal**: Top navigation collapses into a hamburger menu at narrow viewport widths so the app is usable on small screens
+**Depends on**: Phase 40
+**Requirements**: RES-01
+**Success Criteria** (what must be TRUE):
+  1. At viewport widths below the breakpoint, the navigation items are hidden and a hamburger icon is visible
+  2. Tapping the hamburger icon opens a menu showing all navigation items the user has access to
+  3. Tapping a menu item navigates to that view and closes the menu
+  4. At full desktop width, the navigation renders as a standard horizontal bar with no hamburger icon
+**Plans**: TBD
+
+### Phase 44: Responsive Layouts
+**Goal**: Data tables, split panels, and modals remain functional and readable at any viewport width
+**Depends on**: Phase 43
+**Requirements**: RES-02, RES-03, RES-04, RES-05
+**Success Criteria** (what must be TRUE):
+  1. Data tables with many columns scroll horizontally instead of clipping or breaking the page layout
+  2. Split-panel views (MRF list and MRF detail side by side) stack vertically at narrow widths so both panels are fully readable
+  3. Modals and dialogs fit within the viewport at narrow widths and do not overflow or clip action buttons
+  4. All views are functional and readable at the minimum supported browser window size
+**Plans**: TBD
+
+### Phase 45: Visual Polish
+**Goal**: Registration page shows the company logo and navigation is visually consistent across all views
+**Depends on**: Phase 40
+**Requirements**: BRD-01, NAV-01, NAV-02, NAV-03
+**Success Criteria** (what must be TRUE):
+  1. The registration page displays the company logo image instead of the "CL" text placeholder
+  2. No navigation link or tab label in any view has an underline or emoji
+  3. The Admin button in the top navigation is styled identically to all other top navigation items
+  4. Navigation appearance is consistent when switching between any two tabs or sub-tabs
+**Plans**: TBD
+
+### Phase 46: Code Cleanup and MRF Fix
+**Goal**: Dead files are removed from the codebase and MRF creation in Procurement uses the same unified project/service dropdown as the MRF form view
+**Depends on**: Phase 40
+**Requirements**: CLN-01, CLN-02, MRF-01
+**Success Criteria** (what must be TRUE):
+  1. project-assignments.js and service-assignments.js no longer exist in the repository
+  2. No other unreferenced view or utility files remain in the codebase
+  3. The Create MRF form in Procurement > MRF Processing shows a single dropdown listing both active projects and active services, in the same format used by the standalone MRF form view
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-All phases complete. v2.4 can be added via /gsd:new-milestone.
+Phases execute in numeric order: 41 → 42 → 43 → 44 → 45 → 46
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -421,3 +492,9 @@ All phases complete. v2.4 can be added via /gsd:new-milestone.
 | 38. Code Quality & DRY Cleanup | v2.3 | 2/2 | Complete | 2026-02-24 |
 | 39. Admin Assignments Overhaul, Badge Styling, Code Fix | v2.3 | 3/3 | Complete | 2026-02-24 |
 | 40. UI/UX Revisions | v2.3 | 7/7 | Complete | 2026-02-26 |
+| 41. List View Exports | v2.4 | 0/TBD | Not started | - |
+| 42. Detail Page Exports | v2.4 | 0/TBD | Not started | - |
+| 43. Mobile Hamburger Navigation | v2.4 | 0/TBD | Not started | - |
+| 44. Responsive Layouts | v2.4 | 0/TBD | Not started | - |
+| 45. Visual Polish | v2.4 | 0/TBD | Not started | - |
+| 46. Code Cleanup and MRF Fix | v2.4 | 0/TBD | Not started | - |
