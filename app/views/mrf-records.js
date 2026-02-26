@@ -73,6 +73,554 @@ const statusColors = {
     'Delivered':           { bg: '#eff6ff', color: '#2563eb' }
 };
 
+// ========================================
+// DOCUMENT GENERATION (self-contained, no procurement.js dependency)
+// Functions below mirror procurement.js equivalents with "Local" suffix.
+// ========================================
+
+const DOCUMENT_CONFIG_LOCAL = {
+    defaultFinancePIC: 'Finance Approver',
+    companyInfo: {
+        name: 'C. Lacsamana Management and Construction Corporation',
+        address: '133 Pinatubo St. City of Mandaluyong City',
+        tel: '09178182993',
+        email: 'cgl@consultclm.com',
+        logo: '/CLMC Registered Logo Cropped (black fill).png'
+    }
+};
+
+function formatDocumentDateLocal(dateString) {
+    if (!dateString || dateString === 'TBD' || dateString === 'Pending') {
+        return dateString;
+    }
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+function generateItemsTableHTMLLocal(items, type) {
+    let tableHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">No.</th>
+                    <th style="width: 25%;">Description</th>
+                    ${type === 'PR' ? '<th style="width: 15%;">Category</th>' : ''}
+                    <th style="width: 10%;">Qty</th>
+                    <th style="width: 10%;">Unit</th>
+                    <th style="width: 15%;">Unit Cost</th>
+                    <th style="width: 15%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    items.forEach((item, index) => {
+        const qty = item.qty || item.quantity || 0;
+        const unitCost = parseFloat(item.unit_cost || 0);
+        const subtotal = qty * unitCost;
+
+        tableHTML += `
+            <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td>${item.item || item.item_name}</td>
+                ${type === 'PR' ? `<td>${item.category || 'N/A'}</td>` : ''}
+                <td style="text-align: center;">${qty}</td>
+                <td>${item.unit}</td>
+                <td style="text-align: right;">₱${formatCurrency(unitCost)}</td>
+                <td style="text-align: right;">₱${formatCurrency(subtotal)}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    return tableHTML;
+}
+
+function generatePRHTMLLocal(data) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>${data.PR_ID} - Purchase Request</title>
+            <style>
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.4;
+                    color: #000;
+                    max-width: 8.5in;
+                    margin: 0 auto;
+                }
+                .header {
+                    background-color: #000;
+                    color: #fff;
+                    padding: 15px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
+                }
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 22px;
+                }
+                .header-logo {
+                    width: 70px;
+                    height: 70px;
+                    object-fit: contain;
+                }
+                .header-company {
+                    font-size: 16pt;
+                    font-weight: bold;
+                    max-width: 320px;
+                    line-height: 1.3;
+                }
+                .header-right {
+                    text-align: right;
+                    font-size: 8pt;
+                    line-height: 1.6;
+                }
+                .content {
+                    padding: 25px 30px;
+                    margin: 0 0.5in 0.5in 0.5in;
+                }
+                .title {
+                    text-align: center;
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin: 20px 0;
+                    text-decoration: underline;
+                }
+                .section {
+                    margin: 15px 0;
+                }
+                .field {
+                    margin: 8px 0;
+                    page-break-inside: avoid;
+                }
+                .label {
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 150px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 15px 0;
+                    page-break-inside: avoid;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                td {
+                    font-size: 10pt;
+                }
+                .total {
+                    font-size: 12pt;
+                    font-weight: bold;
+                    margin: 15px 0;
+                    text-align: right;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="header-left">
+                    <img src="${data.company_info.logo}" class="header-logo" alt="Logo">
+                    <div class="header-company">${data.company_info.name}</div>
+                </div>
+                <div class="header-right">
+                    <div>${data.company_info.address}</div>
+                    <div>Tel: ${data.company_info.tel}</div>
+                    <div>Email: ${data.company_info.email}</div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="title">PURCHASE REQUEST FORM (PR)</div>
+
+                <div class="section">
+                    <div class="field"><span class="label">Document No.:</span> ${data.PR_ID}</div>
+                    <div class="field"><span class="label">MRF Reference:</span> ${data.MRF_ID}</div>
+                    <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                    <div class="field"><span class="label">Prepared by:</span> ${data.PREPARED_BY}</div>
+                </div>
+
+                <div class="section">
+                    <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                    <div class="field"><span class="label">Delivery Address:</span> ${data.ADDRESS}</div>
+                    <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+                </div>
+
+                <div class="section">
+                    <h3 style="margin: 10px 0;">Items Requested:</h3>
+                    ${data.ITEMS_TABLE}
+                </div>
+
+                <div class="total">
+                    TOTAL AMOUNT: ₱${data.TOTAL_COST}
+                </div>
+
+                <div style="margin-top: 40px; page-break-inside: avoid;">
+                    <div style="margin: 8px 0;">
+                        <span style="font-weight: bold; display: inline-block; width: 150px;">Requested By:</span> ${data.REQUESTOR}
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <span style="font-weight: bold; display: inline-block; width: 150px;">Prepared by:</span> ${data.PREPARED_BY}
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+function generatePOHTMLLocal(data) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>${data.PO_ID} - Purchase Order</title>
+            <style>
+                @media print {
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
+                    body {
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                }
+                html, body {
+                    margin: 0;
+                    padding: 0;
+                }
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 11pt;
+                    line-height: 1.4;
+                    color: #000;
+                    max-width: 8.5in;
+                    margin: 0 auto;
+                }
+                .header {
+                    background-color: #000;
+                    color: #fff;
+                    padding: 15px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    width: 100%;
+                }
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 22px;
+                }
+                .header-logo {
+                    width: 70px;
+                    height: 70px;
+                    object-fit: contain;
+                }
+                .header-company {
+                    font-size: 16pt;
+                    font-weight: bold;
+                    max-width: 320px;
+                    line-height: 1.3;
+                }
+                .header-right {
+                    text-align: right;
+                    font-size: 8pt;
+                    line-height: 1.6;
+                }
+                .content {
+                    padding: 25px 30px;
+                    margin: 0 0.5in 0.5in 0.5in;
+                }
+                .title {
+                    text-align: center;
+                    font-size: 16pt;
+                    font-weight: bold;
+                    margin: 20px 0;
+                    text-decoration: underline;
+                }
+                .section {
+                    margin: 15px 0;
+                }
+                .field {
+                    margin: 8px 0;
+                    page-break-inside: avoid;
+                }
+                .label {
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 150px;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 15px 0;
+                    page-break-inside: avoid;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: #f0f0f0;
+                    font-weight: bold;
+                    font-size: 10pt;
+                }
+                td {
+                    font-size: 10pt;
+                }
+                .signature-section {
+                    margin-top: 2rem;
+                    page-break-inside: avoid;
+                }
+                .signature-box {
+                    text-align: left;
+                }
+                .signature-box p {
+                    margin: 0.25rem 0;
+                    font-size: 0.875rem;
+                }
+                .signature-box .sig-label {
+                    font-weight: bold;
+                    font-size: 10pt;
+                    margin-bottom: 0.5rem;
+                }
+                .signature-box img {
+                    max-width: 200px;
+                    height: auto;
+                    max-height: 60px;
+                    margin-bottom: 0.5rem;
+                    display: block;
+                }
+                .sig-line {
+                    border-top: 1px solid #000;
+                    width: 200px;
+                    margin: 0.5rem 0 0.25rem 0;
+                }
+                .sig-placeholder {
+                    height: 60px;
+                    width: 200px;
+                    margin: 0 0 0.5rem 0;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="header-left">
+                    <img src="${data.company_info.logo}" class="header-logo" alt="Logo">
+                    <div class="header-company">${data.company_info.name}</div>
+                </div>
+                <div class="header-right">
+                    <div>${data.company_info.address}</div>
+                    <div>Tel: ${data.company_info.tel}</div>
+                    <div>Email: ${data.company_info.email}</div>
+                </div>
+            </div>
+
+            <div class="content">
+                <div class="title">PURCHASE ORDER</div>
+
+                <div class="section">
+                    <div class="field"><span class="label">P.O. No.:</span> ${data.PO_ID}</div>
+                    <div class="field"><span class="label">Project:</span> ${data.PROJECT}</div>
+                    <div class="field"><span class="label">Date:</span> ${data.DATE}</div>
+                    <div class="field"><span class="label">Supplier:</span> ${data.SUPPLIER}</div>
+                    <div class="field"><span class="label">Quote Ref:</span> ${data.QUOTE_REF}</div>
+                </div>
+
+                <div class="section">
+                    <h3 style="margin: 10px 0;">Order Details:</h3>
+                    ${data.ITEMS_TABLE}
+                </div>
+
+                <div class="section">
+                    <div class="field"><span class="label">Delivery Address:</span> ${data.DELIVERY_ADDRESS}</div>
+                    <div class="field"><span class="label">Payment Terms:</span> ${data.PAYMENT_TERMS}</div>
+                    <div class="field"><span class="label">Condition:</span> ${data.CONDITION}</div>
+                    <div class="field"><span class="label">Delivery Date:</span> ${data.DELIVERY_DATE}</div>
+                </div>
+
+                <div class="signature-section">
+                    <div class="signature-box">
+                        <p class="sig-label">Approved by:</p>
+                        ${data.FINANCE_SIGNATURE_URL ? `
+                            <img src="${data.FINANCE_SIGNATURE_URL}" alt="Finance Signature">
+                        ` : `
+                            <div class="sig-placeholder"></div>
+                        `}
+                        <div class="sig-line"></div>
+                        <p>${data.FINANCE_APPROVER}</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+function openPrintWindowLocal(html, filename) {
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+        alert('Please allow pop-ups to generate PDF documents');
+        return;
+    }
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    printWindow.onload = function() {
+        setTimeout(() => {
+            printWindow.print();
+        }, 250);
+    };
+}
+
+/**
+ * Generate PR document for print/PDF (self-contained, no procurement.js dependency).
+ * Mirrors procurement.js generatePRDocument exactly.
+ * @param {string} prDocId - Firestore document ID of the PR
+ */
+async function generatePRDocumentLocal(prDocId) {
+    console.log('[MRFRecords] Generating PR document for:', prDocId);
+    showLoading(true);
+
+    try {
+        const prRef = doc(db, 'prs', prDocId);
+        const prDoc = await getDoc(prRef);
+
+        if (!prDoc.exists()) {
+            throw new Error('PR not found');
+        }
+
+        const pr = prDoc.data();
+        const items = JSON.parse(pr.items_json || '[]');
+
+        const documentData = {
+            PR_ID: pr.pr_id,
+            MRF_ID: pr.mrf_id,
+            DATE: formatDocumentDateLocal(pr.date_generated || new Date().toISOString()),
+            PROJECT: getMRFLabel(pr),
+            ADDRESS: pr.delivery_address,
+            SUPPLIER: pr.supplier_name || 'Not specified',
+            ITEMS_TABLE: generateItemsTableHTMLLocal(items, 'PR'),
+            TOTAL_COST: formatCurrency(pr.total_amount),
+            REQUESTOR: pr.requestor_name,
+            PREPARED_BY: pr.pr_creator_name || pr.procurement_pic || 'Procurement Team',
+            company_info: DOCUMENT_CONFIG_LOCAL.companyInfo
+        };
+
+        const html = generatePRHTMLLocal(documentData);
+        openPrintWindowLocal(html, documentData.PR_ID);
+
+        showToast('PR document opened. Use browser Print \u2192 Save as PDF', 'success');
+
+    } catch (error) {
+        console.error('[MRFRecords] Error generating PR document:', error);
+        showToast('Failed to generate PR document', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Generate PO document for print/PDF (self-contained, no procurement.js dependency).
+ * Mirrors procurement.js generatePODocument exactly.
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function generatePODocumentLocal(poDocId) {
+    console.log('[MRFRecords] Generating PO document for:', poDocId);
+    showLoading(true);
+
+    try {
+        const poRef = doc(db, 'pos', poDocId);
+        const poDoc = await getDoc(poRef);
+
+        if (!poDoc.exists()) {
+            throw new Error('PO not found');
+        }
+
+        const po = poDoc.data();
+        const items = JSON.parse(po.items_json || '[]');
+
+        const documentData = {
+            PO_ID: po.po_id,
+            PROJECT: getMRFLabel(po),
+            DATE: formatTimestamp(po.date_issued) || formatDocumentDateLocal(po.date_issued_legacy) || 'N/A',
+            SUPPLIER: po.supplier_name,
+            QUOTE_REF: po.quote_ref || 'N/A',
+            ITEMS_TABLE: generateItemsTableHTMLLocal(items, 'PO'),
+            DELIVERY_ADDRESS: po.delivery_address,
+            PAYMENT_TERMS: po.payment_terms || '',
+            CONDITION: po.condition || '',
+            DELIVERY_DATE: po.delivery_date ? formatDocumentDateLocal(po.delivery_date) : '',
+            FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG_LOCAL.defaultFinancePIC,
+            FINANCE_SIGNATURE_URL: po.finance_signature_url || '',
+            company_info: DOCUMENT_CONFIG_LOCAL.companyInfo
+        };
+
+        const html = generatePOHTMLLocal(documentData);
+        openPrintWindowLocal(html, documentData.PO_ID);
+
+        showToast('PO document opened. Use browser Print \u2192 Save as PDF', 'success');
+
+    } catch (error) {
+        console.error('[MRFRecords] Error generating PO document:', error);
+        showToast('Failed to generate PO document', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
 /**
  * Show PR detail modal (read-only).
  * Self-contained copy of procurement.js viewPRDetails, minus document generation button.
@@ -136,7 +684,16 @@ async function viewPRDetailsLocal(prDocId) {
             id: 'mrfRecordsPRModal',
             title: `Purchase Request Details: ${pr.pr_id}`,
             body,
-            footer: `<button class="btn btn-secondary" onclick="closeModal('mrfRecordsPRModal')">Close</button>`,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('mrfRecordsPRModal')">Close</button>
+                <button class="btn btn-primary" onclick="generatePRDocumentLocal('${pr.id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>View PR
+                </button>`,
             size: 'large'
         });
         openModal('mrfRecordsPRModal');
@@ -221,7 +778,16 @@ async function viewPODetailsLocal(poDocId) {
             id: 'mrfRecordsPOModal',
             title: `Purchase Order Details: ${po.po_id}`,
             body,
-            footer: `<button class="btn btn-secondary" onclick="closeModal('mrfRecordsPOModal')">Close</button>`,
+            footer: `
+                <button class="btn btn-secondary" onclick="closeModal('mrfRecordsPOModal')">Close</button>
+                <button class="btn btn-primary" onclick="generatePODocumentLocal('${po.id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: middle;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>View PO
+                </button>`,
             size: 'large'
         });
         openModal('mrfRecordsPOModal');
@@ -749,6 +1315,11 @@ export function createMRFRecordsController(options) {
     window[`_mrfRecordsViewPO_${containerId}`] = viewPODetailsLocal;
     window[`_mrfRecordsTimeline_${containerId}`] = showTimelineLocal;
 
+    // Register document generation functions on window — needed because modal footer
+    // onclick attributes are HTML attribute strings (innerHTML), not module closures.
+    window.generatePRDocumentLocal = generatePRDocumentLocal;
+    window.generatePODocumentLocal = generatePODocumentLocal;
+
     // ------------------------------------------------
     // DESTROY
     // ------------------------------------------------
@@ -761,6 +1332,8 @@ export function createMRFRecordsController(options) {
         delete window[`_mrfRecordsViewPR_${containerId}`];
         delete window[`_mrfRecordsViewPO_${containerId}`];
         delete window[`_mrfRecordsTimeline_${containerId}`];
+        delete window.generatePRDocumentLocal;
+        delete window.generatePODocumentLocal;
     }
 
     // ------------------------------------------------
