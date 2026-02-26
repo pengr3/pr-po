@@ -392,7 +392,12 @@ Plans:
   3. User can click an Export button on the PO Tracking list and download a CSV of PO tracking records
   4. User can click an Export button on the Projects list and download a CSV of all projects
   5. User can click an Export button on the Services list and download a CSV of all services
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 41-01-PLAN.md — downloadCSV utility + Projects export (EXP-04) + Services export (EXP-05)
+- [ ] 41-02-PLAN.md — MRF list export in mrf-records.js/mrf-form.js (EXP-01) + Finance PO export (EXP-03)
+- [ ] 41-03-PLAN.md — PR/PO Records export in procurement.js (EXP-02)
 
 ### Phase 42: Detail Page Exports
 **Goal**: Users can export expense breakdown data from project and service detail pages
@@ -492,7 +497,7 @@ Phases execute in numeric order: 41 → 42 → 43 → 44 → 45 → 46
 | 38. Code Quality & DRY Cleanup | v2.3 | 2/2 | Complete | 2026-02-24 |
 | 39. Admin Assignments Overhaul, Badge Styling, Code Fix | v2.3 | 3/3 | Complete | 2026-02-24 |
 | 40. UI/UX Revisions | v2.3 | 7/7 | Complete | 2026-02-26 |
-| 41. List View Exports | v2.4 | 0/TBD | Not started | - |
+| 41. List View Exports | v2.4 | 0/3 | Not started | - |
 | 42. Detail Page Exports | v2.4 | 0/TBD | Not started | - |
 | 43. Mobile Hamburger Navigation | v2.4 | 0/TBD | Not started | - |
 | 44. Responsive Layouts | v2.4 | 0/TBD | Not started | - |
