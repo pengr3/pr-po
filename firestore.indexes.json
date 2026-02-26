@@ -29,20 +29,30 @@
       ]
     },
     {
+      "collectionGroup": "prs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "service_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "pos",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "supplier_name",
+          "fieldPath": "service_code",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "date_issued",
-          "order": "DESCENDING"
-        },
-        {
           "fieldPath": "total_amount",
-          "order": "DESCENDING"
+          "order": "ASCENDING"
         }
       ]
     }

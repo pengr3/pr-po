@@ -515,6 +515,26 @@ tr:hover {
     color: var(--danger-dark);
 }
 
+.status-badge.procuring {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.status-badge.delivered {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-secondary {
+    background: #e5e7eb;
+    color: #374151;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    display: inline-block;
+}
+
 .badge-primary {
     background: #e8f0fe;
     color: var(--primary);

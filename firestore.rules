@@ -81,30 +81,40 @@ service cloud.firestore {
              isAssignedToProject(projectCode);
     }
 
+    // Check if a services_user is assigned to a given service_code.
+    // Only call this after confirming role is services_user (short-circuit guard).
+    // all_services == true means unrestricted access (mirrors all_projects for operations_admin).
+    function isAssignedToService(serviceCode) {
+      return getUserData().all_services == true ||
+             serviceCode in getUserData().assigned_service_codes;
+    }
+
     // =============================================
     // users collection
     // =============================================
     match /users/{userId} {
-      // Get: own doc OR super_admin OR (operations_admin AND target is operations_user)
+      // Get: own doc OR super_admin OR (operations_admin AND target is operations_user) OR (services_admin AND target is services_user)
       allow get: if isSignedIn() && (
         request.auth.uid == userId ||
         isRole('super_admin') ||
-        (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user')
+        (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
+        (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user')
       );
 
-      // List: super_admin OR (operations_admin - filtered by client to operations_user only)
-      // Note: operations_admin's list access must be filtered client-side to operations_user docs
-      allow list: if isRole('super_admin') || isRole('operations_admin');
+      // List: super_admin OR operations_admin OR services_admin
+      // Note: operations_admin and services_admin list access must be filtered client-side to their respective user roles
+      allow list: if isRole('super_admin') || isRole('operations_admin') || isRole('services_admin');
 
       // Create: signed-in user creating own doc AND status is 'pending'
       allow create: if isSignedIn() &&
                        request.auth.uid == userId &&
                        request.resource.data.status == 'pending';
 
-      // Update: super_admin OR (operations_admin AND target is operations_user) OR own doc
+      // Update: super_admin OR (operations_admin AND target is operations_user) OR (services_admin AND target is services_user) OR own doc
       allow update: if isSignedIn() && (
         isRole('super_admin') ||
         (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
+        (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user') ||
         request.auth.uid == userId
       );
 
@@ -164,8 +174,8 @@ service cloud.firestore {
         // Read: all active users (consistent with project read access)
         allow read: if isActiveUser();
 
-        // Create: roles that can update projects (same as project update rule)
-        allow create: if hasRole(['super_admin', 'operations_admin', 'finance']);
+        // Create: roles that can update projects or services (services reuse this subcollection)
+        allow create: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance']);
 
         // Append-only: no updates or deletes allowed
         allow update: if false;
@@ -197,17 +207,18 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user service-scoped
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
-      // Create: super_admin, operations_admin, operations_user, procurement
-      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'procurement']);
+      // Create: all roles that can submit MRFs (operations and services dept users)
+      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'procurement']);
 
-      // Update: super_admin, operations_admin, finance, procurement
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']);
+      // Update: super_admin, dept admins, finance, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']);
 
       // Delete: super_admin, operations_admin
       allow delete: if hasRole(['super_admin', 'operations_admin']);
@@ -220,17 +231,18 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted (tracks their MRFs); services_user service-scoped
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
       // Create: super_admin, operations_admin, procurement
       allow create: if hasRole(['super_admin', 'operations_admin', 'procurement']);
 
-      // Update: super_admin, operations_admin, finance, procurement
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']);
+      // Update: super_admin, dept admins, finance, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']);
 
       // Delete: super_admin, operations_admin, procurement
       allow delete: if hasRole(['super_admin', 'operations_admin', 'procurement']);
@@ -243,10 +255,11 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted; services_user service-scoped
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
       // Create: super_admin, finance (Finance issues POs after approving PRs)
@@ -266,19 +279,20 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: all active users, but operations_user is project-scoped (legacy-aware)
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user service-scoped
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
-      // Create: super_admin, operations_admin, operations_user, procurement
-      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'procurement']);
+      // Create: super_admin, dept admins, dept users, procurement
+      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'procurement']);
 
-      // Update: super_admin, operations_admin, finance, procurement
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance', 'procurement']);
+      // Update: super_admin, dept admins, finance, procurement
+      allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']);
 
-      // Delete: super_admin, operations_admin, procurement
+      // Delete: super_admin, dept admins, procurement
       allow delete: if hasRole(['super_admin', 'operations_admin', 'procurement']);
     }
 
@@ -330,6 +344,41 @@ service cloud.firestore {
       // No update or delete - archive is append-only
       allow update: if false;
       allow delete: if false;
+    }
+
+    // =============================================
+    // services collection
+    // =============================================
+    match /services/{serviceId} {
+      // Get (single document): super_admin, services roles, finance, procurement
+      // services_user can get individual docs — more permissive than list
+      allow get: if hasRole(['super_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
+
+      // List (collection query): scoped by assignment for services_user
+      // CRITICAL: isAssignedToService() is ONLY called when isRole('services_user') is true
+      // (short-circuit || prevents accessing assigned_service_codes on non-services_user docs)
+      allow list: if isActiveUser() && (
+        hasRole(['super_admin', 'services_admin', 'finance', 'procurement']) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+      );
+
+      // Create: super_admin and services_admin only (SEC-04: services_user CANNOT write)
+      allow create: if hasRole(['super_admin', 'services_admin']);
+
+      // Update: super_admin and services_admin unrestricted; services_user scoped to assigned services
+      allow update: if hasRole(['super_admin', 'services_admin']) ||
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
+
+      // Delete: super_admin and services_admin only
+      allow delete: if hasRole(['super_admin', 'services_admin']);
+
+      // edit_history subcollection — append-only audit trail for service edits
+      match /edit_history/{entryId} {
+        allow read: if hasRole(['super_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
+        allow create: if hasRole(['super_admin', 'services_admin', 'services_user']);
+        allow update: if false;
+        allow delete: if false;
+      }
     }
   }
 }

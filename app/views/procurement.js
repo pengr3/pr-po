@@ -5,8 +5,8 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId } from '../utils.js';
-import { createStatusBadge, createModal, openModal, closeModal, createTimeline } from '../components.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass } from '../utils.js';
+import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
 // ========================================
 // GLOBAL STATE
@@ -29,9 +29,23 @@ let prpoCurrentPage = 1;
 const prpoItemsPerPage = 10;
 
 let cachedAllMRFs = [];   // Holds raw MRF snapshot for re-filtering on assignment change
+let cachedServicesForNewMRF = [];   // Holds active services for the inline New MRF form dropdown
+
+// Department filter state for PO Tracking table
+let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
 
 // Firebase listeners for cleanup
 let listeners = [];
+
+/**
+ * Apply department filter to scoreboards and MRF Records table.
+ * Called by the dept filter dropdown onchange handler.
+ */
+function applyPODeptFilter(value) {
+    activePODeptFilter = value;
+    renderPOTrackingTable(poData);
+    filterPRPORecords();
+}
 
 // ========================================
 // WINDOW FUNCTIONS ATTACHMENT
@@ -79,6 +93,7 @@ function attachWindowFunctions() {
     window.viewPOTimeline = viewPOTimeline;
     window.updatePOStatus = updatePOStatus;
     window.showProcurementTimeline = showProcurementTimeline;
+    window.applyPODeptFilter = applyPODeptFilter;
     window.closeTimelineModal = closeTimelineModal;
     window.showSupplierPurchaseHistory = showSupplierPurchaseHistory;
     window.closeSupplierHistoryModal = closeSupplierHistoryModal;
@@ -231,7 +246,16 @@ export function render(activeTab = 'mrfs') {
                 <div class="card">
                     <div class="card-header">
                         <h2>MRF Records</h2>
-                        <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="deptFilterPOTracking"
+                                    onchange="window.applyPODeptFilter(this.value)"
+                                    style="padding:0.35rem 0.6rem;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.875rem;color:#475569;">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                        </div>
                     </div>
 
                     <!-- PO Scoreboards -->
@@ -379,12 +403,14 @@ export async function init(activeTab = 'mrfs') {
     try {
         // Load all data
         await loadProjects();
+        await loadServicesForNewMRF();
         await loadSuppliers();
         await loadMRFs();
 
-        // Load PR-PO records if on records tab
+        // Load PR-PO records and PO data (for scoreboards) if on records tab
         if (activeTab === 'records') {
             await loadPRPORecords();
+            await loadPOTracking();
         }
 
         console.log('[Procurement] ✅ Procurement view initialized successfully');
@@ -465,10 +491,10 @@ async function showSupplierPurchaseHistory(supplierName) {
                     ${pos.map(po => `
                         <tr>
                             <td><strong>${po.po_id}</strong></td>
-                            <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'N/A'}</td>
-                            <td>${formatDate(po.date_issued)}</td>
+                            <td>${getMRFLabel(po)}</td>
+                            <td>${formatTimestamp(po.date_issued) || 'N/A'}</td>
                             <td><strong>₱${formatCurrency(po.total_amount)}</strong></td>
-                            <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${po.procurement_status}</span></td>
+                            <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status}</span></td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -565,6 +591,8 @@ export async function destroy() {
     delete window.viewPODocument;
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
+    delete window.applyPODeptFilter;
+    activePODeptFilter = '';
 
     console.log('[Procurement] 🗑️ All window functions deleted');
     console.log('[Procurement] ✅ Procurement view destroyed');
@@ -577,6 +605,26 @@ export async function destroy() {
 /**
  * Load active projects from Firebase
  */
+async function loadServicesForNewMRF() {
+    try {
+        const q = query(collection(db, 'services'), where('active', '==', true));
+        const snapshot = await getDocs(q);
+        cachedServicesForNewMRF = [];
+        snapshot.forEach(docSnap => {
+            cachedServicesForNewMRF.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        // Sort most-recent first to match mrf-form.js ordering
+        cachedServicesForNewMRF.sort((a, b) => {
+            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return bTime - aTime;
+        });
+        console.log('[Procurement] Services for New MRF loaded:', cachedServicesForNewMRF.length);
+    } catch (error) {
+        console.error('[Procurement] Error loading services for new MRF:', error);
+    }
+}
+
 async function loadProjects() {
     try {
         const q = query(
@@ -614,18 +662,14 @@ async function loadProjects() {
  * Load MRFs with real-time updates
  */
 async function loadMRFs() {
-    console.log('🔍 Setting up MRF listener...');
     const mrfsRef = collection(db, 'mrfs');
     const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
-    console.log('  Querying statuses:', statuses);
     const q = query(mrfsRef, where('status', 'in', statuses));
 
     const listener = onSnapshot(q, (snapshot) => {
-        console.log('🔔 MRF snapshot received, documents:', snapshot.size);
         const allMRFs = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            console.log('  ', doc.id, '- Status:', data.status, '- Type:', data.request_type, '- MRF ID:', data.mrf_id);
             allMRFs.push({ id: doc.id, ...data });
         });
 
@@ -657,7 +701,6 @@ async function loadMRFs() {
         materialMRFs.sort(sortByDeadline);
         transportMRFs.sort(sortByDeadline);
 
-        console.log('  Rendering - Material:', materialMRFs.length, 'Transport:', transportMRFs.length);
         renderMRFList(materialMRFs, transportMRFs);
     }, (error) => {
         console.error('  MRF listener error:', error);
@@ -701,10 +744,6 @@ function reFilterAndRenderMRFs() {
  * Render MRF list
  */
 function renderMRFList(materialMRFs, transportMRFs) {
-    console.log('🎨 Rendering MRF list...');
-    console.log('  Material MRFs to render:', materialMRFs.length);
-    console.log('  Transport MRFs to render:', transportMRFs.length);
-
     const mrfList = document.getElementById('mrfList');
     if (!mrfList) {
         console.error('❌ mrfList element not found!');
@@ -762,7 +801,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                         ${mrf.urgency_level || 'Low'}
                     </span>
                 </div>
-                <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
+                <div style="font-size: 0.875rem; color: #5f6368;">${getMRFLabel(mrf)}</div>
                 ${isRejected ? `
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
                         <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
@@ -818,7 +857,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                             ${mrf.urgency_level || 'Low'}
                         </span>
                     </div>
-                    <div style="font-size: 0.875rem; color: #5f6368;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${getMRFLabel(mrf)}</div>
                     ${isRejected ? `
                         <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
                             <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
@@ -835,9 +874,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
         }).join('');
     }
 
-    console.log('✅ Setting innerHTML, total length:', html.length, 'chars');
     mrfList.innerHTML = html;
-    console.log('✅ MRF list rendered successfully');
 
     // Clear MRF details if no pending MRFs
     if (materialMRFs.length === 0 && transportMRFs.length === 0) {
@@ -972,12 +1009,23 @@ function renderMRFDetails(mrf, isNew = false) {
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Project *</div>
                 ${isNew ? `
-                    <select id="projectName" required style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                    <select id="projectName" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
                         <option value="">-- Select a project --</option>
                         ${projectOptions}
                     </select>
-                ` : `<div style="font-weight: 600;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</div>`}
+                ` : `<div style="font-weight: 600;">${getMRFLabel(mrf)}</div>`}
             </div>
+            ${isNew && cachedServicesForNewMRF.length > 0 ? `
+            <div>
+                <div style="font-size: 0.75rem; color: #5f6368;">Service (if services MRF)</div>
+                <select id="saveNewMRF_serviceName" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">
+                    <option value="">-- Select a service (optional) --</option>
+                    ${cachedServicesForNewMRF.map(s =>
+                        `<option value="${s.service_code}" data-service-name="${s.service_name}">${s.service_code} - ${s.service_name}</option>`
+                    ).join('')}
+                </select>
+            </div>
+            ` : ''}
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Requestor *</div>
                 ${isNew ? `
@@ -1444,23 +1492,35 @@ async function saveNewMRF() {
 
     // Collect form data
     const requestType = document.getElementById('requestType')?.value || 'material';
-    const selectedProjectCode = document.getElementById('projectName')?.value?.trim();
+    const selectedProjectCode = document.getElementById('projectName')?.value?.trim() || '';
     const requestorName = document.getElementById('requestorName')?.value?.trim();
     const dateNeeded = document.getElementById('dateNeeded')?.value;
     const urgencyLevel = document.getElementById('urgencyLevel')?.value || 'Low';
     const deliveryAddress = document.getElementById('deliveryAddress')?.value?.trim();
 
-    // Validate required fields
-    if (!selectedProjectCode) {
-        showToast('Please select a project', 'error');
+    // Collect service selection for roles that see the services dropdown
+    const serviceSelectEl = document.getElementById('saveNewMRF_serviceName');
+    const serviceCode = serviceSelectEl?.value?.trim() || '';
+    const serviceSelectedOption = serviceSelectEl?.options[serviceSelectEl?.selectedIndex];
+    const serviceName = serviceSelectedOption?.dataset?.serviceName || '';
+    const hasService = !!serviceCode;
+    const hasProject = !!selectedProjectCode;
+    const department = hasService ? 'services' : 'projects';
+
+    // Validate: must select a project or service
+    if (!hasProject && !hasService) {
+        showToast('Please select a project or service', 'error');
         return;
     }
 
-    // Find the selected project to get both code and name
-    const selectedProject = projectsData.find(p => p.project_code === selectedProjectCode);
-    if (!selectedProject) {
-        showToast('Selected project not found', 'error');
-        return;
+    // Find the selected project to get both code and name (only needed when project selected)
+    let selectedProject = null;
+    if (hasProject) {
+        selectedProject = projectsData.find(p => p.project_code === selectedProjectCode);
+        if (!selectedProject) {
+            showToast('Selected project not found', 'error');
+            return;
+        }
     }
     if (!requestorName) {
         showToast('Please enter requestor name', 'error');
@@ -1553,8 +1613,11 @@ async function saveNewMRF() {
             mrf_id: mrfId,
             request_type: requestType,
             urgency_level: urgencyLevel,
-            project_code: selectedProject.project_code,
-            project_name: selectedProject.project_name,
+            department: department,
+            project_code: hasProject ? selectedProject.project_code : '',
+            project_name: hasProject ? selectedProject.project_name : '',
+            service_code: hasService ? serviceCode : '',
+            service_name: hasService ? serviceName : '',
             requestor_name: requestorName,
             date_needed: dateNeeded,
             date_submitted: new Date().toISOString().split('T')[0],
@@ -2269,18 +2332,21 @@ function filterPRPORecords() {
     const poStatusFilter = document.getElementById('poStatusFilter')?.value || '';
 
     filteredPRPORecords = allPRPORecords.filter(mrf => {
+        // Department filter
+        const mrfDept = mrf.department || (mrf.service_code ? 'services' : 'projects');
+        const matchesDept = !activePODeptFilter || mrfDept === activePODeptFilter;
+
         // Search filter
         const matchesSearch = !searchInput ||
             (mrf.mrf_id && mrf.mrf_id.toLowerCase().includes(searchInput)) ||
-            (mrf.project_name && mrf.project_name.toLowerCase().includes(searchInput));
+            (mrf.project_name && mrf.project_name.toLowerCase().includes(searchInput)) ||
+            (mrf.requestor_name && mrf.requestor_name.toLowerCase().includes(searchInput)) ||
+            (mrf.service_name && mrf.service_name.toLowerCase().includes(searchInput));
 
         // MRF status filter
         const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
 
-        // Note: PO status filter would require checking related POs
-        // For now, we only filter by MRF status and search
-
-        return matchesSearch && matchesMRFStatus;
+        return matchesDept && matchesSearch && matchesMRFStatus;
     });
 
     prpoCurrentPage = 1;
@@ -2299,28 +2365,28 @@ function calculateMRFStatus(prs, pos) {
         // No PRs generated yet
         return {
             status: 'Awaiting PR',
-            color: '#ef4444', // Red
+            badgeClass: 'rejected',
             description: 'No PRs generated yet'
         };
     } else if (poCount === 0) {
         // PRs exist but no POs
         return {
             status: '0/' + prCount + ' PO Issued',
-            color: '#f59e0b', // Yellow
+            badgeClass: 'pending',
             description: 'PRs approved, awaiting PO generation'
         };
     } else if (poCount === prCount) {
         // All POs issued
         return {
             status: prCount + '/' + prCount + ' PO Issued',
-            color: '#22c55e', // Green
+            badgeClass: 'approved',
             description: 'All POs issued'
         };
     } else {
         // Partial PO issuance
         return {
             status: poCount + '/' + prCount + ' PO Issued',
-            color: '#f59e0b', // Yellow
+            badgeClass: 'procuring',
             description: 'Partial PO issuance'
         };
     }
@@ -2330,16 +2396,7 @@ function calculateMRFStatus(prs, pos) {
  * Render MRF status badge with color coding
  */
 function renderMRFStatusBadge(statusObj) {
-    return `<span style="
-        background: ${statusObj.color};
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        white-space: nowrap;
-        display: inline-block;
-    ">${statusObj.status}</span>`;
+    return `<span class="status-badge ${statusObj.badgeClass}">${statusObj.status}</span>`;
 }
 
 /**
@@ -2415,22 +2472,13 @@ async function renderPRPORecords() {
                     });
 
                     const prIds = prDataArray.map(pr => {
-                        let badgeColor = '#6b7280';
-                        let badgeText = '';
-                        if (pr.finance_status === 'Rejected') {
-                            badgeColor = '#dc2626';
-                            badgeText = 'REJECTED';
-                        } else if (pr.finance_status === 'Approved') {
-                            badgeColor = '#16a34a';
-                            badgeText = 'APPROVED';
-                        } else if (pr.finance_status === 'Pending') {
-                            badgeColor = '#f59e0b';
-                            badgeText = 'PENDING';
-                        }
-                        return `<div style="display: flex; flex-direction: column; gap: 2px; min-height: 52px; justify-content: center;">
-                            <a href="javascript:void(0)" onclick="window.viewPRDetails('${pr.docId}')" style="color: #1a73e8; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${pr.pr_id}</a>
-                            ${badgeText ? `<span style="background: ${badgeColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.65rem; font-weight: 600; width: fit-content;">${badgeText}</span>` : ''}
-                        </div>`;
+                        const statusClass = getStatusClass(pr.finance_status || 'Pending');
+                        return `<a href="javascript:void(0)"
+                            onclick="window.viewPRDetails('${pr.docId}')"
+                            class="status-badge ${statusClass}"
+                            style="font-size: 0.75rem; text-decoration: none; cursor: pointer; display: inline-block; margin-bottom: 0.25rem;">
+                            ${pr.pr_id}
+                        </a>`;
                     });
                     prHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem;">' + prIds.join('') + '</div>';
                 }
@@ -2641,8 +2689,8 @@ async function renderPRPORecords() {
         return `
             <tr>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${mrf.project_code ? mrf.project_code + ' - ' : ''}${mrf.project_name || 'No project'}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${new Date(mrf.date_needed || mrf.date_submitted || mrf.created_at).toLocaleDateString()}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${getMRFLabel(mrf)}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${mrf.date_needed ? formatDate(mrf.date_needed) : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A')}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
@@ -2651,7 +2699,7 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poStatusHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                     <button class="btn btn-sm btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;" onclick="window.showProcurementTimeline('${mrf.mrf_id}')">
-                        📅 Timeline
+                        Timeline
                     </button>
                 </td>
             </tr>
@@ -2877,6 +2925,9 @@ async function submitTransportRequest() {
             mrf_doc_id: mrfData.id,
             project_code: mrfData.project_code || '',
             project_name: mrfData.project_name,
+            service_code: mrfData.service_code || '',
+            service_name: mrfData.service_name || '',
+            department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
@@ -3141,6 +3192,9 @@ async function generatePR() {
                     supplier_name: supplier,
                     project_code: mrfData.project_code || '',
                     project_name: mrfData.project_name,
+                    service_code: mrfData.service_code || '',
+                    service_name: mrfData.service_name || '',
+                    department: mrfData.department || 'projects',
                     requestor_name: mrfData.requestor_name,
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(supplierItems),
@@ -3426,6 +3480,9 @@ async function generatePRandTR() {
                     supplier_name: supplier,
                     project_code: mrfData.project_code || '',
                     project_name: mrfData.project_name,
+                    service_code: mrfData.service_code || '',
+                    service_name: mrfData.service_name || '',
+                    department: mrfData.department || 'projects',
                     requestor_name: mrfData.requestor_name,
                     delivery_address: deliveryAddress,
                     items_json: JSON.stringify(supplierItems),
@@ -3488,6 +3545,9 @@ async function generatePRandTR() {
             mrf_doc_id: mrfData.id,
             project_code: mrfData.project_code || '',
             project_name: mrfData.project_name,
+            service_code: mrfData.service_code || '',
+            service_name: mrfData.service_name || '',
+            department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
@@ -3610,7 +3670,11 @@ function renderPOTrackingTable(pos) {
     const canEdit = window.canEditTab?.('procurement');
     const showEditControls = canEdit !== false;
 
-    // Calculate separate scoreboard counts for Materials and Subcon
+    // Filter POs by department if active, then calculate scoreboard counts
+    const scoreboardPos = activePODeptFilter
+        ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
+        : pos;
+
     const materialCounts = {
         pending: 0,      // Pending Procurement
         procuring: 0,    // Procuring
@@ -3624,7 +3688,7 @@ function renderPOTrackingTable(pos) {
         processed: 0     // Processed
     };
 
-    pos.forEach(po => {
+    scoreboardPos.forEach(po => {
         const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
         const status = po.procurement_status || defaultStatus;
 
@@ -3653,7 +3717,15 @@ function renderPOTrackingTable(pos) {
     document.getElementById('scoreSubconProcessing').textContent = subconCounts.processing;
     document.getElementById('scoreSubconProcessed').textContent = subconCounts.processed;
 
-    if (pos.length === 0) {
+    // MRF Records tab has scoreboards but no PO table body — exit after scoreboards
+    if (!tbody) return;
+
+    // Apply department filter before pagination
+    const displayPos = activePODeptFilter
+        ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
+        : pos;
+
+    if (displayPos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
         // Hide pagination if no results
         const paginationDiv = document.getElementById('poPagination');
@@ -3662,10 +3734,10 @@ function renderPOTrackingTable(pos) {
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(pos.length / poItemsPerPage);
+    const totalPages = Math.ceil(displayPos.length / poItemsPerPage);
     const startIndex = (poCurrentPage - 1) * poItemsPerPage;
-    const endIndex = Math.min(startIndex + poItemsPerPage, pos.length);
-    const pageItems = pos.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + poItemsPerPage, displayPos.length);
+    const pageItems = displayPos.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageItems.map(po => {
         const isSubcon = po.is_subcon;
@@ -3706,11 +3778,11 @@ function renderPOTrackingTable(pos) {
 
         return `
         <tr>
-            <td><strong><a href="javascript:void(0)" onclick="viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
+            <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
             <td>${po.supplier_name}</td>
-            <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
+            <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-            <td>${new Date(po.date_issued).toLocaleDateString()}</td>
+            <td>${formatTimestamp(po.date_issued) || 'N/A'}</td>
             <td>
                 ${showEditControls ? `
                 <select class="status-select" data-po-id="${po.id}" data-is-subcon="${isSubcon}"
@@ -3728,7 +3800,7 @@ function renderPOTrackingTable(pos) {
     `}).join('');
 
     // Update pagination controls
-    updatePOPaginationControls(totalPages, startIndex, endIndex, pos.length);
+    updatePOPaginationControls(totalPages, startIndex, endIndex, displayPos.length);
 }
 
 /**
@@ -3953,7 +4025,7 @@ async function viewPRDetails(prDocId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</div>
+                        <div>${getMRFLabel(pr)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div>
@@ -3961,7 +4033,7 @@ async function viewPRDetails(prDocId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
-                        <div><span style="background: ${pr.finance_status === 'Approved' ? '#d1fae5' : pr.finance_status === 'Rejected' ? '#fee2e2' : '#fef3c7'}; color: ${pr.finance_status === 'Approved' ? '#065f46' : pr.finance_status === 'Rejected' ? '#991b1b' : '#92400e'}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${pr.finance_status || 'Pending'}</span></div>
+                        <div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${pr.finance_status || 'Pending'}</span></div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
@@ -4110,11 +4182,11 @@ async function viewPODetails(poId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</div>
+                        <div>${getMRFLabel(po)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
-                        <div>${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'N/A'}</div>
+                        <div>${formatTimestamp(po.date_issued) || 'N/A'}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
@@ -4249,12 +4321,12 @@ function viewPOTimeline(poId) {
         const currentStatus = po.procurement_status || defaultStatus;
 
         content = `SUBCON Timeline: ${po.po_id}\n\n`;
-        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'Pending'}\n`;
-        content += `${po.processing_started_at ? '✓' : '○'} Processing Started: ${po.processing_started_at ? new Date(po.processing_started_at).toLocaleDateString() : 'Not started'}\n`;
+        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${formatTimestamp(po.date_issued) || 'Pending'}\n`;
+        content += `${po.processing_started_at ? '✓' : '○'} Processing Started: ${formatTimestamp(po.processing_started_at) || 'Not started'}\n`;
         if (po.processing_started_at && po.date_issued) {
             content += `  Time to start: ${calculateDays(po.date_issued, po.processing_started_at)}\n`;
         }
-        content += `${po.processed_at || po.processed_date ? '✓' : '○'} Processed: ${(po.processed_at || po.processed_date) ? new Date(po.processed_at || po.processed_date).toLocaleDateString() : 'Not yet processed'}\n`;
+        content += `${po.processed_at || po.processed_date ? '✓' : '○'} Processed: ${(po.processed_at || po.processed_date) ? formatTimestamp(po.processed_at || po.processed_date) || 'Not yet processed' : 'Not yet processed'}\n`;
         if ((po.processed_at || po.processed_date) && po.processing_started_at) {
             content += `  Processing time: ${calculateDays(po.processing_started_at, po.processed_at || po.processed_date)}\n`;
         }
@@ -4264,13 +4336,13 @@ function viewPOTimeline(poId) {
     } else {
         // Material Timeline: PO Issued → Procurement Started → Items Procured → Delivered
         content = `Material Timeline: ${po.po_id}\n\n`;
-        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${po.date_issued ? new Date(po.date_issued).toLocaleDateString() : 'Pending'}\n`;
-        content += `${po.procurement_started_at ? '✓' : '○'} Procurement Started: ${po.procurement_started_at ? new Date(po.procurement_started_at).toLocaleDateString() : 'Not started'}\n`;
-        content += `${po.procured_at || po.procured_date ? '✓' : '○'} Items Procured: ${(po.procured_at || po.procured_date) ? new Date(po.procured_at || po.procured_date).toLocaleDateString() : 'Not yet procured'}\n`;
+        content += `${po.date_issued ? '✓' : '○'} PO Issued: ${formatTimestamp(po.date_issued) || 'Pending'}\n`;
+        content += `${po.procurement_started_at ? '✓' : '○'} Procurement Started: ${formatTimestamp(po.procurement_started_at) || 'Not started'}\n`;
+        content += `${po.procured_at || po.procured_date ? '✓' : '○'} Items Procured: ${(po.procured_at || po.procured_date) ? formatTimestamp(po.procured_at || po.procured_date) || 'Not yet procured' : 'Not yet procured'}\n`;
         if ((po.procured_at || po.procured_date) && po.procurement_started_at) {
             content += `  Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}\n`;
         }
-        content += `${po.delivered_at || po.delivered_date ? '✓' : '○'} Delivered: ${(po.delivered_at || po.delivered_date) ? new Date(po.delivered_at || po.delivered_date).toLocaleDateString() : 'Not yet delivered'}\n`;
+        content += `${po.delivered_at || po.delivered_date ? '✓' : '○'} Delivered: ${(po.delivered_at || po.delivered_date) ? formatTimestamp(po.delivered_at || po.delivered_date) || 'Not yet delivered' : 'Not yet delivered'}\n`;
         if ((po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date)) {
             content += `  Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}\n`;
         }
@@ -4334,50 +4406,98 @@ async function showProcurementTimeline(mrfId) {
         const pos = [];
         posSnapshot.forEach(doc => pos.push(doc.data()));
 
-        // Build timeline items array
-        const timelineItems = [
-            {
-                title: `📝 MRF Created: ${mrf.mrf_id}`,
-                date: formatDate(mrf.created_at),
-                description: `Requestor: ${mrf.requestor_name} | Project: ${mrf.project_name || 'N/A'}`,
-                status: 'completed'
-            }
-        ];
-
-        // Add PRs
-        prs.forEach(pr => {
-            timelineItems.push({
-                title: `🛒 Purchase Request: ${pr.pr_id}`,
-                date: formatDate(pr.date_generated),
-                description: `Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)}`,
-                status: pr.finance_status === 'Approved' ? 'completed' :
-                        pr.finance_status === 'Rejected' ? 'rejected' : 'pending'
-            });
-        });
-
-        // Add TRs
-        trs.forEach(tr => {
-            timelineItems.push({
-                title: `🚚 Transport Request: ${tr.tr_id}`,
-                date: formatDate(tr.date_submitted),
-                description: `Amount: ₱${formatCurrency(tr.total_amount)}`,
-                status: tr.finance_status === 'Approved' ? 'completed' :
-                        tr.finance_status === 'Rejected' ? 'rejected' : 'pending'
-            });
-        });
-
-        // Add POs
+        // Group POs by pr_id for parent-child pairing
+        const posByPR = {};
         pos.forEach(po => {
-            timelineItems.push({
-                title: `📄 Purchase Order: ${po.po_id}`,
-                date: formatDate(po.date_issued),
-                description: `Supplier: ${po.supplier_name} | Status: ${po.procurement_status}`,
-                status: po.procurement_status === 'Delivered' ? 'completed' : 'active'
-            });
+            const prId = po.pr_id || '_unlinked';
+            if (!posByPR[prId]) posByPR[prId] = [];
+            posByPR[prId].push(po);
         });
 
-        // Render timeline using createTimeline component
-        const timelineHtml = createTimeline(timelineItems);
+        // Helper: get status class for PR/TR finance_status
+        const getPRStatusClass = (financeStatus) => {
+            if (financeStatus === 'Approved') return 'completed';
+            if (financeStatus === 'Rejected') return 'rejected';
+            return 'pending';
+        };
+
+        // Helper: get status class for PO procurement_status
+        const getPOStatusClass = (procStatus) => {
+            if (procStatus === 'Delivered' || procStatus === 'Processed') return 'completed';
+            if (procStatus === 'Procuring' || procStatus === 'Processing') return 'active';
+            return 'pending';
+        };
+
+        // Build custom timeline HTML with PR->PO nesting
+        const deptLabel = mrf.department === 'services' ? 'Service' : 'Project';
+        let timelineHtml = '<div class="timeline">';
+
+        // 1. MRF Created entry
+        timelineHtml += `
+            <div class="timeline-item completed">
+                <div class="timeline-item-title">MRF Created: ${mrf.mrf_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(mrf.created_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}</div>
+            </div>`;
+
+        // 2. PRs with nested child POs
+        prs.forEach(pr => {
+            const prStatusClass = getPRStatusClass(pr.finance_status);
+            const childPOs = posByPR[pr.pr_id] || [];
+
+            const childHtml = childPOs.map(po => {
+                const poStatusClass = getPOStatusClass(po.procurement_status);
+                return `
+                <div class="timeline-child-item ${poStatusClass}">
+                    <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                    <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
+                    <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                    <div class="timeline-procurement-status">
+                        <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">
+                            ${po.procurement_status || 'Pending Procurement'}
+                        </span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            timelineHtml += `
+            <div class="timeline-item ${prStatusClass}">
+                <div class="timeline-item-title">Purchase Request: ${pr.pr_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
+                <div class="timeline-item-description">Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)}</div>
+                ${childPOs.length > 0 ? `<div class="timeline-children">${childHtml}</div>` : ''}
+            </div>`;
+        });
+
+        // 3. TRs as standalone items
+        trs.forEach(tr => {
+            const trStatusClass = getPRStatusClass(tr.finance_status);
+            timelineHtml += `
+            <div class="timeline-item ${trStatusClass}">
+                <div class="timeline-item-title">Transport Request: ${tr.tr_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
+                <div class="timeline-item-description">Amount: ₱${formatCurrency(tr.total_amount)}</div>
+            </div>`;
+        });
+
+        // 4. Orphan POs (not linked to any PR)
+        const orphanPOs = posByPR['_unlinked'] || [];
+        orphanPOs.forEach(po => {
+            const poStatusClass = getPOStatusClass(po.procurement_status);
+            timelineHtml += `
+            <div class="timeline-item ${poStatusClass}">
+                <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
+                <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                <div class="timeline-procurement-status">
+                    <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">
+                        ${po.procurement_status || 'Pending Procurement'}
+                    </span>
+                </div>
+            </div>`;
+        });
+
+        timelineHtml += '</div>';
 
         document.getElementById('timelineModalTitle').textContent = `Procurement Timeline - ${mrfId}`;
         document.getElementById('timelineModalBody').innerHTML = timelineHtml;
@@ -4406,7 +4526,7 @@ function closeTimelineModal() {
  * Document Configuration
  */
 const DOCUMENT_CONFIG = {
-    defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
+    defaultFinancePIC: 'Finance Approver',
     companyInfo: {
         name: 'C. Lacsamana Management and Construction Corporation',
         address: '133 Pinatubo St. City of Mandaluyong City',
@@ -4904,7 +5024,7 @@ async function generatePRDocument(prDocId) {
             PR_ID: pr.pr_id,
             MRF_ID: pr.mrf_id,
             DATE: formatDocumentDate(pr.date_generated || new Date().toISOString()),
-            PROJECT: pr.project_code ? `${pr.project_code} - ${pr.project_name}` : pr.project_name,
+            PROJECT: getMRFLabel(pr),
             ADDRESS: pr.delivery_address,
             SUPPLIER: pr.supplier_name || 'Not specified',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PR'),
@@ -4952,7 +5072,7 @@ async function generatePODocument(poDocId) {
         // Prepare document data
         const documentData = {
             PO_ID: po.po_id,
-            PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
+            PROJECT: getMRFLabel(po),
             DATE: formatTimestamp(po.date_issued) || formatDocumentDate(po.date_issued_legacy) || 'N/A',
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',

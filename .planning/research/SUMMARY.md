@@ -1,225 +1,298 @@
 # Project Research Summary
 
-**Project:** CLMC Procurement System v2.1 System Refinement
-**Domain:** Bug fixes and feature completions for production Firebase/Vanilla JS SPA
-**Researched:** 2026-02-05
+**Project:** v2.3 Services Department Integration
+**Domain:** Multi-department procurement workflow (engineering firm)
+**Researched:** 2026-02-12
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v2.1 addresses critical bugs and missing features in a production procurement management SPA built with Firebase Firestore v10.7.1 and zero-build vanilla JavaScript ES6 modules. The system handles complete procurement workflows (MRF submission → PR approval → PO tracking → delivery) with role-based access control and real-time updates. Research reveals that the core architecture is sound, but four specific integration points require fixes: Security Rules missing admin bypass logic, financial aggregations using inefficient client-side calculations, modal lifecycle management lacking cleanup, and permission system not detecting Super Admin role.
+Adding Services department to the CLMC Procurement system is an architectural extension, not a technology addition. The existing zero-build vanilla JavaScript + Firebase Firestore v10.7.1 stack already provides all required capabilities: multi-collection isolation, role-based access control, shared sequence generation, and real-time listeners. No new libraries, SDK upgrades, or build tools are needed.
 
-The recommended approach prioritizes foundation fixes first (Security Rules and permissions) before tackling user-facing features (modals and financial dashboards). This sequence ensures testing infrastructure works before implementing visible improvements. Firebase's built-in debugging tools (Emulator Suite, Rules Playground) combined with Chrome DevTools provide sufficient debugging capability without adding dependencies to the zero-build architecture.
+The recommended approach is to **mirror Projects patterns with strict department isolation**. Services department gets a parallel `services` collection (NOT a subcollection), separate view modules (`services.js`, `service-detail.js`), and dedicated roles (`services_admin`, `services_user`) that mirror existing `operations_admin` and `operations_user` patterns. The critical architectural decision is the shared code sequence: both Projects and Services use the same CLMC_CLIENT_YYYY### namespace, requiring parallel queries of both collections during code generation to prevent collisions.
 
-Key risks center on floating-point precision errors in financial calculations, memory leaks from unmanaged Firestore listeners, and Security Rules lockout scenarios. These are mitigated through integer arithmetic patterns, strict listener lifecycle management, and emulator-based regression testing before every Security Rules deployment.
+The primary risk is **Security Rules enforcement with query constraints**. Firebase Security Rules cannot filter list queries by department without an explicit `department` field on documents. Attempting to filter by "has project_code OR service_code" fails because Rules cannot check field existence efficiently. This requires adding `department: 'projects'|'services'` to all MRFs, PRs, POs, and TRs, plus a data migration for existing documents. Secondary risks include ID generation race conditions (acceptable at current scale) and ensuring backward compatibility during the transition.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing Firebase v10.7.1 + vanilla JavaScript ES6 stack remains optimal for this zero-build SPA. No new dependencies or build tools are needed. Research identified three debugging tools that integrate seamlessly with the current architecture:
+**No new stack dependencies required.** The v2.3 Services department addition extends existing Firebase Firestore v10.7.1 and Firebase Auth v10.7.1 capabilities already validated in v2.2. This is purely an architectural pattern extension within the proven zero-build vanilla JavaScript SPA.
 
-**Core technologies:**
-- **Firebase Emulator Suite** (latest via CLI): Local Security Rules testing without production impact — industry standard for rules debugging, catches permission errors before deployment
-- **Chrome DevTools Sources/Console panels**: JavaScript debugging with breakpoints and scope inspection — sufficient for window function errors and modal event handler issues
-- **Firestore Aggregation Queries** (getAggregateFromServer, available since v9.18.0): Server-side sum/count operations — reduces billable reads by 99.9% compared to client-side aggregation, critical for financial dashboard performance
+**Core technologies (unchanged):**
+- **Firebase Firestore v10.7.1**: Multi-collection database with real-time listeners — already handles 9 collections, adding `services` as 10th follows established pattern
+- **Firebase Auth v10.7.1**: Role-based authentication with session persistence — already supports 5 roles, adding 2 new roles (`services_admin`, `services_user`) extends existing role_templates structure
+- **Vanilla JavaScript ES6 Modules**: Zero-build SPA with hash routing — router already supports sub-routes (#/procurement/mrfs), extends to #/services/services and #/services/recurring
+- **Firebase Security Rules (rules_version 2)**: Server-side permission enforcement — existing 247 lines expand ~30 lines to add services collection block
 
-**Additional patterns identified:**
-- W3C ARIA modal patterns for accessibility (no library needed)
-- AbortController for event listener cleanup (native browser API)
-- Write-time aggregation for real-time dashboard stats (Firebase best practice)
+**Critical capabilities already validated:**
+- Parallel collection queries: `generateProjectCode()` uses range queries with composite keys (lines 192-226 in utils.js)
+- Role-scoped filtering: `getAssignedProjectCodes()` implements assignment filtering for operations_user (lines 237-246)
+- Real-time permission updates: `permissionsChanged` event propagates role changes without logout (permissions.js)
+- Multi-collection Security Rules: 9 collection blocks already working with helper function reuse
 
 ### Expected Features
 
-v2.1 scope focuses on fixing four critical gaps from v2.0. Research confirms these are table-stakes features users expect in procurement systems.
+**Must have (table stakes) — v2.3 launch blockers:**
+- **Services CRUD with service_type field** — distinguishes one-time vs recurring services (LOW complexity, mirrors Projects CRUD)
+- **Service code generation sharing CLMC_CLIENT_YYYY### sequence** — prevents duplicate codes across departments (LOW complexity, requires parallel query of projects + services collections)
+- **Role-based department isolation** — operations_user never sees Services tab, services_user never sees Projects tab (MEDIUM complexity, requires Security Rules + UI filtering)
+- **Assignment system for services_user** — non-admin services users see only assigned services (MEDIUM complexity, reuses existing assignment pattern from operations_user)
+- **MRF dropdown role-based filtering** — Operations sees Projects dropdown, Services sees Services dropdown, never mixed (MEDIUM complexity, conditional rendering in mrf-form.js)
+- **Services tab with sub-tabs (Services, Recurring)** — visual separation via router sub-routes (LOW complexity, router pattern already supports #/procurement/mrfs)
 
-**Must have (table stakes):**
-- **Timeline audit trail** — chronological workflow progression (MRF → PR → PO → Delivered) with status indicators, essential for accountability
-- **Financial dashboard modals** — project expense breakdowns and supplier purchase history for data-driven decisions
-- **Workflow gates with validation** — required fields (payment terms, condition, delivery date) before viewing PO details ensures data quality for Finance approval
-- **Clear error messages** — specific, actionable feedback for permission denied and validation failures
+**Should have (competitive) — adds after core works:**
+- **Cross-department Finance/Procurement view** — Finance approves PRs from both departments in unified interface (MEDIUM complexity, requires department tagging)
+- **Automatic personnel-to-assignment sync** — services_user added to personnel → auto-assign access (LOW complexity, reuses v2.2 syncPersonnelToAssignments pattern)
+- **Service detail page with inline editing** — same UX efficiency as Projects detail (LOW complexity, duplicate project-detail.js)
+- **Search by service code or name** — quick lookup in large datasets (LOW complexity, mirrors Projects search)
 
-**Should have (competitive):**
-- **Real-time dashboard updates** — Firestore listeners auto-update totals without manual refresh, differentiator for responsiveness
-- **Parallel approval visualization** — timeline shows branching when single MRF generates multiple PRs for mixed suppliers, reflects actual workflow
-- **Progressive disclosure gates** — validation gates appear in context of action (View PO click) rather than cluttering list view
-
-**Defer (v2+):**
-- **Supplier performance metrics** — cycle time, on-time delivery rates require sufficient historical data (6+ months)
-- **Budget vs actual tracking** — needs project budget field enforcement before comparative analysis viable
-- **Export to PDF** — defer until user requests arise (likely for compliance/client reporting)
+**Defer (v2+) — not validated by users:**
+- **Recurring service schedule automation** — auto-generate monthly MRFs for recurring work (HIGH complexity, requires scheduling engine, notification system)
+- **Contract expiration tracking** — remind when recurring service contracts expire (MEDIUM complexity, needs notification system not in scope)
+- **Service history timeline** — view all MRFs/PRs/POs for a service (MEDIUM complexity, already available via expense breakdown in service detail)
+- **Service categories/tags** — group services by type (HVAC, electrical, pest control) (LOW complexity but not validated as needed)
 
 ### Architecture Approach
 
-v2.1 fixes integrate into existing modular SPA architecture with hash-based routing, view lifecycle (render/init/destroy), and real-time Firestore listeners. The router already implements tab navigation optimization (skips destroy when switching tabs within same view), so fixes must respect this pattern. Four integration points identified:
+**Parallel collections with shared utilities, department-scoped role isolation.** Services is NOT a subcollection of Projects — both are root collections with independent lifecycles. The key pattern is **duplicate UI modules, share business logic**: `services.js` duplicates `projects.js` structure but queries `services` collection, while utilities like `generateServiceCode()` and `getAssignedServiceCodes()` in utils.js are shared across departments.
 
 **Major components:**
-1. **Security Rules Admin Bypass** — Add `isSuperAdmin()` helper function to firestore.rules, check before role-specific rules, enables Super Admin to test all operations without modifying role arrays
-2. **Financial Aggregation Layer** — Replace client-side loops with `getAggregateFromServer()` for dashboard stats, use write-time aggregation (batch updates to aggregation docs) for real-time totals, cache results for 1-minute TTL
-3. **Modal Lifecycle Manager** — View-scoped modal state with automatic cleanup in destroy(), ESC key handlers using AbortController, body scroll lock restoration on navigation
-4. **Permission System Admin Detection** — Add Super Admin bypass to `canEditTab()` and `hasTabAccess()` in permissions.js before checking role template, consistent with Security Rules pattern
+1. **View layer (duplicated)** — `services.js` and `service-detail.js` mirror Projects structure with service_code and client_code fields, separate router paths (#/services, #/service-detail)
+2. **Shared utilities (extended)** — `generateServiceCode()` queries BOTH projects and services collections for max sequence number to prevent code collisions across departments
+3. **Permission system (extended, not replaced)** — Existing permissions.js unchanged, role_templates add `services` tab with access/edit flags, router filters navigation by hasTabAccess('services')
+4. **Security Rules (parallel blocks)** — `services` collection rules mirror `projects` structure, new helper `isAssignedToService()` parallels `isAssignedToProject()`, mrfs/prs/pos rules extended with department filtering
+5. **Conditional form rendering** — `mrf-form.js` renders Projects dropdown for operations roles, Services dropdown for services roles, based on `hasTabAccess('projects')` and `hasTabAccess('services')` checks
+6. **Denormalized department field** — MRFs, PRs, POs, TRs store explicit `department: 'projects'|'services'` field for efficient Security Rules filtering (cannot filter by field existence)
 
-**Integration order:** Security Rules first (foundation for testing), then permissions (UI layer), then modals (independent), finally aggregations (depends on working permissions for finance view access).
+**Critical architectural decision:** Shared code sequence (CLMC_CLIENT_YYYY###) requires `generateProjectCode()` to query both collections in parallel using `Promise.all()`. Race condition risk acknowledged as acceptable for v2.3 (same as existing v1.0 comment line 191: "Race condition possible with simultaneous creates - acceptable for v1.0"). Future optimization: distributed counter if >1000 work items per client per year.
 
 ### Critical Pitfalls
 
-Research identified eight pitfalls, five of which directly impact v2.1 scope.
+1. **Security Rules query constraints with department filtering** — Firebase Security Rules cannot efficiently filter list queries by "has project_code OR service_code" because checking field existence requires `resource.data.keys().hasAny(['project_code'])` which is expensive. MUST use explicit `department` field on all workflow documents (MRFs, PRs, POs, TRs). Requires data migration: add `department: 'projects'` to all existing documents before deploying rules that enforce department filtering. Test with emulator first.
 
-1. **Security Rules Missing Admin Bypass** — Super Admin gets permission-denied errors if user document structure incomplete or Security Rules don't check admin role first. Avoid with `isSuperAdmin()` helper, emulator test cases for admin edge cases, fallback UID whitelist.
+2. **ID generation race conditions with shared sequence** — When generateProjectCode() and generateServiceCode() run simultaneously for same client/year, both query current max, both calculate maxNum+1, resulting in duplicate codes. Current implementation acknowledges this (utils.js line 191 comment). Acceptable risk for v2.3 at current scale (<1000 work items/year), but monitor for duplicates. Prevention: distributed counter pattern (Firebase sharded counters) if race conditions occur in production.
 
-2. **Window Functions Lost During Tab Navigation** — Functions work initially but become undefined after tab switches due to router calling destroy() prematurely. Already fixed in current router (lines 257-266), but must audit all window function lifecycle in finance.js.
+3. **Window function lifecycle during tab navigation** — Router already implements fix (lines 257-266: skip destroy() for same-view tab switches), but Services view must follow same pattern. Window functions like `window.selectService()` must persist during sub-tab navigation (#/services/services ↔ #/services/recurring). Verify listeners array cleanup in services.js destroy() without removing window functions needed by persistent DOM.
 
-3. **Floating-Point Precision Errors in Financial Aggregations** — JavaScript IEEE 754 produces `-300046.7899999998` instead of clean decimals. Avoid with integer arithmetic (convert to cents, calculate, convert back) or `.toFixed(2)` for display only.
+4. **Backward compatibility during migration** — Existing code assumes `mrf.project_code` exists. After Services addition, must check `mrf.department === 'projects' ? mrf.project_code : mrf.service_code`. High-risk files: procurement.js (8 functions), finance.js (3 tabs), home.js (dashboard stats). Mitigation: add backward-compatible field accessors: `getMRFCode(mrf)` helper that checks department field.
 
-4. **Firestore Listener Memory Leaks** — onSnapshot listeners accumulate without unsubscribe(), multiplying reads and degrading performance. Avoid with listener array tracking, strict cleanup in destroy(), monitoring logs for listener count.
-
-5. **Audit Trail Cost Overruns** — Cloud Firestore Data Access audit logs can cost more than the application itself ($50-200/month vs <$1/month for application-level logging). Use application-level audit collection (Firestore documents) instead of Cloud Audit Logs.
+5. **Floating-point precision in financial aggregations** — When aggregating PO amounts by project/service, JavaScript floating-point errors accumulate (`totalAmount = items.reduce((sum, item) => sum + item.cost, 0)` produces `-300046.7899999998`). Already a risk in v2.2, exacerbated in v2.3 when aggregating across both departments. Prevention: convert to integer cents before calculation (`Math.round(item.cost * 100)`), aggregate as integers, convert back for display. Apply to expense breakdown modals in both project-detail.js and service-detail.js.
 
 ## Implications for Roadmap
 
-Based on research, v2.1 should proceed in four phases ordered by dependency and risk.
+Based on research, suggested phase structure with **7 phases** to minimize risk and enable incremental validation:
 
-### Phase 1: Security Rules & Permission Fixes
-**Rationale:** Foundation for testing all subsequent fixes. Security Rules must work before testing financial dashboards or modal interactions. Permission system depends on rules being correct.
-
-**Delivers:** Super Admin bypass in firestore.rules and permissions.js, emulator test coverage for admin edge cases, fixes for Clients/Projects tab permission denied errors
-
-**Addresses:**
-- Critical Pitfall #1 (Security Rules admin bypass)
-- Bug: "Fix Clients tab permission denied error for Super Admin"
-- Bug: "Fix Projects tab permission denied error for Super Admin"
-
-**Avoids:** Lockout scenarios where admin cannot access system for testing
-
-**Research needed:** None — well-documented Firebase patterns, official documentation covers all edge cases
-
----
-
-### Phase 2: Finance Workflow Bug Fixes
-**Rationale:** Fixes immediate user-blocking errors in production. Window functions errors prevent Finance from reviewing PRs/TRs. Quick wins build confidence before tackling larger features.
-
-**Delivers:** Working window functions (viewPRDetails, viewTRDetails, refreshPRs, refreshTRs) exposed in finance.js init(), modal lifecycle management with ESC key support and cleanup
-
-**Addresses:**
-- Critical Pitfall #2 (window functions lost)
-- Critical Pitfall #7 (modal state cleanup)
-- Bug: "Fix Material PR Review button error (window.viewPRDetails is not a function)"
-- Bug: "Fix Transport Request Review button error (window.viewTRDetails is not a function)"
-
-**Uses:** Chrome DevTools for debugging, AbortController for event listener cleanup
-
-**Avoids:** Memory leaks from orphaned event handlers, ghost modal interactions
-
-**Research needed:** None — existing codebase patterns in components.js provide reference implementation
-
----
-
-### Phase 3: Finance Dashboard Implementation
-**Rationale:** Requires working permissions (Phase 1) to access finance view. Most complex feature with aggregation queries and floating-point precision concerns. Should be tackled after foundation solid.
+### Phase 1: Foundation (Backend Structure)
+**Rationale:** Security Rules and role templates must exist before any UI work. Adding services collection rules is low-risk because it doesn't modify existing Projects rules (additive only). Enables parallel development of Services UI in Phase 3.
 
 **Delivers:**
-- Project expense modal with aggregated totals by project
-- Supplier purchase history modal with PO list and metrics
-- Timeline audit trail modal showing workflow progression
-- Real-time dashboard updates using Firestore listeners
+- Firebase Security Rules with `services` collection block (mirror `projects` structure)
+- Helper functions: `isAssignedToService()`, `canAccessDepartment()`
+- Role templates: `services_admin` and `services_user` with services tab permissions
+- Security Rules deployed and tested with emulator
 
-**Addresses:**
-- Feature: "Aggregate PO data by project and category for financial overview"
-- Feature: "Show supplier purchase history when clicking supplier name"
-- Feature: "Timeline button shows full audit trail (MRF → PRs → POs → Delivered)"
-- Critical Pitfall #3 (floating-point precision)
-- Critical Pitfall #5 (audit trail costs)
-- Critical Pitfall #6 (real-time aggregation performance)
+**Addresses features:**
+- Role-based department isolation (Security Rules enforcement)
+- Assignment system for services_user (isAssignedToService helper)
 
-**Uses:**
-- `getAggregateFromServer()` with sum() for dashboard stats
-- Write-time aggregation pattern for real-time totals
-- Integer arithmetic for financial calculations
-- Application-level audit collection (not Cloud Audit Logs)
+**Avoids pitfall:**
+- Security Rules blocking admin access (verify Super Admin can CRUD services before proceeding)
+- Missing Security Rules enforcement (server-side validation in place before UI exists)
 
-**Implements:** Financial Aggregation Layer, Modal Lifecycle Manager
-
-**Avoids:** Client-side aggregation inefficiency, Cloud Audit Log cost overruns, floating-point display errors
-
-**Research needed:** Minimal — aggregation query patterns well-documented, integer arithmetic standard practice
+**Research flag:** Standard pattern — Security Rules mirror existing projects collection block. No additional research needed.
 
 ---
 
-### Phase 4: Workflow Gate & Data Quality
-**Rationale:** Enhances data quality for Finance but not user-blocking. Can be implemented last as it's independent of other fixes. Low complexity, high value.
+### Phase 2: Shared Utilities (Code Generation)
+**Rationale:** Services view cannot create documents without code generation. Must implement parallel query pattern before UI development. Modifies existing `generateProjectCode()` function, so requires careful testing for backward compatibility.
 
 **Delivers:**
-- Required field validation for PO viewing (payment_terms, condition, delivery_date)
-- Inline validation with immediate feedback
-- Specific, actionable error messages
-- Progressive disclosure (gate appears on View PO action, not on list load)
+- Modified `generateProjectCode()` queries both collections (projects + services)
+- New `generateServiceCode()` wrapper function
+- New `getAssignedServiceCodes()` utility (mirrors getAssignedProjectCodes)
+- Users collection schema extended: `assigned_service_codes` array, `all_services` boolean
 
-**Addresses:**
-- Feature: "Workflow gate: viewing PO requires payment_terms/condition/delivery_date filled"
-- Feature: "Display these required fields on PO details"
+**Addresses features:**
+- Service code generation sharing CLMC_CLIENT_YYYY### sequence
 
-**Uses:** Inline validation patterns from research (field-level feedback on blur)
+**Avoids pitfalls:**
+- ID generation race conditions (acknowledge as acceptable risk, add monitoring log)
+- Backward compatibility (keep existing generateProjectCode() signature, extend implementation)
 
-**Avoids:** Generic error messages, after-submission validation frustration
+**Research flag:** Standard pattern — mirrors existing generateProjectCode() with parallel query. No additional research needed.
 
-**Research needed:** None — standard form validation patterns
+---
+
+### Phase 3: Services View (Isolated Department UI)
+**Rationale:** Core department functionality in isolated new module. Does NOT modify existing Projects code, so zero risk to v2.2 functionality. Allows services_admin to create and manage services before MRF integration in Phase 4.
+
+**Delivers:**
+- `services.js` view module (duplicate projects.js structure)
+- `service-detail.js` view module (duplicate project-detail.js)
+- Router paths: `/services` and `/service-detail`
+- Navigation menu item with conditional visibility (hasTabAccess check)
+- Sub-tabs: #/services/services and #/services/recurring
+
+**Addresses features:**
+- Services CRUD with service_type field
+- Services tab with sub-tabs
+- Service detail page with inline editing
+- Personnel tracking (reuse multi-personnel selection)
+- Automatic personnel-to-assignment sync
+
+**Avoids pitfalls:**
+- Window function lifecycle (implement listeners array cleanup in destroy(), verify sub-tab navigation doesn't call destroy())
+
+**Research flag:** Standard pattern — duplicates existing projects.js and project-detail.js patterns. No additional research needed.
+
+---
+
+### Phase 4: MRF Form Integration (Conditional Dropdowns)
+**Rationale:** Enables services_user to create MRFs linked to services. Modifies existing mrf-form.js (higher risk than new modules), so comes after Services view is validated. Requires department field on MRFs.
+
+**Delivers:**
+- Conditional dropdown rendering in mrf-form.js (showProjectsDropdown vs showServicesDropdown)
+- Services dropdown population with assignment filtering
+- Department field added to MRF submission logic (`department: 'services'`)
+- Security Rules updated: mrfs collection allows operations_user + services_user creates
+
+**Addresses features:**
+- MRF dropdown role-based filtering
+- MRF-Service integration
+
+**Avoids pitfalls:**
+- Security Rules query constraints (explicit department field added to MRFs)
+- Backward compatibility (existing MRFs get department: 'projects' in Phase 5 migration)
+
+**Research flag:** Conditional form rendering pattern validated in ARCHITECTURE.md. Standard approach.
+
+---
+
+### Phase 5: Data Migration (Existing Documents)
+**Rationale:** MUST happen before Procurement/Finance integration (Phase 6) because those views query by department field. High-risk bulk update of production data, so isolated phase with rollback plan.
+
+**Delivers:**
+- Migration script adds `department: 'projects'` to all existing MRFs, PRs, POs, TRs where field is missing
+- Verification script confirms 100% coverage before proceeding
+- Security Rules enforcement: require department field on create going forward
+
+**Addresses features:**
+- (Enables Phase 6) Cross-department Finance/Procurement view requires department field for filtering
+
+**Avoids pitfalls:**
+- Security Rules query constraints (department field now exists on all documents)
+- Backward compatibility (existing documents updated to new schema before code expects it)
+
+**Research flag:** Data migration requires careful planning. Use Firebase Admin SDK for batch updates (writeBatch max 500 per batch). Test on copy of production data first.
+
+---
+
+### Phase 6: Procurement/Finance Integration (Cross-Department Workflows)
+**Rationale:** Finance and Procurement approve work from both departments. Depends on department field existing (Phase 5 migration). Modifies critical approval workflows, so comes late in roadmap after Services workflow validated.
+
+**Delivers:**
+- Department badge rendering in MRF/PR/PO lists (Projects badge vs Services badge)
+- Department filter controls (optional dropdown to filter by department)
+- Updated queries include department field (no change if showing all)
+- PR generation works for Services MRFs
+- PO issuance works for Services PRs
+
+**Addresses features:**
+- Cross-department Finance/Procurement view
+
+**Avoids pitfalls:**
+- Backward compatibility (getMRFCode(mrf) helper checks department field to access correct code)
+- Floating-point precision (audit aggregations, apply integer arithmetic pattern)
+
+**Research flag:** Standard pattern — extend existing procurement.js and finance.js with department filtering. No additional research needed.
+
+---
+
+### Phase 7: Dashboard Integration (Services Stats)
+**Rationale:** Lowest priority — dashboard is informational only, not critical workflow. Enables visibility into services workload after Services department is fully operational.
+
+**Delivers:**
+- Services stats queries (count active services, count services MRFs, etc.)
+- Services stats cards on dashboard
+- Department breakdown chart (Projects vs Services)
+
+**Addresses features:**
+- (Enhancement) Dashboard shows services activity alongside projects
+
+**Avoids pitfalls:**
+- Real-time aggregation performance degradation (use write-time aggregation if stats are expensive)
+
+**Research flag:** Standard pattern — mirrors existing dashboard stats for projects. No additional research needed.
 
 ---
 
 ### Phase Ordering Rationale
 
-- **Dependency-based:** Phases 2-3 require Phase 1 (permissions must work for testing), Phase 3 requires Phase 2 (modals used in dashboard)
-- **Risk-based:** Phase 1 has highest risk (Security Rules lockout), tackled first with emulator safety net, Phase 4 has lowest risk (independent validation), tackled last
-- **Value-based:** Phase 2 fixes user-blocking errors (immediate value), Phase 3 delivers major features (strategic value), Phase 4 enhances quality (incremental value)
+1. **Backend before frontend** — Phase 1 (Security Rules) enables Phase 3 (Services UI) without blocking
+2. **Shared utilities before consumers** — Phase 2 (code generation) required by Phase 3 (Services view)
+3. **Isolated modules before integrations** — Phase 3 (Services view) isolated, Phase 4 (MRF form) modifies existing code
+4. **Migration before reliance** — Phase 5 (data migration) MUST precede Phase 6 (Procurement/Finance) because queries depend on department field
+5. **Critical workflows before enhancements** — Phase 6 (approval workflows) before Phase 7 (dashboard stats)
 
-This ordering avoids the pitfall of implementing features before foundation is solid, which would require rework when permission bugs surface during feature testing.
+This order **minimizes risk to existing v2.2 functionality** by deferring modifications to procurement.js and finance.js until Services department is validated independently.
 
 ### Research Flags
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Firebase Security Rules patterns well-documented, existing emulator tests provide template
-- **Phase 2:** Existing components.js and router.js demonstrate lifecycle patterns, no unknowns
-- **Phase 3:** Aggregation queries documented in Firebase guides, integer arithmetic standard practice
-- **Phase 4:** Form validation patterns ubiquitous, inline validation well-established UX pattern
+**Phases needing deeper research during planning:**
+- **Phase 5 (Data Migration):** Requires migration script development. Research: Firebase Admin SDK batch updates, writeBatch constraints (500 docs max), rollback strategy if migration fails mid-process.
 
-**No phases require deeper research** — all patterns verified against official documentation and existing codebase. Proceed directly to requirements definition for each phase.
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1 (Foundation):** Security Rules mirror existing projects collection block. Well-documented Firebase Security Rules patterns.
+- **Phase 2 (Shared Utilities):** Code generation pattern already exists (generateProjectCode). Extension with parallel query is straightforward.
+- **Phase 3 (Services View):** Duplicate projects.js structure. No new patterns, just different collection name.
+- **Phase 4 (MRF Form Integration):** Conditional rendering pattern documented in ARCHITECTURE.md. Standard approach.
+- **Phase 6 (Procurement/Finance Integration):** Department filtering is simple field check. No complex logic.
+- **Phase 7 (Dashboard Integration):** Mirror existing dashboard stats. Standard Firestore queries.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All recommendations verified in Firebase v10.7.1 docs, compatible with existing zero-build architecture |
-| Features | HIGH | Patterns verified across procurement systems, financial dashboards, audit trail UIs |
-| Architecture | HIGH | Integration points identified in existing codebase (firestore.rules, permissions.js, finance.js), no unknowns |
-| Pitfalls | HIGH | All eight pitfalls verified with official sources or real-world project examples, avoidance strategies tested |
+| Stack | HIGH | All findings from existing v2.2 codebase analysis. No new technologies required. Firebase v10.7.1 already handles 9 collections, adding 10th follows established pattern. |
+| Features | HIGH | Features mirror existing Projects department with minor extensions (service_type field, sub-tabs). Multi-source validation from service management research (8 external sources) aligns with requirements. |
+| Architecture | HIGH | Parallel collection pattern validated in existing codebase (9 collections already working). Security Rules helper function reuse confirmed in firestore.rules (247 lines). All recommended patterns already in use for Projects. |
+| Pitfalls | HIGH | Critical pitfalls derived from existing codebase issues (CLAUDE.md documents window function errors, Security Rules permission denied bugs). Floating-point precision and listener lifecycle pitfalls are general JavaScript/Firebase patterns, not Services-specific. |
 
 **Overall confidence:** HIGH
 
+This is an architectural extension of validated patterns, not exploration of new territory. The v2.2 codebase already demonstrates all required capabilities: multi-collection access, role-based filtering, assignment systems, real-time listeners, and Security Rules enforcement. Services department extends these patterns with parallel structure.
+
 ### Gaps to Address
 
-No significant research gaps identified. All integration points have clear implementation paths. Minor validation needed during implementation:
+**Minor gaps requiring validation during implementation:**
 
-- **Aggregation query performance:** Verify 1-minute cache TTL is optimal (may need tuning based on user behavior patterns). Test with production data volumes to confirm <500ms dashboard load times.
-- **Listener cleanup verification:** Add monitoring logs during Phase 2 to confirm listener count remains stable across navigation cycles. DevTools Memory Profiler should show no retained Firestore connections.
-- **Security Rules edge cases:** Phase 1 should add emulator test for "authenticated user without Firestore document" scenario (currently 17/17 tests passing, may need +3 test cases for admin bypass scenarios).
+1. **Code generation race condition monitoring** — Current implementation acknowledges race condition as acceptable (utils.js line 191). Need to monitor for duplicate codes in production logs. If duplicates occur >1% of creates, implement distributed counter pattern (Firebase sharded counters). Acceptable gap: can add monitoring in Phase 2, optimize in v2.4 if needed.
 
-These are implementation validation tasks, not research gaps. Proceed with confidence to roadmap creation.
+2. **Department field migration testing** — Migration script (Phase 5) needs testing on production data snapshot to estimate duration and verify no data loss. Acceptable gap: migration script development is part of Phase 5 planning, not research blocker.
+
+3. **Conditional dropdown UX with mixed roles** — Super Admin, Finance, and Procurement see both Projects and Services tabs. Which dropdown appears in MRF form? Research recommends "default to Projects" or "show both dropdowns in sections". Acceptable gap: UX decision during Phase 4 planning, not architecture blocker.
+
+4. **Expense breakdown modal code reuse** — Projects detail page has expense breakdown modal (shows all MRFs/PRs/POs for project). Services detail should mirror this. Need to verify modal code can be extracted to shared component or duplicated with service_code parameter. Acceptable gap: implementation detail in Phase 3.
+
+**No critical gaps blocking roadmap creation.** All major architectural decisions have validated precedents in existing codebase.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Firebase Official Documentation — Security Rules patterns, aggregation queries, real-time listeners, audit logging
-- W3C ARIA Authoring Practices — Modal dialog patterns, keyboard accessibility
-- Chrome DevTools Documentation — JavaScript debugging, memory profiling
-- Project Codebase — firestore.rules (270 lines), app/router.js (lines 257-266 tab navigation fix), CLAUDE.md (DOM selectors, listener patterns)
+- **CLMC Procurement codebase** — v2.2 production codebase analysis (firestore.rules 247 lines, app/utils.js 267 lines, app/permissions.js 133 lines, app/router.js 300+ lines, 14 view modules)
+- **Firebase Firestore documentation** — [Distributed counters](https://firebase.google.com/docs/firestore/solutions/counters), [Write-time aggregations](https://firebase.google.com/docs/firestore/solutions/aggregation), [Security Rules structure](https://firebase.google.com/docs/firestore/security/rules-structure)
+- **Firebase Auth documentation** — [Custom claims and Security Rules](https://firebase.google.com/docs/auth/admin/custom-claims), [Rules and Auth](https://firebase.google.com/docs/rules/rules-and-auth)
+- **Existing test suite** — test/firestore.test.js (336 lines, 17 tests passing) validates Security Rules patterns for role-based access
 
 ### Secondary (MEDIUM confidence)
-- Community Best Practices — Financial precision in JavaScript (Dev.to, RobinWieruch), Firestore query optimization (Estuary blog), modal UX patterns (Eleken)
-- Procurement Domain Research — Purchase requisition workflows (Order.co), supplier management (Ivalua), procurement best practices (ProcurementTactics)
+- **Service management patterns** — 8 external sources on recurring services, maintenance workflows, contract-based services, project vs service management differences (see FEATURES.md sources section)
+- **Multi-tenant architecture** — WorkOS SaaS multi-tenant guide, AWS tenant isolation whitepaper, Medium articles on secure data isolation (see ARCHITECTURE.md sources section)
+- **JavaScript pitfalls** — Floating-point precision in financial apps (3 dev.to/medium articles), event listener memory leaks (2 articles), window function lifecycle (1 SitePoint discussion) — general JavaScript patterns applicable to this project
 
 ### Tertiary (LOW confidence)
-- None used — all findings verified with official documentation or community consensus from multiple sources
+- None. All recommendations grounded in either existing codebase patterns or official Firebase documentation.
 
 ---
-*Research completed: 2026-02-05*
+*Research completed: 2026-02-12*
 *Ready for roadmap: yes*

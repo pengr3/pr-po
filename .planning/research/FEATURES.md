@@ -1,405 +1,275 @@
-# Feature Research: System Refinement v2.1
+# Feature Research: Services Department
 
-**Domain:** Procurement management system workflow enhancements
-**Researched:** 2026-02-05
+**Domain:** Service management for repair/maintenance work (engineering firm)
+**Researched:** 2026-02-12
 **Confidence:** HIGH
-
-## Executive Summary
-
-This research examines UI/UX patterns and feature behaviors for four critical refinements in v2.1: timeline audit trails, financial dashboard modals, supplier purchase history, and workflow gates. Research synthesizes current industry practices from procurement systems, financial dashboards, form validation patterns, and modal design systems to inform implementation decisions for the CLMC Procurement System.
-
-**Key findings:**
-- Vertical timeline components are standard for workflow tracking, with clear event markers and chronological ordering
-- Financial dashboards require careful balancing of information density (5-7 primary KPIs recommended) to prevent cognitive overload
-- Workflow gates using inline validation provide immediate feedback and reduce friction compared to after-submission approaches
-- Modal dialogs should provide clear exit paths and avoid nested modal anti-patterns
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete.
+Features users assume exist. Missing these = Services department cannot function.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Timeline/Audit Trail - Chronological Display** | Users expect to see workflow progression in time order (MRF → PR → PO → Delivered) | LOW | Vertical timeline with dates, event markers, and status indicators. Standard pattern across procurement systems. |
-| **Timeline/Audit Trail - Status Indicators** | Visual confirmation of approval stages and current workflow position | LOW | Color-coded badges (pending/approved/rejected), approval status field values match current system patterns |
-| **Timeline/Audit Trail - Key Event Details** | Who did what when - essential accountability information | MEDIUM | Event card showing: actor, timestamp, status change, approval/rejection notes if applicable |
-| **Financial Dashboard - Category Breakdown** | Finance needs expense categorization to identify cost optimization areas | MEDIUM | Pie charts for composition, tables for detailed breakdowns by category |
-| **Financial Dashboard - Project-Level View** | Project-centric financial visibility for budget tracking | LOW | Modal triggered from project list, shows total expenses by project |
-| **Financial Dashboard - Clear Exit Path** | Users must be able to dismiss modal/dialog easily | LOW | X button, Escape key, backdrop click - standard modal dismissal |
-| **Supplier History - Purchase List** | Historical record of what was purchased from each supplier | MEDIUM | Searchable/filterable list of POs from selected supplier with dates, amounts, items |
-| **Supplier History - Performance Metrics** | Data-driven supplier evaluation (delivery, quality) | HIGH | Cycle time, total spend, number of orders - basis for supplier QBRs |
-| **Workflow Gate - Required Field Indicators** | Users need to know which fields block progression | LOW | Asterisk (*) for required fields, clear labeling before attempting to view PO |
-| **Workflow Gate - Inline Validation** | Immediate feedback when field completed or incomplete | MEDIUM | Field-level validation as user fills form, reduces frustration vs after-submission errors |
-| **Workflow Gate - Clear Error Messages** | Explicit, actionable guidance when validation fails | LOW | "Payment Terms required before viewing PO" - not generic "Invalid input" |
+| Service CRUD operations | Standard data management - create, edit, delete services | LOW | Mirror Projects CRUD exactly, reuse patterns |
+| Service code generation | Unique identifier for tracking, shared CLMC_CLIENT_YYYY### sequence | LOW | Reuse generateProjectCode utility with sequence sharing |
+| Service type differentiation | One-time vs recurring services have different tracking needs | LOW | Single field: service_type ('one-time' or 'recurring') |
+| Client association | Services are performed for clients, same as Projects | LOW | Reuse existing clients collection and dropdown |
+| Budget/contract cost tracking | Financial tracking essential for service profitability | LOW | Same fields as Projects (budget, contract_cost) |
+| Active/inactive flag | Control which services can receive MRFs, prevent orphaned work | LOW | Exact mirror of Projects active flag logic |
+| Service list view with filtering | Users need to find services quickly (by client, status, type) | LOW | Mirror Projects list view, add service_type filter |
+| MRF-Service integration | MRFs must reference services, same as project-based workflow | LOW | Dropdown shows services (denormalized: service_code + service_name) |
+| Role-based department isolation | Services users should NEVER see Projects data, vice versa | MEDIUM | Firestore Security Rules + UI filtering by role |
+| Assignment-based access for services_user | Non-admin services users see only assigned services | MEDIUM | Reuse Projects assignment pattern exactly |
+| Personnel tracking | Track who works on which services | LOW | Reuse multi-personnel selection with pill UI (v2.2 pattern) |
+| Internal/project status fields | Same workflow states as Projects | LOW | Reuse exact status options from Projects |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart. Not required, but valuable.
+Features that set Services management apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Timeline - Parallel Approval Visualization** | Show when multiple PRs generated from single MRF (mixed suppliers) | MEDIUM | Branching timeline showing MRF → PR1 + PR2 + PR3 → PO1 + PO2 + PO3 - reflects actual workflow |
-| **Timeline - Urgency Level Context** | Surface MRF urgency in timeline to explain approval speed | LOW | Color-code events by urgency (Critical = red, High = orange) for context on expedited approvals |
-| **Financial Dashboard - Real-Time Updates** | Live expense totals without manual refresh | MEDIUM | Firestore listeners update dashboard automatically as POs created/updated |
-| **Financial Dashboard - Project Status Filter** | Filter expenses by internal/project status to focus on active work | LOW | Dropdown filters matching existing project status fields, enables "show only active projects" |
-| **Supplier History - Quick Reorder** | One-click to create new MRF with same items from previous PO | HIGH | Reduces data entry for recurring orders, improves procurement efficiency |
-| **Workflow Gate - Progressive Disclosure** | Only show gate when user attempts to view PO, not on list view | LOW | Reduces visual clutter, presents requirements in context of action |
-| **Workflow Gate - Partial Save Indicator** | Show which required fields completed/remaining | MEDIUM | Visual progress indicator (2/3 required fields completed) guides user to completion |
+| Shared code sequence with Projects | Unified numbering (CLMC_CLIENT_2026001, 2026002...) prevents confusion | LOW | Requires single sequence counter across both collections |
+| Sub-tabs for Services/Recurring | Immediate visual separation of work types without filtering | LOW | Router sub-route pattern: #/services/services, #/services/recurring |
+| Recurring service visual indicators | At-a-glance identification in lists (icon, badge, color coding) | LOW | Display enhancement only, no data changes |
+| Cross-department Finance/Procurement view | Finance approves PRs from both departments in single interface | MEDIUM | Filter PRs/POs by source (project_code vs service_code), display department tag |
+| Automatic personnel-to-assignment sync | When services_user added to personnel, auto-assign access | LOW | Reuse v2.2 syncPersonnelToAssignments pattern |
+| Service detail page with inline editing | Same UX efficiency as Projects detail page | LOW | Copy Projects detail page pattern exactly |
+| Real-time collaboration on services | Multiple users see updates immediately (Firebase real-time) | LOW | Already working for Projects, extends naturally |
+| Search by service code or name | Quick service lookup in large datasets | LOW | Mirror Projects search implementation |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems.
+Features that seem good but create problems for v2.3.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Nested Modals (Modal within Modal)** | "Click supplier in timeline modal to see supplier details" | Increases cognitive load, sacrifices emergency exit path, compounds information, usually signals IA issues | Single-level modals only. Close timeline → open supplier history as separate action |
-| **Auto-Trigger Modals** | "Show expense breakdown automatically when entering Finance tab" | Interrupts user workflow, prevents scanning PO list, feels intrusive | User-initiated action (click project in list to open modal) |
-| **Timeline with Too Many Events** | "Show every Firestore update in timeline" | Creates visual clutter, buries important milestones in noise | Filter to workflow milestones only: MRF Created/Approved → PR Generated/Approved → PO Created → Status Updates (Procuring/Procured/Delivered) |
-| **Real-Time Everything** | "Live updates on every field change" | Unnecessary complexity, performance overhead, data overload | Selective real-time: Dashboard stats yes, historical timeline no (static after load is fine) |
-| **Excessive Dashboard Metrics** | "Show 20+ KPIs on financial dashboard" | Information overload (30-40 metrics confuses users), dilutes key insights, increases cognitive load | Limit to 5-7 primary KPIs. Use tabs for detailed breakdowns (Project Summary tab, Category Breakdown tab) |
-| **Complex Validation Requirements** | "Must enter delivery date in future, payment terms from dropdown list of 50 options" | User friction increases form abandonment, overly rigid requirements create workarounds | Simple required fields: Payment Terms (freetext), Condition (freetext), Delivery Date (date picker, no future constraint) |
-| **After-Submission Validation Only** | "Validate all fields when user clicks View PO" | User must search for errors, higher interaction cost, repeated failures indicate UI problem | Inline validation as fields completed + final gate check before view - hybrid approach |
-| **Ambiguous Error Messages** | "Invalid input" or "Missing required field" | Users don't know what to fix, leads to repeated errors (3+ same error = design issue) | Specific, actionable: "Payment Terms required" with field highlighted |
+| Recurring service schedule automation | "Auto-generate monthly pest control MRFs" sounds efficient | Scope creep - requires scheduling engine, notification system, calendar integration; no user validation requested this | Defer to v3.0+; v2.3 tracks recurring services manually, users create MRFs when work is performed |
+| Contract expiration reminders | Prevent missed renewals for recurring services | Notification system not in scope; email not validated; adds complexity without user request | Defer to v3.0+; users manage contract renewals manually |
+| Service history timeline | View all MRFs/PRs/POs for a service | Already available via project detail expense breakdown; expensive to duplicate for services in v2.3 | Use existing expense breakdown in service detail (mirror Projects pattern exactly) |
+| Separate supplier pools per department | Operations suppliers vs Services suppliers | No evidence this is needed; adds complexity; supplier database is centralized resource | Single supplier pool shared across departments (current model) |
+| Department-specific roles for Finance/Procurement | Finance_Projects vs Finance_Services roles | Finance and Procurement explicitly cross-department in requirements; splitting creates permission complexity | Single Finance and Procurement roles approve work from both departments |
+| Service type beyond one-time/recurring | Add "Emergency", "Preventive", "Corrective" types | Not validated in requirements; service_type is for workflow differentiation, not categorization | v2.3: Two types only (one-time, recurring); defer granular categorization to v3.0+ |
+| Merge Projects and Services into single collection | Simplify data model with single "work" collection | Different user groups need complete isolation; shared collection requires complex filtering everywhere | Keep separate collections for clean role-based isolation |
 
 ## Feature Dependencies
 
 ```
-[Timeline Audit Trail]
-    └──requires──> [MRF/PR/PO data structure]
-                       └──requires──> [Status history tracking]
+[Service CRUD]
+    └──requires──> [Clients collection] (already exists)
+    └──requires──> [Users collection] (already exists, v2.0)
 
-[Financial Dashboard Modal]
-    └──requires──> [PO data with project linkage]
-    └──requires──> [Project list view]
+[Service detail page with inline editing]
+    └──requires──> [Service CRUD]
+    └──requires──> [Personnel multi-select] (already exists, v2.2)
 
-[Supplier Purchase History]
-    └──requires──> [PO data with supplier linkage]
-    └──requires──> [Supplier list in Procurement tab]
+[Assignment-based access]
+    └──requires──> [Service CRUD]
+    └──requires──> [Role system] (already exists, v2.0)
+    └──requires──> [Firebase Security Rules for services collection]
 
-[Workflow Gate (PO Viewing)]
-    └──requires──> [PO detail fields: payment_terms, condition, delivery_date]
-    └──enhances──> [PO data quality for Finance]
+[MRF-Service integration]
+    └──requires──> [Service CRUD]
+    └──requires──> [Role-based dropdown filtering]
 
-[Real-Time Dashboard Updates] ──enhances──> [Financial Dashboard Modal]
-[Project Status Filter] ──enhances──> [Financial Dashboard Modal]
+[Role-based department isolation]
+    └──requires──> [Role templates for services_admin, services_user]
+    └──requires──> [Firebase Security Rules for services collection]
+    └──requires──> [UI visibility logic by role]
+
+[Sub-tabs for Services/Recurring]
+    └──requires──> [Service CRUD with service_type field]
+    └──enhances──> [Service list view] (provides pre-filtered views)
+
+[Cross-department Finance/Procurement view]
+    └──requires──> [MRF-Service integration] (MRFs reference services)
+    └──requires──> [Department tagging] (identify source: project or service)
 ```
 
 ### Dependency Notes
 
-- **Timeline requires Status History:** Timeline shows workflow progression, which requires storing state changes (MRF approval timestamp, PR generation timestamp, PO status updates). Current system stores status but not timestamp of changes - may need `status_history` array field.
+- **Service CRUD requires Clients and Users:** Same dependencies as Projects, collections already exist
+- **Assignment-based access requires Security Rules:** Cannot rely on UI-only filtering for security; server-side enforcement critical
+- **MRF integration requires role-based filtering:** Operations users must never see Services in dropdown, vice versa; UI + Security Rules enforcement
+- **Sub-tabs enhance list view:** Router pattern already supports sub-routes (#/procurement/mrfs); extend to #/services/services and #/services/recurring
+- **Cross-department Finance/Procurement requires source tagging:** PRs/POs need to display which department originated the work
 
-- **Financial Dashboard requires Project Linkage:** POs must have `project_code` denormalized (exists via MRF → PR → PO chain). Aggregation queries needed to sum PO amounts by project.
+## MVP Definition (v2.3 Services Department)
 
-- **Workflow Gate enhances PO Data Quality:** Requiring payment_terms/condition/delivery_date before viewing ensures Finance has complete information for approval. Gate at viewing (not creation) allows Procurement to create PO shell first, complete details later.
+### Launch With (v2.3)
 
-- **Real-Time Updates enhance Dashboard:** Firestore `onSnapshot` listeners already in use for other views. Financial dashboard can leverage same pattern for auto-updating totals.
+Minimum viable Services department — what's needed to enable parallel workflows.
 
-## MVP Definition (v2.1 Scope)
+- [x] **Services collection with service_type field** — Core data model; distinguishes one-time vs recurring
+- [x] **Services CRUD operations (create, edit, delete)** — Standard management operations mirroring Projects
+- [x] **Service code generation sharing CLMC_CLIENT_YYYY### sequence** — Unified numbering across Projects and Services
+- [x] **Services tab with sub-tabs (Services, Recurring)** — Visual separation of work types via router sub-routes
+- [x] **Role templates for services_admin and services_user** — Two new roles mirroring operations roles
+- [x] **Assignment system for services_user** — Non-admin services users see only assigned services
+- [x] **Firebase Security Rules for services collection** — Server-side enforcement of role-based access
+- [x] **Role-based MRF dropdown filtering** — Operations sees Projects, services sees Services, never mixed
+- [x] **Department isolation in navigation** — Operations roles never see Services tab, vice versa (except Super Admin, Finance, Procurement)
+- [x] **Service detail page with inline editing** — Same UX as Projects detail page (v1.0 pattern)
+- [x] **Multi-personnel selection for services** — Reuse v2.2 pill UI for personnel tracking
+- [x] **Automatic personnel-to-assignment sync** — services_user added to personnel → auto-assign access
 
-### Launch With (v2.1)
+### Add After Validation (v2.3.x)
 
-Minimum viable refinements to fix critical gaps from v2.0.
+Features to add once Services department is working and users provide feedback.
 
-- [x] **Timeline Audit Trail - Basic** — Vertical timeline showing MRF → PR(s) → PO(s) → Status Updates with timestamps and status badges. Essential for workflow transparency and accountability.
+- [ ] **Search by service code or name** — Triggered by: "We have too many services to scroll through"
+- [ ] **Advanced filtering (by date range, budget)** — Triggered by: "I need to find services from Q4 2025"
+- [ ] **Service expense breakdown modal** — Triggered by: "How much have we spent on this service?" (mirror Projects expense breakdown)
+- [ ] **Recurring service visual indicators** — Triggered by: "Hard to tell one-time from recurring at a glance"
+- [ ] **Bulk assignment operations** — Triggered by: "Assigning services one by one is tedious"
 
-- [x] **Financial Dashboard - Project Expense Modal** — Modal triggered from project click showing total project expenses (sum of PO amounts) with basic category breakdown. Core Finance visibility feature.
+### Future Consideration (v3.0+)
 
-- [x] **Supplier Purchase History - Basic List** — Modal showing POs from selected supplier with date, amount, items. Essential for supplier relationship management.
+Features to defer until Services department is validated and usage patterns emerge.
 
-- [x] **Workflow Gate - Required Fields for PO View** — Block PO viewing until payment_terms, condition, delivery_date filled. Inline validation showing field status. Ensures data quality for Finance.
-
-### Add After Validation (v2.x)
-
-Features to add once core refinements working and user feedback gathered.
-
-- [ ] **Timeline - Parallel Approval Visualization** — Visual branching when MRF generates multiple PRs. Add when mixed-supplier workflow feedback indicates confusion.
-
-- [ ] **Timeline - Filterable Events** — Toggle to show/hide specific event types (e.g., hide status updates, show only approvals). Add when users report timeline clutter.
-
-- [ ] **Financial Dashboard - Tabbed Breakdown** — Separate tabs for Project Summary, Category Breakdown, Supplier Breakdown. Add when single-view dashboard feels cluttered (>7 KPIs).
-
-- [ ] **Supplier History - Performance Metrics** — Cycle time, on-time delivery rate, quality scores. Add when procurement manager requests data-driven supplier evaluation.
-
-- [ ] **Supplier History - Quick Reorder** — One-click MRF creation from previous PO. Add when operations reports frequent reorders of same items.
-
-- [ ] **Workflow Gate - Partial Save Indicator** — Progress bar showing 2/3 required fields completed. Add if users report confusion about which fields still needed.
-
-### Future Consideration (v2.2+)
-
-Features to defer until v2.1 refinements validated in production.
-
-- [ ] **Timeline - Export to PDF** — Downloadable audit trail report. Defer until user requests arise (likely for compliance/client reporting).
-
-- [ ] **Financial Dashboard - Budget vs Actual** — Project budget comparison with actual spend. Defer until budget tracking validated (requires project budget field enforcement).
-
-- [ ] **Financial Dashboard - Trend Analysis** — Monthly/quarterly spend trends by project or category. Defer until sufficient historical data exists (6+ months).
-
-- [ ] **Supplier History - Automated QBR Scorecard** — Auto-generated supplier performance scorecard for quarterly reviews. Defer until manual QBR process established.
-
-- [ ] **Workflow Gate - Dynamic Requirements** — Gate fields vary by PO type (material vs transport). Defer until workflow complexity warrants differentiation.
+- [ ] **Recurring service schedule automation** — Defer until: Users request "auto-generate MRFs for monthly services"
+- [ ] **Contract expiration tracking** — Defer until: Users request "remind me when pest control contract expires"
+- [ ] **Service history timeline** — Defer until: Users request "show all work performed for this service"
+- [ ] **Service performance metrics** — Defer until: "Track on-time completion rates for recurring services"
+- [ ] **Service-specific document types** — Defer until: "Upload service contracts separate from MRFs"
+- [ ] **Service categories/tags** — Defer until: "Group services by type (HVAC, electrical, pest control)"
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Timeline Audit Trail - Basic | HIGH | MEDIUM | P1 |
-| Financial Dashboard - Project Modal | HIGH | MEDIUM | P1 |
-| Supplier Purchase History - Basic | HIGH | LOW | P1 |
-| Workflow Gate - Required Fields | HIGH | LOW | P1 |
-| Timeline - Parallel Approval Viz | MEDIUM | MEDIUM | P2 |
-| Timeline - Filterable Events | MEDIUM | LOW | P2 |
-| Financial Dashboard - Tabbed Breakdown | MEDIUM | MEDIUM | P2 |
-| Supplier History - Performance Metrics | HIGH | HIGH | P2 |
-| Supplier History - Quick Reorder | MEDIUM | MEDIUM | P2 |
-| Workflow Gate - Partial Save Indicator | LOW | LOW | P2 |
-| Timeline - Export to PDF | LOW | MEDIUM | P3 |
-| Financial Dashboard - Budget vs Actual | HIGH | HIGH | P3 |
-| Financial Dashboard - Trend Analysis | MEDIUM | HIGH | P3 |
-| Supplier History - Automated QBR | LOW | HIGH | P3 |
-| Workflow Gate - Dynamic Requirements | LOW | MEDIUM | P3 |
+| Services CRUD operations | HIGH | LOW | P1 |
+| Service code generation (shared sequence) | HIGH | LOW | P1 |
+| Service type differentiation (field) | HIGH | LOW | P1 |
+| Role templates (services_admin, services_user) | HIGH | LOW | P1 |
+| Firebase Security Rules (services collection) | HIGH | MEDIUM | P1 |
+| MRF dropdown role-based filtering | HIGH | MEDIUM | P1 |
+| Department isolation (UI visibility) | HIGH | MEDIUM | P1 |
+| Assignment system for services_user | HIGH | MEDIUM | P1 |
+| Services tab with sub-tabs | MEDIUM | LOW | P1 |
+| Service detail page with inline editing | MEDIUM | LOW | P1 |
+| Multi-personnel selection | MEDIUM | LOW | P1 |
+| Auto personnel-to-assignment sync | MEDIUM | LOW | P1 |
+| Search by service code/name | MEDIUM | LOW | P2 |
+| Advanced filtering (date, budget) | MEDIUM | LOW | P2 |
+| Service expense breakdown modal | MEDIUM | MEDIUM | P2 |
+| Recurring service visual indicators | LOW | LOW | P2 |
+| Bulk assignment operations | MEDIUM | MEDIUM | P2 |
+| Recurring schedule automation | HIGH | HIGH | P3 |
+| Contract expiration tracking | MEDIUM | MEDIUM | P3 |
+| Service history timeline | MEDIUM | MEDIUM | P3 |
+| Service performance metrics | LOW | HIGH | P3 |
+| Service-specific document types | LOW | MEDIUM | P3 |
+| Service categories/tags | MEDIUM | LOW | P3 |
 
 **Priority key:**
-- P1: Must have for v2.1 launch (fixes critical gaps)
-- P2: Should have, add when v2.1 validated
-- P3: Nice to have, future consideration after data/usage patterns emerge
+- P1: Must have for v2.3 launch — Services department cannot function without these
+- P2: Should have, add when possible — Improves UX but not blocking
+- P3: Nice to have, future consideration — Defer until usage patterns validate need
 
-## Implementation Patterns by Feature
+## Comparison: Services Management vs Project Management
 
-### Timeline Audit Trail
+| Feature | Projects (existing) | Services (v2.3) | Implementation Notes |
+|---------|---------------------|-----------------|----------------------|
+| Code generation | CLMC_CLIENT_YYYY### sequence | Same shared sequence | Single counter, type determined by collection |
+| CRUD operations | Full create/edit/delete | Mirror exactly | Reuse Projects patterns, swap collection name |
+| Detail page | Inline editing with auto-save | Mirror exactly | Copy Projects detail page pattern |
+| List view | Filter by status, client, active flag | Add service_type filter | Extend existing filtering logic |
+| Role isolation | Operations roles only | Services roles only | New: Department-level isolation, not just tab-level |
+| Assignment system | operations_user sees assigned projects | services_user sees assigned services | Reuse exact assignment pattern |
+| Personnel tracking | Multi-select pill UI (v2.2) | Mirror exactly | Reuse v2.2 implementation |
+| MRF integration | Dropdown shows active projects | Dropdown shows active services (role-based) | New: Role determines which collection to query |
+| Sub-routes | #/projects (no sub-routes) | #/services/services, #/services/recurring | New: Sub-tab navigation via router |
+| Security Rules | projects collection rules | services collection rules (mirror) | Copy-paste Projects rules, swap collection name |
+| Finance/Procurement view | View project-based PRs/POs | View both project and service PRs/POs | New: Cross-department display with source tagging |
 
-**Component Structure:**
-```
-Timeline Container
-  ├─ Event Card 1 (MRF Created)
-  │   ├─ Date/Time
-  │   ├─ Actor (Requestor)
-  │   ├─ Description ("MRF-2026-005 created")
-  │   └─ Status Badge (Pending)
-  ├─ Event Card 2 (MRF Approved)
-  │   ├─ Date/Time
-  │   ├─ Actor (Operations Admin)
-  │   ├─ Description ("MRF approved")
-  │   └─ Status Badge (Approved)
-  ├─ Event Card 3 (PR Generated)
-  │   ├─ Date/Time
-  │   ├─ Actor (System/Operations)
-  │   ├─ Description ("PR-2026-008 generated")
-  │   └─ Status Badge (Pending Finance)
-  └─ Event Card N (PO Delivered)
-```
+## User Workflow Analysis
 
-**Data Requirements:**
-- Store `created_at`, `updated_at` timestamps on all documents
-- Store `created_by`, `updated_by` user IDs (already have via v2.0 auth)
-- Consider adding `status_history` array to track state changes:
-  ```javascript
-  status_history: [
-    { status: 'Pending', timestamp: '2026-02-05T10:00:00Z', actor_id: 'uid123' },
-    { status: 'Approved', timestamp: '2026-02-05T14:30:00Z', actor_id: 'uid456' }
-  ]
-  ```
+### Services Admin Workflow
 
-**UI Patterns:**
-- Vertical timeline with connecting line (CSS border-left on container)
-- Timeline dots at each event (colored by status)
-- Newest events at top (reverse chronological)
-- Sticky modal header with MRF ID and close button
-- Max-height modal body with scroll for long timelines
+1. **Create service record**
+   - Click "Add New Service" button
+   - Select client from dropdown (reuse clients collection)
+   - Enter service name (e.g., "AC Repair - Building A")
+   - Select service type (one-time or recurring)
+   - Optional: Enter budget, contract cost
+   - Optional: Select personnel
+   - System auto-generates service code (CLMC_CLIENT_YYYY###)
+   - Save → Service created with active flag = true
 
-### Financial Dashboard Modal
+2. **Assign service to services_user**
+   - Open service detail page
+   - Multi-select personnel (includes services_user accounts)
+   - Auto-sync: services_user role gets assignment record
 
-**Component Structure:**
-```
-Modal
-  ├─ Header (Project Code + Name, Close X)
-  ├─ Scoreboard Row (4 cards: Total Expenses, Pending POs, Paid POs, Open Items)
-  └─ Tabs
-      ├─ Tab 1: Project Summary (default)
-      │   └─ Table: PR/PO list with amounts
-      ├─ Tab 2: Category Breakdown
-      │   ├─ Pie Chart (visual composition)
-      │   └─ Table (category, amount, percentage)
-      └─ Tab 3: Supplier Breakdown
-          └─ Table (supplier, total amount, PO count)
-```
+3. **Services user creates MRF**
+   - Navigate to MRF form
+   - Service dropdown shows ONLY services assigned to them (or all if services_admin)
+   - Select service → auto-populate service_code and service_name
+   - Complete MRF → standard procurement workflow
 
-**Data Requirements:**
-- Query `pos` collection filtered by `project_code`
-- Join to `prs` to get item details (category from items_json)
-- Aggregate by category and supplier
-- Real-time listener for auto-updates (onSnapshot on pos collection)
+### Recurring Service Workflow
 
-**UI Patterns:**
-- Modal width: 800px (accommodates tables without horizontal scroll)
-- Scoreboard cards: linear gradient backgrounds (yellow/red/green/gray)
-- Tab navigation within modal (not nested modals)
-- Limit to 5-7 scoreboard KPIs (Total, Pending, Approved, Procured, Delivered)
-- Use whitespace generously to prevent information overload
+1. **Create recurring service**
+   - Same as one-time service creation
+   - Select service_type = "recurring"
+   - Enter contract cost (e.g., monthly pest control fee)
+   - Add personnel (technicians who perform work)
 
-### Supplier Purchase History
+2. **Perform recurring work**
+   - Each time work is performed, create new MRF
+   - Select same recurring service from dropdown
+   - MRF tracks individual work instance
+   - Expense breakdown shows all MRFs for that service
 
-**Component Structure:**
-```
-Modal
-  ├─ Header (Supplier Name, Close X)
-  ├─ Stats Row (Total Spend, PO Count, Date Range)
-  └─ Table
-      ├─ Columns: PO ID, Date, Project, Items Summary, Amount, Status
-      └─ Rows: Sorted by date desc (most recent first)
-```
+3. **Track recurring expenses**
+   - Service detail page shows total expenses across all MRFs
+   - Finance sees all PRs/POs tagged to recurring service
+   - Budget vs actual comparison (same as Projects)
 
-**Data Requirements:**
-- Query `pos` collection filtered by `supplier_name`
-- Include `project_code`, `project_name`, `items_json`, `total_amount`, `procurement_status`
-- Optional: Calculate metrics (avg PO amount, days to delivery)
+### Cross-Department Finance Workflow
 
-**UI Patterns:**
-- Modal width: 900px (wider for table with multiple columns)
-- Items Summary: "5 items (Cement, Rebar, ...)" truncated with tooltip
-- Status badges consistent with existing system
-- Empty state: "No purchases from this supplier yet"
-- Pagination if >15 POs (use existing pagination component)
+1. **Finance reviews pending PRs**
+   - Finance tab → Pending Approvals
+   - List shows PRs from BOTH Projects and Services departments
+   - Each PR displays source tag (Project: CLMC_AAA_2026001 or Service: CLMC_BBB_2026002)
+   - Finance approves/rejects regardless of source department
+   - No workflow changes from v2.2
 
-### Workflow Gate (PO Viewing)
-
-**Component Structure:**
-```
-PO List View (existing)
-  └─ View PO button → onClick checks gate
-
-Gate Check Logic:
-  IF payment_terms && condition && delivery_date:
-    → Open PO Details Modal
-  ELSE:
-    → Show Inline Message: "Complete required fields first"
-    → Highlight missing fields in PO row/edit form
-
-PO Edit/Create Form:
-  ├─ Payment Terms (required, inline validation)
-  ├─ Condition (required, inline validation)
-  ├─ Delivery Date (required, inline validation)
-  └─ Other fields (optional)
-```
-
-**Data Requirements:**
-- Add `payment_terms`, `condition`, `delivery_date` fields to `pos` collection (may already exist)
-- Validate on client-side before opening modal
-- Server-side validation in Security Rules (optional but recommended)
-
-**UI Patterns:**
-- Inline validation: Red border + "Required" text appears on blur if empty
-- Success state: Green checkmark when field completed
-- Gate error message: Toast notification + field highlighting (not blocking modal)
-- Progressive disclosure: Gate check happens on "View PO" click, not on list load
-- Clear messaging: "Payment Terms, Condition, and Delivery Date required to view PO details"
-
-## Best Practices Summary
-
-### Timeline Audit Trails
-✅ **DO:**
-- Keep timeline clean and scannable (5-10 key events max)
-- Use progressive disclosure (expand event for full details)
-- Show avatars/initials for actors to reduce text clutter
-- Color-code by status for quick visual scanning
-- Newest events first (users care about current state)
-
-❌ **DON'T:**
-- Show every field change (clutter)
-- Use horizontal timeline (less scannable)
-- Nest modals (timeline inside PO details modal)
-- Auto-refresh timeline (static after load is fine)
-
-### Financial Dashboards
-✅ **DO:**
-- Limit scoreboard to 5-7 primary KPIs
-- Use tabs for detailed breakdowns (not all-in-one)
-- Apply whitespace strategically
-- Color-code by urgency/status (not decoration)
-- Enable real-time updates for key metrics
-
-❌ **DON'T:**
-- Show 20+ metrics on one screen (information overload)
-- Use complex visualizations without training
-- Auto-trigger modal on tab load (interrupt workflow)
-- Mix too many chart types (cognitive load)
-
-### Modals
-✅ **DO:**
-- Provide clear exit paths (X, Escape, backdrop click)
-- Use standard widths (600-900px based on content)
-- Include descriptive header with context
-- Ensure mobile-friendly (responsive)
-- Trap keyboard focus within modal (accessibility)
-
-❌ **DON'T:**
-- Nest modals (modal within modal)
-- Make modals too large (occupies full screen = should be page)
-- Use for inline editable content (use inline editing)
-- Auto-trigger without user action
-
-### Workflow Gates
-✅ **DO:**
-- Use inline validation (immediate feedback)
-- Provide specific, actionable error messages
-- Mark required fields clearly (asterisk)
-- Show progress indicator (2/3 fields completed)
-- Validate on action (click View PO), not on load
-
-❌ **DON'T:**
-- Use generic errors ("Invalid input")
-- Validate only after submission (high interaction cost)
-- Create overly complex requirements (50-option dropdown)
-- Block related actions (can still edit PO, just can't view full details)
-
-## Competitor/Industry Pattern Analysis
-
-| Feature | Industry Standard | CLMC Approach |
-|---------|-------------------|---------------|
-| Timeline Audit Trail | Vertical timeline, reverse chronological, status-coded | ✅ Follow standard - vertical timeline with status badges |
-| Financial Dashboard | 5-7 KPIs, tabbed details, real-time updates | ✅ Scoreboard (4 cards) + tabbed breakdown modal |
-| Supplier History | List view with metrics, sortable/filterable | ✅ Simple list first, add metrics/filters in v2.x |
-| Workflow Gates | Inline validation + final gate check | ✅ Hybrid approach - inline validation + gate on View action |
-| Modal Navigation | Single-level modals, clear exit | ✅ No nested modals, X/Escape/backdrop close |
-| Required Fields | Asterisk (*) + inline feedback | ✅ Standard markers with inline validation |
-
-**Our differentiators:**
-- **Timeline:** Show parallel approvals when MRF splits to multiple PRs (reflects actual mixed-supplier workflow)
-- **Dashboard:** Real-time updates via Firestore listeners (no manual refresh)
-- **Gate:** Progressive disclosure (gate appears on action, not on load)
+2. **Procurement tracks POs**
+   - Procurement tab → PO Tracking
+   - List shows POs from BOTH departments
+   - Update status (Pending → Procuring → Procured → Delivered)
+   - No workflow changes from v2.2
 
 ## Sources
 
-**Audit Trail & Timeline UI:**
-- [Guide to Designing Chronological Activity Feeds](https://www.aubergine.co/insights/a-guide-to-designing-chronological-activity-feeds) — MEDIUM confidence (activity feed patterns)
-- [Timeline Component Design System Kit](https://www.telerik.com/design-system/docs/components/timeline/) — HIGH confidence (component patterns)
-- [Activity Feed Design Guide](https://getstream.io/blog/activity-feed-design/) — MEDIUM confidence (avoid clutter patterns)
+**Service Management Systems & Features:**
+- [Recurring Billing Software and Solutions for 2026](https://www.agencyhandy.com/recurring-billing-software/) — One-time vs recurring patterns
+- [Field Service Management Software in 2026](https://buildops.com/resources/field-service-management-software/) — AC repair and maintenance workflows
+- [Maintenance Agreement & Recurring Service Scheduling](https://www.housecallpro.com/features/recurring-service-plans/) — Recurring service automation patterns
+- [Service Contract Management Software](https://www.commusoft.com/en-us/features/service-contract-management-software/) — Contract-based recurring services
+- [Preventive Maintenance Scheduling](https://ftmaintenance.com/cmms-features/preventive-maintenance/) — Quarterly PM workflows
 
-**Financial Dashboard Design:**
-- [Fintech Design Guide 2026](https://www.eleken.co/blog-posts/modern-fintech-design-guide) — HIGH confidence (trust and whitespace patterns)
-- [Finance Dashboard Design Best Practices](https://www.f9finance.com/dashboard-design-best-practices/) — HIGH confidence (5-7 KPI recommendation)
-- [Bad Dashboard Examples: Common Mistakes](https://databox.com/bad-dashboard-examples) — HIGH confidence (information overload anti-patterns)
+**Project vs Service Management:**
+- [Project Management vs. Service Management: Key Differences](https://www.motadata.com/blog/project-management-vs-service-management/) — Temporary vs ongoing nature
+- [IT Project Management vs. Service Management](https://www.manageengine.com/products/service-desk/itsm/project-management-vs-it-service-management.html) — Process differences
+- [Integrating Project Management and Service Management](https://www.pmi.org/learning/library/integrating-project-service-management-6328) — Integration patterns
 
-**Workflow Gates & Validation:**
-- [Form UI/UX Design Best Practices 2026](https://www.designstudiouiux.com/blog/form-ux-design-best-practices/) — HIGH confidence (required field patterns)
-- [Building UX for Error Validation Strategy](https://medium.com/@olamishina/building-ux-for-error-validation-strategy-36142991017a) — MEDIUM confidence (inline vs after-submission)
-- [10 Design Guidelines for Reporting Errors in Forms - NN/G](https://www.nngroup.com/articles/errors-forms-design-guidelines/) — HIGH confidence (error message guidelines)
+**Role-Based Access & Multi-Department:**
+- [Role-Based Access Control Best Practices for 2026](https://www.techprescient.com/blogs/role-based-access-control-best-practices/) — RBAC patterns
+- [Role-Based Access Control: A Comprehensive Guide 2026](https://www.zluri.com/blog/role-based-access-control) — Granular permissions
+- [Separation of Duties Policy Examples for 2026](https://www.zluri.com/blog/separation-of-duties-policy-example) — Cross-department access patterns
 
-**Procurement Workflow Patterns:**
-- [Purchase Requisition Approval Workflow Guide 2026](https://www.order.co/blog/procurement/purchase-requisition-approval-workflow-2026/) — HIGH confidence (approval workflow UI)
-- [Procurement Process Flow Guide 2026](https://kissflow.com/procurement/procurement-process/) — MEDIUM confidence (workflow tracking patterns)
-
-**Modal & Dialog Patterns:**
-- [Mastering Modal UX: Best Practices](https://www.eleken.co/blog-posts/modal-ux) — HIGH confidence (modal UX patterns)
-- [Removing Nested Modals From Digital Products](https://uxplanet.org/removing-nested-modals-from-digital-products-6762351cf6de) — HIGH confidence (nested modal anti-patterns)
-- [Dialog (Modal) Pattern - W3C](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/) — HIGH confidence (accessibility standards)
-
-**Supplier Management:**
-- [Ultimate Guide to Supplier Management 2026](https://www.ivalua.com/blog/supplier-management/) — MEDIUM confidence (supplier performance tracking)
-- [30 Procurement Best Practices 2026](https://procurementtactics.com/procurement-best-practices/) — MEDIUM confidence (supplier evaluation frameworks)
+**Maintenance & Repair Workflows:**
+- [Maintenance Management System Best Practices 2026](https://www.getsockeye.com/blog/best-maintenance-scheduling-software/) — Recurring maintenance patterns
+- [Pest Control Work Order Software](https://www.maintenancecare.com/pest-control-work-order-software) — Recurring service workflows
+- [HVAC Preventive Maintenance Checklist 2026](https://oxmaint.com/industries/hvac/hvac-preventive-maintenance-checklist-2026) — Quarterly maintenance patterns
+- [Service Maintenance Contracts: Key Elements & Best Practices](https://www.servicegeeni.com/blog/understanding-service-maintenance-contracts) — Contract-based services
 
 ---
-*Feature research for: CLMC Procurement System v2.1 System Refinement*
-*Researched: 2026-02-05*
-*Confidence: HIGH (patterns verified across multiple authoritative sources)*
+*Feature research for: Services Department (CLMC Procurement System)*
+*Researched: 2026-02-12*
+*Research confidence: HIGH — Based on verified service management patterns, existing Projects implementation analysis, and validated user requirements*

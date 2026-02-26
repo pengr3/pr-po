@@ -4,8 +4,9 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, getStatusClass } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
+import { getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
 // Format PO date - handles Firestore Timestamps, {seconds} objects, and strings
 function formatPODate(po) {
@@ -46,6 +47,20 @@ let projectExpenseSortDirection = 'asc';
 let poSortColumn = 'date_issued';
 let poSortDirection = 'desc';
 
+// Department filter state for Pending Approvals and POs
+let activeDeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
+
+/**
+ * Apply department filter to all three finance tables.
+ * Called by the dept filter dropdown onchange handler.
+ */
+function applyFinanceDeptFilter(value) {
+    activeDeptFilter = value;
+    renderMaterialPRs();
+    renderTransportRequests();
+    renderPOs();
+}
+
 /**
  * Attach all window functions for use in onclick handlers
  * This needs to be called every time init() runs to ensure
@@ -82,10 +97,11 @@ function attachWindowFunctions() {
 
     // Project Expense Functions
     window.refreshProjectExpenses = refreshProjectExpenses;
-    window.showProjectExpenseModal = (name) => showExpenseBreakdownModal(name);
+    window.showProjectExpenseModal = (name) => showExpenseBreakdownModal(name, { mode: 'project' });
     // closeProjectExpenseModal replaced by shared _closeExpenseBreakdownModal in expense-modal.js
     window.sortProjectExpenses = sortProjectExpenses;
     window.sortPOs = sortPOs;
+    window.applyFinanceDeptFilter = applyFinanceDeptFilter;
 
     console.log('[Finance] ✅ All window functions attached successfully');
 }
@@ -184,7 +200,7 @@ function clearApprovalSignature() {
 // ========================================
 
 const DOCUMENT_CONFIG = {
-    defaultFinancePIC: 'Ma. Thea Angela R. Lacsamana',
+    defaultFinancePIC: 'Finance Approver',
     companyInfo: {
         name: 'C. Lacsamana Management and Construction Corporation',
         address: '133 Pinatubo St. City of Mandaluyong City',
@@ -508,7 +524,7 @@ async function generatePODocument(poDocId) {
         // Prepare document data
         const documentData = {
             PO_ID: po.po_id,
-            PROJECT: po.project_code ? `${po.project_code} - ${po.project_name}` : po.project_name,
+            PROJECT: getMRFLabel(po),
             DATE: formatPODate({ date_issued: po.date_issued, date_issued_legacy: po.date_issued_legacy }),
             SUPPLIER: po.supplier_name,
             QUOTE_REF: po.quote_ref || 'N/A',
@@ -602,14 +618,23 @@ export function render(activeTab = 'approvals') {
                 <div class="card">
                     <div class="card-header">
                         <h2>🛒 Material Purchase Requests</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshPRs()">🔄 Refresh</button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="deptFilterApprovals"
+                                    onchange="window.applyFinanceDeptFilter(this.value)"
+                                    style="padding:0.35rem 0.6rem;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.875rem;color:#475569;">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="window.refreshPRs()">🔄 Refresh</button>
+                        </div>
                     </div>
                     <table>
                         <thead>
                             <tr>
                                 <th>PR ID</th>
                                 <th>MRF ID</th>
-                                <th>Project</th>
+                                <th>Department / Project</th>
                                 <th>Date</th>
                                 <th>Urgency</th>
                                 <th>Total Cost</th>
@@ -662,7 +687,16 @@ export function render(activeTab = 'approvals') {
                 <div class="card">
                     <div class="card-header">
                         <h2>Recently Generated Purchase Orders</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
+                        <div style="display:flex;gap:0.5rem;align-items:center;">
+                            <select id="deptFilterPOs"
+                                    onchange="window.applyFinanceDeptFilter(this.value)"
+                                    style="padding:0.35rem 0.6rem;border:1.5px solid #e2e8f0;border-radius:6px;font-size:0.875rem;color:#475569;">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
+                        </div>
                     </div>
                     <div id="poList">
                         <div style="text-align: center; padding: 2rem;">Loading purchase orders...</div>
@@ -1025,6 +1059,8 @@ export async function destroy() {
     delete window.confirmApproval;
     delete window.sortProjectExpenses;
     delete window.sortPOs;
+    delete window.applyFinanceDeptFilter;
+    activeDeptFilter = '';
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
@@ -1055,7 +1091,6 @@ async function loadPRs() {
             const pr = { id: docSnap.id, ...docSnap.data() };
             // Only include non-transport PRs
             if (!pr.pr_id?.startsWith('TR-') && pr.request_type !== 'service') {
-                console.log('  Material PR:', pr.pr_id, 'Status:', pr.finance_status);
                 materialPRs.push(pr);
             }
         });
@@ -1076,7 +1111,6 @@ async function loadPRs() {
 
         snapshot.forEach((docSnap) => {
             const tr = { id: docSnap.id, ...docSnap.data() };
-            console.log('  Transport:', tr.tr_id, 'Status:', tr.finance_status, 'Cost:', tr.total_amount);
             transportRequests.push(tr);
         });
 
@@ -1093,19 +1127,23 @@ async function loadPRs() {
 function renderMaterialPRs() {
     const tbody = document.getElementById('materialPRsBody');
 
-    if (materialPRs.length === 0) {
+    const filtered = activeDeptFilter
+        ? materialPRs.filter(pr => (pr.department || 'projects') === activeDeptFilter)
+        : materialPRs;
+
+    if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">✓</div>
-                    <div>No pending material PRs</div>
+                    <div>No pending material PRs${activeDeptFilter ? ' for ' + (activeDeptFilter === 'services' ? 'Services' : 'Projects') : ''}</div>
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = materialPRs.map(pr => {
+    tbody.innerHTML = filtered.map(pr => {
         const items = JSON.parse(pr.items_json || '[]');
         const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
         const urgencyLevel = pr.urgency_level || 'Low';
@@ -1122,12 +1160,12 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td>${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</span></td>
                 <td>${formatDate(pr.date_generated)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
                 <td>${supplier}</td>
-                <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">Pending</span></td>
+                <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewPRDetails('${pr.id}')">Review</button>
                 </td>
@@ -1142,19 +1180,23 @@ function renderMaterialPRs() {
 function renderTransportRequests() {
     const tbody = document.getElementById('transportRequestsBody');
 
-    if (transportRequests.length === 0) {
+    const filtered = activeDeptFilter
+        ? transportRequests.filter(tr => (tr.department || 'projects') === activeDeptFilter)
+        : transportRequests;
+
+    if (filtered.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
                     <div style="font-size: 2rem; margin-bottom: 0.5rem;">✓</div>
-                    <div>No pending transport requests</div>
+                    <div>No pending transport requests${activeDeptFilter ? ' for ' + (activeDeptFilter === 'services' ? 'Services' : 'Projects') : ''}</div>
                 </td>
             </tr>
         `;
         return;
     }
 
-    tbody.innerHTML = transportRequests.map(tr => {
+    tbody.innerHTML = filtered.map(tr => {
         const items = JSON.parse(tr.items_json || '[]');
         const serviceType = items[0]?.category || 'Transportation';
         const urgencyLevel = tr.urgency_level || 'Low';
@@ -1171,12 +1213,12 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td>${tr.project_code ? tr.project_code + ' - ' : ''}${tr.project_name || 'No project'}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</span></td>
                 <td>${formatDate(tr.date_submitted)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
                 <td>${serviceType}</td>
-                <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">Pending</span></td>
+                <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewTRDetails('${tr.id}')">Review</button>
                 </td>
@@ -1253,8 +1295,8 @@ async function viewPRDetails(prId) {
                     <div class="modal-detail-value">${pr.mrf_id}</div>
                 </div>
                 <div class="modal-detail-item">
-                    <div class="modal-detail-label">Project:</div>
-                    <div class="modal-detail-value">${pr.project_code ? pr.project_code + ' - ' : ''}${pr.project_name || 'No project'}</div>
+                    <div class="modal-detail-label">Department:</div>
+                    <div class="modal-detail-value" style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</div>
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Requestor:</div>
@@ -1386,8 +1428,8 @@ async function viewTRDetails(trId) {
                     <div>${tr.mrf_id}</div>
                 </div>
                 <div>
-                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Project:</div>
-                    <div>${tr.project_code ? tr.project_code + ' - ' : ''}${tr.project_name || 'No project'}</div>
+                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Department:</div>
+                    <div style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</div>
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Requestor:</div>
@@ -1519,7 +1561,9 @@ async function approvePRWithSignature(prId) {
             finance_approver_user_id: currentUser.uid,
             finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             finance_approved_at: serverTimestamp(),
-            date_approved: new Date().toISOString().split('T')[0] // Legacy compatibility
+            date_approved: new Date().toISOString().split('T')[0], // Legacy compatibility
+            approved_by_name: currentUser.full_name || currentUser.email || 'Finance User',
+            approved_by_uid: currentUser.uid
         });
 
         // Update MRF status
@@ -1617,6 +1661,9 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
             supplier_name: supplier,
             project_code: pr.project_code || '',
             project_name: pr.project_name,
+            service_code: pr.service_code || '',
+            service_name: pr.service_name || '',
+            department: pr.department || 'projects',
             requestor_name: pr.requestor_name,
             delivery_address: pr.delivery_address || '',
             items_json: JSON.stringify(supplierItems),
@@ -1676,7 +1723,9 @@ async function approveTR(trId) {
             finance_approver_user_id: currentUser.uid,
             finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             date_approved: new Date().toISOString().split('T')[0],
-            approved_at: new Date().toISOString()
+            approved_at: new Date().toISOString(),
+            approved_by_name: currentUser.full_name || currentUser.email || 'Finance User',
+            approved_by_uid: currentUser.uid
         });
 
         // Update MRF status
@@ -1838,7 +1887,9 @@ async function submitRejection() {
                 rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
                 rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
-                rejected_by_user_id: currentUser?.uid
+                rejected_by_user_id: currentUser?.uid,
+                approved_by_name: currentUser?.full_name || currentUser?.email || 'Finance User',
+                approved_by_uid: currentUser?.uid
             });
 
             // Update MRF
@@ -1869,7 +1920,9 @@ async function submitRejection() {
                 rejection_reason: reason,
                 rejected_at: new Date().toISOString(),
                 rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
-                rejected_by_user_id: currentUser?.uid
+                rejected_by_user_id: currentUser?.uid,
+                approved_by_name: currentUser?.full_name || currentUser?.email || 'Finance User',
+                approved_by_uid: currentUser?.uid
             });
 
             // Update MRF
@@ -1951,7 +2004,11 @@ async function loadPOs() {
 function renderPOs() {
     const container = document.getElementById('poList');
 
-    if (poData.length === 0) {
+    const filteredPOs = activeDeptFilter
+        ? poData.filter(po => (po.department || 'projects') === activeDeptFilter)
+        : poData;
+
+    if (filteredPOs.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 3rem; color: #666;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
@@ -1963,7 +2020,7 @@ function renderPOs() {
     }
 
     // Show only recent 20 POs
-    const recentPOs = poData.slice(0, 20);
+    const recentPOs = filteredPOs.slice(0, 20);
 
     container.innerHTML = `
         <table>
@@ -1999,10 +2056,10 @@ function renderPOs() {
                         <td><strong>${po.po_id}</strong></td>
                         <td>${po.pr_id}</td>
                         <td>${po.supplier_name}</td>
-                        <td>${po.project_code ? po.project_code + ' - ' : ''}${po.project_name || 'No project'}</td>
+                        <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
-                        <td><span style="background: #fef3c7; color: #f59e0b; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${po.procurement_status || 'Pending'}</span></td>
+                        <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending'}</span></td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
                         </td>
@@ -2010,7 +2067,7 @@ function renderPOs() {
                 `).join('')}
             </tbody>
         </table>
-        ${poData.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
+        ${filteredPOs.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
 
     // Update sort indicators for PO table

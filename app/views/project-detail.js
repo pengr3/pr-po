@@ -778,7 +778,7 @@ function attachWindowFunctions() {
     window.toggleActive = toggleActive;
     window.confirmDelete = confirmDelete;
     window.refreshExpense = refreshExpense;
-    window.showExpenseModal = () => currentProject && showExpenseBreakdownModal(currentProject.project_name);
+    window.showExpenseModal = () => currentProject && showExpenseBreakdownModal(currentProject.project_name, { mode: 'project' });
     window.selectDetailPersonnel = selectDetailPersonnel;
     window.removeDetailPersonnel = removeDetailPersonnel;
     window.filterDetailPersonnel = filterDetailPersonnel;

@@ -16,7 +16,7 @@ async function syncRolePermissions() {
 
     // Import Firebase SDK
     const { db } = await import('../app/firebase.js');
-    const { collection, getDocs, doc, updateDoc, serverTimestamp } = await import('../app/firebase.js');
+    const { collection, getDocs, doc, updateDoc, setDoc, serverTimestamp } = await import('../app/firebase.js');
 
     // Define default role templates (source of truth from seed-roles.js)
     const defaultRoleTemplates = [
@@ -58,6 +58,36 @@ async function syncRolePermissions() {
                     dashboard: { access: true, edit: false },
                     clients: { access: true, edit: false },
                     projects: { access: true, edit: false },
+                    mrf_form: { access: true, edit: true },
+                    procurement: { access: true, edit: true },
+                    finance: { access: true, edit: false },
+                    role_config: { access: false, edit: false }
+                }
+            }
+        },
+        {
+            role_id: 'services_admin',
+            role_name: 'Services Admin',
+            permissions: {
+                tabs: {
+                    dashboard: { access: true, edit: false },
+                    clients: { access: true, edit: true },
+                    services: { access: true, edit: true },
+                    mrf_form: { access: true, edit: true },
+                    procurement: { access: true, edit: true },
+                    finance: { access: true, edit: false },
+                    role_config: { access: false, edit: false }
+                }
+            }
+        },
+        {
+            role_id: 'services_user',
+            role_name: 'Services User',
+            permissions: {
+                tabs: {
+                    dashboard: { access: true, edit: false },
+                    clients: { access: true, edit: false },
+                    services: { access: true, edit: false },
                     mrf_form: { access: true, edit: true },
                     procurement: { access: true, edit: true },
                     finance: { access: true, edit: false },
@@ -113,13 +143,20 @@ async function syncRolePermissions() {
             const roleDoc = rolesSnapshot.docs.find(d => d.id === roleId);
 
             if (!roleDoc) {
-                console.warn(`⚠️  Role "${roleId}" not found in Firestore - skipping`);
+                // Create the document if it doesn't exist (setDoc = upsert)
+                await setDoc(doc(db, 'role_templates', roleId), {
+                    role_id: roleId,
+                    role_name: roleTemplate.role_name,
+                    permissions: roleTemplate.permissions,
+                    created_at: serverTimestamp()
+                });
+                console.log(`✨ Created: ${roleTemplate.role_name}`);
                 results.push({
                     role: roleTemplate.role_name,
-                    status: '❌ NOT FOUND',
-                    message: 'Create this role in Firestore first'
+                    status: '✨ CREATED',
+                    message: 'New role template created in Firestore'
                 });
-                skipCount++;
+                updateCount++;
                 continue;
             }
 

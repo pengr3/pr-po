@@ -1,5 +1,52 @@
 # Project Milestones: CLMC Procurement System
 
+## v2.3 Services Department Support (Shipped: 2026-02-26)
+
+**Delivered:** Parallel Services department workflow with complete role-based isolation, shared procurement pipeline, and 7 new UI modules.
+
+**Phases completed:** 26-40 (15 phases, 34 plans)
+
+**Key accomplishments:**
+
+- Firebase Security Rules and role templates for services_admin and services_user roles, enabling complete department isolation from day one
+- Services collection with CRUD, dual status tracking (internal_status + project_status), service_type differentiation (one-time vs recurring), and assignment system mirroring Projects
+- Shared CLMC_CLIENT_YYYY### code sequence across Projects and Services via parallel Promise.all query — no code collisions
+- Role-based MRF form dropdown visibility: operations roles see Projects, services roles see Services, cross-department roles see both
+- Cross-department Finance and Procurement workflows with department badges (color-coded) and optional department filter dropdowns across all tabs
+- Dashboard role-aware statistics: operations roles see Projects stats, services roles see Services stats, admin/finance/procurement see both groups labeled
+- Unified expense breakdown modal (showExpenseBreakdownModal with mode branching) replacing separate project and service implementations — services modal now correctly includes transport_requests
+- Admin Assignments overhaul replacing per-user assignment pages with compact table+modal interface (assignments.js) handling both departments
+- Badge color standardization across all procurement statuses using getStatusClass() and CSS classes in components.css
+- generateProjectCode() now queries both collections (mirrors generateServiceCode) — closes pre-existing code collision gap
+- My Requests sub-tab in MRF form: requestor self-service MRF tracking with PR/PO detail modals, procurement timeline, and View PR/PO document generation buttons
+- Client detail modal with linked projects/services and clickable navigation to detail pages
+- Procurement timeline fixes: emoji removal, Invalid Date resolution, PR->PO grouping, per-PO procurement status display
+
+**Stats:**
+
+- 142 files changed, +27,307/-895 lines
+- 15 phases, 34 plans
+- 8 days from first commit to ship (2026-02-18 → 2026-02-26)
+- Velocity: 0.5 days/phase (maintained from v2.2)
+- 65/65 requirements satisfied (100% coverage)
+- 3 audit cycles before milestone passed
+
+**New files:**
+- app/views/services.js — Services list view with sub-tabs, CRUD, filtering
+- app/views/service-detail.js — Service detail page with inline editing and expense breakdown
+- app/views/mrf-records.js — Reusable MRF records table controller (createMRFRecordsController factory)
+- app/views/assignments.js — Unified admin assignments UI (replaces project-assignments.js + service-assignments.js)
+- app/expense-modal.js — Unified expense breakdown modal for projects and services
+- app/edit-history.js — Edit history recording and timeline modal (parameterized by collection name)
+
+**New collections:** services
+
+**Git range:** `feat(26-01)` → `feat(40-07)` (15 phases, 34 plans)
+
+**What's next:** No active milestone. Run `/gsd:new-milestone` to plan v2.4.
+
+---
+
 ## v2.2 Workflow & UX Enhancements (Shipped: 2026-02-10)
 
 **Delivered:** Comprehensive workflow and UX improvements across all major areas with auto-population, restructured interfaces, comprehensive status tracking, signature capture, and consolidated navigation.
@@ -26,7 +73,7 @@
 
 **Git range:** `feat(15-02)` → `feat(25-02)` (37 feature commits)
 
-**What's next:** Planning v2.3 milestone - Address moderate tech debt (Finance rejection attribution), consider edit history PDF export for compliance, and evaluate new feature requests from UAT feedback.
+**What's next:** Planning v2.3 milestone - Services Department Support with two new roles, services collection, and shared procurement pipeline.
 
 ---
 

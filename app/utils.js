@@ -180,45 +180,53 @@ export async function generateSequentialId(collectionName, prefix, year = null) 
 
 /**
  * Generate composite project code: CLMC_CLIENT_YYYY###
+ * Shares sequence with Services collection to prevent collisions (CODE-01).
+ * Queries BOTH projects and services for the max sequence number so that
+ * projects and services never receive the same CLMC code for a given client/year.
+ *
  * @param {string} clientCode - Client code (e.g., "ACME")
- * @param {number} year - Year for the project code (defaults to current year)
- * @returns {Promise<string>} Generated project code
+ * @param {number|null} year - Year for the project code (defaults to current year)
+ * @returns {Promise<string>} Generated project code (e.g., CLMC_ACME_2026001)
  *
- * Example output: CLMC_ACME_2026001, CLMC_ACME_2026002
- *
- * Note: Uses regex parsing to handle client codes with underscores (e.g., ACME_INC)
- * Race condition possible with simultaneous creates - acceptable for v1.0
+ * Note: Race condition possible with simultaneous creates — acceptable at current scale.
+ * IMPORTANT: Service documents MUST store a client_code field for this query to work.
  */
 export async function generateProjectCode(clientCode, year = null) {
     try {
         const currentYear = year || new Date().getFullYear();
+        const rangeMin = `CLMC_${clientCode}_${currentYear}000`;
+        const rangeMax = `CLMC_${clientCode}_${currentYear}999`;
 
-        // Query projects for this client and year using range query
-        const q = query(
-            collection(db, 'projects'),
-            where('client_code', '==', clientCode),
-            where('project_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
-            where('project_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
-        );
+        // Query BOTH collections in parallel — shared sequence prevents collisions (CODE-01)
+        const [projectsSnap, servicesSnap] = await Promise.all([
+            getDocs(query(
+                collection(db, 'projects'),
+                where('client_code', '==', clientCode),
+                where('project_code', '>=', rangeMin),
+                where('project_code', '<=', rangeMax)
+            )),
+            getDocs(query(
+                collection(db, 'services'),
+                where('client_code', '==', clientCode),
+                where('service_code', '>=', rangeMin),
+                where('service_code', '<=', rangeMax)
+            ))
+        ]);
 
-        const snapshot = await getDocs(q);
-
+        const codeRegex = /^CLMC_.+_\d{4}(\d{3})$/;
         let maxNum = 0;
-        snapshot.forEach(doc => {
-            const code = doc.data().project_code;
-            // Use regex to extract 3-digit number - handles client codes with underscores
-            // Pattern: CLMC_{anything}_YYYY###
-            const match = code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-            if (match) {
-                const num = parseInt(match[1]);
-                if (num > maxNum) {
-                    maxNum = num;
-                }
-            }
+
+        projectsSnap.forEach(d => {
+            const match = d.data().project_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
         });
 
-        const newNum = maxNum + 1;
-        return `CLMC_${clientCode}_${currentYear}${String(newNum).padStart(3, '0')}`;
+        servicesSnap.forEach(d => {
+            const match = d.data().service_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        });
+
+        return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
     } catch (error) {
         console.error('[Projects] Error generating project code:', error);
         throw error;
@@ -243,6 +251,82 @@ export function getAssignedProjectCodes() {
 
     // Return the array if present, otherwise empty array (zero assignments)
     return Array.isArray(user.assigned_project_codes) ? user.assigned_project_codes : [];
+}
+
+/**
+ * Generate composite service code: CLMC_CLIENT_YYYY###
+ * Shares sequence with Projects collection to prevent collisions (SERV-02).
+ * Queries BOTH projects and services for the max sequence number so that
+ * services and projects never receive the same CLMC code for a given client/year.
+ *
+ * @param {string} clientCode - Client code (e.g., "ACME")
+ * @param {number|null} year - Year for the code (defaults to current year)
+ * @returns {Promise<string>} Generated service code (e.g., CLMC_ACME_2026003)
+ *
+ * Note: Race condition possible with simultaneous creates — acceptable at current scale.
+ * IMPORTANT: Service documents MUST store a client_code field for this query to work.
+ * Future: if collision risk grows, migrate to a counter document with FieldValue.increment().
+ */
+export async function generateServiceCode(clientCode, year = null) {
+    try {
+        const currentYear = year || new Date().getFullYear();
+        const rangeMin = `CLMC_${clientCode}_${currentYear}000`;
+        const rangeMax = `CLMC_${clientCode}_${currentYear}999`;
+
+        // Query BOTH collections in parallel (shared sequence, SERV-02)
+        const [projectsSnap, servicesSnap] = await Promise.all([
+            getDocs(query(
+                collection(db, 'projects'),
+                where('client_code', '==', clientCode),
+                where('project_code', '>=', rangeMin),
+                where('project_code', '<=', rangeMax)
+            )),
+            getDocs(query(
+                collection(db, 'services'),
+                where('client_code', '==', clientCode),
+                where('service_code', '>=', rangeMin),
+                where('service_code', '<=', rangeMax)
+            ))
+        ]);
+
+        const codeRegex = /^CLMC_.+_\d{4}(\d{3})$/;
+        let maxNum = 0;
+
+        projectsSnap.forEach(d => {
+            const match = d.data().project_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        });
+
+        servicesSnap.forEach(d => {
+            const match = d.data().service_code?.match(codeRegex);
+            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        });
+
+        return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+    } catch (error) {
+        console.error('[Services] Error generating service code:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get the set of service codes the current user is allowed to see.
+ * Returns null if no filtering should be applied (all roles except services_user,
+ * or services_user with all_services flag set).
+ * Returns an array of service_code strings if the user is scoped to specific services.
+ * Returns an empty array if the user is services_user with no assignments at all.
+ *
+ * @returns {string[]|null} Array of allowed service_codes, or null for "no filter"
+ */
+export function getAssignedServiceCodes() {
+    const user = window.getCurrentUser?.();
+    if (!user) return null;                           // Not logged in -- no filter
+    if (user.role !== 'services_user') return null;  // Only services_user is scoped
+
+    if (user.all_services === true) return null;      // "All services" escape hatch
+
+    // Return the array if present, otherwise empty array (zero assignments)
+    return Array.isArray(user.assigned_service_codes) ? user.assigned_service_codes : [];
 }
 
 /**
@@ -361,7 +445,20 @@ export function getStatusClass(status) {
         'rejected': 'rejected',
         'completed': 'approved',
         'active': 'approved',
-        'inactive': 'rejected'
+        'inactive': 'rejected',
+        // Procurement statuses
+        'pending procurement': 'pending',
+        'procuring': 'procuring',
+        'procured': 'approved',
+        'delivered': 'delivered',
+        // Finance statuses
+        'finance approved': 'approved',
+        'finance rejected': 'rejected',
+        'pr rejected': 'rejected',
+        'tr rejected': 'rejected',
+        // PR generation statuses
+        'pr generated': 'procuring',
+        'po issued': 'procuring',
     };
 
     return statusMap[statusLower] || 'pending';
@@ -440,6 +537,8 @@ window.utils = {
     showAlert,
     generateSequentialId,
     getAssignedProjectCodes,
+    generateServiceCode,
+    getAssignedServiceCodes,
     getActiveProjects,
     getAllSuppliers,
     calculateTotal,
@@ -454,6 +553,9 @@ window.utils = {
 };
 
 window.getAssignedProjectCodes = getAssignedProjectCodes;
+window.generateServiceCode = generateServiceCode;
+window.getAssignedServiceCodes = getAssignedServiceCodes;
+window.syncServicePersonnelToAssignments = syncServicePersonnelToAssignments;
 
 /* ========================================
    PERSONNEL UTILITIES
@@ -577,6 +679,83 @@ export async function syncPersonnelToAssignments(projectCode, previousUserIds, n
 
     if (errors.length > 0) {
         console.warn(`[PersonnelSync] Completed with ${errors.length} error(s)`);
+    }
+
+    return errors;
+}
+
+/**
+ * Sync personnel assignments to user assigned_service_codes.
+ * When personnel are added/removed from a service, atomically update
+ * each affected user's assigned_service_codes using arrayUnion/arrayRemove.
+ *
+ * Designed to be called fire-and-forget (.catch()) -- never blocks the caller.
+ *
+ * @param {string} serviceCode - The service_code to add/remove from users
+ * @param {string[]} previousUserIds - User IDs before the mutation
+ * @param {string[]} newUserIds - User IDs after the mutation
+ * @returns {Promise<Array>} Array of errors (empty if all succeeded)
+ */
+export async function syncServicePersonnelToAssignments(serviceCode, previousUserIds, newUserIds) {
+    if (!serviceCode) {
+        console.warn('[ServicePersonnelSync] No service_code provided, skipping sync');
+        return [];
+    }
+
+    const prevSet = new Set((previousUserIds || []).filter(Boolean));
+    const newSet = new Set((newUserIds || []).filter(Boolean));
+
+    const addedUserIds = [...newSet].filter(id => !prevSet.has(id));
+    const removedUserIds = [...prevSet].filter(id => !newSet.has(id));
+
+    console.log(`[ServicePersonnelSync] Syncing for service: ${serviceCode} | Added: ${addedUserIds.length}, Removed: ${removedUserIds.length}`);
+
+    if (addedUserIds.length === 0 && removedUserIds.length === 0) {
+        return [];
+    }
+
+    const errors = [];
+
+    // Process additions -- check all_services flag before adding
+    for (const userId of addedUserIds) {
+        try {
+            // Try to check all_services flag; skip read errors gracefully
+            // (services_user can't read other users' docs -- just proceed with the add)
+            let skipUser = false;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', userId));
+                if (userDoc.exists() && userDoc.data().all_services === true) {
+                    console.log(`[ServicePersonnelSync] Skipping ${userId} (all_services=true)`);
+                    skipUser = true;
+                }
+            } catch (readErr) {
+                console.log(`[ServicePersonnelSync] Cannot read user ${userId} (permission), proceeding with add`);
+            }
+            if (skipUser) continue;
+
+            await updateDoc(doc(db, 'users', userId), {
+                assigned_service_codes: arrayUnion(serviceCode)
+            });
+        } catch (err) {
+            console.error(`[ServicePersonnelSync] Failed to add service to user ${userId}:`, err);
+            errors.push(err);
+        }
+    }
+
+    // Process removals -- arrayRemove on non-existent value is a no-op
+    for (const userId of removedUserIds) {
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                assigned_service_codes: arrayRemove(serviceCode)
+            });
+        } catch (err) {
+            console.error(`[ServicePersonnelSync] Failed to remove service from user ${userId}:`, err);
+            errors.push(err);
+        }
+    }
+
+    if (errors.length > 0) {
+        console.warn(`[ServicePersonnelSync] Completed with ${errors.length} error(s)`);
     }
 
     return errors;

@@ -458,4 +458,38 @@ window.components = {
     createItemsTable
 };
 
+/* ========================================
+   DEPARTMENT / MRF LABEL HELPERS
+   ======================================== */
+
+/**
+ * Returns a display label for a document linked to a project or service.
+ * Checks department field first, then falls back to service_code presence.
+ * @param {object} doc - MRF, PR, TR, or PO document
+ * @returns {string}
+ */
+export function getMRFLabel(doc) {
+    if (doc.department === 'services' || (!doc.department && doc.service_code)) {
+        return doc.service_code
+            ? `${doc.service_code} - ${doc.service_name || 'No service'}`
+            : 'No service';
+    }
+    return doc.project_code
+        ? `${doc.project_code} - ${doc.project_name || 'No project'}`
+        : (doc.project_name || 'No project');
+}
+
+/**
+ * Returns a styled department badge HTML span for a document.
+ * @param {object} doc - Document with optional department/service_code fields
+ * @returns {string} HTML span string
+ */
+export function getDeptBadgeHTML(doc) {
+    const isServices = doc.department === 'services' || (!doc.department && doc.service_code);
+    const label = isServices ? 'Services' : 'Projects';
+    const bg    = isServices ? '#ede9fe' : '#dbeafe';
+    const color = isServices ? '#6d28d9' : '#1d4ed8';
+    return `<span style="background:${bg};color:${color};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${label}</span>`;
+}
+
 console.log('Components module loaded successfully');

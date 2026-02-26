@@ -125,6 +125,40 @@ async function seedUsers() {
       status: "Pending",
       items_json: JSON.stringify([{ item_name: "Legacy Item", qty: 1 }]),
     });
+
+    // Services Admin (all services access)
+    await setDoc(doc(db, "users", "active-services-admin"), {
+      email: "servicesadmin@clmc.com",
+      status: "active",
+      role: "services_admin",
+      display_name: "Services Admin",
+      all_services: true,
+      assigned_service_codes: []
+    });
+
+    // Services User (assigned to SVC-001 only, NOT SVC-UNASSIGNED)
+    await setDoc(doc(db, "users", "active-services-user"), {
+      email: "servicesuser@clmc.com",
+      status: "active",
+      role: "services_user",
+      display_name: "Services User",
+      all_services: false,
+      assigned_service_codes: ["SVC-001"]
+    });
+
+    // Test Service document (pre-seeded for read tests)
+    await setDoc(doc(db, "services", "SVC-001"), {
+      service_code: "SVC-001",
+      service_name: "Test Service Alpha",
+      status: "active"
+    });
+
+    // Unassigned service document (for list-scoping test — active-services-user is NOT assigned to this)
+    await setDoc(doc(db, "services", "SVC-UNASSIGNED"), {
+      service_code: "SVC-UNASSIGNED",
+      service_name: "Unassigned Service",
+      status: "active"
+    });
   });
 }
 
@@ -491,6 +525,165 @@ describe("clients collection - super admin access", () => {
         contact_person: "Finance Person",
         contact_details: "finance@test.com",
         created_at: new Date().toISOString(),
+      })
+    );
+  });
+});
+
+// =============================================
+// Test Suite: Services Collection - Role Access
+// =============================================
+
+describe("services collection - role access", () => {
+  beforeEach(seedUsers);
+
+  it("super_admin can read services collection", async () => {
+    const db = testEnv.authenticatedContext("active-super-admin").firestore();
+    await assertSucceeds(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("services_admin can read services collection", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("services_admin can create a service", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "services", "SVC-ADMIN-NEW"), {
+        service_code: "SVC-ADMIN-NEW",
+        service_name: "Admin Created Service",
+        status: "active"
+      })
+    );
+  });
+
+  it("services_admin can update a service", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "services", "SVC-001"), {
+        service_name: "Updated Service Name"
+      })
+    );
+  });
+
+  it("services_admin can delete a service", async () => {
+    // Seed a deletable doc first (rules disabled context)
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "services", "SVC-DELETE-TEST"), {
+        service_code: "SVC-DELETE-TEST",
+        service_name: "To Be Deleted"
+      });
+    });
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(deleteDoc(doc(db, "services", "SVC-DELETE-TEST")));
+  });
+
+  it("services_user can read an assigned service", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("services_user CANNOT create a service (read-only)", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertFails(
+      setDoc(doc(db, "services", "SVC-USER-WRITE"), {
+        service_code: "SVC-USER-WRITE",
+        service_name: "Unauthorized Write"
+      })
+    );
+  });
+
+  it("finance can read services collection (cross-department)", async () => {
+    const db = testEnv.authenticatedContext("active-finance").firestore();
+    await assertSucceeds(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("finance CANNOT write to services collection", async () => {
+    const db = testEnv.authenticatedContext("active-finance").firestore();
+    await assertFails(
+      setDoc(doc(db, "services", "SVC-FINANCE-WRITE"), {
+        service_code: "SVC-FINANCE-WRITE",
+        service_name: "Finance Write Attempt"
+      })
+    );
+  });
+
+  it("procurement can read services collection (cross-department)", async () => {
+    const db = testEnv.authenticatedContext("active-procurement").firestore();
+    await assertSucceeds(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("operations_user CANNOT read services collection (department silo)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertFails(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("operations_admin CANNOT read services collection (department silo)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertFails(getDoc(doc(db, "services", "SVC-001")));
+  });
+
+  it("services_user CANNOT list an unassigned service via collection query (list scoping)", async () => {
+    // DESIGN NOTE: allow get is intentionally broad for services_user (by doc ID lookup, mirrors mrfs pattern).
+    // The allow list rule is where assignment scoping is enforced via isAssignedToService().
+    // This test exercises the list rule path using a query, not getDoc.
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertFails(
+      getDocs(query(collection(db, "services"), where("service_code", "==", "SVC-UNASSIGNED")))
+    );
+  });
+});
+
+// =============================================
+// Test Suite: services_admin User Document Access
+// =============================================
+
+describe("services_admin user document access", () => {
+  beforeEach(seedUsers);
+
+  it("services_admin can get a services_user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(getDoc(doc(db, "users", "active-services-user")));
+  });
+
+  it("services_admin can list users collection", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(getDocs(query(collection(db, "users"), where("role", "==", "services_user"))));
+  });
+
+  it("services_admin can update assigned_service_codes on a services_user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "active-services-user"), {
+        assigned_service_codes: ["SVC-001", "SVC-002"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT update an operations_admin document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-ops-admin"), {
+        assigned_service_codes: ["SVC-001"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT update a finance user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-finance"), {
+        assigned_service_codes: ["SVC-001"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT update a super_admin document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-super-admin"), {
+        assigned_service_codes: ["SVC-001"]
       })
     );
   });

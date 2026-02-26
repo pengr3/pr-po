@@ -204,123 +204,111 @@ export function initAuthObserver() {
         if (user) {
             console.log('[Auth] User signed in:', user.email);
 
-            // Fetch user document from Firestore
-            try {
-                const userData = await getUserDocument(user.uid);
+            // Force a token refresh so Firestore WebSocket receives valid auth BEFORE
+            // any collection listener starts. Without this, listeners that use
+            // getUserData() in security rules fail on the first onAuthStateChanged
+            // event (which fires with the cached, unvalidated token).
+            try { await user.getIdToken(true); } catch (e) { console.warn('[Auth] Token refresh failed:', e); }
 
-                if (userData) {
-                    // Store user data
-                    currentUser = { uid: user.uid, ...userData };
+            // Use a single onSnapshot for both initial load and real-time updates.
+            // getDoc() internally creates an onSnapshot without an error callback,
+            // which causes Firebase SDK to log "Uncaught Error in snapshot listener"
+            // when the auth token hasn't propagated to Firestore yet.
+            // onSnapshot with an explicit error callback prevents that log entirely.
+            let isFirstSnapshot = true;
 
-                    // Initialize permissions if user is active with a role (PERM-16, PERM-17)
-                    if (userData.status === 'active' && userData.role) {
-                        await initPermissionsObserver(currentUser);
-                    }
+            userDocUnsubscribe = onSnapshot(
+                doc(db, 'users', user.uid),
+                async (docSnapshot) => {
+                    if (docSnapshot.exists()) {
+                        const userData = docSnapshot.data();
 
-                    // Update navigation for authenticated user
-                    updateNavForAuth(currentUser);
+                        // Capture previous state for change detection (Phase 7, PERM-19)
+                        const previousRole = currentUser?.role;
+                        const previousAssignedCodes = currentUser?.assigned_project_codes;
+                        const previousAllProjects = currentUser?.all_projects;
+                        const previousAssignedServiceCodes = currentUser?.assigned_service_codes;
+                        const previousAllServices = currentUser?.all_services;
 
-                    // Status-based routing (AUTH-08)
-                    const currentHash = window.location.hash;
+                        currentUser = { uid: user.uid, ...userData };
 
-                    if (userData.status === 'pending') {
-                        // Redirect pending users to pending page
-                        if (!currentHash.includes('/pending')) {
-                            console.log('[Auth] Pending user - redirecting to pending page');
+                        if (isFirstSnapshot) {
+                            isFirstSnapshot = false;
 
-                            // Preserve intended route for after approval (SEC-02)
-                            // If they become active, they'll be redirected to intended route
-                            const currentPath = window.location.hash.slice(1);
-                            if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
-                                console.log('[Auth] Preserving intended route for pending user:', currentPath);
-                                sessionStorage.setItem('intendedRoute', currentPath);
+                            // Initialize permissions if user is active with a role (PERM-16, PERM-17)
+                            if (userData.status === 'active' && userData.role) {
+                                await initPermissionsObserver(currentUser);
                             }
 
-                            window.location.hash = '#/pending';
-                        }
-                    } else if (userData.status === 'rejected') {
-                        // Rejected users also see pending page (shows rejection message)
-                        if (!currentHash.includes('/pending')) {
-                            console.log('[Auth] Rejected user - redirecting to pending page');
+                            // Update navigation for authenticated user
+                            updateNavForAuth(currentUser);
 
-                            // Preserve intended route for rejected user (in case they're reactivated)
-                            const currentPath = window.location.hash.slice(1);
-                            if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
-                                console.log('[Auth] Preserving intended route for rejected user:', currentPath);
-                                sessionStorage.setItem('intendedRoute', currentPath);
+                            // Status-based routing (AUTH-08)
+                            const currentHash = window.location.hash;
+
+                            if (userData.status === 'pending') {
+                                if (!currentHash.includes('/pending')) {
+                                    console.log('[Auth] Pending user - redirecting to pending page');
+                                    const currentPath = window.location.hash.slice(1);
+                                    if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
+                                        console.log('[Auth] Preserving intended route for pending user:', currentPath);
+                                        sessionStorage.setItem('intendedRoute', currentPath);
+                                    }
+                                    window.location.hash = '#/pending';
+                                }
+                            } else if (userData.status === 'rejected') {
+                                if (!currentHash.includes('/pending')) {
+                                    console.log('[Auth] Rejected user - redirecting to pending page');
+                                    const currentPath = window.location.hash.slice(1);
+                                    if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
+                                        console.log('[Auth] Preserving intended route for rejected user:', currentPath);
+                                        sessionStorage.setItem('intendedRoute', currentPath);
+                                    }
+                                    window.location.hash = '#/pending';
+                                }
+                            } else if (userData.status === 'deactivated') {
+                                console.log('[Auth] Deactivated user - signing out');
+                                if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
+                                await signOut(auth);
+                                window.location.hash = '#/login';
+                                return;
                             }
+                            // Active users: no forced redirect
 
-                            window.location.hash = '#/pending';
-                        }
-                    } else if (userData.status === 'deactivated') {
-                        // Deactivated users are logged out (silently - login page shows error)
-                        console.log('[Auth] Deactivated user - signing out');
-                        await signOut(auth);
-                        window.location.hash = '#/login';
-                        return;
-                    }
-                    // Active users: no forced redirect, allow normal navigation
+                            window.dispatchEvent(new CustomEvent('authStateChanged', {
+                                detail: { user: currentUser }
+                            }));
 
-                    // Dispatch custom event for auth state change
-                    window.dispatchEvent(new CustomEvent('authStateChanged', {
-                        detail: { user: currentUser }
-                    }));
+                            if (!initialRouteHandled && window.handleInitialRoute) {
+                                initialRouteHandled = true;
+                                window.handleInitialRoute();
+                            }
+                        } else {
+                            // Subsequent real-time updates (AUTH-09, PERM-19, Phase 7)
+                            console.log('[Auth] User document updated:', userData.status);
 
-                    // Handle initial route after auth state known (SEC-01)
-                    if (!initialRouteHandled && window.handleInitialRoute) {
-                        initialRouteHandled = true;
-                        window.handleInitialRoute();
-                    }
-
-                    // Set up real-time listener on user document (AUTH-09)
-                    userDocUnsubscribe = onSnapshot(doc(db, 'users', user.uid), async (docSnapshot) => {
-                        if (docSnapshot.exists()) {
-                            const updatedUserData = docSnapshot.data();
-
-                            // Detect role change (PERM-19) - reinitialize permission listener
-                            const previousRole = currentUser?.role;
-                            // Capture previous assignment state for change detection (Phase 7)
-                            const previousAssignedCodes = currentUser?.assigned_project_codes;
-                            const previousAllProjects = currentUser?.all_projects;
-                            currentUser = { uid: user.uid, ...updatedUserData };
-
-                            console.log('[Auth] User document updated:', updatedUserData.status);
-
-                            if (previousRole !== updatedUserData.role) {
-                                console.log('[Auth] Role changed:', previousRole, '->', updatedUserData.role);
-
-                                if (updatedUserData.status === 'active' && updatedUserData.role) {
-                                    // Reinitialize permissions with new role
+                            if (previousRole !== userData.role) {
+                                console.log('[Auth] Role changed:', previousRole, '->', userData.role);
+                                if (userData.status === 'active' && userData.role) {
                                     await initPermissionsObserver(currentUser);
                                 } else {
-                                    // No valid role, destroy permissions
                                     destroyPermissionsObserver();
                                 }
                             }
 
-                            // Phase 7: Detect assignment change and dispatch event
-                            // Compares serialized arrays because array reference equality is always false
-                            const newAssignedCodes = updatedUserData.assigned_project_codes;
-                            const newAllProjects = updatedUserData.all_projects;
-                            if (JSON.stringify(newAssignedCodes) !== JSON.stringify(previousAssignedCodes) ||
-                                newAllProjects !== previousAllProjects) {
+                            if (JSON.stringify(userData.assigned_project_codes) !== JSON.stringify(previousAssignedCodes) ||
+                                userData.all_projects !== previousAllProjects ||
+                                JSON.stringify(userData.assigned_service_codes) !== JSON.stringify(previousAssignedServiceCodes) ||
+                                userData.all_services !== previousAllServices) {
                                 console.log('[Auth] Assignments changed, dispatching event');
                                 window.dispatchEvent(new CustomEvent('assignmentsChanged', {
                                     detail: { user: currentUser }
                                 }));
                             }
 
-                            // AUTH-09: If status changes to 'deactivated', force logout
-                            if (updatedUserData.status === 'deactivated') {
+                            if (userData.status === 'deactivated') {
                                 console.warn('[Auth] User deactivated - forcing logout');
-
-                                // Clean up listener before logout
-                                if (userDocUnsubscribe) {
-                                    userDocUnsubscribe();
-                                    userDocUnsubscribe = null;
-                                }
-
-                                // Sign out and show alert (this is for real-time deactivation while user is active)
+                                if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                                 signOut(auth).then(() => {
                                     window.location.hash = '#/login';
                                     alert('Your account has been deactivated. Please contact an administrator.');
@@ -329,37 +317,33 @@ export function initAuthObserver() {
                                 });
                             }
                         }
-                    });
-                } else {
-                    console.warn('[Auth] User document not found for:', user.email);
+                    } else if (isFirstSnapshot) {
+                        isFirstSnapshot = false;
+                        console.warn('[Auth] User document not found for:', user.email);
 
-                    // Check if user was deleted (moved to deleted_users collection)
-                    try {
-                        const deletedUserDoc = await getDoc(doc(db, 'deleted_users', user.uid));
-
-                        if (deletedUserDoc.exists()) {
-                            // User account was deleted - force sign out (silently - login page shows error)
-                            console.error('[Auth] User account deleted - forcing sign out');
-                            await signOut(auth);
-                            window.location.hash = '#/login';
-                            return;
+                        // Check if user was deleted (moved to deleted_users collection)
+                        try {
+                            const deletedUserDoc = await getDoc(doc(db, 'deleted_users', user.uid));
+                            if (deletedUserDoc.exists()) {
+                                console.error('[Auth] User account deleted - forcing sign out');
+                                await signOut(auth);
+                                window.location.hash = '#/login';
+                                return;
+                            }
+                        } catch (error) {
+                            console.error('[Auth] Error checking deleted_users:', error);
                         }
-                    } catch (error) {
-                        console.error('[Auth] Error checking deleted_users:', error);
-                    }
 
-                    // User document missing (not deleted, but also not found)
-                    // This is an invalid state - force sign out for security (silently - login page shows error)
-                    console.error('[Auth] User document missing - forcing sign out for security');
-                    await signOut(auth);
-                    window.location.hash = '#/login';
-                    return;
+                        console.error('[Auth] User document missing - forcing sign out for security');
+                        await signOut(auth);
+                        window.location.hash = '#/login';
+                        return;
+                    }
+                },
+                (error) => {
+                    console.error('[Auth] User document listener error:', error);
                 }
-            } catch (error) {
-                console.error('[Auth] Error fetching user document:', error);
-                currentUser = { uid: user.uid, email: user.email };
-                updateNavForAuth(currentUser);
-            }
+            );
         } else {
             console.log('[Auth] User signed out');
 

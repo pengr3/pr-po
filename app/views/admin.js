@@ -18,7 +18,7 @@ const SECTIONS = {
     },
     assignments: {
         label: 'Assignments',
-        load: () => import('./project-assignments.js')
+        load: () => import('./assignments.js')
     },
     settings: {
         label: 'Settings',
