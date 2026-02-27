@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass } from '../utils.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
 // ========================================
@@ -107,6 +107,8 @@ function attachWindowFunctions() {
     window.viewPODocument = viewPODocument;
     window.downloadPODocument = downloadPODocument;
     window.generateAllPODocuments = generateAllPODocuments;
+    window.exportPRPORecordsCSV = exportPRPORecordsCSV;
+    window.exportPOTrackingCSV = exportPOTrackingCSV;
     console.log('[Procurement] ✅ All window functions attached successfully');
 }
 
@@ -254,6 +256,8 @@ export function render(activeTab = 'mrfs') {
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
                             </select>
+                            <button class="btn btn-secondary" onclick="window.exportPOTrackingCSV()">Export PO CSV</button>
+                            <button class="btn btn-secondary" onclick="window.exportPRPORecordsCSV()">Export MRF CSV</button>
                             <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
                         </div>
                     </div>
@@ -592,6 +596,8 @@ export async function destroy() {
     delete window.downloadPODocument;
     delete window.generateAllPODocuments;
     delete window.applyPODeptFilter;
+    delete window.exportPRPORecordsCSV;
+    delete window.exportPOTrackingCSV;
     activePODeptFilter = '';
 
     console.log('[Procurement] 🗑️ All window functions deleted');
@@ -2354,6 +2360,100 @@ function filterPRPORecords() {
 }
 
 /**
+ * Export the currently-filtered MRF Records (PR/PO Records) as a CSV file.
+ * Fetches PR and PO data per MRF from Firestore to include in the export.
+ * Exports filteredPRPORecords (all rows, not paginated).
+ */
+async function exportPRPORecordsCSV() {
+    if (filteredPRPORecords.length === 0) {
+        showToast('No records to export', 'info');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const headers = [
+            'MRF ID', 'Type', 'Project / Service', 'Requestor',
+            'MRF Status', 'Urgency', 'Date Needed',
+            'PR IDs', 'PR Suppliers', 'PR Total (PHP)',
+            'PO IDs', 'PO Status'
+        ];
+
+        const rows = await Promise.all(filteredPRPORecords.map(async (mrf) => {
+            const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
+            const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+            const label = getMRFLabel(mrf);
+            const dateNeeded = mrf.date_needed
+                ? formatDate(mrf.date_needed)
+                : (formatTimestamp(mrf.date_submitted || mrf.created_at) || '');
+
+            let prIds = '';
+            let prSuppliers = '';
+            let prTotal = 0;
+            let poIds = '';
+            let poStatuses = '';
+
+            if (type === 'Material') {
+                try {
+                    const prSnapshot = await getDocs(
+                        query(collection(db, 'prs'), where('mrf_id', '==', mrf.mrf_id))
+                    );
+                    const prs = [];
+                    prSnapshot.forEach(d => prs.push(d.data()));
+                    prs.sort((a, b) => (a.pr_id || '').localeCompare(b.pr_id || ''));
+
+                    prIds = prs.map(p => p.pr_id || '').join('; ');
+                    prSuppliers = [...new Set(prs.map(p => p.supplier_name || '').filter(Boolean))].join('; ');
+                    prTotal = prs
+                        .filter(p => p.finance_status !== 'Rejected')
+                        .reduce((sum, p) => sum + parseFloat(p.total_amount || 0), 0);
+                } catch (e) {
+                    console.error('[Procurement] Export: error fetching PRs for', mrf.mrf_id, e);
+                }
+
+                try {
+                    const poSnapshot = await getDocs(
+                        query(collection(db, 'pos'), where('mrf_id', '==', mrf.mrf_id))
+                    );
+                    const pos = [];
+                    poSnapshot.forEach(d => pos.push(d.data()));
+                    pos.sort((a, b) => (a.po_id || '').localeCompare(b.po_id || ''));
+
+                    poIds = pos.map(p => p.po_id || '').join('; ');
+                    poStatuses = [...new Set(pos.map(p => p.procurement_status || 'Pending Procurement').filter(Boolean))].join('; ');
+                } catch (e) {
+                    console.error('[Procurement] Export: error fetching POs for', mrf.mrf_id, e);
+                }
+            }
+
+            return [
+                displayId,
+                type,
+                label,
+                mrf.requestor_name || '',
+                mrf.status || '',
+                mrf.urgency_level || '',
+                dateNeeded,
+                prIds,
+                prSuppliers,
+                prTotal > 0 ? prTotal.toFixed(2) : '',
+                poIds,
+                poStatuses
+            ];
+        }));
+
+        const date = new Date().toISOString().slice(0, 10);
+        downloadCSV(headers, rows, `mrf-pr-po-records-${date}.csv`);
+        showToast(`Exported ${filteredPRPORecords.length} records`, 'success');
+    } catch (error) {
+        console.error('[Procurement] Export error:', error);
+        showToast('Export failed: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Calculate MRF status based on PR/PO state
  * Returns status text and color for badge rendering
  */
@@ -3660,6 +3760,43 @@ async function refreshPOTracking() {
     await loadPOTracking();
     showToast('PO list refreshed', 'success');
 };
+
+/**
+ * Export the currently dept-filtered PO Tracking list as a CSV file.
+ * Uses poData (real-time state), filtered by activePODeptFilter.
+ * Exports ALL rows — not paginated.
+ */
+function exportPOTrackingCSV() {
+    const filteredPOs = activePODeptFilter
+        ? poData.filter(po => (po.department || 'projects') === activePODeptFilter)
+        : poData;
+
+    if (filteredPOs.length === 0) {
+        showToast('No PO tracking records to export', 'info');
+        return;
+    }
+
+    const headers = ['PO ID', 'Type', 'Supplier', 'Project / Service', 'Amount (PHP)', 'Date Issued', 'Status'];
+    const rows = filteredPOs.map(po => {
+        const type = po.is_subcon ? 'Subcon' : 'Material';
+        const defaultStatus = po.is_subcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+        const label = getMRFLabel(po);
+        return [
+            po.po_id || '',
+            type,
+            po.supplier_name || '',
+            label,
+            parseFloat(po.total_amount || 0).toFixed(2),
+            formatTimestamp(po.date_issued) || '',
+            status
+        ];
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `po-tracking-${date}.csv`);
+    showToast(`Exported ${filteredPOs.length} PO records`, 'success');
+}
 
 /**
  * Render PO Tracking Table
