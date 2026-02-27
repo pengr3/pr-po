@@ -579,13 +579,13 @@ export function render(activeTab = 'approvals') {
             <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
                     <a href="#/finance/approvals" class="tab-btn ${activeTab === 'approvals' ? 'active' : ''}">
-                        📋 Pending Approvals
+                        Pending Approvals
                     </a>
                     <a href="#/finance/pos" class="tab-btn ${activeTab === 'pos' ? 'active' : ''}">
-                        📄 Purchase Orders
+                        Purchase Orders
                     </a>
                     <a href="#/finance/projects" class="tab-btn ${activeTab === 'projects' ? 'active' : ''}">
-                        💰 Project List
+                        Project List
                     </a>
                 </div>
             </div>
