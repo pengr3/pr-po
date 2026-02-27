@@ -6,7 +6,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes } from '../utils.js';
+import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 
 // Global state
@@ -73,6 +73,7 @@ function attachWindowFunctions() {
     window.applyServiceFilters = applyServiceFilters;
     window.debouncedServiceFilter = debouncedServiceFilter;
     window.sortServices = sortServices;
+    window.exportServicesCSV = exportServicesCSV;
     window.selectServicePersonnel = selectServicePersonnel;
     window.removeServicePersonnel = removeServicePersonnel;
     window.filterServicePersonnelDropdown = filterServicePersonnelDropdown;
@@ -121,9 +122,12 @@ export function render(activeTab = null) {
                                     onclick="window.navigateToTab('recurring')">Recurring</button>
                         </div>
                     </div>
-                    ${canCreateService ? `
-                        <button class="btn btn-primary" onclick="window.toggleAddServiceForm()">Add Service</button>
-                    ` : ''}
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="window.exportServicesCSV()">Export CSV</button>
+                        ${canCreateService ? `
+                            <button class="btn btn-primary" onclick="window.toggleAddServiceForm()">Add Service</button>
+                        ` : ''}
+                    </div>
                 </div>
 
                 <!-- Add Service Form -->
@@ -325,6 +329,32 @@ export async function init(activeTab = null) {
     await loadServices();
 }
 
+/**
+ * Export the currently-filtered services list as a CSV file.
+ */
+function exportServicesCSV() {
+    if (filteredServices.length === 0) {
+        showToast('No services to export', 'info');
+        return;
+    }
+    const headers = ['Code', 'Name', 'Client', 'Internal Status', 'Project Status', 'Active'];
+    const rows = filteredServices.map(service => {
+        const client = clientsData.find(c => c.id === service.client_id);
+        const clientName = client ? client.company_name : (service.client_code || '');
+        return [
+            service.service_code || '',
+            service.service_name || '',
+            clientName,
+            service.internal_status || '',
+            service.project_status || '',
+            service.active ? 'Yes' : 'No'
+        ];
+    });
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `services-${date}.csv`);
+}
+window.exportServicesCSV = exportServicesCSV;
+
 // Cleanup
 export async function destroy() {
     console.log('[Services] Destroying services view...');
@@ -372,6 +402,7 @@ export async function destroy() {
     delete window.applyServiceFilters;
     delete window.debouncedServiceFilter;
     delete window.sortServices;
+    delete window.exportServicesCSV;
     delete window.selectServicePersonnel;
     delete window.removeServicePersonnel;
     delete window.filterServicePersonnelDropdown;
