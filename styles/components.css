@@ -442,27 +442,23 @@ tr:hover {
 }
 
 /* Scroll-container for data tables at narrow viewports.
-   Wrap any <table> in this div to enable horizontal scroll with a
-   right-edge fade indicator. Plans 02 and 03 apply this class. */
+   Uses background-attachment: local/scroll trick so the right-edge shadow
+   only appears when there is actually more content to scroll to — it
+   automatically disappears when the user scrolls to the right edge. */
 .table-scroll-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    position: relative;
-}
-
-/* Right-edge fade gradient — signals the table continues to the right */
-.table-scroll-container::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 32px;
-    background: linear-gradient(to left, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);
-    pointer-events: none;
-    /* Only visible when the container is actually scrollable.
-       JS in Plans 02/03 adds class 'is-scrollable' when needed,
-       but the gradient is always present and harmless when not needed. */
+    background:
+        /* Cover whites (local = scroll with content, hides shadows at edges) */
+        linear-gradient(to right, #fff 0%, rgba(255,255,255,0) 100%) left center,
+        linear-gradient(to left,  #fff 0%, rgba(255,255,255,0) 100%) right center,
+        /* Shadows (scroll = stay fixed, revealed when cover scrolls away) */
+        linear-gradient(to right, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0) 100%) left center,
+        linear-gradient(to left,  rgba(0,0,0,0.07) 0%, rgba(0,0,0,0) 100%) right center;
+    background-repeat: no-repeat;
+    background-color: #fff;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
 }
 
 /* Pagination */
