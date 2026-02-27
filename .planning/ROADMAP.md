@@ -417,7 +417,10 @@ Plans:
   2. Tapping the hamburger icon opens a menu showing all navigation items the user has access to
   3. Tapping a menu item navigates to that view and closes the menu
   4. At full desktop width, the navigation renders as a standard horizontal bar with no hamburger icon
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 43-01-PLAN.md — Mobile hamburger nav: HTML structure + CSS animations + JS behavior + auth/router wiring
 
 ### Phase 44: Responsive Layouts
 **Goal**: Data tables, split panels, and modals remain functional and readable at any viewport width
@@ -499,7 +502,7 @@ Phases execute in numeric order: 41 → 42 → 43 → 44 → 45 → 46
 | 40. UI/UX Revisions | v2.3 | 7/7 | Complete | 2026-02-26 |
 | 41. List View Exports | 3/3 | Complete    | 2026-02-27 | - |
 | 42. Detail Page Exports | 1/1 | Complete    | 2026-02-27 | - |
-| 43. Mobile Hamburger Navigation | v2.4 | 0/TBD | Not started | - |
+| 43. Mobile Hamburger Navigation | v2.4 | 0/1 | Not started | - |
 | 44. Responsive Layouts | v2.4 | 0/TBD | Not started | - |
 | 45. Visual Polish | v2.4 | 0/TBD | Not started | - |
 | 46. Code Cleanup and MRF Fix | v2.4 | 0/TBD | Not started | - |
