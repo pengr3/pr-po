@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Productivity & Polish
 status: unknown
-last_updated: "2026-02-27T10:09:36.027Z"
+last_updated: "2026-02-27T10:13:12.337Z"
 progress:
   total_phases: 44
   completed_phases: 42
   total_plans: 118
-  completed_plans: 113
+  completed_plans: 114
 ---
 
 ---
@@ -61,10 +61,10 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 
 ## Current Position
 
-Phase: 43 of 6 (complete)
-Plan: 43-01 complete (Phase 43 fully done)
-Status: Phase 43 complete, next phase TBD
-Last activity: 2026-02-27 — Completed 43-01 (Mobile hamburger navigation for <768px viewports)
+Phase: 44 of 6 (in progress)
+Plan: 44-02 complete (2 of 3 plans done)
+Status: Phase 44 in progress — Plan 02 complete, Plan 03 remaining
+Last activity: 2026-02-27 — Completed 44-02 (table-scroll-container wrappers for projects, services, mrf-records, mrf-form)
 
 Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 13%
 
@@ -99,6 +99,7 @@ Progress: [████░░░░░░░░░░░░░░░░░░░
 | Phase 42-detail-page-exports P01 | 15 min | 3 tasks | 2 files |
 | Phase 43-mobile-hamburger-navigation P01 | 5min | 3 tasks | 4 files |
 | Phase 44-responsive-layouts P01 | 8 | 2 tasks | 2 files |
+| Phase 44-responsive-layouts P02 | 1min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,8 @@ Recent decisions relevant to v2.4:
 - [Phase 44-responsive-layouts]: column-reverse for .modal-footer mobile stacking — primary action stays visually first on mobile
 - [Phase 44-responsive-layouts]: nth-child(2) selector sufficient for MRF detail panel hide — no CSS ID required; Plan 03 JS toggles .mrf-selected on .dashboard-grid
 - [Phase 44-responsive-layouts]: .table-scroll-container distinct from .table-responsive — adds position:relative for ::after gradient scroll indicator
+- [Phase 44-responsive-layouts]: mrf-records.js main list table is in renderTable() at ~1232 (not generateItemsTableHTMLLocal at ~106) — only renderTable() table wrapped
+- [Phase 44-responsive-layouts]: mrf-form.js: inline overflow-x:auto div upgraded to .table-scroll-container class (margin preserved) — consistent CSS contract
 
 ### Pending Todos
 
@@ -138,4 +141,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 43-01-PLAN.md (Mobile hamburger navigation)
+Stopped at: Completed 44-02-PLAN.md (table-scroll-container wrappers for projects, services, mrf-records, mrf-form)
