@@ -35,9 +35,9 @@
 
 ### Navigation UI
 
-- [ ] **NAV-01**: All navigation links are standardized (no underlines, no emojis) across all views
-- [ ] **NAV-02**: Navigation appearance is consistent across all tabs and sub-tabs
-- [ ] **NAV-03**: Admin button is visually uniform with the rest of the top navigation items
+- [x] **NAV-01**: All navigation links are standardized (no underlines, no emojis) across all views
+- [x] **NAV-02**: Navigation appearance is consistent across all tabs and sub-tabs
+- [x] **NAV-03**: Admin button is visually uniform with the rest of the top navigation items
 
 ### MRF Processing Fix
 
@@ -97,9 +97,9 @@
 | CLN-01 | Phase 46 | Pending |
 | CLN-02 | Phase 46 | Pending |
 | BRD-01 | Phase 45 | Complete |
-| NAV-01 | Phase 45 | Pending |
-| NAV-02 | Phase 45 | Pending |
-| NAV-03 | Phase 45 | Pending |
+| NAV-01 | Phase 45 | Complete |
+| NAV-02 | Phase 45 | Complete |
+| NAV-03 | Phase 45 | Complete |
 | MRF-01 | Phase 46 | Pending |
 
 **Coverage:**

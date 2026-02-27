@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Productivity & Polish
 status: unknown
-last_updated: "2026-02-27T14:28:33.105Z"
+last_updated: "2026-02-27T14:28:37.375Z"
 progress:
   total_phases: 46
   completed_phases: 44
@@ -113,10 +113,10 @@ See: .planning/PROJECT.md (updated 2026-02-26)
 
 ## Current Position
 
-Phase: 45 of 6 (in progress)
-Plan: 45-01 complete (1 of 2 plans done)
-Status: Phase 45 in progress — plan 01 done
-Last activity: 2026-02-27 — Completed 45-01 (register.js CL placeholder replaced with CLMC logo img)
+Phase: 45 of 6 (complete)
+Plan: 45-02 complete (2 of 2 plans done — phase complete)
+Status: Phase 45 complete — all 2 plans done
+Last activity: 2026-02-27 — Completed 45-02 (nav visual defects: emoji removal from Finance tabs, text-decoration:none on .tab-btn, font:inherit on .nav-dropdown-trigger)
 
 Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 13%
 
@@ -186,6 +186,8 @@ Recent decisions relevant to v2.4:
 - [Phase 44-responsive-layouts]: mrf-form.js: inline overflow-x:auto div upgraded to .table-scroll-container class (margin preserved) — consistent CSS contract
 - [Phase 44]: poTrackingBody is a dead DOM reference in procurement.js render — renderPOTrackingTable() exits early when element absent — no wrapping needed
 - [Phase 45-visual-polish]: 45-01: Used local path for CLMC logo img in register.js (avoids GitHub cross-origin dependency); onerror fallback silently hides broken-image state
+- [Phase 45-visual-polish]: font: inherit shorthand used on .nav-dropdown-trigger — covers all UA-reset font properties; line-height: inherit added alongside it
+- [Phase 45-visual-polish]: text-decoration: none added to .tab-btn — anchor-based tab buttons need explicit suppression of browser default underlines
 
 ### Pending Todos
 
@@ -198,4 +200,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 44-03-PLAN.md (table-scroll-container wrappers for procurement+finance, mobile split-panel wired in selectMRF/createNewMRF) — Phase 44 complete
+Stopped at: Completed 45-02-PLAN.md (nav visual defects: emoji removal from Finance tabs, text-decoration:none on .tab-btn, font:inherit on .nav-dropdown-trigger) — Phase 45 complete
