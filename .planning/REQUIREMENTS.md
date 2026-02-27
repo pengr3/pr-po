@@ -31,7 +31,7 @@
 
 ### Branding
 
-- [ ] **BRD-01**: Registration page displays company logo instead of the "CL" text placeholder
+- [x] **BRD-01**: Registration page displays company logo instead of the "CL" text placeholder
 
 ### Navigation UI
 
@@ -96,7 +96,7 @@
 | RES-05 | Phase 44 | Complete |
 | CLN-01 | Phase 46 | Pending |
 | CLN-02 | Phase 46 | Pending |
-| BRD-01 | Phase 45 | Pending |
+| BRD-01 | Phase 45 | Complete |
 | NAV-01 | Phase 45 | Pending |
 | NAV-02 | Phase 45 | Pending |
 | NAV-03 | Phase 45 | Pending |
