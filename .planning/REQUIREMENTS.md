@@ -9,8 +9,8 @@
 ### Export
 
 - [x] **EXP-01**: User can export the MRF list as a CSV file
-- [ ] **EXP-02**: User can export the PR/PO Records list as a CSV file
-- [ ] **EXP-03**: User can export the PO Tracking list as a CSV file
+- [x] **EXP-02**: User can export the PR/PO Records list as a CSV file
+- [x] **EXP-03**: User can export the PO Tracking list as a CSV file
 - [x] **EXP-04**: User can export the Projects list as a CSV file
 - [x] **EXP-05**: User can export the Services list as a CSV file
 - [ ] **EXP-06**: User can export a project's expense breakdown as a CSV file
@@ -83,8 +83,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | EXP-01 | Phase 41 | Complete |
-| EXP-02 | Phase 41 | Pending |
-| EXP-03 | Phase 41 | Pending |
+| EXP-02 | Phase 41 | Complete |
+| EXP-03 | Phase 41 | Complete |
 | EXP-04 | Phase 41 | Complete |
 | EXP-05 | Phase 41 | Complete |
 | EXP-06 | Phase 42 | Pending |
