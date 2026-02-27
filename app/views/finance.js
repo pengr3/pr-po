@@ -630,6 +630,7 @@ export function render(activeTab = 'approvals') {
                             <button class="btn btn-secondary" onclick="window.refreshPRs()">🔄 Refresh</button>
                         </div>
                     </div>
+                    <div class="table-scroll-container">
                     <table>
                         <thead>
                             <tr>
@@ -650,6 +651,7 @@ export function render(activeTab = 'approvals') {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div style="margin: 2rem 0;"></div>
@@ -659,6 +661,7 @@ export function render(activeTab = 'approvals') {
                     <div class="card-header">
                         <h2>🚚 Transport Requests</h2>
                     </div>
+                    <div class="table-scroll-container">
                     <table>
                         <thead>
                             <tr>
@@ -679,6 +682,7 @@ export function render(activeTab = 'approvals') {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -2026,6 +2030,7 @@ function renderPOs() {
     const recentPOs = filteredPOs.slice(0, 20);
 
     container.innerHTML = `
+        <div class="table-scroll-container">
         <table>
             <thead>
                 <tr>
@@ -2070,6 +2075,7 @@ function renderPOs() {
                 `).join('')}
             </tbody>
         </table>
+        </div>
         ${filteredPOs.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
 
