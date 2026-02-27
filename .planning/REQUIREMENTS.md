@@ -20,7 +20,7 @@
 
 - [x] **RES-01**: Top navigation collapses into a hamburger menu at narrow viewport widths
 - [x] **RES-02**: Data tables scroll horizontally rather than overflowing or clipping content
-- [ ] **RES-03**: Split-panel layouts (e.g. MRF list + MRF Details) stack vertically at narrow widths
+- [x] **RES-03**: Split-panel layouts (e.g. MRF list + MRF Details) stack vertically at narrow widths
 - [x] **RES-04**: Modals and dialogs resize to remain fully visible and usable at any viewport width
 - [x] **RES-05**: All views remain functional and readable at minimum browser window size
 
@@ -91,7 +91,7 @@
 | EXP-07 | Phase 42 | Complete |
 | RES-01 | Phase 43 | Complete |
 | RES-02 | Phase 44 | Complete |
-| RES-03 | Phase 44 | Pending |
+| RES-03 | Phase 44 | Complete |
 | RES-04 | Phase 44 | Complete |
 | RES-05 | Phase 44 | Complete |
 | CLN-01 | Phase 46 | Pending |
