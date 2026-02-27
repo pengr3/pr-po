@@ -49,7 +49,10 @@ function renderMyRequestsView(tabNav) {
                 <div class="card">
                     <div class="card-header">
                         <h2>My Requests</h2>
-                        <button class="btn btn-secondary" onclick="window._myRequestsReload()">Refresh</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary" onclick="window._myRequestsExportCSV()">Export CSV</button>
+                            <button class="btn btn-secondary" onclick="window._myRequestsReload()">Refresh</button>
+                        </div>
                     </div>
                     <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
@@ -349,6 +352,7 @@ export async function init(activeTab = 'form') {
         myRequestsController = null;
         delete window._myRequestsFilter;
         delete window._myRequestsReload;
+        delete window._myRequestsExportCSV;
     }
 
     console.log('[MRFForm] Initializing form tab...');
@@ -453,6 +457,12 @@ async function initMyRequests() {
 
         window._myRequestsReload = async () => {
             await myRequestsController.load();
+        };
+
+        window._myRequestsExportCSV = () => {
+            if (myRequestsController) {
+                myRequestsController.exportCSV();
+            }
         };
 
         await myRequestsController.load();
@@ -931,6 +941,7 @@ export async function destroy() {
     // Clean up My Requests window functions
     delete window._myRequestsFilter;
     delete window._myRequestsReload;
+    delete window._myRequestsExportCSV;
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');
