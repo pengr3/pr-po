@@ -431,7 +431,12 @@ Plans:
   2. Split-panel views (MRF list and MRF detail side by side) stack vertically at narrow widths so both panels are fully readable
   3. Modals and dialogs fit within the viewport at narrow widths and do not overflow or clip action buttons
   4. All views are functional and readable at the minimum supported browser window size
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 44-01-PLAN.md — CSS infrastructure: .table-scroll-container class + modal footer stacking + detail-panel hide/show hook
+- [ ] 44-02-PLAN.md — Apply scroll containers to projects.js, services.js, mrf-records.js tables
+- [ ] 44-03-PLAN.md — Apply scroll containers to procurement.js + finance.js + wire split-panel auto-scroll behavior
 
 ### Phase 45: Visual Polish
 **Goal**: Registration page shows the company logo and navigation is visually consistent across all views
@@ -503,6 +508,6 @@ Phases execute in numeric order: 41 → 42 → 43 → 44 → 45 → 46
 | 41. List View Exports | 3/3 | Complete    | 2026-02-27 | - |
 | 42. Detail Page Exports | 1/1 | Complete    | 2026-02-27 | - |
 | 43. Mobile Hamburger Navigation | 1/1 | Complete    | 2026-02-27 | - |
-| 44. Responsive Layouts | v2.4 | 0/TBD | Not started | - |
+| 44. Responsive Layouts | v2.4 | 0/3 | Not started | - |
 | 45. Visual Polish | v2.4 | 0/TBD | Not started | - |
 | 46. Code Cleanup and MRF Fix | v2.4 | 0/TBD | Not started | - |
