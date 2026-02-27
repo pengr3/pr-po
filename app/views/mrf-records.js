@@ -1229,6 +1229,7 @@ export function createMRFRecordsController(options) {
         }));
 
         container.innerHTML = `
+            <div class="table-scroll-container">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #f8f9fa;">
@@ -1246,6 +1247,7 @@ export function createMRFRecordsController(options) {
                     ${rows.join('')}
                 </tbody>
             </table>
+            </div>
         `;
 
         renderPagination(totalPages);
