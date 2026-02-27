@@ -12,7 +12,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, query, where, orderBy, doc } from '../firebase.js';
-import { formatDate, formatTimestamp, getStatusClass, formatCurrency, showLoading, showToast } from '../utils.js';
+import { formatDate, formatTimestamp, getStatusClass, formatCurrency, showLoading, showToast, downloadCSV } from '../utils.js';
 import { getMRFLabel, createModal, openModal, closeModal } from '../components.js';
 
 /**
@@ -1252,6 +1252,41 @@ export function createMRFRecordsController(options) {
     }
 
     // ------------------------------------------------
+    // EXPORT
+    // ------------------------------------------------
+
+    /**
+     * Export the current filteredRecords as a CSV file.
+     * Uses filteredRecords (post-filter), not allRecords.
+     */
+    function exportCSV() {
+        if (filteredRecords.length === 0) {
+            showToast('No records to export', 'info');
+            return;
+        }
+        const headers = ['MRF ID', 'Type', 'Project / Service', 'Requestor', 'Date Needed', 'Urgency', 'Status'];
+        const rows = filteredRecords.map(mrf => {
+            const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
+            const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+            const label = mrf.project_name || mrf.service_name || '';
+            const dateNeeded = mrf.date_needed
+                ? formatDate(mrf.date_needed)
+                : (formatTimestamp(mrf.date_submitted || mrf.created_at) || '');
+            return [
+                displayId,
+                type,
+                label,
+                mrf.requestor_name || '',
+                dateNeeded,
+                mrf.urgency_level || '',
+                mrf.status || ''
+            ];
+        });
+        const date = new Date().toISOString().slice(0, 10);
+        downloadCSV(headers, rows, `mrf-list-${date}.csv`);
+    }
+
+    // ------------------------------------------------
     // PAGINATION
     // ------------------------------------------------
 
@@ -1340,5 +1375,5 @@ export function createMRFRecordsController(options) {
     // PUBLIC API
     // ------------------------------------------------
 
-    return { load, filter, destroy };
+    return { load, filter, exportCSV, destroy };
 }
