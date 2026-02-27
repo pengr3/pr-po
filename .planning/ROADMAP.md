@@ -447,7 +447,11 @@ Plans:
   2. No navigation link or tab label in any view has an underline or emoji
   3. The Admin button in the top navigation is styled identically to all other top navigation items
   4. Navigation appearance is consistent when switching between any two tabs or sub-tabs
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 45-01-PLAN.md — Registration page logo: replace CL placeholder with company PNG (BRD-01)
+- [ ] 45-02-PLAN.md — Nav polish: strip Finance tab emojis + tab-btn text-decoration + Admin button font (NAV-01, NAV-02, NAV-03)
 
 ### Phase 46: Code Cleanup and MRF Fix
 **Goal**: Dead files are removed from the codebase and MRF creation in Procurement uses the same unified project/service dropdown as the MRF form view
@@ -509,5 +513,5 @@ Phases execute in numeric order: 41 → 42 → 43 → 44 → 45 → 46
 | 42. Detail Page Exports | 1/1 | Complete    | 2026-02-27 | - |
 | 43. Mobile Hamburger Navigation | 1/1 | Complete    | 2026-02-27 | - |
 | 44. Responsive Layouts | 3/3 | Complete    | 2026-02-27 | - |
-| 45. Visual Polish | v2.4 | 0/TBD | Not started | - |
+| 45. Visual Polish | v2.4 | 0/2 | Not started | - |
 | 46. Code Cleanup and MRF Fix | v2.4 | 0/TBD | Not started | - |
