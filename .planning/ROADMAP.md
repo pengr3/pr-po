@@ -461,7 +461,11 @@ Plans:
   1. project-assignments.js and service-assignments.js no longer exist in the repository
   2. No other unreferenced view or utility files remain in the codebase
   3. The Create MRF form in Procurement > MRF Processing shows a single dropdown listing both active projects and active services, in the same format used by the standalone MRF form view
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 46-01-PLAN.md — Dead file removal + nul cleanup + console.log sweep + CDN audit (CLN-01, CLN-02)
+- [ ] 46-02-PLAN.md — Unified MRF dropdown in Procurement + CLAUDE.md update (MRF-01)
 
 ## Progress
 
