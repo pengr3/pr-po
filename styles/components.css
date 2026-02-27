@@ -1336,6 +1336,18 @@ tr:hover {
         justify-content: center;
         flex-wrap: wrap;
     }
+
+    /* Stack modal footer buttons vertically on mobile */
+    .modal-footer {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 /* ========================================

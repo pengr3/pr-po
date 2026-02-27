@@ -862,6 +862,17 @@
     .historical-filters {
         flex-direction: column;
     }
+
+    /* Hide MRF detail panel on mobile when no MRF is selected.
+       JS in Plan 03 adds class 'mrf-selected' to .dashboard-grid when
+       user picks an MRF. The detail card is the second child of .dashboard-grid. */
+    .dashboard-grid > .card:nth-child(2) {
+        display: none;
+    }
+
+    .dashboard-grid.mrf-selected > .card:nth-child(2) {
+        display: block;
+    }
 }
 
 /* ========================================
