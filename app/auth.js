@@ -403,6 +403,19 @@ function updateNavForAuth(user) {
             const hasAccess = permissions?.tabs?.[route]?.access ?? true;
             dropdown.style.display = hasAccess ? '' : 'none';
         });
+
+        // Mirror visibility in mobile menu
+        const mobileItems = document.querySelectorAll('.mobile-nav-item[data-route]');
+        mobileItems.forEach(item => {
+            const route = item.getAttribute('data-route');
+            const hasAccess = permissions?.tabs?.[route]?.access ?? true;
+            item.style.display = hasAccess ? '' : 'none';
+        });
+        // Show mobile logout footer and set username
+        const mobileFooter = document.querySelector('.mobile-nav-footer');
+        if (mobileFooter) mobileFooter.style.display = '';
+        const mobileUsername = document.getElementById('mobileNavUsername');
+        if (mobileUsername) mobileUsername.textContent = user.full_name || user.email || '';
     } else {
         // Hide logout button for unauthenticated users
         if (logoutBtn) logoutBtn.style.display = 'none';
@@ -418,6 +431,12 @@ function updateNavForAuth(user) {
         dropdowns.forEach(dropdown => {
             dropdown.style.display = 'none';
         });
+
+        // Hide all mobile nav items
+        const mobileItems = document.querySelectorAll('.mobile-nav-item[data-route]');
+        mobileItems.forEach(item => { item.style.display = 'none'; });
+        const mobileFooter = document.querySelector('.mobile-nav-footer');
+        if (mobileFooter) mobileFooter.style.display = 'none';
 
         console.log('[Auth] Navigation hidden for unauthenticated user');
     }

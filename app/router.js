@@ -166,6 +166,15 @@ function updateNavigation(path) {
         }
     }
 
+    // Mirror active state in mobile menu
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        item.classList.remove('active');
+        const href = item.getAttribute('href');
+        if (href && href.startsWith('#' + path)) {
+            item.classList.add('active');
+        }
+    });
+
     // Update page title
     const route = routes[path];
     if (route) {
