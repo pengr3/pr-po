@@ -441,6 +441,30 @@ tr:hover {
     -webkit-overflow-scrolling: touch;
 }
 
+/* Scroll-container for data tables at narrow viewports.
+   Wrap any <table> in this div to enable horizontal scroll with a
+   right-edge fade indicator. Plans 02 and 03 apply this class. */
+.table-scroll-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+/* Right-edge fade gradient — signals the table continues to the right */
+.table-scroll-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 32px;
+    background: linear-gradient(to left, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 100%);
+    pointer-events: none;
+    /* Only visible when the container is actually scrollable.
+       JS in Plans 02/03 adds class 'is-scrollable' when needed,
+       but the gradient is always present and harmless when not needed. */
+}
+
 /* Pagination */
 .pagination {
     display: flex;
