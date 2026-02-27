@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: Productivity & Polish
-status: roadmap_ready
-last_updated: "2026-02-26T00:00:00.000Z"
+status: in_progress
+last_updated: "2026-02-27T09:16:37Z"
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Milestone v2.4 — Productivity & Polish (Phase 41 ready to plan)
+**Current focus:** Milestone v2.4 — Productivity & Polish (Phase 41 Plan 01 complete)
 
 ## Current Position
 
-Phase: 0 of 6 (roadmap complete, planning not started)
-Plan: —
-Status: Ready to plan Phase 41
-Last activity: 2026-02-26 — Roadmap created for v2.4 (6 phases, 19 requirements mapped)
+Phase: 41 of 6 (in progress)
+Plan: 41-01 complete, 41-02 next
+Status: Executing Phase 41
+Last activity: 2026-02-27 — Completed 41-01 (downloadCSV utility + Projects/Services Export CSV buttons)
 
-Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 3%
 
 ## Performance Metrics
 
@@ -50,6 +50,12 @@ Progress: [░░░░░░░░░░░░░░░░░░░░░░░
 - v2.3: 0.5 days/phase (15 phases, 8 days)
 - Trend: Stable — high velocity maintained
 
+**v2.4 Execution:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 41-list-view-exports P01 | 2 min | 3 tasks | 3 files |
+
 ## Accumulated Context
 
 ### Decisions
@@ -62,6 +68,8 @@ Recent decisions relevant to v2.4:
 - v2.4: Export phases split by location — list view exports (P41) vs detail page exports (P42) — separate code paths, separate delivery boundaries
 - v2.4: Phases 43 and 44 ordered so hamburger nav (P43) lands before layout fixes (P44) — nav breakpoint must exist before layout breakpoints reference it
 - v2.4: Phases 41, 43, 45, 46 are independent of each other — can execute in any order relative to each other after P40
+- 41-01: downloadCSV placed in utils.js as shared utility so Plans 02 and 03 import the same function (no duplication)
+- 41-01: CSV export uses filteredProjects/filteredServices (filtered subset) not raw unfiltered arrays — respects active UI filters
 
 ### Pending Todos
 
@@ -73,5 +81,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Roadmap created — run /gsd:plan-phase 41 to begin
+Last session: 2026-02-27
+Stopped at: Completed 41-01-PLAN.md (downloadCSV utility + Projects/Services Export CSV buttons)
