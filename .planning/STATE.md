@@ -31,14 +31,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-26)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Milestone v2.4 — Productivity & Polish (Phase 41 complete — all 3 plans done)
+**Current focus:** Milestone v2.4 — Productivity & Polish (Phase 42 complete — all 1 plan done)
 
 ## Current Position
 
-Phase: 41 of 6 (complete)
-Plan: 41-03 complete (Phase 41 fully done)
-Status: Phase 41 complete, next phase TBD
-Last activity: 2026-02-27 — Completed 41-03 (Procurement MRF Records and PO Tracking CSV exports)
+Phase: 42 of 6 (complete)
+Plan: 42-01 complete (Phase 42 fully done)
+Status: Phase 42 complete, next phase TBD
+Last activity: 2026-02-27 — Completed 42-01 (Detail page Export CSV buttons for project-detail and service-detail)
 
 Progress: [████░░░░░░░░░░░░░░░░░░░░░░░░░░] 13%
 
@@ -70,6 +70,7 @@ Progress: [████░░░░░░░░░░░░░░░░░░░
 | Phase 41-list-view-exports P01 | 2 min | 3 tasks | 3 files |
 | Phase 41-list-view-exports P02 | 2 min | 3 tasks | 3 files |
 | Phase 41-list-view-exports P03 | 4 | 2 tasks | 1 files |
+| Phase 42-detail-page-exports P01 | 15 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Recent decisions relevant to v2.4:
 - 41-02: Finance PO export uses full poData after dept filter (not page-limited 20-row display) — complete data extraction
 - 41-02: exportCSV placed inside createMRFRecordsController closure so it closes over filteredRecords state directly
 - [Phase 41-03]: Both Export buttons placed in MRF Records card-header alongside dept filter — no separate PO Tracking card-header exists in render(); dept filter governs both exports so co-locating is correct
+- [Phase 42-01]: Service export queries POs by service_code (actual PO field), not service_name — CONTEXT.md phrasing was imprecise; service_code is consistent with refreshServiceExpense()
+- [Phase 42-01]: Filter compliance on detail pages: no user-facing filter controls exist on Financial Summary card, so querying all POs for the entity IS the filtered set; future filter additions must update export functions
 
 ### Pending Todos
 
@@ -101,4 +104,4 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 41-03-PLAN.md (Procurement MRF Records and PO Tracking CSV exports)
+Stopped at: Completed 42-01-PLAN.md (Detail page Export CSV buttons for project-detail and service-detail)

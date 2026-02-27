@@ -13,8 +13,8 @@
 - [x] **EXP-03**: User can export the PO Tracking list as a CSV file
 - [x] **EXP-04**: User can export the Projects list as a CSV file
 - [x] **EXP-05**: User can export the Services list as a CSV file
-- [ ] **EXP-06**: User can export a project's expense breakdown as a CSV file
-- [ ] **EXP-07**: User can export a service's expense breakdown as a CSV file
+- [x] **EXP-06**: User can export a project's expense breakdown as a CSV file
+- [x] **EXP-07**: User can export a service's expense breakdown as a CSV file
 
 ### Responsive Design
 
@@ -87,8 +87,8 @@
 | EXP-03 | Phase 41 | Complete |
 | EXP-04 | Phase 41 | Complete |
 | EXP-05 | Phase 41 | Complete |
-| EXP-06 | Phase 42 | Pending |
-| EXP-07 | Phase 42 | Pending |
+| EXP-06 | Phase 42 | Complete |
+| EXP-07 | Phase 42 | Complete |
 | RES-01 | Phase 43 | Pending |
 | RES-02 | Phase 44 | Pending |
 | RES-03 | Phase 44 | Pending |
