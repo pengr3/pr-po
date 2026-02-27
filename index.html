@@ -25,6 +25,13 @@
                      onerror="this.style.display='none'">
                 CLMC Operations
             </a>
+            <button class="nav-hamburger-btn" id="hamburgerBtn" onclick="toggleMobileMenu()" aria-label="Open navigation menu" aria-expanded="false">
+                <span class="hamburger-icon">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            </button>
             <div class="nav-links">
                 <a href="#/" class="nav-link" data-route="dashboard">Home</a>
                 <a href="#/clients" class="nav-link" data-route="clients">Clients</a>
@@ -47,6 +54,26 @@
             </div>
         </div>
     </nav>
+
+    <!-- Mobile Navigation Menu -->
+    <div class="mobile-nav-backdrop" id="mobileNavBackdrop" onclick="closeMobileMenu()"></div>
+    <div class="mobile-nav-menu" id="mobileNavMenu" role="dialog" aria-label="Navigation menu">
+        <nav class="mobile-nav-items">
+            <a href="#/" class="mobile-nav-item" data-route="dashboard" onclick="mobileNavClick(event, this)">Home</a>
+            <a href="#/clients" class="mobile-nav-item" data-route="clients" onclick="mobileNavClick(event, this)">Clients</a>
+            <a href="#/projects" class="mobile-nav-item" data-route="projects" onclick="mobileNavClick(event, this)">Projects</a>
+            <a href="#/services" class="mobile-nav-item" data-route="services" onclick="mobileNavClick(event, this)">Services</a>
+            <a href="#/mrf-form" class="mobile-nav-item" data-route="mrf_form" onclick="mobileNavClick(event, this)">Material Request</a>
+            <a href="#/procurement" class="mobile-nav-item" data-route="procurement" onclick="mobileNavClick(event, this)">Procurement</a>
+            <a href="#/finance" class="mobile-nav-item" data-route="finance" onclick="mobileNavClick(event, this)">Finance</a>
+            <a href="#/admin" class="mobile-nav-item" data-route="role_config" onclick="mobileNavClick(event, this)">Admin</a>
+        </nav>
+        <div class="mobile-nav-footer">
+            <hr class="mobile-nav-divider">
+            <span class="mobile-nav-username" id="mobileNavUsername"></span>
+            <button class="mobile-nav-logout" onclick="closeMobileMenu(); handleLogout();">Log Out</button>
+        </div>
+    </div>
 
     <!-- Main Application Container -->
     <div id="app-container">
