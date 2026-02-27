@@ -220,6 +220,7 @@ export function render(activeTab = 'mrfs') {
                     </div>
 
                     <!-- Suppliers Table -->
+                    <div class="table-scroll-container">
                     <table>
                         <thead>
                             <tr>
@@ -238,6 +239,7 @@ export function render(activeTab = 'mrfs') {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                     <div id="suppliersPagination"></div>
                 </div>
             </section>
@@ -929,6 +931,10 @@ function createNewMRF() {
     };
 
     renderMRFDetails(currentMRF, true); // true indicates this is a new MRF
+
+    // Mobile split-panel: reveal detail card so user can fill in the form
+    const grid = document.querySelector('.dashboard-grid');
+    if (grid) grid.classList.add('mrf-selected');
 };
 
 /**
@@ -950,6 +956,19 @@ async function selectMRF(mrfId, element) {
         // Update selected state
         document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
         element.classList.add('selected');
+
+        // Mobile split-panel: reveal detail card and auto-scroll to it
+        if (window.innerWidth <= 768) {
+            const grid = document.querySelector('.dashboard-grid');
+            if (grid) {
+                grid.classList.add('mrf-selected');
+                // Smooth scroll to detail card (second child)
+                const detailCard = grid.querySelector('.card:nth-child(2)');
+                if (detailCard) {
+                    detailCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
     }
 };
 
@@ -2808,6 +2827,7 @@ async function renderPRPORecords() {
 
     // Build complete table
     let html = `
+        <div class="table-scroll-container">
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8f9fa;">
@@ -2825,6 +2845,7 @@ async function renderPRPORecords() {
                 ${rows.join('')}
             </tbody>
         </table>
+        </div>
     `;
 
     container.innerHTML = html;
