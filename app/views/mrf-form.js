@@ -239,7 +239,7 @@ export function render(activeTab = 'form') {
                         <!-- Items Requested -->
                         <div style="margin-bottom: 2rem;">
                             <h2 style="font-size: 1.25rem; font-weight: 600; color: var(--gray-800); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--gray-200);">Items Requested</h2>
-                            <div style="overflow-x: auto; margin: 1rem 0;">
+                            <div class="table-scroll-container" style="margin: 1rem 0;">
                                 <table style="font-size: 0.875rem;">
                                     <thead>
                                         <tr>
