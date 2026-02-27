@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Productivity & Polish
 status: unknown
-last_updated: "2026-02-27T08:13:24.226Z"
+last_updated: "2026-02-27T10:09:36.027Z"
 progress:
-  total_phases: 43
+  total_phases: 44
   completed_phases: 42
-  total_plans: 115
-  completed_plans: 112
+  total_plans: 118
+  completed_plans: 113
 ---
 
 ---
@@ -98,6 +98,7 @@ Progress: [████░░░░░░░░░░░░░░░░░░░
 | Phase 41-list-view-exports P03 | 4 | 2 tasks | 1 files |
 | Phase 42-detail-page-exports P01 | 15 min | 3 tasks | 2 files |
 | Phase 43-mobile-hamburger-navigation P01 | 5min | 3 tasks | 4 files |
+| Phase 44-responsive-layouts P01 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,9 @@ Recent decisions relevant to v2.4:
 - [Phase 43-mobile-hamburger-navigation]: Mobile menu placed as sibling to <nav> so it can be position:fixed without nav height constraint
 - [Phase 43-mobile-hamburger-navigation]: max-height CSS transition used for slide-down animation (display:none cannot animate)
 - [Phase 43-mobile-hamburger-navigation]: Consolidated hashchange listener covers both admin dropdown and mobile menu close (no dual registration)
+- [Phase 44-responsive-layouts]: column-reverse for .modal-footer mobile stacking — primary action stays visually first on mobile
+- [Phase 44-responsive-layouts]: nth-child(2) selector sufficient for MRF detail panel hide — no CSS ID required; Plan 03 JS toggles .mrf-selected on .dashboard-grid
+- [Phase 44-responsive-layouts]: .table-scroll-container distinct from .table-responsive — adds position:relative for ::after gradient scroll indicator
 
 ### Pending Todos
 
