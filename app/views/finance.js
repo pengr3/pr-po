@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, getStatusClass } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, getStatusClass, downloadCSV } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML } from '../components.js';
 
@@ -92,6 +92,7 @@ function attachWindowFunctions() {
 
     // PO Functions
     window.refreshPOs = refreshPOs;
+    window.exportPOsCSV = exportPOsCSV;
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
 
@@ -695,7 +696,8 @@ export function render(activeTab = 'approvals') {
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
                             </select>
-                            <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
+                            <button class="btn btn-secondary" onclick="window.exportPOsCSV()">Export CSV</button>
+                        <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
                         </div>
                     </div>
                     <div id="poList">
@@ -1047,6 +1049,7 @@ export async function destroy() {
     delete window.closeRejectionModal;
     delete window.submitRejection;
     delete window.refreshPOs;
+    delete window.exportPOsCSV;
     delete window.promptPODocument;
     delete window.generatePODocument;
     delete window.refreshProjectExpenses;
@@ -2118,6 +2121,37 @@ function sortPOs(column) {
 async function refreshPOs() {
     await loadPOs();
     showToast('PO list refreshed', 'success');
+}
+
+/**
+ * Export the currently-visible (dept-filtered) POs as a CSV file.
+ * Exports ALL poData rows (not just the 20 shown), after dept filter.
+ */
+function exportPOsCSV() {
+    const filteredPOs = activeDeptFilter
+        ? poData.filter(po => (po.department || 'projects') === activeDeptFilter)
+        : poData;
+
+    if (filteredPOs.length === 0) {
+        showToast('No purchase orders to export', 'info');
+        return;
+    }
+
+    const headers = ['PO ID', 'PR ID', 'Supplier', 'Project / Service', 'Amount (PHP)', 'Date Issued', 'Status'];
+    const rows = filteredPOs.map(po => {
+        return [
+            po.po_id || '',
+            po.pr_id || '',
+            po.supplier_name || '',
+            po.project_name || po.service_name || po.mrf_id || '',
+            parseFloat(po.total_amount || 0).toFixed(2),
+            formatPODate(po),
+            po.procurement_status || 'Pending'
+        ];
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `purchase-orders-${date}.csv`);
 }
 
 console.log('Finance view module loaded successfully');
