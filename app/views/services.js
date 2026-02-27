@@ -248,6 +248,7 @@ export function render(activeTab = null) {
                 </div>
 
                 <!-- Services Table -->
+                <div class="table-scroll-container">
                 <table>
                     <thead>
                         <tr>
@@ -278,6 +279,7 @@ export function render(activeTab = null) {
                         </tr>
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     `;
