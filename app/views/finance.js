@@ -4,9 +4,9 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, getStatusClass } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, getStatusClass, downloadCSV } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
-import { getMRFLabel, getDeptBadgeHTML } from '../components.js';
+import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 
 // Format PO date - handles Firestore Timestamps, {seconds} objects, and strings
 function formatPODate(po) {
@@ -43,9 +43,21 @@ let currentApprovalTarget = null;
 let projectExpenseSortColumn = 'projectName';
 let projectExpenseSortDirection = 'asc';
 
+// TTL cache for project expenses (avoid re-fetching on tab switches)
+const PROJECT_EXPENSES_TTL_MS = 300000; // 5 minutes
+let _projectExpensesCachedAt = 0;
+
 // Sort state for Purchase Orders
 let poSortColumn = 'date_issued';
 let poSortDirection = 'desc';
+
+// Sort state for Material PRs (Pending Approvals)
+let prSortColumn = 'date_generated';
+let prSortDirection = 'desc';
+
+// Sort state for Transport Requests (Pending Approvals)
+let trSortColumn = 'date_submitted';
+let trSortDirection = 'desc';
 
 // Department filter state for Pending Approvals and POs
 let activeDeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
@@ -92,6 +104,7 @@ function attachWindowFunctions() {
 
     // PO Functions
     window.refreshPOs = refreshPOs;
+    window.exportPOsCSV = exportPOsCSV;
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
 
@@ -101,6 +114,8 @@ function attachWindowFunctions() {
     // closeProjectExpenseModal replaced by shared _closeExpenseBreakdownModal in expense-modal.js
     window.sortProjectExpenses = sortProjectExpenses;
     window.sortPOs = sortPOs;
+    window.sortMaterialPRs = sortMaterialPRs;
+    window.sortTransportRequests = sortTransportRequests;
     window.applyFinanceDeptFilter = applyFinanceDeptFilter;
 
     console.log('[Finance] ✅ All window functions attached successfully');
@@ -578,13 +593,13 @@ export function render(activeTab = 'approvals') {
             <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
                     <a href="#/finance/approvals" class="tab-btn ${activeTab === 'approvals' ? 'active' : ''}">
-                        📋 Pending Approvals
+                        Pending Approvals
                     </a>
                     <a href="#/finance/pos" class="tab-btn ${activeTab === 'pos' ? 'active' : ''}">
-                        📄 Purchase Orders
+                        Purchase Orders
                     </a>
                     <a href="#/finance/projects" class="tab-btn ${activeTab === 'projects' ? 'active' : ''}">
-                        💰 Project List
+                        Project List
                     </a>
                 </div>
             </div>
@@ -629,26 +644,26 @@ export function render(activeTab = 'approvals') {
                             <button class="btn btn-secondary" onclick="window.refreshPRs()">🔄 Refresh</button>
                         </div>
                     </div>
+                    <div class="table-scroll-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>PR ID</th>
-                                <th>MRF ID</th>
+                                <th onclick="window.sortMaterialPRs('pr_id')" style="cursor: pointer; user-select: none;">PR ID <span class="sort-indicator" data-col="pr_id"></span></th>
+                                <th onclick="window.sortMaterialPRs('mrf_id')" style="cursor: pointer; user-select: none;">MRF ID <span class="sort-indicator" data-col="mrf_id"></span></th>
                                 <th>Department / Project</th>
-                                <th>Date</th>
-                                <th>Urgency</th>
-                                <th>Total Cost</th>
-                                <th>Supplier</th>
+                                <th onclick="window.sortMaterialPRs('date_generated')" style="cursor: pointer; user-select: none;">Date <span class="sort-indicator" data-col="date_generated"></span></th>
+                                <th onclick="window.sortMaterialPRs('urgency_level')" style="cursor: pointer; user-select: none;">Urgency <span class="sort-indicator" data-col="urgency_level"></span></th>
+                                <th onclick="window.sortMaterialPRs('total_amount')" style="cursor: pointer; user-select: none; text-align: right;">Total Cost <span class="sort-indicator" data-col="total_amount"></span></th>
+                                <th onclick="window.sortMaterialPRs('supplier_name')" style="cursor: pointer; user-select: none;">Supplier <span class="sort-indicator" data-col="supplier_name"></span></th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="materialPRsBody">
-                            <tr>
-                                <td colspan="9" style="text-align: center; padding: 2rem;">Loading material PRs...</td>
-                            </tr>
+                            ${skeletonTableRows(9, 5)}
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <div style="margin: 2rem 0;"></div>
@@ -658,26 +673,26 @@ export function render(activeTab = 'approvals') {
                     <div class="card-header">
                         <h2>🚚 Transport Requests</h2>
                     </div>
+                    <div class="table-scroll-container">
                     <table>
                         <thead>
                             <tr>
-                                <th>TR ID</th>
-                                <th>MRF ID</th>
+                                <th onclick="window.sortTransportRequests('tr_id')" style="cursor: pointer; user-select: none;">TR ID <span class="sort-indicator" data-col="tr_id"></span></th>
+                                <th onclick="window.sortTransportRequests('mrf_id')" style="cursor: pointer; user-select: none;">MRF ID <span class="sort-indicator" data-col="mrf_id"></span></th>
                                 <th>Project</th>
-                                <th>Date</th>
-                                <th>Urgency</th>
-                                <th>Total Cost</th>
+                                <th onclick="window.sortTransportRequests('date_submitted')" style="cursor: pointer; user-select: none;">Date <span class="sort-indicator" data-col="date_submitted"></span></th>
+                                <th onclick="window.sortTransportRequests('urgency_level')" style="cursor: pointer; user-select: none;">Urgency <span class="sort-indicator" data-col="urgency_level"></span></th>
+                                <th onclick="window.sortTransportRequests('total_amount')" style="cursor: pointer; user-select: none; text-align: right;">Total Cost <span class="sort-indicator" data-col="total_amount"></span></th>
                                 <th>Service Type</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="transportRequestsBody">
-                            <tr>
-                                <td colspan="9" style="text-align: center; padding: 2rem;">Loading transport requests...</td>
-                            </tr>
+                            ${skeletonTableRows(9, 5)}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </section>
 
@@ -695,7 +710,8 @@ export function render(activeTab = 'approvals') {
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
                             </select>
-                            <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
+                            <button class="btn btn-secondary" onclick="window.exportPOsCSV()">Export CSV</button>
+                        <button class="btn btn-secondary" onclick="window.refreshPOs()">🔄 Refresh</button>
                         </div>
                     </div>
                     <div id="poList">
@@ -710,12 +726,26 @@ export function render(activeTab = 'approvals') {
                 <div class="card">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <h2>Project List & Expenses</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshProjectExpenses()" style="font-size: 0.875rem;">
+                        <button class="btn btn-secondary" onclick="window.refreshProjectExpenses(true)" style="font-size: 0.875rem;">
                             🔄 Refresh Totals
                         </button>
                     </div>
                     <div id="projectExpensesContainer">
-                        <div style="text-align: center; padding: 2rem;">Loading project expenses...</div>
+                        <div style="overflow-x: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Project Name</th>
+                                        <th>Client</th>
+                                        <th style="text-align: right;">Budget</th>
+                                        <th style="text-align: right;">Total Expense</th>
+                                        <th style="text-align: right;">Remaining</th>
+                                        <th style="text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${skeletonTableRows(6, 5)}</tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -805,7 +835,6 @@ export async function init(activeTab = 'approvals') {
             await refreshProjectExpenses();
         }
 
-        console.log('Finance view initialized successfully');
     } catch (error) {
         console.error('Error initializing finance view:', error);
         showToast('Error loading finance data', 'error');
@@ -821,55 +850,55 @@ export async function init(activeTab = 'approvals') {
  * Source: Phase 13 pattern (getAggregateFromServer)
  * Note: Uses existing projectExpenses array declared at line 16
  */
-async function refreshProjectExpenses() {
+async function refreshProjectExpenses(forceRefresh = false) {
+    // TTL cache guard: skip fetch if data is fresh (unless force-refreshed by user)
+    if (!forceRefresh && projectExpenses.length > 0 && (Date.now() - _projectExpensesCachedAt) < PROJECT_EXPENSES_TTL_MS) {
+        console.log('[Finance] Project expenses cached, rendering from memory');
+        renderProjectExpensesTable();
+        return;
+    }
+
     console.log('[Finance] Refreshing project expenses...');
     showLoading(true);
 
     try {
         // Get all projects
         const projectsSnapshot = await getDocs(collection(db, 'projects'));
-        projectExpenses = []; // Reset existing array
 
-        for (const projectDoc of projectsSnapshot.docs) {
+        // Aggregate PO + TR totals for all projects in parallel (instead of sequential loop)
+        const projectPromises = projectsSnapshot.docs.map(async (projectDoc) => {
             const project = projectDoc.data();
 
-            // Aggregate PO totals for this project (all POs)
-            const posQuery = query(
-                collection(db, 'pos'),
-                where('project_name', '==', project.project_name)
-            );
-            const posAgg = await getAggregateFromServer(posQuery, {
-                totalExpense: sum('total_amount'),
-                poCount: count()
-            });
-
-            // Aggregate Transport Request totals (approved only)
-            const trQuery = query(
-                collection(db, 'transport_requests'),
-                where('project_name', '==', project.project_name),
-                where('finance_status', '==', 'Approved')
-            );
-            const trAgg = await getAggregateFromServer(trQuery, {
-                transportTotal: sum('total_amount'),
-                trCount: count()
-            });
+            // Run PO and TR aggregation in parallel for each project
+            const [posAgg, trAgg] = await Promise.all([
+                getAggregateFromServer(
+                    query(collection(db, 'pos'), where('project_name', '==', project.project_name)),
+                    { totalExpense: sum('total_amount'), poCount: count() }
+                ),
+                getAggregateFromServer(
+                    query(collection(db, 'transport_requests'), where('project_name', '==', project.project_name), where('finance_status', '==', 'Approved')),
+                    { transportTotal: sum('total_amount'), trCount: count() }
+                )
+            ]);
 
             const totalExpense = (posAgg.data().totalExpense || 0) + (trAgg.data().transportTotal || 0);
             const budget = project.budget || 0;
-            const remainingBudget = budget - totalExpense;
 
-            projectExpenses.push({
+            return {
                 projectCode: project.project_code || 'N/A',
                 projectName: project.project_name,
                 clientCode: project.client_code || 'N/A',
                 totalExpense: totalExpense,
                 budget: budget,
-                remainingBudget: remainingBudget,
+                remainingBudget: budget - totalExpense,
                 poCount: posAgg.data().poCount || 0,
                 trCount: trAgg.data().trCount || 0,
                 status: project.status || 'active'
-            });
-        }
+            };
+        });
+
+        projectExpenses = await Promise.all(projectPromises);
+        _projectExpensesCachedAt = Date.now();
 
         renderProjectExpensesTable();
         console.log(`[Finance] Loaded ${projectExpenses.length} project expense records`);
@@ -1036,6 +1065,7 @@ export async function destroy() {
     currentPRForRejection = null;
     currentApprovalTarget = null;
     projectExpenses = [];
+    _projectExpensesCachedAt = 0;
 
     // Clean up window functions
     delete window.refreshPRs;
@@ -1047,6 +1077,7 @@ export async function destroy() {
     delete window.closeRejectionModal;
     delete window.submitRejection;
     delete window.refreshPOs;
+    delete window.exportPOsCSV;
     delete window.promptPODocument;
     delete window.generatePODocument;
     delete window.refreshProjectExpenses;
@@ -1059,6 +1090,8 @@ export async function destroy() {
     delete window.confirmApproval;
     delete window.sortProjectExpenses;
     delete window.sortPOs;
+    delete window.sortMaterialPRs;
+    delete window.sortTransportRequests;
     delete window.applyFinanceDeptFilter;
     activeDeptFilter = '';
 
@@ -1067,6 +1100,10 @@ export async function destroy() {
     projectExpenseSortDirection = 'asc';
     poSortColumn = 'date_issued';
     poSortDirection = 'desc';
+    prSortColumn = 'date_generated';
+    prSortDirection = 'desc';
+    trSortColumn = 'date_submitted';
+    trSortDirection = 'desc';
 
     console.log('[Finance] Finance view destroyed');
 }
@@ -1084,7 +1121,6 @@ async function loadPRs() {
     const prQuery = query(prsRef, where('finance_status', '==', 'Pending'));
 
     const prListener = onSnapshot(prQuery, (snapshot) => {
-        console.log('📊 Finance: Loaded Material PRs from Firebase:', snapshot.size);
         materialPRs = [];
 
         snapshot.forEach((docSnap) => {
@@ -1095,7 +1131,19 @@ async function loadPRs() {
             }
         });
 
-        console.log('📦 Material PRs:', materialPRs.length);
+        // Re-apply current sort order after Firestore update
+        materialPRs.sort((a, b) => {
+            let aVal = a[prSortColumn];
+            let bVal = b[prSortColumn];
+            if (aVal == null) return prSortDirection === 'asc' ? 1 : -1;
+            if (bVal == null) return prSortDirection === 'asc' ? -1 : 1;
+            if (typeof aVal === 'string') {
+                return prSortDirection === 'asc'
+                    ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            }
+            return prSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+
         renderMaterialPRs();
         updateStats();
     });
@@ -1106,7 +1154,6 @@ async function loadPRs() {
     const trQuery = query(trsRef, where('finance_status', '==', 'Pending'));
 
     const trListener = onSnapshot(trQuery, (snapshot) => {
-        console.log('📊 Finance: Loaded Transport Requests from Firebase:', snapshot.size);
         transportRequests = [];
 
         snapshot.forEach((docSnap) => {
@@ -1114,7 +1161,19 @@ async function loadPRs() {
             transportRequests.push(tr);
         });
 
-        console.log('🚚 Transport Requests:', transportRequests.length);
+        // Re-apply current sort order after Firestore update
+        transportRequests.sort((a, b) => {
+            let aVal = a[trSortColumn];
+            let bVal = b[trSortColumn];
+            if (aVal == null) return trSortDirection === 'asc' ? 1 : -1;
+            if (bVal == null) return trSortDirection === 'asc' ? -1 : 1;
+            if (typeof aVal === 'string') {
+                return trSortDirection === 'asc'
+                    ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            }
+            return trSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+
         renderTransportRequests();
         updateStats();
     });
@@ -1140,23 +1199,21 @@ function renderMaterialPRs() {
                 </td>
             </tr>
         `;
-        return;
-    }
+    } else {
+        tbody.innerHTML = filtered.map(pr => {
+            const items = JSON.parse(pr.items_json || '[]');
+            const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
+            const urgencyLevel = pr.urgency_level || 'Low';
 
-    tbody.innerHTML = filtered.map(pr => {
-        const items = JSON.parse(pr.items_json || '[]');
-        const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
-        const urgencyLevel = pr.urgency_level || 'Low';
+            const urgencyColors = {
+                'Critical': { bg: '#fef2f2', color: '#dc2626' },
+                'High': { bg: '#fef2f2', color: '#ef4444' },
+                'Medium': { bg: '#fef3c7', color: '#f59e0b' },
+                'Low': { bg: '#dcfce7', color: '#22c55e' }
+            };
+            const colors = urgencyColors[urgencyLevel] || urgencyColors['Low'];
 
-        const urgencyColors = {
-            'Critical': { bg: '#fef2f2', color: '#dc2626' },
-            'High': { bg: '#fef2f2', color: '#ef4444' },
-            'Medium': { bg: '#fef3c7', color: '#f59e0b' },
-            'Low': { bg: '#dcfce7', color: '#22c55e' }
-        };
-        const colors = urgencyColors[urgencyLevel] || urgencyColors['Low'];
-
-        return `
+            return `
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
@@ -1171,7 +1228,23 @@ function renderMaterialPRs() {
                 </td>
             </tr>
         `;
-    }).join('');
+        }).join('');
+    }
+
+    // Update sort indicators for Material PRs table (runs for both empty and non-empty)
+    const prTable = tbody.closest('table');
+    if (prTable) {
+        prTable.querySelectorAll('.sort-indicator').forEach(indicator => {
+            const col = indicator.dataset.col;
+            if (col === prSortColumn) {
+                indicator.textContent = prSortDirection === 'asc' ? ' \u2191' : ' \u2193';
+                indicator.style.color = '#1a73e8';
+            } else {
+                indicator.textContent = ' \u21C5';
+                indicator.style.color = '#94a3b8';
+            }
+        });
+    }
 }
 
 /**
@@ -1193,23 +1266,21 @@ function renderTransportRequests() {
                 </td>
             </tr>
         `;
-        return;
-    }
+    } else {
+        tbody.innerHTML = filtered.map(tr => {
+            const items = JSON.parse(tr.items_json || '[]');
+            const serviceType = items[0]?.category || 'Transportation';
+            const urgencyLevel = tr.urgency_level || 'Low';
 
-    tbody.innerHTML = filtered.map(tr => {
-        const items = JSON.parse(tr.items_json || '[]');
-        const serviceType = items[0]?.category || 'Transportation';
-        const urgencyLevel = tr.urgency_level || 'Low';
+            const urgencyColors = {
+                'Critical': { bg: '#fef2f2', color: '#dc2626' },
+                'High': { bg: '#fef2f2', color: '#ef4444' },
+                'Medium': { bg: '#fef3c7', color: '#f59e0b' },
+                'Low': { bg: '#dcfce7', color: '#22c55e' }
+            };
+            const colors = urgencyColors[urgencyLevel] || urgencyColors['Low'];
 
-        const urgencyColors = {
-            'Critical': { bg: '#fef2f2', color: '#dc2626' },
-            'High': { bg: '#fef2f2', color: '#ef4444' },
-            'Medium': { bg: '#fef3c7', color: '#f59e0b' },
-            'Low': { bg: '#dcfce7', color: '#22c55e' }
-        };
-        const colors = urgencyColors[urgencyLevel] || urgencyColors['Low'];
-
-        return `
+            return `
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
@@ -1224,7 +1295,71 @@ function renderTransportRequests() {
                 </td>
             </tr>
         `;
-    }).join('');
+        }).join('');
+    }
+
+    // Update sort indicators for Transport Requests table (runs for both empty and non-empty)
+    const trTable = tbody.closest('table');
+    if (trTable) {
+        trTable.querySelectorAll('.sort-indicator').forEach(indicator => {
+            const col = indicator.dataset.col;
+            if (col === trSortColumn) {
+                indicator.textContent = trSortDirection === 'asc' ? ' \u2191' : ' \u2193';
+                indicator.style.color = '#1a73e8';
+            } else {
+                indicator.textContent = ' \u21C5';
+                indicator.style.color = '#94a3b8';
+            }
+        });
+    }
+}
+
+/**
+ * Sort Material PRs by column
+ */
+function sortMaterialPRs(column) {
+    if (prSortColumn === column) {
+        prSortDirection = prSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        prSortColumn = column;
+        prSortDirection = 'asc';
+    }
+    materialPRs.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
+        if (aVal == null) return prSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return prSortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return prSortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return prSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    renderMaterialPRs();
+}
+
+/**
+ * Sort Transport Requests by column
+ */
+function sortTransportRequests(column) {
+    if (trSortColumn === column) {
+        trSortDirection = trSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        trSortColumn = column;
+        trSortDirection = 'asc';
+    }
+    transportRequests.sort((a, b) => {
+        let aVal = a[column];
+        let bVal = b[column];
+        if (aVal == null) return trSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return trSortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return trSortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return trSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+    renderTransportRequests();
 }
 
 /**
@@ -1967,7 +2102,6 @@ async function loadPOs() {
     const posRef = collection(db, 'pos');
 
     const poListener = onSnapshot(posRef, (snapshot) => {
-        console.log('📊 Finance: Loaded POs from Firebase:', snapshot.size);
         poData = [];
 
         snapshot.forEach((docSnap) => {
@@ -1991,7 +2125,6 @@ async function loadPOs() {
             return poSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
 
-        console.log('📄 POs loaded:', poData.length);
         renderPOs();
     });
 
@@ -2023,6 +2156,7 @@ function renderPOs() {
     const recentPOs = filteredPOs.slice(0, 20);
 
     container.innerHTML = `
+        <div class="table-scroll-container">
         <table>
             <thead>
                 <tr>
@@ -2067,6 +2201,7 @@ function renderPOs() {
                 `).join('')}
             </tbody>
         </table>
+        </div>
         ${filteredPOs.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
 
@@ -2120,4 +2255,34 @@ async function refreshPOs() {
     showToast('PO list refreshed', 'success');
 }
 
-console.log('Finance view module loaded successfully');
+/**
+ * Export the currently-visible (dept-filtered) POs as a CSV file.
+ * Exports ALL poData rows (not just the 20 shown), after dept filter.
+ */
+function exportPOsCSV() {
+    const filteredPOs = activeDeptFilter
+        ? poData.filter(po => (po.department || 'projects') === activeDeptFilter)
+        : poData;
+
+    if (filteredPOs.length === 0) {
+        showToast('No purchase orders to export', 'info');
+        return;
+    }
+
+    const headers = ['PO ID', 'PR ID', 'Supplier', 'Project / Service', 'Amount (PHP)', 'Date Issued', 'Status'];
+    const rows = filteredPOs.map(po => {
+        return [
+            po.po_id || '',
+            po.pr_id || '',
+            po.supplier_name || '',
+            po.project_name || po.service_name || po.mrf_id || '',
+            parseFloat(po.total_amount || 0).toFixed(2),
+            formatPODate(po),
+            po.procurement_status || 'Pending'
+        ];
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `purchase-orders-${date}.csv`);
+}
+

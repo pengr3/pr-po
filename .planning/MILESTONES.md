@@ -1,4 +1,37 @@
 # Project Milestones: CLMC Procurement System
+## v2.4 Productivity & Polish (Shipped: 2026-03-01)
+
+**Delivered:** Data export, mobile-responsive UI, visual polish, code cleanup, sortable tables, and performance optimization with offline persistence and skeleton loading.
+
+**Phases completed:** 41-48 (10 phases, 24 plans)
+
+**Key accomplishments:**
+
+- CSV export for all major list views (MRFs, PRs/POs, PO Tracking, Projects, Services) and detail page expense breakdowns via shared downloadCSV utility
+- Mobile hamburger navigation with slide-down menu at <768px, role-based visibility mirroring desktop nav, and scroll lock
+- Responsive layouts: horizontal scroll containers for data tables, modal footer stacking on mobile, split-panel auto-collapse for MRF detail view
+- Visual polish: company logo on login and registration pages replacing "CL" placeholder, standardized navigation (no underlines/emojis), uniform Admin button styling
+- Code cleanup: removed dead files (project-assignments.js, service-assignments.js, procurement-base.js), ad-hoc console.log sweep, unified MRF creation dropdown in Procurement matching mrf-form.js pattern
+- Sortable column headers in Finance Pending Approvals (Material PRs, Transport Requests) and Procurement MRF Records (MRF ID, Date Needed, MRF Status, Procurement Status)
+- Firebase offline persistence via IndexedDB, skeleton loading screens across all 13 data views, stale-while-revalidate for dashboard stats, parallel data fetching, and TTL-cached reference data (suppliers, projects, services)
+- Urgency level propagation from MRFs to PRs so Finance sees correct urgency in approval workflow
+- Create MRF requestor name auto-filled from logged-in user identity
+
+**Stats:**
+
+- 28 code files changed, +1,515 / -1,208 lines
+- 10 phases, 24 plans
+- 3 days from first commit to ship (2026-02-27 → 2026-03-01)
+- Velocity: 0.3 days/phase (high velocity maintained)
+- 30/30 requirements satisfied (100% coverage)
+- Total JS codebase: 22,883 LOC
+
+**Git range:** `feat(41-01)` → `fix(48)` (38 feature commits)
+
+**What's next:** No active milestone. Run `/gsd:new-milestone` to plan v2.5.
+
+---
+
 
 ## v2.3 Services Department Support (Shipped: 2026-02-26)
 

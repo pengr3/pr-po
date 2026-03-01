@@ -761,4 +761,39 @@ export async function syncServicePersonnelToAssignments(serviceCode, previousUse
     return errors;
 }
 
-console.log('Utilities module loaded successfully');
+/* ========================================
+   CSV EXPORT UTILITIES
+   ======================================== */
+
+/**
+ * Download an array of objects as a CSV file.
+ * @param {string[]} headers - Column header labels (in order)
+ * @param {(string|number|null)[][]} rows - 2D array of cell values, one array per row
+ * @param {string} filename - Filename for the download (include .csv extension)
+ */
+export function downloadCSV(headers, rows, filename) {
+    const escape = (val) => {
+        if (val == null) return '';
+        const str = String(val);
+        // Wrap in double quotes if value contains comma, double quote, or newline
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return '"' + str.replace(/"/g, '""') + '"';
+        }
+        return str;
+    };
+
+    const csvLines = [
+        headers.map(escape).join(','),
+        ...rows.map(row => row.map(escape).join(','))
+    ];
+
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}

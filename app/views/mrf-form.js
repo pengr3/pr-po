@@ -8,6 +8,7 @@
 
 import { db, collection, addDoc, getDocs, query, where, onSnapshot } from '../firebase.js';
 import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '../utils.js';
+import { skeletonTableRows } from '../components.js';
 
 // View state
 let projectsListener = null;
@@ -49,7 +50,10 @@ function renderMyRequestsView(tabNav) {
                 <div class="card">
                     <div class="card-header">
                         <h2>My Requests</h2>
-                        <button class="btn btn-secondary" onclick="window._myRequestsReload()">Refresh</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary" onclick="window._myRequestsExportCSV()">Export CSV</button>
+                            <button class="btn btn-secondary" onclick="window._myRequestsReload()">Refresh</button>
+                        </div>
                     </div>
                     <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
@@ -83,7 +87,23 @@ function renderMyRequestsView(tabNav) {
                         </div>
                     </div>
                     <div id="myRequestsContainer" style="overflow-x: auto; padding: 0 0 1rem 0;">
-                        <div style="text-align: center; padding: 2rem; color: #999;">Loading your requests...</div>
+                        <div class="table-scroll-container">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">MRF ID</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Project</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Date Needed</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">PRs</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">POs</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">MRF Status</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Procurement Status</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>${skeletonTableRows(8, 5)}</tbody>
+                        </table>
+                        </div>
                     </div>
                     <div id="myRequestsContainerPagination"></div>
                 </div>
@@ -236,7 +256,7 @@ export function render(activeTab = 'form') {
                         <!-- Items Requested -->
                         <div style="margin-bottom: 2rem;">
                             <h2 style="font-size: 1.25rem; font-weight: 600; color: var(--gray-800); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--gray-200);">Items Requested</h2>
-                            <div style="overflow-x: auto; margin: 1rem 0;">
+                            <div class="table-scroll-container" style="margin: 1rem 0;">
                                 <table style="font-size: 0.875rem;">
                                     <thead>
                                         <tr>
@@ -349,6 +369,7 @@ export async function init(activeTab = 'form') {
         myRequestsController = null;
         delete window._myRequestsFilter;
         delete window._myRequestsReload;
+        delete window._myRequestsExportCSV;
     }
 
     console.log('[MRFForm] Initializing form tab...');
@@ -453,6 +474,12 @@ async function initMyRequests() {
 
         window._myRequestsReload = async () => {
             await myRequestsController.load();
+        };
+
+        window._myRequestsExportCSV = () => {
+            if (myRequestsController) {
+                myRequestsController.exportCSV();
+            }
         };
 
         await myRequestsController.load();
@@ -931,6 +958,7 @@ export async function destroy() {
     // Clean up My Requests window functions
     delete window._myRequestsFilter;
     delete window._myRequestsReload;
+    delete window._myRequestsExportCSV;
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');

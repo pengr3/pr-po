@@ -76,7 +76,6 @@ async function validatePermissions() {
             '/procurement': 'procurement',
             '/finance': 'finance',
             '/role-config': 'role_config',
-            '/project-assignments': 'role_config',
             '/user-management': 'role_config'
         };
 

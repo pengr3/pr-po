@@ -12,8 +12,8 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, query, where, orderBy, doc } from '../firebase.js';
-import { formatDate, formatTimestamp, getStatusClass, formatCurrency, showLoading, showToast } from '../utils.js';
-import { getMRFLabel, createModal, openModal, closeModal } from '../components.js';
+import { formatDate, formatTimestamp, getStatusClass, formatCurrency, showLoading, showToast, downloadCSV } from '../utils.js';
+import { getMRFLabel, createModal, openModal, closeModal, skeletonTableRows } from '../components.js';
 
 /**
  * Calculate MRF status based on PR/PO state.
@@ -957,7 +957,7 @@ export function createMRFRecordsController(options) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
-        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading your requests...</div>';
+        container.innerHTML = `<div class="table-scroll-container"><table style="width: 100%; border-collapse: collapse;"><thead><tr style="background: #f8f9fa;"><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">MRF ID</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Project</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Date Needed</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">PRs</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">POs</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">MRF Status</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Procurement Status</th><th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Actions</th></tr></thead><tbody>${skeletonTableRows(8, 5)}</tbody></table></div>`;
 
         try {
             const mrfsRef = collection(db, 'mrfs');
@@ -1229,6 +1229,7 @@ export function createMRFRecordsController(options) {
         }));
 
         container.innerHTML = `
+            <div class="table-scroll-container">
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #f8f9fa;">
@@ -1246,9 +1247,45 @@ export function createMRFRecordsController(options) {
                     ${rows.join('')}
                 </tbody>
             </table>
+            </div>
         `;
 
         renderPagination(totalPages);
+    }
+
+    // ------------------------------------------------
+    // EXPORT
+    // ------------------------------------------------
+
+    /**
+     * Export the current filteredRecords as a CSV file.
+     * Uses filteredRecords (post-filter), not allRecords.
+     */
+    function exportCSV() {
+        if (filteredRecords.length === 0) {
+            showToast('No records to export', 'info');
+            return;
+        }
+        const headers = ['MRF ID', 'Type', 'Project / Service', 'Requestor', 'Date Needed', 'Urgency', 'Status'];
+        const rows = filteredRecords.map(mrf => {
+            const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
+            const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+            const label = mrf.project_name || mrf.service_name || '';
+            const dateNeeded = mrf.date_needed
+                ? formatDate(mrf.date_needed)
+                : (formatTimestamp(mrf.date_submitted || mrf.created_at) || '');
+            return [
+                displayId,
+                type,
+                label,
+                mrf.requestor_name || '',
+                dateNeeded,
+                mrf.urgency_level || '',
+                mrf.status || ''
+            ];
+        });
+        const date = new Date().toISOString().slice(0, 10);
+        downloadCSV(headers, rows, `mrf-list-${date}.csv`);
     }
 
     // ------------------------------------------------
@@ -1340,5 +1377,5 @@ export function createMRFRecordsController(options) {
     // PUBLIC API
     // ------------------------------------------------
 
-    return { load, filter, destroy };
+    return { load, filter, exportCSV, destroy };
 }

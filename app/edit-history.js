@@ -175,4 +175,3 @@ window.closeEditHistoryModal = function() {
     if (modal) modal.remove();
 };
 
-console.log('Edit history module loaded successfully');

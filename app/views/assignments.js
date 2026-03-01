@@ -7,6 +7,7 @@
 
 import { db, collection, onSnapshot, updateDoc, doc, query, where, arrayUnion, arrayRemove } from '../firebase.js';
 import { showToast } from '../utils.js';
+import { skeletonTableRows } from '../components.js';
 
 /* ========================================
    MODULE STATE
@@ -117,7 +118,19 @@ export function render(subTab = null) {
                     </div>
 
                     <div id="assignmentsTableContainer">
-                        <p style="color: #64748b; padding: 1rem 0;">Loading users...</p>
+                        <div style="overflow-x: auto;">
+                        <table class="table" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35%;">Name</th>
+                                    <th style="width: 20%;">Role</th>
+                                    <th style="width: 20%;">Assignment Count</th>
+                                    <th style="width: 25%;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>${skeletonTableRows(4, 5)}</tbody>
+                        </table>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -166,6 +166,15 @@ function updateNavigation(path) {
         }
     }
 
+    // Mirror active state in mobile menu
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        item.classList.remove('active');
+        const href = item.getAttribute('href');
+        if (href && href.startsWith('#' + path)) {
+            item.classList.add('active');
+        }
+    });
+
     // Update page title
     const route = routes[path];
     if (route) {
@@ -418,8 +427,6 @@ export function handleInitialRoute() {
  * Initialize router
  */
 export function initRouter() {
-    console.log('Initializing router...');
-
     // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
 
@@ -431,7 +438,6 @@ export function initRouter() {
     // Expose handleInitialRoute for auth.js
     window.handleInitialRoute = handleInitialRoute;
 
-    console.log('Router initialized - waiting for auth state before initial navigation');
 }
 
 /**
@@ -470,4 +476,3 @@ export function getRoutes() {
     return routes;
 }
 
-console.log('Router module loaded successfully');

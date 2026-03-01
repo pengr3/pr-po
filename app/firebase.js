@@ -6,7 +6,9 @@
 // Import Firebase modules from CDN
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import {
-    getFirestore,
+    initializeFirestore,
+    persistentLocalCache,
+    persistentSingleTabManager,
     collection,
     getDocs,
     getDoc,
@@ -52,7 +54,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentSingleTabManager()
+    })
+});
 const auth = getAuth(app);
 
 // Set auth persistence to local (1-day session)
@@ -128,8 +134,6 @@ window.firebaseAuth = {
     signOut,
     onAuthStateChanged
 };
-
-console.log('Firebase initialized successfully');
 
 // Initialize auth observer after auth is set up
 import('./auth.js').then(module => {

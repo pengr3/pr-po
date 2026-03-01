@@ -1,79 +1,38 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T06:46:45.776Z"
+milestone: v2.4
+milestone_name: Productivity & Polish
+status: complete
+last_updated: "2026-03-01T07:00:00.000Z"
 progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 105
-  completed_plans: 106
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T05:56:02.684Z"
-progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 105
-  completed_plans: 106
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T05:33:03.157Z"
-progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 104
-  completed_plans: 105
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Services Department Support
-status: unknown
-last_updated: "2026-02-26T03:03:38.387Z"
-progress:
-  total_phases: 39
-  completed_phases: 37
-  total_plans: 103
-  completed_plans: 104
+  total_phases: 48
+  completed_phases: 48
+  total_plans: 128
+  completed_plans: 128
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-12)
+See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 40 - UI/UX Revisions
+**Current focus:** v2.4 complete — planning next milestone
 
 ## Current Position
 
-Phase: 40 of 40 (UI/UX Revisions — MRF label, search improvements, services tab cleanup)
-Plan: 7 of 7 in current phase
-Status: Phase 40 plan 07 complete — My Requests PR/PO detail modals now have View PR/View PO document generation buttons (all UAT gaps closed)
-Last activity: 2026-02-26 — Completed 40-07: View PR/PO document generation buttons in My Requests modals
+Milestone: v2.4 Productivity & Polish — SHIPPED 2026-03-01
+Status: All 10 phases complete (24 plans), 30/30 requirements satisfied
+Last activity: 2026-03-01 — Milestone archived and tagged
 
-Progress: [██████████████████████████████] 100% (39/39 phases — v2.2 complete, v2.3 phase 39 in progress)
+Progress: [██████████████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 96 (v1.0: 10, v2.0: 26, v2.1: 14, v2.2: 43, v2.3: 3)
-- Average duration: Not yet tracked systematically
-- Total execution time: ~95+ days across 4 milestones
+- Total plans completed: 128 (v1.0: 10, v2.0: 26, v2.1: 11, v2.2: 23, v2.3: 34, v2.4: 24)
+- Total execution time: ~141 days across 6 milestones
 
 **By Milestone:**
 
@@ -83,156 +42,32 @@ Progress: [███████████████████████
 | v2.0 | 6 | 64 | 10.7 |
 | v2.1 | 3 | 2 | 0.7 |
 | v2.2 | 11 | 5 | 0.5 |
-| v2.3 | 6 | - | - |
+| v2.3 | 15 | 8 | 0.5 |
+| v2.4 | 10 | 3 | 0.3 |
 
 **Recent Trend:**
-- v2.1: 0.2 days per plan (dramatic improvement from v2.0)
-- v2.2: 0.14 days per plan (sustained high velocity)
-- Trend: Stable - high velocity maintained
-
-*Updated after v2.3 roadmap creation*
-| Phase 26-security-roles-foundation P03 | 15 | 1 tasks | 1 files |
-| Phase 27-code-generation P01 | 5 | 1 tasks | 1 files |
-| Phase 28-services-view P01 | 15 | 3 tasks | 3 files |
-| Phase 28-services-view P02 | 20 | 2 tasks | 3 files |
-| Phase 28-services-view P03 | 25 | 2 tasks | 3 files |
-| Phase 29-mrf-integration P01 | 15 | 2 tasks | 1 files |
-| Phase 29-mrf-integration P02 | 20 | 2 tasks | 2 files |
-| Phase 29-mrf-integration P03 | 15 | 2 tasks | 2 files |
-| Phase 30-cross-department-workflows P01 | 2 | 2 tasks | 1 files |
-| Phase 30-cross-department-workflows P02 | 3 | 2 tasks | 1 files |
-| Phase 34-documentation-minor-fixes P01 | 15 | 2 tasks | 2 files |
-| Phase 35-for-the-gaps-found-during-audit-for-v-2-3 P03 | 8 | 2 tasks | 1 files |
-| Phase 40-ui-ux-revisions P01 | 2 | 2 tasks | 3 files |
-| Phase 40-ui-ux-revisions P02 | 15 | 1 tasks | 1 files |
-| Phase 40-ui-ux-revisions P03 | 2 | 2 tasks | 2 files |
-| Phase 40-ui-ux-revisions P04 | 25 | 2 tasks | 3 files |
-| Phase 40-ui-ux-revisions P05 | 15 | 2 tasks | 2 files |
-| Phase 40 P06 | 225 | 2 tasks | 1 files |
-| Phase 40-ui-ux-revisions P07 | 2 | 1 tasks | 1 files |
+- v2.4: 0.3 days/phase (10 phases, 3 days) — fastest milestone to date
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting v2.3 work:
-
-- Phase 26: Services mirrors Projects (reuse patterns, duplicate UI modules)
-- Phase 26: Security Rules and role templates come first (foundation before UI)
-- Phase 27: Parallel query pattern for shared sequence (acceptable race condition risk at current scale)
-- Phase 29: MRF form integration modifies existing code (higher risk, comes after Services UI validated)
-- v2.3 General: No data migration needed (existing data is sample/practice data)
-- 26-01: isRole('services_user') short-circuit guard before isAssignedToService() prevents evaluation on non-services_user docs (Pitfall 1 avoided)
-- 26-01: services_user excluded from create/update/delete — read-only (SEC-04); finance/procurement can read but not write services
-- 26-01: setDoc used (not updateDoc) in sync script NOT FOUND branch to create missing role_template documents
-- 26-02: Reuse roleSpecificFields spread pattern from operations roles for services roles (both confirmApproval and handleEditRole)
-- 26-02: ROLE_ORDER/TABS/ROLE_LABELS are single source of truth for permission matrix — adding entries is sufficient
-- 26-02: getPermissionValue || false fallback handles missing services key in existing role templates — no migration needed
-- [Phase 26-security-roles-foundation]: Test 13 uses getDocs(query) not getDoc to validate list-scoping (allow list rule) — critical distinction from allow get, which is intentionally broad for services_user
-- 27-01: generateServiceCode() queries both projects AND services via Promise.all for shared CLMC_CLIENT_YYYY### sequence (SERV-02) — prevents collision between service and project codes
-- 27-01: getAssignedServiceCodes() role guard uses services_user (not services_admin) — services_admin gets null (no filter), which is intentionally correct
-- 27-01: Service documents MUST store client_code field for range query to work — Phase 28 prerequisite
-- 28-01: syncServicePersonnelToAssignments registered as standalone window function (not in window.utils) — mirrors syncPersonnelToAssignments precedent
-- 28-01: Seed script covers procurement_staff in addition to the 6 specified roles — safe inclusion (read-only access=true/edit=false)
-- 28-01: JSON.stringify() comparison used for assigned_service_codes in auth.js condition — matches existing assigned_project_codes pattern
-- [Phase 28]: currentActiveTab is module-level variable in services.js so sub-tab state persists across router re-renders
-- [Phase 28]: service-detail route defined in router.js before service-detail.js exists — enables #/services/detail/CODE links from list view to resolve after 28-03
-- [Phase 28-services-view]: recordEditHistory called with service doc ID — reuses same subcollection pattern as projects
-- [Phase 28-services-view]: service-assignments.js queries all services (not filtered by active) so admin can assign inactive services
-- [Phase 28-services-view]: Expense breakdown is stub with Phase 29 message — no aggregation query until MRF-Service integration
-- 29-01: projectNameGroup/serviceNameGroup are wrapper divs controlled via style.display in init() — no required attribute on hidden selects avoids browser native validation firing on hidden fields
-- 29-01: loadProjects() called for all roles (even services-only) to avoid listener gaps; projectGroup display:none hides it visually
-- 29-01: services_admin gets null from getAssignedServiceCodes() (no filter) — services_user gets array filter; mirrors operations role pattern exactly
-- 29-02: department field is binary string discriminator ('projects' vs 'services') stored denormalized on MRF/PR/TR — avoids joins in display code
-- 29-02: cachedServicesForNewMRF uses getDocs (one-time fetch) not onSnapshot — services change rarely, inline form doesn't need real-time updates
-- 29-02: submitTransportRequest() TR addDoc also needed service fields (4th path) — was not in plan, auto-fixed under Rule 2
-- [Phase 29-mrf-integration]: getMRFLabel() uses dual-condition check (department === 'services' OR service_code fallback) to handle both new docs and pre-existing docs without department field
-- [Phase 29-mrf-integration]: Dropdown builder (projectOptions map) left with old ternary intentionally — it maps projectsData array, not MRF/PR/PO documents, so getMRFLabel() is inappropriate there
-- [Phase 30]: activeDeptFilter defaults '' (empty string) not null; filter uses (pr.department || 'projects') for legacy-doc compatibility
-- [Phase 30]: applyFinanceDeptFilter re-renders all three tables on every filter change (client-side, instant, no new Firestore queries)
-- 30-02: displayPos pattern — derive filtered array from function param AFTER scoreboard calculation; scoreboards always show global totals from full pos array
-- 30-02: getDeptBadgeHTML() uses same dual-condition as getMRFLabel() to handle legacy docs without department field
-- 30-02: Fixed pre-existing missing window. prefix on viewPODetails PO row link (Rule 1 auto-fix)
-- [Phase 31]: getDashboardMode() returns 'both' for cross-dept roles (super_admin/finance/procurement) — unknown roles default to 'both' (safe fallback)
-- [Phase 31]: services Firestore Security Rules never deployed since Phase 26 — root cause of all permission-denied errors on services collection for every role
-- [Phase 31]: services roles (services_admin/services_user) added to mrfs/prs/pos/transport_requests rules — services_admin unrestricted list, services_user scoped via isAssignedToService(resource.data.service_code)
-- [Phase 32]: services_admin update rule uses get().data.role (fresh read) not resource.data.role — prevents bypassing role scope by changing role field in same update; mirrors ops_admin pattern
-- [Phase 32]: services_user Firestore list rule evaluates isAssignedToService() per document — unscoped queries are denied entirely; fix is query-side scoping with where('service_code', 'in', assignedCodes) at call site
-- [Phase 32]: services_admin missing from edit_history create rule — services.js reuses recordEditHistory() writing to projects subcollection; added services_admin to the create condition
-- [Phase 33]: refreshServiceExpense calls renderServiceDetail; renderServiceDetail never calls refreshServiceExpense — anti-loop pattern, same as project-detail.js
-- [Phase 33]: onSnapshot callback made async; refreshServiceExpense(true) awaited before render so initial load shows real aggregation data, not zeros
-- [Phase 33]: Em dash shown when prTotal/poTotal is 0 — handles services with no Phase-29 linked documents cleanly
-- [Phase 33]: destroy() resets currentServiceExpense to zeros — prevents stale expense data when navigating between services
-- [Phase 34-02]: deptFilterPOs uses unique id to avoid DOM collision with Tab 1's deptFilterApprovals — both call same applyFinanceDeptFilter() handler which was already registered in Phase 30
-- [Phase 34-02]: No new window registrations added — HTML-only gap closure when filter logic pre-exists is the correct pattern
-- [Phase 34-01]: DASH-01/DASH-02 traceability points to Phase 31 (implementing phase), not Phase 34 (verifying phase)
-- [Phase 34-01]: SEC-08 traceability corrected to Phase 29 where department field was added to mrf-form.js, procurement.js, finance.js
-- [Phase 35-01]: edit-history.js collectionName defaults to 'projects' — zero changes at project-detail.js call sites (backward-compatible optional param)
-- [Phase 35-01]: services_user gets read access to services/edit_history — audit trail visibility needed for assigned services, not just admin roles
-- [Phase 35-01]: No data migration for orphaned history at projects/{serviceDocId}/edit_history — low-value testing/development records
-- [Phase 35-02]: canEdit === true in renderServiceDetail treats permission loading (undefined) as read-only — eliminates flash of edit controls for services_user
-- [Phase 35-02]: canEditTab !== true in saveServiceField/toggleServiceDetailActive blocks Firestore writes during permission load race (undefined state = blocked)
-- [Phase 35-02]: hasTabAccess === false (not !== true) in refreshServiceExpense — services_user has read access (true), so !== true would incorrectly block them; only explicit false skips aggregation
-- [Phase 35-for-the-gaps-found-during-audit-for-v-2-3]: services_user prs/pos list rule matches mrfs/transport_requests pattern exactly — intentional consistency across all 4 cross-department procurement collections
-- [Phase 40-ui-ux-revisions]: &&-short-circuit null guard used for service_name search in filterPRPORecords — legacy MRF docs pre-Phase-29 lack service_name field; .toLowerCase() on undefined throws TypeError
-- [Phase 40-ui-ux-revisions]: serviceTypeDisplay variable and td removed from renderServicesTable while retaining service_type data field — sub-tabs already separate one-time vs recurring; column was visual noise
-- [Phase 40-02]: closeClientDetailModal() removes container from DOM entirely (not just hides) - prevents stale content on re-open
-- [Phase 40-02]: stopPropagation on actions <td> covers both Edit and Delete buttons - single point isolation
-- [Phase 40-02]: editingClient guard in showClientDetail() returns early when row is in edit mode - no conditional onclick needed in template
-- [Phase 40-03]: posByPR map groups POs by pr_id with '_unlinked' sentinel for orphan POs — avoids null-key collisions
-- [Phase 40-03]: Timeline CSS added to views.css (not components.css) — kept adjacent to existing .timeline-item rules already there
-- [Phase 40-03]: createTimeline() import retained but not called in showProcurementTimeline — custom HTML needed for nesting support
-- [Phase 40-04]: Simpler MRF-level My Requests table (no PR/PO sub-rows) chosen over full procurement extraction — plan explicitly allowed alternative; procurement.js renderPRPORecords kept unchanged (zero regression risk)
-- [Phase 40-04]: createMRFRecordsController uses instance-scoped state (closure) with containerId-namespaced window pagination functions — prevents cross-instance state leakage between Procurement and My Requests
-- [Phase 40-04]: statusFilter: null in My Requests fetches ALL MRF statuses — requestors need to track Pending requests too, not just historical statuses
-- [Phase 40-04]: Dynamic import('./mrf-records.js') in initMyRequests — lazy load, only fetched when user navigates to My Requests tab
-- [Phase 40-ui-ux-revisions]: PRs rendered as non-clickable spans (not <a> onclick) — window.viewPRDetails unavailable in mrf-form context; same for POs and viewPODetails
-- [Phase 40-ui-ux-revisions]: Procurement Status column shows read-only colored spans (not editable selects) — requestors see but cannot modify PO procurement status in My Requests
-- [Phase 40-ui-ux-revisions]: calculateMRFStatus duplicated locally in mrf-records.js (not extracted from procurement.js) — avoids touching 3761-line file, zero regression risk
-- [Phase 40]: viewPRDetailsLocal/viewPODetailsLocal use createModal pattern (matches procurement.js) while showTimelineLocal injects raw modal div into body (matches timeline pattern from 40-03)
-- [Phase 40]: Instance-scoped window functions prefixed with containerId prevent collision between Procurement and My Requests controller instances
-- [Phase 40-ui-ux-revisions]: DOCUMENT_CONFIG_LOCAL and all helper functions use 'Local' suffix to avoid window namespace collision with procurement.js equivalents
-- [Phase 40-ui-ux-revisions]: window.generatePRDocumentLocal/generatePODocumentLocal registered in factory (not module level) and cleaned up in destroy() — same lifecycle as other window functions in createMRFRecordsController
-
-### Roadmap Evolution
-
-- Phase 35 added: for the gaps found during audit for v 2.3
-- Phase 36 added: fix the Expense Breakdown modal in services, export the one we've been using in projects
-- [Phase 36-01]: Unified showExpenseBreakdownModal eliminates divergent implementations — mode branching only at query level, all display logic shared; services modal now correct
-- [Phase 36-01]: showServiceExpenseBreakdownModal removed; old implementation omitted transport_requests from service expense breakdown — now included via service_code query
-- [Phase 37-01]: 21 individual requirement IDs verified for Phase 28 (not 17) — ROADMAP.md range notation "SERV-03-10" counted as one entry, actual IDs are 10 SERV + 8 UI + 3 ASSIGN = 21
-- [Phase 37-01]: Phase 26 26-03-SUMMARY.md already correct with [SEC-07] only — no modification needed
-
-- [Phase 38-01]: getMRFLabel/getDeptBadgeHTML extracted to components.js as named exports — single definition, zero new dependencies (functions only read object properties)
-- [Phase 38-01]: applyPODeptFilter passes full poData to renderPOTrackingTable; displayPos derived internally — scoreboards always reflect global totals, single-filter architecture
-- [Phase 38-02]: approved_by_name/approved_by_uid written on BOTH approval and rejection finance paths — approved_by_* captures "who acted", finance_status distinguishes the action type; enables single-field actor queries
-- [Phase 38-02]: DOCUMENT_CONFIG.defaultFinancePIC uses 'Finance Approver' not personal name — generic fallback for POs missing finance_approver_name field
-- [Phase 38-02]: Per-item loop console.log removed from loadPRs and loadMRFs — inner-loop logs fire once per Firestore document per snapshot update; high noise, no debugging value over count-level logs
-- Phase 39 added: Admin assignments overhaul, badge styling improvements, and project code uniqueness fix
-- [Phase 39-01]: generateProjectCode now queries both projects AND services via Promise.all — mirrors generateServiceCode (Phase 27 pattern), closes CODE-01 collision gap
-- [Phase 39-01]: procured maps to 'approved' CSS class; pending procurement maps to 'pending' — no new CSS classes needed for these two states
-- [Phase 39-01]: delivered gets .status-badge.delivered (own green class for independent styling), procuring gets .status-badge.procuring (blue = in-progress)
-- [Phase 39-01]: badge-secondary added as standalone class (not .status-badge.secondary) — matches finance.js usage pattern
-- [Phase 39-02]: assignments.js loads approved users (where status==approved) then filters client-side by sub-tab role scope — simpler than multiple parallel role-filtered queries
-- [Phase 39-02]: pendingModalCodes (Set) exposed as window._pendingModalCodes for inline onchange handlers — module closure not accessible from HTML attribute handlers
-- [Phase 39-02]: saveManageModal removes modal from DOM before await updateDoc — immediate feedback, avoids UI race if write is slow
-- [Phase 39-02]: syncAssignmentToPersonnel fires only for type==='projects'; services intentionally have no reverse sync (asymmetry preserved from Phase 28)
-- [Phase 39-02]: project-assignments.js and service-assignments.js left as unreferenced dead code — no risky deletes, can be cleaned in future phase
-- [Phase 39-03]: home.js has no status badges — dashboard shows stat cards only, no badge sweep needed there
-- [Phase 39-03]: Urgency badges (urgencyColors map in finance.js) intentionally left as-is — urgency styling is separate from procurement/finance status scope
-- [Phase 39-03]: PR-code-as-badge pattern: <a class='status-badge {statusClass}' onclick='...'>PR-YYYY-###</a> replaces stacked div+link+separate badge
-- Phase 40 added: UI/UX revisions - MRF request type label, client detail modal, services tab cleanup, MRF tracking for requestors, MRF search improvements, and procurement timeline fixes
+No pending decisions — v2.4 is complete.
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-None yet.
+None.
+
+### Roadmap Evolution
+
+v2.4 milestone complete. No phases pending. Next milestone to be planned via `/gsd:new-milestone`.
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 40-07-PLAN.md (View PR/PO document generation buttons in My Requests modals — all UAT gaps closed)
+Last session: 2026-03-01
+Stopped at: Milestone v2.4 archived and tagged. All planning artifacts archived to .planning/milestones/.

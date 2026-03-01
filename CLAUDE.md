@@ -200,6 +200,9 @@ const itemName = row.querySelector('input[data-field="item_name"]'); // Wrong se
 - Table ID: `#lineItemsBody`
 - Use classes: `.item-name`, `.item-category`, `.item-qty`, `.item-unit`, `.unit-cost`, `.supplier-select`
 - Used in: `generatePR()`, `submitTransportRequest()`, `generatePRandTR()`, `saveNewMRF()`, `saveProgress()`
+- Unified project/service dropdown ID: `#projectServiceSelect` (Create MRF form, Procurement tab)
+  - Options carry `data-type="project"|"service"` and `data-name="..."` for read-back in `saveNewMRF()`
+  - Groups displayed via native `<optgroup label="Projects">` and `<optgroup label="Services">`
 
 ## Common Development Tasks
 
@@ -257,6 +260,34 @@ const snapshot = await getDocs(q);
 **Problem**: PR generation failed with items present
 **Root Cause**: Wrong DOM selectors (`#mrfDetailsItemRows`, `[data-field="item_name"]`)
 **Fix**: Updated to correct selectors (`#lineItemsBody`, `.item-name` classes)
+
+## Phase 46 Changes (2026-02-28)
+
+### Dead File Removal
+**Files removed:** `app/views/project-assignments.js`, `app/views/service-assignments.js`
+**Reason:** Superseded by `app/views/assignments.js` in Phase 39. No SPA route imported these files.
+**Impact:** Zero — router and index.html had no references to these files.
+
+### Unified Create MRF Dropdown
+**Problem:** Procurement > Create MRF had two separate dropdowns (one for Projects, one for Services), requiring users to know which type they needed before selecting.
+**Fix:** Replaced with a single `<select id="projectServiceSelect">` using native `<optgroup>` elements:
+```html
+<select id="projectServiceSelect">
+  <optgroup label="Projects"><!-- project options with data-type="project" --></optgroup>
+  <optgroup label="Services"><!-- service options with data-type="service" --></optgroup>
+</select>
+```
+**Read pattern in saveNewMRF():**
+```javascript
+const selectEl = document.getElementById('projectServiceSelect');
+const selectedOption = selectEl?.options[selectEl?.selectedIndex];
+const selectedType = selectedOption?.dataset?.type || '';   // 'project' | 'service'
+const selectedCode = selectEl?.value?.trim() || '';
+const selectedName = selectedOption?.dataset?.name || '';
+const hasProject = selectedType === 'project' && !!selectedCode;
+const hasService = selectedType === 'service' && !!selectedCode;
+```
+**Matches:** Pattern already used in `mrf-form.js` (`#projectServiceSelect` in the standalone MRF form).
 
 ## UI Design System (2026-01-16)
 

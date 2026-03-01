@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. Built with vanilla JavaScript and Firebase.
+A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. Mobile-responsive with CSV data export, sortable tables, skeleton loading screens, and offline-first performance via Firebase IndexedDB persistence. Built with vanilla JavaScript and Firebase.
 
 ## Core Value
 
@@ -10,7 +10,8 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Shipped:** v2.3 Services Department Support (2026-02-26)
+**Shipped:** v2.4 Productivity & Polish (2026-03-01)
+**Next milestone:** Not yet planned — run `/gsd:new-milestone` to start v2.5
 
 See `.planning/MILESTONES.md` for full milestone history.
 
@@ -165,11 +166,44 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Client detail modal with linked projects/services — v2.3 (Phase 40)
 - ✓ Procurement timeline fixes (emoji removal, Invalid Date, PR->PO grouping) — v2.3 (Phase 40)
 
-### Active (v2.4+)
+### Validated (Shipped in v2.4)
 
-No active milestone. Run `/gsd:new-milestone` to plan v2.4.
+**Export & Data Portability:**
+- ✓ CSV export for all major list views (MRFs, PRs/POs, PO Tracking, Projects, Services) — v2.4 (Phase 41)
+- ✓ CSV export for project and service expense breakdowns — v2.4 (Phase 42)
 
-### Future (v2.4+)
+**Responsive Design:**
+- ✓ Mobile hamburger navigation at narrow viewport widths — v2.4 (Phase 43)
+- ✓ Horizontal scroll containers for data tables — v2.4 (Phase 44)
+- ✓ Split-panel vertical stacking and responsive modals — v2.4 (Phase 44)
+
+**Visual Polish & Branding:**
+- ✓ Company logo on login and registration pages — v2.4 (Phase 45, 47)
+- ✓ Navigation standardized (no underlines, no emojis, uniform Admin button) — v2.4 (Phase 45)
+
+**Code Cleanup:**
+- ✓ Dead files removed (project-assignments.js, service-assignments.js, procurement-base.js) — v2.4 (Phase 46)
+- ✓ Unified MRF creation dropdown in Procurement matching mrf-form.js — v2.4 (Phase 46)
+
+**Sortable Tables:**
+- ✓ Finance Pending Approvals tables sortable by column headers — v2.4 (Phase 47)
+- ✓ Procurement MRF Records table sortable by column headers — v2.4 (Phase 47.1)
+
+**Data Propagation & UX:**
+- ✓ PR documents carry urgency_level from parent MRF — v2.4 (Phase 47)
+- ✓ Create MRF requestor name auto-filled from logged-in user — v2.4 (Phase 47.2)
+
+**Performance Optimization:**
+- ✓ Firebase offline persistence via IndexedDB — v2.4 (Phase 48)
+- ✓ Skeleton loading screens across all data views — v2.4 (Phase 48)
+- ✓ Stale-while-revalidate for dashboard stats — v2.4 (Phase 48)
+- ✓ Parallel data fetching and TTL-cached reference data — v2.4 (Phase 48)
+
+### Active
+
+(No active milestone — run `/gsd:new-milestone` to define v2.5 requirements)
+
+### Future (v2.5+)
 
 #### Activity Logging
 - Structured activity entries on projects
@@ -251,6 +285,13 @@ No active milestone. Run `/gsd:new-milestone` to plan v2.4.
 - 65/65 requirements satisfied
 - 7 roles (added services_admin, services_user)
 
+**Shipped v2.4 (2026-03-01):**
+- 10 phases, 24 plans, 28 code files changed, +1,515/-1,208 lines
+- No new collections or files — focused on polish, exports, and performance
+- 30/30 requirements satisfied
+- Major additions: downloadCSV utility, skeleton screens, TTL caching, mobile hamburger nav, sortable headers
+- Total JS codebase: 22,883 LOC
+
 **Current Codebase State:**
 - Auth System: app/auth.js, app/permissions.js
 - Auth Views: register.js, login.js, pending.js
@@ -262,7 +303,7 @@ No active milestone. Run `/gsd:new-milestone` to plan v2.4.
 - Shared Modules: app/expense-modal.js (unified project+service modal), app/edit-history.js
 - Security: firestore.rules (services rules deployed), test/firestore.test.js
 - Utils: app/utils.js (generateServiceCode, generateProjectCode, getAssignedServiceCodes, syncServicePersonnelToAssignments)
-- Components: app/components.js (getMRFLabel, getDeptBadgeHTML as named exports)
+- Components: app/components.js (getMRFLabel, getDeptBadgeHTML, skeletonTableRows as named exports)
 
 **Technical Environment:**
 - Frontend: Vanilla JavaScript ES6 modules, no framework
@@ -274,21 +315,21 @@ No active milestone. Run `/gsd:new-milestone` to plan v2.4.
 **User Feedback Themes:**
 - v1.0: Project tracking working as expected
 - v1.0: Need for access control (✓ delivered in v2.0)
-- Desired: Document upload for project files (deferred to v2.4+)
-- Desired: Activity logging on projects (deferred to v2.4+)
-- Desired: Payment milestone tracking (deferred to v2.4+)
+- Desired: Document upload for project files (deferred to v2.5+)
+- Desired: Activity logging on projects (deferred to v2.5+)
+- Desired: Payment milestone tracking (deferred to v2.5+)
 
 **Known Issues:**
 - Role template seeding requires manual browser console step (one-time, 5 minutes)
 - First Super Admin requires manual Firestore document edit (one-time, 2 minutes)
 - Firestore 'in' query limited to 10 items (project assignments use client-side filtering)
-- Dead code: project-assignments.js and service-assignments.js remain unreferenced (replaced by assignments.js in P39, cleanup candidates for v2.4)
+- Firebase SDK IndexedDB reads ~500-850ms (known SDK limitation, not perceptibly faster than network)
 
 ## Constraints
 
 - **Tech stack**: Must use Firebase (Firestore + Auth + Storage), pure JavaScript (no build system)
 - **Deployment**: Netlify direct push, no CI/CD complexity
-- **Browser**: Desktop-first, modern browsers only (Chrome, Edge, Firefox)
+- **Browser**: Desktop-first with mobile-responsive support, modern browsers only (Chrome, Edge, Firefox)
 - **Security**: Invitation-only access (v2.0 ✓), granular permissions (v2.0 ✓), Firebase Security Rules (v2.0 ✓), confirmation dialogs for destructive actions
 - **Data continuity**: Existing MRFs/PRs/POs must remain functional during v2.0 auth migration
 - **Performance**: Real-time listeners already in use, maintain responsiveness
@@ -328,6 +369,11 @@ No active milestone. Run `/gsd:new-milestone` to plan v2.4.
 | Phase 38: getMRFLabel/getDeptBadgeHTML extracted to components.js as named exports | Duplicate definitions in finance.js and procurement.js — single source of truth removes drift risk | ✓ Good - clean import pattern adopted |
 | Phase 39: assignments.js replaces project-assignments.js + service-assignments.js — unified admin UI | Per-user assignment pages were bloated; table+modal pattern handles both departments in one view | ✓ Good - admin UX significantly improved |
 | Phase 40: createMRFRecordsController factory with containerId-namespaced window functions — prevents cross-instance state leakage | My Requests and Procurement both need MRF records tables; factory isolates state per instance | ✓ Good - zero cross-instance interference |
+| Phase 41: downloadCSV as shared utility in utils.js | Single implementation reused by 8 view files across 7 export requirements | ✓ Good - zero duplication, consistent CSV format |
+| Phase 43: Mobile hamburger nav as sibling to desktop nav | Position:fixed without height constraint; max-height CSS transition for animation | ✓ Good - smooth animation, no layout impact |
+| Phase 46: Unified project/service dropdown in Procurement Create MRF | Same pattern as mrf-form.js — native optgroup, data-type/data-name attributes | ✓ Good - consistent UX across both MRF creation paths |
+| Phase 48: persistentLocalCache with singleTabManager for offline persistence | Correct v10.7.1 API (not deprecated enableIndexedDbPersistence); single-tab avoids coordination overhead | ✓ Good - IndexedDB cache works, though SDK reads are slow (~500-850ms) |
+| Phase 48: TTL-cached reference data (5-min TTL) with destroy() timestamp reset | Guards check data.length > 0 AND timestamp freshness; prevents stale data on view re-entry | ✓ Good - measurably fewer Firestore reads on tab switching |
 
 ---
-*Last updated: 2026-02-26 after v2.3 milestone*
+*Last updated: 2026-03-01 after v2.4 milestone completion*

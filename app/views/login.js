@@ -15,9 +15,9 @@ export function render() {
         <div class="auth-container">
             <div class="auth-card">
                 <div class="auth-logo">
-                    <div style="width: 60px; height: 60px; background: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
-                        <span style="color: white; font-size: 24px; font-weight: 700;">CL</span>
-                    </div>
+                    <img src="./CLMC Registered Logo Cropped (black fill).png"
+                         alt="CLMC Logo"
+                         onerror="this.style.display='none'">
                 </div>
 
                 <h2 class="auth-title">Sign In</h2>

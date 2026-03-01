@@ -20,6 +20,7 @@ import {
     Timestamp
 } from '../firebase.js';
 import { showToast } from '../utils.js';
+import { skeletonTableRows } from '../components.js';
 
 /* ========================================
    MODULE STATE
@@ -103,7 +104,18 @@ export function render(activeTab = null) {
 
                     <!-- Pending Users Table -->
                     <div id="pendingUsersContainer">
-                        <p style="color: #64748b; padding: 1rem;">Loading pending users...</p>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Full Name</th>
+                                    <th>Registered</th>
+                                    <th>Invitation Code</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>${skeletonTableRows(5, 3)}</tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -130,7 +142,19 @@ export function render(activeTab = null) {
 
                     <!-- Users Table Container -->
                     <div id="usersTableContainer">
-                        <p style="color: #64748b; padding: 1rem;">Loading users...</p>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Full Name</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Assigned Projects</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>${skeletonTableRows(6, 5)}</tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -150,7 +174,18 @@ export function render(activeTab = null) {
 
                     <!-- Invitation Codes Table -->
                     <div id="invitationCodesTableContainer">
-                        <p style="color: #64748b; padding: 1rem;">Loading codes...</p>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Expires / Used By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>${skeletonTableRows(5, 3)}</tbody>
+                        </table>
                     </div>
                 </div>
             </div>

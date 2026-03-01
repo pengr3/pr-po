@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, getDocs } from './firebase.js';
-import { formatCurrency } from './utils.js';
+import { formatCurrency, downloadCSV } from './utils.js';
 
 /**
  * Show unified expense breakdown modal for a project or service.
@@ -61,12 +61,16 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     posSnapshot.forEach(poDoc => {
         const po = poDoc.data();
         const isSubcon = po.is_subcon === true;
+        const poDate = po.date_issued
+            ? (po.date_issued.toDate ? po.date_issued.toDate().toISOString().slice(0, 10) : String(po.date_issued).slice(0, 10))
+            : '';
+        const poSupplier = po.supplier_name || '';
 
         // Collect delivery fees
         const fee = parseFloat(po.delivery_fee || 0);
         if (fee > 0) {
             deliveryFeeTotal += fee;
-            deliveryFeeItems.push({ po_id: po.po_id, amount: fee });
+            deliveryFeeItems.push({ po_id: po.po_id, amount: fee, date: poDate, supplier: poSupplier });
         }
 
         if (isSubcon) {
@@ -91,7 +95,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             if (isTransportItem) {
                 transportCategoryItems.push({
                     po_id: po.po_id, item_name: itemName,
-                    quantity: qty, unit, unit_cost: unitCost, subtotal, category
+                    quantity: qty, unit, unit_cost: unitCost, subtotal, category,
+                    date: poDate, supplier: poSupplier
                 });
             } else if (!isSubcon) {
                 if (!categoryTotals[category]) {
@@ -100,7 +105,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 categoryTotals[category].amount += subtotal;
                 categoryTotals[category].items.push({
                     po_id: po.po_id, item_name: itemName,
-                    quantity: qty, unit, unit_cost: unitCost, subtotal
+                    quantity: qty, unit, unit_cost: unitCost, subtotal,
+                    date: poDate, supplier: poSupplier
                 });
             }
 
@@ -122,6 +128,31 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             });
         }
     });
+
+    // Export function — closure over computed data so it can be called from the modal button
+    const exportTitle = displayName || identifier;
+    window._exportExpenseBreakdownCSV = function() {
+        const headers = ['DATE', 'CATEGORY', 'SUPPLIER/SUBCONTRACTOR', 'ITEMS', 'QTY', 'UNIT', 'UNIT COST', 'TOTAL COST', 'REQUESTED BY', 'REMARKS'];
+        const rows = [];
+        Object.entries(categoryTotals).forEach(([cat, data]) => {
+            data.items.forEach(item => {
+                rows.push([item.date, cat, item.supplier, item.item_name, item.quantity, item.unit, item.unit_cost.toFixed(2), item.subtotal.toFixed(2), '', '']);
+            });
+        });
+        transportCategoryItems.forEach(item => {
+            rows.push([item.date, item.category, item.supplier, item.item_name, item.quantity, item.unit, item.unit_cost.toFixed(2), item.subtotal.toFixed(2), '', '']);
+        });
+        deliveryFeeItems.forEach(item => {
+            rows.push([item.date, 'Delivery Fee', item.supplier, 'Delivery Fee', 1, 'lot', item.amount.toFixed(2), item.amount.toFixed(2), '', '']);
+        });
+        transportRequests.forEach(tr => {
+            rows.push(['', 'Transport Fees', tr.supplier, 'Transport Request', 1, 'lot', tr.amount.toFixed(2), tr.amount.toFixed(2), '', '']);
+        });
+        if (rows.length === 0) return;
+        const today = new Date().toISOString().slice(0, 10);
+        const safeName = exportTitle.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_]/g, '');
+        downloadCSV(headers, rows, `${safeName}-expenses-${today}.csv`);
+    };
 
     // Calculate totals
     const transportCategoryTotal = transportCategoryItems.reduce((s, item) => s + item.subtotal, 0);
@@ -232,13 +263,16 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No transport fees recorded.</p>';
 
     // Render unified modal
-    const title = displayName || identifier;
+    const title = exportTitle;
     const modalHTML = `
         <div id="expenseBreakdownModal" class="modal active">
             <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
                     <h3>Expense Breakdown: ${title}</h3>
-                    <button class="modal-close" onclick="window._closeExpenseBreakdownModal()">&times;</button>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <button onclick="window._exportExpenseBreakdownCSV()" class="btn btn-sm btn-secondary" style="font-size: 0.8125rem;">Export CSV &#8681;</button>
+                        <button class="modal-close" onclick="window._closeExpenseBreakdownModal()">&times;</button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <!-- Budget Row -->
@@ -315,6 +349,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 window._closeExpenseBreakdownModal = function() {
     const modal = document.getElementById('expenseBreakdownModal');
     if (modal) modal.remove();
+    delete window._exportExpenseBreakdownCSV;
 };
 
 window._switchExpenseBreakdownTab = function(tab) {
@@ -352,4 +387,3 @@ window._toggleExpenseCategory = function(headerEl) {
     }
 };
 
-console.log('Expense modal module loaded successfully');

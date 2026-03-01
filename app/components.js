@@ -492,4 +492,20 @@ export function getDeptBadgeHTML(doc) {
     return `<span style="background:${bg};color:${color};padding:2px 7px;border-radius:4px;font-size:0.7rem;font-weight:600;white-space:nowrap;">${label}</span>`;
 }
 
-console.log('Components module loaded successfully');
+/* ========================================
+   SKELETON LOADING UTILITY
+   ======================================== */
+
+/**
+ * Generate skeleton placeholder rows for tables
+ * Used in render() functions to show loading state before data arrives
+ * @param {number} cols - Number of columns to span
+ * @param {number} rows - Number of skeleton rows to generate (default 5)
+ * @returns {string} HTML string of skeleton table rows
+ */
+export function skeletonTableRows(cols = 6, rows = 5) {
+    return Array(rows).fill(
+        `<tr><td colspan="${cols}"><div class="skeleton skeleton-row"></div></td></tr>`
+    ).join('');
+}
+

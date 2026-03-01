@@ -5,7 +5,7 @@
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from '../firebase.js';
 import { showLoading, showToast, formatCurrency } from '../utils.js';
-import { createModal, openModal, closeModal } from '../components.js';
+import { createModal, openModal, closeModal, skeletonTableRows } from '../components.js';
 
 // Global state
 let clientsData = [];
@@ -103,9 +103,7 @@ export function render(activeTab = null) {
                         </tr>
                     </thead>
                     <tbody id="clientsTableBody">
-                        <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem;">Loading clients...</td>
-                        </tr>
+                        ${skeletonTableRows(5, 5)}
                     </tbody>
                 </table>
             </div>

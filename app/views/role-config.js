@@ -12,6 +12,7 @@ import {
     serverTimestamp
 } from '../firebase.js';
 import { showToast } from '../utils.js';
+import { skeletonTableRows } from '../components.js';
 
 /* ========================================
    MODULE STATE
@@ -181,7 +182,22 @@ export function render(activeTab = null) {
 
             <div class="permission-matrix-card">
                 <div id="permissionMatrixContainer">
-                    ${renderPermissionMatrix()}
+                    <table class="permission-matrix">
+                        <thead>
+                            <tr>
+                                <th>Tab</th>
+                                <th>Permission</th>
+                                <th>Super Admin</th>
+                                <th>Ops Admin</th>
+                                <th>Ops User</th>
+                                <th>Svc Admin</th>
+                                <th>Svc User</th>
+                                <th>Finance</th>
+                                <th>Procurement</th>
+                            </tr>
+                        </thead>
+                        <tbody>${skeletonTableRows(9, 5)}</tbody>
+                    </table>
                 </div>
             </div>
 

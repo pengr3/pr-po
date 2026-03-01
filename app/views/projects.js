@@ -4,8 +4,9 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
+import { skeletonTableRows } from '../components.js';
 
 // Global state
 let projectsData = [];
@@ -68,6 +69,7 @@ function attachWindowFunctions() {
     window.applyFilters = applyFilters;
     window.debouncedFilter = debouncedFilter;
     window.sortProjects = sortProjects;
+    window.exportProjectsCSV = exportProjectsCSV;
     window.selectPersonnel = selectPersonnel;
     window.removePersonnel = removePersonnel;
     window.filterPersonnelDropdown = filterPersonnelDropdown;
@@ -100,9 +102,12 @@ export function render(activeTab = null) {
             <div class="card">
                 <div class="suppliers-header">
                     <h2>Project Management</h2>
-                    ${canCreateProject ? `
-                        <button class="btn btn-primary" onclick="window.toggleAddProjectForm()">Add Project</button>
-                    ` : ''}
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="window.exportProjectsCSV()">Export CSV</button>
+                        ${canCreateProject ? `
+                            <button class="btn btn-primary" onclick="window.toggleAddProjectForm()">Add Project</button>
+                        ` : ''}
+                    </div>
                 </div>
 
                 <!-- Add Project Form -->
@@ -215,6 +220,7 @@ export function render(activeTab = null) {
                 </div>
 
                 <!-- Projects Table -->
+                <div class="table-scroll-container">
                 <table>
                     <thead>
                         <tr>
@@ -240,11 +246,10 @@ export function render(activeTab = null) {
                         </tr>
                     </thead>
                     <tbody id="projectsTableBody">
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 2rem;">Loading projects...</td>
-                        </tr>
+                        ${skeletonTableRows(7, 5)}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     `;
@@ -293,6 +298,32 @@ export async function init(activeTab = null) {
     await loadProjects();
 }
 
+/**
+ * Export the currently-filtered projects list as a CSV file.
+ */
+function exportProjectsCSV() {
+    if (filteredProjects.length === 0) {
+        showToast('No projects to export', 'info');
+        return;
+    }
+    const headers = ['Code', 'Name', 'Client', 'Internal Status', 'Project Status', 'Active'];
+    const rows = filteredProjects.map(project => {
+        const client = clientsData.find(c => c.id === project.client_id);
+        const clientName = client ? client.company_name : (project.client_code || '');
+        return [
+            project.project_code || '',
+            project.project_name || '',
+            clientName,
+            project.internal_status || '',
+            project.project_status || '',
+            project.active ? 'Yes' : 'No'
+        ];
+    });
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `projects-${date}.csv`);
+}
+window.exportProjectsCSV = exportProjectsCSV;
+
 // Cleanup
 export async function destroy() {
     console.log('[Projects] Destroying projects view...');
@@ -339,6 +370,7 @@ export async function destroy() {
     delete window.applyFilters;
     delete window.debouncedFilter;
     delete window.sortProjects;
+    delete window.exportProjectsCSV;
     delete window.selectPersonnel;
     delete window.removePersonnel;
     delete window.filterPersonnelDropdown;

@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 
@@ -196,6 +196,7 @@ export async function destroy() {
     delete window.filterDetailPersonnel;
     delete window.showDetailPersonnelDropdown;
     delete window.showEditHistory;
+    delete window.exportProjectExpenseCSV;
 
     console.log('[ProjectDetail] View destroyed');
 }
@@ -316,7 +317,14 @@ function renderProjectDetail() {
             <!-- Card 2 - Financial Summary -->
             <div class="card" style="margin-bottom: 1.5rem;">
                 <div class="card-body" style="padding: 1.5rem;">
-                    <h3 style="margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">Financial Summary</h3>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Financial Summary</h3>
+                        <button class="btn btn-sm btn-secondary" onclick="window.exportProjectExpenseCSV()"
+                            style="font-size: 0.75rem; padding: 0.25rem 0.75rem; display: flex; align-items: center; gap: 0.35rem;${currentExpense.poCount === 0 ? ' opacity: 0.45; pointer-events: none; cursor: default;' : ''}"
+                            ${currentExpense.poCount === 0 ? 'disabled' : ''}>
+                            &#8681; Export CSV
+                        </button>
+                    </div>
 
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                         <div class="form-group" style="margin-bottom: 0;">
@@ -772,6 +780,67 @@ function clearFieldError(fieldName) {
     field.style.borderColor = '';
 }
 
+// Export project expense data as CSV
+async function exportProjectExpenseCSV() {
+    if (!currentProject) return;
+
+    try {
+        // Query all POs for this project
+        const posSnap = await getDocs(
+            query(collection(db, 'pos'), where('project_name', '==', currentProject.project_name))
+        );
+
+        // Collect unique MRF IDs to fetch requestor names
+        const mrfIds = [...new Set(posSnap.docs.map(d => d.data().mrf_id).filter(Boolean))];
+        const mrfMap = new Map();
+        if (mrfIds.length > 0) {
+            // Firestore 'in' supports up to 30 values; chunk if needed
+            const chunks = [];
+            for (let i = 0; i < mrfIds.length; i += 30) chunks.push(mrfIds.slice(i, i + 30));
+            for (const chunk of chunks) {
+                const mrfSnap = await getDocs(query(collection(db, 'mrfs'), where('mrf_id', 'in', chunk)));
+                mrfSnap.forEach(d => mrfMap.set(d.data().mrf_id, d.data()));
+            }
+        }
+
+        // Build rows — one row per line item across all POs
+        const rows = [];
+        posSnap.forEach(poDoc => {
+            const po = poDoc.data();
+            const mrf = mrfMap.get(po.mrf_id) || {};
+            const requestorName = mrf.requestor_name || '';
+            const dateStr = po.date_issued
+                ? (po.date_issued.toDate ? po.date_issued.toDate() : new Date(po.date_issued)).toISOString().slice(0, 10)
+                : '';
+            const items = JSON.parse(po.items_json || '[]');
+            items.forEach(item => {
+                const qty = parseFloat(item.qty || item.quantity || 0);
+                const unitCost = parseFloat(item.unit_cost || item.unitCost || item.price || 0);
+                rows.push([
+                    dateStr,
+                    item.category || 'Uncategorized',
+                    po.supplier_name || '',
+                    item.item || item.item_name || item.itemName || item.name || 'Unnamed Item',
+                    qty,
+                    item.unit || 'pcs',
+                    unitCost.toFixed(2),
+                    (qty * unitCost).toFixed(2),
+                    requestorName,
+                    '' // REMARKS — blank until payables tracking is implemented
+                ]);
+            });
+        });
+
+        const headers = ['DATE', 'CATEGORY', 'SUPPLIER/SUBCONTRACTOR', 'ITEMS', 'QTY', 'UNIT', 'UNIT COST', 'TOTAL COST', 'REQUESTED BY', 'REMARKS'];
+        const safeName = (currentProject.project_name || 'project').replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_]/g, '');
+        const today = new Date().toISOString().slice(0, 10);
+        downloadCSV(headers, rows, `${safeName}-expenses-${today}.csv`);
+    } catch (error) {
+        console.error('[ProjectDetail] Export failed:', error);
+        showToast('Export failed', 'error');
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveField = saveField;
@@ -784,6 +853,7 @@ function attachWindowFunctions() {
     window.filterDetailPersonnel = filterDetailPersonnel;
     window.showDetailPersonnelDropdown = showDetailPersonnelDropdown;
     window.showEditHistory = () => currentProject && showEditHistoryModal(currentProject.id, currentProject.project_code);
+    window.exportProjectExpenseCSV = exportProjectExpenseCSV;
 }
 
 console.log('[ProjectDetail] Module loaded');
