@@ -6,7 +6,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV } from '../utils.js';
+import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { skeletonTableRows } from '../components.js';
 
@@ -62,7 +62,6 @@ function debounce(callback, wait) {
 
 // Attach window functions (all Service-prefixed to avoid collision with projects.js)
 function attachWindowFunctions() {
-    console.log('[Services] Attaching window functions...');
     window.toggleAddServiceForm = toggleAddServiceForm;
     window.addService = addService;
     window.editService = editService;
@@ -79,7 +78,6 @@ function attachWindowFunctions() {
     window.removeServicePersonnel = removeServicePersonnel;
     window.filterServicePersonnelDropdown = filterServicePersonnelDropdown;
     window.showServicePersonnelDropdown = showServicePersonnelDropdown;
-    console.log('[Services] Window functions attached');
 }
 
 // Render view HTML
@@ -153,6 +151,11 @@ export function render(activeTab = null) {
                             <option value="one-time" ${defaultServiceType === 'one-time' ? 'selected' : ''}>One-Time</option>
                             <option value="recurring" ${defaultServiceType === 'recurring' ? 'selected' : ''}>Recurring</option>
                         </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location (Optional)</label>
+                        <input type="text" id="serviceLocation" placeholder="e.g., Manila, Cebu, Davao">
                     </div>
 
                     <div class="form-group">
@@ -286,8 +289,6 @@ export function render(activeTab = null) {
 
 // Initialize view
 export async function init(activeTab = null) {
-    console.log('[Services] Initializing services view...');
-
     // Update module-level active tab
     if (activeTab && (activeTab === 'services' || activeTab === 'recurring')) {
         currentActiveTab = activeTab;
@@ -297,7 +298,6 @@ export async function init(activeTab = null) {
 
     // Listen for permission changes and re-render table
     const permissionChangeHandler = () => {
-        console.log('[Services] Permissions changed, re-rendering table...');
         renderServicesTable();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
@@ -308,7 +308,6 @@ export async function init(activeTab = null) {
 
     // ASSIGN-06: Re-filter when assignments change
     const assignmentChangeHandler = () => {
-        console.log('[Services] Assignments changed, re-filtering...');
         applyServiceFilters();
     };
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
@@ -358,8 +357,6 @@ window.exportServicesCSV = exportServicesCSV;
 
 // Cleanup
 export async function destroy() {
-    console.log('[Services] Destroying services view...');
-
     // Remove permission change listener
     if (window._servicesPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._servicesPermissionHandler);
@@ -408,8 +405,6 @@ export async function destroy() {
     delete window.removeServicePersonnel;
     delete window.filterServicePersonnelDropdown;
     delete window.showServicePersonnelDropdown;
-
-    console.log('[Services] View destroyed');
 }
 
 // Load clients with real-time listener
@@ -423,7 +418,6 @@ async function loadServiceClients() {
 
             clientsData.sort((a, b) => a.company_name.localeCompare(b.company_name));
 
-            console.log('[Services] Clients loaded:', clientsData.length);
             renderServiceClientDropdown();
         }, (error) => {
             console.error('[Services] Error loading clients:', error);
@@ -440,7 +434,6 @@ async function loadServiceActiveUsers() {
     // Personnel pill selector is an edit feature - skip for view-only users
     const canEdit = window.canEditTab?.('services');
     if (canEdit === false) {
-        console.log('[Services] Skipping user load (view-only mode)');
         return;
     }
 
@@ -461,7 +454,6 @@ async function loadServiceActiveUsers() {
                 });
             });
             usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
-            console.log('[Services] Active users loaded:', usersData.length);
         }, (error) => {
             console.warn('[Services] Users listener error (likely permissions):', error.message);
         });
@@ -527,8 +519,8 @@ function filterServicePersonnelDropdown(searchText) {
     dropdown.innerHTML = matches.slice(0, 10).map(user => `
         <div class="pill-dropdown-item"
              onmousedown="event.preventDefault(); window.selectServicePersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
-            <strong>${user.full_name}</strong>
-            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+            <strong>${escapeHTML(user.full_name)}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${escapeHTML(user.email)}</span>
         </div>
     `).join('');
 
@@ -577,10 +569,10 @@ function renderServiceClientDropdown() {
     clientsData.forEach(client => {
         const selected = client.id === currentValue ? 'selected' : '';
         optionsHtml += `
-            <option value="${client.id}"
-                    data-code="${client.client_code}"
+            <option value="${escapeHTML(client.id)}"
+                    data-code="${escapeHTML(client.client_code)}"
                     ${selected}>
-                ${client.company_name} (${client.client_code})
+                ${escapeHTML(client.company_name)} (${escapeHTML(client.client_code)})
             </option>
         `;
     });
@@ -594,7 +586,7 @@ function renderServiceClientDropdown() {
         let filterOptionsHtml = '<option value="">All Clients</option>';
         clientsData.forEach(client => {
             const selected = client.id === currentFilterValue ? 'selected' : '';
-            filterOptionsHtml += `<option value="${client.id}" ${selected}>${client.company_name}</option>`;
+            filterOptionsHtml += `<option value="${escapeHTML(client.id)}" ${selected}>${escapeHTML(client.company_name)}</option>`;
         });
         filterSelect.innerHTML = filterOptionsHtml;
     }
@@ -628,6 +620,7 @@ function toggleAddServiceForm() {
         // Clear form
         document.getElementById('serviceClient').value = '';
         document.getElementById('serviceName').value = '';
+        document.getElementById('serviceLocation').value = '';
         document.getElementById('serviceType').value = currentActiveTab === 'recurring' ? 'recurring' : 'one-time';
         document.getElementById('serviceInternalStatus').value = '';
         document.getElementById('serviceProjectStatus').value = '';
@@ -666,6 +659,7 @@ async function addService() {
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
     const service_name = document.getElementById('serviceName').value.trim();
     const service_type = document.getElementById('serviceType').value;
+    const location = document.getElementById('serviceLocation').value.trim();
     const internal_status = document.getElementById('serviceInternalStatus').value;
     const project_status = document.getElementById('serviceProjectStatus').value;
     const budgetVal = document.getElementById('serviceBudget').value;
@@ -735,6 +729,7 @@ async function addService() {
             contract_cost,
             personnel_user_ids: newUserIds,
             personnel_names: newUserNames,
+            location: location || null,
             personnel_user_id: null,
             personnel_name: null,
             personnel: null,
@@ -747,6 +742,7 @@ async function addService() {
             { field: 'service_name', old_value: null, new_value: service_name },
             { field: 'service_type', old_value: null, new_value: service_type },
             { field: 'client', old_value: null, new_value: clientCode },
+            ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
             { field: 'internal_status', old_value: null, new_value: internal_status },
             { field: 'project_status', old_value: null, new_value: project_status },
             ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
@@ -920,8 +916,6 @@ async function loadServices() {
                 allServices.push({ id: doc.id, ...doc.data() });
             });
 
-            console.log('[Services] Loaded:', allServices.length);
-
             // Apply filters (which will also sort and render)
             applyServiceFilters();
         }, (error) => {
@@ -966,24 +960,24 @@ function renderServicesTable() {
         const clientName = client ? client.company_name : service.client_code;
 
         return `
-            <tr onclick="window.location.hash = '#/services/detail/${service.service_code}'"
+            <tr onclick="window.location.hash = '#/services/detail/${escapeHTML(service.service_code)}'"
                 style="cursor: pointer;"
                 class="clickable-row">
-                <td><strong>${service.service_code || ''}</strong></td>
-                <td>${service.service_name || ''}</td>
-                <td>${clientName || ''}</td>
-                <td>${service.internal_status || ''}</td>
-                <td>${service.project_status || ''}</td>
+                <td><strong>${escapeHTML(service.service_code || '')}</strong></td>
+                <td>${escapeHTML(service.service_name || '')}</td>
+                <td>${escapeHTML(clientName || '')}</td>
+                <td>${escapeHTML(service.internal_status || '')}</td>
+                <td>${escapeHTML(service.project_status || '')}</td>
                 <td>
-                    <span class="status-badge ${service.active ? 'approved' : 'rejected'}">
+                    <span class="status-badge clickable-badge ${service.active ? 'approved' : 'rejected'}"
+                          ${showEditControls ? `onclick="event.stopPropagation(); window.toggleServiceActive('${escapeHTML(service.id)}', ${service.active})" title="Click to ${service.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
                         ${service.active ? 'Active' : 'Inactive'}
                     </span>
                 </td>
                 ${showEditControls ? `
                     <td style="white-space: nowrap;" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm btn-primary" onclick="window.editService('${service.id}')">Edit</button>
-                        <button class="btn btn-sm btn-secondary" onclick="window.toggleServiceActive('${service.id}', ${service.active})">${service.active ? 'Deactivate' : 'Activate'}</button>
-                        ${canDeleteService ? `<button class="btn btn-sm btn-danger" onclick="window.deleteService('${service.id}', '${(service.service_name || '').replace(/'/g, "\\'")}')">Delete</button>` : ''}
+                        <button class="btn btn-sm btn-primary" onclick="window.editService('${escapeHTML(service.id)}')">Edit</button>
+                        ${canDeleteService ? `<button class="btn btn-sm btn-danger" onclick="window.deleteService('${escapeHTML(service.id)}', '${(service.service_name || '').replace(/'/g, "\\'")}')">Delete</button>` : ''}
                     </td>
                 ` : `
                     <td class="actions-cell" onclick="event.stopPropagation()">
@@ -1023,6 +1017,7 @@ function editService(serviceId) {
     // Populate form
     document.getElementById('serviceClient').value = service.client_id;
     document.getElementById('serviceName').value = service.service_name;
+    document.getElementById('serviceLocation').value = service.location || '';
     document.getElementById('serviceType').value = service.service_type || 'one-time';
     document.getElementById('serviceInternalStatus').value = service.internal_status;
     document.getElementById('serviceProjectStatus').value = service.project_status;
@@ -1061,6 +1056,7 @@ async function saveServiceEdit() {
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
     const service_name = document.getElementById('serviceName').value.trim();
     const service_type = document.getElementById('serviceType').value;
+    const location = document.getElementById('serviceLocation').value.trim();
     const internal_status = document.getElementById('serviceInternalStatus').value;
     const project_status = document.getElementById('serviceProjectStatus').value;
     const budgetVal = document.getElementById('serviceBudget').value;
@@ -1122,6 +1118,7 @@ async function saveServiceEdit() {
         const serviceRef = doc(db, 'services', editingService);
         await updateDoc(serviceRef, {
             service_name,
+            location: location || null,
             client_id: clientId,
             client_code: clientCode,
             service_type,
@@ -1140,6 +1137,10 @@ async function saveServiceEdit() {
         }
         if (existingService.client_code !== clientCode) {
             editChanges.push({ field: 'client_code', old_value: existingService.client_code, new_value: clientCode });
+        }
+        const oldLocation = existingService.location || '';
+        if (oldLocation !== (location || '')) {
+            editChanges.push({ field: 'location', old_value: oldLocation || null, new_value: location || null });
         }
         if (existingService.service_type !== service_type) {
             editChanges.push({ field: 'service_type', old_value: existingService.service_type, new_value: service_type });
@@ -1319,5 +1320,3 @@ function updateServicePaginationControls(totalPages, startIndex, endIndex, total
 
     paginationDiv.innerHTML = paginationHTML;
 }
-
-console.log('[Services] Module loaded');

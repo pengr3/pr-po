@@ -8,6 +8,7 @@
 - ✅ **v2.2 Workflow & UX Enhancements** — Phases 15-25 (shipped 2026-02-10)
 - ✅ **v2.3 Services Department Support** — Phases 26-40 (shipped 2026-02-26)
 - ✅ **v2.4 Productivity & Polish** — Phases 41-48 (shipped 2026-03-01)
+- ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
 
 ## Phases
 
@@ -96,6 +97,20 @@
 
 </details>
 
+<details>
+<summary>✅ v2.5 Data & Application Security (Phases 49-53) — SHIPPED 2026-03-02</summary>
+
+- [x] Phase 49: Security Audit (5/5 plans) — completed 2026-03-01
+- [x] Phase 50: Database Safety (2/2 plans) — completed 2026-03-01
+- [x] Phase 51: Data Wipe (1/1 plan) — completed 2026-03-01
+- ~~Phase 52: Data Migration~~ *(superseded by Phase 51.1)*
+- [x] Phase 51.1: Data Migration [inserted] (1/1 plan) — completed 2026-03-01
+- [x] Phase 51.2: Clickable Active Badge [inserted] (1/1 plan) — completed 2026-03-01
+- [x] Phase 52.1: Finance Subtabs [inserted] (1/1 plan) — completed 2026-03-02
+- [x] Phase 53: Milestone Gap Closure (1/1 plan) — completed 2026-03-02
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -106,8 +121,9 @@
 | 15-25 | v2.2 | 23/23 | Complete | 2026-02-10 |
 | 26-40 | v2.3 | 34/34 | Complete | 2026-02-26 |
 | 41-48 | v2.4 | 24/24 | Complete | 2026-03-01 |
+| 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
 
-**Total: 48 phases, 128 plans, 6 milestones shipped**
+**Total shipped: 53 phases, 140 plans, 7 milestones**
 
 ---
-*Last updated: 2026-03-01 after v2.4 milestone completion*
+*Last updated: 2026-03-02 after v2.5 milestone completed*

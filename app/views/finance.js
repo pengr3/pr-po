@@ -4,9 +4,24 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, getStatusClass, downloadCSV } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
+
+// ========================================
+// UTILITY: Debounce helper for search inputs
+// ========================================
+function debounce(callback, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            callback(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 // Format PO date - handles Firestore Timestamps, {seconds} objects, and strings
 function formatPODate(po) {
@@ -47,6 +62,27 @@ let projectExpenseSortDirection = 'asc';
 const PROJECT_EXPENSES_TTL_MS = 300000; // 5 minutes
 let _projectExpensesCachedAt = 0;
 
+// Service & Recurring expense data + sort state
+let serviceExpenses = [];
+let recurringExpenses = [];
+let serviceExpenseSortColumn = 'serviceName';
+let serviceExpenseSortDirection = 'asc';
+let recurringExpenseSortColumn = 'serviceName';
+let recurringExpenseSortDirection = 'asc';
+
+// TTL caches for service/recurring expenses
+let _serviceExpensesCachedAt = 0;
+let _recurringExpensesCachedAt = 0;
+
+// Active sub-tab within the "Project List" main tab
+// 'projects' | 'services' | 'recurring'
+let activeExpenseSubTab = 'projects';
+
+// Search state for expense sub-tabs
+let projectExpenseSearchTerm = '';
+let serviceExpenseSearchTerm = '';
+let recurringExpenseSearchTerm = '';
+
 // Sort state for Purchase Orders
 let poSortColumn = 'date_issued';
 let poSortDirection = 'desc';
@@ -74,13 +110,44 @@ function applyFinanceDeptFilter(value) {
 }
 
 /**
+ * Switch between Projects, Services, and Recurring sub-tabs in the Project List section.
+ * @param {string} tab - 'projects' | 'services' | 'recurring'
+ */
+function switchExpenseSubTab(tab) {
+    activeExpenseSubTab = tab;
+
+    // Show/hide sections
+    ['projects', 'services', 'recurring'].forEach(t => {
+        const section = document.getElementById(`${t}ExpenseSection`);
+        if (section) section.style.display = t === tab ? '' : 'none';
+    });
+
+    // Update sub-tab button active states
+    document.querySelectorAll('.expense-subtab-btn').forEach(btn => {
+        const isActive = btn.dataset.tab === tab;
+        btn.classList.toggle('active', isActive);
+        btn.style.color = isActive ? '#1a73e8' : '#64748b';
+        btn.style.borderBottomColor = isActive ? '#1a73e8' : 'transparent';
+    });
+
+    // Load data for the active sub-tab if not yet loaded
+    if (tab === 'services' && serviceExpenses.length === 0) {
+        refreshServiceExpenses();
+    } else if (tab === 'recurring' && recurringExpenses.length === 0) {
+        refreshRecurringExpenses();
+    } else if (tab === 'services') {
+        renderServiceExpensesTable();
+    } else if (tab === 'recurring') {
+        renderRecurringExpensesTable();
+    }
+}
+
+/**
  * Attach all window functions for use in onclick handlers
  * This needs to be called every time init() runs to ensure
  * functions are available after tab navigation
  */
 function attachWindowFunctions() {
-    console.log('[Finance] Attaching window functions...');
-
     // PR/TR Review Functions
     window.refreshPRs = refreshPRs;
     window.viewPRDetails = viewPRDetails;
@@ -118,7 +185,27 @@ function attachWindowFunctions() {
     window.sortTransportRequests = sortTransportRequests;
     window.applyFinanceDeptFilter = applyFinanceDeptFilter;
 
-    console.log('[Finance] ✅ All window functions attached successfully');
+    // Service/Recurring Expense Functions
+    window.refreshServiceExpenses = () => refreshServiceExpenses(true);
+    window.refreshRecurringExpenses = () => refreshRecurringExpenses(true);
+    window.showServiceExpenseModal = (code, budget) => showExpenseBreakdownModal(code, { mode: 'service', budget });
+    window.sortServiceExpenses = sortServiceExpenses;
+    window.sortRecurringExpenses = sortRecurringExpenses;
+    window.switchExpenseSubTab = switchExpenseSubTab;
+
+    // Search debounced functions
+    window.debouncedProjectExpenseSearch = debounce(() => {
+        projectExpenseSearchTerm = document.getElementById('projectExpenseSearch')?.value.toLowerCase() || '';
+        renderProjectExpensesTable();
+    }, 300);
+    window.debouncedServiceExpenseSearch = debounce(() => {
+        serviceExpenseSearchTerm = document.getElementById('serviceExpenseSearch')?.value.toLowerCase() || '';
+        renderServiceExpensesTable();
+    }, 300);
+    window.debouncedRecurringExpenseSearch = debounce(() => {
+        recurringExpenseSearchTerm = document.getElementById('recurringExpenseSearch')?.value.toLowerCase() || '';
+        renderRecurringExpensesTable();
+    }, 300);
 }
 
 /**
@@ -256,8 +343,8 @@ function generateItemsTableHTML(items, type) {
         tableHTML += `
             <tr>
                 <td style="text-align: center;">${index + 1}</td>
-                <td>${item.item || item.item_name}</td>
-                ${type === 'PR' ? `<td>${item.category || 'N/A'}</td>` : ''}
+                <td>${escapeHTML(item.item || item.item_name)}</td>
+                ${type === 'PR' ? `<td>${escapeHTML(item.category || 'N/A')}</td>` : ''}
                 <td style="text-align: center;">${qty}</td>
                 <td>${item.unit}</td>
                 <td style="text-align: right;">₱${formatCurrency(unitCost)}</td>
@@ -521,7 +608,6 @@ function formatDocumentDate(dateString) {
  * @param {string} poDocId - Firestore document ID of the PO
  */
 async function generatePODocument(poDocId) {
-    console.log('[Finance] Generating PO document for:', poDocId);
     showLoading(true);
 
     try {
@@ -720,31 +806,126 @@ export function render(activeTab = 'approvals') {
                 </div>
             </section>
 
-            <!-- Tab 3: Project List -->
+            <!-- Tab 3: Project List & Expenses -->
             <section id="projects-section" class="section ${activeTab === 'projects' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view project expenses.</span></div>' : ''}
                 <div class="card">
                     <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <h2>Project List & Expenses</h2>
-                        <button class="btn btn-secondary" onclick="window.refreshProjectExpenses(true)" style="font-size: 0.875rem;">
-                            🔄 Refresh Totals
+                    </div>
+
+                    <!-- Sub-tab bar: Projects | Services | Recurring -->
+                    <div style="display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 1rem; padding: 0 1rem;">
+                        <button class="expense-subtab-btn active" data-tab="projects"
+                                onclick="window.switchExpenseSubTab('projects')"
+                                style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #1a73e8; border-bottom: 2px solid #1a73e8; margin-bottom: -2px;">
+                            Projects
+                        </button>
+                        <button class="expense-subtab-btn" data-tab="services"
+                                onclick="window.switchExpenseSubTab('services')"
+                                style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                            Services
+                        </button>
+                        <button class="expense-subtab-btn" data-tab="recurring"
+                                onclick="window.switchExpenseSubTab('recurring')"
+                                style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                            Recurring
                         </button>
                     </div>
-                    <div id="projectExpensesContainer">
-                        <div style="overflow-x: auto;">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Project Name</th>
-                                        <th>Client</th>
-                                        <th style="text-align: right;">Budget</th>
-                                        <th style="text-align: right;">Total Expense</th>
-                                        <th style="text-align: right;">Remaining</th>
-                                        <th style="text-align: center;">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${skeletonTableRows(6, 5)}</tbody>
-                            </table>
+
+                    <!-- Projects Sub-tab Section -->
+                    <div id="projectsExpenseSection" style="padding: 0 1rem 1rem;">
+                        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+                            <input type="text" id="projectExpenseSearch"
+                                   placeholder="Search by name or code..."
+                                   oninput="window.debouncedProjectExpenseSearch()"
+                                   style="flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; color: #1e293b; outline: none;"
+                                   onfocus="this.style.borderColor='#1a73e8'; this.style.boxShadow='0 0 0 3px rgba(26,115,232,0.1)'"
+                                   onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'">
+                            <button class="btn btn-secondary" onclick="window.refreshProjectExpenses(true)" style="font-size: 0.875rem; white-space: nowrap;">
+                                Refresh Totals
+                            </button>
+                        </div>
+                        <div id="projectExpensesContainer">
+                            <div style="overflow-x: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Project Name</th>
+                                            <th>Client</th>
+                                            <th style="text-align: right;">Budget</th>
+                                            <th style="text-align: right;">Total Expense</th>
+                                            <th style="text-align: right;">Remaining</th>
+                                            <th style="text-align: center;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${skeletonTableRows(6, 5)}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Services Sub-tab Section -->
+                    <div id="servicesExpenseSection" style="display: none; padding: 0 1rem 1rem;">
+                        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+                            <input type="text" id="serviceExpenseSearch"
+                                   placeholder="Search by name or code..."
+                                   oninput="window.debouncedServiceExpenseSearch()"
+                                   style="flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; color: #1e293b; outline: none;"
+                                   onfocus="this.style.borderColor='#1a73e8'; this.style.boxShadow='0 0 0 3px rgba(26,115,232,0.1)'"
+                                   onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'">
+                            <button class="btn btn-secondary" onclick="window.refreshServiceExpenses()" style="font-size: 0.875rem; white-space: nowrap;">
+                                Refresh Totals
+                            </button>
+                        </div>
+                        <div id="serviceExpensesContainer">
+                            <div style="overflow-x: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Service Name</th>
+                                            <th>Client</th>
+                                            <th style="text-align: right;">Budget</th>
+                                            <th style="text-align: right;">Total Expense</th>
+                                            <th style="text-align: right;">Remaining</th>
+                                            <th style="text-align: center;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${skeletonTableRows(6, 5)}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recurring Sub-tab Section -->
+                    <div id="recurringExpenseSection" style="display: none; padding: 0 1rem 1rem;">
+                        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+                            <input type="text" id="recurringExpenseSearch"
+                                   placeholder="Search by name or code..."
+                                   oninput="window.debouncedRecurringExpenseSearch()"
+                                   style="flex: 1; padding: 0.5rem 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; color: #1e293b; outline: none;"
+                                   onfocus="this.style.borderColor='#1a73e8'; this.style.boxShadow='0 0 0 3px rgba(26,115,232,0.1)'"
+                                   onblur="this.style.borderColor='#e2e8f0'; this.style.boxShadow='none'">
+                            <button class="btn btn-secondary" onclick="window.refreshRecurringExpenses()" style="font-size: 0.875rem; white-space: nowrap;">
+                                Refresh Totals
+                            </button>
+                        </div>
+                        <div id="recurringExpensesContainer">
+                            <div style="overflow-x: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Service Name</th>
+                                            <th>Client</th>
+                                            <th style="text-align: right;">Budget</th>
+                                            <th style="text-align: right;">Total Expense</th>
+                                            <th style="text-align: right;">Remaining</th>
+                                            <th style="text-align: center;">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${skeletonTableRows(6, 5)}</tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -816,15 +997,11 @@ export function render(activeTab = 'approvals') {
  * @param {string} activeTab - Active tab to display
  */
 export async function init(activeTab = 'approvals') {
-    console.log('[Finance] 🔵 Initializing finance view, tab:', activeTab);
-
     // CRITICAL: Re-attach window functions every init (router skips destroy on tab switch)
     attachWindowFunctions();
 
     // Setup ESC key modal listeners
     setupModalListeners();
-
-    console.log('[Finance] Testing window.viewPRDetails availability:', typeof window.viewPRDetails);
 
     try {
         await loadPRs();
@@ -833,6 +1010,12 @@ export async function init(activeTab = 'approvals') {
         // Load project expenses if on projects tab
         if (activeTab === 'projects') {
             await refreshProjectExpenses();
+            // If returning to this tab with a service/recurring sub-tab active, load that data too
+            if (activeExpenseSubTab === 'services') {
+                await refreshServiceExpenses();
+            } else if (activeExpenseSubTab === 'recurring') {
+                await refreshRecurringExpenses();
+            }
         }
 
     } catch (error) {
@@ -853,12 +1036,10 @@ export async function init(activeTab = 'approvals') {
 async function refreshProjectExpenses(forceRefresh = false) {
     // TTL cache guard: skip fetch if data is fresh (unless force-refreshed by user)
     if (!forceRefresh && projectExpenses.length > 0 && (Date.now() - _projectExpensesCachedAt) < PROJECT_EXPENSES_TTL_MS) {
-        console.log('[Finance] Project expenses cached, rendering from memory');
         renderProjectExpensesTable();
         return;
     }
 
-    console.log('[Finance] Refreshing project expenses...');
     showLoading(true);
 
     try {
@@ -901,7 +1082,6 @@ async function refreshProjectExpenses(forceRefresh = false) {
         _projectExpensesCachedAt = Date.now();
 
         renderProjectExpensesTable();
-        console.log(`[Finance] Loaded ${projectExpenses.length} project expense records`);
 
     } catch (error) {
         console.error('[Finance] Error calculating project expenses:', error);
@@ -919,10 +1099,26 @@ function renderProjectExpensesTable() {
     const container = document.getElementById('projectExpensesContainer');
     if (!container) return;
 
+    // Apply search filter
+    const filtered = projectExpenseSearchTerm
+        ? projectExpenses.filter(p =>
+            (p.projectName && p.projectName.toLowerCase().includes(projectExpenseSearchTerm)) ||
+            (p.projectCode && p.projectCode.toLowerCase().includes(projectExpenseSearchTerm)))
+        : projectExpenses;
+
     if (projectExpenses.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: #666;">
                 <p>No projects found</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: #666;">
+                <p>No projects match your search</p>
             </div>
         `;
         return;
@@ -957,17 +1153,17 @@ function renderProjectExpensesTable() {
                 <tbody>
     `;
 
-    projectExpenses.forEach(proj => {
+    filtered.forEach(proj => {
         const isOverBudget = proj.remainingBudget < 0;
         const remainingStyle = isOverBudget ? 'color: #ef4444; font-weight: 600;' : '';
 
         tableHTML += `
-            <tr onclick="window.showProjectExpenseModal('${proj.projectName.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+            <tr onclick="window.showProjectExpenseModal('${escapeHTML(proj.projectName)}')" style="cursor: pointer;">
                 <td>
-                    <div style="font-weight: 600;">${proj.projectName}</div>
-                    <div style="font-size: 0.75rem; color: #64748b;">${proj.projectCode}</div>
+                    <div style="font-weight: 600;">${escapeHTML(proj.projectName)}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">${escapeHTML(proj.projectCode)}</div>
                 </td>
-                <td>${proj.clientCode}</td>
+                <td>${escapeHTML(proj.clientCode)}</td>
                 <td style="text-align: right;">₱${formatCurrency(proj.budget)}</td>
                 <td style="text-align: right;">₱${formatCurrency(proj.totalExpense)}</td>
                 <td style="text-align: right; ${remainingStyle}">
@@ -1031,12 +1227,344 @@ function sortProjectExpenses(column) {
 
 // showProjectExpenseModal and closeProjectExpenseModal replaced by shared expense-modal.js
 
+// ========================================
+// SERVICE EXPENSE TRACKING (one-time)
+// ========================================
+
+/**
+ * Calculate service expenses (one-time) using server-side aggregation.
+ * Mirrors refreshProjectExpenses() pattern.
+ */
+async function refreshServiceExpenses(forceRefresh = false) {
+    if (!forceRefresh && serviceExpenses.length > 0 && (Date.now() - _serviceExpensesCachedAt) < PROJECT_EXPENSES_TTL_MS) {
+        renderServiceExpensesTable();
+        return;
+    }
+
+    showLoading(true);
+    try {
+        // Get all services with service_type 'one-time'
+        const servicesSnapshot = await getDocs(
+            query(collection(db, 'services'), where('service_type', '==', 'one-time'))
+        );
+
+        const servicePromises = servicesSnapshot.docs.map(async (serviceDoc) => {
+            const service = serviceDoc.data();
+            const code = service.service_code || '';
+
+            // Aggregate PO totals + fetch TRs client-side (avoids composite index on transport_requests)
+            const [posAgg, trSnap] = await Promise.all([
+                getAggregateFromServer(
+                    query(collection(db, 'pos'), where('service_code', '==', code)),
+                    { totalExpense: sum('total_amount'), poCount: count() }
+                ),
+                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code)))
+            ]);
+
+            let transportTotal = 0, trCount = 0;
+            trSnap.forEach(d => {
+                if (d.data().finance_status === 'Approved') {
+                    transportTotal += (d.data().total_amount || 0);
+                    trCount++;
+                }
+            });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal;
+            const budget = service.budget || 0;
+
+            return {
+                serviceCode: code,
+                serviceName: service.service_name || '',
+                clientCode: service.client_code || 'N/A',
+                totalExpense,
+                budget,
+                remainingBudget: budget - totalExpense,
+                poCount: posAgg.data().poCount || 0,
+                trCount,
+                status: service.status || 'active'
+            };
+        });
+
+        serviceExpenses = await Promise.all(servicePromises);
+        _serviceExpensesCachedAt = Date.now();
+        renderServiceExpensesTable();
+    } catch (error) {
+        console.error('[Finance] Error calculating service expenses:', error);
+        showToast('Failed to calculate service expenses: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Calculate recurring service expenses using server-side aggregation.
+ * Mirrors refreshServiceExpenses() but filters by service_type 'recurring'.
+ */
+async function refreshRecurringExpenses(forceRefresh = false) {
+    if (!forceRefresh && recurringExpenses.length > 0 && (Date.now() - _recurringExpensesCachedAt) < PROJECT_EXPENSES_TTL_MS) {
+        renderRecurringExpensesTable();
+        return;
+    }
+
+    showLoading(true);
+    try {
+        // Get all services with service_type 'recurring'
+        const servicesSnapshot = await getDocs(
+            query(collection(db, 'services'), where('service_type', '==', 'recurring'))
+        );
+
+        const servicePromises = servicesSnapshot.docs.map(async (serviceDoc) => {
+            const service = serviceDoc.data();
+            const code = service.service_code || '';
+
+            // Aggregate PO totals + fetch TRs client-side (avoids composite index on transport_requests)
+            const [posAgg, trSnap] = await Promise.all([
+                getAggregateFromServer(
+                    query(collection(db, 'pos'), where('service_code', '==', code)),
+                    { totalExpense: sum('total_amount'), poCount: count() }
+                ),
+                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code)))
+            ]);
+
+            let transportTotal = 0, trCount = 0;
+            trSnap.forEach(d => {
+                if (d.data().finance_status === 'Approved') {
+                    transportTotal += (d.data().total_amount || 0);
+                    trCount++;
+                }
+            });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal;
+            const budget = service.budget || 0;
+
+            return {
+                serviceCode: code,
+                serviceName: service.service_name || '',
+                clientCode: service.client_code || 'N/A',
+                totalExpense,
+                budget,
+                remainingBudget: budget - totalExpense,
+                poCount: posAgg.data().poCount || 0,
+                trCount,
+                status: service.status || 'active'
+            };
+        });
+
+        recurringExpenses = await Promise.all(servicePromises);
+        _recurringExpensesCachedAt = Date.now();
+        renderRecurringExpensesTable();
+    } catch (error) {
+        console.error('[Finance] Error calculating recurring expenses:', error);
+        showToast('Failed to calculate recurring expenses: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Render service expenses table (one-time services).
+ * Mirrors renderProjectExpensesTable().
+ */
+function renderServiceExpensesTable() {
+    const container = document.getElementById('serviceExpensesContainer');
+    if (!container) return;
+
+    // Apply search filter
+    const filtered = serviceExpenseSearchTerm
+        ? serviceExpenses.filter(s =>
+            (s.serviceName && s.serviceName.toLowerCase().includes(serviceExpenseSearchTerm)) ||
+            (s.serviceCode && s.serviceCode.toLowerCase().includes(serviceExpenseSearchTerm)))
+        : serviceExpenses;
+
+    // Apply sort
+    const sorted = [...filtered].sort((a, b) => {
+        let aVal = a[serviceExpenseSortColumn];
+        let bVal = b[serviceExpenseSortColumn];
+        if (aVal == null) return serviceExpenseSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return serviceExpenseSortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return serviceExpenseSortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return serviceExpenseSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    if (serviceExpenses.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #666;"><p>No services found</p></div>`;
+        return;
+    }
+
+    if (sorted.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #666;"><p>No services match your search</p></div>`;
+        return;
+    }
+
+    let tableHTML = `<div style="overflow-x: auto;"><table class="data-table"><thead><tr>
+        <th onclick="window.sortServiceExpenses('serviceName')" style="cursor: pointer; user-select: none;">Service Name <span class="sort-indicator" data-col="serviceName"></span></th>
+        <th onclick="window.sortServiceExpenses('clientCode')" style="cursor: pointer; user-select: none;">Client <span class="sort-indicator" data-col="clientCode"></span></th>
+        <th onclick="window.sortServiceExpenses('budget')" style="cursor: pointer; user-select: none; text-align: right;">Budget <span class="sort-indicator" data-col="budget"></span></th>
+        <th onclick="window.sortServiceExpenses('totalExpense')" style="cursor: pointer; user-select: none; text-align: right;">Total Expense <span class="sort-indicator" data-col="totalExpense"></span></th>
+        <th onclick="window.sortServiceExpenses('remainingBudget')" style="cursor: pointer; user-select: none; text-align: right;">Remaining <span class="sort-indicator" data-col="remainingBudget"></span></th>
+        <th onclick="window.sortServiceExpenses('status')" style="cursor: pointer; user-select: none; text-align: center;">Status <span class="sort-indicator" data-col="status"></span></th>
+    </tr></thead><tbody>`;
+
+    sorted.forEach(svc => {
+        const isOverBudget = svc.remainingBudget < 0;
+        const remainingStyle = isOverBudget ? 'color: #ef4444; font-weight: 600;' : '';
+        tableHTML += `
+            <tr onclick="window.showServiceExpenseModal('${escapeHTML(svc.serviceCode)}', ${svc.budget})" style="cursor: pointer;">
+                <td>
+                    <div style="font-weight: 600;">${escapeHTML(svc.serviceName)}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">${escapeHTML(svc.serviceCode)}</div>
+                </td>
+                <td>${escapeHTML(svc.clientCode)}</td>
+                <td style="text-align: right;">₱${formatCurrency(svc.budget)}</td>
+                <td style="text-align: right;">₱${formatCurrency(svc.totalExpense)}</td>
+                <td style="text-align: right; ${remainingStyle}">
+                    ${isOverBudget ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(svc.remainingBudget))}
+                    ${isOverBudget ? ' over' : ''}
+                </td>
+                <td style="text-align: center;">
+                    <span class="badge badge-${svc.status === 'active' ? 'success' : 'secondary'}">
+                        ${svc.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+            </tr>`;
+    });
+
+    tableHTML += `</tbody></table></div>`;
+    container.innerHTML = tableHTML;
+
+    // Update sort indicators
+    container.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const col = indicator.dataset.col;
+        if (col === serviceExpenseSortColumn) {
+            indicator.textContent = serviceExpenseSortDirection === 'asc' ? ' \u2191' : ' \u2193';
+            indicator.style.color = '#1a73e8';
+        } else {
+            indicator.textContent = ' \u21C5';
+            indicator.style.color = '#94a3b8';
+        }
+    });
+}
+
+/**
+ * Render recurring service expenses table.
+ * Mirrors renderServiceExpensesTable() but uses recurringExpenses array.
+ */
+function renderRecurringExpensesTable() {
+    const container = document.getElementById('recurringExpensesContainer');
+    if (!container) return;
+
+    // Apply search filter
+    const filtered = recurringExpenseSearchTerm
+        ? recurringExpenses.filter(s =>
+            (s.serviceName && s.serviceName.toLowerCase().includes(recurringExpenseSearchTerm)) ||
+            (s.serviceCode && s.serviceCode.toLowerCase().includes(recurringExpenseSearchTerm)))
+        : recurringExpenses;
+
+    // Apply sort
+    const sorted = [...filtered].sort((a, b) => {
+        let aVal = a[recurringExpenseSortColumn];
+        let bVal = b[recurringExpenseSortColumn];
+        if (aVal == null) return recurringExpenseSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return recurringExpenseSortDirection === 'asc' ? -1 : 1;
+        if (typeof aVal === 'string') {
+            return recurringExpenseSortDirection === 'asc'
+                ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+        return recurringExpenseSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+
+    if (recurringExpenses.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #666;"><p>No recurring services found</p></div>`;
+        return;
+    }
+
+    if (sorted.length === 0) {
+        container.innerHTML = `<div style="text-align: center; padding: 2rem; color: #666;"><p>No recurring services match your search</p></div>`;
+        return;
+    }
+
+    let tableHTML = `<div style="overflow-x: auto;"><table class="data-table"><thead><tr>
+        <th onclick="window.sortRecurringExpenses('serviceName')" style="cursor: pointer; user-select: none;">Service Name <span class="sort-indicator" data-col="serviceName"></span></th>
+        <th onclick="window.sortRecurringExpenses('clientCode')" style="cursor: pointer; user-select: none;">Client <span class="sort-indicator" data-col="clientCode"></span></th>
+        <th onclick="window.sortRecurringExpenses('budget')" style="cursor: pointer; user-select: none; text-align: right;">Budget <span class="sort-indicator" data-col="budget"></span></th>
+        <th onclick="window.sortRecurringExpenses('totalExpense')" style="cursor: pointer; user-select: none; text-align: right;">Total Expense <span class="sort-indicator" data-col="totalExpense"></span></th>
+        <th onclick="window.sortRecurringExpenses('remainingBudget')" style="cursor: pointer; user-select: none; text-align: right;">Remaining <span class="sort-indicator" data-col="remainingBudget"></span></th>
+        <th onclick="window.sortRecurringExpenses('status')" style="cursor: pointer; user-select: none; text-align: center;">Status <span class="sort-indicator" data-col="status"></span></th>
+    </tr></thead><tbody>`;
+
+    sorted.forEach(svc => {
+        const isOverBudget = svc.remainingBudget < 0;
+        const remainingStyle = isOverBudget ? 'color: #ef4444; font-weight: 600;' : '';
+        tableHTML += `
+            <tr onclick="window.showServiceExpenseModal('${escapeHTML(svc.serviceCode)}', ${svc.budget})" style="cursor: pointer;">
+                <td>
+                    <div style="font-weight: 600;">${escapeHTML(svc.serviceName)}</div>
+                    <div style="font-size: 0.75rem; color: #64748b;">${escapeHTML(svc.serviceCode)}</div>
+                </td>
+                <td>${escapeHTML(svc.clientCode)}</td>
+                <td style="text-align: right;">₱${formatCurrency(svc.budget)}</td>
+                <td style="text-align: right;">₱${formatCurrency(svc.totalExpense)}</td>
+                <td style="text-align: right; ${remainingStyle}">
+                    ${isOverBudget ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(svc.remainingBudget))}
+                    ${isOverBudget ? ' over' : ''}
+                </td>
+                <td style="text-align: center;">
+                    <span class="badge badge-${svc.status === 'active' ? 'success' : 'secondary'}">
+                        ${svc.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+            </tr>`;
+    });
+
+    tableHTML += `</tbody></table></div>`;
+    container.innerHTML = tableHTML;
+
+    // Update sort indicators
+    container.querySelectorAll('.sort-indicator').forEach(indicator => {
+        const col = indicator.dataset.col;
+        if (col === recurringExpenseSortColumn) {
+            indicator.textContent = recurringExpenseSortDirection === 'asc' ? ' \u2191' : ' \u2193';
+            indicator.style.color = '#1a73e8';
+        } else {
+            indicator.textContent = ' \u21C5';
+            indicator.style.color = '#94a3b8';
+        }
+    });
+}
+
+/**
+ * Sort service expenses by column
+ */
+function sortServiceExpenses(column) {
+    if (serviceExpenseSortColumn === column) {
+        serviceExpenseSortDirection = serviceExpenseSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        serviceExpenseSortColumn = column;
+        serviceExpenseSortDirection = 'asc';
+    }
+    renderServiceExpensesTable();
+}
+
+/**
+ * Sort recurring expenses by column
+ */
+function sortRecurringExpenses(column) {
+    if (recurringExpenseSortColumn === column) {
+        recurringExpenseSortDirection = recurringExpenseSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        recurringExpenseSortColumn = column;
+        recurringExpenseSortDirection = 'asc';
+    }
+    renderRecurringExpensesTable();
+}
+
 /**
  * Cleanup when leaving the view
  */
 export async function destroy() {
-    console.log('[Finance] 🔴 Destroying finance view...');
-
     // Cleanup modal event listeners
     if (modalAbortController) {
         modalAbortController.abort();
@@ -1066,6 +1594,14 @@ export async function destroy() {
     currentApprovalTarget = null;
     projectExpenses = [];
     _projectExpensesCachedAt = 0;
+    serviceExpenses = [];
+    recurringExpenses = [];
+    _serviceExpensesCachedAt = 0;
+    _recurringExpensesCachedAt = 0;
+    activeExpenseSubTab = 'projects';
+    projectExpenseSearchTerm = '';
+    serviceExpenseSearchTerm = '';
+    recurringExpenseSearchTerm = '';
 
     // Clean up window functions
     delete window.refreshPRs;
@@ -1095,17 +1631,30 @@ export async function destroy() {
     delete window.applyFinanceDeptFilter;
     activeDeptFilter = '';
 
+    // Clean up new service/recurring window functions
+    delete window.refreshServiceExpenses;
+    delete window.refreshRecurringExpenses;
+    delete window.showServiceExpenseModal;
+    delete window.sortServiceExpenses;
+    delete window.sortRecurringExpenses;
+    delete window.switchExpenseSubTab;
+    delete window.debouncedProjectExpenseSearch;
+    delete window.debouncedServiceExpenseSearch;
+    delete window.debouncedRecurringExpenseSearch;
+
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
     projectExpenseSortDirection = 'asc';
+    serviceExpenseSortColumn = 'serviceName';
+    serviceExpenseSortDirection = 'asc';
+    recurringExpenseSortColumn = 'serviceName';
+    recurringExpenseSortDirection = 'asc';
     poSortColumn = 'date_issued';
     poSortDirection = 'desc';
     prSortColumn = 'date_generated';
     prSortDirection = 'desc';
     trSortColumn = 'date_submitted';
     trSortDirection = 'desc';
-
-    console.log('[Finance] Finance view destroyed');
 }
 
 // ========================================
@@ -1217,11 +1766,11 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${escapeHTML(getMRFLabel(pr))}</span></td>
                 <td>${formatDate(pr.date_generated)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
-                <td>${supplier}</td>
+                <td>${escapeHTML(supplier)}</td>
                 <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewPRDetails('${pr.id}')">Review</button>
@@ -1284,11 +1833,11 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</span></td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${escapeHTML(getMRFLabel(tr))}</span></td>
                 <td>${formatDate(tr.date_submitted)}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
-                <td>${serviceType}</td>
+                <td>${escapeHTML(serviceType)}</td>
                 <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewTRDetails('${tr.id}')">Review</button>
@@ -1431,11 +1980,11 @@ async function viewPRDetails(prId) {
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Department:</div>
-                    <div class="modal-detail-value" style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${getMRFLabel(pr)}</div>
+                    <div class="modal-detail-value" style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${escapeHTML(getMRFLabel(pr))}</div>
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Requestor:</div>
-                    <div class="modal-detail-value">${pr.requestor_name}</div>
+                    <div class="modal-detail-value">${escapeHTML(pr.requestor_name)}</div>
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Urgency Level:</div>
@@ -1449,7 +1998,7 @@ async function viewPRDetails(prId) {
                 </div>
                 <div class="modal-detail-item full-width">
                     <div class="modal-detail-label">Delivery Address:</div>
-                    <div class="modal-detail-value">${pr.delivery_address || 'N/A'}</div>
+                    <div class="modal-detail-value">${escapeHTML(pr.delivery_address || 'N/A')}</div>
                 </div>
                 <div class="modal-detail-item full-width">
                     <div class="modal-detail-label">Total Amount:</div>
@@ -1472,11 +2021,11 @@ async function viewPRDetails(prId) {
                 <tbody>
                     ${items.map(item => `
                         <tr>
-                            <td>${item.item || item.item_name}</td>
-                            <td>${item.category || 'N/A'}</td>
-                            <td>${item.qty || item.quantity} ${item.unit}</td>
+                            <td>${escapeHTML(item.item || item.item_name)}</td>
+                            <td>${escapeHTML(item.category || 'N/A')}</td>
+                            <td>${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</td>
                             <td>₱${formatCurrency(item.unit_cost || 0)}</td>
-                            <td>${item.supplier || 'N/A'}</td>
+                            <td>${escapeHTML(item.supplier || 'N/A')}</td>
                             <td><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
                         </tr>
                     `).join('')}
@@ -1564,11 +2113,11 @@ async function viewTRDetails(trId) {
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Department:</div>
-                    <div style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${getMRFLabel(tr)}</div>
+                    <div style="display:flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${escapeHTML(getMRFLabel(tr))}</div>
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Requestor:</div>
-                    <div>${tr.requestor_name}</div>
+                    <div>${escapeHTML(tr.requestor_name)}</div>
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Urgency Level:</div>
@@ -1580,7 +2129,7 @@ async function viewTRDetails(trId) {
                 </div>
                 <div style="grid-column: 1 / -1;">
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Delivery Address:</div>
-                    <div>${tr.delivery_address || 'N/A'}</div>
+                    <div>${escapeHTML(tr.delivery_address || 'N/A')}</div>
                 </div>
                 <div style="grid-column: 1 / -1;">
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Total Cost:</div>
@@ -1603,9 +2152,9 @@ async function viewTRDetails(trId) {
                     <tbody>
                         ${items.map(item => `
                             <tr style="background: white;">
-                                <td style="padding: 0.5rem;">${item.item || item.item_name}</td>
-                                <td style="padding: 0.5rem;">${item.category || 'N/A'}</td>
-                                <td style="padding: 0.5rem;">${item.qty || item.quantity} ${item.unit}</td>
+                                <td style="padding: 0.5rem;">${escapeHTML(item.item || item.item_name)}</td>
+                                <td style="padding: 0.5rem;">${escapeHTML(item.category || 'N/A')}</td>
+                                <td style="padding: 0.5rem;">${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</td>
                                 <td style="padding: 0.5rem;">₱${formatCurrency(item.unit_cost || 0)}</td>
                                 <td style="padding: 0.5rem;"><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
                             </tr>
@@ -1739,8 +2288,6 @@ async function approvePRWithSignature(prId) {
  * @returns {number} Number of POs created
  */
 async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) {
-    console.log('[Finance] Generating POs with signature for PR:', pr.pr_id);
-
     const items = JSON.parse(pr.items_json || '[]');
 
     // Group items by supplier
@@ -1754,7 +2301,6 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
     });
 
     const suppliers = Object.keys(itemsBySupplier);
-    console.log('[Finance] Creating POs for', suppliers.length, 'supplier(s)');
 
     // Get next PO number
     const now = new Date();
@@ -1813,12 +2359,10 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
             created_at: serverTimestamp()
         });
 
-        console.log('[Finance] Created PO:', poId);
         nextPONum++;
         poCount++;
     }
 
-    console.log('[Finance] Generated', poCount, 'PO(s) for PR:', pr.pr_id);
     return poCount;
 }
 
@@ -2189,8 +2733,8 @@ function renderPOs() {
                     <tr>
                         <td><strong>${po.po_id}</strong></td>
                         <td>${po.pr_id}</td>
-                        <td>${po.supplier_name}</td>
-                        <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
+                        <td>${escapeHTML(po.supplier_name)}</td>
+                        <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${escapeHTML(getMRFLabel(po))}</span></td>
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
                         <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending'}</span></td>

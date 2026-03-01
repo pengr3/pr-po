@@ -6,7 +6,7 @@
    ======================================== */
 
 import { db, collection, onSnapshot, updateDoc, doc, query, where, arrayUnion, arrayRemove } from '../firebase.js';
-import { showToast } from '../utils.js';
+import { showToast, escapeHTML } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
 
 /* ========================================
@@ -148,8 +148,6 @@ export function render(subTab = null) {
  * @param {string} subTab - Sub-tab to activate ('projects' | 'services')
  */
 export async function init(subTab = null) {
-    console.log('[Assignments] Initializing...');
-
     // Role gate
     const user = window.getCurrentUser?.();
     if (!user || (user.role !== 'super_admin' && user.role !== 'operations_admin' && user.role !== 'services_admin')) {
@@ -186,7 +184,6 @@ export async function init(subTab = null) {
         usersData = [];
         snapshot.forEach(d => usersData.push({ id: d.id, ...d.data() }));
         usersData.sort((a, b) => (a.full_name || a.email || '').localeCompare(b.full_name || b.email || ''));
-        console.log('[Assignments] Users loaded:', usersData.length);
         renderUsersTable();
     });
     listeners.push(usersUnsub);
@@ -196,7 +193,6 @@ export async function init(subTab = null) {
         projectsData = [];
         snapshot.forEach(d => projectsData.push({ id: d.id, ...d.data() }));
         projectsData.sort((a, b) => (a.project_code || '').localeCompare(b.project_code || ''));
-        console.log('[Assignments] Projects loaded:', projectsData.length);
         renderUsersTable();
     });
     listeners.push(projectsUnsub);
@@ -206,7 +202,6 @@ export async function init(subTab = null) {
         servicesData = [];
         snapshot.forEach(d => servicesData.push({ id: d.id, ...d.data() }));
         servicesData.sort((a, b) => (a.service_code || '').localeCompare(b.service_code || ''));
-        console.log('[Assignments] Services loaded:', servicesData.length);
         renderUsersTable();
     });
     listeners.push(servicesUnsub);
@@ -220,8 +215,6 @@ export async function init(subTab = null) {
  * Cleanup: unsubscribe all listeners and remove window functions.
  */
 export async function destroy() {
-    console.log('[Assignments] Destroying...');
-
     listeners.forEach(unsub => unsub?.());
     listeners = [];
 
@@ -240,8 +233,6 @@ export async function destroy() {
     currentModalUserId = null;
     currentModalType = null;
     activeSubTab = 'projects';
-
-    console.log('[Assignments] Destroyed');
 }
 
 /* ========================================
@@ -288,11 +279,11 @@ function renderUsersTable() {
         return `
             <tr>
                 <td>
-                    <div style="font-weight: 600; color: #1e293b;">${user.full_name || user.display_name || 'Unknown'}</div>
-                    <div style="font-size: 0.8rem; color: #94a3b8;">${user.email || ''}</div>
+                    <div style="font-weight: 600; color: #1e293b;">${escapeHTML(user.full_name || user.display_name || 'Unknown')}</div>
+                    <div style="font-size: 0.8rem; color: #94a3b8;">${escapeHTML(user.email || '')}</div>
                 </td>
                 <td>
-                    <span style="font-size: 0.875rem; color: #475569;">${roleLabel}</span>
+                    <span style="font-size: 0.875rem; color: #475569;">${escapeHTML(roleLabel)}</span>
                 </td>
                 <td>
                     <span class="status-badge ${countClass}" style="font-size: 0.75rem;">
@@ -344,11 +335,15 @@ function getAssignmentCount(user, type) {
     if (type === 'projects') {
         if (user.all_projects === true) return 'All (legacy)';
         const codes = user.assigned_project_codes || [];
-        return codes.length === 0 ? 'None' : `${codes.length} project(s)`;
+        const existingCodes = new Set(projectsData.map(p => p.project_code));
+        const validCount = codes.filter(c => existingCodes.has(c)).length;
+        return validCount === 0 ? 'None' : `${validCount} project(s)`;
     } else {
         if (user.all_services === true) return 'All (legacy)';
         const codes = user.assigned_service_codes || [];
-        return codes.length === 0 ? 'None' : `${codes.length} service(s)`;
+        const existingCodes = new Set(servicesData.map(s => s.service_code));
+        const validCount = codes.filter(c => existingCodes.has(c)).length;
+        return validCount === 0 ? 'None' : `${validCount} service(s)`;
     }
 }
 
@@ -421,7 +416,7 @@ function openManageModal(userId, type) {
                                    window._pendingModalCodes && window._pendingModalCodes.delete(this.dataset.code);
                                }
                            ">
-                    <span style="font-size: 0.875rem; color: #374151; line-height: 1.4;">${label}</span>
+                    <span style="font-size: 0.875rem; color: #374151; line-height: 1.4;">${escapeHTML(label)}</span>
                 </label>
             `;
         }).join('');
@@ -440,7 +435,7 @@ function openManageModal(userId, type) {
                 <div style="display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #e5e7eb; flex-shrink: 0;">
                     <div>
                         <h3 style="margin: 0; font-size: 1.1rem; color: #1e293b;">Manage ${typeLabel}</h3>
-                        <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: #64748b;">${userName}</p>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem; color: #64748b;">${escapeHTML(userName)}</p>
                     </div>
                     <button onclick="window.closeManageModal()"
                             style="background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.25rem; padding: 0.25rem; line-height: 1; border-radius: 4px;"
@@ -572,8 +567,6 @@ async function saveManageModal() {
             [field]: newCodes,
             [allFlag]: false
         });
-        console.log(`[Assignments] Saved ${type} for ${userId}:`, newCodes);
-
         // Reverse sync for projects only
         if (type === 'projects' && user) {
             syncAssignmentToPersonnel(userId, user, oldCodes, newCodes)
@@ -656,9 +649,6 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
     if (addedCodes.length === 0 && removedCodes.length === 0) return;
 
     const userName = user?.full_name || user?.email || 'Unknown';
-    console.log(`[Assignments] Personnel sync for ${userName} (${userId})`);
-    console.log(`[Assignments] Added codes:`, addedCodes, `Removed codes:`, removedCodes);
-
     const errors = [];
 
     // Add user as personnel on newly assigned projects
@@ -673,7 +663,6 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
                 personnel_user_ids: arrayUnion(userId),
                 personnel_names: arrayUnion(userName)
             });
-            console.log(`[Assignments] Added ${userName} to project ${code}`);
         } catch (err) {
             console.error(`[Assignments] Failed to add ${userName} to ${code}:`, err);
             errors.push({ code, action: 'add', error: err.message });
@@ -692,7 +681,6 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
                 personnel_user_ids: arrayRemove(userId),
                 personnel_names: arrayRemove(userName)
             });
-            console.log(`[Assignments] Removed ${userName} from project ${code}`);
         } catch (err) {
             console.error(`[Assignments] Failed to remove ${userName} from ${code}:`, err);
             errors.push({ code, action: 'remove', error: err.message });
@@ -702,9 +690,5 @@ async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
     if (errors.length > 0) {
         console.warn('[Assignments] Personnel sync had', errors.length, 'error(s):', errors);
         showToast(`Personnel sync: ${errors.length} error(s)`, 'error');
-    } else {
-        console.log('[Assignments] Personnel sync complete — no errors');
     }
 }
-
-console.log('[Assignments] Unified assignments module loaded');

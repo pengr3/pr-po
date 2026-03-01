@@ -123,8 +123,6 @@ async function handleLogin(e) {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        console.log('[Login] User signed in successfully:', user.email);
-
         // CRITICAL: Validate user document BEFORE allowing navigation
         try {
             // Check if user document exists
@@ -169,17 +167,14 @@ async function handleLogin(e) {
 
             // Valid user (active, pending, or rejected) - allow navigation
             // Auth observer will handle routing based on status
-            console.log('[Login] User validation passed, navigating...');
 
             // Check for intended route (SEC-02)
             const intendedRoute = sessionStorage.getItem('intendedRoute');
 
             if (intendedRoute) {
-                console.log('[Login] Restoring intended route:', intendedRoute);
                 sessionStorage.removeItem('intendedRoute');
                 window.location.hash = '#' + intendedRoute;
             } else {
-                console.log('[Login] No intended route, navigating to home');
                 window.location.hash = '#/';
             }
 
@@ -214,8 +209,6 @@ window.handleLogin = handleLogin;
  * Initialize login view
  */
 export async function init() {
-    console.log('[Login] Initializing login view');
-
     // Get form element
     const form = document.getElementById('loginForm');
     if (!form) {
@@ -231,8 +224,6 @@ export async function init() {
  * Cleanup on view destroy
  */
 export async function destroy() {
-    console.log('[Login] Cleaning up login view');
-
     // Remove event listeners
     const form = document.getElementById('loginForm');
     if (form) {

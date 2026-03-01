@@ -228,7 +228,6 @@ async function handleRegister(e) {
 
     try {
         // Validate invitation code
-        console.log('[Register] Validating invitation code...');
         const codeValidation = await validateInvitationCode(invitationCode);
 
         if (!codeValidation.valid) {
@@ -238,13 +237,9 @@ async function handleRegister(e) {
             return;
         }
 
-        console.log('[Register] Invitation code valid, creating Firebase Auth user...');
-
         // Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const userId = userCredential.user.uid;
-
-        console.log('[Register] Firebase Auth user created:', userId);
 
         // Create user document in Firestore
         await createUserDocument(userId, {
@@ -253,17 +248,11 @@ async function handleRegister(e) {
             invitationCode
         });
 
-        console.log('[Register] User document created in Firestore');
-
         // Mark invitation code as used (pass email so we can display "Used by [email]")
         await markInvitationCodeUsed(codeValidation.docId, email);
 
-        console.log('[Register] Invitation code marked as used');
-
         // Sign out the user (they must manually log in)
         await signOut(auth);
-
-        console.log('[Register] User signed out, showing success message');
 
         // Show success message
         showError('general', 'Account created! Please log in.');
@@ -295,8 +284,6 @@ async function handleRegister(e) {
  * Initialize registration view
  */
 export async function init() {
-    console.log('[Register] Initializing registration view');
-
     // Attach form submit handler
     const form = document.getElementById('registerForm');
     if (form) {
@@ -311,8 +298,6 @@ export async function init() {
  * Clean up registration view
  */
 export async function destroy() {
-    console.log('[Register] Cleaning up registration view');
-
     // Remove window functions
     delete window.handleRegister;
 

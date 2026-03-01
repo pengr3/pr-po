@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 
@@ -55,7 +55,6 @@ export function render(activeTab = null, param = null) {
 
 // Initialize view
 export async function init(activeTab = null, param = null) {
-    console.log('[ServiceDetail] Initializing with param:', param);
     serviceParam = param || serviceParam;
     attachWindowFunctions();
 
@@ -71,7 +70,6 @@ export async function init(activeTab = null, param = null) {
 
     // Listen for permission changes and re-render
     const permissionChangeHandler = () => {
-        console.log('[ServiceDetail] Permissions changed, re-rendering...');
         renderServiceDetail();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
@@ -81,7 +79,6 @@ export async function init(activeTab = null, param = null) {
 
     // Re-check access when assignments change
     const assignmentChangeHandler = () => {
-        console.log('[ServiceDetail] Assignments changed, re-checking access...');
         if (currentService) {
             checkServiceAccess();
         }
@@ -179,8 +176,6 @@ export async function init(activeTab = null, param = null) {
 
 // Cleanup
 export async function destroy() {
-    console.log('[ServiceDetail] Destroying view...');
-
     if (window._serviceDetailPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._serviceDetailPermissionHandler);
         delete window._serviceDetailPermissionHandler;
@@ -224,8 +219,6 @@ export async function destroy() {
     delete window.showServiceExpenseModal;
     delete window.showEditHistory;
     delete window.exportServiceExpenseCSV;
-
-    console.log('[ServiceDetail] View destroyed');
 }
 
 /**
@@ -266,7 +259,6 @@ function checkServiceAccess() {
     } else {
         window.location.hash = '#/services';
     }
-    console.log('[ServiceDetail] Access denied for service:', currentService?.service_code);
     return false;
 }
 
@@ -326,7 +318,7 @@ function renderServiceDetail() {
                         <!-- Service Code — locked -->
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Service Code</label>
-                            <div style="color: #64748b; font-size: 1rem; font-family: monospace;">${currentService.service_code || '—'}</div>
+                            <div style="color: #64748b; font-size: 1rem; font-family: monospace;">${escapeHTML(currentService.service_code || '—')}</div>
                         </div>
 
                         <!-- Service Name — editable -->
@@ -334,7 +326,7 @@ function renderServiceDetail() {
                             <label style="margin-bottom: 0.25rem;">Service Name *</label>
                             <input type="text"
                                    data-field="service_name"
-                                   value="${(currentService.service_name || '').replace(/"/g, '&quot;')}"
+                                   value="${escapeHTML(currentService.service_name || '')}"
                                    onblur="window.saveServiceField('service_name', this.value)"
                                    placeholder="Enter service name"
                                    ${!showEditControls ? 'disabled' : ''}>
@@ -354,7 +346,18 @@ function renderServiceDetail() {
                         <!-- Client — locked -->
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
-                            <div style="color: #64748b; font-size: 1rem;">${currentService.client_code || currentService.client_name || 'N/A'}</div>
+                            <div style="color: #64748b; font-size: 1rem;">${escapeHTML(currentService.client_code || currentService.client_name || 'N/A')}</div>
+                        </div>
+
+                        <!-- Location — editable -->
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.25rem;">Location</label>
+                            <input type="text"
+                                   data-field="location"
+                                   value="${escapeHTML(currentService.location || '')}"
+                                   onblur="window.saveServiceField('location', this.value)"
+                                   placeholder="(Not set)"
+                                   ${!showEditControls ? 'disabled' : ''}>
                         </div>
 
                         <!-- Personnel Pills -->
@@ -484,8 +487,8 @@ function renderPersonnelPills(showEditControls) {
     }
 
     const pillsHtml = selectedDetailPersonnel.map(u => `
-        <span class="personnel-pill ${u.id ? '' : 'legacy'}" data-user-id="${u.id || ''}">
-            ${u.name}
+        <span class="personnel-pill ${u.id ? '' : 'legacy'}" data-user-id="${escapeHTML(u.id || '')}">
+            ${escapeHTML(u.name)}
             ${showEditControls ? `<button type="button" class="pill-remove"
                 onmousedown="event.preventDefault(); window.removeDetailServicePersonnel('${u.id || ''}', '${u.name.replace(/'/g, "\\'")}')">&times;</button>` : ''}
         </span>
@@ -542,8 +545,8 @@ function filterDetailServicePersonnelDropdown(searchText) {
     dropdown.innerHTML = matches.slice(0, 10).map(user => `
         <div class="pill-dropdown-item"
              onmousedown="event.preventDefault(); window.selectDetailServicePersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
-            <strong>${user.full_name}</strong>
-            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+            <strong>${escapeHTML(user.full_name)}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${escapeHTML(user.email)}</span>
         </div>
     `).join('');
 
@@ -591,7 +594,6 @@ async function selectDetailServicePersonnel(userId, userName) {
         currentService.personnel_user_ids = newUserIds;
         currentService.personnel_names = newNames;
 
-        console.log('[ServiceDetail] Personnel added:', userName);
     } catch (error) {
         console.error('[ServiceDetail] Error saving personnel:', error);
         showToast('Failed to add personnel', 'error');
@@ -646,7 +648,6 @@ async function removeDetailServicePersonnel(userId, userName) {
         currentService.personnel_user_ids = newUserIds;
         currentService.personnel_names = newNames;
 
-        console.log('[ServiceDetail] Personnel removed:', userName || userId);
     } catch (error) {
         console.error('[ServiceDetail] Error removing personnel:', error);
         showToast('Failed to remove personnel', 'error');
@@ -704,7 +705,6 @@ async function saveServiceField(fieldName, newValue) {
         ? (oldValue != null ? parseFloat(oldValue) : null)
         : oldValue;
     if (normalizedOld === valueToSave) {
-        console.log('[ServiceDetail] No change for', fieldName);
         return true;
     }
 
@@ -721,7 +721,6 @@ async function saveServiceField(fieldName, newValue) {
         ], 'services').catch(err => console.error('[EditHistory] saveServiceField failed:', err));
 
         currentService = { ...currentService, [fieldName]: valueToSave };
-        console.log('[ServiceDetail] Saved', fieldName);
         return true;
     } catch (error) {
         console.error('[ServiceDetail] Save failed:', error);
@@ -761,7 +760,6 @@ async function toggleServiceDetailActive(newValue) {
         ], 'services').catch(err => console.error('[EditHistory] toggleServiceDetailActive failed:', err));
 
         showToast(`Service ${newValue ? 'activated' : 'deactivated'}`, 'success');
-        console.log('[ServiceDetail] Active status updated to:', newValue);
     } catch (error) {
         console.error('[ServiceDetail] Toggle failed:', error);
         showToast('Failed to update status', 'error');
@@ -937,5 +935,3 @@ function attachWindowFunctions() {
         showEditHistoryModal(currentServiceDocId, currentService.service_code, 'services');
     window.exportServiceExpenseCSV = exportServiceExpenseCSV;
 }
-
-console.log('[ServiceDetail] Module loaded');

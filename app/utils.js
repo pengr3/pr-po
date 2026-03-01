@@ -6,6 +6,25 @@
 import { db, collection, getDocs, getDoc, updateDoc, doc, query, where, orderBy, limit, arrayUnion, arrayRemove } from './firebase.js';
 
 /* ========================================
+   SECURITY UTILITIES
+   ======================================== */
+
+/**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for innerHTML
+ */
+export function escapeHTML(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/* ========================================
    FORMATTING UTILITIES
    ======================================== */
 
@@ -528,6 +547,7 @@ export function removeFromStorage(key) {
    ======================================== */
 
 window.utils = {
+    escapeHTML,
     formatCurrency,
     formatDate,
     formatTimestamp,
@@ -552,6 +572,7 @@ window.utils = {
     removeFromStorage
 };
 
+window.escapeHTML = escapeHTML;
 window.getAssignedProjectCodes = getAssignedProjectCodes;
 window.generateServiceCode = generateServiceCode;
 window.getAssignedServiceCodes = getAssignedServiceCodes;
@@ -631,8 +652,6 @@ export async function syncPersonnelToAssignments(projectCode, previousUserIds, n
     const addedUserIds = [...newSet].filter(id => !prevSet.has(id));
     const removedUserIds = [...prevSet].filter(id => !newSet.has(id));
 
-    console.log(`[PersonnelSync] Syncing for project: ${projectCode} | Added: ${addedUserIds.length}, Removed: ${removedUserIds.length}`);
-
     if (addedUserIds.length === 0 && removedUserIds.length === 0) {
         return [];
     }
@@ -648,11 +667,10 @@ export async function syncPersonnelToAssignments(projectCode, previousUserIds, n
             try {
                 const userDoc = await getDoc(doc(db, 'users', userId));
                 if (userDoc.exists() && userDoc.data().all_projects === true) {
-                    console.log(`[PersonnelSync] Skipping ${userId} (all_projects=true)`);
                     skipUser = true;
                 }
             } catch (readErr) {
-                console.log(`[PersonnelSync] Cannot read user ${userId} (permission), proceeding with add`);
+                // Cannot read user doc (permission), proceed with add
             }
             if (skipUser) continue;
 
@@ -708,8 +726,6 @@ export async function syncServicePersonnelToAssignments(serviceCode, previousUse
     const addedUserIds = [...newSet].filter(id => !prevSet.has(id));
     const removedUserIds = [...prevSet].filter(id => !newSet.has(id));
 
-    console.log(`[ServicePersonnelSync] Syncing for service: ${serviceCode} | Added: ${addedUserIds.length}, Removed: ${removedUserIds.length}`);
-
     if (addedUserIds.length === 0 && removedUserIds.length === 0) {
         return [];
     }
@@ -725,11 +741,10 @@ export async function syncServicePersonnelToAssignments(serviceCode, previousUse
             try {
                 const userDoc = await getDoc(doc(db, 'users', userId));
                 if (userDoc.exists() && userDoc.data().all_services === true) {
-                    console.log(`[ServicePersonnelSync] Skipping ${userId} (all_services=true)`);
                     skipUser = true;
                 }
             } catch (readErr) {
-                console.log(`[ServicePersonnelSync] Cannot read user ${userId} (permission), proceeding with add`);
+                // Cannot read user doc (permission), proceed with add
             }
             if (skipUser) continue;
 

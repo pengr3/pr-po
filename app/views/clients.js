@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, where } from '../firebase.js';
-import { showLoading, showToast, formatCurrency } from '../utils.js';
+import { showLoading, showToast, formatCurrency, escapeHTML } from '../utils.js';
 import { createModal, openModal, closeModal, skeletonTableRows } from '../components.js';
 
 // Global state
@@ -20,7 +20,6 @@ let sortDirection = 'asc';
 
 // Attach window functions
 function attachWindowFunctions() {
-    console.log('[Clients] Attaching window functions...');
     window.toggleAddClientForm = toggleAddClientForm;
     window.addClient = addClient;
     window.editClient = editClient;
@@ -31,7 +30,6 @@ function attachWindowFunctions() {
     window.sortClients = sortClients;
     window.showClientDetail = showClientDetail;
     window.closeClientDetailModal = closeClientDetailModal;
-    console.log('[Clients] Window functions attached');
 }
 
 // Render view HTML
@@ -113,12 +111,10 @@ export function render(activeTab = null) {
 
 // Initialize view
 export async function init(activeTab = null) {
-    console.log('[Clients] Initializing clients view...');
     attachWindowFunctions();
 
     // Listen for permission changes and re-render table
     const permissionChangeHandler = () => {
-        console.log('[Clients] Permissions changed, re-rendering table...');
         renderClientsTable();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
@@ -133,8 +129,6 @@ export async function init(activeTab = null) {
 
 // Cleanup
 export async function destroy() {
-    console.log('[Clients] Destroying clients view...');
-
     // Remove permission change listener
     if (window._clientsPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._clientsPermissionHandler);
@@ -165,8 +159,6 @@ export async function destroy() {
     // Reset sort state
     sortColumn = 'company_name';
     sortDirection = 'asc';
-
-    console.log('[Clients] View destroyed');
 }
 
 // Load clients with real-time listener
@@ -191,7 +183,6 @@ async function loadClients() {
                 return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
             });
 
-            console.log('[Clients] Loaded:', clientsData.length);
             renderClientsTable();
         });
 
@@ -240,19 +231,19 @@ async function showClientDetail(clientId) {
             <div class="modal-details-grid" style="margin-bottom: 2rem;">
                 <div class="modal-detail-item">
                     <span class="modal-detail-label">Client Code</span>
-                    <span class="modal-detail-value"><strong>${client.client_code || '—'}</strong></span>
+                    <span class="modal-detail-value"><strong>${escapeHTML(client.client_code || '—')}</strong></span>
                 </div>
                 <div class="modal-detail-item">
                     <span class="modal-detail-label">Company Name</span>
-                    <span class="modal-detail-value">${client.company_name || '—'}</span>
+                    <span class="modal-detail-value">${escapeHTML(client.company_name || '—')}</span>
                 </div>
                 <div class="modal-detail-item">
                     <span class="modal-detail-label">Contact Person</span>
-                    <span class="modal-detail-value">${client.contact_person || '—'}</span>
+                    <span class="modal-detail-value">${escapeHTML(client.contact_person || '—')}</span>
                 </div>
                 <div class="modal-detail-item">
                     <span class="modal-detail-label">Contact Details</span>
-                    <span class="modal-detail-value">${client.contact_details || '—'}</span>
+                    <span class="modal-detail-value">${escapeHTML(client.contact_details || '—')}</span>
                 </div>
             </div>
         `;
@@ -264,8 +255,8 @@ async function showClientDetail(clientId) {
         } else {
             const rows = linkedProjects.map(p => `
                 <tr>
-                    <td><a href="#/projects/detail/${encodeURIComponent(p.project_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none; font-weight: 500;">${p.project_code || '—'}</a></td>
-                    <td><a href="#/projects/detail/${encodeURIComponent(p.project_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none;">${p.project_name || '—'}</a></td>
+                    <td><a href="#/projects/detail/${encodeURIComponent(p.project_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none; font-weight: 500;">${escapeHTML(p.project_code || '—')}</a></td>
+                    <td><a href="#/projects/detail/${encodeURIComponent(p.project_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none;">${escapeHTML(p.project_name || '—')}</a></td>
                     <td style="text-align: right;">${p.budget != null ? '\u20B1' + formatCurrency(p.budget) : '—'}</td>
                     <td style="text-align: right;">${p.contract_cost != null ? '\u20B1' + formatCurrency(p.contract_cost) : '—'}</td>
                 </tr>
@@ -294,8 +285,8 @@ async function showClientDetail(clientId) {
         } else {
             const rows = linkedServices.map(s => `
                 <tr>
-                    <td><a href="#/services/detail/${encodeURIComponent(s.service_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none; font-weight: 500;">${s.service_code || '—'}</a></td>
-                    <td><a href="#/services/detail/${encodeURIComponent(s.service_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none;">${s.service_name || '—'}</a></td>
+                    <td><a href="#/services/detail/${encodeURIComponent(s.service_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none; font-weight: 500;">${escapeHTML(s.service_code || '—')}</a></td>
+                    <td><a href="#/services/detail/${encodeURIComponent(s.service_code)}" onclick="window.closeClientDetailModal()" style="color: #1a73e8; text-decoration: none;">${escapeHTML(s.service_name || '—')}</a></td>
                     <td style="text-align: right;">${s.budget != null ? '\u20B1' + formatCurrency(s.budget) : '—'}</td>
                     <td style="text-align: right;">${s.contract_cost != null ? '\u20B1' + formatCurrency(s.contract_cost) : '—'}</td>
                 </tr>
@@ -336,7 +327,7 @@ async function showClientDetail(clientId) {
 
         container.innerHTML = createModal({
             id: 'clientDetailModal',
-            title: `${client.company_name} (${client.client_code})`,
+            title: `${escapeHTML(client.company_name)} (${escapeHTML(client.client_code)})`,
             body: modalBody,
             footer: `<button class="btn btn-secondary" onclick="window.closeClientDetailModal()">Close</button>`,
             size: 'large'
@@ -403,10 +394,10 @@ function renderClientsTable() {
         if (editingClient === client.id) {
             return `
                 <tr>
-                    <td><input type="text" id="edit-code" value="${client.client_code}" style="width: 100%; text-transform: uppercase;"></td>
-                    <td><input type="text" id="edit-company" value="${client.company_name}" style="width: 100%;"></td>
-                    <td><input type="text" id="edit-contact" value="${client.contact_person}" style="width: 100%;"></td>
-                    <td><input type="text" id="edit-details" value="${client.contact_details}" style="width: 100%;"></td>
+                    <td><input type="text" id="edit-code" value="${escapeHTML(client.client_code)}" style="width: 100%; text-transform: uppercase;"></td>
+                    <td><input type="text" id="edit-company" value="${escapeHTML(client.company_name)}" style="width: 100%;"></td>
+                    <td><input type="text" id="edit-contact" value="${escapeHTML(client.contact_person)}" style="width: 100%;"></td>
+                    <td><input type="text" id="edit-details" value="${escapeHTML(client.contact_details)}" style="width: 100%;"></td>
                     <td style="white-space: nowrap;">
                         <button class="btn btn-sm btn-success" onclick="saveEdit('${client.id}')">Save</button>
                         <button class="btn btn-sm btn-secondary" onclick="cancelEdit()">Cancel</button>
@@ -416,14 +407,14 @@ function renderClientsTable() {
         } else {
             return `
                 <tr onclick="window.showClientDetail('${client.id}')" style="cursor: pointer;" class="clickable-row">
-                    <td><strong>${client.client_code}</strong></td>
-                    <td>${client.company_name}</td>
-                    <td>${client.contact_person}</td>
-                    <td>${client.contact_details}</td>
+                    <td><strong>${escapeHTML(client.client_code)}</strong></td>
+                    <td>${escapeHTML(client.company_name)}</td>
+                    <td>${escapeHTML(client.contact_person)}</td>
+                    <td>${escapeHTML(client.contact_details)}</td>
                     ${showEditControls ? `
                         <td style="white-space: nowrap;" onclick="event.stopPropagation()">
                             <button class="btn btn-sm btn-primary" onclick="window.editClient('${client.id}')">Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="window.deleteClient('${client.id}', '${client.company_name.replace(/'/g, "\\'")}')">Delete</button>
+                            <button class="btn btn-sm btn-danger" onclick="window.deleteClient('${client.id}', '${escapeHTML(client.company_name).replace(/'/g, "\\'")}')">Delete</button>
                         </td>
                     ` : `
                         <td class="actions-cell" onclick="event.stopPropagation()">
@@ -667,4 +658,3 @@ function updatePaginationControls(totalPages, startIndex, endIndex, totalItems) 
     paginationDiv.innerHTML = paginationHTML;
 }
 
-console.log('[Clients] Module loaded');

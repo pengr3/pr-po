@@ -19,7 +19,7 @@ import {
     serverTimestamp,
     Timestamp
 } from '../firebase.js';
-import { showToast } from '../utils.js';
+import { showToast, escapeHTML } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
 
 /* ========================================
@@ -33,6 +33,7 @@ let pendingUsersListener = null; // Listener for pending users
 let selectedUserForApproval = null; // User being approved
 let allUsers = [];               // All active/deactivated users (excludes pending)
 let allUsersListener = null;     // Listener for all users
+let projectsData = [];           // Projects for cross-referencing assignment counts
 let userSearchQuery = '';        // Search query for user filtering
 
 /* ========================================
@@ -202,8 +203,6 @@ export function render(activeTab = null) {
  * @param {string} activeTab - Active tab ID
  */
 export async function init(activeTab = null) {
-    console.log('[UserManagement] Initializing...');
-
     // Role gate check (defense in depth)
     const user = window.getCurrentUser?.();
     if (!user || user.role !== 'super_admin') {
@@ -238,7 +237,6 @@ export async function init(activeTab = null) {
     const codesListener = onSnapshot(codesQuery, (snapshot) => {
         invitationCodes = [];
         snapshot.forEach(d => invitationCodes.push({ id: d.id, ...d.data() }));
-        console.log('[UserManagement] Invitation codes loaded:', invitationCodes.length);
         renderInvitationCodesTable();
     });
 
@@ -254,7 +252,6 @@ export async function init(activeTab = null) {
     pendingUsersListener = onSnapshot(pendingQuery, (snapshot) => {
         pendingUsers = [];
         snapshot.forEach(d => pendingUsers.push({ id: d.id, ...d.data() }));
-        console.log('[UserManagement] Pending users loaded:', pendingUsers.length);
         renderPendingUsersTable();
     });
 
@@ -270,11 +267,18 @@ export async function init(activeTab = null) {
         allUsers = [];
         snapshot.forEach(d => allUsers.push({ id: d.id, ...d.data() }));
         allUsers.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
-        console.log('[UserManagement] All users loaded:', allUsers.length);
         renderUsersTable();
     });
 
     listeners.push(allUsersListener);
+
+    // Listener: projects (for cross-referencing assignment counts)
+    const projectsUnsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
+        projectsData = [];
+        snapshot.forEach(d => projectsData.push({ id: d.id, ...d.data() }));
+        renderUsersTable();
+    });
+    listeners.push(projectsUnsub);
 
     // Close action menus when clicking outside
     document.addEventListener('click', closeAllActionMenus);
@@ -363,8 +367,8 @@ function renderPendingUsersTable() {
 
         return `
             <tr>
-                <td>${user.email || 'Unknown'}</td>
-                <td>${user.full_name || 'Unknown'}</td>
+                <td>${escapeHTML(user.email || 'Unknown')}</td>
+                <td>${escapeHTML(user.full_name || 'Unknown')}</td>
                 <td>
                     <div style="font-weight: 500; color: #1e293b;">${registeredDisplay}</div>
                     <div style="font-size: 0.8125rem; color: #64748b;">
@@ -373,7 +377,7 @@ function renderPendingUsersTable() {
                 </td>
                 <td>
                     <code style="font-size: 0.8125rem; background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">
-                        ${truncatedCode}
+                        ${escapeHTML(truncatedCode)}
                     </code>
                 </td>
                 <td>
@@ -475,13 +479,15 @@ function renderUsersTable() {
             ? '<span class="status-badge approved" style="background: #d1fae5; color: #065f46;">Active</span>'
             : '<span class="status-badge" style="background: #e5e7eb; color: #475569;">Deactivated</span>';
 
-        // Assigned projects display
+        // Assigned projects display (cross-reference against existing projects)
         let assignedProjectsDisplay = '-';
         if (user.role === 'operations_user') {
             if (user.all_projects === true) {
                 assignedProjectsDisplay = 'All projects';
             } else if (Array.isArray(user.assigned_project_codes) && user.assigned_project_codes.length > 0) {
-                assignedProjectsDisplay = `${user.assigned_project_codes.length} projects`;
+                const existingCodes = new Set(projectsData.map(p => p.project_code));
+                const validCount = user.assigned_project_codes.filter(c => existingCodes.has(c)).length;
+                assignedProjectsDisplay = validCount > 0 ? `${validCount} projects` : 'No projects';
             } else {
                 assignedProjectsDisplay = 'No projects';
             }
@@ -520,11 +526,11 @@ function renderUsersTable() {
         return `
             <tr style="${rowStyle}">
                 <td>
-                    ${user.email || 'Unknown'}
+                    ${escapeHTML(user.email || 'Unknown')}
                     ${isCurrentUser ? '<span style="color: #92400e; font-size: 0.75rem; margin-left: 0.5rem;">(You)</span>' : ''}
                 </td>
-                <td>${user.full_name || '-'}</td>
-                <td>${roleLabel}</td>
+                <td>${escapeHTML(user.full_name || '-')}</td>
+                <td>${escapeHTML(roleLabel)}</td>
                 <td>${statusBadge}</td>
                 <td>${assignedProjectsDisplay}</td>
                 <td style="position: relative;">
@@ -659,11 +665,11 @@ function openApprovalModal(userId) {
         <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
             <div style="margin-bottom: 0.5rem;">
                 <strong style="color: #475569;">Email:</strong>
-                <span style="color: #1e293b;">${user.email}</span>
+                <span style="color: #1e293b;">${escapeHTML(user.email)}</span>
             </div>
             <div style="margin-bottom: 0.5rem;">
                 <strong style="color: #475569;">Full Name:</strong>
-                <span style="color: #1e293b;">${user.full_name || 'Unknown'}</span>
+                <span style="color: #1e293b;">${escapeHTML(user.full_name || 'Unknown')}</span>
             </div>
             <div>
                 <strong style="color: #475569;">Registered:</strong>
@@ -790,8 +796,6 @@ async function confirmApproval() {
 
         // Show success message
         showToast('User approved successfully', 'success');
-
-        console.log('[UserManagement] User approved:', selectedUserForApproval, 'Role:', selectedRole);
     } catch (error) {
         console.error('[UserManagement] Error approving user:', error);
         showToast('Failed to approve user', 'error');
@@ -813,7 +817,6 @@ async function handleRejectUser(userId) {
     // Show confirmation modal
     const confirmed = await showRejectConfirmation(user);
     if (!confirmed) {
-        console.log('[UserManagement] Rejection cancelled');
         return;
     }
 
@@ -821,7 +824,6 @@ async function handleRejectUser(userId) {
         // Delete user document from Firestore
         await deleteDoc(doc(db, 'users', userId));
         showToast('User rejected and deleted', 'success');
-        console.log('[UserManagement] User rejected and deleted:', userId);
     } catch (error) {
         console.error('[UserManagement] Error rejecting user:', error);
         showToast('Failed to reject user', 'error');
@@ -868,7 +870,7 @@ function showRejectConfirmation(user) {
             </h3>
 
             <p style="margin: 0 0 1rem 0; color: #475569; font-size: 0.9375rem;">
-                Are you sure you want to reject <strong>${user.email}</strong>?
+                Are you sure you want to reject <strong>${escapeHTML(user.email)}</strong>?
             </p>
 
             <p style="margin: 0 0 1rem 0; color: #475569; font-size: 0.9375rem;">
@@ -1007,7 +1009,7 @@ function showDeactivationModal(user) {
             </h3>
 
             <p style="margin: 0 0 1rem 0; color: #475569; font-size: 0.9375rem;">
-                You are about to deactivate <strong>${user.email}</strong>
+                You are about to deactivate <strong>${escapeHTML(user.email)}</strong>
             </p>
 
             <div style="background: #fee2e2; border: 1px solid #ef4444; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
@@ -1023,7 +1025,7 @@ function showDeactivationModal(user) {
                 <input type="text"
                        id="deactivationEmailInput"
                        class="form-input"
-                       placeholder="${user.email}"
+                       placeholder="${escapeHTML(user.email)}"
                        style="width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9375rem;">
             </div>
 
@@ -1079,8 +1081,6 @@ function showDeactivationModal(user) {
 
                 // Show success message
                 showToast('User deactivated', 'success');
-
-                console.log('[UserManagement] User deactivated:', user.id);
                 resolve(true);
             } catch (error) {
                 console.error('[UserManagement] Error deactivating user:', error);
@@ -1119,7 +1119,6 @@ async function handleReactivateUser(userId) {
         );
 
         if (!confirmed) {
-            console.log('[UserManagement] Reactivation cancelled');
             return;
         }
 
@@ -1134,7 +1133,6 @@ async function handleReactivateUser(userId) {
         });
 
         showToast('User reactivated', 'success');
-        console.log('[UserManagement] User reactivated:', userId);
     } catch (error) {
         console.error('[UserManagement] Error reactivating user:', error);
         showToast('Failed to reactivate user', 'error');
@@ -1304,7 +1302,6 @@ async function handleDeleteUser(userId) {
         // Show confirmation modal
         const confirmed = await showDeleteConfirmation(user);
         if (!confirmed) {
-            console.log('[UserManagement] Deletion cancelled');
             return;
         }
 
@@ -1323,7 +1320,6 @@ async function handleDeleteUser(userId) {
         await deleteDoc(doc(db, 'users', userId));
 
         showToast('User deleted', 'success');
-        console.log('[UserManagement] User moved to deleted_users:', userId);
     } catch (error) {
         console.error('[UserManagement] Error deleting user:', error);
         showToast('Failed to delete user', 'error');
@@ -1368,7 +1364,7 @@ function showDeleteConfirmation(user) {
             </h3>
 
             <p style="margin: 0 0 0.75rem 0; color: #475569; font-size: 0.9375rem;">
-                This will permanently delete <strong>${user.email}</strong> and cannot be undone.
+                This will permanently delete <strong>${escapeHTML(user.email)}</strong> and cannot be undone.
             </p>
 
             <p style="margin: 0 0 1rem 0; color: #475569; font-size: 0.9375rem;">
@@ -1429,7 +1425,6 @@ async function handleEditRole(userId) {
         // Show role edit modal
         const newRole = await showRoleEditModal(user);
         if (!newRole) {
-            console.log('[UserManagement] Role edit cancelled');
             return;
         }
 
@@ -1473,7 +1468,6 @@ async function handleEditRole(userId) {
         });
 
         showToast('Role updated', 'success');
-        console.log('[UserManagement] Role updated:', userId, 'New role:', newRole);
     } catch (error) {
         console.error('[UserManagement] Error updating role:', error);
         showToast('Failed to update role', 'error');
@@ -1533,11 +1527,11 @@ function showRoleEditModal(user) {
             <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                 <div style="margin-bottom: 0.5rem;">
                     <strong style="color: #475569;">User:</strong>
-                    <span style="color: #1e293b;">${user.email}</span>
+                    <span style="color: #1e293b;">${escapeHTML(user.email)}</span>
                 </div>
                 <div>
                     <strong style="color: #475569;">Current:</strong>
-                    <span style="color: #1e293b;">${currentRoleLabel}</span>
+                    <span style="color: #1e293b;">${escapeHTML(currentRoleLabel)}</span>
                 </div>
             </div>
 
@@ -1688,7 +1682,7 @@ function renderInvitationCodesTable() {
             const usedByEmail = code.used_by_email || 'Unknown';
             expiryInfo = `
                 <div style="font-size: 0.8125rem; color: #64748b;">
-                    Used by: ${usedByEmail}<br>
+                    Used by: ${escapeHTML(usedByEmail)}<br>
                     ${usedAt.toLocaleDateString()} ${usedAt.toLocaleTimeString()}
                 </div>
             `;
@@ -1783,9 +1777,7 @@ async function cleanupExpiredCodes() {
             await deleteDoc(codeRef);
         }
 
-        if (expiredCodes.length > 0) {
-            console.log(`[UserManagement] Cleaned up ${expiredCodes.length} expired invitation codes`);
-        }
+        // expired codes cleaned up silently
     } catch (error) {
         console.error('[UserManagement] Error cleaning up expired codes:', error);
     }
@@ -1799,8 +1791,6 @@ async function cleanupExpiredCodes() {
  * Cleanup function: unsubscribe listeners and remove window functions
  */
 export async function destroy() {
-    console.log('[UserManagement] Cleaning up...');
-
     // Remove document event listener
     document.removeEventListener('click', closeAllActionMenus);
 
@@ -1815,6 +1805,7 @@ export async function destroy() {
     selectedUserForApproval = null;
     allUsers = [];
     allUsersListener = null;
+    projectsData = [];
     userSearchQuery = '';
 
     // Remove window functions
@@ -1832,5 +1823,3 @@ export async function destroy() {
     delete window.handleReactivateUser;
     delete window.handleDeleteUser;
 }
-
-console.log('[UserManagement] Module loaded');

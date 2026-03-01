@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 
@@ -51,7 +51,6 @@ export function render(activeTab = null, param = null) {
 
 // Initialize view
 export async function init(activeTab = null, param = null) {
-    console.log('[ProjectDetail] Initializing with param:', param);
     projectCode = param;
     attachWindowFunctions();
 
@@ -67,7 +66,6 @@ export async function init(activeTab = null, param = null) {
 
     // Listen for permission changes and re-render
     const permissionChangeHandler = () => {
-        console.log('[ProjectDetail] Permissions changed, re-rendering...');
         renderProjectDetail();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
@@ -79,7 +77,6 @@ export async function init(activeTab = null, param = null) {
 
     // Phase 7: Re-check access when assignments change
     const assignmentChangeHandler = () => {
-        console.log('[ProjectDetail] Assignments changed, re-checking access...');
         if (currentProject) {
             checkProjectAccess(); // Will render access denied if project no longer assigned
         }
@@ -151,8 +148,6 @@ export async function init(activeTab = null, param = null) {
 
 // Cleanup
 export async function destroy() {
-    console.log('[ProjectDetail] Destroying view...');
-
     // Remove permission change listener
     if (window._projectDetailPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._projectDetailPermissionHandler);
@@ -197,8 +192,6 @@ export async function destroy() {
     delete window.showDetailPersonnelDropdown;
     delete window.showEditHistory;
     delete window.exportProjectExpenseCSV;
-
-    console.log('[ProjectDetail] View destroyed');
 }
 
 /**
@@ -244,7 +237,6 @@ function checkProjectAccess() {
         // rather than silently returning false with nothing rendered.
         window.location.hash = '#/projects';
     }
-    console.log('[ProjectDetail] Access denied for project:', currentProject?.project_code);
     return false;
 }
 
@@ -299,15 +291,19 @@ function renderProjectDetail() {
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Project Code</label>
-                            <div style="color: #64748b; font-size: 1rem;">${currentProject.project_code}</div>
+                            <div style="color: #64748b; font-size: 1rem;">${escapeHTML(currentProject.project_code)}</div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.25rem;">Project Name *</label>
-                            <input type="text" data-field="project_name" value="${currentProject.project_name || ''}" onblur="window.saveField('project_name', this.value)" placeholder="Enter project name" ${!showEditControls ? 'disabled' : ''}>
+                            <input type="text" data-field="project_name" value="${escapeHTML(currentProject.project_name || '')}" onblur="window.saveField('project_name', this.value)" placeholder="Enter project name" ${!showEditControls ? 'disabled' : ''}>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
-                            <div style="color: #64748b; font-size: 1rem;">${currentProject.client_code || 'N/A'}</div>
+                            <div style="color: #64748b; font-size: 1rem;">${escapeHTML(currentProject.client_code || 'N/A')}</div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.25rem;">Location</label>
+                            <input type="text" data-field="location" value="${escapeHTML(currentProject.location || '')}" onblur="window.saveField('location', this.value)" placeholder="(Not set)" ${!showEditControls ? 'disabled' : ''}>
                         </div>
                         ${renderPersonnelPills(canEditPersonnel)}
                     </div>
@@ -423,8 +419,8 @@ function renderPersonnelPills(showEditControls) {
     }
 
     const pillsHtml = detailSelectedPersonnel.map(user => `
-        <span class="personnel-pill ${user.id ? '' : 'legacy'}" data-user-id="${user.id || ''}">
-            ${user.name}
+        <span class="personnel-pill ${user.id ? '' : 'legacy'}" data-user-id="${escapeHTML(user.id || '')}">
+            ${escapeHTML(user.name)}
             ${showEditControls ? `<button type="button" class="pill-remove"
                 onmousedown="event.preventDefault(); window.removeDetailPersonnel('${user.id || ''}', '${user.name.replace(/'/g, "\\'")}')">&times;</button>` : ''}
         </span>
@@ -481,8 +477,8 @@ function filterDetailPersonnel(searchText) {
     dropdown.innerHTML = matches.slice(0, 10).map(user => `
         <div class="pill-dropdown-item"
              onmousedown="event.preventDefault(); window.selectDetailPersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
-            <strong>${user.full_name}</strong>
-            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+            <strong>${escapeHTML(user.full_name)}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${escapeHTML(user.email)}</span>
         </div>
     `).join('');
 
@@ -519,8 +515,6 @@ async function selectDetailPersonnel(userId, userName) {
         recordEditHistory(currentProject.id, 'personnel_add', [
             { field: 'personnel', old_value: null, new_value: userName }
         ]).catch(err => console.error('[EditHistory] selectPersonnel failed:', err));
-        console.log('[ProjectDetail] Personnel added:', userName);
-
         // Sync assignment (fire-and-forget)
         const newUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
         syncPersonnelToAssignments(currentProject.project_code, previousUserIds, newUserIds)
@@ -566,8 +560,6 @@ async function removeDetailPersonnel(userId, userName) {
         recordEditHistory(currentProject.id, 'personnel_remove', [
             { field: 'personnel', old_value: userName || userId, new_value: null }
         ]).catch(err => console.error('[EditHistory] removePersonnel failed:', err));
-        console.log('[ProjectDetail] Personnel removed:', userName || userId);
-
         // Sync assignment (fire-and-forget)
         const previousUserIds = previousState.map(u => u.id).filter(Boolean);
         const newUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
@@ -624,7 +616,6 @@ async function saveField(fieldName, newValue) {
         ? (oldValue != null ? parseFloat(oldValue) : null)
         : oldValue;
     if (normalizedOld === valueToSave) {
-        console.log('[ProjectDetail] No change for', fieldName);
         return true;
     }
 
@@ -638,8 +629,6 @@ async function saveField(fieldName, newValue) {
         recordEditHistory(currentProject.id, 'update', [
             { field: fieldName, old_value: oldValue ?? null, new_value: valueToSave }
         ]).catch(err => console.error('[EditHistory] saveField failed:', err));
-        // Silent success per CONTEXT.md
-        console.log('[ProjectDetail] Saved', fieldName);
         return true;
     } catch (error) {
         console.error('[ProjectDetail] Save failed:', error);
@@ -722,7 +711,6 @@ async function toggleActive(newValue) {
             { field: 'active', old_value: !newValue, new_value: newValue }
         ]).catch(err => console.error('[EditHistory] toggleActive failed:', err));
         showToast(`Project ${newValue ? 'activated' : 'deactivated'}`, 'success');
-        console.log('[ProjectDetail] Active status updated to:', newValue);
     } catch (error) {
         console.error('[ProjectDetail] Toggle failed:', error);
         showToast('Failed to update status', 'error');
@@ -855,5 +843,3 @@ function attachWindowFunctions() {
     window.showEditHistory = () => currentProject && showEditHistoryModal(currentProject.id, currentProject.project_code);
     window.exportProjectExpenseCSV = exportProjectExpenseCSV;
 }
-
-console.log('[ProjectDetail] Module loaded');

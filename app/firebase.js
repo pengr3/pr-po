@@ -141,5 +141,5 @@ import('./auth.js').then(module => {
         module.initAuthObserver();
     }
 }).catch(err => {
-    console.log('[Firebase] Auth observer not initialized yet:', err.message);
+    console.error('[Firebase] Auth observer failed to initialize:', err.message);
 });

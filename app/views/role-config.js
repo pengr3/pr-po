@@ -229,23 +229,17 @@ export function render(activeTab = null) {
  * @param {string} activeTab - Active tab (unused in this view)
  */
 export async function init(activeTab = null) {
-    console.log('[RoleConfig] Initializing role configuration view');
-
     // Set up real-time listener on role_templates collection
     const roleTemplatesRef = collection(db, 'role_templates');
 
     const unsubscribe = onSnapshot(
         roleTemplatesRef,
         (snapshot) => {
-            console.log('[RoleConfig] Role templates updated');
-
             // Clear and repopulate roleTemplates
             roleTemplates = {};
             snapshot.forEach(doc => {
                 roleTemplates[doc.id] = doc.data();
             });
-
-            console.log('[RoleConfig] Loaded', snapshot.size, 'role templates');
 
             // Re-render matrix to show current values
             const container = document.getElementById('permissionMatrixContainer');
@@ -265,16 +259,12 @@ export async function init(activeTab = null) {
     window.handleRoleConfigCheckboxChange = handleCheckboxChange;
     window.handleRoleConfigSave = handleSave;
     window.handleRoleConfigDiscard = handleDiscard;
-
-    console.log('[RoleConfig] Initialization complete');
 }
 
 /**
  * Cleanup when leaving view
  */
 export async function destroy() {
-    console.log('[RoleConfig] Destroying role configuration view');
-
     // Unsubscribe all listeners
     listeners.forEach(unsubscribe => unsubscribe?.());
     listeners = [];
@@ -287,8 +277,6 @@ export async function destroy() {
     delete window.handleRoleConfigCheckboxChange;
     delete window.handleRoleConfigSave;
     delete window.handleRoleConfigDiscard;
-
-    console.log('[RoleConfig] Cleanup complete');
 }
 
 /* ========================================
@@ -305,8 +293,6 @@ function handleCheckboxChange(event) {
     const tabId = checkbox.dataset.tab;
     const permission = checkbox.dataset.permission;
     const newValue = checkbox.checked;
-
-    console.log('[RoleConfig] Permission change:', { roleId, tabId, permission, newValue });
 
     // Initialize nested objects if needed
     if (!pendingChanges[roleId]) {
@@ -345,8 +331,6 @@ async function handleSave() {
         return;
     }
 
-    console.log('[RoleConfig] Saving changes:', pendingChanges);
-
     // Show saving indicator
     const savingIndicator = document.getElementById('savingIndicator');
     if (savingIndicator) {
@@ -382,8 +366,6 @@ async function handleSave() {
 
         // Commit batch
         await batch.commit();
-
-        console.log('[RoleConfig] Permissions updated for roles:', changedRoles);
 
         // Clear pending changes
         pendingChanges = {};
@@ -426,8 +408,6 @@ function handleDiscard() {
         return;
     }
 
-    console.log('[RoleConfig] Discarding changes');
-
     // Clear pending changes
     pendingChanges = {};
 
@@ -445,5 +425,3 @@ function handleDiscard() {
 
     showToast('Changes discarded', 'info');
 }
-
-console.log('[RoleConfig] Module loaded successfully');

@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV } from '../utils.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 
 // ========================================
@@ -92,7 +92,6 @@ const PROCUREMENT_STATUS_ORDER = {
  * functions are available after tab navigation
  */
 function attachWindowFunctions() {
-    console.log('[Procurement] Attaching window functions...');
     // MRF Management Functions
     window.loadMRFs = loadMRFs;
     window.createNewMRF = createNewMRF;
@@ -145,7 +144,6 @@ function attachWindowFunctions() {
     window.generateAllPODocuments = generateAllPODocuments;
     window.exportPRPORecordsCSV = exportPRPORecordsCSV;
     window.exportPOTrackingCSV = exportPOTrackingCSV;
-    console.log('[Procurement] ✅ All window functions attached successfully');
 }
 
 // ========================================
@@ -420,8 +418,6 @@ export function render(activeTab = 'mrfs') {
  * @param {string} activeTab - Active tab to display
  */
 export async function init(activeTab = 'mrfs') {
-    console.log('[Procurement] 🔵 Initializing procurement view, tab:', activeTab);
-
     // Re-attach all window functions (needed after tab navigation)
     attachWindowFunctions();
 
@@ -429,14 +425,11 @@ export async function init(activeTab = 'mrfs') {
     // Guard: only register once (init() is called on every tab switch without destroy)
     if (!window._procurementAssignmentHandler) {
         const assignmentChangeHandler = () => {
-            console.log('[Procurement] Assignments changed, re-filtering MRF list...');
             reFilterAndRenderMRFs();
         };
         window.addEventListener('assignmentsChanged', assignmentChangeHandler);
         window._procurementAssignmentHandler = assignmentChangeHandler;
     }
-
-    console.log('[Procurement] Testing window.loadMRFs availability:', typeof window.loadMRFs);
 
     try {
         // Reference data is independent — load in parallel for faster init
@@ -454,7 +447,6 @@ export async function init(activeTab = 'mrfs') {
             await loadPOTracking();
         }
 
-        console.log('[Procurement] ✅ Procurement view initialized successfully');
     } catch (error) {
         console.error('Error initializing procurement view:', error);
         showToast('Error loading procurement data', 'error');
@@ -470,7 +462,6 @@ export async function init(activeTab = 'mrfs') {
  * @param {string} supplierName - Supplier name to show history for
  */
 async function showSupplierPurchaseHistory(supplierName) {
-    console.log('[Procurement] Loading supplier purchase history for:', supplierName);
     showLoading(true);
 
     try {
@@ -489,21 +480,17 @@ async function showSupplierPurchaseHistory(supplierName) {
         const totalPurchases = aggSnapshot.data().totalPurchases || 0;
         const orderCount = aggSnapshot.data().orderCount || 0;
 
-        console.log('[Procurement] Supplier totals:', { totalPurchases, orderCount });
-
         // Load PO details for table
         const posSnapshot = await getDocs(q);
         const pos = [];
         posSnapshot.forEach(doc => pos.push({ id: doc.id, ...doc.data() }));
-
-        console.log('[Procurement] Loaded', pos.length, 'POs for supplier');
 
         // Render modal content
         const modalContent = `
             <div class="modal-details-grid">
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Supplier:</div>
-                    <div class="modal-detail-value"><strong>${supplierName}</strong></div>
+                    <div class="modal-detail-value"><strong>${escapeHTML(supplierName)}</strong></div>
                 </div>
                 <div class="modal-detail-item">
                     <div class="modal-detail-label">Total Purchase Orders:</div>
@@ -531,11 +518,11 @@ async function showSupplierPurchaseHistory(supplierName) {
                 <tbody>
                     ${pos.map(po => `
                         <tr>
-                            <td><strong>${po.po_id}</strong></td>
-                            <td>${getMRFLabel(po)}</td>
+                            <td><strong>${escapeHTML(po.po_id)}</strong></td>
+                            <td>${escapeHTML(getMRFLabel(po))}</td>
                             <td>${formatTimestamp(po.date_issued) || 'N/A'}</td>
                             <td><strong>₱${formatCurrency(po.total_amount)}</strong></td>
-                            <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status}</span></td>
+                            <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${escapeHTML(po.procurement_status)}</span></td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -569,8 +556,6 @@ function closeSupplierHistoryModal() {
  * Cleanup when leaving the view
  */
 export async function destroy() {
-    console.log('[Procurement] 🔴 Destroying procurement view...');
-
     // Phase 7: Remove assignment change listener
     if (window._procurementAssignmentHandler) {
         window.removeEventListener('assignmentsChanged', window._procurementAssignmentHandler);
@@ -647,9 +632,6 @@ export async function destroy() {
     delete window.exportPRPORecordsCSV;
     delete window.exportPOTrackingCSV;
     activePODeptFilter = '';
-
-    console.log('[Procurement] 🗑️ All window functions deleted');
-    console.log('[Procurement] ✅ Procurement view destroyed');
 }
 
 // ========================================
@@ -677,7 +659,6 @@ async function loadServicesForNewMRF() {
             return bTime - aTime;
         });
         _servicesCachedAt = Date.now();
-        console.log('[Procurement] Services for New MRF loaded:', cachedServicesForNewMRF.length);
     } catch (error) {
         console.error('[Procurement] Error loading services for new MRF:', error);
     }
@@ -806,7 +787,6 @@ function reFilterAndRenderMRFs() {
     materialMRFs.sort(sortByDeadline);
     transportMRFs.sort(sortByDeadline);
 
-    console.log('[Procurement] Re-filtered - Material:', materialMRFs.length, 'Transport:', transportMRFs.length);
     renderMRFList(materialMRFs, transportMRFs);
 }
 
@@ -864,17 +844,17 @@ function renderMRFList(materialMRFs, transportMRFs) {
                  style="${rejectionStyle} border-left: 4px solid ${urgencyLevelColor};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                     <span style="font-weight: 600;">
-                        ${mrf.mrf_id}
+                        ${escapeHTML(mrf.mrf_id)}
                         ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
                     </span>
                     <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
-                        ${mrf.urgency_level || 'Low'}
+                        ${escapeHTML(mrf.urgency_level || 'Low')}
                     </span>
                 </div>
-                <div style="font-size: 0.875rem; color: #5f6368;">${getMRFLabel(mrf)}</div>
+                <div style="font-size: 0.875rem; color: #5f6368;">${escapeHTML(getMRFLabel(mrf))}</div>
                 ${isRejected ? `
                     <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                        <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
+                        <strong>Reason:</strong> ${escapeHTML(mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided')}
                     </div>
                 ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
@@ -920,17 +900,17 @@ function renderMRFList(materialMRFs, transportMRFs) {
                      style="${rejectionStyle} border-left: 4px solid ${urgencyLevelColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                         <span style="font-weight: 600;">
-                            ${mrf.mrf_id}
+                            ${escapeHTML(mrf.mrf_id)}
                             ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
                         </span>
                         <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
-                            ${mrf.urgency_level || 'Low'}
+                            ${escapeHTML(mrf.urgency_level || 'Low')}
                         </span>
                     </div>
-                    <div style="font-size: 0.875rem; color: #5f6368;">${getMRFLabel(mrf)}</div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${escapeHTML(getMRFLabel(mrf))}</div>
                     ${isRejected ? `
                         <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                            <strong>Reason:</strong> ${mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided'}
+                            <strong>Reason:</strong> ${escapeHTML(mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided')}
                         </div>
                     ` : ''}
                     <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
@@ -1075,12 +1055,12 @@ function renderMRFDetails(mrf, isNew = false) {
 
     // Build project options for unified dropdown
     const projectOptions = projectsData.map(p =>
-        `<option value="${p.project_code}" data-type="project" data-name="${p.project_name}">${p.project_code ? p.project_code + ' - ' : ''}${p.project_name}</option>`
+        `<option value="${escapeHTML(p.project_code)}" data-type="project" data-name="${escapeHTML(p.project_name)}">${p.project_code ? escapeHTML(p.project_code) + ' - ' : ''}${escapeHTML(p.project_name)}</option>`
     ).join('');
 
     // Build service options for unified dropdown
     const serviceOptions = cachedServicesForNewMRF.map(s =>
-        `<option value="${s.service_code}" data-type="service" data-name="${s.service_name}">${s.service_code} - ${s.service_name}</option>`
+        `<option value="${escapeHTML(s.service_code)}" data-type="service" data-name="${escapeHTML(s.service_name)}">${escapeHTML(s.service_code)} - ${escapeHTML(s.service_name)}</option>`
     ).join('');
 
     const details = `
@@ -1096,7 +1076,7 @@ function renderMRFDetails(mrf, isNew = false) {
                         <option value="material" ${mrf.request_type === 'material' ? 'selected' : ''}>Material Request</option>
                         <option value="service" ${mrf.request_type === 'service' ? 'selected' : ''}>Delivery/Hauling/Transportation</option>
                     </select>
-                ` : `<div style="font-weight: 600;">${requestTypeLabel}</div>`}
+                ` : `<div style="font-weight: 600;">${escapeHTML(requestTypeLabel)}</div>`}
             </div>
             <div style="grid-column: 1 / -1;">
                 <div style="font-size: 0.75rem; color: #5f6368;">Project / Service *</div>
@@ -1106,13 +1086,13 @@ function renderMRFDetails(mrf, isNew = false) {
                         <optgroup label="Projects">${projectOptions}</optgroup>
                         <optgroup label="Services">${serviceOptions}</optgroup>
                     </select>
-                ` : `<div style="font-weight: 600;">${getMRFLabel(mrf)}</div>`}
+                ` : `<div style="font-weight: 600;">${escapeHTML(getMRFLabel(mrf))}</div>`}
             </div>
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Requestor *</div>
                 ${isNew ? `
-                    <input type="text" id="requestorName" value="${mrf.requestor_name || ''}" required style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';" placeholder="Enter requestor name">
-                ` : `<div>${mrf.requestor_name}</div>`}
+                    <input type="text" id="requestorName" value="${escapeHTML(mrf.requestor_name || '')}" required style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';" placeholder="Enter requestor name">
+                ` : `<div>${escapeHTML(mrf.requestor_name)}</div>`}
             </div>
             <div>
                 <div style="font-size: 0.75rem; color: #5f6368;">Date Needed *</div>
@@ -1145,7 +1125,7 @@ function renderMRFDetails(mrf, isNew = false) {
 
         <div style="margin-bottom: 1rem;">
             <label style="font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Delivery Address</label>
-            <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; resize: none; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">${mrf.delivery_address || ''}</textarea>
+            <textarea id="deliveryAddress" rows="2" style="width: 100%; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; resize: none; background-color: #ffffff; font-family: inherit; transition: all 0.2s;" onfocus="this.style.borderColor='#1a73e8'; this.style.backgroundColor='#f8fbff';" onblur="this.style.borderColor='#dadce0'; this.style.backgroundColor='#ffffff';">${escapeHTML(mrf.delivery_address || '')}</textarea>
         </div>
 
         <div class="items-table-container">
@@ -1174,7 +1154,7 @@ function renderMRFDetails(mrf, isNew = false) {
                                 <input type="text"
                                        class="item-name table-input"
                                        data-index="${index}"
-                                       value="${item.item || item.item_name || ''}"
+                                       value="${escapeHTML(item.item || item.item_name || '')}"
                                        placeholder="Enter item name">
                             </td>
                             <td>
@@ -1235,8 +1215,8 @@ function renderMRFDetails(mrf, isNew = false) {
                                 <select class="supplier-select table-select" data-index="${index}">
                                     <option value="">Select Supplier</option>
                                     ${suppliersData.map(s => `
-                                        <option value="${s.supplier_name}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
-                                            ${s.supplier_name}
+                                        <option value="${escapeHTML(s.supplier_name)}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
+                                            ${escapeHTML(s.supplier_name)}
                                         </option>
                                     `).join('')}
                                 </select>
@@ -1461,7 +1441,7 @@ function addLineItem() {
             <select class="supplier-select table-select" data-index="${newIndex}">
                 <option value="">Select Supplier</option>
                 ${suppliersData.map(s => `
-                    <option value="${s.supplier_name}">${s.supplier_name}</option>
+                    <option value="${escapeHTML(s.supplier_name)}">${escapeHTML(s.supplier_name)}</option>
                 `).join('')}
             </select>
         </td>
@@ -2081,10 +2061,10 @@ function renderSuppliersTable() {
         if (editingSupplier === supplier.id) {
             return `
                 <tr class="edit-row">
-                    <td><input type="text" value="${supplier.supplier_name}" id="edit-name"></td>
-                    <td><input type="text" value="${supplier.contact_person}" id="edit-contact"></td>
-                    <td><input type="email" value="${supplier.email}" id="edit-email"></td>
-                    <td><input type="text" value="${supplier.phone}" id="edit-phone"></td>
+                    <td><input type="text" value="${escapeHTML(supplier.supplier_name)}" id="edit-name"></td>
+                    <td><input type="text" value="${escapeHTML(supplier.contact_person)}" id="edit-contact"></td>
+                    <td><input type="email" value="${escapeHTML(supplier.email)}" id="edit-email"></td>
+                    <td><input type="text" value="${escapeHTML(supplier.phone)}" id="edit-phone"></td>
                     <td class="actions">
                         <button class="btn btn-success" onclick="window.saveEdit('${supplier.id}')">Save</button>
                         <button class="btn btn-secondary" onclick="window.cancelEdit()">Cancel</button>
@@ -2094,14 +2074,14 @@ function renderSuppliersTable() {
         } else {
             return `
                 <tr>
-                    <td class="clickable-supplier" onclick="window.showSupplierPurchaseHistory('${supplier.supplier_name}')">${supplier.supplier_name}</td>
-                    <td>${supplier.contact_person}</td>
-                    <td>${supplier.email}</td>
-                    <td>${supplier.phone}</td>
+                    <td class="clickable-supplier" onclick="window.showSupplierPurchaseHistory('${escapeHTML(supplier.supplier_name)}')">${escapeHTML(supplier.supplier_name)}</td>
+                    <td>${escapeHTML(supplier.contact_person)}</td>
+                    <td>${escapeHTML(supplier.email)}</td>
+                    <td>${escapeHTML(supplier.phone)}</td>
                     <td class="actions">
                         ${showEditControls ? `
                         <button class="icon-btn" onclick="window.editSupplier('${supplier.id}')">Edit</button>
-                        <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${supplier.supplier_name}')">Delete</button>
+                        <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${escapeHTML(supplier.supplier_name)}')">Delete</button>
                         ` : '<span class="view-only-badge">View Only</span>'}
                     </td>
                 </tr>
@@ -2834,7 +2814,7 @@ async function renderPRPORecords() {
 
                         return {
                             linkHtml: `<div style="min-height: 52px; display: flex; flex-direction: column; gap: 2px; justify-content: center;">
-                                <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${po.po_id}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
+                                <a href="javascript:void(0)" onclick="window.viewPODetails('${po.docId}')" style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; word-break: break-word;">${escapeHTML(po.po_id)}</a>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>' : ''}
                             </div>`,
                             statusHtml: `<div style="min-height: 52px; display: flex; align-items: center;">
                                 ${showEditControls ? `
@@ -2952,8 +2932,8 @@ async function renderPRPORecords() {
 
         return `
             <tr>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${getMRFLabel(mrf)}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${escapeHTML(displayId)}</strong></td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${mrf.date_needed ? formatDate(mrf.date_needed) : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A')}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
@@ -4091,9 +4071,9 @@ function renderPOTrackingTable(pos) {
 
         return `
         <tr>
-            <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${po.po_id}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
-            <td>${po.supplier_name}</td>
-            <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${getMRFLabel(po)}</span></td>
+            <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
+            <td>${escapeHTML(po.supplier_name)}</td>
+            <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${escapeHTML(getMRFLabel(po))}</span></td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
             <td>${formatTimestamp(po.date_issued) || 'N/A'}</td>
             <td>
@@ -4319,33 +4299,33 @@ async function viewPRDetails(prDocId) {
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">PR ID</div>
-                        <div style="font-weight: 600;">${pr.pr_id}</div>
+                        <div style="font-weight: 600;">${escapeHTML(pr.pr_id)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
-                        <div style="font-weight: 600;">${pr.mrf_id}</div>
+                        <div style="font-weight: 600;">${escapeHTML(pr.mrf_id)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
-                        <div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div>
+                        <div style="font-weight: 600;">${escapeHTML(pr.supplier_name || 'Not specified')}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Prepared By</div>
                         <div style="padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 4px; color: #1e293b; font-size: 0.875rem;">
-                            ${pr.pr_creator_name || 'Unknown User'}
+                            ${escapeHTML(pr.pr_creator_name || 'Unknown User')}
                         </div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${getMRFLabel(pr)}</div>
+                        <div>${escapeHTML(getMRFLabel(pr))}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div>
-                        <div>${pr.date_generated}</div>
+                        <div>${escapeHTML(pr.date_generated)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
-                        <div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${pr.finance_status || 'Pending'}</span></div>
+                        <div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${escapeHTML(pr.finance_status || 'Pending')}</span></div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
@@ -4353,13 +4333,13 @@ async function viewPRDetails(prDocId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Requestor</div>
-                        <div>${pr.requestor_name}</div>
+                        <div>${escapeHTML(pr.requestor_name)}</div>
                     </div>
                 </div>
 
                 <div style="margin-bottom: 1rem;">
                     <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Delivery Address</div>
-                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${pr.delivery_address || 'N/A'}</div>
+                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${escapeHTML(pr.delivery_address || 'N/A')}</div>
                 </div>
 
                 <div style="margin-top: 1.5rem;">
@@ -4377,9 +4357,9 @@ async function viewPRDetails(prDocId) {
                         <tbody>
                             ${items.map(item => `
                                 <tr>
-                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
-                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
-                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name)}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity))} ${escapeHTML(item.unit)}</td>
                                     <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                     <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                 </tr>
@@ -4481,19 +4461,19 @@ async function viewPODetails(poId) {
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">PO ID</div>
-                        <div style="font-weight: 600;">${po.po_id}${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</div>
+                        <div style="font-weight: 600;">${escapeHTML(po.po_id)}${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
-                        <div style="font-weight: 600;">${po.mrf_id || 'N/A'}</div>
+                        <div style="font-weight: 600;">${escapeHTML(po.mrf_id || 'N/A')}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
-                        <div style="font-weight: 600;">${po.supplier_name}</div>
+                        <div style="font-weight: 600;">${escapeHTML(po.supplier_name)}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Project</div>
-                        <div>${getMRFLabel(po)}</div>
+                        <div>${escapeHTML(getMRFLabel(po))}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div>
@@ -4501,7 +4481,7 @@ async function viewPODetails(poId) {
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Status</div>
-                        <div><span style="background: ${statusBg}; color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${status}</span></div>
+                        <div><span style="background: ${statusBg}; color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${escapeHTML(status)}</span></div>
                     </div>
                     <div>
                         <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
@@ -4558,9 +4538,9 @@ async function viewPODetails(poId) {
                         <tbody>
                             ${items.map(item => `
                                 <tr>
-                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
-                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
-                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name)}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity))} ${escapeHTML(item.unit)}</td>
                                     <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                     <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                 </tr>
@@ -4746,9 +4726,9 @@ async function showProcurementTimeline(mrfId) {
         // 1. MRF Created entry
         timelineHtml += `
             <div class="timeline-item completed">
-                <div class="timeline-item-title">MRF Created: ${mrf.mrf_id}</div>
+                <div class="timeline-item-title">MRF Created: ${escapeHTML(mrf.mrf_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(mrf.created_at) || 'N/A'}</div>
-                <div class="timeline-item-description">Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}</div>
+                <div class="timeline-item-description">Requestor: ${escapeHTML(mrf.requestor_name)} | ${escapeHTML(deptLabel)}: ${escapeHTML(getMRFLabel(mrf))}</div>
             </div>`;
 
         // 2. PRs with nested child POs
@@ -4760,12 +4740,12 @@ async function showProcurementTimeline(mrfId) {
                 const poStatusClass = getPOStatusClass(po.procurement_status);
                 return `
                 <div class="timeline-child-item ${poStatusClass}">
-                    <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                    <div class="timeline-item-title">Purchase Order: ${escapeHTML(po.po_id)}</div>
                     <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
-                    <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                    <div class="timeline-item-description">Supplier: ${escapeHTML(po.supplier_name)}</div>
                     <div class="timeline-procurement-status">
                         <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">
-                            ${po.procurement_status || 'Pending Procurement'}
+                            ${escapeHTML(po.procurement_status || 'Pending Procurement')}
                         </span>
                     </div>
                 </div>`;
@@ -4773,9 +4753,9 @@ async function showProcurementTimeline(mrfId) {
 
             timelineHtml += `
             <div class="timeline-item ${prStatusClass}">
-                <div class="timeline-item-title">Purchase Request: ${pr.pr_id}</div>
+                <div class="timeline-item-title">Purchase Request: ${escapeHTML(pr.pr_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
-                <div class="timeline-item-description">Supplier: ${pr.supplier_name} | Amount: ₱${formatCurrency(pr.total_amount)}</div>
+                <div class="timeline-item-description">Supplier: ${escapeHTML(pr.supplier_name)} | Amount: ₱${formatCurrency(pr.total_amount)}</div>
                 ${childPOs.length > 0 ? `<div class="timeline-children">${childHtml}</div>` : ''}
             </div>`;
         });
@@ -4785,7 +4765,7 @@ async function showProcurementTimeline(mrfId) {
             const trStatusClass = getPRStatusClass(tr.finance_status);
             timelineHtml += `
             <div class="timeline-item ${trStatusClass}">
-                <div class="timeline-item-title">Transport Request: ${tr.tr_id}</div>
+                <div class="timeline-item-title">Transport Request: ${escapeHTML(tr.tr_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
                 <div class="timeline-item-description">Amount: ₱${formatCurrency(tr.total_amount)}</div>
             </div>`;
@@ -4797,12 +4777,12 @@ async function showProcurementTimeline(mrfId) {
             const poStatusClass = getPOStatusClass(po.procurement_status);
             timelineHtml += `
             <div class="timeline-item ${poStatusClass}">
-                <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                <div class="timeline-item-title">Purchase Order: ${escapeHTML(po.po_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
-                <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                <div class="timeline-item-description">Supplier: ${escapeHTML(po.supplier_name)}</div>
                 <div class="timeline-procurement-status">
                     <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">
-                        ${po.procurement_status || 'Pending Procurement'}
+                        ${escapeHTML(po.procurement_status || 'Pending Procurement')}
                     </span>
                 </div>
             </div>`;
@@ -5428,7 +5408,6 @@ async function promptPODocument(poDocId) {
 
         // If all three document fields already exist, skip prompt and generate directly
         if (po.payment_terms && po.condition && po.delivery_date) {
-            console.log('[Procurement] All PO document fields present - generating directly');
             await generatePODocument(poDocId);
             return;
         }

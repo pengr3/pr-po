@@ -233,7 +233,6 @@ export async function navigate(path, tab = null, param = null) {
         if (!currentUser) {
             // Save intended route for deep linking (SEC-02)
             const intendedRoute = buildRouteString(path, tab, param);
-            console.log('[Router] Saving intended route:', intendedRoute);
             sessionStorage.setItem('intendedRoute', intendedRoute);
 
             console.warn('[Router] Unauthenticated access blocked:', path);
@@ -277,14 +276,10 @@ export async function navigate(path, tab = null, param = null) {
     try {
         // Check if we're just switching tabs within the same view
         const isSameView = currentRoute === path;
-        console.log('[Router] Navigation:', { path, tab, currentRoute, isSameView });
 
         // Cleanup previous view ONLY if navigating to a different view
         if (!isSameView && currentView && typeof currentView.destroy === 'function') {
-            console.log('[Router] 🔴 Cleaning up previous view:', currentRoute);
             await currentView.destroy();
-        } else if (isSameView) {
-            console.log('[Router] 🔄 Same view - skipping destroy, just re-rendering tab:', tab);
         }
 
         // Clear app container
@@ -296,17 +291,14 @@ export async function navigate(path, tab = null, param = null) {
         // Load view module (reuse current module if same view)
         let module;
         if (isSameView && currentView) {
-            console.log('[Router] 📦 Reusing current view module');
             module = currentView;
         } else {
-            console.log('[Router] 📦 Loading view module:', path);
             module = await route.load();
         }
 
         // Render view
         if (typeof module.render === 'function') {
             const activeTab = tab || route.defaultTab || null;
-            console.log('[Router] 🎨 Rendering view with tab:', activeTab, 'param:', param);
             appContainer.innerHTML = module.render(activeTab, param);
         } else {
             throw new Error('View module must export a render() function');
@@ -315,7 +307,6 @@ export async function navigate(path, tab = null, param = null) {
         // Initialize view
         if (typeof module.init === 'function') {
             const activeTab = tab || route.defaultTab || null;
-            console.log('[Router] ⚙️ Initializing view with tab:', activeTab, 'param:', param);
             await module.init(activeTab, param);
         }
 
@@ -334,11 +325,8 @@ export async function navigate(path, tab = null, param = null) {
         // This prevents re-restoring the route on subsequent logins
         const intendedRoute = sessionStorage.getItem('intendedRoute');
         if (intendedRoute && intendedRoute === buildRouteString(path, tab, param)) {
-            console.log('[Router] Clearing fulfilled intended route');
             sessionStorage.removeItem('intendedRoute');
         }
-
-        console.log('[Router] ✅ Navigation complete:', { path, tab, isSameView });
     } catch (error) {
         console.error('Error navigating to route:', error);
 
@@ -393,8 +381,6 @@ function handleHashChange() {
  * Called by auth.js after authentication state is determined
  */
 export function handleInitialRoute() {
-    console.log('[Router] Handling initial route after auth check');
-
     // Hide initial loading indicator
     const appContainer = document.getElementById('app-container');
     if (appContainer) {

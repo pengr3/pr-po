@@ -10,8 +10,8 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Shipped:** v2.4 Productivity & Polish (2026-03-01)
-**Next milestone:** Not yet planned — run `/gsd:new-milestone` to start v2.5
+**Latest shipped:** v2.5 Data & Application Security (2026-03-02)
+**No active milestone** — run `/gsd:new-milestone` to plan v2.6.
 
 See `.planning/MILESTONES.md` for full milestone history.
 
@@ -199,11 +199,34 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Stale-while-revalidate for dashboard stats — v2.4 (Phase 48)
 - ✓ Parallel data fetching and TTL-cached reference data — v2.4 (Phase 48)
 
+### Validated (Shipped in v2.5)
+
+**Security Audit:**
+- ✓ XSS protection via escapeHTML() utility applied across all 12 view files — v2.5 (Phase 49)
+- ✓ Injection risk review (Firestore query manipulation, eval usage) — v2.5 (Phase 49)
+- ✓ Sensitive data exposure cleanup (console logs, PII leakage) — v2.5 (Phase 49)
+- ✓ Firebase Security Rules audit across all 12 collections — v2.5 (Phase 49)
+- ✓ Auth edge cases reviewed (session handling, token expiry, role escalation) — v2.5 (Phase 49)
+- ✓ CSP headers hardened for production — v2.5 (Phase 49)
+
+**Database Safety:**
+- ✓ Backup export script for all Firestore collections to local JSON — v2.5 (Phase 50)
+- ✓ Data integrity verification identifying orphaned references and schema issues — v2.5 (Phase 50)
+- ✓ Restore procedure documented and verified — v2.5 (Phase 50)
+
+**Data Management:**
+- ✓ Standalone wipe script clearing all collections except users with dry-run and confirmation — v2.5 (Phase 51)
+- ✓ CSV import script for projects and services with validation and error reporting — v2.5 (Phase 51.1)
+
+**UI Enhancements (v2.5):**
+- ✓ Clickable Active/Inactive badges for bulk project and service status toggling — v2.5 (Phase 51.2)
+- ✓ Finance sub-tabs for Services and Recurring with search and sorting — v2.5 (Phase 52.1)
+
 ### Active
 
-(No active milestone — run `/gsd:new-milestone` to define v2.5 requirements)
+(No active requirements — run `/gsd:new-milestone` to define next milestone)
 
-### Future (v2.5+)
+### Future (v2.6+)
 
 #### Activity Logging
 - Structured activity entries on projects
@@ -292,6 +315,13 @@ See `.planning/MILESTONES.md` for full milestone history.
 - Major additions: downloadCSV utility, skeleton screens, TTL caching, mobile hamburger nav, sortable headers
 - Total JS codebase: 22,883 LOC
 
+**Shipped v2.5 (2026-03-02):**
+- 7 phases, 12 plans, 30 code files changed, +3,398/-557 lines
+- No new collections — focused on security hardening, database tooling, and UI polish
+- New scripts: backup.js, restore.js, verify-integrity.js, wipe.js, import.js
+- 23/23 requirements satisfied
+- Total JS codebase: 27,008 LOC
+
 **Current Codebase State:**
 - Auth System: app/auth.js, app/permissions.js
 - Auth Views: register.js, login.js, pending.js
@@ -375,5 +405,12 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 48: persistentLocalCache with singleTabManager for offline persistence | Correct v10.7.1 API (not deprecated enableIndexedDbPersistence); single-tab avoids coordination overhead | ✓ Good - IndexedDB cache works, though SDK reads are slow (~500-850ms) |
 | Phase 48: TTL-cached reference data (5-min TTL) with destroy() timestamp reset | Guards check data.length > 0 AND timestamp freshness; prevents stale data on view re-entry | ✓ Good - measurably fewer Firestore reads on tab switching |
 
+| Phase 49: escapeHTML() utility for XSS protection — single function handles all 5 HTML special chars | Only user-supplied data needs escaping; systematic classification avoids over-escaping static UI strings | ✓ Good - consistent pattern across all 12 view files |
+| Phase 49: 'unsafe-inline' kept in CSP script-src | Hundreds of inline onclick handlers make nonce-based approach impractical; refactor deferred | ⚠️ Revisit - future refactor to event listeners would allow tighter CSP |
+| Phase 50: Firebase Admin SDK scripts with ES module syntax | Modern Node.js pattern; createRequire() for JSON key loading; consistent across all 5 scripts | ✓ Good - clean, consistent script architecture |
+| Phase 51: Typed confirmation gate for destructive wipe script | User must type exact word before irreversible action proceeds | ✓ Good - prevents accidental data loss |
+| Phase 51.1: Auto-detect CSV delimiter (tab vs comma) | Real Excel exports use TSV not CSV; single parser handles both transparently | ✓ Good - zero user friction with real production data |
+| Phase 52.1: Client-side TR aggregation instead of composite index | Avoids requiring uncreated Firestore composite index; acceptable at current data scale | ✓ Good - pragmatic trade-off, no performance issues |
+
 ---
-*Last updated: 2026-03-01 after v2.4 milestone completion*
+*Last updated: 2026-03-02 after v2.5 milestone*

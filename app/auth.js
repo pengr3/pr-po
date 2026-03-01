@@ -25,7 +25,6 @@ import { initPermissionsObserver, destroyPermissionsObserver } from './permissio
 // Updates navigation when permissions change (PERM-18)
 // ========================================
 window.addEventListener('permissionsChanged', (event) => {
-    console.log('[Auth] Permissions changed, updating navigation');
     const user = getCurrentUser();
     if (user) {
         updateNavForAuth(user);
@@ -133,7 +132,6 @@ export async function createUserDocument(userId, data) {
             created_at: serverTimestamp(),
             updated_at: serverTimestamp()
         });
-        console.log('[Auth] User document created:', userId);
     } catch (error) {
         console.error('[Auth] Error creating user document:', error);
         throw error;
@@ -202,13 +200,11 @@ export function initAuthObserver() {
         }
 
         if (user) {
-            console.log('[Auth] User signed in:', user.email);
-
             // Force a token refresh so Firestore WebSocket receives valid auth BEFORE
             // any collection listener starts. Without this, listeners that use
             // getUserData() in security rules fail on the first onAuthStateChanged
             // event (which fires with the cached, unvalidated token).
-            try { await user.getIdToken(true); } catch (e) { console.warn('[Auth] Token refresh failed:', e); }
+            try { await user.getIdToken(true); } catch (e) { /* token refresh failed, continue */ }
 
             // Use a single onSnapshot for both initial load and real-time updates.
             // getDoc() internally creates an onSnapshot without an error callback,
@@ -248,26 +244,21 @@ export function initAuthObserver() {
 
                             if (userData.status === 'pending') {
                                 if (!currentHash.includes('/pending')) {
-                                    console.log('[Auth] Pending user - redirecting to pending page');
                                     const currentPath = window.location.hash.slice(1);
                                     if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
-                                        console.log('[Auth] Preserving intended route for pending user:', currentPath);
                                         sessionStorage.setItem('intendedRoute', currentPath);
                                     }
                                     window.location.hash = '#/pending';
                                 }
                             } else if (userData.status === 'rejected') {
                                 if (!currentHash.includes('/pending')) {
-                                    console.log('[Auth] Rejected user - redirecting to pending page');
                                     const currentPath = window.location.hash.slice(1);
                                     if (currentPath && currentPath !== '/' && currentPath !== '/pending' && currentPath !== '/login') {
-                                        console.log('[Auth] Preserving intended route for rejected user:', currentPath);
                                         sessionStorage.setItem('intendedRoute', currentPath);
                                     }
                                     window.location.hash = '#/pending';
                                 }
                             } else if (userData.status === 'deactivated') {
-                                console.log('[Auth] Deactivated user - signing out');
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                                 await signOut(auth);
                                 window.location.hash = '#/login';
@@ -285,10 +276,7 @@ export function initAuthObserver() {
                             }
                         } else {
                             // Subsequent real-time updates (AUTH-09, PERM-19, Phase 7)
-                            console.log('[Auth] User document updated:', userData.status);
-
                             if (previousRole !== userData.role) {
-                                console.log('[Auth] Role changed:', previousRole, '->', userData.role);
                                 if (userData.status === 'active' && userData.role) {
                                     await initPermissionsObserver(currentUser);
                                 } else {
@@ -300,14 +288,12 @@ export function initAuthObserver() {
                                 userData.all_projects !== previousAllProjects ||
                                 JSON.stringify(userData.assigned_service_codes) !== JSON.stringify(previousAssignedServiceCodes) ||
                                 userData.all_services !== previousAllServices) {
-                                console.log('[Auth] Assignments changed, dispatching event');
                                 window.dispatchEvent(new CustomEvent('assignmentsChanged', {
                                     detail: { user: currentUser }
                                 }));
                             }
 
                             if (userData.status === 'deactivated') {
-                                console.warn('[Auth] User deactivated - forcing logout');
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                                 signOut(auth).then(() => {
                                     window.location.hash = '#/login';
@@ -319,7 +305,6 @@ export function initAuthObserver() {
                         }
                     } else if (isFirstSnapshot) {
                         isFirstSnapshot = false;
-                        console.warn('[Auth] User document not found for:', user.email);
 
                         // Check if user was deleted (moved to deleted_users collection)
                         try {
@@ -341,12 +326,22 @@ export function initAuthObserver() {
                     }
                 },
                 (error) => {
-                    console.error('[Auth] User document listener error:', error);
+                    // SEC-AUDIT: Listener errors occur when the auth token expires and cannot
+                    // be refreshed (revoked token, network failure during a long session).
+                    // Without this handler, the user stays in the authenticated UI with no data —
+                    // a broken state. Force logout so they can re-authenticate cleanly.
+                    console.error('[Auth] User document listener error — forcing logout for security:', error);
+                    if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
+                    signOut(auth).then(() => {
+                        window.location.hash = '#/login';
+                    }).catch(err => {
+                        // Even if signOut fails, redirect to login so the user can re-authenticate
+                        console.error('[Auth] Error signing out on listener failure:', err);
+                        window.location.hash = '#/login';
+                    });
                 }
             );
         } else {
-            console.log('[Auth] User signed out');
-
             // Clean up permissions observer
             destroyPermissionsObserver();
 
@@ -438,7 +433,6 @@ function updateNavForAuth(user) {
         const mobileFooter = document.querySelector('.mobile-nav-footer');
         if (mobileFooter) mobileFooter.style.display = 'none';
 
-        console.log('[Auth] Navigation hidden for unauthenticated user');
     }
 }
 
@@ -521,13 +515,10 @@ function showLogoutConfirmation() {
  * Handle logout from navigation header
  */
 export async function handleLogout() {
-    console.log('[Auth] Logout requested');
-
     // Show confirmation modal
     const confirmed = await showLogoutConfirmation();
 
     if (!confirmed) {
-        console.log('[Auth] Logout cancelled');
         return;
     }
 
@@ -536,7 +527,6 @@ export async function handleLogout() {
         sessionStorage.removeItem('intendedRoute');
 
         await signOut(auth);
-        console.log('[Auth] User signed out successfully');
         window.location.hash = '#/login';
     } catch (error) {
         console.error('[Auth] Error signing out:', error);

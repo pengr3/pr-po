@@ -1,4 +1,35 @@
 # Project Milestones: CLMC Procurement System
+## v2.5 Data & Application Security (Shipped: 2026-03-02)
+
+**Delivered:** Production security hardening with XSS protection, Firebase Security Rules audit, database backup/restore/wipe toolkit, CSV data migration scripts, and Finance sub-tab expansion.
+
+**Phases completed:** 49-53 (7 phases, 12 plans, 3 inserted phases)
+
+**Key accomplishments:**
+
+- XSS hardening across all 12 view files with escapeHTML() utility — systematic user-data classification, innerHTML protection, and onclick attribute escaping for defense-in-depth
+- Firebase Security Rules audit covering all 12 collections + 2 subcollections — field-level self-update restriction prevents privilege escalation, Firestore listener error forces logout for broken session recovery
+- CSP headers hardened with 7 directives whitelisting Firebase CDN origins, X-Frame-Options DENY, Referrer-Policy, and Permissions-Policy; SECURITY-AUDIT.md documenting all 11 findings (10 fixed, 1 accepted risk)
+- Database safety toolkit: backup.js exports all 13 collections to JSON, restore.js batch re-imports with typed confirmation, verify-integrity.js identifies orphaned references and schema inconsistencies
+- Data wipe script with dry-run preview and typed confirmation safeguard — clears 10 collections while preserving users/role_templates/deleted_users
+- CSV data migration script (import.js) with auto-delimiter detection, multiline quoted field parsing, dry-run mode, and row-level error reporting — verified against real production CSVs
+- Clickable Active/Inactive status badges in project and service list views replacing separate Activate/Deactivate buttons
+- Finance sub-tabs: Services and Recurring tabs with search bar, sortable columns, and expense breakdown modal in Finance Project List view
+
+**Stats:**
+
+- 30 code files changed, +3,398 / -557 lines
+- 7 phases, 12 plans, 63 commits
+- 2 days from first commit to ship (2026-03-01 → 2026-03-02)
+- 23/23 requirements satisfied (100% coverage)
+- Total JS codebase: 27,008 LOC
+
+**Git range:** v2.4..HEAD (63 commits)
+
+**What's next:** No active milestone. Run `/gsd:new-milestone` to plan v2.6.
+
+---
+
 ## v2.4 Productivity & Polish (Shipped: 2026-03-01)
 
 **Delivered:** Data export, mobile-responsive UI, visual polish, code cleanup, sortable tables, and performance optimization with offline persistence and skeleton loading.

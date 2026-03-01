@@ -171,5 +171,3 @@ async function switchAdminSection(sectionId) {
         btn.classList.toggle('active', btn.dataset.section === sectionId);
     });
 }
-
-console.log('[Admin] Admin wrapper module loaded');

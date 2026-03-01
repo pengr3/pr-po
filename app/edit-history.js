@@ -95,7 +95,6 @@ export async function recordEditHistory(projectDocId, action, changes, collectio
             action: action,
             changes: changes
         });
-        console.log('[EditHistory] Recorded:', action, changes.length, 'change(s)');
     } catch (error) {
         console.error('[EditHistory] Failed to record:', error);
     }

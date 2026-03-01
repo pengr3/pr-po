@@ -103,18 +103,13 @@ const defaultRoleTemplates = [
  */
 export async function seedRoleTemplates() {
     try {
-        console.log('[RoleSeeder] Checking for existing role templates...');
-
         // Check if super_admin template already exists
         const superAdminDoc = await getDoc(doc(db, 'role_templates', 'super_admin'));
 
         if (superAdminDoc.exists()) {
             console.warn('[RoleSeeder] Role templates already exist - skipping seeding');
-            console.log('[RoleSeeder] Use forceReseedRoleTemplates() to overwrite existing templates');
             return;
         }
-
-        console.log('[RoleSeeder] Seeding role templates...');
 
         // Use batch write for atomic operation
         const batch = writeBatch(db);
@@ -130,9 +125,6 @@ export async function seedRoleTemplates() {
 
         // Commit all role templates atomically
         await batch.commit();
-
-        console.log('[RoleSeeder] Successfully seeded', defaultRoleTemplates.length, 'role templates');
-        console.log('[RoleSeeder] Roles:', defaultRoleTemplates.map(r => r.role_id).join(', '));
     } catch (error) {
         console.error('[RoleSeeder] Error seeding role templates:', error);
         throw error;
@@ -146,8 +138,6 @@ export async function seedRoleTemplates() {
  */
 export async function forceReseedRoleTemplates() {
     try {
-        console.log('[RoleSeeder] Force reseeding role templates...');
-
         // Use batch write for atomic operation
         const batch = writeBatch(db);
 
@@ -162,9 +152,6 @@ export async function forceReseedRoleTemplates() {
 
         // Commit all role templates atomically
         await batch.commit();
-
-        console.log('[RoleSeeder] Successfully force-reseeded', defaultRoleTemplates.length, 'role templates');
-        console.log('[RoleSeeder] Roles:', defaultRoleTemplates.map(r => r.role_id).join(', '));
     } catch (error) {
         console.error('[RoleSeeder] Error force-reseeding role templates:', error);
         throw error;
@@ -184,8 +171,6 @@ export async function verifyRoleTemplates() {
     const roles = ['super_admin', 'operations_admin', 'operations_user', 'finance', 'procurement'];
     const requiredTabs = ['dashboard', 'clients', 'projects', 'mrf_form', 'procurement', 'finance', 'role_config'];
     const results = { valid: true, errors: [] };
-
-    console.log('[RoleSeeder] Verifying role templates...');
 
     for (const roleId of roles) {
         const docRef = doc(db, 'role_templates', roleId);
@@ -215,7 +200,6 @@ export async function verifyRoleTemplates() {
         }
     }
 
-    console.log('[RoleSeeder] Verification result:', results);
     return results;
 }
 

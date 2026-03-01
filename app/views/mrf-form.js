@@ -346,7 +346,6 @@ export function render(activeTab = 'form') {
  * @param {string} activeTab - 'form' (default) or 'my-requests'
  */
 export async function init(activeTab = 'form') {
-    console.log('[MRFForm] Initializing, tab:', activeTab);
 
     if (activeTab === 'my-requests') {
         // Clean up form listeners from previous sub-tab if switching from form → my-requests
@@ -371,8 +370,6 @@ export async function init(activeTab = 'form') {
         delete window._myRequestsReload;
         delete window._myRequestsExportCSV;
     }
-
-    console.log('[MRFForm] Initializing form tab...');
 
     try {
         // Set minimum date to today
@@ -424,7 +421,6 @@ export async function init(activeTab = 'form') {
 
         // Phase 7: Re-populate dropdowns when assignments change
         const assignmentChangeHandler = () => {
-            console.log('[MRFForm] Assignments changed, re-populating dropdowns...');
             populateProjectDropdown();
             populateServiceDropdown(); // also refresh services for services_user
         };
@@ -446,7 +442,6 @@ export async function init(activeTab = 'form') {
 // ----------------------------------------
 
 async function initMyRequests() {
-    console.log('[MRFForm] Initializing My Requests tab...');
 
     try {
         const { createMRFRecordsController } = await import('./mrf-records.js');
@@ -930,8 +925,6 @@ async function handleFormSubmit(e) {
  * Cleanup when leaving the view
  */
 export async function destroy() {
-    console.log('[MRFForm] Destroying view...');
-
     // Phase 7: Remove assignment change listener
     if (window._mrfFormAssignmentHandler) {
         window.removeEventListener('assignmentsChanged', window._mrfFormAssignmentHandler);
@@ -966,5 +959,3 @@ export async function destroy() {
         form.removeEventListener('submit', handleFormSubmit);
     }
 }
-
-console.log('[MRFForm] Module loaded');

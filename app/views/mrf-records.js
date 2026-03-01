@@ -12,7 +12,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, query, where, orderBy, doc } from '../firebase.js';
-import { formatDate, formatTimestamp, getStatusClass, formatCurrency, showLoading, showToast, downloadCSV } from '../utils.js';
+import { formatDate, formatTimestamp, getStatusClass, formatCurrency, showLoading, showToast, downloadCSV, escapeHTML } from '../utils.js';
 import { getMRFLabel, createModal, openModal, closeModal, skeletonTableRows } from '../components.js';
 
 /**
@@ -126,8 +126,8 @@ function generateItemsTableHTMLLocal(items, type) {
         tableHTML += `
             <tr>
                 <td style="text-align: center;">${index + 1}</td>
-                <td>${item.item || item.item_name}</td>
-                ${type === 'PR' ? `<td>${item.category || 'N/A'}</td>` : ''}
+                <td>${escapeHTML(item.item || item.item_name)}</td>
+                ${type === 'PR' ? `<td>${escapeHTML(item.category || 'N/A')}</td>` : ''}
                 <td style="text-align: center;">${qty}</td>
                 <td>${item.unit}</td>
                 <td style="text-align: right;">₱${formatCurrency(unitCost)}</td>
@@ -531,7 +531,6 @@ function openPrintWindowLocal(html, filename) {
  * @param {string} prDocId - Firestore document ID of the PR
  */
 async function generatePRDocumentLocal(prDocId) {
-    console.log('[MRFRecords] Generating PR document for:', prDocId);
     showLoading(true);
 
     try {
@@ -578,7 +577,6 @@ async function generatePRDocumentLocal(prDocId) {
  * @param {string} poDocId - Firestore document ID of the PO
  */
 async function generatePODocumentLocal(poDocId) {
-    console.log('[MRFRecords] Generating PO document for:', poDocId);
     showLoading(true);
 
     try {
@@ -637,19 +635,19 @@ async function viewPRDetailsLocal(prDocId) {
         const body = `
             <div style="max-height: 60vh; overflow-y: auto;">
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">PR ID</div><div style="font-weight: 600;">${pr.pr_id}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${pr.mrf_id}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${pr.supplier_name || 'Not specified'}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Prepared By</div><div style="padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 4px; color: #1e293b; font-size: 0.875rem;">${pr.pr_creator_name || 'Unknown User'}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Project</div><div>${getMRFLabel(pr)}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div><div>${pr.date_generated}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Status</div><div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${pr.finance_status || 'Pending'}</span></div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">PR ID</div><div style="font-weight: 600;">${escapeHTML(pr.pr_id)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${escapeHTML(pr.mrf_id)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${escapeHTML(pr.supplier_name || 'Not specified')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Prepared By</div><div style="padding: 0.5rem 0.75rem; background: #f8f9fa; border-radius: 4px; color: #1e293b; font-size: 0.875rem;">${escapeHTML(pr.pr_creator_name || 'Unknown User')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Project</div><div>${escapeHTML(getMRFLabel(pr))}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Date Generated</div><div>${escapeHTML(pr.date_generated)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Status</div><div><span class="status-badge ${getStatusClass(pr.finance_status || 'Pending')}">${escapeHTML(pr.finance_status || 'Pending')}</span></div></div>
                     <div><div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div><div style="font-weight: 600;">PHP ${parseFloat(pr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Requestor</div><div>${pr.requestor_name}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Requestor</div><div>${escapeHTML(pr.requestor_name)}</div></div>
                 </div>
                 <div style="margin-bottom: 1rem;">
                     <div style="font-size: 0.75rem; color: #5f6368; margin-bottom: 0.5rem;">Delivery Address</div>
-                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${pr.delivery_address || 'N/A'}</div>
+                    <div style="padding: 0.75rem; background: #f9fafb; border-radius: 4px; font-size: 0.875rem;">${escapeHTML(pr.delivery_address || 'N/A')}</div>
                 </div>
                 <div style="margin-top: 1.5rem;">
                     <h4 style="margin-bottom: 0.75rem;">Items</h4>
@@ -663,9 +661,9 @@ async function viewPRDetailsLocal(prDocId) {
                         </tr></thead>
                         <tbody>${items.map(item => `
                             <tr>
-                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
-                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
-                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name)}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity))} ${escapeHTML(item.unit)}</td>
                                 <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                 <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                             </tr>`).join('')}
@@ -736,12 +734,12 @@ async function viewPODetailsLocal(poDocId) {
         const body = `
             <div style="max-height: 60vh; overflow-y: auto;">
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">PO ID</div><div style="font-weight: 600;">${po.po_id}${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${po.mrf_id || 'N/A'}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${po.supplier_name}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Project</div><div>${getMRFLabel(po)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">PO ID</div><div style="font-weight: 600;">${escapeHTML(po.po_id)}${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${escapeHTML(po.mrf_id || 'N/A')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${escapeHTML(po.supplier_name)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Project</div><div>${escapeHTML(getMRFLabel(po))}</div></div>
                     <div><div style="font-size: 0.75rem; color: #5f6368;">Date Issued</div><div>${formatTimestamp(po.date_issued) || 'N/A'}</div></div>
-                    <div><div style="font-size: 0.75rem; color: #5f6368;">Status</div><div><span style="background: ${statusBg}; color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${status}</span></div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Status</div><div><span style="background: ${statusBg}; color: ${statusColor}; padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; display: inline-block;">${escapeHTML(status)}</span></div></div>
                     <div><div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div><div style="font-weight: 600;">PHP ${parseFloat(po.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div></div>
                     ${po.delivery_fee ? `<div><div style="font-size: 0.75rem; color: #5f6368;">Delivery Fee</div><div style="font-weight: 600;">PHP ${parseFloat(po.delivery_fee).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div></div>` : ''}
                 </div>
@@ -757,9 +755,9 @@ async function viewPODetailsLocal(poDocId) {
                         </tr></thead>
                         <tbody>${items.map(item => `
                             <tr>
-                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.item || item.item_name}</td>
-                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.category || 'N/A'}</td>
-                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${item.qty || item.quantity} ${item.unit}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name)}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity))} ${escapeHTML(item.unit)}</td>
                                 <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                                 <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity) * item.unit_cost) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                             </tr>`).join('')}
@@ -840,9 +838,9 @@ async function showTimelineLocal(mrfId) {
 
         timelineHtml += `
             <div class="timeline-item completed">
-                <div class="timeline-item-title">MRF Created: ${mrf.mrf_id}</div>
+                <div class="timeline-item-title">MRF Created: ${escapeHTML(mrf.mrf_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(mrf.created_at) || 'N/A'}</div>
-                <div class="timeline-item-description">Requestor: ${mrf.requestor_name} | ${deptLabel}: ${getMRFLabel(mrf)}</div>
+                <div class="timeline-item-description">Requestor: ${escapeHTML(mrf.requestor_name)} | ${escapeHTML(deptLabel)}: ${escapeHTML(getMRFLabel(mrf))}</div>
             </div>`;
 
         prs.forEach(pr => {
@@ -850,19 +848,19 @@ async function showTimelineLocal(mrfId) {
             const childPOs = posByPR[pr.pr_id] || [];
             const childHtml = childPOs.map(po => `
                 <div class="timeline-child-item ${getPOStatusClass(po.procurement_status)}">
-                    <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                    <div class="timeline-item-title">Purchase Order: ${escapeHTML(po.po_id)}</div>
                     <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
-                    <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                    <div class="timeline-item-description">Supplier: ${escapeHTML(po.supplier_name)}</div>
                     <div class="timeline-procurement-status">
-                        <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending Procurement'}</span>
+                        <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${escapeHTML(po.procurement_status || 'Pending Procurement')}</span>
                     </div>
                 </div>`).join('');
 
             timelineHtml += `
             <div class="timeline-item ${prStatusClass}">
-                <div class="timeline-item-title">Purchase Request: ${pr.pr_id}</div>
+                <div class="timeline-item-title">Purchase Request: ${escapeHTML(pr.pr_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
-                <div class="timeline-item-description">Supplier: ${pr.supplier_name} | Amount: \u20b1${formatCurrency(pr.total_amount)}</div>
+                <div class="timeline-item-description">Supplier: ${escapeHTML(pr.supplier_name)} | Amount: \u20b1${formatCurrency(pr.total_amount)}</div>
                 ${childPOs.length > 0 ? `<div class="timeline-children">${childHtml}</div>` : ''}
             </div>`;
         });
@@ -870,7 +868,7 @@ async function showTimelineLocal(mrfId) {
         trs.forEach(tr => {
             timelineHtml += `
             <div class="timeline-item ${getPRStatusClass(tr.finance_status)}">
-                <div class="timeline-item-title">Transport Request: ${tr.tr_id}</div>
+                <div class="timeline-item-title">Transport Request: ${escapeHTML(tr.tr_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
                 <div class="timeline-item-description">Amount: \u20b1${formatCurrency(tr.total_amount)}</div>
             </div>`;
@@ -879,11 +877,11 @@ async function showTimelineLocal(mrfId) {
         (posByPR['_unlinked'] || []).forEach(po => {
             timelineHtml += `
             <div class="timeline-item ${getPOStatusClass(po.procurement_status)}">
-                <div class="timeline-item-title">Purchase Order: ${po.po_id}</div>
+                <div class="timeline-item-title">Purchase Order: ${escapeHTML(po.po_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(po.date_issued) || 'N/A'}</div>
-                <div class="timeline-item-description">Supplier: ${po.supplier_name}</div>
+                <div class="timeline-item-description">Supplier: ${escapeHTML(po.supplier_name)}</div>
                 <div class="timeline-procurement-status">
-                    <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending Procurement'}</span>
+                    <span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${escapeHTML(po.procurement_status || 'Pending Procurement')}</span>
                 </div>
             </div>`;
         });
@@ -900,7 +898,7 @@ async function showTimelineLocal(mrfId) {
             <div id="mrfRecordsTimelineModal" class="modal active">
                 <div class="modal-content" style="max-width: 800px;">
                     <div class="modal-header">
-                        <h2>Procurement Timeline - ${mrfId}</h2>
+                        <h2>Procurement Timeline - ${escapeHTML(mrfId)}</h2>
                         <button class="modal-close" onclick="document.getElementById('mrfRecordsTimelineContainer').remove()">&times;</button>
                     </div>
                     <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
@@ -1210,8 +1208,8 @@ export function createMRFRecordsController(options) {
 
             return `
                 <tr>
-                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${displayId}</strong></td>
-                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${getMRFLabel(mrf)}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${escapeHTML(displayId)}</strong></td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${dateNeeded}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>

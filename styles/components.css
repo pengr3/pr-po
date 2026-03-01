@@ -546,6 +546,17 @@ tr:hover {
     color: #065f46;
 }
 
+/* Clickable badge hover effect for list-view active toggles */
+.status-badge.clickable-badge {
+    transition: all 0.2s ease;
+}
+
+.status-badge.clickable-badge:hover {
+    opacity: 0.8;
+    transform: scale(1.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
 .badge-secondary {
     background: #e5e7eb;
     color: #374151;

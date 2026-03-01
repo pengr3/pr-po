@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { skeletonTableRows } from '../components.js';
 
@@ -57,7 +57,6 @@ function debounce(callback, wait) {
 
 // Attach window functions
 function attachWindowFunctions() {
-    console.log('[Projects] Attaching window functions...');
     window.toggleAddProjectForm = toggleAddProjectForm;
     window.addProject = addProject;
     window.editProject = editProject;
@@ -74,7 +73,6 @@ function attachWindowFunctions() {
     window.removePersonnel = removePersonnel;
     window.filterPersonnelDropdown = filterPersonnelDropdown;
     window.showPersonnelDropdown = showPersonnelDropdown;
-    console.log('[Projects] Window functions attached');
 }
 
 // Render view HTML
@@ -124,6 +122,11 @@ export function render(activeTab = null) {
                     <div class="form-group">
                         <label>Project Name *</label>
                         <input type="text" id="projectName" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Location (Optional)</label>
+                        <input type="text" id="projectLocation" placeholder="e.g., Manila, Cebu, Davao">
                     </div>
 
                     <div class="form-group">
@@ -257,12 +260,10 @@ export function render(activeTab = null) {
 
 // Initialize view
 export async function init(activeTab = null) {
-    console.log('[Projects] Initializing projects view...');
     attachWindowFunctions();
 
     // Listen for permission changes and re-render table
     const permissionChangeHandler = () => {
-        console.log('[Projects] Permissions changed, re-rendering table...');
         renderProjectsTable();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
@@ -274,7 +275,6 @@ export async function init(activeTab = null) {
 
     // Phase 7: Re-filter when assignments change
     const assignmentChangeHandler = () => {
-        console.log('[Projects] Assignments changed, re-filtering...');
         applyFilters();
     };
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
@@ -326,8 +326,6 @@ window.exportProjectsCSV = exportProjectsCSV;
 
 // Cleanup
 export async function destroy() {
-    console.log('[Projects] Destroying projects view...');
-
     // Remove permission change listener
     if (window._projectsPermissionHandler) {
         window.removeEventListener('permissionsChanged', window._projectsPermissionHandler);
@@ -375,8 +373,6 @@ export async function destroy() {
     delete window.removePersonnel;
     delete window.filterPersonnelDropdown;
     delete window.showPersonnelDropdown;
-
-    console.log('[Projects] View destroyed');
 }
 
 // Load clients with real-time listener
@@ -390,7 +386,6 @@ async function loadClients() {
 
             clientsData.sort((a, b) => a.company_name.localeCompare(b.company_name));
 
-            console.log('[Projects] Clients loaded:', clientsData.length);
             renderClientDropdown();
         });
 
@@ -406,7 +401,6 @@ async function loadActiveUsers() {
     // Firestore rules only allow super_admin/operations_admin to list users
     const canEdit = window.canEditTab?.('projects');
     if (canEdit === false) {
-        console.log('[Projects] Skipping user load (view-only mode)');
         return;
     }
 
@@ -427,7 +421,6 @@ async function loadActiveUsers() {
                 });
             });
             usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
-            console.log('[Projects] Active users loaded:', usersData.length);
         }, (error) => {
             console.warn('[Projects] Users listener error (likely permissions):', error.message);
         });
@@ -493,8 +486,8 @@ function filterPersonnelDropdown(searchText) {
     dropdown.innerHTML = matches.slice(0, 10).map(user => `
         <div class="pill-dropdown-item"
              onmousedown="event.preventDefault(); window.selectPersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
-            <strong>${user.full_name}</strong>
-            <span style="color: #64748b; margin-left: 0.5rem;">${user.email}</span>
+            <strong>${escapeHTML(user.full_name)}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${escapeHTML(user.email)}</span>
         </div>
     `).join('');
 
@@ -543,10 +536,10 @@ function renderClientDropdown() {
     clientsData.forEach(client => {
         const selected = client.id === currentValue ? 'selected' : '';
         optionsHtml += `
-            <option value="${client.id}"
-                    data-code="${client.client_code}"
+            <option value="${escapeHTML(client.id)}"
+                    data-code="${escapeHTML(client.client_code)}"
                     ${selected}>
-                ${client.company_name} (${client.client_code})
+                ${escapeHTML(client.company_name)} (${escapeHTML(client.client_code)})
             </option>
         `;
     });
@@ -560,7 +553,7 @@ function renderClientDropdown() {
         let filterOptionsHtml = '<option value="">All Clients</option>';
         clientsData.forEach(client => {
             const selected = client.id === currentFilterValue ? 'selected' : '';
-            filterOptionsHtml += `<option value="${client.id}" ${selected}>${client.company_name}</option>`;
+            filterOptionsHtml += `<option value="${escapeHTML(client.id)}" ${selected}>${escapeHTML(client.company_name)}</option>`;
         });
         filterSelect.innerHTML = filterOptionsHtml;
     }
@@ -594,6 +587,7 @@ function toggleAddProjectForm() {
         // Clear form
         document.getElementById('projectClient').value = '';
         document.getElementById('projectName').value = '';
+        document.getElementById('projectLocation').value = '';
         document.getElementById('internalStatus').value = '';
         document.getElementById('projectStatus').value = '';
         document.getElementById('projectBudget').value = '';
@@ -630,6 +624,7 @@ async function addProject() {
     const clientId = clientSelect.value;
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
     const project_name = document.getElementById('projectName').value.trim();
+    const location = document.getElementById('projectLocation').value.trim();
     const internal_status = document.getElementById('internalStatus').value;
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
@@ -689,6 +684,7 @@ async function addProject() {
             contract_cost,
             personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
             personnel_names: selectedPersonnel.map(u => u.name),
+            location: location || null,
             personnel_user_id: null,
             personnel_name: null,
             personnel: null,
@@ -700,6 +696,7 @@ async function addProject() {
         recordEditHistory(docRef.id, 'create', [
             { field: 'project_name', old_value: null, new_value: project_name },
             { field: 'client', old_value: null, new_value: clientCode },
+            ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
             { field: 'internal_status', old_value: null, new_value: internal_status },
             { field: 'project_status', old_value: null, new_value: project_status },
             ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
@@ -855,8 +852,6 @@ async function loadProjects() {
                 allProjects.push({ id: doc.id, ...doc.data() });
             });
 
-            console.log('[Projects] Loaded:', allProjects.length);
-
             // Apply filters (which will also sort and render)
             applyFilters();
         });
@@ -895,24 +890,24 @@ function renderProjectsTable() {
         const clientName = client ? client.company_name : project.client_code;
 
         return `
-            <tr onclick="window.location.hash = '#/projects/detail/${project.project_code}'"
+            <tr onclick="window.location.hash = '#/projects/detail/${escapeHTML(project.project_code)}'"
                 style="cursor: pointer;"
                 class="clickable-row">
-                <td><strong>${project.project_code}</strong></td>
-                <td>${project.project_name}</td>
-                <td>${clientName}</td>
-                <td>${project.internal_status}</td>
-                <td>${project.project_status}</td>
+                <td><strong>${escapeHTML(project.project_code)}</strong></td>
+                <td>${escapeHTML(project.project_name)}</td>
+                <td>${escapeHTML(clientName)}</td>
+                <td>${escapeHTML(project.internal_status)}</td>
+                <td>${escapeHTML(project.project_status)}</td>
                 <td>
-                    <span class="status-badge ${project.active ? 'approved' : 'rejected'}">
+                    <span class="status-badge clickable-badge ${project.active ? 'approved' : 'rejected'}"
+                          ${showEditControls ? `onclick="event.stopPropagation(); toggleProjectActive('${escapeHTML(project.id)}', ${project.active})" title="Click to ${project.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
                         ${project.active ? 'Active' : 'Inactive'}
                     </span>
                 </td>
                 ${showEditControls ? `
                     <td style="white-space: nowrap;" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm btn-primary" onclick="editProject('${project.id}')">Edit</button>
-                        <button class="btn btn-sm btn-secondary" onclick="toggleProjectActive('${project.id}', ${project.active})">${project.active ? 'Deactivate' : 'Activate'}</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${project.id}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
+                        <button class="btn btn-sm btn-primary" onclick="editProject('${escapeHTML(project.id)}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${escapeHTML(project.id)}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
                     </td>
                 ` : `
                     <td class="actions-cell" onclick="event.stopPropagation()">
@@ -952,6 +947,7 @@ function editProject(projectId) {
     // Populate form
     document.getElementById('projectClient').value = project.client_id;
     document.getElementById('projectName').value = project.project_name;
+    document.getElementById('projectLocation').value = project.location || '';
     document.getElementById('internalStatus').value = project.internal_status;
     document.getElementById('projectStatus').value = project.project_status;
     document.getElementById('projectBudget').value = project.budget || '';
@@ -988,6 +984,7 @@ async function saveEdit() {
     const clientId = clientSelect.value;
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
     const project_name = document.getElementById('projectName').value.trim();
+    const location = document.getElementById('projectLocation').value.trim();
     const internal_status = document.getElementById('internalStatus').value;
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
@@ -1044,6 +1041,7 @@ async function saveEdit() {
         const projectRef = doc(db, 'projects', editingProject);
         await updateDoc(projectRef, {
             project_name,
+            location: location || null,
             client_id: clientId,
             client_code: clientCode,
             internal_status,
@@ -1061,6 +1059,10 @@ async function saveEdit() {
         }
         if (existingProject.client_code !== clientCode) {
             editChanges.push({ field: 'client_code', old_value: existingProject.client_code, new_value: clientCode });
+        }
+        const oldLocation = existingProject.location || '';
+        if (oldLocation !== (location || '')) {
+            editChanges.push({ field: 'location', old_value: oldLocation || null, new_value: location || null });
         }
         if (existingProject.internal_status !== internal_status) {
             editChanges.push({ field: 'internal_status', old_value: existingProject.internal_status, new_value: internal_status });
@@ -1230,5 +1232,3 @@ function updatePaginationControls(totalPages, startIndex, endIndex, totalItems) 
 
     paginationDiv.innerHTML = paginationHTML;
 }
-
-console.log('[Projects] Module loaded');

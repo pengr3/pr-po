@@ -63,19 +63,15 @@ export function canEditTab(tabId) {
 export async function initPermissionsObserver(user) {
     // Clean up existing listener first (prevents memory leaks on role change)
     if (roleTemplateUnsubscribe) {
-        console.log('[Permissions] Cleaning up existing listener');
         roleTemplateUnsubscribe();
         roleTemplateUnsubscribe = null;
     }
 
     // If user has no role assigned, set permissions to null
     if (!user.role) {
-        console.log('[Permissions] No role assigned, permissions disabled');
         currentPermissions = null;
         return;
     }
-
-    console.log('[Permissions] Initializing observer for role:', user.role);
 
     // Create real-time listener on role template document
     const roleDocRef = doc(db, 'role_templates', user.role);
@@ -86,9 +82,6 @@ export async function initPermissionsObserver(user) {
             if (docSnapshot.exists()) {
                 const roleData = docSnapshot.data();
                 currentPermissions = roleData.permissions;
-
-                console.log('[Permissions] Permissions loaded for role:', user.role);
-                console.log('[Permissions] Permissions:', currentPermissions);
 
                 // Dispatch custom event for UI updates (e.g., navigation menu)
                 window.dispatchEvent(new CustomEvent('permissionsChanged', {
@@ -120,7 +113,6 @@ export async function initPermissionsObserver(user) {
  */
 export function destroyPermissionsObserver() {
     if (roleTemplateUnsubscribe) {
-        console.log('[Permissions] Destroying permissions observer');
         roleTemplateUnsubscribe();
         roleTemplateUnsubscribe = null;
     }

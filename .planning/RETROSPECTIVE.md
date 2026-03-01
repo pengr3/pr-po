@@ -4,6 +4,55 @@ Living retrospective for the CLMC Procurement System — updated after each mile
 
 ---
 
+## Milestone: v2.5 — Data & Application Security
+
+**Shipped:** 2026-03-02
+**Phases:** 7 (49-53, including 51.1, 51.2, 52.1) | **Plans:** 12
+
+### What Was Built
+
+- escapeHTML() utility applied across all 12 view files with user-supplied innerHTML — systematic XSS hardening
+- Firebase Security Rules audit across all 12 collections + 2 subcollections with field-level self-update restriction
+- CSP headers hardened with 7 directives; SECURITY-AUDIT.md documenting all 11 findings (10 fixed, 1 accepted risk)
+- Console log cleanup removing PII exposure from auth and permission modules
+- Database safety toolkit: backup.js, restore.js, verify-integrity.js using Firebase Admin SDK
+- Data wipe script with dry-run preview and typed confirmation safeguard for 10 collections
+- CSV data migration script with auto-delimiter detection, multiline field parsing, and dry-run mode
+- Clickable Active/Inactive status badges replacing separate Activate/Deactivate buttons
+- Finance Services and Recurring sub-tabs with search bars, sortable columns, and expense modal
+
+### What Worked
+
+- Milestone audit with gap closure phase (Phase 53) caught 4 integration inconsistencies that would have shipped as tech debt
+- Admin SDK script architecture was consistent from Phase 50 onward — shared init pattern, ES module syntax, createRequire for JSON loading
+- Security audit methodology (classify data as safe/user-supplied, then protect user-supplied) was systematic and thorough
+- Inserted phases (51.1, 51.2, 52.1) integrated cleanly without disrupting the planned phase sequence
+
+### What Was Inefficient
+
+- Phase 49 required a gap closure plan (49-05) because initial XSS review missed 9 locations in finance.js, mrf-records.js, procurement.js — should have used grep-based audit from the start
+- Phase 53 gap closure found 3 onclick attrs in finance.js still using .replace() instead of escapeHTML() — these were introduced in Phase 52.1 after Phase 49's XSS hardening, showing that later phases can regress earlier fixes
+- SUMMARY.md files lacked standardized one_liner field, making automated accomplishment extraction unreliable
+
+### Patterns Established
+
+- escapeHTML() wrapping pattern: import once, apply to all user-supplied data in innerHTML, including onclick attribute string interpolation
+- Firebase Admin SDK script pattern: ES module, createRequire for JSON, typed confirmation gates, dry-run mode as default
+- Milestone audit → gap closure → re-audit cycle as a standard quality gate before completion
+
+### Key Lessons
+
+- Later phases can regress earlier security fixes — any phase that modifies view files should re-check escapeHTML() usage
+- Auto-delimiter detection (tab vs comma) in data scripts saves user friction with real-world data that rarely matches expectations
+- Client-side aggregation is an acceptable trade-off when Firestore composite index creation is impractical for development velocity
+
+### Cost Observations
+
+- Sessions: ~6 execution sessions across 2 days
+- Notable: Fastest milestone in calendar time (2 days) though smaller scope than v2.3/v2.4
+
+---
+
 ## Milestone: v2.4 — Productivity & Polish
 
 **Shipped:** 2026-03-01
@@ -108,13 +157,13 @@ Living retrospective for the CLMC Procurement System — updated after each mile
 
 ## Cross-Milestone Trends
 
-| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v2.4 |
-|--------|------|------|------|------|------|------|
-| Phases | 4 | 6 | 3 | 11 | 15 | 10 |
-| Plans | 10 | 26 | 11 | 23 | 34 | 24 |
-| Days | 59 | 64 | 2 | 5 | 8 | 3 |
-| Days/Phase | 14.8 | 10.7 | 0.7 | 0.5 | 0.5 | 0.3 |
-| Requirements | 32 | 51 | ~12 | ~25 | 65 | 30 |
-| Audit Cycles | 1 | 1 | 1 | 1 | 3 | 1 |
+| Metric | v1.0 | v2.0 | v2.1 | v2.2 | v2.3 | v2.4 | v2.5 |
+|--------|------|------|------|------|------|------|------|
+| Phases | 4 | 6 | 3 | 11 | 15 | 10 | 7 |
+| Plans | 10 | 26 | 11 | 23 | 34 | 24 | 12 |
+| Days | 59 | 64 | 2 | 5 | 8 | 3 | 2 |
+| Days/Phase | 14.8 | 10.7 | 0.7 | 0.5 | 0.5 | 0.3 | 0.3 |
+| Requirements | 32 | 51 | ~12 | ~25 | 65 | 30 | 23 |
+| Audit Cycles | 1 | 1 | 1 | 1 | 3 | 1 | 2 |
 
-**Trend:** Velocity continues to improve — v2.4 at 0.3 days/phase is the fastest milestone yet. Single audit cycle (30/30 first pass) indicates requirement definition and phase execution quality have matured. Total system: 6 milestones, 48 phases, 128 plans shipped.
+**Trend:** Velocity sustained at 0.3 days/phase across v2.4 and v2.5. v2.5 required 2 audit cycles (gap closure phase inserted after first audit) — expected for a security-focused milestone with cross-cutting concerns. Total system: 7 milestones, 53 phases, 140 plans shipped.

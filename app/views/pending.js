@@ -7,6 +7,7 @@ import { db, auth } from '../firebase.js';
 import { doc, getDoc } from '../firebase.js';
 import { signOut } from '../firebase.js';
 import { getCurrentUser } from '../auth.js';
+import { escapeHTML } from '../utils.js';
 
 /**
  * Render pending approval page
@@ -57,8 +58,6 @@ export function render() {
  * Initialize pending view
  */
 export async function init() {
-    console.log('[Pending] Initializing pending view');
-
     // Get current user
     const user = getCurrentUser();
 
@@ -69,10 +68,10 @@ export async function init() {
             userInfoDiv.innerHTML = `
                 <div style="text-align: center;">
                     <div style="font-weight: 600; color: var(--gray-900); margin-bottom: 0.25rem;">
-                        ${user.full_name || 'User'}
+                        ${escapeHTML(user.full_name || 'User')}
                     </div>
                     <div style="font-size: 0.875rem; color: var(--gray-700);">
-                        ${user.email}
+                        ${escapeHTML(user.email)}
                     </div>
                 </div>
             `;
@@ -88,8 +87,6 @@ export async function init() {
  * Check current approval status
  */
 async function checkStatus() {
-    console.log('[Pending] Checking approval status');
-
     const statusDiv = document.getElementById('statusMessage');
     const checkBtn = document.getElementById('checkStatusBtn');
 
@@ -117,8 +114,6 @@ async function checkStatus() {
 
         const userData = userDoc.data();
         const status = userData.status;
-
-        console.log('[Pending] Current status:', status);
 
         // Handle different statuses
         if (status === 'active') {
@@ -195,11 +190,8 @@ function showStatusMessage(type, message) {
  * Handle logout from pending page
  */
 async function handleLogoutFromPending() {
-    console.log('[Pending] Logging out');
-
     try {
         await signOut(auth);
-        console.log('[Pending] User signed out successfully');
         window.location.hash = '#/login';
     } catch (error) {
         console.error('[Pending] Error signing out:', error);
@@ -211,8 +203,6 @@ async function handleLogoutFromPending() {
  * Cleanup function
  */
 export async function destroy() {
-    console.log('[Pending] Cleaning up pending view');
-
     // Clean up window handlers
     delete window.checkStatus;
     delete window.handleLogoutFromPending;

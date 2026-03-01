@@ -90,6 +90,24 @@ service cloud.firestore {
     }
 
     // =============================================
+    // SECURITY AUDIT — 2026-03-01 (Phase 49, Plan 02)
+    // =============================================
+    // Audit scope: 12 collections + 2 subcollections, all 7 application roles
+    // Roles: super_admin, operations_admin, operations_user,
+    //        services_admin, services_user, finance, procurement
+    //
+    // KEY FINDINGS & FIXES:
+    // 1. [FIXED] users.update self-update allowed role/status field changes → role escalation risk
+    //    Fix: Field-level restriction on self-update — role, status, invitation_code are now admin-only
+    // 2. [DOCUMENTED] invitation_codes open read/update → documented as ACCEPTED RISK (see block below)
+    // 3. [VERIFIED] All other collections follow least-privilege; no unauthenticated write paths found
+    // 4. [VERIFIED] operations_user cannot delete MRFs (delete requires operations_admin or super_admin)
+    // 5. [VERIFIED] services_user cannot create PRs (create requires super_admin, operations_admin, procurement)
+    // 6. [VERIFIED] Role cross-contamination blocked: services_* cannot affect operations_* and vice versa
+    //    (list/get rules scope by role; write rules are explicit about which roles apply)
+    // =============================================
+
+    // =============================================
     // users collection
     // =============================================
     match /users/{userId} {
@@ -111,11 +129,17 @@ service cloud.firestore {
                        request.resource.data.status == 'pending';
 
       // Update: super_admin OR (operations_admin AND target is operations_user) OR (services_admin AND target is services_user) OR own doc
+      // SEC-AUDIT: Self-update is restricted to safe fields only.
+      // A user updating their own doc CANNOT change role or status — those are admin-only fields.
+      // Without this restriction, any user could escalate their own role to super_admin.
       allow update: if isSignedIn() && (
         isRole('super_admin') ||
         (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
         (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user') ||
-        request.auth.uid == userId
+        (request.auth.uid == userId &&
+         !('role' in request.resource.data) &&
+         !('status' in request.resource.data) &&
+         !('invitation_code' in request.resource.data))
       );
 
       // Delete: super_admin can delete deactivated users only (two-step safety)
@@ -137,16 +161,23 @@ service cloud.firestore {
     // =============================================
     // invitation_codes collection
     // =============================================
+    // ACCEPTED RISK (intentional design — documented in CONTEXT.md):
+    // read and update are open (allow: true) because:
+    //   1. Codes are random UUID-like strings — enumeration attacks are infeasible
+    //   2. Reading a code only tells you it exists; you still need Firebase Auth + admin approval
+    //   3. Unauthenticated users must validate the code BEFORE creating their Firebase Auth account
+    //   4. After creating an Auth account, they mark the code 'used' (unauthenticated at that moment)
+    //   5. Real security is in the user approval workflow: new users start as 'pending' and require
+    //      admin activation before gaining any system access
+    // Mitigation: codes are single-use and become 'used' after registration; admins can delete expired codes
     match /invitation_codes/{codeId} {
-      // Anyone can read (unauthenticated users need to validate codes during registration)
-      // Safe: codes are random strings, real security is in user creation approval workflow
+      // ACCEPTED RISK: Anyone can read — unauthenticated users validate codes during registration
       allow read: if true;
 
       // Super Admin creates codes
       allow create: if isRole('super_admin');
 
-      // Anyone can update (unauthenticated users mark code as used during registration)
-      // Safe: update only happens after Firebase Auth account created
+      // ACCEPTED RISK: Anyone can update — unauthenticated users mark code as used after Auth account created
       allow update: if true;
 
       // Delete: super_admin can delete (for expired code cleanup)
