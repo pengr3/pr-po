@@ -109,8 +109,8 @@
 - [x] Phase 52.1: Finance Subtabs [inserted] (1/1 plan) — completed 2026-03-02
 - [x] Phase 53: Milestone Gap Closure (1/1 plan) — completed 2026-03-02
 - [x] Phase 53.1: Dev Firebase Setup [inserted] (2 plans) (completed 2026-03-02)
-  - [ ] 53.1-01-PLAN.md — Update firebase.js with runtime env detection and dev config scaffold
-  - [ ] 53.1-02-PLAN.md — Create dev Firebase project, fill config, deploy rules/indexes, verify isolation
+  - [x] 53.1-01-PLAN.md — Update firebase.js with runtime env detection and dev config scaffold
+  - [x] 53.1-02-PLAN.md — Create dev Firebase project, fill config, deploy rules/indexes, verify isolation
 
 </details>
 
