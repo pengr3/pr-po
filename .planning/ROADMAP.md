@@ -111,8 +111,8 @@
 - [x] Phase 53.1: Dev Firebase Setup [inserted] (2 plans) (completed 2026-03-02)
   - [x] 53.1-01-PLAN.md — Update firebase.js with runtime env detection and dev config scaffold
   - [x] 53.1-02-PLAN.md — Create dev Firebase project, fill config, deploy rules/indexes, verify isolation
-- [ ] Phase 53.2: Seed Dev Database [inserted] — 1 plan
-  - [ ] 53.2-01-PLAN.md — Write seed script and run it to populate dev Firestore with role_templates and invitation_code
+- [x] Phase 53.2: Seed Dev Database [inserted] — 1 plan (completed 2026-03-02)
+  - [x] 53.2-01-PLAN.md — Write seed script and run it to populate dev Firestore with role_templates and invitation_code
 
 </details>
 

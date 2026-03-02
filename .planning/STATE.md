@@ -87,6 +87,7 @@ Progress: [███████████████████████
 | v2.5 | 7 | 2 | 0.3 |
 | Phase 53.1-dev-firebase-setup P01 | 2 | 1 tasks | 1 files |
 | Phase 53.1-dev-firebase-setup P02 | 10 | 2 tasks | 2 files |
+| Phase 53.2-seed-dev-database P01 | 15 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -97,10 +98,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 53.1-dev-firebase-setup]: persistentMultipleTabManager selected for localhost to allow two browser tabs simultaneously during development
 - [Phase 53.1-dev-firebase-setup]: .firebaserc default project remains clmc-procurement (prod) — dev alias added for convenience only
 - [Phase 53.1-dev-firebase-setup]: Firebase CLI -P flag used for dev deployments to avoid changing .firebaserc default project
+- [Phase 53.2-seed-dev-database]: addDoc (not setDoc) used for invitation_codes — two active codes is harmless, deduplication not needed
+- [Phase 53.2-seed-dev-database]: Localhost hostname guard at IIFE entry prevents accidental prod writes from the seed script
 
 ### Roadmap Evolution
 
 - Phase 53.1 inserted after Phase 53: Setup second Firebase project for development environment (URGENT — going live, need dev/prod isolation)
+- Phase 53.2 inserted after Phase 53.1: Seed dev database with all required Firestore configuration documents so the app works on dev (URGENT)
 
 ### Pending Todos
 
@@ -113,5 +117,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 53.1-02 (all 3 tasks complete including Task 3 human verification — Phase 53.1 fully done)
+Stopped at: Completed 53.2-01 (all 2 tasks complete including Task 2 human verification — Phase 53.2 fully done)
 Resume file: None
