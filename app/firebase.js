@@ -63,12 +63,12 @@ const prodConfig = {
 };
 
 const devConfig = {
-    apiKey: "FILL_IN_FROM_FIREBASE_CONSOLE",
+    apiKey: "AIzaSyB1x47298azJBQr4dN4fqmqtepsh5mMsN0",
     authDomain: "clmc-procurement-dev.firebaseapp.com",
     projectId: "clmc-procurement-dev",
     storageBucket: "clmc-procurement-dev.firebasestorage.app",
-    messagingSenderId: "FILL_IN_FROM_FIREBASE_CONSOLE",
-    appId: "FILL_IN_FROM_FIREBASE_CONSOLE"
+    messagingSenderId: "1723100020",
+    appId: "1:1723100020:web:d3a809d280720943f35a21"
 };
 
 const firebaseConfig = isLocal ? devConfig : prodConfig;

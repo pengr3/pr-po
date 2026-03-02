@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "clmc-procurement"
+    "default": "clmc-procurement",
+    "dev": "clmc-procurement-dev"
   }
 }
