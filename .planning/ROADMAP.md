@@ -108,6 +108,9 @@
 - [x] Phase 51.2: Clickable Active Badge [inserted] (1/1 plan) — completed 2026-03-01
 - [x] Phase 52.1: Finance Subtabs [inserted] (1/1 plan) — completed 2026-03-02
 - [x] Phase 53: Milestone Gap Closure (1/1 plan) — completed 2026-03-02
+- [ ] Phase 53.1: Dev Firebase Setup [inserted] (2 plans)
+  - [ ] 53.1-01-PLAN.md — Update firebase.js with runtime env detection and dev config scaffold
+  - [ ] 53.1-02-PLAN.md — Create dev Firebase project, fill config, deploy rules/indexes, verify isolation
 
 </details>
 
