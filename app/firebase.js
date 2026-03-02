@@ -9,6 +9,7 @@ import {
     initializeFirestore,
     persistentLocalCache,
     persistentSingleTabManager,
+    persistentMultipleTabManager,
     collection,
     getDocs,
     getDoc,
@@ -42,8 +43,17 @@ import {
     browserLocalPersistence
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-// Firebase configuration
-const firebaseConfig = {
+// Runtime environment detection
+const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+// =============================================
+// DUAL ENVIRONMENT CONFIGURATION
+// localhost / 127.0.0.1 → dev project (clmc-procurement-dev)
+// All other hosts (Netlify) → prod project (clmc-procurement)
+// See: .planning/milestones/v2.5-phases/53.1-dev-firebase-setup/53.1-RESEARCH.md
+// =============================================
+
+const prodConfig = {
     apiKey: "AIzaSyAlHcmPmkCk6CKsRbfpHpCheHb2GcLz0Oc",
     authDomain: "clmc-procurement.firebaseapp.com",
     projectId: "clmc-procurement",
@@ -52,17 +62,41 @@ const firebaseConfig = {
     appId: "1:946184501660:web:6559c5de405e72100ab059"
 };
 
+const devConfig = {
+    apiKey: "FILL_IN_FROM_FIREBASE_CONSOLE",
+    authDomain: "clmc-procurement-dev.firebaseapp.com",
+    projectId: "clmc-procurement-dev",
+    storageBucket: "clmc-procurement-dev.firebasestorage.app",
+    messagingSenderId: "FILL_IN_FROM_FIREBASE_CONSOLE",
+    appId: "FILL_IN_FROM_FIREBASE_CONSOLE"
+};
+
+const firebaseConfig = isLocal ? devConfig : prodConfig;
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = initializeFirestore(app, {
     localCache: persistentLocalCache({
-        tabManager: persistentSingleTabManager()
+        tabManager: isLocal
+            ? persistentMultipleTabManager()
+            : persistentSingleTabManager()
     })
 });
 const auth = getAuth(app);
 
 // Set auth persistence to local (1-day session)
 setPersistence(auth, browserLocalPersistence);
+
+// Dev environment indicator — visible only on localhost
+if (isLocal) {
+    document.addEventListener('DOMContentLoaded', () => {
+        const banner = document.createElement('div');
+        banner.id = 'dev-env-banner';
+        banner.textContent = 'DEV ENVIRONMENT — clmc-procurement-dev';
+        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#1e293b;text-align:center;padding:4px 8px;font-size:0.75rem;font-weight:600;z-index:9999;pointer-events:none;';
+        document.body.appendChild(banner);
+    });
+}
 
 // Export database and auth instances
 export { db, auth };
