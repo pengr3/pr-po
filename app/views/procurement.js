@@ -2945,7 +2945,7 @@ async function renderPRPORecords() {
                     }).join('<br>');
                 }
 
-                return `<div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px dashed #e5e7eb; flex-wrap: wrap;">
+                return `<div style="display: grid; grid-template-columns: max-content max-content 1fr; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px dashed #e5e7eb;">
                     ${prBadge}
                     <span style="color: #94a3b8; font-size: 0.7rem;">\u2192</span>
                     ${poCell}
