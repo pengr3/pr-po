@@ -2222,6 +2222,19 @@ async function viewTRDetails(trId) {
         currentPRForApproval = tr;
         currentPRForRejection = tr;
 
+        // Fetch MRF justification for this TR
+        let mrfJustification = tr.justification || null;
+        if (!mrfJustification && tr.mrf_id && mrfCache.has(tr.mrf_id)) {
+            mrfJustification = mrfCache.get(tr.mrf_id).justification || null;
+        }
+        if (!mrfJustification && tr.mrf_doc_id) {
+            try {
+                const mrfSnap = await getDoc(doc(db, 'mrfs', tr.mrf_doc_id));
+                if (mrfSnap.exists()) mrfJustification = mrfSnap.data().justification || null;
+            } catch (e) { /* silent */ }
+        }
+        mrfJustification = mrfJustification || '—';
+
         const items = JSON.parse(tr.items_json || '[]');
         const urgencyLevel = tr.urgency_level || 'Low';
 
@@ -2262,6 +2275,10 @@ async function viewTRDetails(trId) {
                 <div style="grid-column: 1 / -1;">
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Delivery Address:</div>
                     <div>${escapeHTML(tr.delivery_address || 'N/A')}</div>
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Justification:</div>
+                    <div>${escapeHTML(mrfJustification)}</div>
                 </div>
                 <div style="grid-column: 1 / -1;">
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">Total Cost:</div>
