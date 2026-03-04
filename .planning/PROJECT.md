@@ -8,10 +8,21 @@ A zero-build static SPA for managing engineering procurement workflows (MRFs, PR
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
+## Current Milestone: v3.0 Fixes
+
+**Goal:** Fix MRF table PR/PO alignment, Finance Pending Approvals table structure, UI layout consistency, and Finance scoreboard bug.
+
+**Target features:**
+- MRF Tables: PO ID aligned beside corresponding PR ID in My Requests and Procurement MRF Records
+- Procurement Status dropdowns aligned per PR/PO row
+- Finance Pending Approvals: restructured PR and TR tables (remove Status, add Date Issued/Date Needed)
+- UI layout: MRF Processing stretch to full-width, standardize sub-tab nav alignment across Material Request, Procurement, Admin
+- Finance Approved This Month scoreboard count fix
+
 ## Current State
 
 **Latest shipped:** v2.5 Data & Application Security (2026-03-02)
-**No active milestone** — run `/gsd:new-milestone` to plan v2.6.
+**Active milestone:** v3.0 Fixes
 
 See `.planning/MILESTONES.md` for full milestone history.
 
@@ -224,7 +235,15 @@ See `.planning/MILESTONES.md` for full milestone history.
 
 ### Active
 
-(No active requirements — run `/gsd:new-milestone` to define next milestone)
+<!-- v3.0 Fixes — defined 2026-03-04 -->
+
+- [ ] MRF Tables (My Requests + Procurement MRF Records): PO ID displayed beside its corresponding PR ID
+- [ ] Procurement MRF Records: Procurement Status dropdowns aligned per PR/PO row
+- [ ] Finance Pending Approvals PR table: restructured columns (remove Status, add Date Issued/Date Needed)
+- [ ] Finance Pending Approvals TR table: rename Date to Date Issued, add Date Needed, remove Status
+- [ ] MRF Processing layout: full-width stretch, left-align Pending MRFs to logo, right-align MRF Details to Logout button
+- [ ] Sub-tab nav alignment: standardize to logo-aligned left position for Material Request, Procurement, Admin tabs
+- [ ] Finance Approved This Month scoreboard: fix count to reflect actual approved POs for current month
 
 ### Future (v2.6+)
 
@@ -413,4 +432,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 52.1: Client-side TR aggregation instead of composite index | Avoids requiring uncreated Firestore composite index; acceptable at current data scale | ✓ Good - pragmatic trade-off, no performance issues |
 
 ---
-*Last updated: 2026-03-02 after v2.5 milestone*
+*Last updated: 2026-03-04 after v3.0 milestone started*
