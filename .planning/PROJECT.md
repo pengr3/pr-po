@@ -8,21 +8,10 @@ A zero-build static SPA for managing engineering procurement workflows (MRFs, PR
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
-## Current Milestone: v3.0 Fixes
-
-**Goal:** Fix MRF table PR/PO alignment, Finance Pending Approvals table structure, UI layout consistency, and Finance scoreboard bug.
-
-**Target features:**
-- MRF Tables: PO ID aligned beside corresponding PR ID in My Requests and Procurement MRF Records
-- Procurement Status dropdowns aligned per PR/PO row
-- Finance Pending Approvals: restructured PR and TR tables (remove Status, add Date Issued/Date Needed)
-- UI layout: MRF Processing stretch to full-width, standardize sub-tab nav alignment across Material Request, Procurement, Admin
-- Finance Approved This Month scoreboard count fix
-
 ## Current State
 
-**Latest shipped:** v2.5 Data & Application Security (2026-03-02)
-**Active milestone:** v3.0 Fixes
+**Latest shipped:** v3.0 Fixes (2026-03-04)
+**Active milestone:** None — planning next milestone
 
 See `.planning/MILESTONES.md` for full milestone history.
 
@@ -233,19 +222,21 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Clickable Active/Inactive badges for bulk project and service status toggling — v2.5 (Phase 51.2)
 - ✓ Finance sub-tabs for Services and Recurring with search and sorting — v2.5 (Phase 52.1)
 
+### Validated (Shipped in v3.0)
+
+- ✓ MRF Tables (My Requests + Procurement MRF Records): PO ID displayed inline beside its corresponding PR ID with null-slot em-dash when no PO exists — v3.0 (Phase 54)
+- ✓ Procurement MRF Records: Procurement Status dropdown aligned on the same row as its specific PR/PO pair — v3.0 (Phase 54)
+- ✓ Finance Pending Approvals PR table: Date Issued + Date Needed columns added, Status column removed — v3.0 (Phase 55)
+- ✓ Finance Pending Approvals TR table: "Date" renamed to "Date Issued", Date Needed column added, Status column removed — v3.0 (Phase 55)
+- ✓ MRF Processing layout: full-width (1600px) with Pending MRFs and MRF Details spanning full content band — v3.0 (Phase 56)
+- ✓ Sub-tab nav alignment: Material Request, Procurement, Admin bars all at 1600px matching Finance — v3.0 (Phase 56)
+- ✓ Finance Approved This Month scoreboard: dynamically counts POs by date_issued in current calendar month plus approved TRs — v3.0 (Phase 55)
+
 ### Active
 
-<!-- v3.0 Fixes — defined 2026-03-04 -->
+(None — planning next milestone)
 
-- [ ] MRF Tables (My Requests + Procurement MRF Records): PO ID displayed beside its corresponding PR ID
-- [ ] Procurement MRF Records: Procurement Status dropdowns aligned per PR/PO row
-- [ ] Finance Pending Approvals PR table: restructured columns (remove Status, add Date Issued/Date Needed)
-- [ ] Finance Pending Approvals TR table: rename Date to Date Issued, add Date Needed, remove Status
-- [ ] MRF Processing layout: full-width stretch, left-align Pending MRFs to logo, right-align MRF Details to Logout button
-- [ ] Sub-tab nav alignment: standardize to logo-aligned left position for Material Request, Procurement, Admin tabs
-- [ ] Finance Approved This Month scoreboard: fix count to reflect actual approved POs for current month
-
-### Future (v2.6+)
+### Future (v4.0+)
 
 #### Activity Logging
 - Structured activity entries on projects
@@ -341,6 +332,12 @@ See `.planning/MILESTONES.md` for full milestone history.
 - 23/23 requirements satisfied
 - Total JS codebase: 27,008 LOC
 
+**Shipped v3.0 (2026-03-04):**
+- 3 phases, 4 plans, 5 view files changed, +361/-157 lines
+- No new collections or files — focused on display precision and layout consistency
+- 12/12 requirements satisfied
+- Total JS codebase: ~27,369 LOC (11,123 LOC across 5 modified files)
+
 **Current Codebase State:**
 - Auth System: app/auth.js, app/permissions.js
 - Auth Views: register.js, login.js, pending.js
@@ -430,6 +427,12 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 51: Typed confirmation gate for destructive wipe script | User must type exact word before irreversible action proceeds | ✓ Good - prevents accidental data loss |
 | Phase 51.1: Auto-detect CSV delimiter (tab vs comma) | Real Excel exports use TSV not CSV; single parser handles both transparently | ✓ Good - zero user friction with real production data |
 | Phase 52.1: Client-side TR aggregation instead of composite index | Avoids requiring uncreated Firestore composite index; acceptable at current data scale | ✓ Good - pragmatic trade-off, no performance issues |
+| Phase 54: posByPrId index keyed on po.pr_id for O(1) PR-to-PO pairing | Maps each PR to its PO(s) in a single pass; null slot em-dash shown when no match | ✓ Good - clean lookup pattern, no schema change needed |
+| Phase 54: Retain 8-column table structure with inline flex sub-rows | PRs, POs, Procurement Status stay in separate columns; per-PR pairing via flex rows within cells | ✓ Good - alignment correct, SUMMARY description inaccurate but code is correct |
+| Phase 55: mrfCache Map populated via batch getDocs in onSnapshot callbacks | Avoids N+1 queries for date_needed; 30-item chunks with Promise.all; warm-cache path renders synchronously | ✓ Good - clean pattern, reused for both PRs and TRs |
+| Phase 55: approvedTRsThisMonthCount loaded once at init() | TR approval count stable within session; recalculates on view reload | ✓ Good - by design; minor UX staleness accepted |
+| Phase 56: Remove .container class from procurement.js content wrapper | .container resolves to 1400px via main.css; replaced with inline max-width: 1600px to match Finance reference | ✓ Good - root cause fix rather than override |
+| Phase 56: Finance tab as reference alignment (do not modify) | All other tabs normalize to Finance's two-level sub-nav pattern and 1600px width | ✓ Good - clear single source of truth for layout |
 
 ---
-*Last updated: 2026-03-04 after v3.0 milestone started*
+*Last updated: 2026-03-04 after v3.0 milestone*

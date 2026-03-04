@@ -224,3 +224,27 @@
 **What's next:** Authentication & permissions system (v2.0) - Secure the foundation with role-based access control, user management, and project assignment permissions.
 
 ---
+
+## v3.0 Fixes (Shipped: 2026-03-04)
+
+**Delivered:** Frontend precision fixes — PR/PO inline pairing in procurement tables, Finance Pending Approvals column restructure, and UI layout standardization across all tabs.
+
+**Phases completed:** 54-56 (3 phases, 4 plans)
+
+**Key accomplishments:**
+
+- PR/PO inline pairing in My Requests: each PR row shows its PO ID beside it using a `posByPrId` index; PRs with no PO show an em-dash null slot in the same column position
+- PR/PO inline pairing in Procurement MRF Records: same pairing behavior with an editable Procurement Status dropdown on the same row as each PR/PO pair
+- Finance Pending Approvals PR table restructured: Date Issued + Date Needed columns added (from linked MRF via `mrfCache`), redundant Status column removed — reviewers now see actionable date context
+- Finance Pending Approvals TR table same restructure; PR review modal gains JUSTIFICATION row between Delivery Address and Total Amount
+- Approved This Month scoreboard fixed: `updateStats()` dynamically counts PO documents by `date_issued` in the current calendar month (Timestamp/seconds/string fallback) plus approved TRs — no longer hardcoded to 0
+- All sub-tab nav bars (Material Request, Procurement, Admin) standardized to 1600px width matching Finance tab; MRF Processing content expanded from `max-width: 1400px` (.container) to `max-width: 1600px` inline style
+
+**Stats:**
+- Timeline: 2026-03-04 (single day)
+- Files changed: 5 view files (mrf-records.js, procurement.js, finance.js, admin.js, mrf-form.js)
+- Changes: 361 insertions, 157 deletions
+- Requirements: 12/12 satisfied
+
+---
+

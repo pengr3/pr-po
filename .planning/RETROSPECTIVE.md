@@ -4,6 +4,54 @@ Living retrospective for the CLMC Procurement System — updated after each mile
 
 ---
 
+## Milestone: v3.0 — Fixes
+
+**Shipped:** 2026-03-04
+**Phases:** 3 (54-56) | **Plans:** 4
+
+### What Was Built
+
+- PR/PO inline pairing in My Requests: `posByPrId` index maps each PR to its PO(s); null slot em-dash when no PO exists
+- PR/PO inline pairing in Procurement MRF Records: same pattern with editable status dropdown per row; critical fix captured `pr_id: poData.pr_id` in poDataArray
+- Finance Pending Approvals PR/TR tables restructured: Date Issued + Date Needed columns (from mrfCache lookup), Status column removed
+- PR review modal: JUSTIFICATION row added between Delivery Address and Total Amount
+- Approved This Month scoreboard: `updateStats()` counts POs by `date_issued` in current month with Timestamp/seconds/string fallback; `approvedTRsThisMonthCount` added once at init
+- All sub-tab nav bars (Material Request, Procurement, Admin) standardized to 1600px matching Finance via two-level wrapper pattern
+- MRF Processing content wrapper switched from `.container` class (1400px via main.css) to inline `max-width: 1600px`
+
+### What Worked
+
+- Milestone scope was tight and well-defined — 12 precise requirements, 3 independent phases, single day execution
+- Finance tab as reference alignment (do not modify) provided a clear, unambiguous target for Phase 56
+- mrfCache batch-lookup pattern (30-item chunks, Promise.all, warm-cache render) avoided N+1 queries cleanly
+- Phase independence meant no cross-phase coordination or ordering dependency in actual code (only deployment ordering declared)
+
+### What Was Inefficient
+
+- Phase 54 required 3 fix commits (grid layout, collapsed-column revert, duplicate declaration) before stabilizing — initial plan underestimated the PR/PO column alignment complexity and needed iteration
+- SUMMARY files in this project use `requirements-completed` (hyphen) but the gsd-tools `summary-extract` tool queries `requirements_completed` (underscore) — extraction returned empty arrays, hiding the fact that all requirements were listed
+- SUMMARY descriptions for Phase 54 stated "6-column" table but actual implementation has 8 columns — the description described the intent, not the actual output; integration checker caught this discrepancy
+
+### Patterns Established
+
+- PR-PO pairing pattern: build `posByPrId` index from `poDataArray` keyed by `po.pr_id`; iterate `prDataArray`, look up `posByPrId[pr.pr_id]`, render PR badge + PO link inline with null-slot em-dash when empty
+- Two-level sub-nav wrapper: outer div (background/border-bottom) → inner div (max-width: 1600px; margin: 0 auto; padding: 0 2rem) → `.tabs-nav`; Finance tab is the reference
+- Content wrapper: `max-width: 1600px; margin: 2rem auto 0; padding: 0 2rem` as inline style — NOT `.container` class (which resolves to 1400px)
+- mrfCache batch pattern: filter uncached IDs, chunk at 30, Promise.all getDocs, populate cache, re-render; module-level Map, reset in destroy()
+
+### Key Lessons
+
+- When modifying the same file across multiple phases (Phase 54 and 56 both touch procurement.js), verify no layer conflict — outer wrapper width and inner table content are orthogonal, but this needs explicit confirmation
+- SUMMARY descriptions should reflect what was actually built, not the original plan intent — code-level deviations (8 vs 6 columns) should be documented accurately
+- A "reference alignment" strategy (designate one tab as the target, normalize all others to it) is highly effective for UI consistency phases — zero ambiguity about the target state
+
+### Cost Observations
+
+- Sessions: 1 concentrated session (single day)
+- Notable: Smallest milestone by scope (3 phases, 4 plans) but cleanest execution once plan stabilized
+
+---
+
 ## Milestone: v2.5 — Data & Application Security
 
 **Shipped:** 2026-03-02
