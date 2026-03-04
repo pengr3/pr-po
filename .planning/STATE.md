@@ -1,5 +1,18 @@
 ---
 gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: Fixes
+status: unknown
+last_updated: "2026-03-04T03:53:08.680Z"
+progress:
+  total_phases: 41
+  completed_phases: 40
+  total_plans: 112
+  completed_plans: 109
+---
+
+---
+gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Fixes
 status: in-progress
