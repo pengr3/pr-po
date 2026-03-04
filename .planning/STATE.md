@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Fixes
 status: unknown
-last_updated: "2026-03-04T03:53:08.680Z"
+last_updated: "2026-03-04T05:35:04.898Z"
 progress:
-  total_phases: 41
-  completed_phases: 40
-  total_plans: 112
-  completed_plans: 109
+  total_phases: 42
+  completed_phases: 41
+  total_plans: 113
+  completed_plans: 110
 ---
 
 ---
@@ -31,23 +31,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Milestone v3.0 Fixes — Phase 54 Plan 01 complete
+**Current focus:** Milestone v3.0 Fixes — Phase 55 Plan 01 complete
 
 ## Current Position
 
-Phase: 54
+Phase: 55
 Plan: 01 (complete)
-Status: Phase 54 Plan 01 complete — My Requests table PR/PO alignment done
-Last activity: 2026-03-04 — Executed 54-01-PLAN.md; collapsed PRs/POs/Procurement Status into paired PRs/POs column
+Status: Phase 55 Plan 01 complete — Finance Pending Approvals tables restructured with Date Needed column and fixed scoreboard
+Last activity: 2026-03-04 — Executed 55-01-PLAN.md; restructured PR/TR tables, added mrfCache for date_needed, fixed Approved This Month scoreboard
 
 ```
-v3.0 Progress: [░░░] 0/3 phases complete (Phase 54 in progress — 1/1 plan done)
+v3.0 Progress: [██░] 1/3 phases complete (Phase 55 done — 1/1 plan done)
 ```
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 141 (v1.0: 10, v2.0: 26, v2.1: 11, v2.2: 23, v2.3: 34, v2.4: 24, v2.5: 12, v3.0: 1)
+- Total plans completed: 142 (v1.0: 10, v2.0: 26, v2.1: 11, v2.2: 23, v2.3: 34, v2.4: 24, v2.5: 12, v3.0: 2)
 - Total execution time: ~143 days across 7 milestones
 
 **By Milestone:**
@@ -69,6 +69,12 @@ v3.0 Progress: [░░░] 0/3 phases complete (Phase 54 in progress — 1/1 pla
 |------|-------|-------|----------|
 | 54-01 | 1 | 1 | 2 min |
 
+**Phase 55 Plans:**
+
+| Plan | Tasks | Files | Duration |
+|------|-------|-------|----------|
+| 55-01 | 2 | 1 | 5 min |
+
 ## Accumulated Context
 
 ### Decisions
@@ -83,6 +89,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [v3.0-roadmap-revision]: SCORE-01 merged into Phase 55 (Finance Pending Approvals Fixes) — same view file as FINANCE-01/FINANCE-02, no reason to isolate in a separate phase; Phase 57 removed
 - [Phase 54-01-mrf-table]: Collapsed separate PRs, POs, and Procurement Status columns into single PRs / POs column — requestors see each PR paired with its PO on same line with null-slot em-dash when no PO exists
 - [Phase 54-01-mrf-table]: Used posByPrId index keyed on po.pr_id for O(1) PR-to-PO lookup; no schema change needed as po.pr_id already stored in Firestore
+- [Phase 55-01]: mrfCache Map populated via batch getDocs in PR/TR onSnapshot callbacks; warm-cache path renders synchronously without async delay
+- [Phase 55-01]: Approved This Month scoreboard: updateStats() iterates poData array (Timestamp/seconds/string fallback) + approvedTRsThisMonthCount; called from loadPOs() onSnapshot so scoreboard is live
 
 ### Roadmap Evolution
 
@@ -102,6 +110,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed 54-01-PLAN.md — Phase 54 Plan 01 done
+Stopped at: Completed 55-01-PLAN.md — Phase 55 Plan 01 done
 Resume file: None
-Next action: Continue with Phase 55 planning or Phase 54 complete
+Next action: Continue with Phase 56 (role-config.js fixes)

@@ -14,8 +14,8 @@
 
 ### Finance Pending Approvals Table Restructure
 
-- [ ] **FINANCE-01**: Material Purchase Requests table columns: PR ID, MRF ID, Department/Project, Date Issued, Date Needed, Urgency, Total Cost, Supplier (Status column removed)
-- [ ] **FINANCE-02**: Transport Requests table: rename "Date" column to "Date Issued", add "Date Needed" column, remove "Status" column
+- [x] **FINANCE-01**: Material Purchase Requests table columns: PR ID, MRF ID, Department/Project, Date Issued, Date Needed, Urgency, Total Cost, Supplier (Status column removed)
+- [x] **FINANCE-02**: Transport Requests table: rename "Date" column to "Date Issued", add "Date Needed" column, remove "Status" column
 
 ### UI Layout Fixes
 
@@ -28,7 +28,7 @@
 
 ### Finance Scoreboard Fix
 
-- [ ] **SCORE-01**: Finance > Pending Approvals: "Approved This Month" scoreboard correctly counts approved POs (not PRs) for the current calendar month
+- [x] **SCORE-01**: Finance > Pending Approvals: "Approved This Month" scoreboard correctly counts approved POs (not PRs) for the current calendar month
 
 ## Future Requirements
 
@@ -49,9 +49,9 @@
 | TABLE-01 | Phase 54 | Complete |
 | TABLE-02 | Phase 54 | Complete |
 | TABLE-03 | Phase 54 | Complete |
-| FINANCE-01 | Phase 55 | Pending |
-| FINANCE-02 | Phase 55 | Pending |
-| SCORE-01 | Phase 55 | Pending |
+| FINANCE-01 | Phase 55 | Complete |
+| FINANCE-02 | Phase 55 | Complete |
+| SCORE-01 | Phase 55 | Complete |
 | UI-01 | Phase 56 | Pending |
 | UI-02 | Phase 56 | Pending |
 | UI-03 | Phase 56 | Pending |
