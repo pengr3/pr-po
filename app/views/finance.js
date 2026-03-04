@@ -48,6 +48,9 @@ let listeners = [];
 let materialPRs = [];
 let transportRequests = [];
 let poData = [];
+// Cache of MRF docs keyed by mrf_id for date_needed and justification lookups
+let mrfCache = new Map(); // mrf_id -> { date_needed, justification }
+let approvedTRsThisMonthCount = 0;
 let currentPRForApproval = null;
 let currentPRForRejection = null;
 let projectExpenses = [];
@@ -737,11 +740,11 @@ export function render(activeTab = 'approvals') {
                                 <th onclick="window.sortMaterialPRs('pr_id')" style="cursor: pointer; user-select: none;">PR ID <span class="sort-indicator" data-col="pr_id"></span></th>
                                 <th onclick="window.sortMaterialPRs('mrf_id')" style="cursor: pointer; user-select: none;">MRF ID <span class="sort-indicator" data-col="mrf_id"></span></th>
                                 <th>Department / Project</th>
-                                <th onclick="window.sortMaterialPRs('date_generated')" style="cursor: pointer; user-select: none;">Date <span class="sort-indicator" data-col="date_generated"></span></th>
+                                <th onclick="window.sortMaterialPRs('date_generated')" style="cursor: pointer; user-select: none;">Date Issued <span class="sort-indicator" data-col="date_generated"></span></th>
+                                <th>Date Needed</th>
                                 <th onclick="window.sortMaterialPRs('urgency_level')" style="cursor: pointer; user-select: none;">Urgency <span class="sort-indicator" data-col="urgency_level"></span></th>
                                 <th onclick="window.sortMaterialPRs('total_amount')" style="cursor: pointer; user-select: none; text-align: right;">Total Cost <span class="sort-indicator" data-col="total_amount"></span></th>
                                 <th onclick="window.sortMaterialPRs('supplier_name')" style="cursor: pointer; user-select: none;">Supplier <span class="sort-indicator" data-col="supplier_name"></span></th>
-                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -766,11 +769,11 @@ export function render(activeTab = 'approvals') {
                                 <th onclick="window.sortTransportRequests('tr_id')" style="cursor: pointer; user-select: none;">TR ID <span class="sort-indicator" data-col="tr_id"></span></th>
                                 <th onclick="window.sortTransportRequests('mrf_id')" style="cursor: pointer; user-select: none;">MRF ID <span class="sort-indicator" data-col="mrf_id"></span></th>
                                 <th>Project</th>
-                                <th onclick="window.sortTransportRequests('date_submitted')" style="cursor: pointer; user-select: none;">Date <span class="sort-indicator" data-col="date_submitted"></span></th>
+                                <th onclick="window.sortTransportRequests('date_submitted')" style="cursor: pointer; user-select: none;">Date Issued <span class="sort-indicator" data-col="date_submitted"></span></th>
+                                <th>Date Needed</th>
                                 <th onclick="window.sortTransportRequests('urgency_level')" style="cursor: pointer; user-select: none;">Urgency <span class="sort-indicator" data-col="urgency_level"></span></th>
                                 <th onclick="window.sortTransportRequests('total_amount')" style="cursor: pointer; user-select: none; text-align: right;">Total Cost <span class="sort-indicator" data-col="total_amount"></span></th>
                                 <th>Service Type</th>
-                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1006,6 +1009,7 @@ export async function init(activeTab = 'approvals') {
     try {
         await loadPRs();
         await loadPOs();
+        await loadApprovedTRsThisMonth();
 
         // Load project expenses if on projects tab
         if (activeTab === 'projects') {
@@ -1589,6 +1593,8 @@ export async function destroy() {
     materialPRs = [];
     transportRequests = [];
     poData = [];
+    mrfCache = new Map();
+    approvedTRsThisMonthCount = 0;
     currentPRForApproval = null;
     currentPRForRejection = null;
     currentApprovalTarget = null;
@@ -1693,7 +1699,32 @@ async function loadPRs() {
             return prSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
 
-        renderMaterialPRs();
+        // Fetch MRF data for date_needed/justification lookups
+        const uncachedPRMrfIds = materialPRs
+            .map(pr => pr.mrf_id)
+            .filter(id => id && !mrfCache.has(id));
+
+        if (uncachedPRMrfIds.length > 0) {
+            const chunks = [];
+            for (let i = 0; i < uncachedPRMrfIds.length; i += 30) {
+                chunks.push(uncachedPRMrfIds.slice(i, i + 30));
+            }
+            Promise.all(
+                chunks.map(chunk =>
+                    getDocs(query(collection(db, 'mrfs'), where('mrf_id', 'in', chunk)))
+                )
+            ).then(snapshots => {
+                snapshots.forEach(snap =>
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if (data.mrf_id) mrfCache.set(data.mrf_id, { date_needed: data.date_needed || '', justification: data.justification || '' });
+                    })
+                );
+                renderMaterialPRs();
+            });
+        } else {
+            renderMaterialPRs();
+        }
         updateStats();
     });
     listeners.push(prListener);
@@ -1723,7 +1754,32 @@ async function loadPRs() {
             return trSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
 
-        renderTransportRequests();
+        // Fetch MRF data for date_needed lookups
+        const uncachedTRMrfIds = transportRequests
+            .map(tr => tr.mrf_id)
+            .filter(id => id && !mrfCache.has(id));
+
+        if (uncachedTRMrfIds.length > 0) {
+            const chunks = [];
+            for (let i = 0; i < uncachedTRMrfIds.length; i += 30) {
+                chunks.push(uncachedTRMrfIds.slice(i, i + 30));
+            }
+            Promise.all(
+                chunks.map(chunk =>
+                    getDocs(query(collection(db, 'mrfs'), where('mrf_id', 'in', chunk)))
+                )
+            ).then(snapshots => {
+                snapshots.forEach(snap =>
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if (data.mrf_id) mrfCache.set(data.mrf_id, { date_needed: data.date_needed || '', justification: data.justification || '' });
+                    })
+                );
+                renderTransportRequests();
+            });
+        } else {
+            renderTransportRequests();
+        }
         updateStats();
     });
     listeners.push(trListener);
@@ -1766,12 +1822,12 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${escapeHTML(getMRFLabel(pr))}</span></td>
+                <td>${escapeHTML(pr.project_name || pr.service_name || 'N/A')}</td>
                 <td>${formatDate(pr.date_generated)}</td>
+                <td>${mrfCache.get(pr.mrf_id)?.date_needed ? formatDate(mrfCache.get(pr.mrf_id).date_needed) : '—'}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(pr.total_amount || 0)}</strong></td>
                 <td>${escapeHTML(supplier)}</td>
-                <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewPRDetails('${pr.id}')">Review</button>
                 </td>
@@ -1833,12 +1889,12 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${escapeHTML(getMRFLabel(tr))}</span></td>
+                <td>${escapeHTML(tr.project_name || tr.service_name || 'N/A')}</td>
                 <td>${formatDate(tr.date_submitted)}</td>
+                <td>${mrfCache.get(tr.mrf_id)?.date_needed ? formatDate(mrfCache.get(tr.mrf_id).date_needed) : '—'}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
                 <td><strong>₱${formatCurrency(tr.total_amount || 0)}</strong></td>
                 <td>${escapeHTML(serviceType)}</td>
-                <td><span class="status-badge pending">Pending</span></td>
                 <td>
                     <button class="btn btn-sm btn-primary" onclick="window.viewTRDetails('${tr.id}')">Review</button>
                 </td>
@@ -1923,8 +1979,64 @@ function updateStats() {
 
     document.getElementById('pendingAmount').textContent = '₱' + formatCurrency(totalPending);
 
-    // Get approved count for this month (would need query for actual count)
-    document.getElementById('approvedCount').textContent = '0';
+    // Count POs issued in the current calendar month
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed
+
+    let approvedThisMonth = 0;
+    for (const po of poData) {
+        let poDate = null;
+        const ts = po.date_issued;
+        if (ts) {
+            if (typeof ts.toDate === 'function') {
+                poDate = ts.toDate();
+            } else if (ts.seconds != null) {
+                poDate = new Date(ts.seconds * 1000);
+            } else {
+                const d = new Date(ts);
+                if (!isNaN(d.getTime())) poDate = d;
+            }
+        }
+        // Fallback to date_issued_legacy (ISO string)
+        if (!poDate && po.date_issued_legacy) {
+            const d = new Date(po.date_issued_legacy);
+            if (!isNaN(d.getTime())) poDate = d;
+        }
+        if (poDate && poDate.getFullYear() === currentYear && poDate.getMonth() === currentMonth) {
+            approvedThisMonth++;
+        }
+    }
+
+    // Also count approved TRs submitted this month
+    approvedThisMonth += approvedTRsThisMonthCount;
+
+    document.getElementById('approvedCount').textContent = approvedThisMonth;
+}
+
+/**
+ * Load count of TRs with finance_status == 'Approved' submitted in the current calendar month
+ */
+async function loadApprovedTRsThisMonth() {
+    try {
+        const now = new Date();
+        // Compute start/end of current month as ISO date strings for comparison
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+        const snap = await getDocs(
+            query(
+                collection(db, 'transport_requests'),
+                where('finance_status', '==', 'Approved'),
+                where('date_submitted', '>=', monthStart),
+                where('date_submitted', '<=', monthEnd)
+            )
+        );
+        approvedTRsThisMonthCount = snap.size;
+    } catch (e) {
+        console.warn('[Finance] Could not load approved TR count:', e);
+        approvedTRsThisMonthCount = 0;
+    }
 }
 
 /**
@@ -1956,6 +2068,22 @@ async function viewPRDetails(prId) {
         const pr = { id: prDoc.id, ...prDoc.data() };
         currentPRForApproval = pr;
         currentPRForRejection = pr;
+
+        // Fetch MRF justification for this PR
+        let mrfJustification = pr.justification || null;
+        if (!mrfJustification && pr.mrf_doc_id) {
+            try {
+                const mrfSnap = await getDoc(doc(db, 'mrfs', pr.mrf_doc_id));
+                if (mrfSnap.exists()) {
+                    mrfJustification = mrfSnap.data().justification || null;
+                }
+            } catch (e) { /* silent — justification is informational */ }
+        }
+        // Also try mrfCache if available
+        if (!mrfJustification && pr.mrf_id && mrfCache.has(pr.mrf_id)) {
+            mrfJustification = mrfCache.get(pr.mrf_id).justification || null;
+        }
+        mrfJustification = mrfJustification || '—';
 
         const items = JSON.parse(pr.items_json || '[]');
         const urgencyLevel = pr.urgency_level || 'Low';
@@ -1999,6 +2127,10 @@ async function viewPRDetails(prId) {
                 <div class="modal-detail-item full-width">
                     <div class="modal-detail-label">Delivery Address:</div>
                     <div class="modal-detail-value">${escapeHTML(pr.delivery_address || 'N/A')}</div>
+                </div>
+                <div class="modal-detail-item full-width">
+                    <div class="modal-detail-label">JUSTIFICATION:</div>
+                    <div class="modal-detail-value">${escapeHTML(mrfJustification)}</div>
                 </div>
                 <div class="modal-detail-item full-width">
                     <div class="modal-detail-label">Total Amount:</div>
@@ -2670,6 +2802,7 @@ async function loadPOs() {
         });
 
         renderPOs();
+        updateStats(); // Recalculate scoreboard when PO data changes
     });
 
     listeners.push(poListener);
