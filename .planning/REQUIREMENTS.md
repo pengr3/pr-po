@@ -51,13 +51,13 @@
 | TABLE-03 | Phase 54 | Pending |
 | FINANCE-01 | Phase 55 | Pending |
 | FINANCE-02 | Phase 55 | Pending |
+| SCORE-01 | Phase 55 | Pending |
 | UI-01 | Phase 56 | Pending |
 | UI-02 | Phase 56 | Pending |
 | UI-03 | Phase 56 | Pending |
 | UI-04 | Phase 56 | Pending |
 | UI-05 | Phase 56 | Pending |
 | UI-06 | Phase 56 | Pending |
-| SCORE-01 | Phase 57 | Pending |
 
 **Coverage:**
 - v1 requirements: 12 total
@@ -66,4 +66,4 @@
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap revision (SCORE-01 moved from Phase 57 to Phase 55; Phase 57 removed)*

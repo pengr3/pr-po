@@ -9,7 +9,7 @@
 - ✅ **v2.3 Services Department Support** — Phases 26-40 (shipped 2026-02-26)
 - ✅ **v2.4 Productivity & Polish** — Phases 41-48 (shipped 2026-03-01)
 - ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
-- 🔄 **v3.0 Fixes** — Phases 54-57 (active)
+- 🔄 **v3.0 Fixes** — Phases 54-56 (active)
 
 ## Phases
 
@@ -117,12 +117,11 @@
 
 </details>
 
-### v3.0 Fixes (Phases 54-57) — Active
+### v3.0 Fixes (Phases 54-56) — Active
 
 - [ ] **Phase 54: MRF Table PR/PO Alignment** - Display PO IDs inline beside PR IDs and align procurement status dropdowns per row
-- [ ] **Phase 55: Finance Pending Approvals Table Restructure** - Restructure PR and TR table columns (remove Status, add Date Issued/Date Needed)
+- [ ] **Phase 55: Finance Pending Approvals Fixes** - Restructure PR and TR table columns (remove Status, add Date Issued/Date Needed) and fix Approved This Month scoreboard count
 - [ ] **Phase 56: UI Layout Standardization** - Full-width MRF Processing and left-aligned sub-tab nav across all applicable tabs
-- [ ] **Phase 57: Finance Scoreboard Fix** - Correct Approved This Month count to reflect actual approved POs for current month
 
 ## Phase Details
 
@@ -136,13 +135,14 @@
   3. In Procurement MRF Records, the Procurement Status dropdown sits on the same row as its PR/PO pair — it does not float above or below adjacent rows
 **Plans**: TBD
 
-### Phase 55: Finance Pending Approvals Table Restructure
-**Goal**: Finance reviewers see actionable date and project context in the Pending Approvals tables instead of a redundant Status column
+### Phase 55: Finance Pending Approvals Fixes
+**Goal**: Finance reviewers see actionable date and project context in the Pending Approvals tables instead of a redundant Status column, and the Approved This Month scoreboard reflects an accurate PO count
 **Depends on**: Nothing (independent of Phase 54)
-**Requirements**: FINANCE-01, FINANCE-02
+**Requirements**: FINANCE-01, FINANCE-02, SCORE-01
 **Success Criteria** (what must be TRUE):
   1. Material Purchase Requests table columns appear in this order: PR ID, MRF ID, Department/Project, Date Issued, Date Needed, Urgency, Total Cost, Supplier — no Status column present
   2. Transport Requests table has a "Date Issued" column header (not "Date"), a "Date Needed" column present, and no "Status" column
+  3. The "Approved This Month" scoreboard number matches the actual count of PO documents with approval dates in the current calendar month — it does not include PRs, TRs, or POs from prior months
 **Plans**: TBD
 
 ### Phase 56: UI Layout Standardization
@@ -154,15 +154,6 @@
   2. The Pending MRFs panel left edge aligns to the same horizontal position as the Finance tab's left content margin (logo-aligned)
   3. The MRF Details panel right edge aligns to the same horizontal position as the Finance tab's right content margin (Logout-aligned)
   4. Material Request, Procurement, and Admin sub-tab nav bars each left-align to the logo position, matching the Finance sub-tab nav alignment
-**Plans**: TBD
-
-### Phase 57: Finance Scoreboard Fix
-**Goal**: The Finance Pending Approvals "Approved This Month" scoreboard reflects an accurate count of approved POs for the current calendar month
-**Depends on**: Nothing (isolated query/count fix)
-**Requirements**: SCORE-01
-**Success Criteria** (what must be TRUE):
-  1. The "Approved This Month" scoreboard number matches the actual count of PO documents with approval dates in the current calendar month
-  2. The count does not include PRs, TRs, or POs from prior months
 **Plans**: TBD
 
 ## Progress
@@ -179,9 +170,8 @@
 | 54 | v3.0 | 0/TBD | Not started | - |
 | 55 | v3.0 | 0/TBD | Not started | - |
 | 56 | v3.0 | 0/TBD | Not started | - |
-| 57 | v3.0 | 0/TBD | Not started | - |
 
 **Total shipped: 53 phases, 140 plans, 7 milestones**
 
 ---
-*Last updated: 2026-03-04 after v3.0 roadmap created*
+*Last updated: 2026-03-04 after v3.0 roadmap revised (Phase 57 removed, SCORE-01 merged into Phase 55)*
