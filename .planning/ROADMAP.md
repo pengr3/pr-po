@@ -146,7 +146,9 @@ Plans:
   1. Material Purchase Requests table columns appear in this order: PR ID, MRF ID, Department/Project, Date Issued, Date Needed, Urgency, Total Cost, Supplier — no Status column present
   2. Transport Requests table has a "Date Issued" column header (not "Date"), a "Date Needed" column present, and no "Status" column
   3. The "Approved This Month" scoreboard number matches the actual count of PO documents with approval dates in the current calendar month — it does not include PRs, TRs, or POs from prior months
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 55-01-PLAN.md — Restructure PR/TR table columns, add JUSTIFICATION to PR modal, fix Approved This Month scoreboard (finance.js)
 
 ### Phase 56: UI Layout Standardization
 **Goal**: MRF Processing fills the full viewport width and sub-tab nav bars across Material Request, Procurement, and Admin tabs align to the same left position as the Finance tab
@@ -170,11 +172,11 @@ Plans:
 | 26-40 | v2.3 | 34/34 | Complete | 2026-02-26 |
 | 41-48 | v2.4 | 24/24 | Complete | 2026-03-01 |
 | 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
-| 54 | 2/2 | Complete    | 2026-03-04 | - |
-| 55 | v3.0 | 0/TBD | Not started | - |
+| 54 | v3.0 | 2/2 | Complete | 2026-03-04 |
+| 55 | v3.0 | 0/1 | Not started | - |
 | 56 | v3.0 | 0/TBD | Not started | - |
 
 **Total shipped: 53 phases, 140 plans, 7 milestones**
 
 ---
-*Last updated: 2026-03-04 — Phase 54 planned (2 plans)*
+*Last updated: 2026-03-04 — Phase 55 planned (1 plan)*
