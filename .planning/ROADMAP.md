@@ -173,7 +173,7 @@ Plans:
 | 41-48 | v2.4 | 24/24 | Complete | 2026-03-01 |
 | 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
 | 54 | v3.0 | 2/2 | Complete | 2026-03-04 |
-| 55 | 1/1 | Complete   | 2026-03-04 | - |
+| 55 | 1/1 | Complete    | 2026-03-04 | - |
 | 56 | v3.0 | 0/TBD | Not started | - |
 
 **Total shipped: 53 phases, 140 plans, 7 milestones**
