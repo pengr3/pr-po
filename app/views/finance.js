@@ -1822,7 +1822,7 @@ function renderMaterialPRs() {
             <tr>
                 <td><strong>${pr.pr_id}</strong></td>
                 <td>${pr.mrf_id}</td>
-                <td>${escapeHTML(pr.project_name || pr.service_name || 'N/A')}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(pr)} ${escapeHTML(pr.project_name || pr.service_name || 'N/A')}</span></td>
                 <td>${formatDate(pr.date_generated)}</td>
                 <td>${mrfCache.get(pr.mrf_id)?.date_needed ? formatDate(mrfCache.get(pr.mrf_id).date_needed) : '—'}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
@@ -1889,7 +1889,7 @@ function renderTransportRequests() {
             <tr>
                 <td><strong>${tr.tr_id}</strong></td>
                 <td>${tr.mrf_id}</td>
-                <td>${escapeHTML(tr.project_name || tr.service_name || 'N/A')}</td>
+                <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(tr)} ${escapeHTML(tr.project_name || tr.service_name || 'N/A')}</span></td>
                 <td>${formatDate(tr.date_submitted)}</td>
                 <td>${mrfCache.get(tr.mrf_id)?.date_needed ? formatDate(mrfCache.get(tr.mrf_id).date_needed) : '—'}</td>
                 <td><span style="background: ${colors.bg}; color: ${colors.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${urgencyLevel}</span></td>
