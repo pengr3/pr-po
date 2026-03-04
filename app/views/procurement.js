@@ -2658,7 +2658,6 @@ async function renderPRPORecords() {
         const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
 
         // Fetch PRs for this MRF
-        let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
         let totalCost = 0;
         let prCount = 0;
         let prApprovedCount = 0;
