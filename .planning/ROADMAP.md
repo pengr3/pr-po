@@ -133,7 +133,10 @@
   1. In My Requests, each PR row shows its PO ID directly beside the PR ID; rows with no PO show a clear null/empty slot in the same position
   2. In Procurement MRF Records, each PR row shows its PO ID directly beside the PR ID with the same null-slot behavior
   3. In Procurement MRF Records, the Procurement Status dropdown sits on the same row as its PR/PO pair — it does not float above or below adjacent rows
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 54-01-PLAN.md — Fix My Requests table: pair PR+PO inline with null-slot behavior (mrf-records.js)
+- [ ] 54-02-PLAN.md — Fix MRF Records table: pair PR+PO+status-dropdown inline per row (procurement.js)
 
 ### Phase 55: Finance Pending Approvals Fixes
 **Goal**: Finance reviewers see actionable date and project context in the Pending Approvals tables instead of a redundant Status column, and the Approved This Month scoreboard reflects an accurate PO count
@@ -167,11 +170,11 @@
 | 26-40 | v2.3 | 34/34 | Complete | 2026-02-26 |
 | 41-48 | v2.4 | 24/24 | Complete | 2026-03-01 |
 | 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
-| 54 | v3.0 | 0/TBD | Not started | - |
+| 54 | v3.0 | 0/2 | Not started | - |
 | 55 | v3.0 | 0/TBD | Not started | - |
 | 56 | v3.0 | 0/TBD | Not started | - |
 
 **Total shipped: 53 phases, 140 plans, 7 milestones**
 
 ---
-*Last updated: 2026-03-04 after v3.0 roadmap revised (Phase 57 removed, SCORE-01 merged into Phase 55)*
+*Last updated: 2026-03-04 — Phase 54 planned (2 plans)*
