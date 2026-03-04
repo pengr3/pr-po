@@ -360,8 +360,8 @@ async function handleSave() {
                 }
             }
 
-            // Add to batch
-            batch.update(roleRef, updateObj);
+            // Add to batch (set with merge handles missing docs in dev DB)
+            batch.set(roleRef, updateObj, { merge: true });
         }
 
         // Commit batch
