@@ -741,7 +741,7 @@ export function render(activeTab = 'approvals') {
                                 <th onclick="window.sortMaterialPRs('mrf_id')" style="cursor: pointer; user-select: none;">MRF ID <span class="sort-indicator" data-col="mrf_id"></span></th>
                                 <th>Department / Project</th>
                                 <th onclick="window.sortMaterialPRs('date_generated')" style="cursor: pointer; user-select: none;">Date Issued <span class="sort-indicator" data-col="date_generated"></span></th>
-                                <th>Date Needed</th>
+                                <th onclick="window.sortMaterialPRs('mrf_date_needed')" style="cursor: pointer; user-select: none;">Date Needed <span class="sort-indicator" data-col="mrf_date_needed"></span></th>
                                 <th onclick="window.sortMaterialPRs('urgency_level')" style="cursor: pointer; user-select: none;">Urgency <span class="sort-indicator" data-col="urgency_level"></span></th>
                                 <th onclick="window.sortMaterialPRs('total_amount')" style="cursor: pointer; user-select: none; text-align: right;">Total Cost <span class="sort-indicator" data-col="total_amount"></span></th>
                                 <th onclick="window.sortMaterialPRs('supplier_name')" style="cursor: pointer; user-select: none;">Supplier <span class="sort-indicator" data-col="supplier_name"></span></th>
@@ -770,7 +770,7 @@ export function render(activeTab = 'approvals') {
                                 <th onclick="window.sortTransportRequests('mrf_id')" style="cursor: pointer; user-select: none;">MRF ID <span class="sort-indicator" data-col="mrf_id"></span></th>
                                 <th>Project</th>
                                 <th onclick="window.sortTransportRequests('date_submitted')" style="cursor: pointer; user-select: none;">Date Issued <span class="sort-indicator" data-col="date_submitted"></span></th>
-                                <th>Date Needed</th>
+                                <th onclick="window.sortTransportRequests('mrf_date_needed')" style="cursor: pointer; user-select: none;">Date Needed <span class="sort-indicator" data-col="mrf_date_needed"></span></th>
                                 <th onclick="window.sortTransportRequests('urgency_level')" style="cursor: pointer; user-select: none;">Urgency <span class="sort-indicator" data-col="urgency_level"></span></th>
                                 <th onclick="window.sortTransportRequests('total_amount')" style="cursor: pointer; user-select: none; text-align: right;">Total Cost <span class="sort-indicator" data-col="total_amount"></span></th>
                                 <th>Service Type</th>
@@ -1930,10 +1930,10 @@ function sortMaterialPRs(column) {
         prSortDirection = 'asc';
     }
     materialPRs.sort((a, b) => {
-        let aVal = a[column];
-        let bVal = b[column];
-        if (aVal == null) return prSortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return prSortDirection === 'asc' ? -1 : 1;
+        let aVal = column === 'mrf_date_needed' ? (mrfCache.get(a.mrf_id)?.date_needed || '') : a[column];
+        let bVal = column === 'mrf_date_needed' ? (mrfCache.get(b.mrf_id)?.date_needed || '') : b[column];
+        if (aVal == null || aVal === '') return prSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null || bVal === '') return prSortDirection === 'asc' ? -1 : 1;
         if (typeof aVal === 'string') {
             return prSortDirection === 'asc'
                 ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
@@ -1954,10 +1954,10 @@ function sortTransportRequests(column) {
         trSortDirection = 'asc';
     }
     transportRequests.sort((a, b) => {
-        let aVal = a[column];
-        let bVal = b[column];
-        if (aVal == null) return trSortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return trSortDirection === 'asc' ? -1 : 1;
+        let aVal = column === 'mrf_date_needed' ? (mrfCache.get(a.mrf_id)?.date_needed || '') : a[column];
+        let bVal = column === 'mrf_date_needed' ? (mrfCache.get(b.mrf_id)?.date_needed || '') : b[column];
+        if (aVal == null || aVal === '') return trSortDirection === 'asc' ? 1 : -1;
+        if (bVal == null || bVal === '') return trSortDirection === 'asc' ? -1 : 1;
         if (typeof aVal === 'string') {
             return trSortDirection === 'asc'
                 ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
