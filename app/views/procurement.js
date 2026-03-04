@@ -163,7 +163,7 @@ export function render(activeTab = 'mrfs') {
     return `
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 1px solid var(--gray-200);">
-            <div style="max-width: 1400px; margin: 0 auto; padding: 0 2rem;">
+            <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
                     <a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">
                         MRF Processing
@@ -178,7 +178,7 @@ export function render(activeTab = 'mrfs') {
             </div>
         </div>
 
-        <div class="container" style="margin-top: 2rem;">
+        <div style="max-width: 1600px; margin: 2rem auto 0; padding: 0 2rem;">
             <!-- MRF Processing Section -->
             <section id="mrfs-section" class="section ${activeTab === 'mrfs' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view MRF data but cannot create or process MRFs.</span></div>' : ''}
