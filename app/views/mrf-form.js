@@ -25,15 +25,19 @@ let myRequestsController = null;
 
 function renderSubTabNav(activeTab) {
     return `
-        <div class="tabs-nav" style="background: white; border-bottom: 1px solid var(--gray-200); padding: 0 2rem;">
-            <button class="tab-btn ${activeTab === 'form' ? 'active' : ''}"
-                onclick="window.navigateToTab('form')">
-                Material Request Form
-            </button>
-            <button class="tab-btn ${activeTab === 'my-requests' ? 'active' : ''}"
-                onclick="window.navigateToTab('my-requests')">
-                My Requests
-            </button>
+        <div style="background: white; border-bottom: 1px solid var(--gray-200);">
+            <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
+                <div class="tabs-nav">
+                    <button class="tab-btn ${activeTab === 'form' ? 'active' : ''}"
+                        onclick="window.navigateToTab('form')">
+                        Material Request Form
+                    </button>
+                    <button class="tab-btn ${activeTab === 'my-requests' ? 'active' : ''}"
+                        onclick="window.navigateToTab('my-requests')">
+                        My Requests
+                    </button>
+                </div>
+            </div>
         </div>
     `;
 }

@@ -52,7 +52,7 @@ export function render(activeSection = 'users') {
     return `
         <!-- Admin Section Navigation -->
         <div style="background: white; border-bottom: 1px solid var(--gray-200);">
-            <div style="max-width: 1400px; margin: 0 auto; padding: 0 2rem;">
+            <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
                     ${sectionButtons}
                 </div>
