@@ -1,14 +1,27 @@
 ---
 gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: Fixes
+status: unknown
+last_updated: "2026-03-04T03:33:38.933Z"
+progress:
+  total_phases: 41
+  completed_phases: 40
+  total_plans: 112
+  completed_plans: 109
+---
+
+---
+gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Fixes
-status: roadmap-ready
-last_updated: "2026-03-04T00:00:00Z"
+status: in-progress
+last_updated: "2026-03-04T03:32:30Z"
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -22,13 +35,13 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 
 ## Current Position
 
-Phase: 54 (not started)
-Plan: —
-Status: Roadmap ready — awaiting phase planning
-Last activity: 2026-03-04 — v3.0 roadmap revised (3 phases, 12 requirements; SCORE-01 merged into Phase 55, Phase 57 removed)
+Phase: 54
+Plan: 01 (complete)
+Status: Phase 54 Plan 01 complete — My Requests table PR/PO alignment done
+Last activity: 2026-03-04 — Executed 54-01-PLAN.md; collapsed PRs/POs/Procurement Status into paired PRs/POs column
 
 ```
-v3.0 Progress: [░░░] 0/3 phases complete
+v3.0 Progress: [░░░] 0/3 phases complete (Phase 54 in progress — 1/1 plan done)
 ```
 
 ## Performance Metrics
@@ -49,6 +62,7 @@ v3.0 Progress: [░░░] 0/3 phases complete
 | v2.4 | 10 | 3 | 0.3 |
 | v2.5 | 7 | 2 | 0.3 |
 | v3.0 | 3 | - | - |
+| Phase 54-mrf-table-pr-po-alignment P02 | 15 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -62,6 +76,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 53.2-seed-dev-database]: addDoc (not setDoc) used for invitation_codes — two active codes is harmless, deduplication not needed
 - [Phase 53.2-seed-dev-database]: Localhost hostname guard at IIFE entry prevents accidental prod writes from the seed script
 - [v3.0-roadmap-revision]: SCORE-01 merged into Phase 55 (Finance Pending Approvals Fixes) — same view file as FINANCE-01/FINANCE-02, no reason to isolate in a separate phase; Phase 57 removed
+- [Phase 54-mrf-table-pr-po-alignment]: posByPrId index keyed by po.pr_id merges PR/PO columns; pr_id was missing from poDataArray push so it was added as part of the fix
 
 ### Roadmap Evolution
 

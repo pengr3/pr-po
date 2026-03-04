@@ -9,8 +9,8 @@
 ### MRF Table Fixes (PR/PO Alignment)
 
 - [ ] **TABLE-01**: In Material Request > My Requests, each PO ID is displayed inline beside its corresponding PR ID (null slot shown when PR has no PO yet)
-- [ ] **TABLE-02**: In Procurement > MRF Records, each PO ID is displayed inline beside its corresponding PR ID (null slot shown when PR has no PO yet)
-- [ ] **TABLE-03**: In Procurement > MRF Records, the Procurement Status dropdown is row-aligned to its specific PR/PO pair (not floating or misaligned)
+- [x] **TABLE-02**: In Procurement > MRF Records, each PO ID is displayed inline beside its corresponding PR ID (null slot shown when PR has no PO yet)
+- [x] **TABLE-03**: In Procurement > MRF Records, the Procurement Status dropdown is row-aligned to its specific PR/PO pair (not floating or misaligned)
 
 ### Finance Pending Approvals Table Restructure
 
@@ -47,8 +47,8 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TABLE-01 | Phase 54 | Pending |
-| TABLE-02 | Phase 54 | Pending |
-| TABLE-03 | Phase 54 | Pending |
+| TABLE-02 | Phase 54 | Complete |
+| TABLE-03 | Phase 54 | Complete |
 | FINANCE-01 | Phase 55 | Pending |
 | FINANCE-02 | Phase 55 | Pending |
 | SCORE-01 | Phase 55 | Pending |
