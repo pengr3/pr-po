@@ -1083,8 +1083,10 @@ export function createMRFRecordsController(options) {
         const rows = await Promise.all(pageItems.map(async (mrf) => {
             const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
 
-            // PRs / POs paired column
-            let prPoHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+            // PRs | POs | Procurement Status columns (aligned sub-rows per PR/PO pair)
+            let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+            let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+            let procStatusHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
             let prDataArray = [];
             let poDataArray = [];
 
@@ -1156,51 +1158,57 @@ export function createMRFRecordsController(options) {
                     posByPrId[key].push(po);
                 });
 
-                // Build paired PR → PO rows
+                // Build aligned sub-rows for PRs | POs | Procurement Status columns
                 if (prDataArray.length > 0) {
-                    const pairRows = prDataArray.map(pr => {
+                    const rowStyle = (i) => i === 0
+                        ? 'height: 30px; display: flex; align-items: center;'
+                        : 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;';
+
+                    prHtml = prDataArray.map((pr, i) => {
                         const statusClass = getStatusClass(pr.finance_status || 'Pending');
-                        const prBadge = `<a class="status-badge ${statusClass}"
-                            style="font-size: 0.75rem; display: inline-block; cursor: pointer; text-decoration: none; white-space: nowrap;"
-                            onclick="window['_mrfRecordsViewPR_${containerId}']('${pr.docId}')">
-                            ${escapeHTML(pr.pr_id)}
-                        </a>`;
+                        return `<div style="${rowStyle(i)}">
+                            <a class="status-badge ${statusClass}"
+                                style="font-size: 0.75rem; display: inline-block; cursor: pointer; text-decoration: none; white-space: nowrap;"
+                                onclick="window['_mrfRecordsViewPR_${containerId}']('${pr.docId}')">
+                                ${escapeHTML(pr.pr_id)}
+                            </a>
+                        </div>`;
+                    }).join('');
 
+                    poHtml = prDataArray.map((pr, i) => {
                         const matchedPOs = posByPrId[pr.pr_id] || [];
-
-                        let poCell;
+                        let content;
                         if (matchedPOs.length === 0) {
-                            // Null slot — PR exists but no PO issued yet
-                            poCell = `<span style="color: #94a3b8; font-size: 0.75rem; font-style: italic;">&#8212;</span>`;
+                            content = `<span style="color: #94a3b8; font-size: 0.75rem; font-style: italic;">&#8212;</span>`;
                         } else {
-                            poCell = matchedPOs.map(po => {
+                            content = matchedPOs.map(po => {
+                                const isSubcon = po.is_subcon;
+                                const subconBadge = isSubcon
+                                    ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>'
+                                    : '';
+                                return `<a style="color: #34a853; font-weight: 600; font-size: 0.8rem; cursor: pointer; text-decoration: none; white-space: nowrap;"
+                                    onclick="window['_mrfRecordsViewPO_${containerId}']('${po.docId}')">${escapeHTML(po.po_id)}</a>${subconBadge}`;
+                            }).join(' ');
+                        }
+                        return `<div style="${rowStyle(i)}">${content}</div>`;
+                    }).join('');
+
+                    procStatusHtml = prDataArray.map((pr, i) => {
+                        const matchedPOs = posByPrId[pr.pr_id] || [];
+                        let content;
+                        if (matchedPOs.length === 0) {
+                            content = `<span style="color: #94a3b8; font-size: 0.75rem;">&#8212;</span>`;
+                        } else {
+                            content = matchedPOs.map(po => {
                                 const isSubcon = po.is_subcon;
                                 const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
                                 const currentStatus = po.procurement_status || defaultStatus;
                                 const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
-                                const statusBadge = `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: 600; font-size: 0.7rem; white-space: nowrap;">${escapeHTML(currentStatus)}</span>`;
-                                const subconBadge = isSubcon
-                                    ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>'
-                                    : '';
-                                return `<span style="display: inline-flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">
-                                    <a style="color: #34a853; font-weight: 600; font-size: 0.8rem; cursor: pointer; text-decoration: none; white-space: nowrap;"
-                                       onclick="window['_mrfRecordsViewPO_${containerId}']('${po.docId}')">${escapeHTML(po.po_id)}</a>${subconBadge}
-                                    ${statusBadge}
-                                </span>`;
-                            }).join('<br>');
+                                return `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: 600; font-size: 0.7rem; white-space: nowrap;">${escapeHTML(currentStatus)}</span>`;
+                            }).join(' ');
                         }
-
-                        return `<div style="display: grid; grid-template-columns: max-content max-content 1fr; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px dashed #e5e7eb;">
-                            ${prBadge}
-                            <span style="color: #94a3b8; font-size: 0.7rem;">&#8594;</span>
-                            ${poCell}
-                        </div>`;
-                    });
-
-                    // Remove the top border on the first pair row
-                    prPoHtml = `<div style="display: flex; flex-direction: column;">
-                        ${pairRows.map((row, i) => i === 0 ? row.replace('border-top: 1px dashed #e5e7eb;', 'border-top: none;') : row).join('')}
-                    </div>`;
+                        return `<div style="${rowStyle(i)}">${content}</div>`;
+                    }).join('');
                 }
             }
 
@@ -1224,8 +1232,10 @@ export function createMRFRecordsController(options) {
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${escapeHTML(displayId)}</strong></td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${dateNeeded}</td>
-                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prPoHtml}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">${mrfStatusHtml}</td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${procStatusHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                         <button class="btn btn-sm btn-secondary"
                             onclick="window['_mrfRecordsTimeline_${containerId}']('${mrf.mrf_id}')"
@@ -1245,8 +1255,10 @@ export function createMRFRecordsController(options) {
                         <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF ID</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
                         <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date Needed</th>
-                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs / POs</th>
+                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
+                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF Status</th>
+                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Procurement Status</th>
                         <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                     </tr>
                 </thead>

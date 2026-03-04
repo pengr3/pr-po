@@ -2868,31 +2868,68 @@ async function renderPRPORecords() {
             posByPrId[key].push(po);
         });
 
-        let prPoHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let prHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let poHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+        let procStatusHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
 
         if (type === 'Material' && prDataArray.length > 0) {
-            const pairRows = prDataArray.map(pr => {
+            const rowStyle = (i) => i === 0
+                ? 'height: 30px; display: flex; align-items: center;'
+                : 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;';
+
+            prHtml = prDataArray.map((pr, i) => {
                 const statusClass = getStatusClass(pr.finance_status || 'Pending');
-                const prBadge = `<a href="javascript:void(0)"
-                    onclick="window.viewPRDetails('${pr.docId}')"
-                    class="status-badge ${statusClass}"
-                    style="font-size: 0.75rem; text-decoration: none; cursor: pointer; display: inline-block; white-space: nowrap;">
-                    ${escapeHTML(pr.pr_id)}
-                </a>`;
+                return `<div style="${rowStyle(i)}">
+                    <a href="javascript:void(0)"
+                        onclick="window.viewPRDetails('${pr.docId}')"
+                        class="status-badge ${statusClass}"
+                        style="font-size: 0.75rem; text-decoration: none; cursor: pointer; display: inline-block; white-space: nowrap;">
+                        ${escapeHTML(pr.pr_id)}
+                    </a>
+                </div>`;
+            }).join('');
 
+            poHtml = prDataArray.map((pr, i) => {
                 const matchedPOs = posByPrId[pr.pr_id] || [];
-
-                let poCell;
+                let content;
                 if (matchedPOs.length === 0) {
-                    // Null slot — no PO issued for this PR yet
-                    poCell = `<span style="color: #94a3b8; font-size: 0.75rem; font-style: italic; white-space: nowrap;">\u2014 no PO</span>`;
+                    content = `<span style="color: #94a3b8; font-size: 0.75rem; font-style: italic;">&#8212;</span>`;
                 } else {
-                    poCell = matchedPOs.map(po => {
+                    content = matchedPOs.map(po => {
+                        const isSubcon = po.is_subcon;
+                        const subconBadge = isSubcon
+                            ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>'
+                            : '';
+                        return `<a href="javascript:void(0)"
+                            onclick="window.viewPODetails('${po.docId}')"
+                            style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; white-space: nowrap; cursor: pointer;">
+                            ${escapeHTML(po.po_id)}</a>${subconBadge}`;
+                    }).join(' ');
+                }
+                return `<div style="${rowStyle(i)}">${content}</div>`;
+            }).join('');
+
+            const poStatusColors = {
+                'Pending Procurement': { bg: '#fef3c7', color: '#f59e0b' },
+                'Pending': { bg: '#fef3c7', color: '#f59e0b' },
+                'Procuring': { bg: '#dbeafe', color: '#3b82f6' },
+                'Processing': { bg: '#dbeafe', color: '#3b82f6' },
+                'Procured': { bg: '#d1fae5', color: '#22c55e' },
+                'Processed': { bg: '#d1fae5', color: '#22c55e' },
+                'Delivered': { bg: '#eff6ff', color: '#2563eb' }
+            };
+
+            procStatusHtml = prDataArray.map((pr, i) => {
+                const matchedPOs = posByPrId[pr.pr_id] || [];
+                let content;
+                if (matchedPOs.length === 0) {
+                    content = `<span style="color: #94a3b8; font-size: 0.75rem;">&#8212;</span>`;
+                } else {
+                    content = matchedPOs.map(po => {
                         const isSubcon = po.is_subcon;
                         const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
                         const currentStatus = po.procurement_status || defaultStatus;
                         const isFinalStatus = isSubcon ? currentStatus === 'Processed' : currentStatus === 'Delivered';
-
                         let statusOptions;
                         if (isSubcon) {
                             statusOptions = `
@@ -2908,28 +2945,8 @@ async function renderPRPORecords() {
                                 <option value="Delivered" ${currentStatus === 'Delivered' ? 'selected' : ''}>Delivered</option>
                             `;
                         }
-
-                        const statusColors = {
-                            'Pending Procurement': { bg: '#fef3c7', color: '#f59e0b' },
-                            'Pending': { bg: '#fef3c7', color: '#f59e0b' },
-                            'Procuring': { bg: '#dbeafe', color: '#3b82f6' },
-                            'Processing': { bg: '#dbeafe', color: '#3b82f6' },
-                            'Procured': { bg: '#d1fae5', color: '#22c55e' },
-                            'Processed': { bg: '#d1fae5', color: '#22c55e' },
-                            'Delivered': { bg: '#eff6ff', color: '#2563eb' }
-                        };
-                        const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
-
-                        const subconBadge = isSubcon
-                            ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>'
-                            : '';
-
-                        const poLink = `<a href="javascript:void(0)"
-                            onclick="window.viewPODetails('${po.docId}')"
-                            style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; white-space: nowrap; cursor: pointer;">
-                            ${escapeHTML(po.po_id)}</a>${subconBadge}`;
-
-                        const statusControl = showEditControls
+                        const statusColor = poStatusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
+                        return showEditControls
                             ? `<select class="status-select" data-po-id="${po.docId}" data-is-subcon="${isSubcon}"
                                     onchange="window.updatePOStatus('${po.docId}', this.value, '${currentStatus}', ${isSubcon})"
                                     ${isFinalStatus ? 'disabled' : ''}
@@ -2937,24 +2954,10 @@ async function renderPRPORecords() {
                                 ${statusOptions}
                                </select>`
                             : `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: 600; font-size: 0.72rem;">${escapeHTML(currentStatus)}</span>`;
-
-                        return `<span style="display: inline-flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-                            ${poLink}
-                            ${statusControl}
-                        </span>`;
-                    }).join('<br>');
+                    }).join(' ');
                 }
-
-                return `<div style="display: grid; grid-template-columns: max-content max-content 1fr; align-items: center; gap: 0.5rem; padding: 0.3rem 0; border-top: 1px dashed #e5e7eb;">
-                    ${prBadge}
-                    <span style="color: #94a3b8; font-size: 0.7rem;">\u2192</span>
-                    ${poCell}
-                </div>`;
-            });
-
-            prPoHtml = `<div style="display: flex; flex-direction: column;">
-                ${pairRows.map((row, i) => i === 0 ? row.replace('border-top: 1px dashed #e5e7eb;', 'border-top: none;') : row).join('')}
-            </div>`;
+                return `<div style="${rowStyle(i)}">${content}</div>`;
+            }).join('');
         }
 
         return `
@@ -2962,10 +2965,12 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${escapeHTML(displayId)}</strong></td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${mrf.date_needed ? formatDate(mrf.date_needed) : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A')}</td>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prPoHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
                     ${mrfStatusHtml}
                 </td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${procStatusHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
                     <button class="btn btn-sm btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; white-space: nowrap;" onclick="window.showProcurementTimeline('${mrf.mrf_id}')">
                         Timeline
@@ -2988,9 +2993,13 @@ async function renderPRPORecords() {
                     <th onclick="window.sortPRPORecords('date_needed')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
                         Date Needed ${getPRPOSortIndicator('date_needed')}
                     </th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs / POs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
                     <th onclick="window.sortPRPORecords('status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
                         MRF Status ${getPRPOSortIndicator('status')}
+                    </th>
+                    <th onclick="window.sortPRPORecords('procurement_status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
+                        Procurement Status ${getPRPOSortIndicator('procurement_status')}
                     </th>
                     <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                 </tr>
