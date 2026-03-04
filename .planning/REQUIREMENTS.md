@@ -19,12 +19,12 @@
 
 ### UI Layout Fixes
 
-- [ ] **UI-01**: MRF Processing tab: work area stretches to full viewport width (no narrow box constraint)
-- [ ] **UI-02**: MRF Processing tab: Pending MRFs panel left-edge aligns to logo alignment (matches Finance tab's left margin)
-- [ ] **UI-03**: MRF Processing tab: MRF Details panel right-edge stretches to Logout button alignment (matches Finance tab's right margin)
-- [ ] **UI-04**: Material Request sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
-- [ ] **UI-05**: Procurement sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
-- [ ] **UI-06**: Admin sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
+- [x] **UI-01**: MRF Processing tab: work area stretches to full viewport width (no narrow box constraint)
+- [x] **UI-02**: MRF Processing tab: Pending MRFs panel left-edge aligns to logo alignment (matches Finance tab's left margin)
+- [x] **UI-03**: MRF Processing tab: MRF Details panel right-edge stretches to Logout button alignment (matches Finance tab's right margin)
+- [x] **UI-04**: Material Request sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
+- [x] **UI-05**: Procurement sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
+- [x] **UI-06**: Admin sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
 
 ### Finance Scoreboard Fix
 
@@ -52,12 +52,12 @@
 | FINANCE-01 | Phase 55 | Complete |
 | FINANCE-02 | Phase 55 | Complete |
 | SCORE-01 | Phase 55 | Complete |
-| UI-01 | Phase 56 | Pending |
-| UI-02 | Phase 56 | Pending |
-| UI-03 | Phase 56 | Pending |
-| UI-04 | Phase 56 | Pending |
-| UI-05 | Phase 56 | Pending |
-| UI-06 | Phase 56 | Pending |
+| UI-01 | Phase 56 | Complete |
+| UI-02 | Phase 56 | Complete |
+| UI-03 | Phase 56 | Complete |
+| UI-04 | Phase 56 | Complete |
+| UI-05 | Phase 56 | Complete |
+| UI-06 | Phase 56 | Complete |
 
 **Coverage:**
 - v1 requirements: 12 total
