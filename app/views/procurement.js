@@ -360,6 +360,8 @@ export function render(activeTab = 'mrfs') {
                                     <option value="">All MRF Statuses</option>
                                     <option value="PR Generated">PR Generated</option>
                                     <option value="TR Submitted">TR Submitted</option>
+                                    <option value="PR Rejected">PR Rejected</option>
+                                    <option value="TR Rejected">TR Rejected</option>
                                     <option value="Finance Approved">Finance Approved</option>
                                     <option value="PO Issued">PO Issued</option>
                                     <option value="Delivered">Delivered</option>
@@ -2318,7 +2320,7 @@ async function loadPRPORecords() {
     try {
         // Fetch all MRFs with historical statuses
         const mrfsRef = collection(db, 'mrfs');
-        const historicalStatuses = ['TR Submitted', 'PR Generated', 'PR Rejected', 'Finance Approved', 'PO Issued', 'Delivered', 'Completed'];
+        const historicalStatuses = ['TR Submitted', 'PR Generated', 'PR Rejected', 'TR Rejected', 'Finance Approved', 'PO Issued', 'Delivered', 'Completed'];
         const mrfQuery = query(mrfsRef, where('status', 'in', historicalStatuses));
         const mrfSnapshot = await getDocs(mrfQuery);
 
