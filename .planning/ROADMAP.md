@@ -235,7 +235,7 @@ Plans:
 **Goal:** Procurement users see newly created MRFs in the Records tab immediately after creation — no manual Refresh required. The MRF Records query fetches all statuses (not just historical ones), the filter dropdown exposes Pending/Approved options, and the 5-minute cache is invalidated after a new MRF is saved.
 **Requirements**: MRF-RECORDS-01
 **Depends on:** Phase 59
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 59.1-01-PLAN.md — Remove historicalStatuses query filter, add Pending/Approved to filter dropdown, invalidate cache in saveNewMRF (procurement.js)

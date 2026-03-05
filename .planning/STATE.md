@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 59 of 59 (TR Display + Sortable Headers + Timeline + Workspace Responsiveness) — In Progress
-Plan: 4 of 4 in Phase 59 — COMPLETE (59-04 done)
-Status: In Progress
-Last activity: 2026-03-05 — Phase 59 Plan 04 complete — fluid .dashboard-grid + 1400px responsive breakpoint for 1366px laptop screens
+Phase: 59.1 of 59.1 (Fix MRF Records Real-Time Rendering) — COMPLETE
+Plan: 1 of 1 in Phase 59.1 — COMPLETE (59.1-01 done)
+Status: Complete
+Last activity: 2026-03-05 — Phase 59.1 Plan 01 complete — removed historical status filter + cache invalidation so Pending/Approved MRFs appear instantly in Records tab
 
 Progress: [██████████] 97%
 
@@ -77,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase 59-03]: window._myRequestsSort wired as thin bridge to controller.sort() — consistent with existing _myRequestsFilter/Reload/ExportCSV pattern
 - [Phase 59]: Cache key is mrf.id (Firestore document ID) not mrf.mrf_id — consistent with onSnapshot pattern
 - [Phase 59]: Loading placeholder guarded by _subDataCache.size === 0 so only shown on cold start, not sort/filter/page
+- [Phase 59.1]: Remove server-side historicalStatuses filter from loadPRPORecords — all MRFs fetched, client-side filterPRPORecords() handles filtering; reset _prpoRecordsCachedAt = 0 in saveNewMRF success path so Records tab never serves stale cache after a create
 
 ### Roadmap Evolution
 
@@ -96,6 +97,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 59-04-PLAN.md — fluid .dashboard-grid + 1400px responsive breakpoint for 1366px laptop screens
+Stopped at: Completed 59.1-01-PLAN.md — MRF Records real-time rendering fix (Pending/Approved now visible, cache busted on create)
 Resume file: None
-Next action: Phase 59 complete — all 4 plans done
+Next action: Phase 59.1 complete — proceed to Phase 60 (TR rejection independence)
