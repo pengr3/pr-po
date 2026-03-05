@@ -2556,19 +2556,6 @@ async function approveTR(trId) {
             approved_by_uid: currentUser.uid
         });
 
-        // Update MRF status
-        const mrfsRef = collection(db, 'mrfs');
-        const mrfQuery = query(mrfsRef, where('mrf_id', '==', tr.mrf_id));
-        const mrfSnapshot = await getDocs(mrfQuery);
-
-        if (!mrfSnapshot.empty) {
-            const mrfDoc = mrfSnapshot.docs[0];
-            await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                status: 'Finance Approved',
-                updated_at: new Date().toISOString()
-            });
-        }
-
         // Close modal only after successful approval
         window.closePRModal();
 
@@ -2719,25 +2706,6 @@ async function submitRejection() {
                 approved_by_name: currentUser?.full_name || currentUser?.email || 'Finance User',
                 approved_by_uid: currentUser?.uid
             });
-
-            // Update MRF
-            const mrfsRef = collection(db, 'mrfs');
-            const mrfQuery = query(mrfsRef, where('mrf_id', '==', request.mrf_id));
-            const mrfSnapshot = await getDocs(mrfQuery);
-
-            if (!mrfSnapshot.empty) {
-                const mrfDoc = mrfSnapshot.docs[0];
-                await updateDoc(doc(db, 'mrfs', mrfDoc.id), {
-                    status: 'TR Rejected',
-                    rejected_tr_id: request.tr_id || request.pr_id,
-                    pr_rejection_reason: reason,
-                    rejection_reason: reason,
-                    is_rejected: true,
-                    rejected_by: currentUser?.full_name || currentUser?.email || 'Finance User',
-                    rejected_by_user_id: currentUser?.uid,
-                    updated_at: new Date().toISOString()
-                });
-            }
 
             showToast('Transport Request rejected', 'success');
         } else {
