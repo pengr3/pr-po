@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T08:09:14.040Z"
+last_updated: "2026-03-05T08:56:18.489Z"
 progress:
   total_phases: 43
   completed_phases: 42
-  total_plans: 117
-  completed_plans: 114
+  total_plans: 118
+  completed_plans: 115
 ---
 
 # Project State
@@ -53,6 +53,7 @@ Progress: [██████████] 97%
 | Phase 59 P04 | 1 | 1 tasks | 1 files |
 | Phase 59-02 P02 | 5 | 2 tasks | 2 files |
 | Phase 59 P03 | 2 | 2 tasks | 2 files |
+| Phase 59 P05 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - [Phase 59-02]: Approved PRs with rejection history emit 4 events: Submitted + Rejected + Resubmitted + Approved with POs — full audit trail visible in chronological order
 - [Phase 59]: Sort state in createMRFRecordsController closure resets naturally on controller re-creation — no explicit reset code needed
 - [Phase 59-03]: window._myRequestsSort wired as thin bridge to controller.sort() — consistent with existing _myRequestsFilter/Reload/ExportCSV pattern
+- [Phase 59]: Cache key is mrf.id (Firestore document ID) not mrf.mrf_id — consistent with onSnapshot pattern
+- [Phase 59]: Loading placeholder guarded by _subDataCache.size === 0 so only shown on cold start, not sort/filter/page
 
 ### Roadmap Evolution
 

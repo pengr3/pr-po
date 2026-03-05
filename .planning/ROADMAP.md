@@ -221,7 +221,7 @@ Plans:
 **Goal:** TR rows in tables show finance_status badges, Timeline shows full rejection/resubmission lifecycle, My Requests has sortable headers, and Procurement/Finance views fit 1366px laptop screens without zooming
 **Requirements**: TR-01, TR-02, TIMELINE-01, SORT-01, RESP-01
 **Depends on:** Phase 58
-**Plans:** 5 plans (4 original + 1 gap closure)
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 59-01-PLAN.md — TR finance_status badge in MRF Status column (mrf-records.js, procurement.js)
