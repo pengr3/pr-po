@@ -2317,6 +2317,17 @@ async function viewTRDetails(trId) {
                     </tfoot>
                 </table>
             </div>
+
+            ${tr.rejection_reason ? `
+                <div style="margin: 1rem 0; padding: 1rem; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;">
+                    <div style="font-weight: 600; color: #dc2626; margin-bottom: 0.5rem;">Previously Rejected</div>
+                    <div style="font-size: 0.875rem; color: #7f1d1d;">
+                        <strong>Reason:</strong> ${escapeHTML(tr.rejection_reason)}<br>
+                        <strong>Rejected by:</strong> ${escapeHTML(tr.rejected_by || 'Finance')}<br>
+                        ${tr.rejected_at ? `<strong>Rejected at:</strong> ${new Date(tr.rejected_at).toLocaleString()}` : ''}
+                    </div>
+                </div>
+            ` : ''}
         `;
 
         document.getElementById('prModalTitle').textContent = `Transport Request - ${tr.tr_id}`;
