@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T07:54:36.348Z"
+last_updated: "2026-03-05T07:57:22.614Z"
 progress:
   total_phases: 43
   completed_phases: 41
   total_plans: 117
-  completed_plans: 111
+  completed_plans: 112
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 ## Current Position
 
 Phase: 59 of 59 (TR Display + Sortable Headers + Timeline + Workspace Responsiveness) — In Progress
-Plan: 1 of 4 in Phase 59 — COMPLETE (59-01 done)
+Plan: 4 of 4 in Phase 59 — COMPLETE (59-04 done)
 Status: In Progress
-Last activity: 2026-03-05 — Phase 59 Plan 01 complete — TR finance_status badge in My Requests and Procurement MRF Records tables
+Last activity: 2026-03-05 — Phase 59 Plan 04 complete — fluid .dashboard-grid + 1400px responsive breakpoint for 1366px laptop screens
 
 Progress: [██████████] 97%
 
@@ -50,6 +50,7 @@ Progress: [██████████] 97%
 | Phase 057 P01 | 1 | 2 tasks | 2 files |
 | Phase 58 P02 | 45s | 2 tasks | 2 files |
 | Phase 59 P01 | 2min | 2 tasks | 2 files |
+| Phase 59 P04 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [Phase 58]: TR Rejected status added to canEdit checks in renderMRFDetails() and updateActionButtons() — all resubmittable MRF statuses now consistent
 - [Phase 58]: PR Rejected and TR Rejected added to histStatusFilter dropdown and historicalStatuses query so Records tab fetches and filters rejected MRFs
 - [Phase 59]: TR finance_status fetched from transport_requests collection per-row; not stored on mrfs document — must be fetched separately for Transport rows
+- [Phase 59]: Used minmax(280px, 320px) for .dashboard-grid left panel to gain ~30px vs fixed 350px and allow shrinkage on tight viewports
 
 ### Roadmap Evolution
 
@@ -83,6 +85,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 59-01-PLAN.md — TR finance_status badge in My Requests and Procurement MRF Records
+Stopped at: Completed 59-04-PLAN.md — fluid .dashboard-grid + 1400px responsive breakpoint for 1366px laptop screens
 Resume file: None
-Next action: Continue Phase 59 — Plan 02 (sortable headers, timeline logging, workspace responsiveness)
+Next action: Phase 59 complete — all 4 plans done
