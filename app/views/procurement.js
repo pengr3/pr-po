@@ -2320,11 +2320,9 @@ async function loadPRPORecords() {
     showLoading(true);
 
     try {
-        // Fetch all MRFs with historical statuses
+        // Fetch all MRFs (all statuses including Pending and Approved)
         const mrfsRef = collection(db, 'mrfs');
-        const historicalStatuses = ['TR Submitted', 'PR Generated', 'PR Rejected', 'TR Rejected', 'Finance Approved', 'PO Issued', 'Delivered', 'Completed'];
-        const mrfQuery = query(mrfsRef, where('status', 'in', historicalStatuses));
-        const mrfSnapshot = await getDocs(mrfQuery);
+        const mrfSnapshot = await getDocs(mrfsRef);
 
         allPRPORecords = [];
         _prpoSubDataCache = new Map(); // invalidate on fresh MRF load
