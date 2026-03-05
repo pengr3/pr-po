@@ -221,13 +221,14 @@ Plans:
 **Goal:** TR rows in tables show finance_status badges, Timeline shows full rejection/resubmission lifecycle, My Requests has sortable headers, and Procurement/Finance views fit 1366px laptop screens without zooming
 **Requirements**: TR-01, TR-02, TIMELINE-01, SORT-01, RESP-01
 **Depends on:** Phase 58
-**Plans:** 4/4 plans complete
+**Plans:** 5 plans (4 original + 1 gap closure)
 
 Plans:
 - [ ] 59-01-PLAN.md — TR finance_status badge in MRF Status column (mrf-records.js, procurement.js)
 - [ ] 59-02-PLAN.md — Timeline lifecycle events: rejection reason, actor, timestamp, resubmission (procurement.js, mrf-records.js)
 - [ ] 59-03-PLAN.md — My Requests sortable headers with default Date Needed asc sort (mrf-records.js, mrf-form.js)
 - [ ] 59-04-PLAN.md — Fluid dashboard-grid layout for 1366px laptop screens (styles/views.css)
+- [ ] 59-05-PLAN.md — Gap closure: TR badge CSS class fix + sort flash cache (mrf-records.js, procurement.js)
 
 ---
-*Last updated: 2026-03-05 — Phase 59 planned (4 plans)*
+*Last updated: 2026-03-05 — Phase 59 gap closure plan 05 added (2 UAT gaps)*
