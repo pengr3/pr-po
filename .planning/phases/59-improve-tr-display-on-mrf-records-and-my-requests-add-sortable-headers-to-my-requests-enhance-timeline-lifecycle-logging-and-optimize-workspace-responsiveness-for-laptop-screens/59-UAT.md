@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 59-improve-tr-display
-source: [59-01-SUMMARY.md, 59-02-SUMMARY.md, 59-03-SUMMARY.md, 59-04-SUMMARY.md]
+source: [59-01-SUMMARY.md, 59-02-SUMMARY.md, 59-03-SUMMARY.md, 59-04-SUMMARY.md, 59-05-SUMMARY.md]
 started: 2026-03-05T08:10:00Z
-updated: 2026-03-05T08:10:00Z
+updated: 2026-03-05T11:00:00Z
 ---
 
 ## Current Test
@@ -43,22 +43,31 @@ note: "Sort works but table disappears briefly (loading state) before reappearin
 expected: At approximately 1366px browser width (typical laptop), the Procurement MRF Processing split panel (pending list + MRF details) is fully visible without a horizontal scrollbar. Finance view tables are also readable at this width.
 result: pass
 
+### 8. TR badge CSS class (gap closure — plan 59-05)
+expected: In both My Requests and Procurement MRF Records, Transport rows show TR finance_status badges using the status-badge CSS class (same color/padding/border-radius as Material MRF status badges) — no inline styles.
+result: pass
+
+### 9. In-place sort without loading flash (gap closure — plan 59-05)
+expected: Clicking a sort header in My Requests or Procurement MRF Records re-sorts the table immediately in-place with no "Loading document references..." flash after the first load. Sub-data (PR/PO info) is served from the Map cache.
+result: pass
+
 ## Summary
 
-total: 7
-passed: 7
-issues: 2
+total: 9
+passed: 9
+issues: 0
 pending: 0
 skipped: 0
 
 ## Gaps
 
 - truth: "TR finance_status badge uses same color and format as existing MRF Status badges in the column"
-  status: failed
+  status: resolved
   reason: "User reported: formatting issue, use the color and format of existing MRF Status Badges"
   severity: cosmetic
   test: 1
   root_cause: "TR badge uses hand-rolled inline style (hardcoded hex colors, different padding/border-radius) instead of the CSS-class pattern used by renderMRFStatusBadge(). Fix: replace inline-style span with <span class=\"status-badge {class}\"> in both mrf-records.js (~line 1367) and procurement.js (~line 2875)."
+  fix: "Plan 59-05 — replaced inline-style spans with status-badge CSS class in mrf-records.js and procurement.js"
   artifacts:
     - path: "app/views/mrf-records.js"
       issue: "Transport else-if block builds mrfStatusHtml with inline style instead of status-badge CSS class"
@@ -68,11 +77,12 @@ skipped: 0
     - "Replace inline-style span with <span class=\"status-badge approved|rejected|pending\"> in both Transport branches"
 
 - truth: "Clicking a sort header in My Requests re-sorts the visible rows in-place without a loading flash"
-  status: failed
+  status: resolved
   reason: "User reported: table disappears for a while and returns sorted — wants in-place sort like other tables. Also affects Procurement MRF Records sort."
   severity: major
   test: 6
   root_cause: "sort() calls render(), and render() unconditionally writes a loading placeholder then fires Firestore sub-queries (PRs/POs per row) before painting. No caching exists, so every sort/filter/page-change re-fetches all sub-data. Same path in procurement.js renderPRPORecords(). Fix: cache PR/PO sub-data (as objects) in a Map keyed by mrf.id after first load; on sort/filter, skip Firestore and omit the loading text when cache is warm."
+  fix: "Plan 59-05 — sub-data Map cache added to createMRFRecordsController and _prpoSubDataCache in procurement.js; loading placeholder guarded by cache.size === 0"
   artifacts:
     - path: "app/views/mrf-records.js"
       issue: "render() shows loading text + fires Firestore queries on every sort call (line ~1209)"
