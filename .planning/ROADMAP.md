@@ -186,6 +186,17 @@ Plans:
 Plans:
 - [x] 057-01-PLAN.md — Add DELIVERY BY SUPPLIER option to mrf-form.js and procurement.js dropdowns; routing enforced by existing transportCategories logic
 
+### Phase 58: Fix TR rejection not reappearing in procurement, PR rejection hiding MRF records, and CSP header violations blocking Firebase source maps
+
+**Goal:** Procurement users can resubmit Finance-rejected TRs from the Processing Area, MRF Records correctly shows PR Rejected and TR Rejected records, and browser console shows no CSP violations for Firebase source map fetches
+**Requirements**: BUG-01, BUG-02, BUG-03
+**Depends on:** Phase 57
+**Plans:** 2 plans
+
+Plans:
+- [ ] 58-01-PLAN.md — Fix TR Rejected canEdit checks and add PR/TR Rejected filter options to MRF Records (procurement.js)
+- [ ] 58-02-PLAN.md — Add https://www.gstatic.com to CSP connect-src in _headers and netlify.toml
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -201,8 +212,9 @@ Plans:
 | 55 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 56 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 57 | v3.1 | 1/1 | Complete | 2026-03-05 |
+| 58 | v3.2 | 0/2 | In Progress | — |
 
 **Total shipped: 55 phases, 142 plans, 9 milestones**
 
 ---
-*Last updated: 2026-03-05 — Phase 57 complete, v3.1 shipped*
+*Last updated: 2026-03-05 — Phase 58 planned (2 plans)*
