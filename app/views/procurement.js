@@ -30,6 +30,7 @@ const prpoItemsPerPage = 10;
 
 let cachedAllMRFs = [];   // Holds raw MRF snapshot for re-filtering on assignment change
 let cachedServicesForNewMRF = [];   // Holds active services for the inline New MRF form dropdown
+let cachedRejectedTRs = []; // TRs with finance_status='Rejected' belonging to an MRF
 
 // Department filter state for PO Tracking table
 let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
@@ -145,6 +146,10 @@ function attachWindowFunctions() {
     window.generateAllPODocuments = generateAllPODocuments;
     window.exportPRPORecordsCSV = exportPRPORecordsCSV;
     window.exportPOTrackingCSV = exportPOTrackingCSV;
+
+    // Rejected TR Functions
+    window.selectRejectedTR = selectRejectedTR;
+    window.resubmitRejectedTR = resubmitRejectedTR;
 }
 
 // ========================================
@@ -445,6 +450,7 @@ export async function init(activeTab = 'mrfs') {
         ]);
         // MRF list loads after reference data (dropdown population)
         await loadMRFs();
+        await loadRejectedTRs();
 
         // Load PR-PO records and PO data (for scoreboards) if on records tab
         if (activeTab === 'records') {
@@ -637,7 +643,10 @@ export async function destroy() {
     delete window.sortPRPORecords;
     delete window.exportPRPORecordsCSV;
     delete window.exportPOTrackingCSV;
+    delete window.selectRejectedTR;
+    delete window.resubmitRejectedTR;
     activePODeptFilter = '';
+    cachedRejectedTRs = [];
 }
 
 // ========================================
@@ -766,6 +775,36 @@ async function loadMRFs() {
 
     listeners.push(listener);
 };
+
+/**
+ * Load rejected TRs that belong to an MRF (to display in Pending Transportation panel).
+ * These are TRs with finance_status='Rejected' that have an mrf_id set.
+ * After Plan 60-01, Finance rejection no longer cascades to MRF status,
+ * so rejected TRs must surface here independently.
+ */
+async function loadRejectedTRs() {
+    const trsRef = collection(db, 'transport_requests');
+    const q = query(trsRef, where('finance_status', '==', 'Rejected'));
+
+    const listener = onSnapshot(q, (snapshot) => {
+        const rejected = [];
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            // Only show TRs that belong to an MRF (mrf_id set)
+            // Standalone TRs (no mrf_id) are handled via their own service-MRF flow
+            if (data.mrf_id) {
+                rejected.push({ id: docSnap.id, ...data });
+            }
+        });
+        cachedRejectedTRs = rejected;
+        // Re-render the MRF list to refresh the rejected TR panel
+        reFilterAndRenderMRFs();
+    }, (error) => {
+        console.error('[Procurement] Rejected TR listener error:', error);
+    });
+
+    listeners.push(listener);
+}
 
 /**
  * Re-apply the assignment filter and re-render MRF list.
@@ -930,10 +969,39 @@ function renderMRFList(materialMRFs, transportMRFs) {
         }).join('');
     }
 
+    // Rejected TRs section (TRs returned from Finance, awaiting Procurement resubmission)
+    if (cachedRejectedTRs.length > 0) {
+        html += '<div style="font-weight: 600; padding: 0.5rem; background: #fee2e2; border-radius: 4px; margin: 1rem 0 0.5rem 0; color: #dc2626;">Rejected Transport Requests</div>';
+        html += cachedRejectedTRs.map(tr => {
+            const rejectionReason = tr.rejection_reason || 'No reason provided';
+            const rejectedBy = tr.rejected_by || 'Finance';
+            return `
+                <div class="mrf-item" data-tr-id="${tr.id}" style="border: 2px solid #dc2626; background: #fee2e2; border-radius: 6px; padding: 0.75rem; margin-bottom: 0.5rem; cursor: pointer;"
+                     onclick="window.selectRejectedTR('${tr.id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-weight: 600;">${escapeHTML(tr.tr_id)}</span>
+                        <span style="background: #fef2f2; color: #dc2626; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">TR REJECTED</span>
+                    </div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${escapeHTML(tr.project_name || tr.mrf_id || '')}</div>
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
+                        <strong>Reason:</strong> ${escapeHTML(rejectionReason)}<br>
+                        <strong>Rejected by:</strong> ${escapeHTML(rejectedBy)}
+                    </div>
+                    <div style="margin-top: 0.5rem;">
+                        <button class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;"
+                                onclick="event.stopPropagation(); window.resubmitRejectedTR('${tr.id}')">
+                            Resubmit to Finance
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
     mrfList.innerHTML = html;
 
-    // Clear MRF details if no pending MRFs
-    if (materialMRFs.length === 0 && transportMRFs.length === 0) {
+    // Clear MRF details if no pending MRFs or rejected TRs
+    if (materialMRFs.length === 0 && transportMRFs.length === 0 && cachedRejectedTRs.length === 0) {
         currentMRF = null;
         const mrfDetails = document.getElementById('mrfDetails');
         if (mrfDetails) {
@@ -949,6 +1017,128 @@ function renderMRFList(materialMRFs, transportMRFs) {
         if (generatePRBtn) {
             generatePRBtn.style.display = 'none';
         }
+    }
+}
+
+/**
+ * Select a rejected TR to view its details in the details panel.
+ * Shows TR info inline without opening the full MRF editing form.
+ */
+function selectRejectedTR(trDocId) {
+    const tr = cachedRejectedTRs.find(t => t.id === trDocId);
+    if (!tr) return;
+
+    // Highlight selected
+    document.querySelectorAll('.mrf-item').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`[data-tr-id="${trDocId}"]`)?.classList.add('selected');
+
+    const mrfDetails = document.getElementById('mrfDetails');
+    if (!mrfDetails) return;
+
+    const items = JSON.parse(tr.items_json || '[]');
+    const itemsHtml = items.map(item => `
+        <tr>
+            <td style="padding: 0.5rem;">${escapeHTML(item.item || '')}</td>
+            <td style="padding: 0.5rem;">${escapeHTML(item.category || '')}</td>
+            <td style="padding: 0.5rem;">${item.qty} ${escapeHTML(item.unit || '')}</td>
+            <td style="padding: 0.5rem;">&#8369;${formatCurrency(item.unit_cost || 0)}</td>
+            <td style="padding: 0.5rem;"><strong>&#8369;${formatCurrency(item.subtotal || 0)}</strong></td>
+        </tr>
+    `).join('');
+
+    mrfDetails.innerHTML = `
+        <div style="padding: 1rem;">
+            <div style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="font-weight: 600; color: #dc2626; margin-bottom: 0.5rem;">TR REJECTED &mdash; ${escapeHTML(tr.tr_id)}</div>
+                <div style="font-size: 0.875rem;"><strong>Reason:</strong> ${escapeHTML(tr.rejection_reason || 'No reason provided')}</div>
+                <div style="font-size: 0.875rem;"><strong>Rejected by:</strong> ${escapeHTML(tr.rejected_by || 'Finance')}</div>
+                ${tr.rejected_at ? `<div style="font-size: 0.75rem; color: #666; margin-top: 0.25rem;">${new Date(tr.rejected_at).toLocaleString()}</div>` : ''}
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <div><strong>MRF ID:</strong> ${escapeHTML(tr.mrf_id || '')}</div>
+                <div><strong>Supplier:</strong> ${escapeHTML(tr.supplier_name || '')}</div>
+                <div><strong>Project:</strong> ${escapeHTML(tr.project_name || '')}</div>
+                <div><strong>Total:</strong> &#8369;${formatCurrency(tr.total_amount || 0)}</div>
+            </div>
+            <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse; margin-bottom: 1rem;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 0.5rem; text-align: left;">Item</th>
+                        <th style="padding: 0.5rem; text-align: left;">Category</th>
+                        <th style="padding: 0.5rem; text-align: left;">Qty</th>
+                        <th style="padding: 0.5rem; text-align: left;">Unit Cost</th>
+                        <th style="padding: 0.5rem; text-align: left;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+            <button class="btn btn-primary" onclick="window.resubmitRejectedTR('${tr.id}')">
+                Resubmit to Finance
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Resubmit a rejected TR back to Finance.
+ * Resets finance_status to 'Pending' on the SAME TR document (tr_id preserved).
+ * Stores prior rejection in rejection_history array for audit trail.
+ */
+async function resubmitRejectedTR(trDocId) {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
+    const tr = cachedRejectedTRs.find(t => t.id === trDocId);
+    if (!tr) {
+        showToast('TR not found. Please refresh and try again.', 'error');
+        return;
+    }
+
+    if (!confirm(`Resubmit ${tr.tr_id} to Finance for review?`)) return;
+
+    showLoading(true);
+
+    try {
+        const trRef = doc(db, 'transport_requests', trDocId);
+
+        // Build rejection history entry from current rejection data
+        const historyEntry = {
+            reason: tr.rejection_reason || '',
+            rejected_by: tr.rejected_by || 'Finance',
+            rejected_at: tr.rejected_at || new Date().toISOString()
+        };
+
+        // Read existing history if any
+        const existingHistory = Array.isArray(tr.rejection_history) ? tr.rejection_history : [];
+
+        await updateDoc(trRef, {
+            finance_status: 'Pending',
+            // Move current rejection into history array for full audit trail
+            rejection_history: [...existingHistory, historyEntry],
+            resubmitted_at: new Date().toISOString(),
+            resubmitted_by: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Procurement',
+            updated_at: new Date().toISOString()
+        });
+
+        showToast(`${tr.tr_id} resubmitted to Finance successfully`, 'success');
+
+        // Clear detail panel
+        const mrfDetails = document.getElementById('mrfDetails');
+        if (mrfDetails) {
+            mrfDetails.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #666;">
+                    <div style="font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem;">TR Resubmitted</div>
+                    <div style="font-size: 0.875rem; margin-top: 0.5rem;">Transport Request sent back to Finance for review.</div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('[Procurement] Error resubmitting TR:', error);
+        showToast('Failed to resubmit TR: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
