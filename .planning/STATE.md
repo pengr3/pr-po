@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T03:25:39.989Z"
+last_updated: "2026-03-05T04:18:24.479Z"
 progress:
-  total_phases: 41
+  total_phases: 42
   completed_phases: 40
-  total_plans: 111
-  completed_plans: 108
+  total_plans: 113
+  completed_plans: 109
 ---
 
 # Project State
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 57 of 57 (Delivery By Supplier Category) — COMPLETE
-Plan: 1 of 1 in Phase 57 — COMPLETE
-Status: Complete
-Last activity: 2026-03-05 — Phase 57 complete, v3.1 shipped
+Phase: 58 of 58 (Production Bug Fixes) — In Progress
+Plan: 2 of 2 in Phase 58 — COMPLETE (plan 02 done)
+Status: In Progress
+Last activity: 2026-03-05 — Phase 58 Plan 02 complete — CSP gstatic.com fix deployed
 
 Progress: [██████████] 100%
 
@@ -48,6 +48,7 @@ Progress: [██████████] 100%
 | v2.5 | 7 | 2 | 0.3 |
 | v3.0 | 3 | 1 | 0.3 |
 | Phase 057 P01 | 1 | 2 tasks | 2 files |
+| Phase 58 P02 | 45s | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,11 @@ Recent decisions affecting current work:
 - Phase 57 (pending): "DELIVERY BY SUPPLIER" must NOT appear in `transportCategories` array so routing stays in PR path
 - [Phase 057]: DELIVERY BY SUPPLIER absent from transportCategories so routing stays in PR path and triggers existing supplier-required validation
 - [Phase 057]: New category options inserted between HAULING & DELIVERY and OTHERS in all dropdowns, no new logic required
+- [Phase 58]: Added https://www.gstatic.com to CSP connect-src in both _headers and netlify.toml to fix Firebase SDK source map fetch CSP violations
+
+### Roadmap Evolution
+
+- Phase 58 added: Fix TR rejection not reappearing in procurement, PR rejection hiding MRF records, and CSP header violations blocking Firebase source maps
 
 ### Pending Todos
 
@@ -72,6 +78,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 057-01-PLAN.md — Phase 57 complete, v3.1 shipped
+Stopped at: Completed 58-02-PLAN.md — CSP gstatic.com connect-src fix
 Resume file: None
-Next action: None (milestone complete)
+Next action: Phase 58 plan 01 (TR rejection reappearing) if not yet complete, or phase complete
