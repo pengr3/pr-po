@@ -843,8 +843,10 @@ async function showTimelineLocal(mrfId) {
                 <div class="timeline-item-description">Requestor: ${escapeHTML(mrf.requestor_name)} | ${escapeHTML(deptLabel)}: ${escapeHTML(getMRFLabel(mrf))}</div>
             </div>`;
 
+        // PRs — lifecycle-aware (Submitted → Rejected → Resubmitted → Approved)
         prs.forEach(pr => {
-            const prStatusClass = getPRStatusClass(pr.finance_status);
+            const hasRejection = !!(pr.rejection_reason || pr.rejected_at);
+            const hasResubmission = hasRejection && !!pr.resubmitted_at;
             const childPOs = posByPR[pr.pr_id] || [];
             const childHtml = childPOs.map(po => `
                 <div class="timeline-child-item ${getPOStatusClass(po.procurement_status)}">
@@ -856,22 +858,92 @@ async function showTimelineLocal(mrfId) {
                     </div>
                 </div>`).join('');
 
+            // Submitted event: green if Approved with no rejection history, grey otherwise
+            const submittedClass = (pr.finance_status === 'Approved' && !hasRejection) ? 'completed' : 'pending';
             timelineHtml += `
-            <div class="timeline-item ${prStatusClass}">
-                <div class="timeline-item-title">Purchase Request: ${escapeHTML(pr.pr_id)}</div>
+            <div class="timeline-item ${submittedClass}">
+                <div class="timeline-item-title">Purchase Request Submitted: ${escapeHTML(pr.pr_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
                 <div class="timeline-item-description">Supplier: ${escapeHTML(pr.supplier_name)} | Amount: \u20b1${formatCurrency(pr.total_amount)}</div>
+            </div>`;
+
+            // Rejection event
+            if (hasRejection) {
+                timelineHtml += `
+            <div class="timeline-item rejected">
+                <div class="timeline-item-title">❌ PR Rejected: ${escapeHTML(pr.pr_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(pr.rejected_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Reason: ${escapeHTML(pr.rejection_reason || 'No reason provided')} | Rejected by: ${escapeHTML(pr.rejected_by || 'Finance')}</div>
+            </div>`;
+            }
+
+            // Resubmission event
+            if (hasResubmission) {
+                timelineHtml += `
+            <div class="timeline-item active">
+                <div class="timeline-item-title">↩ Resubmitted: ${escapeHTML(pr.pr_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(pr.resubmitted_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Resubmitted for Finance review</div>
+            </div>`;
+            }
+
+            // Approved event (with nested POs)
+            if (pr.finance_status === 'Approved') {
+                timelineHtml += `
+            <div class="timeline-item completed">
+                <div class="timeline-item-title">PR Approved: ${escapeHTML(pr.pr_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(pr.date_generated) || 'N/A'}</div>
+                <div class="timeline-item-description">Finance approved | Amount: \u20b1${formatCurrency(pr.total_amount)}</div>
                 ${childPOs.length > 0 ? `<div class="timeline-children">${childHtml}</div>` : ''}
             </div>`;
+            } else if (!hasRejection && childPOs.length > 0) {
+                timelineHtml += `<div class="timeline-children">${childHtml}</div>`;
+            }
         });
 
+        // TRs — lifecycle-aware (Submitted → Rejected → Resubmitted → Approved)
         trs.forEach(tr => {
+            const hasRejection = !!(tr.rejection_reason || tr.rejected_at);
+            const hasResubmission = hasRejection && !!tr.resubmitted_at;
+
+            // Submitted event
+            const submittedClass = (tr.finance_status === 'Approved' && !hasRejection) ? 'completed' : 'pending';
             timelineHtml += `
-            <div class="timeline-item ${getPRStatusClass(tr.finance_status)}">
-                <div class="timeline-item-title">Transport Request: ${escapeHTML(tr.tr_id)}</div>
+            <div class="timeline-item ${submittedClass}">
+                <div class="timeline-item-title">Transport Request Submitted: ${escapeHTML(tr.tr_id)}</div>
                 <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
                 <div class="timeline-item-description">Amount: \u20b1${formatCurrency(tr.total_amount)}</div>
             </div>`;
+
+            // Rejection event
+            if (hasRejection) {
+                timelineHtml += `
+            <div class="timeline-item rejected">
+                <div class="timeline-item-title">❌ TR Rejected: ${escapeHTML(tr.tr_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(tr.rejected_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Reason: ${escapeHTML(tr.rejection_reason || 'No reason provided')} | Rejected by: ${escapeHTML(tr.rejected_by || 'Finance')}</div>
+            </div>`;
+            }
+
+            // Resubmission event
+            if (hasResubmission) {
+                timelineHtml += `
+            <div class="timeline-item active">
+                <div class="timeline-item-title">↩ Resubmitted: ${escapeHTML(tr.tr_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(tr.resubmitted_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Resubmitted for Finance review</div>
+            </div>`;
+            }
+
+            // Approved event
+            if (tr.finance_status === 'Approved') {
+                timelineHtml += `
+            <div class="timeline-item completed">
+                <div class="timeline-item-title">TR Approved: ${escapeHTML(tr.tr_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(tr.date_submitted) || 'N/A'}</div>
+                <div class="timeline-item-description">Finance approved | Amount: \u20b1${formatCurrency(tr.total_amount)}</div>
+            </div>`;
+            }
         });
 
         (posByPR['_unlinked'] || []).forEach(po => {
