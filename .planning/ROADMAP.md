@@ -10,6 +10,7 @@
 - ✅ **v2.4 Productivity & Polish** — Phases 41-48 (shipped 2026-03-01)
 - ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
 - ✅ **v3.0 Fixes** — Phases 54-56 (shipped 2026-03-04)
+- 🚧 **v3.1 PR/TR Routing Fix** — Phase 57 (in progress)
 
 ## Phases
 
@@ -126,6 +127,12 @@
 
 </details>
 
+### 🚧 v3.1 PR/TR Routing Fix (In Progress)
+
+**Milestone Goal:** Fix the edge case where supplier-delivered goods generate a TR instead of being included in the PO, by introducing a dedicated "DELIVERY BY SUPPLIER" category that routes exclusively through the PR/PO path.
+
+- [ ] **Phase 57: Delivery By Supplier Category** - Add "DELIVERY BY SUPPLIER" category to both MRF forms and enforce PR routing with supplier validation
+
 ## Phase Details
 
 ### Phase 54: MRF Table PR/PO Alignment
@@ -138,8 +145,8 @@
   3. In Procurement MRF Records, the Procurement Status dropdown sits on the same row as its PR/PO pair — it does not float above or below adjacent rows
 **Plans**: 2 plans
 Plans:
-- [ ] 54-01-PLAN.md — Fix My Requests table: pair PR+PO inline with null-slot behavior (mrf-records.js)
-- [ ] 54-02-PLAN.md — Fix MRF Records table: pair PR+PO+status-dropdown inline per row (procurement.js)
+- [x] 54-01-PLAN.md — Fix My Requests table: pair PR+PO inline with null-slot behavior (mrf-records.js)
+- [x] 54-02-PLAN.md — Fix MRF Records table: pair PR+PO+status-dropdown inline per row (procurement.js)
 
 ### Phase 55: Finance Pending Approvals Fixes
 **Goal**: Finance reviewers see actionable date and project context in the Pending Approvals tables instead of a redundant Status column, and the Approved This Month scoreboard reflects an accurate PO count
@@ -151,7 +158,7 @@ Plans:
   3. The "Approved This Month" scoreboard number matches the actual count of PO documents with approval dates in the current calendar month — it does not include PRs, TRs, or POs from prior months
 **Plans**: 1 plan
 Plans:
-- [ ] 55-01-PLAN.md — Restructure PR/TR table columns, add JUSTIFICATION to PR modal, fix Approved This Month scoreboard (finance.js)
+- [x] 55-01-PLAN.md — Restructure PR/TR table columns, add JUSTIFICATION to PR modal, fix Approved This Month scoreboard (finance.js)
 
 ### Phase 56: UI Layout Standardization
 **Goal**: MRF Processing fills the full viewport width and sub-tab nav bars across Material Request, Procurement, and Admin tabs align to the same left position as the Finance tab
@@ -164,7 +171,18 @@ Plans:
   4. Material Request, Procurement, and Admin sub-tab nav bars each left-align to the logo position, matching the Finance sub-tab nav alignment
 **Plans**: 1 plan
 Plans:
-- [ ] 056-01-PLAN.md — Standardize max-width to 1600px in procurement.js, admin.js, mrf-form.js sub-nav and content wrappers
+- [x] 056-01-PLAN.md — Standardize max-width to 1600px in procurement.js, admin.js, mrf-form.js sub-nav and content wrappers
+
+### Phase 57: Delivery By Supplier Category
+**Goal**: Users can select "DELIVERY BY SUPPLIER" as a line item category in both MRF creation surfaces, and those items route through the PR/PO workflow — not the TR workflow — with supplier selection required
+**Depends on**: Nothing (isolated category and routing change)
+**Requirements**: PRTR-01, PRTR-02, PRTR-03, PRTR-04
+**Success Criteria** (what must be TRUE):
+  1. A user submitting an MRF via the standalone MRF form can choose "DELIVERY BY SUPPLIER" from the item category dropdown
+  2. A user creating an MRF via Procurement can choose "DELIVERY BY SUPPLIER" from the item category dropdown
+  3. When an MRF containing a "DELIVERY BY SUPPLIER" item is approved and PRs are generated, that item appears on a PR (not a TR) and produces a PO when Finance approves
+  4. Attempting to generate a PR without a supplier selected on a "DELIVERY BY SUPPLIER" item blocks submission with the same supplier-required validation as all other PR items
+**Plans**: TBD
 
 ## Progress
 
@@ -180,8 +198,9 @@ Plans:
 | 54 | v3.0 | 2/2 | Complete | 2026-03-04 |
 | 55 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 56 | v3.0 | 1/1 | Complete | 2026-03-04 |
+| 57 | v3.1 | 0/TBD | Not started | - |
 
-**Total shipped: 54 phases, 141 plans, 7 milestones**
+**Total shipped: 54 phases, 141 plans, 8 milestones**
 
 ---
-*Last updated: 2026-03-04 — Phase 56 complete (1 plan)*
+*Last updated: 2026-03-05 — v3.1 roadmap created, Phase 57 defined*
