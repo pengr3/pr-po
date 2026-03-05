@@ -1034,7 +1034,7 @@ function renderMRFDetails(mrf, isNew = false) {
         // For existing MRFs, show normal buttons
         if (mrfActionsEl) {
             const isService = mrf.request_type === 'service';
-            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected';
+            const canEdit = mrf.status === 'Pending' || mrf.status === 'In Progress' || mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
 
             let buttons = '<button class="btn btn-primary" onclick="window.saveProgress()">💾 Save</button>';
             if (canEdit) {
@@ -1343,7 +1343,7 @@ function updateActionButtons() {
         }
     });
 
-    const canEdit = currentMRF.status === 'Pending' || currentMRF.status === 'In Progress' || currentMRF.status === 'PR Rejected';
+    const canEdit = currentMRF.status === 'Pending' || currentMRF.status === 'In Progress' || currentMRF.status === 'PR Rejected' || currentMRF.status === 'TR Rejected';
     let buttons = '<button class="btn btn-primary" onclick="window.saveProgress()">💾 Save</button>';
 
     if (canEdit && hasItems) {
