@@ -95,14 +95,14 @@ function renderMyRequestsView(tabNav) {
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
                                 <tr style="background: #f8f9fa;">
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">MRF ID</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Project</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Date Needed</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">PRs</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">POs</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">MRF Status</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Procurement Status</th>
-                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb;">Actions</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">MRF ID <span style="color: #94a3b8; font-size: 0.65rem;">&#x21C5;</span></th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">Date Needed <span style="color: #1a73e8; font-size: 0.65rem;">&#x2191;</span></th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">MRF Status <span style="color: #94a3b8; font-size: 0.65rem;">&#x21C5;</span></th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">Procurement Status <span style="color: #94a3b8; font-size: 0.65rem;">&#x21C5;</span></th>
+                                    <th style="padding: 0.75rem 1rem; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>${skeletonTableRows(8, 5)}</tbody>
@@ -382,6 +382,7 @@ export async function init(activeTab = 'form') {
         delete window._myRequestsFilter;
         delete window._myRequestsReload;
         delete window._myRequestsExportCSV;
+        delete window._myRequestsSort;
     }
 
     try {
@@ -488,6 +489,10 @@ async function initMyRequests() {
             if (myRequestsController) {
                 myRequestsController.exportCSV();
             }
+        };
+
+        window._myRequestsSort = (field) => {
+            myRequestsController?.sort(field);
         };
 
         await myRequestsController.load();
@@ -965,6 +970,7 @@ export async function destroy() {
     delete window._myRequestsFilter;
     delete window._myRequestsReload;
     delete window._myRequestsExportCSV;
+    delete window._myRequestsSort;
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');
