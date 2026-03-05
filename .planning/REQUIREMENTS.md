@@ -8,10 +8,10 @@
 
 ### PR/TR Routing
 
-- [ ] **PRTR-01**: User can select "DELIVERY BY SUPPLIER" as an item category in the MRF form (standalone mrf-form.js)
-- [ ] **PRTR-02**: User can select "DELIVERY BY SUPPLIER" as an item category in the Procurement Create MRF form (procurement.js)
-- [ ] **PRTR-03**: Items with category "DELIVERY BY SUPPLIER" route to PR (not TR) and appear on the resulting PO when Finance approves
-- [ ] **PRTR-04**: Items with category "DELIVERY BY SUPPLIER" require a supplier selection (same validation as all other PR items)
+- [x] **PRTR-01**: User can select "DELIVERY BY SUPPLIER" as an item category in the MRF form (standalone mrf-form.js)
+- [x] **PRTR-02**: User can select "DELIVERY BY SUPPLIER" as an item category in the Procurement Create MRF form (procurement.js)
+- [x] **PRTR-03**: Items with category "DELIVERY BY SUPPLIER" route to PR (not TR) and appear on the resulting PO when Finance approves
+- [x] **PRTR-04**: Items with category "DELIVERY BY SUPPLIER" require a supplier selection (same validation as all other PR items)
 
 ## Future Requirements
 
@@ -29,10 +29,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PRTR-01 | Phase 57 | Pending |
-| PRTR-02 | Phase 57 | Pending |
-| PRTR-03 | Phase 57 | Pending |
-| PRTR-04 | Phase 57 | Pending |
+| PRTR-01 | Phase 57 | Complete |
+| PRTR-02 | Phase 57 | Complete |
+| PRTR-03 | Phase 57 | Complete |
+| PRTR-04 | Phase 57 | Complete |
 
 **Coverage:**
 - v3.1 requirements: 4 total

@@ -10,7 +10,7 @@
 - ✅ **v2.4 Productivity & Polish** — Phases 41-48 (shipped 2026-03-01)
 - ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
 - ✅ **v3.0 Fixes** — Phases 54-56 (shipped 2026-03-04)
-- 🚧 **v3.1 PR/TR Routing Fix** — Phase 57 (in progress)
+- ✅ **v3.1 PR/TR Routing Fix** — Phase 57 (shipped 2026-03-05)
 
 ## Phases
 
@@ -127,11 +127,11 @@
 
 </details>
 
-### 🚧 v3.1 PR/TR Routing Fix (In Progress)
+### ✅ v3.1 PR/TR Routing Fix (Shipped 2026-03-05)
 
 **Milestone Goal:** Fix the edge case where supplier-delivered goods generate a TR instead of being included in the PO, by introducing a dedicated "DELIVERY BY SUPPLIER" category that routes exclusively through the PR/PO path.
 
-- [ ] **Phase 57: Delivery By Supplier Category** - Add "DELIVERY BY SUPPLIER" category to both MRF forms and enforce PR routing with supplier validation
+- [x] **Phase 57: Delivery By Supplier Category** - Add "DELIVERY BY SUPPLIER" category to both MRF forms and enforce PR routing with supplier validation — completed 2026-03-05
 
 ## Phase Details
 
@@ -184,7 +184,7 @@ Plans:
   4. Attempting to generate a PR without a supplier selected on a "DELIVERY BY SUPPLIER" item blocks submission with the same supplier-required validation as all other PR items
 **Plans**: 1 plan
 Plans:
-- [ ] 057-01-PLAN.md — Add DELIVERY BY SUPPLIER option to mrf-form.js and procurement.js dropdowns; routing enforced by existing transportCategories logic
+- [x] 057-01-PLAN.md — Add DELIVERY BY SUPPLIER option to mrf-form.js and procurement.js dropdowns; routing enforced by existing transportCategories logic
 
 ## Progress
 
@@ -200,9 +200,9 @@ Plans:
 | 54 | v3.0 | 2/2 | Complete | 2026-03-04 |
 | 55 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 56 | v3.0 | 1/1 | Complete | 2026-03-04 |
-| 57 | v3.1 | 0/1 | Not started | - |
+| 57 | v3.1 | 1/1 | Complete | 2026-03-05 |
 
-**Total shipped: 54 phases, 141 plans, 8 milestones**
+**Total shipped: 55 phases, 142 plans, 9 milestones**
 
 ---
-*Last updated: 2026-03-05 — Phase 57 planned (1 plan)*
+*Last updated: 2026-03-05 — Phase 57 complete, v3.1 shipped*
