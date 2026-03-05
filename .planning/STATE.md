@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 59.1 of 59.1 (Fix MRF Records Real-Time Rendering) — COMPLETE
-Plan: 1 of 1 in Phase 59.1 — COMPLETE (59.1-01 done)
+Phase: 60 of 60 (Fix TR Rejection Independence) — COMPLETE
+Plan: 1 of 1 in Phase 60 — COMPLETE (60-01 done)
 Status: Complete
-Last activity: 2026-03-05 — Phase 59.1 Plan 01 complete — removed historical status filter + cache invalidation so Pending/Approved MRFs appear instantly in Records tab
+Last activity: 2026-03-05 — Phase 60 Plan 01 complete — removed MRF status cascade from TR rejection and TR approval; added prior rejection notice in Finance TR modal
 
 Progress: [██████████] 97%
 
@@ -78,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 59]: Cache key is mrf.id (Firestore document ID) not mrf.mrf_id — consistent with onSnapshot pattern
 - [Phase 59]: Loading placeholder guarded by _subDataCache.size === 0 so only shown on cold start, not sort/filter/page
 - [Phase 59.1]: Remove server-side historicalStatuses filter from loadPRPORecords — all MRFs fetched, client-side filterPRPORecords() handles filtering; reset _prpoRecordsCachedAt = 0 in saveNewMRF success path so Records tab never serves stale cache after a create
+- [Phase 60]: TR rejection does NOT cascade to MRF — TRs are child records; TR outcomes fully scoped to transport_requests collection; PR rejection cascade to MRF preserved
+- [Phase 60]: Prior rejection notice in Finance TR modal shown only when tr.rejection_reason is set — gives Finance context on resubmitted TRs, hidden for fresh TRs
 
 ### Roadmap Evolution
 
@@ -97,6 +99,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 59.1-01-PLAN.md — MRF Records real-time rendering fix (Pending/Approved now visible, cache busted on create)
+Stopped at: Completed 60-01-PLAN.md — TR rejection independence (no MRF cascade from TR rejection/approval, prior rejection notice in Finance modal)
 Resume file: None
-Next action: Phase 59.1 complete — proceed to Phase 60 (TR rejection independence)
+Next action: Phase 60 complete — all planned phases complete

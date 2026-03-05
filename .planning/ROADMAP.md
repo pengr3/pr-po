@@ -242,13 +242,13 @@ Plans:
 
 ### Phase 60: Fix TR rejection independence decouple TR status from MRF and treat TRs as child records like PRs
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Decouple TR lifecycle from MRF status — TR rejection/approval must not cascade to MRF document
+**Requirements**: TR-INDEP-01, TR-INDEP-03
 **Depends on:** Phase 59
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 60 to break down)
+- [x] 60-01-PLAN.md — Remove MRF status cascade from TR rejection and TR approval; add prior rejection notice in Finance TR modal (finance.js)
 
 ---
-*Last updated: 2026-03-05 — Phase 59.1 planned (1 plan: fix MRF Records query + cache + filter dropdown)*
+*Last updated: 2026-03-05 — Phase 60 complete (1 plan: TR rejection independence, MRF cascade removed, prior rejection notice added)*
