@@ -359,6 +359,8 @@ export function render(activeTab = 'mrfs') {
                                 <label>MRF Status</label>
                                 <select id="histStatusFilter" onchange="window.filterPRPORecords()">
                                     <option value="">All MRF Statuses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Approved">Approved</option>
                                     <option value="PR Generated">PR Generated</option>
                                     <option value="TR Submitted">TR Submitted</option>
                                     <option value="PR Rejected">PR Rejected</option>
@@ -1710,6 +1712,7 @@ async function saveNewMRF() {
 
         // Save to Firebase
         await addDoc(mrfsRef, mrfDoc);
+        _prpoRecordsCachedAt = 0; // Invalidate Records tab cache so new MRF appears immediately
 
         showToast(`New MRF created successfully! MRF ID: ${mrfId}`, 'success');
 
