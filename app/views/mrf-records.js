@@ -1024,9 +1024,9 @@ export function createMRFRecordsController(options) {
 
     function getSortIndicator(col) {
         if (col === sortField) {
-            return `<span style="color: #1a73e8; font-size: 0.65rem;">${sortDir === 'asc' ? ' \u2191' : ' \u2193'}</span>`;
+            return `<span style="color: #1a73e8;">${sortDir === 'asc' ? ' \u2191' : ' \u2193'}</span>`;
         }
-        return `<span style="color: #94a3b8; font-size: 0.65rem;"> \u21C5</span>`;
+        return `<span style="color: #94a3b8;"> \u21C5</span>`;
     }
 
     function applySort() {
@@ -1420,14 +1420,14 @@ export function createMRFRecordsController(options) {
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #f8f9fa;">
-                        <th onclick="window._myRequestsSort('mrf_id')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">MRF ID ${getSortIndicator('mrf_id')}</th>
-                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
-                        <th onclick="window._myRequestsSort('date_needed')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">Date Needed ${getSortIndicator('date_needed')}</th>
-                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
-                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
-                        <th onclick="window._myRequestsSort('status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">MRF Status ${getSortIndicator('status')}</th>
-                        <th onclick="window._myRequestsSort('procurement_status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">Procurement Status ${getSortIndicator('procurement_status')}</th>
-                        <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
+                        <th onclick="window._myRequestsSort('mrf_id')" style="text-align: center; cursor: pointer; user-select: none;">MRF ID ${getSortIndicator('mrf_id')}</th>
+                        <th style="text-align: left;">Project</th>
+                        <th onclick="window._myRequestsSort('date_needed')" style="text-align: center; cursor: pointer; user-select: none;">Date Needed ${getSortIndicator('date_needed')}</th>
+                        <th style="text-align: left;">PRs</th>
+                        <th style="text-align: left;">POs</th>
+                        <th onclick="window._myRequestsSort('status')" style="text-align: left; cursor: pointer; user-select: none;">MRF Status ${getSortIndicator('status')}</th>
+                        <th onclick="window._myRequestsSort('procurement_status')" style="text-align: left; cursor: pointer; user-select: none;">Procurement Status ${getSortIndicator('procurement_status')}</th>
+                        <th style="text-align: center;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
