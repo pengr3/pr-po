@@ -68,6 +68,7 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 58 added: Fix TR rejection not reappearing in procurement, PR rejection hiding MRF records, and CSP header violations blocking Firebase source maps
+- Phase 59 added: Improve TR display on MRF Records and My Requests, add sortable headers to My Requests, enhance Timeline lifecycle logging, and optimize workspace responsiveness for laptop screens
 
 ### Pending Todos
 
