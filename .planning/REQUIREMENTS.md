@@ -1,69 +1,44 @@
 # Requirements: CLMC Procurement System
 
-**Defined:** 2026-03-04
-**Milestone:** v3.0 Fixes
+**Defined:** 2026-03-05
+**Milestone:** v3.1 PR/TR Routing Fix
 **Core Value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
-## v1 Requirements
+## v3.1 Requirements
 
-### MRF Table Fixes (PR/PO Alignment)
+### PR/TR Routing
 
-- [x] **TABLE-01**: In Material Request > My Requests, each PO ID is displayed inline beside its corresponding PR ID (null slot shown when PR has no PO yet)
-- [x] **TABLE-02**: In Procurement > MRF Records, each PO ID is displayed inline beside its corresponding PR ID (null slot shown when PR has no PO yet)
-- [x] **TABLE-03**: In Procurement > MRF Records, the Procurement Status dropdown is row-aligned to its specific PR/PO pair (not floating or misaligned)
-
-### Finance Pending Approvals Table Restructure
-
-- [x] **FINANCE-01**: Material Purchase Requests table columns: PR ID, MRF ID, Department/Project, Date Issued, Date Needed, Urgency, Total Cost, Supplier (Status column removed)
-- [x] **FINANCE-02**: Transport Requests table: rename "Date" column to "Date Issued", add "Date Needed" column, remove "Status" column
-
-### UI Layout Fixes
-
-- [x] **UI-01**: MRF Processing tab: work area stretches to full viewport width (no narrow box constraint)
-- [x] **UI-02**: MRF Processing tab: Pending MRFs panel left-edge aligns to logo alignment (matches Finance tab's left margin)
-- [x] **UI-03**: MRF Processing tab: MRF Details panel right-edge stretches to Logout button alignment (matches Finance tab's right margin)
-- [x] **UI-04**: Material Request sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
-- [x] **UI-05**: Procurement sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
-- [x] **UI-06**: Admin sub-tab nav bar: left-aligns to logo position (matching Finance sub-tab nav)
-
-### Finance Scoreboard Fix
-
-- [x] **SCORE-01**: Finance > Pending Approvals: "Approved This Month" scoreboard correctly counts approved POs (not PRs) for the current calendar month
+- [ ] **PRTR-01**: User can select "DELIVERY BY SUPPLIER" as an item category in the MRF form (standalone mrf-form.js)
+- [ ] **PRTR-02**: User can select "DELIVERY BY SUPPLIER" as an item category in the Procurement Create MRF form (procurement.js)
+- [ ] **PRTR-03**: Items with category "DELIVERY BY SUPPLIER" route to PR (not TR) and appear on the resulting PO when Finance approves
+- [ ] **PRTR-04**: Items with category "DELIVERY BY SUPPLIER" require a supplier selection (same validation as all other PR items)
 
 ## Future Requirements
 
-(None identified for future milestones from this scope)
+(None deferred — minimal scope milestone)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| New MRF workflow features | Pure fixes milestone — no new functionality |
-| Backend/Firestore schema changes | All fixes are frontend-only |
-| New roles or permissions | Out of scope for this milestone |
+| Supplier category flag on supplier records | More complex, requires supplier data changes; new category approach solves the edge case with minimal change |
+| Per-item billing route toggle | Higher UI complexity; deferred unless new category proves insufficient |
+| Retroactive migration of existing "HAULING & DELIVERY" items | Historical data already processed; no active MRFs affected |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TABLE-01 | Phase 54 | Complete |
-| TABLE-02 | Phase 54 | Complete |
-| TABLE-03 | Phase 54 | Complete |
-| FINANCE-01 | Phase 55 | Complete |
-| FINANCE-02 | Phase 55 | Complete |
-| SCORE-01 | Phase 55 | Complete |
-| UI-01 | Phase 56 | Complete |
-| UI-02 | Phase 56 | Complete |
-| UI-03 | Phase 56 | Complete |
-| UI-04 | Phase 56 | Complete |
-| UI-05 | Phase 56 | Complete |
-| UI-06 | Phase 56 | Complete |
+| PRTR-01 | Phase 57 | Pending |
+| PRTR-02 | Phase 57 | Pending |
+| PRTR-03 | Phase 57 | Pending |
+| PRTR-04 | Phase 57 | Pending |
 
 **Coverage:**
-- v1 requirements: 12 total
-- Mapped to phases: 12
+- v3.1 requirements: 4 total
+- Mapped to phases: 4
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after roadmap revision (SCORE-01 moved from Phase 57 to Phase 55; Phase 57 removed)*
+*Requirements defined: 2026-03-05*
+*Last updated: 2026-03-05 after initial definition*

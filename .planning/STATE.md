@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.0
-milestone_name: Fixes
-status: complete
-last_updated: "2026-03-04T08:30:00Z"
+milestone: v3.1
+milestone_name: PR/TR Routing Fix
+status: in_progress
+last_updated: "2026-03-05T00:00:00Z"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -22,9 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-04 after v3.0 milestone)
 
 ## Current Position
 
-Milestone v3.0 Fixes complete. All 3 phases shipped (54-56). Archived to .planning/milestones/v3.0-*.
-
-Next action: `/gsd:new-milestone` to plan next milestone.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-05 — Milestone v3.1 started
 
 ## Performance Metrics
 
