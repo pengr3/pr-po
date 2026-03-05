@@ -182,7 +182,9 @@ Plans:
   2. A user creating an MRF via Procurement can choose "DELIVERY BY SUPPLIER" from the item category dropdown
   3. When an MRF containing a "DELIVERY BY SUPPLIER" item is approved and PRs are generated, that item appears on a PR (not a TR) and produces a PO when Finance approves
   4. Attempting to generate a PR without a supplier selected on a "DELIVERY BY SUPPLIER" item blocks submission with the same supplier-required validation as all other PR items
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 057-01-PLAN.md — Add DELIVERY BY SUPPLIER option to mrf-form.js and procurement.js dropdowns; routing enforced by existing transportCategories logic
 
 ## Progress
 
@@ -198,9 +200,9 @@ Plans:
 | 54 | v3.0 | 2/2 | Complete | 2026-03-04 |
 | 55 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 56 | v3.0 | 1/1 | Complete | 2026-03-04 |
-| 57 | v3.1 | 0/TBD | Not started | - |
+| 57 | v3.1 | 0/1 | Not started | - |
 
 **Total shipped: 54 phases, 141 plans, 8 milestones**
 
 ---
-*Last updated: 2026-03-05 — v3.1 roadmap created, Phase 57 defined*
+*Last updated: 2026-03-05 — Phase 57 planned (1 plan)*
