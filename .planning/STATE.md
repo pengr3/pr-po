@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T10:30:39.106Z"
+last_updated: "2026-03-05T10:59:07.000Z"
 progress:
   total_phases: 45
-  completed_phases: 43
-  total_plans: 119
-  completed_plans: 116
+  completed_phases: 44
+  total_plans: 120
+  completed_plans: 118
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 ## Current Position
 
 Phase: 60 of 60 (Fix TR Rejection Independence) — COMPLETE
-Plan: 1 of 1 in Phase 60 — COMPLETE (60-01 done)
+Plan: 2 of 2 in Phase 60 — COMPLETE (60-01 and 60-02 done)
 Status: Complete
-Last activity: 2026-03-05 — Phase 60 Plan 01 complete — removed MRF status cascade from TR rejection and TR approval; added prior rejection notice in Finance TR modal
+Last activity: 2026-03-05 — Phase 60 Plan 02 complete — removed TR Rejected from MRF query/canEdit, added rejected TR listener and Resubmit to Finance panel in Procurement
 
 Progress: [██████████] 97%
 
@@ -54,6 +54,7 @@ Progress: [██████████] 97%
 | Phase 59-02 P02 | 5 | 2 tasks | 2 files |
 | Phase 59 P03 | 2 | 2 tasks | 2 files |
 | Phase 59 P05 | 3 | 2 tasks | 2 files |
+| Phase 60 P02 | 2min | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 59.1]: Remove server-side historicalStatuses filter from loadPRPORecords — all MRFs fetched, client-side filterPRPORecords() handles filtering; reset _prpoRecordsCachedAt = 0 in saveNewMRF success path so Records tab never serves stale cache after a create
 - [Phase 60]: TR rejection does NOT cascade to MRF — TRs are child records; TR outcomes fully scoped to transport_requests collection; PR rejection cascade to MRF preserved
 - [Phase 60]: Prior rejection notice in Finance TR modal shown only when tr.rejection_reason is set — gives Finance context on resubmitted TRs, hidden for fresh TRs
+- [Phase 60-02]: Rejected TRs filter by mrf_id presence — standalone TRs without mrf_id excluded from dedicated rejected panel
+- [Phase 60-02]: resubmitRejectedTR does NOT clear rejection_reason so Finance modal shows "Previously rejected" notice on resubmitted TRs
+- [Phase 60-02]: cachedRejectedTRs.length included in empty-state guard in renderMRFList so panel stays when only rejected TRs exist
 
 ### Roadmap Evolution
 
@@ -99,6 +103,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 60-01-PLAN.md — TR rejection independence (no MRF cascade from TR rejection/approval, prior rejection notice in Finance modal)
+Stopped at: Completed 60-02-PLAN.md — TR rejection independence in Procurement (dedicated rejected TR panel, resubmit to Finance, MRF query decoupled from TR Rejected status)
 Resume file: None
-Next action: Phase 60 complete — all planned phases complete
+Next action: Phase 60 complete — all planned phases complete. Full TR rejection independence delivered across Plans 60-01 and 60-02.

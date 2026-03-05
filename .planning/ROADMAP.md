@@ -245,7 +245,7 @@ Plans:
 **Goal:** Decouple TR lifecycle from MRF status — TR rejection/approval must not cascade to MRF document
 **Requirements**: TR-INDEP-01, TR-INDEP-03
 **Depends on:** Phase 59
-**Plans:** 1 plan
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 60-01-PLAN.md — Remove MRF status cascade from TR rejection and TR approval; add prior rejection notice in Finance TR modal (finance.js)
