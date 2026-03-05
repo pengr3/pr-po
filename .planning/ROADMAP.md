@@ -230,5 +230,25 @@ Plans:
 - [ ] 59-04-PLAN.md — Fluid dashboard-grid layout for 1366px laptop screens (styles/views.css)
 - [ ] 59-05-PLAN.md — Gap closure: TR badge CSS class fix + sort flash cache (mrf-records.js, procurement.js)
 
+### Phase 59.1: Fix MRF Records real-time rendering - new MRFs should appear instantly in all records tables (Procurement and My Requests) (INSERTED)
+
+**Goal:** Procurement users see newly created MRFs in the Records tab immediately after creation — no manual Refresh required. The MRF Records query fetches all statuses (not just historical ones), the filter dropdown exposes Pending/Approved options, and the 5-minute cache is invalidated after a new MRF is saved.
+**Requirements**: MRF-RECORDS-01
+**Depends on:** Phase 59
+**Plans:** 1 plan
+
+Plans:
+- [ ] 59.1-01-PLAN.md — Remove historicalStatuses query filter, add Pending/Approved to filter dropdown, invalidate cache in saveNewMRF (procurement.js)
+
+### Phase 60: Fix TR rejection independence decouple TR status from MRF and treat TRs as child records like PRs
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 59
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 60 to break down)
+
 ---
-*Last updated: 2026-03-05 — Phase 59 gap closure plan 05 added (2 UAT gaps)*
+*Last updated: 2026-03-05 — Phase 59.1 planned (1 plan: fix MRF Records query + cache + filter dropdown)*
