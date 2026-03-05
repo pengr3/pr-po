@@ -1212,11 +1212,38 @@ export function createMRFRecordsController(options) {
                 }
             }
 
-            // MRF Status column — computed badge (Material only, em dash for Transport)
+            // Fetch finance_status for Transport rows from transport_requests collection
+            let trFinanceStatus = null;
+            if (type === 'Transport') {
+                try {
+                    const trsRef = collection(db, 'transport_requests');
+                    const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                    const trSnapshot = await getDocs(trQuery);
+                    if (!trSnapshot.empty) {
+                        trSnapshot.forEach((doc) => {
+                            const trData = doc.data();
+                            trFinanceStatus = trData.finance_status || 'Pending';
+                        });
+                    }
+                } catch (error) {
+                    console.error('[MRFRecords] Error fetching TR finance_status for', mrf.mrf_id, error);
+                }
+            }
+
+            // MRF Status column — computed badge for Material; finance_status badge for Transport
             let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">\u2014</span>';
             if (type === 'Material') {
                 const statusObj = calculateMRFStatus(prDataArray, poDataArray);
                 mrfStatusHtml = renderMRFStatusBadge(statusObj);
+            } else if (type === 'Transport') {
+                const financeStatus = trFinanceStatus || 'Pending';
+                const badgeColors = {
+                    'Approved': { bg: '#d1fae5', color: '#059669' },
+                    'Rejected': { bg: '#fee2e2', color: '#ef4444' },
+                    'Pending':  { bg: '#fef3c7', color: '#f59e0b' }
+                };
+                const bc = badgeColors[financeStatus] || badgeColors['Pending'];
+                mrfStatusHtml = `<span style="display: inline-block; background: ${bc.bg}; color: ${bc.color}; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${escapeHTML(financeStatus)}</span>`;
             }
 
             // Display ID: use tr_id for Transport if available, else mrf_id
