@@ -2725,6 +2725,7 @@ async function renderPRPORecords() {
                     trSnapshot.forEach((doc) => {
                         const trData = doc.data();
                         totalCost = parseFloat(trData.total_amount || 0);
+                        mrf._tr_finance_status = trData.finance_status || 'Pending';
                     });
                 }
 
@@ -2866,11 +2867,20 @@ async function renderPRPORecords() {
 
         const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
 
-        // Calculate MRF Status badge (only for Material requests)
+        // Calculate MRF Status badge — computed for Material; finance_status badge for Transport
         let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">—</span>';
         if (type === 'Material') {
             const statusObj = calculateMRFStatus(prDataArray, poDataArray);
             mrfStatusHtml = renderMRFStatusBadge(statusObj);
+        } else if (type === 'Transport') {
+            const financeStatus = mrf._tr_finance_status || 'Pending';
+            const badgeColors = {
+                'Approved': { bg: '#d1fae5', color: '#059669' },
+                'Rejected': { bg: '#fee2e2', color: '#ef4444' },
+                'Pending':  { bg: '#fef3c7', color: '#f59e0b' }
+            };
+            const bc = badgeColors[financeStatus] || badgeColors['Pending'];
+            mrfStatusHtml = `<span style="display: inline-block; background: ${bc.bg}; color: ${bc.color}; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${escapeHTML(financeStatus)}</span>`;
         }
 
         // Build merged PRs / POs cell — index POs by their parent pr_id, then render one row per PR
