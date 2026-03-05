@@ -1169,6 +1169,7 @@ function renderMRFDetails(mrf, isNew = false) {
                                     <option value="SUBCON" ${(item.category || '') === 'SUBCON' ? 'selected' : ''}>SUBCON</option>
                                     <option value="TRANSPORTATION" ${(item.category || '') === 'TRANSPORTATION' ? 'selected' : ''}>TRANSPORTATION</option>
                                     <option value="HAULING & DELIVERY" ${(item.category || '') === 'HAULING & DELIVERY' ? 'selected' : ''}>HAULING & DELIVERY</option>
+                                    <option value="DELIVERY BY SUPPLIER" ${(item.category || '') === 'DELIVERY BY SUPPLIER' ? 'selected' : ''}>DELIVERY BY SUPPLIER</option>
                                     <option value="OTHERS" ${(item.category || '') === 'OTHERS' ? 'selected' : ''}>OTHERS</option>
                                 </select>
                             </td>
@@ -1400,6 +1401,7 @@ function addLineItem() {
                 <option value="SUBCON">SUBCON</option>
                 <option value="TRANSPORTATION">TRANSPORTATION</option>
                 <option value="HAULING & DELIVERY">HAULING & DELIVERY</option>
+                <option value="DELIVERY BY SUPPLIER">DELIVERY BY SUPPLIER</option>
                 <option value="OTHERS">OTHERS</option>
             </select>
         </td>
