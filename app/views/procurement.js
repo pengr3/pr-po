@@ -65,9 +65,9 @@ function applyPODeptFilter(value) {
 
 function getPRPOSortIndicator(col) {
     if (col === prpoSortColumn) {
-        return `<span style="color: #1a73e8; font-size: 0.65rem;">${prpoSortDirection === 'asc' ? ' \u2191' : ' \u2193'}</span>`;
+        return `<span style="color: #1a73e8;">${prpoSortDirection === 'asc' ? ' \u2191' : ' \u2193'}</span>`;
     }
-    return `<span style="color: #94a3b8; font-size: 0.65rem;"> \u21C5</span>`;
+    return `<span style="color: #94a3b8;"> \u21C5</span>`;
 }
 
 // Ordinal order for Procurement Status sorting — matches process flow dropdown order
@@ -3020,22 +3020,22 @@ async function renderPRPORecords() {
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
                 <tr style="background: #f8f9fa;">
-                    <th onclick="window.sortPRPORecords('mrf_id')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
+                    <th onclick="window.sortPRPORecords('mrf_id')" style="text-align: center; cursor: pointer; user-select: none;">
                         MRF ID ${getPRPOSortIndicator('mrf_id')}
                     </th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
-                    <th onclick="window.sortPRPORecords('date_needed')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
+                    <th style="text-align: left;">Project</th>
+                    <th onclick="window.sortPRPORecords('date_needed')" style="text-align: center; cursor: pointer; user-select: none;">
                         Date Needed ${getPRPOSortIndicator('date_needed')}
                     </th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
-                    <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
-                    <th onclick="window.sortPRPORecords('status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
+                    <th style="text-align: left;">PRs</th>
+                    <th style="text-align: left;">POs</th>
+                    <th onclick="window.sortPRPORecords('status')" style="text-align: left; cursor: pointer; user-select: none;">
                         MRF Status ${getPRPOSortIndicator('status')}
                     </th>
-                    <th onclick="window.sortPRPORecords('procurement_status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">
+                    <th onclick="window.sortPRPORecords('procurement_status')" style="text-align: left; cursor: pointer; user-select: none;">
                         Procurement Status ${getPRPOSortIndicator('procurement_status')}
                     </th>
-                    <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
+                    <th style="text-align: center;">Actions</th>
                 </tr>
             </thead>
             <tbody>
