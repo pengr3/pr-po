@@ -1014,6 +1014,45 @@ export function createMRFRecordsController(options) {
     let allRecords = [];
     let filteredRecords = [];
     let currentPage = 1;
+    let sortField = 'date_needed';  // default: Date Needed ascending
+    let sortDir = 'asc';
+
+    // ------------------------------------------------
+    // SORT HELPERS
+    // ------------------------------------------------
+
+    function getSortIndicator(col) {
+        if (col === sortField) {
+            return `<span style="color: #1a73e8; font-size: 0.65rem;">${sortDir === 'asc' ? ' \u2191' : ' \u2193'}</span>`;
+        }
+        return `<span style="color: #94a3b8; font-size: 0.65rem;"> \u21C5</span>`;
+    }
+
+    function applySort() {
+        filteredRecords.sort((a, b) => {
+            let aVal, bVal;
+            if (sortField === 'mrf_id') {
+                aVal = a.mrf_id || '';
+                bVal = b.mrf_id || '';
+                return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            } else if (sortField === 'date_needed') {
+                aVal = a.date_needed ? new Date(a.date_needed) : new Date(0);
+                bVal = b.date_needed ? new Date(b.date_needed) : new Date(0);
+            } else if (sortField === 'status') {
+                aVal = a.status || '';
+                bVal = b.status || '';
+                return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            } else if (sortField === 'procurement_status') {
+                aVal = a._procurement_status || '';
+                bVal = b._procurement_status || '';
+                return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            } else {
+                return 0;
+            }
+            // Date comparison (date_needed path)
+            return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+    }
 
     // ------------------------------------------------
     // LOAD
@@ -1053,6 +1092,7 @@ export function createMRFRecordsController(options) {
             });
 
             filteredRecords = applyFilters('', '', '');
+            applySort();
             currentPage = 1;
             await render();
         } catch (error) {
@@ -1115,8 +1155,25 @@ export function createMRFRecordsController(options) {
         const urgency = urgencyId ? (document.getElementById(urgencyId)?.value || '') : '';
 
         filteredRecords = applyFilters(searchText, mrfStatus, urgency);
+        applySort();
         currentPage = 1;
         await render();
+    }
+
+    // ------------------------------------------------
+    // SORT (public)
+    // ------------------------------------------------
+
+    function sort(field) {
+        if (sortField === field) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortDir = 'asc';
+        }
+        applySort();
+        currentPage = 1;
+        render();
     }
 
     // ------------------------------------------------
@@ -1351,13 +1408,13 @@ export function createMRFRecordsController(options) {
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: #f8f9fa;">
-                        <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF ID</th>
+                        <th onclick="window._myRequestsSort('mrf_id')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">MRF ID ${getSortIndicator('mrf_id')}</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Project</th>
-                        <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Date Needed</th>
+                        <th onclick="window._myRequestsSort('date_needed')" style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">Date Needed ${getSortIndicator('date_needed')}</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">PRs</th>
                         <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">POs</th>
-                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">MRF Status</th>
-                        <th style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Procurement Status</th>
+                        <th onclick="window._myRequestsSort('status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">MRF Status ${getSortIndicator('status')}</th>
+                        <th onclick="window._myRequestsSort('procurement_status')" style="padding: 0.75rem 1rem; text-align: left; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; cursor: pointer; user-select: none;">Procurement Status ${getSortIndicator('procurement_status')}</th>
                         <th style="padding: 0.75rem 1rem; text-align: center; border-bottom: 2px solid #e5e7eb; font-size: 0.75rem; font-weight: 600;">Actions</th>
                     </tr>
                 </thead>
@@ -1495,5 +1552,5 @@ export function createMRFRecordsController(options) {
     // PUBLIC API
     // ------------------------------------------------
 
-    return { load, filter, exportCSV, destroy };
+    return { load, filter, sort, exportCSV, destroy };
 }
