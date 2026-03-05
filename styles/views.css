@@ -39,7 +39,7 @@
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: minmax(280px, 320px) 1fr;
     gap: 2rem;
     margin-top: 2rem;
 }
@@ -808,6 +808,12 @@
 /* ========================================
    RESPONSIVE - VIEW SPECIFIC
    ======================================== */
+
+@media (max-width: 1400px) {
+    .dashboard-grid {
+        gap: 1rem;
+    }
+}
 
 @media (max-width: 1024px) {
     .dashboard-grid {
