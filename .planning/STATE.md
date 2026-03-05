@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T08:56:18.489Z"
+last_updated: "2026-03-05T09:04:10.253Z"
 progress:
   total_phases: 43
   completed_phases: 42
@@ -82,6 +82,8 @@ Recent decisions affecting current work:
 
 - Phase 58 added: Fix TR rejection not reappearing in procurement, PR rejection hiding MRF records, and CSP header violations blocking Firebase source maps
 - Phase 59 added: Improve TR display on MRF Records and My Requests, add sortable headers to My Requests, enhance Timeline lifecycle logging, and optimize workspace responsiveness for laptop screens
+- Phase 60 added: Fix TR rejection independence — decouple TR status from MRF, treat TRs as child records like PRs so rejected TRs return to procurement without rejecting the whole MRF
+- Phase 59.1 inserted after Phase 59: Fix MRF Records real-time rendering - new MRFs should appear instantly in all records tables (Procurement and My Requests) (URGENT)
 
 ### Pending Todos
 
