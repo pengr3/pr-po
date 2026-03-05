@@ -191,7 +191,7 @@ Plans:
 **Goal:** Procurement users can resubmit Finance-rejected TRs from the Processing Area, MRF Records correctly shows PR Rejected and TR Rejected records, and browser console shows no CSP violations for Firebase source map fetches
 **Requirements**: BUG-01, BUG-02, BUG-03
 **Depends on:** Phase 57
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 58-01-PLAN.md — Fix TR Rejected canEdit checks and add PR/TR Rejected filter options to MRF Records (procurement.js)
@@ -212,7 +212,7 @@ Plans:
 | 55 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 56 | v3.0 | 1/1 | Complete | 2026-03-04 |
 | 57 | v3.1 | 1/1 | Complete | 2026-03-05 |
-| 58 | 1/2 | In Progress|  | — |
+| 58 | 2/2 | Complete   | 2026-03-05 | — |
 
 **Total shipped: 55 phases, 142 plans, 9 milestones**
 

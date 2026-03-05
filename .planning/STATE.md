@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T04:18:24.479Z"
+last_updated: "2026-03-05T04:19:11.336Z"
 progress:
   total_phases: 42
-  completed_phases: 40
+  completed_phases: 41
   total_plans: 113
-  completed_plans: 109
+  completed_plans: 110
 ---
 
 # Project State
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 58 of 58 (Production Bug Fixes) — In Progress
-Plan: 2 of 2 in Phase 58 — COMPLETE (plan 02 done)
-Status: In Progress
-Last activity: 2026-03-05 — Phase 58 Plan 02 complete — CSP gstatic.com fix deployed
+Phase: 58 of 58 (Production Bug Fixes) — COMPLETE
+Plan: 2 of 2 in Phase 58 — COMPLETE (both plans done)
+Status: Complete
+Last activity: 2026-03-05 — Phase 58 complete — TR Rejected canEdit fix + MRF Records filter fix deployed
 
 Progress: [██████████] 100%
 
@@ -62,6 +62,8 @@ Recent decisions affecting current work:
 - [Phase 057]: DELIVERY BY SUPPLIER absent from transportCategories so routing stays in PR path and triggers existing supplier-required validation
 - [Phase 057]: New category options inserted between HAULING & DELIVERY and OTHERS in all dropdowns, no new logic required
 - [Phase 58]: Added https://www.gstatic.com to CSP connect-src in both _headers and netlify.toml to fix Firebase SDK source map fetch CSP violations
+- [Phase 58]: TR Rejected status added to canEdit checks in renderMRFDetails() and updateActionButtons() — all resubmittable MRF statuses now consistent
+- [Phase 58]: PR Rejected and TR Rejected added to histStatusFilter dropdown and historicalStatuses query so Records tab fetches and filters rejected MRFs
 
 ### Roadmap Evolution
 
@@ -78,6 +80,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Completed 58-02-PLAN.md — CSP gstatic.com connect-src fix
+Stopped at: Completed 058-01-PLAN.md — Phase 58 complete, all production bug fixes deployed
 Resume file: None
-Next action: Phase 58 plan 01 (TR rejection reappearing) if not yet complete, or phase complete
+Next action: None (phase complete)
