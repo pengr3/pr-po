@@ -315,6 +315,7 @@ export function render(activeTab = 'form') {
                                                     <option value="SUBCON">SUBCON</option>
                                                     <option value="TRANSPORTATION">TRANSPORTATION</option>
                                                     <option value="HAULING & DELIVERY">HAULING & DELIVERY</option>
+                                                    <option value="DELIVERY BY SUPPLIER">DELIVERY BY SUPPLIER</option>
                                                     <option value="OTHERS">OTHERS</option>
                                                 </select>
                                             </td>
