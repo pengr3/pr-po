@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T07:57:22.614Z"
+last_updated: "2026-03-05T08:01:04.774Z"
 progress:
   total_phases: 43
   completed_phases: 41
   total_plans: 117
-  completed_plans: 112
+  completed_plans: 113
 ---
 
 # Project State
@@ -51,6 +51,7 @@ Progress: [██████████] 97%
 | Phase 58 P02 | 45s | 2 tasks | 2 files |
 | Phase 59 P01 | 2min | 2 tasks | 2 files |
 | Phase 59 P04 | 1 | 1 tasks | 1 files |
+| Phase 59-02 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 58]: PR Rejected and TR Rejected added to histStatusFilter dropdown and historicalStatuses query so Records tab fetches and filters rejected MRFs
 - [Phase 59]: TR finance_status fetched from transport_requests collection per-row; not stored on mrfs document — must be fetched separately for Transport rows
 - [Phase 59]: Used minmax(280px, 320px) for .dashboard-grid left panel to gain ~30px vs fixed 350px and allow shrinkage on tight viewports
+- [Phase 59-02]: Submitted event uses completed (green) only when finance_status=Approved AND no rejection history — keeps non-rejected approvals as single green entry
+- [Phase 59-02]: Approved PRs with rejection history emit 4 events: Submitted + Rejected + Resubmitted + Approved with POs — full audit trail visible in chronological order
 
 ### Roadmap Evolution
 
