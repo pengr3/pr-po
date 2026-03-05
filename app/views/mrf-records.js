@@ -1016,6 +1016,7 @@ export function createMRFRecordsController(options) {
     let currentPage = 1;
     let sortField = 'date_needed';  // default: Date Needed ascending
     let sortDir = 'asc';
+    let _subDataCache = new Map(); // key: mrf.id, value: { prDataArray, poDataArray, trFinanceStatus }
 
     // ------------------------------------------------
     // SORT HELPERS
@@ -1080,6 +1081,7 @@ export function createMRFRecordsController(options) {
 
             const snapshot = await getDocs(q);
             allRecords = [];
+            _subDataCache = new Map(); // invalidate on fresh load
             snapshot.forEach(doc => {
                 allRecords.push({ id: doc.id, ...doc.data() });
             });
@@ -1205,8 +1207,10 @@ export function createMRFRecordsController(options) {
         const endIndex = Math.min(startIndex + itemsPerPage, filteredRecords.length);
         const pageItems = filteredRecords.slice(startIndex, endIndex);
 
-        // Show loading state while fetching PR/PO sub-data
-        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
+        // Show loading state only on first render (cache empty); skip on sort/filter/page-change
+        if (_subDataCache.size === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
+        }
 
         // Fetch PR and PO data for current page items only (parallel per row)
         const rows = await Promise.all(pageItems.map(async (mrf) => {
@@ -1218,67 +1222,99 @@ export function createMRFRecordsController(options) {
             let procStatusHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
             let prDataArray = [];
             let poDataArray = [];
+            let trFinanceStatus = null;
 
+            // Check cache first — skip Firestore if sub-data already loaded for this MRF
+            if (_subDataCache.has(mrf.id)) {
+                const cached = _subDataCache.get(mrf.id);
+                prDataArray = cached.prDataArray;
+                poDataArray = cached.poDataArray;
+                trFinanceStatus = cached.trFinanceStatus;
+            } else {
+                if (type === 'Material') {
+                    // Fetch PRs
+                    try {
+                        const prsRef = collection(db, 'prs');
+                        const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
+                        const prSnapshot = await getDocs(prQuery);
+
+                        if (!prSnapshot.empty) {
+                            prSnapshot.forEach((doc) => {
+                                const prData = doc.data();
+                                prDataArray.push({
+                                    docId: doc.id,
+                                    pr_id: prData.pr_id,
+                                    total_amount: parseFloat(prData.total_amount || 0),
+                                    finance_status: prData.finance_status,
+                                    supplier_name: prData.supplier_name
+                                });
+                            });
+
+                            // Sort PR IDs by number
+                            prDataArray.sort((a, b) => {
+                                const numA = parseInt((a.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                return numA - numB;
+                            });
+                        }
+                    } catch (error) {
+                        console.error('[MRFRecords] Error fetching PRs for', mrf.mrf_id, error);
+                    }
+
+                    // Fetch POs
+                    try {
+                        const posRef = collection(db, 'pos');
+                        const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                        const poSnapshot = await getDocs(poQuery);
+
+                        if (!poSnapshot.empty) {
+                            poSnapshot.forEach((doc) => {
+                                const poData = doc.data();
+                                poDataArray.push({
+                                    docId: doc.id,
+                                    po_id: poData.po_id,
+                                    pr_id: poData.pr_id || null,
+                                    procurement_status: poData.procurement_status,
+                                    is_subcon: poData.is_subcon || false,
+                                    supplier_name: poData.supplier_name
+                                });
+                            });
+
+                            // Sort PO IDs by number
+                            poDataArray.sort((a, b) => {
+                                const numA = parseInt((a.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                const numB = parseInt((b.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                                return numA - numB;
+                            });
+                        }
+                    } catch (error) {
+                        console.error('[MRFRecords] Error fetching POs for', mrf.mrf_id, error);
+                    }
+                }
+
+                // Fetch finance_status for Transport rows from transport_requests collection
+                if (type === 'Transport') {
+                    try {
+                        const trsRef = collection(db, 'transport_requests');
+                        const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                        const trSnapshot = await getDocs(trQuery);
+                        if (!trSnapshot.empty) {
+                            trSnapshot.forEach((doc) => {
+                                const trData = doc.data();
+                                trFinanceStatus = trData.finance_status || 'Pending';
+                            });
+                        }
+                    } catch (error) {
+                        console.error('[MRFRecords] Error fetching TR finance_status for', mrf.mrf_id, error);
+                    }
+                }
+
+                // Store in cache for subsequent sort/filter/page-change renders
+                _subDataCache.set(mrf.id, { prDataArray, poDataArray, trFinanceStatus });
+            }
+
+            // Build HTML for PRs | POs | Procurement Status columns (runs for both cache hit and miss)
             if (type === 'Material') {
-                // Fetch PRs
-                try {
-                    const prsRef = collection(db, 'prs');
-                    const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
-                    const prSnapshot = await getDocs(prQuery);
-
-                    if (!prSnapshot.empty) {
-                        prSnapshot.forEach((doc) => {
-                            const prData = doc.data();
-                            prDataArray.push({
-                                docId: doc.id,
-                                pr_id: prData.pr_id,
-                                total_amount: parseFloat(prData.total_amount || 0),
-                                finance_status: prData.finance_status,
-                                supplier_name: prData.supplier_name
-                            });
-                        });
-
-                        // Sort PR IDs by number
-                        prDataArray.sort((a, b) => {
-                            const numA = parseInt((a.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                            const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                            return numA - numB;
-                        });
-                    }
-                } catch (error) {
-                    console.error('[MRFRecords] Error fetching PRs for', mrf.mrf_id, error);
-                }
-
-                // Fetch POs
-                try {
-                    const posRef = collection(db, 'pos');
-                    const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
-                    const poSnapshot = await getDocs(poQuery);
-
-                    if (!poSnapshot.empty) {
-                        poSnapshot.forEach((doc) => {
-                            const poData = doc.data();
-                            poDataArray.push({
-                                docId: doc.id,
-                                po_id: poData.po_id,
-                                pr_id: poData.pr_id || null,
-                                procurement_status: poData.procurement_status,
-                                is_subcon: poData.is_subcon || false,
-                                supplier_name: poData.supplier_name
-                            });
-                        });
-
-                        // Sort PO IDs by number
-                        poDataArray.sort((a, b) => {
-                            const numA = parseInt((a.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                            const numB = parseInt((b.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                            return numA - numB;
-                        });
-                    }
-                } catch (error) {
-                    console.error('[MRFRecords] Error fetching POs for', mrf.mrf_id, error);
-                }
-
                 // Index POs by their parent pr_id for per-PR pairing
                 const posByPrId = {};
                 poDataArray.forEach(po => {
@@ -1338,24 +1374,6 @@ export function createMRFRecordsController(options) {
                         }
                         return `<div style="${rowStyle(i)}">${content}</div>`;
                     }).join('');
-                }
-            }
-
-            // Fetch finance_status for Transport rows from transport_requests collection
-            let trFinanceStatus = null;
-            if (type === 'Transport') {
-                try {
-                    const trsRef = collection(db, 'transport_requests');
-                    const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
-                    const trSnapshot = await getDocs(trQuery);
-                    if (!trSnapshot.empty) {
-                        trSnapshot.forEach((doc) => {
-                            const trData = doc.data();
-                            trFinanceStatus = trData.finance_status || 'Pending';
-                        });
-                    }
-                } catch (error) {
-                    console.error('[MRFRecords] Error fetching TR finance_status for', mrf.mrf_id, error);
                 }
             }
 

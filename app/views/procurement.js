@@ -47,6 +47,7 @@ let _projectsCachedAt = 0;
 let _servicesCachedAt = 0;
 let _suppliersCachedAt = 0;
 let _prpoRecordsCachedAt = 0;
+let _prpoSubDataCache = new Map(); // key: mrf.id, value: { prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus }
 
 // Listener dedup guards — prevent duplicate onSnapshot registrations on tab switches
 let _mrfListenerActive = false;
@@ -592,6 +593,7 @@ export async function destroy() {
     poData = [];
     allPRPORecords = [];
     filteredPRPORecords = [];
+    _prpoSubDataCache = new Map();
 
     // Clean up window functions
     delete window.loadMRFs;
@@ -2325,6 +2327,7 @@ async function loadPRPORecords() {
         const mrfSnapshot = await getDocs(mrfQuery);
 
         allPRPORecords = [];
+        _prpoSubDataCache = new Map(); // invalidate on fresh MRF load
         mrfSnapshot.forEach((doc) => {
             allPRPORecords.push({ id: doc.id, ...doc.data() });
         });
@@ -2664,126 +2667,140 @@ async function renderPRPORecords() {
     const endIndex = Math.min(startIndex + prpoItemsPerPage, filteredPRPORecords.length);
     const pageItems = filteredPRPORecords.slice(startIndex, endIndex);
 
-    // Show loading state
-    container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
+    // Show loading state only on first render (cache empty); skip on sort/filter/page-change
+    if (_prpoSubDataCache.size === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
+    }
 
     // Fetch PR and PO data for current page items only
     const rows = await Promise.all(pageItems.map(async (mrf) => {
         const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
 
-        // Fetch PRs for this MRF
         let totalCost = 0;
         let prCount = 0;
         let prApprovedCount = 0;
-        let prDataArray = []; // Store for MRF status calculation
+        let prDataArray = [];
+        let poCount = 0;
+        let poDataArray = [];
+        let trCost = 0;
+        let trFinanceStatus = null;
 
-        if (type === 'Material') {
-            try {
-                const prsRef = collection(db, 'prs');
-                const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
-                const prSnapshot = await getDocs(prQuery);
+        // Check cache first — skip Firestore if sub-data already loaded for this MRF
+        if (_prpoSubDataCache.has(mrf.id)) {
+            const cached = _prpoSubDataCache.get(mrf.id);
+            ({ prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus } = cached);
+            poCount = poDataArray.length;
+            mrf._tr_finance_status = trFinanceStatus;
+        } else {
+            if (type === 'Material') {
+                try {
+                    const prsRef = collection(db, 'prs');
+                    const prQuery = query(prsRef, where('mrf_id', '==', mrf.mrf_id));
+                    const prSnapshot = await getDocs(prQuery);
 
-                if (!prSnapshot.empty) {
-                    prSnapshot.forEach((doc) => {
-                        const prData = doc.data();
-                        prCount++;
-                        if (prData.finance_status === 'Approved') {
-                            prApprovedCount++;
-                        }
-                        prDataArray.push({
-                            docId: doc.id,
-                            pr_id: prData.pr_id,
-                            total_amount: parseFloat(prData.total_amount || 0),
-                            finance_status: prData.finance_status,
-                            supplier_name: prData.supplier_name
+                    if (!prSnapshot.empty) {
+                        prSnapshot.forEach((doc) => {
+                            const prData = doc.data();
+                            prCount++;
+                            if (prData.finance_status === 'Approved') {
+                                prApprovedCount++;
+                            }
+                            prDataArray.push({
+                                docId: doc.id,
+                                pr_id: prData.pr_id,
+                                total_amount: parseFloat(prData.total_amount || 0),
+                                finance_status: prData.finance_status,
+                                supplier_name: prData.supplier_name
+                            });
+                            if (prData.finance_status !== 'Rejected') {
+                                totalCost += parseFloat(prData.total_amount || 0);
+                            }
                         });
-                        if (prData.finance_status !== 'Rejected') {
-                            totalCost += parseFloat(prData.total_amount || 0);
-                        }
-                    });
 
-                    // Sort PR IDs by number
-                    prDataArray.sort((a, b) => {
-                        const numA = parseInt((a.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                        const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                        return numA - numB;
-                    });
+                        // Sort PR IDs by number
+                        prDataArray.sort((a, b) => {
+                            const numA = parseInt((a.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                            const numB = parseInt((b.pr_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                            return numA - numB;
+                        });
 
-                    // (prIds / prHtml block removed — PR display is now handled by prPoHtml below)
+                        // (prIds / prHtml block removed — PR display is now handled by prPoHtml below)
+                    }
+                } catch (error) {
+                    console.error('Error fetching PRs for', mrf.mrf_id, error);
                 }
-            } catch (error) {
-                console.error('Error fetching PRs for', mrf.mrf_id, error);
+            } else if (type === 'Transport') {
+                // Fetch cost from transport_requests collection
+                try {
+                    const trsRef = collection(db, 'transport_requests');
+                    const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                    const trSnapshot = await getDocs(trQuery);
+
+                    if (!trSnapshot.empty) {
+                        trSnapshot.forEach((doc) => {
+                            const trData = doc.data();
+                            trCost = parseFloat(trData.total_amount || 0);
+                            trFinanceStatus = trData.finance_status || 'Pending';
+                            mrf._tr_finance_status = trFinanceStatus;
+                        });
+                    }
+
+                    // Fallback: Calculate from MRF items_json if cost not found in TR
+                    if (trCost === 0 && mrf.items_json) {
+                        const items = JSON.parse(mrf.items_json);
+                        items.forEach(item => {
+                            const qty = parseFloat(item.qty || item.quantity || 0);
+                            const unitCost = parseFloat(item.unit_cost || 0);
+                            trCost += qty * unitCost;
+                        });
+                    }
+                    totalCost = trCost;
+                } catch (error) {
+                    console.error('Error fetching transport request cost for', mrf.mrf_id, error);
+                }
             }
-        } else if (type === 'Transport') {
-            // Fetch cost from transport_requests collection
-            try {
-                const trsRef = collection(db, 'transport_requests');
-                const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
-                const trSnapshot = await getDocs(trQuery);
 
-                if (!trSnapshot.empty) {
-                    trSnapshot.forEach((doc) => {
-                        const trData = doc.data();
-                        totalCost = parseFloat(trData.total_amount || 0);
-                        mrf._tr_finance_status = trData.finance_status || 'Pending';
-                    });
-                }
+            if (type === 'Material') {
+                try {
+                    const posRef = collection(db, 'pos');
+                    const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
+                    const poSnapshot = await getDocs(poQuery);
 
-                // Fallback: Calculate from MRF items_json if cost not found in TR
-                if (totalCost === 0 && mrf.items_json) {
-                    const items = JSON.parse(mrf.items_json);
-                    items.forEach(item => {
-                        const qty = parseFloat(item.qty || item.quantity || 0);
-                        const unitCost = parseFloat(item.unit_cost || 0);
-                        totalCost += qty * unitCost;
-                    });
+                    if (!poSnapshot.empty) {
+                        poSnapshot.forEach((doc) => {
+                            const poData = doc.data();
+                            poCount++;
+                            poDataArray.push({
+                                docId: doc.id,
+                                po_id: poData.po_id,
+                                pr_id: poData.pr_id,
+                                procurement_status: poData.procurement_status,
+                                is_subcon: poData.is_subcon || false,
+                                supplier_name: poData.supplier_name
+                            });
+                        });
+
+                        // Sort PO IDs by number
+                        poDataArray.sort((a, b) => {
+                            const numA = parseInt((a.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                            const numB = parseInt((b.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
+                            return numA - numB;
+                        });
+
+                        // (poLinks block removed — PO display is now handled by prPoHtml below)
+                    }
+                } catch (error) {
+                    console.error('Error fetching POs for', mrf.mrf_id, error);
                 }
-            } catch (error) {
-                console.error('Error fetching transport request cost for', mrf.mrf_id, error);
             }
+
+            // Store in cache for subsequent sort/filter/page-change renders
+            _prpoSubDataCache.set(mrf.id, { prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus });
         }
 
         const totalCostHtml = totalCost > 0
             ? `<strong style="color: #1f2937;">₱${totalCost.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong>`
             : '<span style="color: #999; font-size: 0.875rem;">-</span>';
-
-        // Fetch POs for this MRF (only for Material requests)
-        let poCount = 0;
-        let poDataArray = []; // Store for MRF status calculation
-
-        if (type === 'Material') {
-            try {
-                const posRef = collection(db, 'pos');
-                const poQuery = query(posRef, where('mrf_id', '==', mrf.mrf_id));
-                const poSnapshot = await getDocs(poQuery);
-
-                if (!poSnapshot.empty) {
-                    poSnapshot.forEach((doc) => {
-                        const poData = doc.data();
-                        poCount++;
-                        poDataArray.push({
-                            docId: doc.id,
-                            po_id: poData.po_id,
-                            pr_id: poData.pr_id,
-                            procurement_status: poData.procurement_status,
-                            is_subcon: poData.is_subcon || false,
-                            supplier_name: poData.supplier_name
-                        });
-                    });
-
-                    // Sort PO IDs by number
-                    poDataArray.sort((a, b) => {
-                        const numA = parseInt((a.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                        const numB = parseInt((b.po_id.match(/-(\d+)-/) || ['', '0'])[1]);
-                        return numA - numB;
-                    });
-
-                    // (poLinks block removed — PO display is now handled by prPoHtml below)
-                }
-            } catch (error) {
-                console.error('Error fetching POs for', mrf.mrf_id, error);
-            }
-        }
 
         // Store resolved procurement status on the MRF record for sorting
         // Use the least-progressed (bottleneck) PO status as summary
