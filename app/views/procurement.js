@@ -1200,6 +1200,11 @@ function renderMRFDetails(mrf, isNew = false) {
                                     <option value="meters" ${(item.unit || '') === 'meters' ? 'selected' : ''}>meters</option>
                                     <option value="kg" ${(item.unit || '') === 'kg' ? 'selected' : ''}>kg</option>
                                     <option value="liters" ${(item.unit || '') === 'liters' ? 'selected' : ''}>liters</option>
+                                    <option value="rolls" ${(item.unit || '') === 'rolls' ? 'selected' : ''}>rolls</option>
+                                    <option value="sets" ${(item.unit || '') === 'sets' ? 'selected' : ''}>sets</option>
+                                    <option value="packs" ${(item.unit || '') === 'packs' ? 'selected' : ''}>Packs</option>
+                                    <option value="pairs" ${(item.unit || '') === 'pairs' ? 'selected' : ''}>pairs</option>
+                                    <option value="quarts" ${(item.unit || '') === 'quarts' ? 'selected' : ''}>quarts</option>
                                 </select>
                             </td>
                             <td>
@@ -1426,6 +1431,11 @@ function addLineItem() {
                 <option value="meters">meters</option>
                 <option value="kg">kg</option>
                 <option value="liters">liters</option>
+                <option value="rolls">rolls</option>
+                <option value="sets">sets</option>
+                <option value="packs">Packs</option>
+                <option value="pairs">pairs</option>
+                <option value="quarts">quarts</option>
             </select>
         </td>
         <td>

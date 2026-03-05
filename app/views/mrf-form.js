@@ -291,6 +291,14 @@ export function render(activeTab = 'form') {
                                                     <option value="sheets">sheets</option>
                                                     <option value="yards">yards</option>
                                                     <option value="pail">pail</option>
+                                                    <option value="rolls">rolls</option>
+                                                    <option value="sets">sets</option>
+                                                    <option value="packs">Packs</option>
+                                                    <option value="liter">liter</option>
+                                                    <option value="pairs">pairs</option>
+                                                    <option value="meters">meters</option>
+                                                    <option value="quarts">quarts</option>
+                                                    <option value="kg">kg</option>
                                                     <option value="others">Others (specify)</option>
                                                 </select>
                                                 <input type="text" class="custom-unit-input" placeholder="Specify unit" style="display: none; margin-top: 0.5rem;">
