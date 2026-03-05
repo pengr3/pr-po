@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 59-improve-tr-display
 source: [59-01-SUMMARY.md, 59-02-SUMMARY.md, 59-03-SUMMARY.md, 59-04-SUMMARY.md]
 started: 2026-03-05T08:10:00Z
@@ -58,13 +58,26 @@ skipped: 0
   reason: "User reported: formatting issue, use the color and format of existing MRF Status Badges"
   severity: cosmetic
   test: 1
-  artifacts: []
-  missing: []
+  root_cause: "TR badge uses hand-rolled inline style (hardcoded hex colors, different padding/border-radius) instead of the CSS-class pattern used by renderMRFStatusBadge(). Fix: replace inline-style span with <span class=\"status-badge {class}\"> in both mrf-records.js (~line 1367) and procurement.js (~line 2875)."
+  artifacts:
+    - path: "app/views/mrf-records.js"
+      issue: "Transport else-if block builds mrfStatusHtml with inline style instead of status-badge CSS class"
+    - path: "app/views/procurement.js"
+      issue: "Same inline-style span in Transport else-if block around line 2875"
+  missing:
+    - "Replace inline-style span with <span class=\"status-badge approved|rejected|pending\"> in both Transport branches"
 
 - truth: "Clicking a sort header in My Requests re-sorts the visible rows in-place without a loading flash"
   status: failed
   reason: "User reported: table disappears for a while and returns sorted — wants in-place sort like other tables. Also affects Procurement MRF Records sort."
   severity: major
   test: 6
-  artifacts: []
-  missing: []
+  root_cause: "sort() calls render(), and render() unconditionally writes a loading placeholder then fires Firestore sub-queries (PRs/POs per row) before painting. No caching exists, so every sort/filter/page-change re-fetches all sub-data. Same path in procurement.js renderPRPORecords(). Fix: cache PR/PO sub-data (as objects) in a Map keyed by mrf.id after first load; on sort/filter, skip Firestore and omit the loading text when cache is warm."
+  artifacts:
+    - path: "app/views/mrf-records.js"
+      issue: "render() shows loading text + fires Firestore queries on every sort call (line ~1209)"
+    - path: "app/views/procurement.js"
+      issue: "renderPRPORecords() shows loading text + fires Firestore queries on every sort/filter call (line ~2668)"
+  missing:
+    - "Add row sub-data cache (Map keyed by mrf.id) in createMRFRecordsController; skip loading text and Firestore fetches when cache is warm"
+    - "Add same cache in procurement.js renderPRPORecords; invalidate on fresh loadPRPORecords() call"
