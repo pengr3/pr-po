@@ -1047,8 +1047,10 @@ async function refreshProjectExpenses(forceRefresh = false) {
     showLoading(true);
 
     try {
-        // Get all projects
-        const projectsSnapshot = await getDocs(collection(db, 'projects'));
+        // Get only active projects
+        const projectsSnapshot = await getDocs(
+            query(collection(db, 'projects'), where('active', '==', true))
+        );
 
         // Aggregate PO + TR totals for all projects in parallel (instead of sequential loop)
         const projectPromises = projectsSnapshot.docs.map(async (projectDoc) => {
