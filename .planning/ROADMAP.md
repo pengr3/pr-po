@@ -288,7 +288,7 @@ Plans:
 **Goal:** Project/service dropdowns sort alphabetically; "Delete MRF" replaced by soft-reject "Reject MRF"; TR ID badges in records tables open a TR details modal; Finance Project List shows only active projects
 **Requirements**: SORT-ALPHA-01, REJECT-MRF-01, TR-MODAL-01, FINANCE-ERR-01
 **Depends on:** Phase 61
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 62-01-PLAN.md — Sort project/service dropdowns A-Z in mrf-form.js and procurement.js; fix Finance Project List active-only query (finance.js)
