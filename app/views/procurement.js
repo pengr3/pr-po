@@ -126,6 +126,7 @@ function attachWindowFunctions() {
     window.filterPRPORecords = filterPRPORecords;
     window.goToPRPOPage = goToPRPOPage;
     window.viewPRDetails = viewPRDetails;
+    window.viewTRDetails = viewTRDetails;
     window.viewPODetails = viewPODetails;
     window.viewPOTimeline = viewPOTimeline;
     window.updatePOStatus = updatePOStatus;
@@ -631,6 +632,7 @@ export async function destroy() {
     delete window.filterPRPORecords;
     delete window.goToPRPOPage;
     delete window.viewPRDetails;
+    delete window.viewTRDetails;
     delete window.viewPODetails;
     delete window.viewPOTimeline;
     delete window.updatePOStatus;
@@ -3463,7 +3465,8 @@ async function renderPRPORecords() {
                 const statusClass = getStatusClass(tr.finance_status || 'Pending');
                 return `<div style="${rowStyle(i)}">
                     <span class="status-badge ${statusClass}"
-                        style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">
+                        style="font-size: 0.75rem; display: inline-block; white-space: nowrap; cursor: pointer;"
+                        onclick="window.viewTRDetails('${tr.docId}')">
                         ${escapeHTML(tr.tr_id)}
                     </span>
                 </div>`;
@@ -3480,7 +3483,7 @@ async function renderPRPORecords() {
                     ? 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;'
                     : 'height: 30px; display: flex; align-items: center;';
                 return `<div style="${rowStyle}">
-                    <span class="status-badge ${statusClass}" style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">${escapeHTML(tr.tr_id)}</span>
+                    <span class="status-badge ${statusClass}" style="font-size: 0.75rem; display: inline-block; white-space: nowrap; cursor: pointer;" onclick="window.viewTRDetails('${tr.docId}')">${escapeHTML(tr.tr_id)}</span>
                 </div>`;
             }).join('');
             prHtml = hasPrs ? prHtml + trBadges : trBadges;
@@ -4954,6 +4957,109 @@ async function viewPRDetails(prDocId) {
     } catch (error) {
         console.error('Error loading PR details:', error);
         showToast('Failed to load PR details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * View TR Details — opens a modal with transport request details.
+ * Called from TR badge spans in MRF Records and My Requests tables.
+ */
+async function viewTRDetails(trDocId) {
+    showLoading(true);
+    try {
+        const trRef = doc(db, 'transport_requests', trDocId);
+        const trDoc = await getDoc(trRef);
+
+        if (!trDoc.exists()) {
+            showToast('TR not found', 'error');
+            return;
+        }
+
+        const tr = { id: trDoc.id, ...trDoc.data() };
+        const items = JSON.parse(tr.items_json || '[]');
+
+        const modalBodyContent = `
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">TR ID</div>
+                        <div style="font-weight: 600;">${escapeHTML(tr.tr_id)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div>
+                        <div style="font-weight: 600;">${escapeHTML(tr.mrf_id || 'N/A')}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Supplier</div>
+                        <div style="font-weight: 600;">${escapeHTML(tr.supplier_name || 'Not specified')}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Finance Status</div>
+                        <div><span class="status-badge ${getStatusClass(tr.finance_status || 'Pending')}">${escapeHTML(tr.finance_status || 'Pending')}</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div>
+                        <div style="font-weight: 600;">PHP ${parseFloat(tr.total_amount || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: #5f6368;">Date Submitted</div>
+                        <div>${tr.date_submitted ? formatTimestamp(tr.date_submitted) : 'N/A'}</div>
+                    </div>
+                </div>
+                ${tr.rejection_reason ? `
+                <div style="margin-bottom: 1rem; padding: 0.75rem; background: #fee2e2; border-radius: 4px; border-left: 3px solid #dc2626;">
+                    <div style="font-size: 0.75rem; color: #dc2626; font-weight: 600; margin-bottom: 0.25rem;">Rejection Reason</div>
+                    <div style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(tr.rejection_reason)}</div>
+                </div>` : ''}
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                                <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.length > 0 ? items.map(item => `
+                                <tr>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name || '')}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity || 0))} ${escapeHTML(item.unit || 'pcs')}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.unit_cost || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                    <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">PHP ${parseFloat(item.subtotal || ((item.qty || item.quantity || 0) * (item.unit_cost || 0))).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="5" style="padding: 0.5rem; color: #64748b;">No items found</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        let modalContainer = document.getElementById('trDetailsModalContainer');
+        if (!modalContainer) {
+            modalContainer = document.createElement('div');
+            modalContainer.id = 'trDetailsModalContainer';
+            document.body.appendChild(modalContainer);
+        }
+
+        modalContainer.innerHTML = createModal({
+            id: 'trDetailsModal',
+            title: `Transport Request Details: ${tr.tr_id}`,
+            body: modalBodyContent,
+            footer: `<button class="btn btn-secondary" onclick="closeModal('trDetailsModal')">Close</button>`,
+            size: 'large'
+        });
+
+        openModal('trDetailsModal');
+    } catch (error) {
+        console.error('Error loading TR details:', error);
+        showToast('Failed to load TR details', 'error');
     } finally {
         showLoading(false);
     }
