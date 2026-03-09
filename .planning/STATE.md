@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-09T05:44:41.392Z"
+last_updated: "2026-03-09T07:05:24.928Z"
 progress:
-  total_phases: 47
-  completed_phases: 46
-  total_plans: 125
-  completed_plans: 122
+  total_phases: 48
+  completed_phases: 47
+  total_plans: 126
+  completed_plans: 123
 ---
 
 # Project State
@@ -58,6 +58,7 @@ Progress: [██████████] 98%
 | Phase 60 P03 | 15 | 2 tasks | 1 files |
 | Phase 60.1 P02 | 4min | 2 tasks | 1 files |
 | Phase 61 P01 | 2 | 2 tasks | 2 files |
+| Phase 60.2 P01 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,7 @@ Recent decisions affecting current work:
 - [Phase 60.1]: renderMRFList splits arrays into pending vs rejected at top; dedicated Rejected MRFs panel for PR/TR/Finance Rejected MRFs
 - [Phase 61]: services_user mrfs list rule moved to unrestricted hasRole() branch — scoped list caused generateMRFId() to fail for unscoped getDocs when any project-type MRF doc failed the per-doc check
 - [Phase 61]: Dash separator in CLMC codes (CLMC-CLIENT-YYYYnnn) — range queries preserved since dash (ASCII 45) sorts before digits; deleted_mrfs create rule gets procurement alongside mrfs delete (soft-delete pattern: both operations in deleteMRF() need the role)
+- [Phase 60.2]: My Requests container changed from 1200px to 1600px to match procurement.js Records tab outer wrapper — single string replacement, no structural changes needed
 
 ### Roadmap Evolution
 
@@ -106,6 +108,7 @@ Recent decisions affecting current work:
 - Phase 59.1 inserted after Phase 59: Fix MRF Records real-time rendering - new MRFs should appear instantly in all records tables (Procurement and My Requests) (URGENT)
 - Phase 60.1 inserted after Phase 60: Fix TR code visibility + dedicated Rejected MRFs grouping in MRF Processing Area — TR badges in PRs column on MRF Records and My Requests, no MRF status change on TR generation, hide Procurement Status dropdown for TR rows, Rejected MRFs get own section separate from Pending (URGENT)
 - Phase 61 updated: Fix project code format underscore to dash, fix MRF deletion permission error in procurement, and fix MRF submission permission error for services users
+- Phase 60.2 inserted after Phase 60: Match My Requests table size and layout to MRF Records tab (URGENT)
 
 ### Pending Todos
 

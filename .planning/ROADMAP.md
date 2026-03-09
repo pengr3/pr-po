@@ -257,7 +257,7 @@ Plans:
 **Goal:** My Requests table fills the same horizontal width as the MRF Records tab — outer container widened from 1200px to 1600px so both views have identical column widths, row density, and table proportions
 **Requirements**: none (urgent inserted phase)
 **Depends on:** Phase 60
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 60.2-01-PLAN.md — Widen renderMyRequestsView() container from max-width: 1200px to 1600px (mrf-form.js)
