@@ -526,12 +526,8 @@ function loadProjects() {
                 cachedProjects.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort by created_at descending (most recent first)
-            cachedProjects.sort((a, b) => {
-                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return bTime - aTime;
-            });
+            // Sort alphabetically A-Z by name
+            cachedProjects.sort((a, b) => (a.project_name || '').localeCompare(b.project_name || ''));
 
             populateProjectDropdown();
         }, (error) => {
@@ -601,12 +597,8 @@ function loadServices() {
                 cachedServices.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort by created_at descending (most recent first, MRF-06)
-            cachedServices.sort((a, b) => {
-                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return bTime - aTime;
-            });
+            // Sort alphabetically A-Z by name
+            cachedServices.sort((a, b) => (a.service_name || '').localeCompare(b.service_name || ''));
 
             populateServiceDropdown();
         }, (error) => {

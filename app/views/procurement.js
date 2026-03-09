@@ -669,12 +669,8 @@ async function loadServicesForNewMRF() {
         snapshot.forEach(docSnap => {
             cachedServicesForNewMRF.push({ id: docSnap.id, ...docSnap.data() });
         });
-        // Sort most-recent first to match mrf-form.js ordering
-        cachedServicesForNewMRF.sort((a, b) => {
-            const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-            return bTime - aTime;
-        });
+        // Sort alphabetically A-Z by name
+        cachedServicesForNewMRF.sort((a, b) => (a.service_name || '').localeCompare(b.service_name || ''));
         _servicesCachedAt = Date.now();
     } catch (error) {
         console.error('[Procurement] Error loading services for new MRF:', error);
@@ -697,12 +693,8 @@ async function loadProjects() {
                 projectsData.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort by created_at descending (most recent first)
-            projectsData.sort((a, b) => {
-                const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
-                const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
-                return bTime - aTime; // Most recent first
-            });
+            // Sort alphabetically A-Z by name
+            projectsData.sort((a, b) => (a.project_name || '').localeCompare(b.project_name || ''));
             _projectsCachedAt = Date.now();
 
         });
