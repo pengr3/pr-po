@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-09T07:07:13.362Z"
+last_updated: "2026-03-09T08:35:49.503Z"
 progress:
-  total_phases: 48
+  total_phases: 49
   completed_phases: 47
-  total_plans: 126
-  completed_plans: 123
+  total_plans: 128
+  completed_plans: 124
 ---
 
 # Project State
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 61 of 61 (Fix project code format, MRF deletion permission, MRF submission permission) — COMPLETE
-Plan: 1 of 1 in Phase 61 — COMPLETE (61-01 done)
-Status: Complete
-Last activity: 2026-03-09 — Phase 61 Plan 01 complete — dash-separated CLMC codes, procurement MRF delete permission, services_user MRF submit permission (Firestore rules updated)
+Phase: 62 of 62 (Sort dropdowns alphabetically, reject MRF instead of delete, TR details modal, Finance project list fix) — In Progress
+Plan: 1 of 2 in Phase 62 — COMPLETE (62-01 done)
+Status: In Progress
+Last activity: 2026-03-09 — Phase 62 Plan 01 complete — alphabetical dropdown sort in mrf-form.js and procurement.js, Finance Project List active-only filter
 
 Progress: [██████████] 98%
 
@@ -59,6 +59,7 @@ Progress: [██████████] 98%
 | Phase 60.1 P02 | 4min | 2 tasks | 1 files |
 | Phase 61 P01 | 2 | 2 tasks | 2 files |
 | Phase 60.2 P01 | 2min | 1 tasks | 1 files |
+| Phase 62 P01 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -99,9 +100,12 @@ Recent decisions affecting current work:
 - [Phase 61]: services_user mrfs list rule moved to unrestricted hasRole() branch — scoped list caused generateMRFId() to fail for unscoped getDocs when any project-type MRF doc failed the per-doc check
 - [Phase 61]: Dash separator in CLMC codes (CLMC-CLIENT-YYYYnnn) — range queries preserved since dash (ASCII 45) sorts before digits; deleted_mrfs create rule gets procurement alongside mrfs delete (soft-delete pattern: both operations in deleteMRF() need the role)
 - [Phase 60.2]: My Requests container changed from 1200px to 1600px to match procurement.js Records tab outer wrapper — single string replacement, no structural changes needed
+- [Phase 62]: All four recency sorts replaced with localeCompare — consistent alphabetical ordering across both dropdown surfaces
+- [Phase 62]: Finance Project List uses where('active', '==', true) — query and where already imported, no new imports
 
 ### Roadmap Evolution
 
+- Phase 62 added: Sort project/service dropdown alphabetically, reject MRF instead of delete, TR details modal, and fix Finance project list error
 - Phase 58 added: Fix TR rejection not reappearing in procurement, PR rejection hiding MRF records, and CSP header violations blocking Firebase source maps
 - Phase 59 added: Improve TR display on MRF Records and My Requests, add sortable headers to My Requests, enhance Timeline lifecycle logging, and optimize workspace responsiveness for laptop screens
 - Phase 60 added: Fix TR rejection independence — decouple TR status from MRF, treat TRs as child records like PRs so rejected TRs return to procurement without rejecting the whole MRF
