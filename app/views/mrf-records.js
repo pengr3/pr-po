@@ -1495,7 +1495,9 @@ export function createMRFRecordsController(options) {
 
             // MRF Status column — computed badge for Material; finance_status badge for Transport
             let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">\u2014</span>';
-            if (type === 'Material') {
+            if (mrf.status === 'Rejected') {
+                mrfStatusHtml = `<span class="status-badge ${getStatusClass('Rejected')}">Rejected</span>`;
+            } else if (type === 'Material') {
                 const statusObj = calculateMRFStatus(prDataArray, poDataArray);
                 mrfStatusHtml = renderMRFStatusBadge(statusObj);
             } else if (type === 'Transport') {

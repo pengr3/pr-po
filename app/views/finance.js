@@ -1164,7 +1164,7 @@ function renderProjectExpensesTable() {
         const remainingStyle = isOverBudget ? 'color: #ef4444; font-weight: 600;' : '';
 
         tableHTML += `
-            <tr onclick="window.showProjectExpenseModal('${escapeHTML(proj.projectName)}')" style="cursor: pointer;">
+            <tr onclick="window.showProjectExpenseModal(this.dataset.projectName)" data-project-name="${escapeHTML(proj.projectName)}" style="cursor: pointer;">
                 <td>
                     <div style="font-weight: 600;">${escapeHTML(proj.projectName)}</div>
                     <div style="font-size: 0.75rem; color: #64748b;">${escapeHTML(proj.projectCode)}</div>
