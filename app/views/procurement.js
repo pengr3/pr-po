@@ -101,6 +101,7 @@ function attachWindowFunctions() {
     window.saveProgress = saveProgress;
     window.saveNewMRF = saveNewMRF;
     window.deleteMRF = deleteMRF;
+    window.rejectMRF = rejectMRF;
     window.generatePR = generatePR;
     window.generatePRandTR = generatePRandTR;
     window.submitTransportRequest = submitTransportRequest;
@@ -611,6 +612,7 @@ export async function destroy() {
     delete window.saveProgress;
     delete window.saveNewMRF;
     delete window.deleteMRF;
+    delete window.rejectMRF;
     delete window.generatePR;
     delete window.generatePRandTR;
     delete window.submitTransportRequest;
@@ -1424,8 +1426,8 @@ function renderMRFDetails(mrf, isNew = false) {
                     buttons += ' <button class="btn btn-success" onclick="window.generatePR()">📄 Generate PR</button>';
                 }
             }
-            // Add delete button for procurement to remove unnecessary requests
-            buttons += ' <button class="btn btn-danger" onclick="window.deleteMRF()" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>';
+            // Add reject button for procurement to soft-reject unnecessary requests
+            buttons += ' <button class="btn btn-danger" onclick="window.rejectMRF()" style="margin-left: 0.5rem;">&#10005; Reject MRF</button>';
             mrfActionsEl.innerHTML = buttons;
         }
     }
@@ -1737,8 +1739,8 @@ function updateActionButtons() {
         }
     }
 
-    // Add delete button for procurement to remove unnecessary requests
-    buttons += ' <button class="btn btn-danger" onclick="window.deleteMRF()" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>';
+    // Add reject button for procurement to soft-reject unnecessary requests
+    buttons += ' <button class="btn btn-danger" onclick="window.rejectMRF()" style="margin-left: 0.5rem;">&#10005; Reject MRF</button>';
 
     // Only update if container exists (hidden for view-only users)
     const mrfActionsEl = document.getElementById('mrfActions');
@@ -2392,6 +2394,66 @@ async function deleteMRF() {
         showLoading(false);
     }
 };
+
+/**
+ * Reject MRF - soft-reject by setting status='Rejected' with a reason.
+ * Preserves the MRF and all linked PRs/TRs in Firestore for audit trail.
+ */
+async function rejectMRF() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
+    if (!currentMRF) {
+        showToast('No MRF selected', 'error');
+        return;
+    }
+
+    const reason = prompt(`Please provide a reason for rejecting MRF "${currentMRF.mrf_id}":\n\n(The MRF will be marked Rejected and removed from the pending list)`);
+
+    if (reason === null) return; // User cancelled
+
+    if (!reason.trim()) {
+        showToast('Rejection reason is required', 'error');
+        return;
+    }
+
+    const confirmReject = confirm(`Reject MRF "${currentMRF.mrf_id}"?\n\nReason: ${reason}\n\nThe MRF will be marked as Rejected and will no longer appear in the pending list. Related PRs and TRs are preserved.`);
+    if (!confirmReject) return;
+
+    showLoading(true);
+    try {
+        const mrfRef = doc(db, 'mrfs', currentMRF.id);
+        await updateDoc(mrfRef, {
+            status: 'Rejected',
+            rejection_reason: reason.trim(),
+            rejected_by: 'Procurement',
+            rejected_at: new Date().toISOString()
+        });
+
+        currentMRF = null;
+
+        // Reset MRF details panel
+        const mrfDetails = document.getElementById('mrfDetails');
+        if (mrfDetails) {
+            mrfDetails.innerHTML = `<div style="text-align: center; padding: 3rem; color: #999;">Select an MRF to view details</div>`;
+        }
+
+        // Reset action buttons
+        const mrfActionsEl = document.getElementById('mrfActions');
+        if (mrfActionsEl) {
+            mrfActionsEl.innerHTML = `<button class="btn btn-primary" onclick="window.saveProgress()">Save Progress</button>`;
+        }
+
+        showToast('MRF rejected successfully', 'success');
+    } catch (error) {
+        console.error('Error rejecting MRF:', error);
+        showToast('Failed to reject MRF: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
 
 // ========================================
 // SUPPLIER MANAGEMENT
