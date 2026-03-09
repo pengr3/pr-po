@@ -1047,10 +1047,8 @@ async function refreshProjectExpenses(forceRefresh = false) {
     showLoading(true);
 
     try {
-        // Get only active projects
-        const projectsSnapshot = await getDocs(
-            query(collection(db, 'projects'), where('active', '==', true))
-        );
+        // Get all projects (active and inactive) — Finance needs full visibility for historical tracking
+        const projectsSnapshot = await getDocs(collection(db, 'projects'));
 
         // Aggregate PO + TR totals for all projects in parallel (instead of sequential loop)
         const projectPromises = projectsSnapshot.docs.map(async (projectDoc) => {
@@ -1085,6 +1083,15 @@ async function refreshProjectExpenses(forceRefresh = false) {
         });
 
         projectExpenses = await Promise.all(projectPromises);
+
+        // Sort: active projects A-Z first, then inactive A-Z
+        projectExpenses.sort((a, b) => {
+            const aActive = (a.status || 'active') === 'active';
+            const bActive = (b.status || 'active') === 'active';
+            if (aActive !== bActive) return aActive ? -1 : 1;
+            return (a.projectName || '').localeCompare(b.projectName || '');
+        });
+
         _projectExpensesCachedAt = Date.now();
 
         renderProjectExpensesTable();
