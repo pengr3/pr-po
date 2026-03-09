@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-09T09:47:48.011Z"
+last_updated: "2026-03-09T09:50:17.093Z"
 progress:
   total_phases: 49
-  completed_phases: 47
+  completed_phases: 48
   total_plans: 130
-  completed_plans: 126
+  completed_plans: 127
 ---
 
 # Project State
@@ -62,6 +62,7 @@ Progress: [██████████] 100%
 | Phase 62 P01 | 5 | 2 tasks | 3 files |
 | Phase 62 P02 | 10 | 2 tasks | 2 files |
 | Phase 62 P03 | 3 | 1 tasks | 1 files |
+| Phase 62 P04 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Recent decisions affecting current work:
 - [Phase 62]: rejectMRF() uses updateDoc not deleteDoc — MRF preserved in Firestore with status=Rejected, rejection_reason, rejected_by, rejected_at for audit trail
 - [Phase 62]: window.viewTRDetails registered from procurement.js; mrf-records.js registers viewTRDetailsLocal fallback only if window.viewTRDetails not already defined
 - [Phase 62]: Finance Project List uses getDocs(collection(db, 'projects')) unfiltered — where('active', '==', true) used wrong field name and excluded inactive projects Finance needs for historical tracking
+- [Phase 62]: deleteRejectedTR splices cachedRejectedTRs in-memory and calls renderMRFList() — onSnapshot listener provides eventual consistency independently
 
 ### Roadmap Evolution
 
