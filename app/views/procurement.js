@@ -150,6 +150,7 @@ function attachWindowFunctions() {
     // Rejected TR Functions
     window.selectRejectedTR = selectRejectedTR;
     window.resubmitRejectedTR = resubmitRejectedTR;
+    window.saveRejectedTRChanges = saveRejectedTRChanges;
 }
 
 // ========================================
@@ -645,6 +646,7 @@ export async function destroy() {
     delete window.exportPOTrackingCSV;
     delete window.selectRejectedTR;
     delete window.resubmitRejectedTR;
+    delete window.saveRejectedTRChanges;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
@@ -1036,13 +1038,90 @@ function selectRejectedTR(trDocId) {
     if (!mrfDetails) return;
 
     const items = JSON.parse(tr.items_json || '[]');
-    const itemsHtml = items.map(item => `
-        <tr>
-            <td style="padding: 0.5rem;">${escapeHTML(item.item || '')}</td>
-            <td style="padding: 0.5rem;">${escapeHTML(item.category || '')}</td>
-            <td style="padding: 0.5rem;">${item.qty} ${escapeHTML(item.unit || '')}</td>
-            <td style="padding: 0.5rem;">&#8369;${formatCurrency(item.unit_cost || 0)}</td>
-            <td style="padding: 0.5rem;"><strong>&#8369;${formatCurrency(item.subtotal || 0)}</strong></td>
+    const grandTotal = items.reduce((sum, item) => sum + ((item.qty || 0) * (item.unit_cost || 0)), 0);
+
+    const itemRowsHtml = items.map((item, index) => `
+        <tr data-index="${index}">
+            <td>
+                <input type="text"
+                       class="item-name table-input"
+                       data-index="${index}"
+                       value="${escapeHTML(item.item || '')}"
+                       placeholder="Enter item name">
+            </td>
+            <td>
+                <select class="item-category table-select" data-index="${index}">
+                    <option value="">Select</option>
+                    <option value="CIVIL" ${(item.category || '') === 'CIVIL' ? 'selected' : ''}>CIVIL</option>
+                    <option value="ELECTRICAL" ${(item.category || '') === 'ELECTRICAL' ? 'selected' : ''}>ELECTRICAL</option>
+                    <option value="HVAC" ${(item.category || '') === 'HVAC' ? 'selected' : ''}>HVAC</option>
+                    <option value="PLUMBING" ${(item.category || '') === 'PLUMBING' ? 'selected' : ''}>PLUMBING</option>
+                    <option value="TOOLS & EQUIPMENTS" ${(item.category || '') === 'TOOLS & EQUIPMENTS' ? 'selected' : ''}>TOOLS & EQUIPMENTS</option>
+                    <option value="SAFETY" ${(item.category || '') === 'SAFETY' ? 'selected' : ''}>SAFETY</option>
+                    <option value="SUBCON" ${(item.category || '') === 'SUBCON' ? 'selected' : ''}>SUBCON</option>
+                    <option value="TRANSPORTATION" ${(item.category || '') === 'TRANSPORTATION' ? 'selected' : ''}>TRANSPORTATION</option>
+                    <option value="HAULING & DELIVERY" ${(item.category || '') === 'HAULING & DELIVERY' ? 'selected' : ''}>HAULING & DELIVERY</option>
+                    <option value="DELIVERY BY SUPPLIER" ${(item.category || '') === 'DELIVERY BY SUPPLIER' ? 'selected' : ''}>DELIVERY BY SUPPLIER</option>
+                    <option value="OTHERS" ${(item.category || '') === 'OTHERS' ? 'selected' : ''}>OTHERS</option>
+                </select>
+            </td>
+            <td>
+                <input type="number"
+                       class="item-qty table-input table-input-sm"
+                       data-index="${index}"
+                       value="${item.qty || ''}"
+                       min="1"
+                       placeholder="0"
+                       oninput="window.calculateSubtotal(${index})">
+            </td>
+            <td>
+                <select class="item-unit table-select" data-index="${index}">
+                    <option value="">Select</option>
+                    <option value="pcs" ${(item.unit || '') === 'pcs' ? 'selected' : ''}>pcs</option>
+                    <option value="boxes" ${(item.unit || '') === 'boxes' ? 'selected' : ''}>boxes</option>
+                    <option value="bags" ${(item.unit || '') === 'bags' ? 'selected' : ''}>bags</option>
+                    <option value="lot" ${(item.unit || '') === 'lot' ? 'selected' : ''}>lot</option>
+                    <option value="gallons" ${(item.unit || '') === 'gallons' ? 'selected' : ''}>gallons</option>
+                    <option value="bottles" ${(item.unit || '') === 'bottles' ? 'selected' : ''}>bottles</option>
+                    <option value="bundle" ${(item.unit || '') === 'bundle' ? 'selected' : ''}>bundle</option>
+                    <option value="cans" ${(item.unit || '') === 'cans' ? 'selected' : ''}>cans</option>
+                    <option value="trucks" ${(item.unit || '') === 'trucks' ? 'selected' : ''}>trucks</option>
+                    <option value="ride" ${(item.unit || '') === 'ride' ? 'selected' : ''}>ride</option>
+                    <option value="sheets" ${(item.unit || '') === 'sheets' ? 'selected' : ''}>sheets</option>
+                    <option value="yards" ${(item.unit || '') === 'yards' ? 'selected' : ''}>yards</option>
+                    <option value="pail" ${(item.unit || '') === 'pail' ? 'selected' : ''}>pail</option>
+                    <option value="meters" ${(item.unit || '') === 'meters' ? 'selected' : ''}>meters</option>
+                    <option value="kg" ${(item.unit || '') === 'kg' ? 'selected' : ''}>kg</option>
+                    <option value="liters" ${(item.unit || '') === 'liters' ? 'selected' : ''}>liters</option>
+                    <option value="rolls" ${(item.unit || '') === 'rolls' ? 'selected' : ''}>rolls</option>
+                    <option value="sets" ${(item.unit || '') === 'sets' ? 'selected' : ''}>sets</option>
+                    <option value="packs" ${(item.unit || '') === 'packs' ? 'selected' : ''}>Packs</option>
+                    <option value="pairs" ${(item.unit || '') === 'pairs' ? 'selected' : ''}>pairs</option>
+                    <option value="quarts" ${(item.unit || '') === 'quarts' ? 'selected' : ''}>quarts</option>
+                </select>
+            </td>
+            <td>
+                <input type="number"
+                       class="unit-cost table-input table-input-cost"
+                       data-index="${index}"
+                       value="${item.unit_cost || ''}"
+                       step="0.01"
+                       placeholder="0.00"
+                       oninput="window.calculateSubtotal(${index})">
+            </td>
+            <td>
+                <select class="supplier-select table-select" data-index="${index}">
+                    <option value="">Select Supplier</option>
+                    ${suppliersData.map(s => `
+                        <option value="${escapeHTML(s.supplier_name)}" ${s.supplier_name === item.supplier ? 'selected' : ''}>
+                            ${escapeHTML(s.supplier_name)}
+                        </option>
+                    `).join('')}
+                </select>
+            </td>
+            <td class="subtotal-cell" id="subtotal-${index}">
+                ${((item.qty || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
+            </td>
         </tr>
     `).join('');
 
@@ -1058,25 +1137,105 @@ function selectRejectedTR(trDocId) {
                 <div><strong>MRF ID:</strong> ${escapeHTML(tr.mrf_id || '')}</div>
                 <div><strong>Supplier:</strong> ${escapeHTML(tr.supplier_name || '')}</div>
                 <div><strong>Project:</strong> ${escapeHTML(tr.project_name || '')}</div>
-                <div><strong>Total:</strong> &#8369;${formatCurrency(tr.total_amount || 0)}</div>
             </div>
-            <table style="width: 100%; font-size: 0.875rem; border-collapse: collapse; margin-bottom: 1rem;">
-                <thead>
-                    <tr style="background: #f8f9fa;">
-                        <th style="padding: 0.5rem; text-align: left;">Item</th>
-                        <th style="padding: 0.5rem; text-align: left;">Category</th>
-                        <th style="padding: 0.5rem; text-align: left;">Qty</th>
-                        <th style="padding: 0.5rem; text-align: left;">Unit Cost</th>
-                        <th style="padding: 0.5rem; text-align: left;">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
-            <button class="btn btn-primary" onclick="window.resubmitRejectedTR('${tr.id}')">
-                Resubmit to Finance
-            </button>
+            <div class="items-table-wrapper" style="margin-bottom: 1rem;">
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Item Description</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Unit Cost</th>
+                            <th>Supplier</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsBody">
+                        ${itemRowsHtml}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6" class="total-label">Grand Total</td>
+                            <td id="grandTotal" class="total-value">PHP ${grandTotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <button class="btn btn-secondary" onclick="window.saveRejectedTRChanges('${tr.id}')">
+                    Save Changes
+                </button>
+                <button class="btn btn-primary" onclick="window.resubmitRejectedTR('${tr.id}')">
+                    Resubmit to Finance
+                </button>
+            </div>
         </div>
     `;
+}
+
+/**
+ * Save edited items on a rejected TR back to Firestore.
+ * Reads the editable #lineItemsBody table, writes updated items_json and total_amount,
+ * and refreshes cachedRejectedTRs in-place so the list reflects the new total immediately.
+ */
+async function saveRejectedTRChanges(trDocId) {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
+    const tr = cachedRejectedTRs.find(t => t.id === trDocId);
+    if (!tr) {
+        showToast('TR not found. Please refresh and try again.', 'error');
+        return;
+    }
+
+    const rows = document.querySelectorAll('#lineItemsBody tr');
+    const updatedItems = [];
+    for (const row of rows) {
+        const itemName = row.querySelector('input.item-name')?.value?.trim() || '';
+        const category = row.querySelector('select.item-category')?.value || '';
+        const qty      = parseFloat(row.querySelector('input.item-qty')?.value) || 0;
+        const unit     = row.querySelector('select.item-unit')?.value || 'pcs';
+        const unitCost = parseFloat(row.querySelector('input.unit-cost')?.value) || 0;
+        const supplier = row.querySelector('select.supplier-select')?.value || '';
+        if (!itemName) continue;
+        updatedItems.push({ item: itemName, category, qty, unit, unit_cost: unitCost, subtotal: qty * unitCost, supplier });
+    }
+
+    if (updatedItems.length === 0) {
+        showToast('At least one item is required', 'error');
+        return;
+    }
+
+    const totalAmount = updatedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    showLoading(true);
+    try {
+        const trRef = doc(db, 'transport_requests', trDocId);
+        await updateDoc(trRef, {
+            items_json: JSON.stringify(updatedItems),
+            total_amount: totalAmount
+        });
+
+        // Update cachedRejectedTRs in-place so the list panel reflects the new total
+        const idx = cachedRejectedTRs.findIndex(t => t.id === trDocId);
+        if (idx !== -1) {
+            cachedRejectedTRs[idx] = {
+                ...cachedRejectedTRs[idx],
+                items_json: JSON.stringify(updatedItems),
+                total_amount: totalAmount
+            };
+        }
+
+        showToast('TR changes saved. Ready to resubmit.', 'success');
+    } catch (error) {
+        console.error('[Procurement] Error saving TR changes:', error);
+        showToast('Failed to save changes: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 /**
@@ -1479,7 +1638,6 @@ function renderMRFDetails(mrf, isNew = false) {
  * Calculate subtotal for a line item
  */
 function calculateSubtotal(index) {
-    if (!currentMRF) return;
     const qtyInput = document.querySelector(`input.item-qty[data-index="${index}"]`);
     const unitCostInput = document.querySelector(`input.unit-cost[data-index="${index}"]`);
     const qty = parseFloat(qtyInput?.value) || 0;
@@ -1497,7 +1655,6 @@ function calculateSubtotal(index) {
  * Calculate grand total
  */
 function calculateGrandTotal() {
-    if (!currentMRF) return;
     let total = 0;
 
     const rows = document.querySelectorAll('#lineItemsBody tr');
