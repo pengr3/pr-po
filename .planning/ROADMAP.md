@@ -252,5 +252,26 @@ Plans:
 - [x] 60-02-PLAN.md — Rejected TR listener, dedicated panel in Procurement, resubmit to Finance (procurement.js)
 - [ ] 60-03-PLAN.md — Gap closure: editable TR item table in selectRejectedTR() + saveRejectedTRChanges() (procurement.js)
 
+### Phase 60.1: fix TR code visibility and MRF rejection grouping - display TR badges in PRs column on MRF Records and My Requests, no MRF status change on TR generation, hide Procurement Status dropdown for TR rows, dedicated Rejected MRFs area in MRF Processing (INSERTED)
+
+**Goal:** TR codes visible as badges in PRs column on both MRF Records and My Requests; MRF status not changed by TR generation; rejected MRFs in dedicated section in MRF Processing
+**Requirements**: TR-VIS-01, TR-VIS-02, TR-VIS-03, TR-VIS-04, TR-VIS-05
+**Depends on:** Phase 60
+**Plans:** 2 plans
+
+Plans:
+- [ ] 60.1-01-PLAN.md — TR badge in PRs column for Transport rows; mrf_id as display ID (mrf-records.js, procurement.js)
+- [ ] 60.1-02-PLAN.md — Remove MRF status mutation on TR generation; dedicated Rejected MRFs section in MRF Processing (procurement.js)
+
+### Phase 61: Fix project code format underscore to dash, fix MRF deletion permission error in procurement, and fix MRF submission permission error for services users
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 60
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 61 to break down)
+
 ---
-*Last updated: 2026-03-09 — Phase 60 gap closure plan 03 added: editable rejected TR detail panel*
+*Last updated: 2026-03-09 — Phase 60.1 plans created: TR badge visibility + MRF status fix + Rejected MRFs section*
