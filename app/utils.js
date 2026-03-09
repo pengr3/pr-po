@@ -198,14 +198,14 @@ export async function generateSequentialId(collectionName, prefix, year = null) 
 }
 
 /**
- * Generate composite project code: CLMC_CLIENT_YYYY###
+ * Generate composite project code: CLMC-CLIENT-YYYY###
  * Shares sequence with Services collection to prevent collisions (CODE-01).
  * Queries BOTH projects and services for the max sequence number so that
  * projects and services never receive the same CLMC code for a given client/year.
  *
  * @param {string} clientCode - Client code (e.g., "ACME")
  * @param {number|null} year - Year for the project code (defaults to current year)
- * @returns {Promise<string>} Generated project code (e.g., CLMC_ACME_2026001)
+ * @returns {Promise<string>} Generated project code (e.g., CLMC-ACME-2026001)
  *
  * Note: Race condition possible with simultaneous creates — acceptable at current scale.
  * IMPORTANT: Service documents MUST store a client_code field for this query to work.
@@ -213,8 +213,8 @@ export async function generateSequentialId(collectionName, prefix, year = null) 
 export async function generateProjectCode(clientCode, year = null) {
     try {
         const currentYear = year || new Date().getFullYear();
-        const rangeMin = `CLMC_${clientCode}_${currentYear}000`;
-        const rangeMax = `CLMC_${clientCode}_${currentYear}999`;
+        const rangeMin = `CLMC-${clientCode}-${currentYear}000`;
+        const rangeMax = `CLMC-${clientCode}-${currentYear}999`;
 
         // Query BOTH collections in parallel — shared sequence prevents collisions (CODE-01)
         const [projectsSnap, servicesSnap] = await Promise.all([
@@ -232,7 +232,7 @@ export async function generateProjectCode(clientCode, year = null) {
             ))
         ]);
 
-        const codeRegex = /^CLMC_.+_\d{4}(\d{3})$/;
+        const codeRegex = /^CLMC-.+-\d{4}(\d{3})$/;
         let maxNum = 0;
 
         projectsSnap.forEach(d => {
@@ -245,7 +245,7 @@ export async function generateProjectCode(clientCode, year = null) {
             if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
         });
 
-        return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+        return `CLMC-${clientCode}-${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
     } catch (error) {
         console.error('[Projects] Error generating project code:', error);
         throw error;
@@ -273,14 +273,14 @@ export function getAssignedProjectCodes() {
 }
 
 /**
- * Generate composite service code: CLMC_CLIENT_YYYY###
+ * Generate composite service code: CLMC-CLIENT-YYYY###
  * Shares sequence with Projects collection to prevent collisions (SERV-02).
  * Queries BOTH projects and services for the max sequence number so that
  * services and projects never receive the same CLMC code for a given client/year.
  *
  * @param {string} clientCode - Client code (e.g., "ACME")
  * @param {number|null} year - Year for the code (defaults to current year)
- * @returns {Promise<string>} Generated service code (e.g., CLMC_ACME_2026003)
+ * @returns {Promise<string>} Generated service code (e.g., CLMC-ACME-2026003)
  *
  * Note: Race condition possible with simultaneous creates — acceptable at current scale.
  * IMPORTANT: Service documents MUST store a client_code field for this query to work.
@@ -289,8 +289,8 @@ export function getAssignedProjectCodes() {
 export async function generateServiceCode(clientCode, year = null) {
     try {
         const currentYear = year || new Date().getFullYear();
-        const rangeMin = `CLMC_${clientCode}_${currentYear}000`;
-        const rangeMax = `CLMC_${clientCode}_${currentYear}999`;
+        const rangeMin = `CLMC-${clientCode}-${currentYear}000`;
+        const rangeMax = `CLMC-${clientCode}-${currentYear}999`;
 
         // Query BOTH collections in parallel (shared sequence, SERV-02)
         const [projectsSnap, servicesSnap] = await Promise.all([
@@ -308,7 +308,7 @@ export async function generateServiceCode(clientCode, year = null) {
             ))
         ]);
 
-        const codeRegex = /^CLMC_.+_\d{4}(\d{3})$/;
+        const codeRegex = /^CLMC-.+-\d{4}(\d{3})$/;
         let maxNum = 0;
 
         projectsSnap.forEach(d => {
@@ -321,7 +321,7 @@ export async function generateServiceCode(clientCode, year = null) {
             if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
         });
 
-        return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+        return `CLMC-${clientCode}-${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
     } catch (error) {
         console.error('[Services] Error generating service code:', error);
         throw error;
