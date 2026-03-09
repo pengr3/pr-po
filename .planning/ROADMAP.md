@@ -283,5 +283,16 @@ Plans:
 Plans:
 - [ ] 61-01-PLAN.md — Fix generateProjectCode/generateServiceCode dash format in utils.js; add procurement to mrfs delete and deleted_mrfs create rules; add services_user to mrfs unrestricted list in firestore.rules
 
+### Phase 62: sort-project-service-dropdown-alphabetically-reject-mrf-instead-of-delete-tr-details-modal-and-fix-finance-project-list-error
+
+**Goal:** Project/service dropdowns sort alphabetically; "Delete MRF" replaced by soft-reject "Reject MRF"; TR ID badges in records tables open a TR details modal; Finance Project List shows only active projects
+**Requirements**: SORT-ALPHA-01, REJECT-MRF-01, TR-MODAL-01, FINANCE-ERR-01
+**Depends on:** Phase 61
+**Plans:** 2 plans
+
+Plans:
+- [ ] 62-01-PLAN.md — Sort project/service dropdowns A-Z in mrf-form.js and procurement.js; fix Finance Project List active-only query (finance.js)
+- [ ] 62-02-PLAN.md — Add rejectMRF() soft-reject function; add viewTRDetails() modal; make TR badges clickable in both records tables (procurement.js, mrf-records.js)
+
 ---
-*Last updated: 2026-03-09 — Phase 60.2 plan created: widen My Requests container to 1600px to match MRF Records tab layout*
+*Last updated: 2026-03-09 — Phase 62 planned: 2 plans covering dropdown sort, MRF soft-reject, TR details modal, and finance project list fix*
