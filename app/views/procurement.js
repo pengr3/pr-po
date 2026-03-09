@@ -731,7 +731,7 @@ async function loadMRFs() {
     _mrfListenerActive = true;
 
     const mrfsRef = collection(db, 'mrfs');
-    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'Finance Rejected'];
+    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
     const q = query(mrfsRef, where('status', 'in', statuses));
 
     const listener = onSnapshot(q, (snapshot) => {
@@ -3610,10 +3610,9 @@ async function submitTransportRequest() {
             created_at: new Date().toISOString()
         });
 
-        // Update MRF status
+        // Update MRF with TR link — do NOT change MRF status (TR actions are scoped to transport_requests)
         const mrfRef = doc(db, 'mrfs', mrfData.id);
         await updateDoc(mrfRef, {
-            status: 'TR Submitted',
             tr_id: trId,
             items_json: JSON.stringify(trItems),
             updated_at: new Date().toISOString()
@@ -4227,7 +4226,7 @@ async function generatePRandTR() {
         // ========== PART 3: Update MRF Status ==========
         const mrfRef = doc(db, 'mrfs', mrfData.id);
         await updateDoc(mrfRef, {
-            status: 'PR & TR Submitted',
+            status: 'PR Submitted',
             pr_ids: generatedPRIds,
             tr_id: trId,
             items_json: JSON.stringify(allItems),
