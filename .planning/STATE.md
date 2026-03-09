@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 60 of 60 (Fix TR Rejection Independence) — COMPLETE
-Plan: 3 of 3 in Phase 60 — COMPLETE (60-01, 60-02, and 60-03 done)
+Phase: 60.1 of 60.1 (Fix TR Code Visibility) — COMPLETE
+Plan: 1 of 1 in Phase 60.1 — COMPLETE (60.1-01 done)
 Status: Complete
-Last activity: 2026-03-09 — Phase 60 Plan 03 complete — editable item table in rejected TR panel, saveRejectedTRChanges persists items_json + total_amount to Firestore
+Last activity: 2026-03-09 — Phase 60.1 Plan 01 complete — TR codes rendered as status-badge spans in PRs column for Transport rows in both mrf-records.js and procurement.js; displayId always shows true mrf_id
 
-Progress: [██████████] 97%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -87,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 60-02]: cachedRejectedTRs.length included in empty-state guard in renderMRFList so panel stays when only rejected TRs exist
 - [Phase 60]: calculateSubtotal/calculateGrandTotal guards removed so they work in rejected TR panel where currentMRF is null
 - [Phase 60]: saveRejectedTRChanges does not reset finance_status — only persists item edits; Resubmit button is the explicit re-queue action
+- [Phase 60.1]: trDataArray cached in both _subDataCache and _prpoSubDataCache alongside trFinanceStatus; cache-hit path uses || [] fallback for backward compat
+- [Phase 60.1]: displayId in renderPRPORecords and createMRFRecordsController always uses mrf.mrf_id — TR codes are in PRs column as status-badge spans, not in MRF ID column
+- [Phase 60.1]: Transport badge uses span (not anchor) — no TR detail modal exists in these table views
 
 ### Roadmap Evolution
 
@@ -94,6 +97,8 @@ Recent decisions affecting current work:
 - Phase 59 added: Improve TR display on MRF Records and My Requests, add sortable headers to My Requests, enhance Timeline lifecycle logging, and optimize workspace responsiveness for laptop screens
 - Phase 60 added: Fix TR rejection independence — decouple TR status from MRF, treat TRs as child records like PRs so rejected TRs return to procurement without rejecting the whole MRF
 - Phase 59.1 inserted after Phase 59: Fix MRF Records real-time rendering - new MRFs should appear instantly in all records tables (Procurement and My Requests) (URGENT)
+- Phase 60.1 inserted after Phase 60: Fix TR code visibility + dedicated Rejected MRFs grouping in MRF Processing Area — TR badges in PRs column on MRF Records and My Requests, no MRF status change on TR generation, hide Procurement Status dropdown for TR rows, Rejected MRFs get own section separate from Pending (URGENT)
+- Phase 61 updated: Fix project code format underscore to dash, fix MRF deletion permission error in procurement, and fix MRF submission permission error for services users
 
 ### Pending Todos
 
@@ -105,7 +110,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed 60-02-PLAN.md — TR rejection independence in Procurement (dedicated rejected TR panel, resubmit to Finance, MRF query decoupled from TR Rejected status)
+Last session: 2026-03-09
+Stopped at: Completed 60.1-01-PLAN.md — TR badge in PRs column for Transport rows in mrf-records.js and procurement.js renderPRPORecords; displayId always shows mrf_id
 Resume file: None
-Next action: Phase 60 complete — all planned phases complete. Full TR rejection independence delivered across Plans 60-01 and 60-02.
+Next action: Phase 60.1 complete — TR code visibility fixed in both table views.
