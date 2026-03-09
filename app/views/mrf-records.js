@@ -1083,7 +1083,10 @@ export function createMRFRecordsController(options) {
             allRecords = [];
             _subDataCache = new Map(); // invalidate on fresh load
             snapshot.forEach(doc => {
-                allRecords.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Skip documents where mrf_id was accidentally set to TR format (data anomaly)
+                if (data.mrf_id && data.mrf_id.startsWith('TR_')) return;
+                allRecords.push({ id: doc.id, ...data });
             });
 
             // Sort by created_at / date_submitted (newest first)
@@ -1294,24 +1297,28 @@ export function createMRFRecordsController(options) {
                     }
                 }
 
-                // Fetch TR data — runs for all types so mixed MRFs (generatePRandTR) show TR badges
-                try {
-                    const trsRef = collection(db, 'transport_requests');
-                    const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
-                    const trSnapshot = await getDocs(trQuery);
-                    if (!trSnapshot.empty) {
-                        trSnapshot.forEach((trDoc) => {
-                            const trData = trDoc.data();
-                            trDataArray.push({
-                                docId: trDoc.id,
-                                tr_id: trData.tr_id || '',
-                                finance_status: trData.finance_status || 'Pending'
+                // Fetch TR data from transport_requests — for Transport rows, or Material MRFs with transport items
+                if (type === 'Transport' || (type === 'Material' && mrf.tr_id)) {
+                    try {
+                        const trsRef = collection(db, 'transport_requests');
+                        const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                        const trSnapshot = await getDocs(trQuery);
+                        if (!trSnapshot.empty) {
+                            trSnapshot.forEach((trDoc) => {
+                                const trData = trDoc.data();
+                                trDataArray.push({
+                                    docId: trDoc.id,
+                                    tr_id: trData.tr_id || '',
+                                    finance_status: trData.finance_status || 'Pending'
+                                });
+                                if (type === 'Transport') {
+                                    trFinanceStatus = trData.finance_status || 'Pending'; // keep for MRF Status column
+                                }
                             });
-                            trFinanceStatus = trData.finance_status || 'Pending'; // keep for MRF Status column (Transport)
-                        });
+                        }
+                    } catch (error) {
+                        console.error('[MRFRecords] Error fetching TR data for', mrf.mrf_id, error);
                     }
-                } catch (error) {
-                    console.error('[MRFRecords] Error fetching TR data for', mrf.mrf_id, error);
                 }
 
                 // Store in cache for subsequent sort/filter/page-change renders
@@ -1379,19 +1386,6 @@ export function createMRFRecordsController(options) {
                         }
                         return `<div style="${rowStyle(i)}">${content}</div>`;
                     }).join('');
-
-                // Append TR badges for mixed MRFs (generatePRandTR produces both PRs and a TR)
-                if (trDataArray.length > 0) {
-                    const trBadges = trDataArray.map(tr => {
-                        const statusClass = getStatusClass(tr.finance_status || 'Pending');
-                        return `<div style="height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;">
-                            <span class="status-badge ${statusClass}"
-                                style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">
-                                ${escapeHTML(tr.tr_id)}
-                            </span>
-                        </div>`;
-                    }).join('');
-                    prHtml = (prHtml !== '<span style="color: #999; font-size: 0.875rem;">-</span>' ? prHtml : '') + trBadges;
                 }
             } else if (type === 'Transport' && trDataArray.length > 0) {
                 prHtml = trDataArray.map((tr, i) => {
@@ -1408,6 +1402,21 @@ export function createMRFRecordsController(options) {
                 }).join('');
                 // poHtml stays '-' for Transport (no POs linked to TRs)
                 // procStatusHtml stays '-' for Transport (no Procurement Status for TRs)
+            }
+
+            // Append TR badge(s) for Material MRFs that also have transport items (mixed PRs + TRs)
+            if (type === 'Material' && trDataArray.length > 0) {
+                const hasPrs = prDataArray.length > 0;
+                const trBadges = trDataArray.map((tr, i) => {
+                    const statusClass = getStatusClass(tr.finance_status || 'Pending');
+                    const rowStyle = (hasPrs || i > 0)
+                        ? 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;'
+                        : 'height: 30px; display: flex; align-items: center;';
+                    return `<div style="${rowStyle}">
+                        <span class="status-badge ${statusClass}" style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">${escapeHTML(tr.tr_id)}</span>
+                    </div>`;
+                }).join('');
+                prHtml = hasPrs ? prHtml + trBadges : trBadges;
             }
 
             // MRF Status column — computed badge for Material; finance_status badge for Transport

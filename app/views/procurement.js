@@ -3180,6 +3180,27 @@ async function renderPRPORecords() {
                 } catch (error) {
                     console.error('Error fetching POs for', mrf.mrf_id, error);
                 }
+
+                // Also fetch TRs for Material MRFs with transport items (tr_id set by generatePRandTR/submitTransportRequest)
+                if (mrf.tr_id) {
+                    try {
+                        const trsRef = collection(db, 'transport_requests');
+                        const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                        const trSnapshot = await getDocs(trQuery);
+                        if (!trSnapshot.empty) {
+                            trSnapshot.forEach((trDoc) => {
+                                const trData = trDoc.data();
+                                trDataArray.push({
+                                    docId: trDoc.id,
+                                    tr_id: trData.tr_id || '',
+                                    finance_status: trData.finance_status || 'Pending'
+                                });
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error fetching TR for Material MRF', mrf.mrf_id, error);
+                    }
+                }
             }
 
             // Store in cache for subsequent sort/filter/page-change renders
@@ -3394,6 +3415,21 @@ async function renderPRPORecords() {
                 </div>`;
             }).join('');
             // poHtml stays '-'; procStatusHtml stays '-'
+        }
+
+        // Append TR badge(s) for Material MRFs that also have transport items (mixed PRs + TRs)
+        if (type === 'Material' && trDataArray.length > 0) {
+            const hasPrs = prDataArray.length > 0;
+            const trBadges = trDataArray.map((tr, i) => {
+                const statusClass = getStatusClass(tr.finance_status || 'Pending');
+                const rowStyle = (hasPrs || i > 0)
+                    ? 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;'
+                    : 'height: 30px; display: flex; align-items: center;';
+                return `<div style="${rowStyle}">
+                    <span class="status-badge ${statusClass}" style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">${escapeHTML(tr.tr_id)}</span>
+                </div>`;
+            }).join('');
+            prHtml = hasPrs ? prHtml + trBadges : trBadges;
         }
 
         return `
@@ -3613,7 +3649,7 @@ async function submitTransportRequest() {
         trsSnapshot.forEach((docSnap) => {
             const data = docSnap.data();
             if (data.tr_id) {
-                // Match new format: TR_YYYY_MM-###-SUPPLIER
+                // Match format: TR_YYYY_MM-###
                 const newMatch = data.tr_id.match(/TR_\d{4}_\d{2}-(\d+)/);
                 if (newMatch && data.tr_id.startsWith(currentMonthPrefix)) {
                     const num = parseInt(newMatch[1]);
@@ -3628,10 +3664,7 @@ async function submitTransportRequest() {
             }
         });
 
-        // Generate supplier slug
-        const firstWord = primarySupplier.split(/\s+/)[0] || primarySupplier;
-        const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
-        const trId = `TR_${year}_${month}-${String(maxTRNum + 1).padStart(3, '0')}-${supplierSlug}`;
+        const trId = `TR_${year}_${month}-${String(maxTRNum + 1).padStart(3, '0')}`;
 
         // Get delivery address
         const deliveryAddressEl = document.getElementById('deliveryAddress');
@@ -4246,9 +4279,7 @@ async function generatePRandTR() {
             }
         });
 
-        const firstWord = primarySupplier.split(/\s+/)[0] || primarySupplier;
-        const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
-        trId = `TR_${year}_${month}-${String(maxTRNum + 1).padStart(3, '0')}-${supplierSlug}`;
+        trId = `TR_${year}_${month}-${String(maxTRNum + 1).padStart(3, '0')}`;
 
         // Create TR document
         await addDoc(collection(db, 'transport_requests'), {
