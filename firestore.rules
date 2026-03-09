@@ -238,11 +238,14 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user was previously scoped to assigned services only, but this blocked
+      // generateMRFId() in mrf-form.js from doing an unscoped getDocs(mrfs) query needed to
+      // generate the next MRF sequence number. services_user list is now unrestricted since
+      // they can already 'get' any individual MRF doc and MRF metadata is not sensitive.
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: all roles that can submit MRFs (operations and services dept users)
@@ -251,8 +254,8 @@ service cloud.firestore {
       // Update: super_admin, dept admins, finance, procurement
       allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']);
 
-      // Delete: super_admin, operations_admin
-      allow delete: if hasRole(['super_admin', 'operations_admin']);
+      // Delete: super_admin, operations_admin, procurement
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'procurement']);
     }
 
     // =============================================
@@ -347,8 +350,8 @@ service cloud.firestore {
       // Read: super_admin, operations_admin only
       allow read: if hasRole(['super_admin', 'operations_admin']);
 
-      // Create: super_admin, operations_admin (append when MRF is soft-deleted)
-      allow create: if hasRole(['super_admin', 'operations_admin']);
+      // Create: super_admin, operations_admin, procurement (append when MRF is soft-deleted)
+      allow create: if hasRole(['super_admin', 'operations_admin', 'procurement']);
 
       // No update or delete - archive is append-only
       allow update: if false;
