@@ -252,6 +252,16 @@ Plans:
 - [x] 60-02-PLAN.md — Rejected TR listener, dedicated panel in Procurement, resubmit to Finance (procurement.js)
 - [ ] 60-03-PLAN.md — Gap closure: editable TR item table in selectRejectedTR() + saveRejectedTRChanges() (procurement.js)
 
+### Phase 60.2: match My Requests table size and layout to MRF Records tab (INSERTED)
+
+**Goal:** My Requests table fills the same horizontal width as the MRF Records tab — outer container widened from 1200px to 1600px so both views have identical column widths, row density, and table proportions
+**Requirements**: none (urgent inserted phase)
+**Depends on:** Phase 60
+**Plans:** 1 plan
+
+Plans:
+- [ ] 60.2-01-PLAN.md — Widen renderMyRequestsView() container from max-width: 1200px to 1600px (mrf-form.js)
+
 ### Phase 60.1: fix TR code visibility and MRF rejection grouping - display TR badges in PRs column on MRF Records and My Requests, no MRF status change on TR generation, hide Procurement Status dropdown for TR rows, dedicated Rejected MRFs area in MRF Processing (INSERTED)
 
 **Goal:** TR codes visible as badges in PRs column on both MRF Records and My Requests; MRF status not changed by TR generation; rejected MRFs in dedicated section in MRF Processing
@@ -274,4 +284,4 @@ Plans:
 - [ ] 61-01-PLAN.md — Fix generateProjectCode/generateServiceCode dash format in utils.js; add procurement to mrfs delete and deleted_mrfs create rules; add services_user to mrfs unrestricted list in firestore.rules
 
 ---
-*Last updated: 2026-03-09 — Phase 61 plan created: code format + permission fixes in utils.js and firestore.rules*
+*Last updated: 2026-03-09 — Phase 60.2 plan created: widen My Requests container to 1600px to match MRF Records tab layout*
