@@ -257,7 +257,7 @@ Plans:
 **Goal:** TR codes visible as badges in PRs column on both MRF Records and My Requests; MRF status not changed by TR generation; rejected MRFs in dedicated section in MRF Processing
 **Requirements**: TR-VIS-01, TR-VIS-02, TR-VIS-03, TR-VIS-04, TR-VIS-05
 **Depends on:** Phase 60
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 60.1-01-PLAN.md — TR badge in PRs column for Transport rows; mrf_id as display ID (mrf-records.js, procurement.js)

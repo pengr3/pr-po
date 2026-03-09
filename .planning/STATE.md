@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-09T02:14:21.223Z"
+last_updated: "2026-03-09T05:35:09.968Z"
 progress:
-  total_phases: 45
-  completed_phases: 44
-  total_plans: 122
-  completed_plans: 119
+  total_phases: 47
+  completed_phases: 45
+  total_plans: 125
+  completed_plans: 121
 ---
 
 # Project State
@@ -56,6 +56,7 @@ Progress: [██████████] 98%
 | Phase 59 P05 | 3 | 2 tasks | 2 files |
 | Phase 60 P02 | 2min | 2 tasks | 1 file |
 | Phase 60 P03 | 15 | 2 tasks | 1 files |
+| Phase 60.1 P02 | 4min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Recent decisions affecting current work:
 - [Phase 60.1]: trDataArray cached in both _subDataCache and _prpoSubDataCache alongside trFinanceStatus; cache-hit path uses || [] fallback for backward compat
 - [Phase 60.1]: displayId in renderPRPORecords and createMRFRecordsController always uses mrf.mrf_id — TR codes are in PRs column as status-badge spans, not in MRF ID column
 - [Phase 60.1]: Transport badge uses span (not anchor) — no TR detail modal exists in these table views
+- [Phase 60.1]: TR submission stores tr_id on MRF doc but does NOT change MRF status — MRF stays Pending after submitTransportRequest
+- [Phase 60.1]: generatePRandTR sets MRF status to 'PR Submitted' not 'PR & TR Submitted' — TR outcome scoped to transport_requests
+- [Phase 60.1]: renderMRFList splits arrays into pending vs rejected at top; dedicated Rejected MRFs panel for PR/TR/Finance Rejected MRFs
 
 ### Roadmap Evolution
 
