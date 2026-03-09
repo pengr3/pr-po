@@ -1037,6 +1037,10 @@ function selectRejectedTR(trDocId) {
     const mrfDetails = document.getElementById('mrfDetails');
     if (!mrfDetails) return;
 
+    // Hide MRF action buttons (Save Progress / Generate PR) — TR panel has its own buttons
+    const mrfActionsEl = document.getElementById('mrfActions');
+    if (mrfActionsEl) mrfActionsEl.innerHTML = '';
+
     const items = JSON.parse(tr.items_json || '[]');
     const grandTotal = items.reduce((sum, item) => sum + ((item.qty || 0) * (item.unit_cost || 0)), 0);
 
