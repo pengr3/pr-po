@@ -265,13 +265,13 @@ Plans:
 
 ### Phase 61: Fix project code format underscore to dash, fix MRF deletion permission error in procurement, and fix MRF submission permission error for services users
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Project and service codes use dash separators (CLMC-CLIENT-YYYYnnn), procurement users can delete MRFs without permission errors, and services users can submit MRFs without permission errors
+**Requirements**: CODE-FMT-01, PERM-DEL-01, PERM-SUB-01
 **Depends on:** Phase 60
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 61 to break down)
+- [ ] 61-01-PLAN.md — Fix generateProjectCode/generateServiceCode dash format in utils.js; add procurement to mrfs delete and deleted_mrfs create rules; add services_user to mrfs unrestricted list in firestore.rules
 
 ---
-*Last updated: 2026-03-09 — Phase 60.1 plans created: TR badge visibility + MRF status fix + Rejected MRFs section*
+*Last updated: 2026-03-09 — Phase 61 plan created: code format + permission fixes in utils.js and firestore.rules*
