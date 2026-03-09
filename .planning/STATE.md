@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-09T05:35:09.968Z"
+last_updated: "2026-03-09T05:41:21.236Z"
 progress:
   total_phases: 47
-  completed_phases: 45
+  completed_phases: 46
   total_plans: 125
-  completed_plans: 121
+  completed_plans: 122
 ---
 
 # Project State
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 60.1 of 60.1 (Fix TR Code Visibility) — COMPLETE
-Plan: 1 of 1 in Phase 60.1 — COMPLETE (60.1-01 done)
+Phase: 61 of 61 (Fix project code format, MRF deletion permission, MRF submission permission) — COMPLETE
+Plan: 1 of 1 in Phase 61 — COMPLETE (61-01 done)
 Status: Complete
-Last activity: 2026-03-09 — Phase 60.1 Plan 01 complete — TR codes rendered as status-badge spans in PRs column for Transport rows in both mrf-records.js and procurement.js; displayId always shows true mrf_id
+Last activity: 2026-03-09 — Phase 61 Plan 01 complete — dash-separated CLMC codes, procurement MRF delete permission, services_user MRF submit permission (Firestore rules updated)
 
 Progress: [██████████] 98%
 
@@ -57,6 +57,7 @@ Progress: [██████████] 98%
 | Phase 60 P02 | 2min | 2 tasks | 1 file |
 | Phase 60 P03 | 15 | 2 tasks | 1 files |
 | Phase 60.1 P02 | 4min | 2 tasks | 1 files |
+| Phase 61 P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Recent decisions affecting current work:
 - [Phase 60.1]: TR submission stores tr_id on MRF doc but does NOT change MRF status — MRF stays Pending after submitTransportRequest
 - [Phase 60.1]: generatePRandTR sets MRF status to 'PR Submitted' not 'PR & TR Submitted' — TR outcome scoped to transport_requests
 - [Phase 60.1]: renderMRFList splits arrays into pending vs rejected at top; dedicated Rejected MRFs panel for PR/TR/Finance Rejected MRFs
+- [Phase 61]: services_user mrfs list rule moved to unrestricted hasRole() branch — scoped list caused generateMRFId() to fail for unscoped getDocs when any project-type MRF doc failed the per-doc check
+- [Phase 61]: Dash separator in CLMC codes (CLMC-CLIENT-YYYYnnn) — range queries preserved since dash (ASCII 45) sorts before digits; deleted_mrfs create rule gets procurement alongside mrfs delete (soft-delete pattern: both operations in deleteMRF() need the role)
 
 ### Roadmap Evolution
 

@@ -268,7 +268,7 @@ Plans:
 **Goal:** Project and service codes use dash separators (CLMC-CLIENT-YYYYnnn), procurement users can delete MRFs without permission errors, and services users can submit MRFs without permission errors
 **Requirements**: CODE-FMT-01, PERM-DEL-01, PERM-SUB-01
 **Depends on:** Phase 60
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 61-01-PLAN.md — Fix generateProjectCode/generateServiceCode dash format in utils.js; add procurement to mrfs delete and deleted_mrfs create rules; add services_user to mrfs unrestricted list in firestore.rules
