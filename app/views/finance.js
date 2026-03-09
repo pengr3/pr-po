@@ -1086,9 +1086,7 @@ async function refreshProjectExpenses(forceRefresh = false) {
 
         // Sort: active projects A-Z first, then inactive A-Z
         projectExpenses.sort((a, b) => {
-            const aActive = a.active !== false;
-            const bActive = b.active !== false;
-            if (aActive !== bActive) return aActive ? -1 : 1;
+            if (a.active !== b.active) return a.active ? -1 : 1;
             return (a.projectName || '').localeCompare(b.projectName || '');
         });
 
@@ -1184,8 +1182,8 @@ function renderProjectExpensesTable() {
                     ${isOverBudget ? ' over' : ''}
                 </td>
                 <td style="text-align: center;">
-                    <span class="badge badge-${proj.active !== false ? 'success' : 'secondary'}">
-                        ${proj.active !== false ? 'Active' : 'Inactive'}
+                    <span class="status-badge ${proj.active ? 'approved' : 'rejected'}">
+                        ${proj.active ? 'Active' : 'Inactive'}
                     </span>
                 </td>
             </tr>
