@@ -3351,7 +3351,9 @@ async function renderPRPORecords() {
 
         // Calculate MRF Status badge — computed for Material; finance_status badge for Transport
         let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">—</span>';
-        if (type === 'Material') {
+        if (mrf.status === 'Rejected') {
+            mrfStatusHtml = renderMRFStatusBadge({ status: 'Rejected', badgeClass: 'rejected' });
+        } else if (type === 'Material') {
             const statusObj = calculateMRFStatus(prDataArray, poDataArray);
             mrfStatusHtml = renderMRFStatusBadge(statusObj);
         } else if (type === 'Transport') {
