@@ -1,9 +1,9 @@
 ---
-status: complete
+status: resolved
 phase: 60-fix-tr-rejection-independence-decouple-tr-status-from-mrf-and-treat-trs-as-child-records-like-prs
-source: [60-01-SUMMARY.md, 60-02-SUMMARY.md]
+source: [60-01-SUMMARY.md, 60-02-SUMMARY.md, 60-03-SUMMARY.md]
 started: 2026-03-09T00:00:00Z
-updated: 2026-03-09T12:00:00Z
+updated: 2026-03-09T13:00:00Z
 ---
 
 ## Current Test
@@ -53,11 +53,17 @@ skipped: 0
 ## Gaps
 
 - truth: "Clicking a rejected TR card shows an editable detail panel (mirroring MRF edit form) so Procurement can revise items before resubmitting"
-  status: failed
+  status: resolved
   reason: "User reported: there's no way to revise TR right now. Unlike MRFs you can directly revise it. kindly mirror how it works"
   severity: major
   test: 6
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "selectRejectedTR() renders a static read-only table of TR items. renderMRFDetails() renders a fully editable form with #lineItemsBody inputs. selectRejectedTR() was implemented as an informational panel only, with no editable inputs and no saveRejectedTRChanges() function. resubmitRejectedTR() reads from cachedRejectedTRs directly — no DOM read step to capture revised items."
+  artifacts:
+    - path: "app/views/procurement.js"
+      issue: "selectRejectedTR() renders static <td> cells, not editable inputs. Missing saveRejectedTRChanges() function."
+  missing:
+    - "Replace static item table in selectRejectedTR() with editable #lineItemsBody using .item-name, .item-category, .item-qty, .item-unit, .unit-cost, .supplier-select inputs"
+    - "Add saveRejectedTRChanges(trDocId) function that reads DOM inputs, updates items_json + total_amount on the TR doc, and updates cachedRejectedTRs in-place"
+    - "Add Save Changes button alongside Resubmit to Finance button in selectRejectedTR panel"
+    - "Register window.saveRejectedTRChanges in init() and delete in destroy()"
   debug_session: ""
