@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: PR/TR Routing Fix
 status: unknown
-last_updated: "2026-03-05T11:04:51.414Z"
+last_updated: "2026-03-09T02:09:59.064Z"
 progress:
   total_phases: 45
   completed_phases: 44
-  total_plans: 121
-  completed_plans: 118
+  total_plans: 122
+  completed_plans: 119
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 ## Current Position
 
 Phase: 60 of 60 (Fix TR Rejection Independence) — COMPLETE
-Plan: 2 of 2 in Phase 60 — COMPLETE (60-01 and 60-02 done)
+Plan: 3 of 3 in Phase 60 — COMPLETE (60-01, 60-02, and 60-03 done)
 Status: Complete
-Last activity: 2026-03-05 — Phase 60 Plan 02 complete — removed TR Rejected from MRF query/canEdit, added rejected TR listener and Resubmit to Finance panel in Procurement
+Last activity: 2026-03-09 — Phase 60 Plan 03 complete — editable item table in rejected TR panel, saveRejectedTRChanges persists items_json + total_amount to Firestore
 
 Progress: [██████████] 97%
 
@@ -55,6 +55,7 @@ Progress: [██████████] 97%
 | Phase 59 P03 | 2 | 2 tasks | 2 files |
 | Phase 59 P05 | 3 | 2 tasks | 2 files |
 | Phase 60 P02 | 2min | 2 tasks | 1 file |
+| Phase 60 P03 | 15 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -84,6 +85,8 @@ Recent decisions affecting current work:
 - [Phase 60-02]: Rejected TRs filter by mrf_id presence — standalone TRs without mrf_id excluded from dedicated rejected panel
 - [Phase 60-02]: resubmitRejectedTR does NOT clear rejection_reason so Finance modal shows "Previously rejected" notice on resubmitted TRs
 - [Phase 60-02]: cachedRejectedTRs.length included in empty-state guard in renderMRFList so panel stays when only rejected TRs exist
+- [Phase 60]: calculateSubtotal/calculateGrandTotal guards removed so they work in rejected TR panel where currentMRF is null
+- [Phase 60]: saveRejectedTRChanges does not reset finance_status — only persists item edits; Resubmit button is the explicit re-queue action
 
 ### Roadmap Evolution
 
