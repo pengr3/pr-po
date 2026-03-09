@@ -1294,26 +1294,24 @@ export function createMRFRecordsController(options) {
                     }
                 }
 
-                // Fetch TR data for Transport rows from transport_requests collection
-                if (type === 'Transport') {
-                    try {
-                        const trsRef = collection(db, 'transport_requests');
-                        const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
-                        const trSnapshot = await getDocs(trQuery);
-                        if (!trSnapshot.empty) {
-                            trSnapshot.forEach((trDoc) => {
-                                const trData = trDoc.data();
-                                trDataArray.push({
-                                    docId: trDoc.id,
-                                    tr_id: trData.tr_id || '',
-                                    finance_status: trData.finance_status || 'Pending'
-                                });
-                                trFinanceStatus = trData.finance_status || 'Pending'; // keep for MRF Status column
+                // Fetch TR data — runs for all types so mixed MRFs (generatePRandTR) show TR badges
+                try {
+                    const trsRef = collection(db, 'transport_requests');
+                    const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
+                    const trSnapshot = await getDocs(trQuery);
+                    if (!trSnapshot.empty) {
+                        trSnapshot.forEach((trDoc) => {
+                            const trData = trDoc.data();
+                            trDataArray.push({
+                                docId: trDoc.id,
+                                tr_id: trData.tr_id || '',
+                                finance_status: trData.finance_status || 'Pending'
                             });
-                        }
-                    } catch (error) {
-                        console.error('[MRFRecords] Error fetching TR data for', mrf.mrf_id, error);
+                            trFinanceStatus = trData.finance_status || 'Pending'; // keep for MRF Status column (Transport)
+                        });
                     }
+                } catch (error) {
+                    console.error('[MRFRecords] Error fetching TR data for', mrf.mrf_id, error);
                 }
 
                 // Store in cache for subsequent sort/filter/page-change renders
@@ -1381,6 +1379,19 @@ export function createMRFRecordsController(options) {
                         }
                         return `<div style="${rowStyle(i)}">${content}</div>`;
                     }).join('');
+
+                // Append TR badges for mixed MRFs (generatePRandTR produces both PRs and a TR)
+                if (trDataArray.length > 0) {
+                    const trBadges = trDataArray.map(tr => {
+                        const statusClass = getStatusClass(tr.finance_status || 'Pending');
+                        return `<div style="height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;">
+                            <span class="status-badge ${statusClass}"
+                                style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">
+                                ${escapeHTML(tr.tr_id)}
+                            </span>
+                        </div>`;
+                    }).join('');
+                    prHtml = (prHtml !== '<span style="color: #999; font-size: 0.875rem;">-</span>' ? prHtml : '') + trBadges;
                 }
             } else if (type === 'Transport' && trDataArray.length > 0) {
                 prHtml = trDataArray.map((tr, i) => {
