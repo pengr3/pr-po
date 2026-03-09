@@ -1223,6 +1223,7 @@ export function createMRFRecordsController(options) {
             let prDataArray = [];
             let poDataArray = [];
             let trFinanceStatus = null;
+            let trDataArray = [];
 
             // Check cache first — skip Firestore if sub-data already loaded for this MRF
             if (_subDataCache.has(mrf.id)) {
@@ -1230,6 +1231,7 @@ export function createMRFRecordsController(options) {
                 prDataArray = cached.prDataArray;
                 poDataArray = cached.poDataArray;
                 trFinanceStatus = cached.trFinanceStatus;
+                trDataArray = cached.trDataArray || [];
             } else {
                 if (type === 'Material') {
                     // Fetch PRs
@@ -1292,25 +1294,30 @@ export function createMRFRecordsController(options) {
                     }
                 }
 
-                // Fetch finance_status for Transport rows from transport_requests collection
+                // Fetch TR data for Transport rows from transport_requests collection
                 if (type === 'Transport') {
                     try {
                         const trsRef = collection(db, 'transport_requests');
                         const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
                         const trSnapshot = await getDocs(trQuery);
                         if (!trSnapshot.empty) {
-                            trSnapshot.forEach((doc) => {
-                                const trData = doc.data();
-                                trFinanceStatus = trData.finance_status || 'Pending';
+                            trSnapshot.forEach((trDoc) => {
+                                const trData = trDoc.data();
+                                trDataArray.push({
+                                    docId: trDoc.id,
+                                    tr_id: trData.tr_id || '',
+                                    finance_status: trData.finance_status || 'Pending'
+                                });
+                                trFinanceStatus = trData.finance_status || 'Pending'; // keep for MRF Status column
                             });
                         }
                     } catch (error) {
-                        console.error('[MRFRecords] Error fetching TR finance_status for', mrf.mrf_id, error);
+                        console.error('[MRFRecords] Error fetching TR data for', mrf.mrf_id, error);
                     }
                 }
 
                 // Store in cache for subsequent sort/filter/page-change renders
-                _subDataCache.set(mrf.id, { prDataArray, poDataArray, trFinanceStatus });
+                _subDataCache.set(mrf.id, { prDataArray, poDataArray, trFinanceStatus, trDataArray });
             }
 
             // Build HTML for PRs | POs | Procurement Status columns (runs for both cache hit and miss)
@@ -1375,6 +1382,21 @@ export function createMRFRecordsController(options) {
                         return `<div style="${rowStyle(i)}">${content}</div>`;
                     }).join('');
                 }
+            } else if (type === 'Transport' && trDataArray.length > 0) {
+                prHtml = trDataArray.map((tr, i) => {
+                    const statusClass = getStatusClass(tr.finance_status || 'Pending');
+                    const rowStyle = i === 0
+                        ? 'height: 30px; display: flex; align-items: center;'
+                        : 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;';
+                    return `<div style="${rowStyle}">
+                        <span class="status-badge ${statusClass}"
+                            style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">
+                            ${escapeHTML(tr.tr_id)}
+                        </span>
+                    </div>`;
+                }).join('');
+                // poHtml stays '-' for Transport (no POs linked to TRs)
+                // procStatusHtml stays '-' for Transport (no Procurement Status for TRs)
             }
 
             // MRF Status column — computed badge for Material; finance_status badge for Transport
@@ -1387,8 +1409,8 @@ export function createMRFRecordsController(options) {
                 mrfStatusHtml = `<span class="status-badge ${getStatusClass(financeStatus)}">${escapeHTML(financeStatus)}</span>`;
             }
 
-            // Display ID: use tr_id for Transport if available, else mrf_id
-            const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+            // Display ID: always use the true MRF ID (TR codes appear in the PRs column as badges)
+            const displayId = mrf.mrf_id;
 
             // Date Needed: prefer date_needed; fallback to formatted timestamp
             const dateNeeded = mrf.date_needed
