@@ -3036,11 +3036,13 @@ async function renderPRPORecords() {
         let poDataArray = [];
         let trCost = 0;
         let trFinanceStatus = null;
+        let trDataArray = [];
 
         // Check cache first — skip Firestore if sub-data already loaded for this MRF
         if (_prpoSubDataCache.has(mrf.id)) {
             const cached = _prpoSubDataCache.get(mrf.id);
             ({ prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus } = cached);
+            trDataArray = cached.trDataArray || [];
             poCount = poDataArray.length;
             mrf._tr_finance_status = trFinanceStatus;
         } else {
@@ -3082,15 +3084,20 @@ async function renderPRPORecords() {
                     console.error('Error fetching PRs for', mrf.mrf_id, error);
                 }
             } else if (type === 'Transport') {
-                // Fetch cost from transport_requests collection
+                // Fetch cost and TR data from transport_requests collection
                 try {
                     const trsRef = collection(db, 'transport_requests');
                     const trQuery = query(trsRef, where('mrf_id', '==', mrf.mrf_id));
                     const trSnapshot = await getDocs(trQuery);
 
                     if (!trSnapshot.empty) {
-                        trSnapshot.forEach((doc) => {
-                            const trData = doc.data();
+                        trSnapshot.forEach((docSnap) => {
+                            const trData = docSnap.data();
+                            trDataArray.push({
+                                docId: docSnap.id,
+                                tr_id: trData.tr_id || '',
+                                finance_status: trData.finance_status || 'Pending'
+                            });
                             trCost = parseFloat(trData.total_amount || 0);
                             trFinanceStatus = trData.finance_status || 'Pending';
                             mrf._tr_finance_status = trFinanceStatus;
@@ -3147,7 +3154,7 @@ async function renderPRPORecords() {
             }
 
             // Store in cache for subsequent sort/filter/page-change renders
-            _prpoSubDataCache.set(mrf.id, { prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus });
+            _prpoSubDataCache.set(mrf.id, { prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus, trDataArray });
         }
 
         const totalCostHtml = totalCost > 0
@@ -3234,7 +3241,7 @@ async function renderPRPORecords() {
             }
         }
 
-        const displayId = (type === 'Transport' && mrf.tr_id) ? mrf.tr_id : mrf.mrf_id;
+        const displayId = mrf.mrf_id;
 
         // Calculate MRF Status badge — computed for Material; finance_status badge for Transport
         let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">—</span>';
@@ -3344,6 +3351,20 @@ async function renderPRPORecords() {
                 }
                 return `<div style="${rowStyle(i)}">${content}</div>`;
             }).join('');
+        } else if (type === 'Transport' && trDataArray.length > 0) {
+            const rowStyle = (i) => i === 0
+                ? 'height: 30px; display: flex; align-items: center;'
+                : 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;';
+            prHtml = trDataArray.map((tr, i) => {
+                const statusClass = getStatusClass(tr.finance_status || 'Pending');
+                return `<div style="${rowStyle(i)}">
+                    <span class="status-badge ${statusClass}"
+                        style="font-size: 0.75rem; display: inline-block; white-space: nowrap;">
+                        ${escapeHTML(tr.tr_id)}
+                    </span>
+                </div>`;
+            }).join('');
+            // poHtml stays '-'; procStatusHtml stays '-'
         }
 
         return `
