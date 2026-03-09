@@ -651,6 +651,7 @@ export async function destroy() {
     delete window.selectRejectedTR;
     delete window.resubmitRejectedTR;
     delete window.saveRejectedTRChanges;
+    delete window.deleteRejectedTR;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
@@ -1014,10 +1015,14 @@ function renderMRFList(materialMRFs, transportMRFs) {
                         <strong>Reason:</strong> ${escapeHTML(rejectionReason)}<br>
                         <strong>Rejected by:</strong> ${escapeHTML(rejectedBy)}
                     </div>
-                    <div style="margin-top: 0.5rem;">
+                    <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
                         <button class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;"
                                 onclick="event.stopPropagation(); window.resubmitRejectedTR('${tr.id}')">
                             Resubmit to Finance
+                        </button>
+                        <button class="btn btn-danger" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;"
+                                onclick="event.stopPropagation(); window.deleteRejectedTR('${tr.id}')">
+                            Delete TR
                         </button>
                     </div>
                 </div>
@@ -1198,6 +1203,9 @@ function selectRejectedTR(trDocId) {
                 <button class="btn btn-primary" onclick="window.resubmitRejectedTR('${tr.id}')">
                     Resubmit to Finance
                 </button>
+                <button class="btn btn-danger" onclick="window.deleteRejectedTR('${tr.id}')">
+                    Delete TR
+                </button>
             </div>
         </div>
     `;
@@ -1329,6 +1337,24 @@ async function resubmitRejectedTR(trDocId) {
         showLoading(false);
     }
 }
+
+/**
+ * Permanently delete a Finance-rejected TR from Firestore.
+ * Requires confirmation. Splices from cachedRejectedTRs and re-renders list.
+ */
+async function deleteRejectedTR(trDocId) {
+    if (!confirm('Delete this rejected TR permanently? This cannot be undone.')) return;
+    try {
+        await deleteDoc(doc(db, 'transport_requests', trDocId));
+        cachedRejectedTRs = cachedRejectedTRs.filter(tr => tr.id !== trDocId);
+        renderMRFList();
+        showToast('TR deleted.', 'success');
+    } catch (err) {
+        console.error('[Procurement] deleteRejectedTR error:', err);
+        showToast('Failed to delete TR: ' + err.message, 'error');
+    }
+}
+window.deleteRejectedTR = deleteRejectedTR;
 
 /**
  * Create new MRF
