@@ -1078,7 +1078,7 @@ async function refreshProjectExpenses(forceRefresh = false) {
                 remainingBudget: budget - totalExpense,
                 poCount: posAgg.data().poCount || 0,
                 trCount: trAgg.data().trCount || 0,
-                status: project.status || 'active'
+                active: project.active !== false
             };
         });
 
@@ -1086,8 +1086,8 @@ async function refreshProjectExpenses(forceRefresh = false) {
 
         // Sort: active projects A-Z first, then inactive A-Z
         projectExpenses.sort((a, b) => {
-            const aActive = (a.status || 'active') === 'active';
-            const bActive = (b.status || 'active') === 'active';
+            const aActive = a.active !== false;
+            const bActive = b.active !== false;
             if (aActive !== bActive) return aActive ? -1 : 1;
             return (a.projectName || '').localeCompare(b.projectName || '');
         });
@@ -1184,8 +1184,8 @@ function renderProjectExpensesTable() {
                     ${isOverBudget ? ' over' : ''}
                 </td>
                 <td style="text-align: center;">
-                    <span class="badge badge-${proj.status === 'active' ? 'success' : 'secondary'}">
-                        ${proj.status === 'active' ? 'Active' : 'Inactive'}
+                    <span class="badge badge-${proj.active !== false ? 'success' : 'secondary'}">
+                        ${proj.active !== false ? 'Active' : 'Inactive'}
                     </span>
                 </td>
             </tr>

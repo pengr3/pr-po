@@ -1347,7 +1347,7 @@ async function deleteRejectedTR(trDocId) {
     try {
         await deleteDoc(doc(db, 'transport_requests', trDocId));
         cachedRejectedTRs = cachedRejectedTRs.filter(tr => tr.id !== trDocId);
-        renderMRFList();
+        reFilterAndRenderMRFs();
         showToast('TR deleted.', 'success');
     } catch (err) {
         console.error('[Procurement] deleteRejectedTR error:', err);
