@@ -50,7 +50,7 @@ function renderMyRequestsView(tabNav) {
     return `
         <div style="min-height: 100vh; background: #f8fafc;">
             ${tabNav}
-            <div class="container" style="max-width: 1200px; margin: 0 auto; padding: 2rem;">
+            <div class="container" style="max-width: 1600px; margin: 0 auto; padding: 2rem;">
                 <div class="card">
                     <div class="card-header">
                         <h2>My Requests</h2>
