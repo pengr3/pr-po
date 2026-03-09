@@ -245,10 +245,12 @@ Plans:
 **Goal:** Decouple TR lifecycle from MRF status — TR rejection/approval must not cascade to MRF document
 **Requirements**: TR-INDEP-01, TR-INDEP-03
 **Depends on:** Phase 59
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [x] 60-01-PLAN.md — Remove MRF status cascade from TR rejection and TR approval; add prior rejection notice in Finance TR modal (finance.js)
+- [x] 60-02-PLAN.md — Rejected TR listener, dedicated panel in Procurement, resubmit to Finance (procurement.js)
+- [ ] 60-03-PLAN.md — Gap closure: editable TR item table in selectRejectedTR() + saveRejectedTRChanges() (procurement.js)
 
 ---
-*Last updated: 2026-03-05 — Phase 60 complete (1 plan: TR rejection independence, MRF cascade removed, prior rejection notice added)*
+*Last updated: 2026-03-09 — Phase 60 gap closure plan 03 added: editable rejected TR detail panel*
