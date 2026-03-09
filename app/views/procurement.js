@@ -847,25 +847,32 @@ function renderMRFList(materialMRFs, transportMRFs) {
         return;
     }
 
+    // Split rejected MRFs out of incoming arrays so pending sections stay clean
+    const isRejectedStatus = (s) => s === 'PR Rejected' || s === 'TR Rejected' || s === 'Finance Rejected';
+
+    const pendingMaterialMRFs = materialMRFs.filter(m => !isRejectedStatus(m.status));
+    const rejectedMaterialMRFs = materialMRFs.filter(m => isRejectedStatus(m.status));
+
+    const pendingTransportMRFs = transportMRFs.filter(m => !isRejectedStatus(m.status));
+    const rejectedTransportMRFs = transportMRFs.filter(m => isRejectedStatus(m.status));
+
+    const allRejectedMRFs = [...rejectedMaterialMRFs, ...rejectedTransportMRFs];
+
     let html = '';
 
-    // Material Requests Section
+    // Material Requests Section (pending only)
     html += '<div style="font-weight: 600; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; margin-bottom: 0.5rem;">Material Requests</div>';
 
-    if (materialMRFs.length === 0) {
+    if (pendingMaterialMRFs.length === 0) {
         html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending material requests</div>';
     } else {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        html += materialMRFs.map(mrf => {
+        html += pendingMaterialMRFs.map(mrf => {
         const dateNeeded = new Date(mrf.date_needed);
         dateNeeded.setHours(0, 0, 0, 0);
         const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
-
-        // Check if rejected
-        const isRejected = mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
-        const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
 
         let urgencyColor, urgencyBg;
         if (daysRemaining <= 3) {
@@ -888,22 +895,14 @@ function renderMRFList(materialMRFs, transportMRFs) {
 
         return `
             <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
-                 style="${rejectionStyle} border-left: 4px solid ${urgencyLevelColor};">
+                 style="border-left: 4px solid ${urgencyLevelColor};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <span style="font-weight: 600;">
-                        ${escapeHTML(mrf.mrf_id)}
-                        ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
-                    </span>
+                    <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
                     <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
                         ${escapeHTML(mrf.urgency_level || 'Low')}
                     </span>
                 </div>
                 <div style="font-size: 0.875rem; color: #5f6368;">${escapeHTML(getMRFLabel(mrf))}</div>
-                ${isRejected ? `
-                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                        <strong>Reason:</strong> ${escapeHTML(mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided')}
-                    </div>
-                ` : ''}
                 <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
                     <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
                     <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
@@ -915,22 +914,19 @@ function renderMRFList(materialMRFs, transportMRFs) {
     }).join('');
     }
 
-    // Transport Requests Section
+    // Transport Requests Section (pending only)
     html += '<div style="font-weight: 600; padding: 0.5rem; background: #fef3c7; border-radius: 4px; margin: 1rem 0 0.5rem 0;">Pending Transportation Requests</div>';
 
-    if (transportMRFs.length === 0) {
+    if (pendingTransportMRFs.length === 0) {
         html += '<div style="text-align: center; padding: 1rem; color: #999; font-size: 0.875rem;">No pending transport requests</div>';
     } else {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        html += transportMRFs.map(mrf => {
+        html += pendingTransportMRFs.map(mrf => {
             const dateNeeded = new Date(mrf.date_needed);
             dateNeeded.setHours(0, 0, 0, 0);
             const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
-
-            const isRejected = mrf.status === 'PR Rejected' || mrf.status === 'TR Rejected';
-            const rejectionStyle = isRejected ? 'border: 4px solid #dc2626; background: #fee2e2;' : '';
 
             let urgencyColor = '#f59e0b';
             let urgencyBg = '#fef3c7';
@@ -944,25 +940,58 @@ function renderMRFList(materialMRFs, transportMRFs) {
 
             return `
                 <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
-                     style="${rejectionStyle} border-left: 4px solid ${urgencyLevelColor};">
+                     style="border-left: 4px solid ${urgencyLevelColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                        <span style="font-weight: 600;">
-                            ${escapeHTML(mrf.mrf_id)}
-                            ${isRejected ? `<span style="color: #dc2626; font-size: 0.75rem; margin-left: 0.5rem;">${mrf.status === 'TR Rejected' ? 'TR REJECTED' : 'PR REJECTED'}</span>` : ''}
-                        </span>
+                        <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
                         <span style="background: ${urgencyLevelBg}; color: ${urgencyLevelColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">
                             ${escapeHTML(mrf.urgency_level || 'Low')}
                         </span>
                     </div>
                     <div style="font-size: 0.875rem; color: #5f6368;">${escapeHTML(getMRFLabel(mrf))}</div>
-                    ${isRejected ? `
-                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
-                            <strong>Reason:</strong> ${escapeHTML(mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided')}
-                        </div>
-                    ` : ''}
                     <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
                         <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
                         <span style="background: ${urgencyBg}; color: ${urgencyColor}; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
+                            ${daysRemaining} days
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Rejected MRFs section (PR Rejected, TR Rejected, Finance Rejected) -- dedicated panel
+    if (allRejectedMRFs.length > 0) {
+        html += '<div style="font-weight: 600; padding: 0.5rem; background: #fee2e2; border-radius: 4px; margin: 1rem 0 0.5rem 0; color: #dc2626;">Rejected MRFs</div>';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        html += allRejectedMRFs.map(mrf => {
+            const dateNeeded = new Date(mrf.date_needed);
+            dateNeeded.setHours(0, 0, 0, 0);
+            const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
+
+            const statusLabel = mrf.status === 'TR Rejected' ? 'TR REJECTED'
+                : mrf.status === 'Finance Rejected' ? 'FINANCE REJECTED'
+                : 'PR REJECTED';
+
+            const urgencyLevelColor = mrf.urgency_level === 'Critical' ? '#dc2626'
+                : mrf.urgency_level === 'High' ? '#ef4444'
+                : mrf.urgency_level === 'Medium' ? '#f59e0b' : '#22c55e';
+
+            return `
+                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
+                     style="border: 2px solid #dc2626; background: #fee2e2; border-left: 4px solid ${urgencyLevelColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
+                        <span style="background: #fef2f2; color: #dc2626; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">${statusLabel}</span>
+                    </div>
+                    <div style="font-size: 0.875rem; color: #5f6368;">${escapeHTML(getMRFLabel(mrf))}</div>
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: white; border-radius: 4px; font-size: 0.75rem; color: #dc2626;">
+                        <strong>Reason:</strong> ${escapeHTML(mrf.pr_rejection_reason || mrf.rejection_reason || 'No reason provided')}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.75rem;">
+                        <span style="color: #999;">Needed: ${new Date(mrf.date_needed).toLocaleDateString()}</span>
+                        <span style="background: #fee2e2; color: #dc2626; padding: 0.125rem 0.5rem; border-radius: 4px; font-weight: 600;">
                             ${daysRemaining} days
                         </span>
                     </div>
