@@ -729,7 +729,7 @@ async function loadMRFs() {
     _mrfListenerActive = true;
 
     const mrfsRef = collection(db, 'mrfs');
-    const statuses = ['Pending', 'In Progress', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
+    const statuses = ['Pending', 'In Progress', 'Rejected', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
     const q = query(mrfsRef, where('status', 'in', statuses));
 
     const listener = onSnapshot(q, (snapshot) => {
@@ -846,7 +846,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
     }
 
     // Split rejected MRFs out of incoming arrays so pending sections stay clean
-    const isRejectedStatus = (s) => s === 'PR Rejected' || s === 'TR Rejected' || s === 'Finance Rejected';
+    const isRejectedStatus = (s) => s === 'Rejected' || s === 'PR Rejected' || s === 'TR Rejected' || s === 'Finance Rejected';
 
     const pendingMaterialMRFs = materialMRFs.filter(m => !isRejectedStatus(m.status));
     const rejectedMaterialMRFs = materialMRFs.filter(m => isRejectedStatus(m.status));
@@ -968,7 +968,8 @@ function renderMRFList(materialMRFs, transportMRFs) {
             dateNeeded.setHours(0, 0, 0, 0);
             const daysRemaining = Math.ceil((dateNeeded - today) / (1000 * 60 * 60 * 24));
 
-            const statusLabel = mrf.status === 'TR Rejected' ? 'TR REJECTED'
+            const statusLabel = mrf.status === 'Rejected' ? 'REJECTED'
+                : mrf.status === 'TR Rejected' ? 'TR REJECTED'
                 : mrf.status === 'Finance Rejected' ? 'FINANCE REJECTED'
                 : 'PR REJECTED';
 

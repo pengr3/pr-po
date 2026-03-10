@@ -1682,6 +1682,9 @@ export function createMRFRecordsController(options) {
         delete window[`_mrfRecordsTimeline_${containerId}`];
         delete window.generatePRDocumentLocal;
         delete window.generatePODocumentLocal;
+        if (window.viewTRDetails === viewTRDetailsLocal) {
+            delete window.viewTRDetails;
+        }
     }
 
     // ------------------------------------------------
