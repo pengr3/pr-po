@@ -10,7 +10,7 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Latest shipped:** v3.0 Fixes (2026-03-04)
+**Latest shipped:** v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (2026-03-10)
 **Active milestone:** None — planning next milestone
 
 See `.planning/MILESTONES.md` for full milestone history.
@@ -232,18 +232,21 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Sub-tab nav alignment: Material Request, Procurement, Admin bars all at 1600px matching Finance — v3.0 (Phase 56)
 - ✓ Finance Approved This Month scoreboard: dynamically counts POs by date_issued in current calendar month plus approved TRs — v3.0 (Phase 55)
 
-## Current Milestone: v3.1 PR/TR Routing Fix
+## Current State
 
-**Goal:** Fix the edge case where supplier-delivered goods create a TR instead of being included in the PO.
+**Latest shipped:** v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (2026-03-10)
+**Active milestone:** None — planning next milestone
 
-**Target features:**
-- New item category "DELIVERY BY SUPPLIER" that routes to PR (not TR), so delivery charges from material suppliers appear on the PO
+### Validated (Shipped in v3.1)
 
-### Active
-
-- [ ] Item category "DELIVERY BY SUPPLIER" available in MRF form and Procurement category dropdowns
-- [ ] "DELIVERY BY SUPPLIER" items route to PR (not TR), producing a PO when Finance approves
-- [ ] Supplier field required for "DELIVERY BY SUPPLIER" items (same as all other PR items)
+- Item category "DELIVERY BY SUPPLIER" routes to PR/PO path (not TR) — v3.1 (Phase 57)
+- TR rejection fully decoupled from MRF status with dedicated editing panel — v3.1 (Phase 60)
+- MRF soft-reject replacing hard delete with full audit trail — v3.1 (Phase 62)
+- TR details modal accessible from clickable TR badges in records tables — v3.1 (Phase 62)
+- Add/delete line items on rejected TRs before resubmitting — v3.1 (Phase 62.1)
+- MRF rejection event shown on Procurement Timeline — v3.1 (Phase 62.2)
+- Project/service dropdowns sort alphabetically, codes use dash format — v3.1 (Phases 61, 62)
+- Responsive workspace for 1366px laptops, sortable My Requests, real-time MRF Records — v3.1 (Phases 59, 59.1)
 
 ### Future (v4.0+)
 
@@ -346,6 +349,12 @@ See `.planning/MILESTONES.md` for full milestone history.
 - No new collections or files — focused on display precision and layout consistency
 - 12/12 requirements satisfied
 - Total JS codebase: ~27,369 LOC (11,123 LOC across 5 modified files)
+
+**Shipped v3.1 (2026-03-10):**
+- 11 phases, 22 plans, 105 commits
+- 84 files changed, +9,383 / -2,490 lines
+- 6 days from first commit to ship (2026-03-05 → 2026-03-10)
+- 18/18 requirements satisfied (100% coverage)
 
 **Current Codebase State:**
 - Auth System: app/auth.js, app/permissions.js

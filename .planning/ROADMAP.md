@@ -10,7 +10,7 @@
 - ✅ **v2.4 Productivity & Polish** — Phases 41-48 (shipped 2026-03-01)
 - ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
 - ✅ **v3.0 Fixes** — Phases 54-56 (shipped 2026-03-04)
-- ✅ **v3.1 PR/TR Routing Fix** — Phase 57 (shipped 2026-03-05)
+- ✅ **v3.1 PR/TR Routing Fix & Procurement Workflow Improvements** — Phases 57-62.2 (shipped 2026-03-10)
 
 ## Phases
 
@@ -127,75 +127,22 @@
 
 </details>
 
-### ✅ v3.1 PR/TR Routing Fix (Shipped 2026-03-05)
+<details>
+<summary>✅ v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (Phases 57-62.2) — SHIPPED 2026-03-10</summary>
 
-**Milestone Goal:** Fix the edge case where supplier-delivered goods generate a TR instead of being included in the PO, by introducing a dedicated "DELIVERY BY SUPPLIER" category that routes exclusively through the PR/PO path.
+- [x] Phase 57: Delivery By Supplier Category (1/1 plan) — completed 2026-03-05
+- [x] Phase 58: TR rejection visibility + CSP fix (2/2 plans) — completed 2026-03-05
+- [x] Phase 59: TR display, sortable headers, responsiveness (5/5 plans) — completed 2026-03-06
+- [x] Phase 59.1: MRF Records real-time rendering (1/1 plan) — completed 2026-03-07
+- [x] Phase 60: TR rejection independence (3/3 plans) — completed 2026-03-08
+- [x] Phase 60.1: TR code visibility + rejected MRFs grouping (2/2 plans) — completed 2026-03-08
+- [x] Phase 60.2: My Requests table width match (1/1 plan) — completed 2026-03-08
+- [x] Phase 61: Code format dash + permission fixes (1/1 plan) — completed 2026-03-09
+- [x] Phase 62: Sort dropdowns, soft-reject, TR modal, Finance fix (4/4 plans) — completed 2026-03-09
+- [x] Phase 62.1: Add line item to rejected TRs (1/1 plan) — completed 2026-03-10
+- [x] Phase 62.2: MRF rejection timeline event (1/1 plan) — completed 2026-03-10
 
-- [x] **Phase 57: Delivery By Supplier Category** - Add "DELIVERY BY SUPPLIER" category to both MRF forms and enforce PR routing with supplier validation — completed 2026-03-05
-
-## Phase Details
-
-### Phase 54: MRF Table PR/PO Alignment
-**Goal**: Users can see PO IDs inline beside their corresponding PR IDs and act on procurement status per individual PR/PO row
-**Depends on**: Nothing (first phase of v3.0)
-**Requirements**: TABLE-01, TABLE-02, TABLE-03
-**Success Criteria** (what must be TRUE):
-  1. In My Requests, each PR row shows its PO ID directly beside the PR ID; rows with no PO show a clear null/empty slot in the same position
-  2. In Procurement MRF Records, each PR row shows its PO ID directly beside the PR ID with the same null-slot behavior
-  3. In Procurement MRF Records, the Procurement Status dropdown sits on the same row as its PR/PO pair — it does not float above or below adjacent rows
-**Plans**: 2 plans
-Plans:
-- [x] 54-01-PLAN.md — Fix My Requests table: pair PR+PO inline with null-slot behavior (mrf-records.js)
-- [x] 54-02-PLAN.md — Fix MRF Records table: pair PR+PO+status-dropdown inline per row (procurement.js)
-
-### Phase 55: Finance Pending Approvals Fixes
-**Goal**: Finance reviewers see actionable date and project context in the Pending Approvals tables instead of a redundant Status column, and the Approved This Month scoreboard reflects an accurate PO count
-**Depends on**: Nothing (independent of Phase 54)
-**Requirements**: FINANCE-01, FINANCE-02, SCORE-01
-**Success Criteria** (what must be TRUE):
-  1. Material Purchase Requests table columns appear in this order: PR ID, MRF ID, Department/Project, Date Issued, Date Needed, Urgency, Total Cost, Supplier — no Status column present
-  2. Transport Requests table has a "Date Issued" column header (not "Date"), a "Date Needed" column present, and no "Status" column
-  3. The "Approved This Month" scoreboard number matches the actual count of PO documents with approval dates in the current calendar month — it does not include PRs, TRs, or POs from prior months
-**Plans**: 1 plan
-Plans:
-- [x] 55-01-PLAN.md — Restructure PR/TR table columns, add JUSTIFICATION to PR modal, fix Approved This Month scoreboard (finance.js)
-
-### Phase 56: UI Layout Standardization
-**Goal**: MRF Processing fills the full viewport width and sub-tab nav bars across Material Request, Procurement, and Admin tabs align to the same left position as the Finance tab
-**Depends on**: Nothing (independent CSS/layout changes)
-**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06
-**Success Criteria** (what must be TRUE):
-  1. MRF Processing work area spans the full viewport width with no narrow box constraint visible
-  2. The Pending MRFs panel left edge aligns to the same horizontal position as the Finance tab's left content margin (logo-aligned)
-  3. The MRF Details panel right edge aligns to the same horizontal position as the Finance tab's right content margin (Logout-aligned)
-  4. Material Request, Procurement, and Admin sub-tab nav bars each left-align to the logo position, matching the Finance sub-tab nav alignment
-**Plans**: 1 plan
-Plans:
-- [x] 056-01-PLAN.md — Standardize max-width to 1600px in procurement.js, admin.js, mrf-form.js sub-nav and content wrappers
-
-### Phase 57: Delivery By Supplier Category
-**Goal**: Users can select "DELIVERY BY SUPPLIER" as a line item category in both MRF creation surfaces, and those items route through the PR/PO workflow — not the TR workflow — with supplier selection required
-**Depends on**: Nothing (isolated category and routing change)
-**Requirements**: PRTR-01, PRTR-02, PRTR-03, PRTR-04
-**Success Criteria** (what must be TRUE):
-  1. A user submitting an MRF via the standalone MRF form can choose "DELIVERY BY SUPPLIER" from the item category dropdown
-  2. A user creating an MRF via Procurement can choose "DELIVERY BY SUPPLIER" from the item category dropdown
-  3. When an MRF containing a "DELIVERY BY SUPPLIER" item is approved and PRs are generated, that item appears on a PR (not a TR) and produces a PO when Finance approves
-  4. Attempting to generate a PR without a supplier selected on a "DELIVERY BY SUPPLIER" item blocks submission with the same supplier-required validation as all other PR items
-**Plans**: 1 plan
-Plans:
-- [x] 057-01-PLAN.md — Add DELIVERY BY SUPPLIER option to mrf-form.js and procurement.js dropdowns; routing enforced by existing transportCategories logic
-
-### Phase 58: Fix TR rejection not reappearing in procurement, PR rejection hiding MRF records, and CSP header violations blocking Firebase source maps
-
-**Goal:** Procurement users can resubmit Finance-rejected TRs from the Processing Area, MRF Records correctly shows PR Rejected and TR Rejected records, and browser console shows no CSP violations for Firebase source map fetches
-**Requirements**: BUG-01, BUG-02, BUG-03
-**Depends on:** Phase 57
-**Plans:** 2/2 plans complete
-
-Plans:
-- [ ] 58-01-PLAN.md — Fix TR Rejected canEdit checks and add PR/TR Rejected filter options to MRF Records (procurement.js)
-- [ ] 58-02-PLAN.md — Add https://www.gstatic.com to CSP connect-src in _headers and netlify.toml
+</details>
 
 ## Progress
 
@@ -208,117 +155,10 @@ Plans:
 | 26-40 | v2.3 | 34/34 | Complete | 2026-02-26 |
 | 41-48 | v2.4 | 24/24 | Complete | 2026-03-01 |
 | 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
-| 54 | v3.0 | 2/2 | Complete | 2026-03-04 |
-| 55 | v3.0 | 1/1 | Complete | 2026-03-04 |
-| 56 | v3.0 | 1/1 | Complete | 2026-03-04 |
-| 57 | v3.1 | 1/1 | Complete | 2026-03-05 |
-| 58 | 2/2 | Complete    | 2026-03-05 | — |
+| 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
+| 57-62.2 | v3.1 | 22/22 | Complete | 2026-03-10 |
 
-**Total shipped: 55 phases, 142 plans, 9 milestones**
-
-### Phase 59: Improve TR display on MRF Records and My Requests, add sortable headers to My Requests, enhance Timeline lifecycle logging, and optimize workspace responsiveness for laptop screens
-
-**Goal:** TR rows in tables show finance_status badges, Timeline shows full rejection/resubmission lifecycle, My Requests has sortable headers, and Procurement/Finance views fit 1366px laptop screens without zooming
-**Requirements**: TR-01, TR-02, TIMELINE-01, SORT-01, RESP-01
-**Depends on:** Phase 58
-**Plans:** 5/5 plans complete
-
-Plans:
-- [ ] 59-01-PLAN.md — TR finance_status badge in MRF Status column (mrf-records.js, procurement.js)
-- [ ] 59-02-PLAN.md — Timeline lifecycle events: rejection reason, actor, timestamp, resubmission (procurement.js, mrf-records.js)
-- [ ] 59-03-PLAN.md — My Requests sortable headers with default Date Needed asc sort (mrf-records.js, mrf-form.js)
-- [ ] 59-04-PLAN.md — Fluid dashboard-grid layout for 1366px laptop screens (styles/views.css)
-- [ ] 59-05-PLAN.md — Gap closure: TR badge CSS class fix + sort flash cache (mrf-records.js, procurement.js)
-
-### Phase 59.1: Fix MRF Records real-time rendering - new MRFs should appear instantly in all records tables (Procurement and My Requests) (INSERTED)
-
-**Goal:** Procurement users see newly created MRFs in the Records tab immediately after creation — no manual Refresh required. The MRF Records query fetches all statuses (not just historical ones), the filter dropdown exposes Pending/Approved options, and the 5-minute cache is invalidated after a new MRF is saved.
-**Requirements**: MRF-RECORDS-01
-**Depends on:** Phase 59
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] 59.1-01-PLAN.md — Remove historicalStatuses query filter, add Pending/Approved to filter dropdown, invalidate cache in saveNewMRF (procurement.js)
-
-### Phase 60: Fix TR rejection independence decouple TR status from MRF and treat TRs as child records like PRs
-
-**Goal:** Decouple TR lifecycle from MRF status — TR rejection/approval must not cascade to MRF document
-**Requirements**: TR-INDEP-01, TR-INDEP-03
-**Depends on:** Phase 59
-**Plans:** 3/3 plans complete
-
-Plans:
-- [x] 60-01-PLAN.md — Remove MRF status cascade from TR rejection and TR approval; add prior rejection notice in Finance TR modal (finance.js)
-- [x] 60-02-PLAN.md — Rejected TR listener, dedicated panel in Procurement, resubmit to Finance (procurement.js)
-- [ ] 60-03-PLAN.md — Gap closure: editable TR item table in selectRejectedTR() + saveRejectedTRChanges() (procurement.js)
-
-### Phase 60.2: match My Requests table size and layout to MRF Records tab (INSERTED)
-
-**Goal:** My Requests table fills the same horizontal width as the MRF Records tab — outer container widened from 1200px to 1600px so both views have identical column widths, row density, and table proportions
-**Requirements**: none (urgent inserted phase)
-**Depends on:** Phase 60
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] 60.2-01-PLAN.md — Widen renderMyRequestsView() container from max-width: 1200px to 1600px (mrf-form.js)
-
-### Phase 60.1: fix TR code visibility and MRF rejection grouping - display TR badges in PRs column on MRF Records and My Requests, no MRF status change on TR generation, hide Procurement Status dropdown for TR rows, dedicated Rejected MRFs area in MRF Processing (INSERTED)
-
-**Goal:** TR codes visible as badges in PRs column on both MRF Records and My Requests; MRF status not changed by TR generation; rejected MRFs in dedicated section in MRF Processing
-**Requirements**: TR-VIS-01, TR-VIS-02, TR-VIS-03, TR-VIS-04, TR-VIS-05
-**Depends on:** Phase 60
-**Plans:** 2/2 plans complete
-
-Plans:
-- [ ] 60.1-01-PLAN.md — TR badge in PRs column for Transport rows; mrf_id as display ID (mrf-records.js, procurement.js)
-- [ ] 60.1-02-PLAN.md — Remove MRF status mutation on TR generation; dedicated Rejected MRFs section in MRF Processing (procurement.js)
-
-### Phase 61: Fix project code format underscore to dash, fix MRF deletion permission error in procurement, and fix MRF submission permission error for services users
-
-**Goal:** Project and service codes use dash separators (CLMC-CLIENT-YYYYnnn), procurement users can delete MRFs without permission errors, and services users can submit MRFs without permission errors
-**Requirements**: CODE-FMT-01, PERM-DEL-01, PERM-SUB-01
-**Depends on:** Phase 60
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] 61-01-PLAN.md — Fix generateProjectCode/generateServiceCode dash format in utils.js; add procurement to mrfs delete and deleted_mrfs create rules; add services_user to mrfs unrestricted list in firestore.rules
-
-### Phase 62: sort-project-service-dropdown-alphabetically-reject-mrf-instead-of-delete-tr-details-modal-and-fix-finance-project-list-error
-
-**Goal:** Project/service dropdowns sort alphabetically; "Delete MRF" replaced by soft-reject "Reject MRF"; TR ID badges in records tables open a TR details modal; Finance Project List shows only active projects
-**Requirements**: SORT-ALPHA-01, REJECT-MRF-01, TR-MODAL-01, FINANCE-ERR-01
-**Depends on:** Phase 61
-**Plans:** 4/4 plans complete
-
-Plans:
-- [ ] 62-01-PLAN.md — Sort project/service dropdowns A-Z in mrf-form.js and procurement.js; fix Finance Project List active-only query (finance.js)
-- [ ] 62-02-PLAN.md — Add rejectMRF() soft-reject function; add viewTRDetails() modal; make TR badges clickable in both records tables (procurement.js, mrf-records.js)
-
-### Phase 62.1: Add line item to rejected TRs (INSERTED)
-
-**Goal:** Procurement users can add new line items to Finance-rejected TRs before resubmitting, giving them full flexibility to adjust TR contents — not just edit existing rows
-**Requirements**: TR-EDIT-01
-**Depends on:** Phase 62 (rejected TR editable panel from 60-03)
-**Plans:** 1/1 plans complete
-
-**Success Criteria** (what must be TRUE):
-  1. The rejected TR detail panel has an "Add Line Item" button below the items table
-  2. Clicking "Add Line Item" appends a new empty row with the same editable inputs (item name, category, qty, unit, unit cost, supplier)
-  3. The new row participates in subtotal/grand total calculations via the existing calculateSubtotal logic
-  4. Save Changes persists the new items alongside existing ones to Firestore
-  5. Resubmit to Finance includes the newly added items
-
-### Phase 62.2: MRF rejection timeline event (INSERTED)
-
-**Goal:** When an MRF is rejected by Procurement, the rejection appears as a red event in the Procurement Timeline showing reason, actor, and timestamp
-**Requirements**: TIMELINE-MRF-01
-**Depends on:** Phase 62 (rejectMRF soft-reject)
-**Plans:** 1/1 plans complete
-
-**Success Criteria** (what must be TRUE):
-  1. Opening the Timeline for a rejected MRF shows a red "MRF Rejected" event after "MRF Created"
-  2. The rejection event displays the rejection reason, who rejected it, and when
-  3. The event appears in both Procurement Timeline and My Requests Timeline
+**Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-10 — Phase 62.2 inserted: MRF rejection timeline event*
+*Last updated: 2026-03-10 — v3.1 milestone archived*

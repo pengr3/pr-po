@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: PR/TR Routing Fix
-status: unknown
+milestone: v3.1
+milestone_name: PR/TR Routing Fix & Procurement Workflow Improvements
+status: complete
 last_updated: "2026-03-09T09:50:17.093Z"
 progress:
-  total_phases: 49
-  completed_phases: 48
-  total_plans: 130
-  completed_plans: 127
+  total_phases: 64
+  completed_phases: 64
+  total_plans: 167
+  completed_plans: 167
 ---
 
 # Project State
@@ -18,7 +18,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 57 complete — v3.1 shipped
+**Current focus:** v3.1 milestone complete — all 11 phases shipped
 
 ## Current Position
 
@@ -32,8 +32,8 @@ Progress: [██████████] 100%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 146 (v1.0: 10, v2.0: 26, v2.1: 11, v2.2: 23, v2.3: 34, v2.4: 24, v2.5: 12, v3.0: 4 + 2 untracked)
-- Total milestones shipped: 9
+- Total plans completed: 167 (v1.0: 10, v2.0: 26, v2.1: 11, v2.2: 23, v2.3: 34, v2.4: 24, v2.5: 12, v3.0: 4, v3.1: 22 + 1 untracked)
+- Total milestones shipped: 10
 
 **By Milestone:**
 
@@ -132,7 +132,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-09
-Stopped at: Completed 60.1-01-PLAN.md — TR badge in PRs column for Transport rows in mrf-records.js and procurement.js renderPRPORecords; displayId always shows mrf_id
+Last session: 2026-03-10
+Stopped at: v3.1 milestone archived — all phases complete, changelog created, roadmap collapsed
 Resume file: None
-Next action: Phase 60.1 complete — TR code visibility fixed in both table views.
+Next action: Run `/gsd:new-milestone` to plan next version.
