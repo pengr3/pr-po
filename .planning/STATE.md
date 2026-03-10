@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 62 of 62 (Sort dropdowns alphabetically, reject MRF instead of delete, TR details modal, Finance project list fix) — COMPLETE
-Plan: 2 of 2 in Phase 62 — COMPLETE (62-01 and 62-02 done)
+Phase: 62.2 of 62.2 (MRF rejection timeline event) — COMPLETE
+Plan: 1 of 1 in Phase 62.2 — COMPLETE
 Status: Complete
-Last activity: 2026-03-09 — Phase 62 Plan 02 complete — MRF soft-reject, TR details modal, clickable TR badges in both records tables
+Last activity: 2026-03-10 — Phase 62.2 complete — MRF rejection event in Procurement and My Requests timelines
 
 Progress: [██████████] 100%
 
@@ -120,6 +120,7 @@ Recent decisions affecting current work:
 - Phase 60.1 inserted after Phase 60: Fix TR code visibility + dedicated Rejected MRFs grouping in MRF Processing Area — TR badges in PRs column on MRF Records and My Requests, no MRF status change on TR generation, hide Procurement Status dropdown for TR rows, Rejected MRFs get own section separate from Pending (URGENT)
 - Phase 61 updated: Fix project code format underscore to dash, fix MRF deletion permission error in procurement, and fix MRF submission permission error for services users
 - Phase 60.2 inserted after Phase 60: Match My Requests table size and layout to MRF Records tab (URGENT)
+- Phase 62.1 inserted after Phase 62: Add line item capability to rejected TRs so Procurement can adjust before resubmitting to Finance
 
 ### Pending Todos
 

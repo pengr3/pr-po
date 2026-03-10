@@ -294,5 +294,31 @@ Plans:
 - [ ] 62-01-PLAN.md — Sort project/service dropdowns A-Z in mrf-form.js and procurement.js; fix Finance Project List active-only query (finance.js)
 - [ ] 62-02-PLAN.md — Add rejectMRF() soft-reject function; add viewTRDetails() modal; make TR badges clickable in both records tables (procurement.js, mrf-records.js)
 
+### Phase 62.1: Add line item to rejected TRs (INSERTED)
+
+**Goal:** Procurement users can add new line items to Finance-rejected TRs before resubmitting, giving them full flexibility to adjust TR contents — not just edit existing rows
+**Requirements**: TR-EDIT-01
+**Depends on:** Phase 62 (rejected TR editable panel from 60-03)
+**Plans:** 1/1 plans complete
+
+**Success Criteria** (what must be TRUE):
+  1. The rejected TR detail panel has an "Add Line Item" button below the items table
+  2. Clicking "Add Line Item" appends a new empty row with the same editable inputs (item name, category, qty, unit, unit cost, supplier)
+  3. The new row participates in subtotal/grand total calculations via the existing calculateSubtotal logic
+  4. Save Changes persists the new items alongside existing ones to Firestore
+  5. Resubmit to Finance includes the newly added items
+
+### Phase 62.2: MRF rejection timeline event (INSERTED)
+
+**Goal:** When an MRF is rejected by Procurement, the rejection appears as a red event in the Procurement Timeline showing reason, actor, and timestamp
+**Requirements**: TIMELINE-MRF-01
+**Depends on:** Phase 62 (rejectMRF soft-reject)
+**Plans:** 1/1 plans complete
+
+**Success Criteria** (what must be TRUE):
+  1. Opening the Timeline for a rejected MRF shows a red "MRF Rejected" event after "MRF Created"
+  2. The rejection event displays the rejection reason, who rejected it, and when
+  3. The event appears in both Procurement Timeline and My Requests Timeline
+
 ---
-*Last updated: 2026-03-09 — Phase 62 planned: 2 plans covering dropdown sort, MRF soft-reject, TR details modal, and finance project list fix*
+*Last updated: 2026-03-10 — Phase 62.2 inserted: MRF rejection timeline event*

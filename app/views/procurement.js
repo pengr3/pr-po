@@ -5431,6 +5431,16 @@ async function showProcurementTimeline(mrfId) {
                 <div class="timeline-item-description">Requestor: ${escapeHTML(mrf.requestor_name)} | ${escapeHTML(deptLabel)}: ${escapeHTML(getMRFLabel(mrf))}</div>
             </div>`;
 
+        // 1b. MRF Rejected event (if status is 'Rejected')
+        if (mrf.status === 'Rejected') {
+            timelineHtml += `
+            <div class="timeline-item rejected">
+                <div class="timeline-item-title">MRF Rejected: ${escapeHTML(mrf.mrf_id)}</div>
+                <div class="timeline-item-date">${formatTimestamp(mrf.rejected_at) || 'N/A'}</div>
+                <div class="timeline-item-description">Reason: ${escapeHTML(mrf.rejection_reason || 'No reason provided')} | Rejected by: ${escapeHTML(mrf.rejected_by || 'Procurement')}</div>
+            </div>`;
+        }
+
         // 2. PRs with nested child POs — lifecycle-aware (Submitted → Rejected → Resubmitted)
         prs.forEach(pr => {
             const hasRejection = !!(pr.rejection_reason || pr.rejected_at);
