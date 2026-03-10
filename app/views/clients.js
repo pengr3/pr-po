@@ -84,11 +84,15 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
-                <!-- Search Bar -->
-                <div class="historical-filters" style="margin-bottom: 1rem;">
-                    <div class="filter-group">
+                <!-- Filter Bar -->
+                <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                    <div class="form-group" style="margin: 0; flex: 2; min-width: 200px;">
                         <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Search</label>
-                        <input type="text" id="clientSearchInput" placeholder="Search by code or company name..." onkeyup="window.filterClients()" style="width: 100%; max-width: 350px;">
+                        <input type="text"
+                               id="clientSearchInput"
+                               placeholder="Search by code or company name..."
+                               oninput="window.filterClients()"
+                               style="width: 100%;">
                     </div>
                 </div>
 
