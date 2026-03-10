@@ -153,6 +153,7 @@ function attachWindowFunctions() {
     window.selectRejectedTR = selectRejectedTR;
     window.resubmitRejectedTR = resubmitRejectedTR;
     window.saveRejectedTRChanges = saveRejectedTRChanges;
+    window.deleteRejectedTR = deleteRejectedTR;
 }
 
 // ========================================
@@ -1015,16 +1016,6 @@ function renderMRFList(materialMRFs, transportMRFs) {
                         <strong>Reason:</strong> ${escapeHTML(rejectionReason)}<br>
                         <strong>Rejected by:</strong> ${escapeHTML(rejectedBy)}
                     </div>
-                    <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
-                        <button class="btn btn-primary" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;"
-                                onclick="event.stopPropagation(); window.resubmitRejectedTR('${tr.id}')">
-                            Resubmit to Finance
-                        </button>
-                        <button class="btn btn-danger" style="font-size: 0.75rem; padding: 0.25rem 0.75rem;"
-                                onclick="event.stopPropagation(); window.deleteRejectedTR('${tr.id}')">
-                            Delete TR
-                        </button>
-                    </div>
                 </div>
             `;
         }).join('');
@@ -1156,6 +1147,20 @@ function selectRejectedTR(trDocId) {
             <td class="subtotal-cell" id="subtotal-${index}">
                 ${((item.qty || 0) * (item.unit_cost || 0)).toLocaleString('en-PH', {minimumFractionDigits: 2})}
             </td>
+            <td>
+                <button type="button"
+                        class="btn-delete"
+                        onclick="window.deleteLineItem(${index})"
+                        title="Remove item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"></path>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                </button>
+            </td>
         </tr>
     `).join('');
 
@@ -1183,6 +1188,7 @@ function selectRejectedTR(trDocId) {
                             <th>Unit Cost</th>
                             <th>Supplier</th>
                             <th>Subtotal</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody id="lineItemsBody">
@@ -1190,11 +1196,21 @@ function selectRejectedTR(trDocId) {
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="6" class="total-label">Grand Total</td>
+                            <td colspan="7" class="total-label">Grand Total</td>
                             <td id="grandTotal" class="total-value">PHP ${grandTotal.toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+            <div class="add-item-container">
+                <button type="button" class="btn-add-item" onclick="window.addLineItem()">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                    Add Line Item
+                </button>
             </div>
             <div style="display: flex; gap: 0.75rem;">
                 <button class="btn btn-secondary" onclick="window.saveRejectedTRChanges('${tr.id}')">
@@ -1354,7 +1370,6 @@ async function deleteRejectedTR(trDocId) {
         showToast('Failed to delete TR: ' + err.message, 'error');
     }
 }
-window.deleteRejectedTR = deleteRejectedTR;
 
 /**
  * Create new MRF
@@ -1781,9 +1796,9 @@ function updateActionButtons() {
  * Add new line item
  */
 function addLineItem() {
-    if (!currentMRF) return;
-
     const tbody = document.getElementById('lineItemsBody');
+    if (!tbody) return;
+
     const currentRowCount = tbody.querySelectorAll('tr').length;
     const newIndex = currentRowCount;
 
