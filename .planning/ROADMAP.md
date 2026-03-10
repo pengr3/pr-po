@@ -141,6 +141,7 @@
 - [x] Phase 62: Sort dropdowns, soft-reject, TR modal, Finance fix (4/4 plans) — completed 2026-03-09
 - [x] Phase 62.1: Add line item to rejected TRs (1/1 plan) — completed 2026-03-10
 - [x] Phase 62.2: MRF rejection timeline event (1/1 plan) — completed 2026-03-10
+- [ ] Phase 62.3: Client search bar + dropdown sort by code [inserted] (1/1 plan)
 
 </details>
 

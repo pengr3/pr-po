@@ -526,8 +526,8 @@ function loadProjects() {
                 cachedProjects.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort alphabetically A-Z by name
-            cachedProjects.sort((a, b) => (a.project_name || '').localeCompare(b.project_name || ''));
+            // Sort alphabetically A-Z by project code
+            cachedProjects.sort((a, b) => (a.project_code || '').localeCompare(b.project_code || ''));
 
             populateProjectDropdown();
         }, (error) => {
@@ -597,8 +597,8 @@ function loadServices() {
                 cachedServices.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort alphabetically A-Z by name
-            cachedServices.sort((a, b) => (a.service_name || '').localeCompare(b.service_name || ''));
+            // Sort alphabetically A-Z by service code
+            cachedServices.sort((a, b) => (a.service_code || '').localeCompare(b.service_code || ''));
 
             populateServiceDropdown();
         }, (error) => {

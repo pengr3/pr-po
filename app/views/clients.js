@@ -30,6 +30,7 @@ function attachWindowFunctions() {
     window.sortClients = sortClients;
     window.showClientDetail = showClientDetail;
     window.closeClientDetailModal = closeClientDetailModal;
+    window.filterClients = filterClients;
 }
 
 // Render view HTML
@@ -80,6 +81,14 @@ export function render(activeTab = null) {
                     <div class="form-actions">
                         <button class="btn btn-secondary" onclick="window.toggleAddClientForm()">Cancel</button>
                         <button class="btn btn-success" onclick="window.addClient()">Add Client</button>
+                    </div>
+                </div>
+
+                <!-- Search Bar -->
+                <div class="historical-filters" style="margin-bottom: 1rem;">
+                    <div class="filter-group">
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Search</label>
+                        <input type="text" id="clientSearchInput" placeholder="Search by code or company name..." onkeyup="window.filterClients()" style="width: 100%; max-width: 350px;">
                     </div>
                 </div>
 
@@ -151,6 +160,7 @@ export async function destroy() {
     delete window.sortClients;
     delete window.showClientDetail;
     delete window.closeClientDetailModal;
+    delete window.filterClients;
 
     // Remove client detail modal if open
     const existingModal = document.getElementById('clientDetailModalContainer');
@@ -370,21 +380,39 @@ function sortClients(column) {
     renderClientsTable();
 }
 
+function filterClients() {
+    currentPage = 1;
+    renderClientsTable();
+}
+
+function getFilteredClients() {
+    const searchTerm = document.getElementById('clientSearchInput')?.value.toLowerCase() || '';
+    if (!searchTerm) return clientsData;
+    return clientsData.filter(c =>
+        (c.client_code && c.client_code.toLowerCase().includes(searchTerm)) ||
+        (c.company_name && c.company_name.toLowerCase().includes(searchTerm))
+    );
+}
+
 function renderClientsTable() {
     const tbody = document.getElementById('clientsTableBody');
     if (!tbody) return;
 
-    if (clientsData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No clients yet. Add your first client!</td></tr>';
+    const filtered = getFilteredClients();
+
+    if (filtered.length === 0) {
+        const searchTerm = document.getElementById('clientSearchInput')?.value || '';
+        const message = searchTerm ? 'No clients match your search.' : 'No clients yet. Add your first client!';
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
         const paginationDiv = document.getElementById('clientsPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
     }
 
-    const totalPages = Math.ceil(clientsData.length / itemsPerPage);
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, clientsData.length);
-    const pageItems = clientsData.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + itemsPerPage, filtered.length);
+    const pageItems = filtered.slice(startIndex, endIndex);
 
     // Check edit permission for action buttons
     const canEdit = window.canEditTab?.('clients');
@@ -426,7 +454,7 @@ function renderClientsTable() {
         }
     }).join('');
 
-    updatePaginationControls(totalPages, startIndex, endIndex, clientsData.length);
+    updatePaginationControls(totalPages, startIndex, endIndex, filtered.length);
 
     // Update sort indicators
     document.querySelectorAll('.sort-indicator').forEach(indicator => {

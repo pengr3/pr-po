@@ -675,8 +675,8 @@ async function loadServicesForNewMRF() {
         snapshot.forEach(docSnap => {
             cachedServicesForNewMRF.push({ id: docSnap.id, ...docSnap.data() });
         });
-        // Sort alphabetically A-Z by name
-        cachedServicesForNewMRF.sort((a, b) => (a.service_name || '').localeCompare(b.service_name || ''));
+        // Sort alphabetically A-Z by service code
+        cachedServicesForNewMRF.sort((a, b) => (a.service_code || '').localeCompare(b.service_code || ''));
         _servicesCachedAt = Date.now();
     } catch (error) {
         console.error('[Procurement] Error loading services for new MRF:', error);
@@ -699,8 +699,8 @@ async function loadProjects() {
                 projectsData.push({ id: doc.id, ...doc.data() });
             });
 
-            // Sort alphabetically A-Z by name
-            projectsData.sort((a, b) => (a.project_name || '').localeCompare(b.project_name || ''));
+            // Sort alphabetically A-Z by project code
+            projectsData.sort((a, b) => (a.project_code || '').localeCompare(b.project_code || ''));
             _projectsCachedAt = Date.now();
 
         });
