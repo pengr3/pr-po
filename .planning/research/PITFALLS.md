@@ -1,454 +1,299 @@
 # Pitfalls Research
 
-**Domain:** Bug fixing and system refinement (Firebase SPA, zero-build, real-time financial dashboards)
-**Researched:** 2026-02-05
+**Domain:** Adding supplier search, external document links, and RFP/payables tracking to an existing vanilla JS + Firestore SPA
+**Researched:** 2026-03-13
 **Confidence:** HIGH
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Security Rules Missing Admin Bypass Path
+### Pitfall 1: Search Operating Only on the Visible Page Instead of All Suppliers
 
 **What goes wrong:**
-Firebase Security Rules check `getUserData().role` for every operation, but if the Super Admin's user document is missing the expected permission structure or role field, they get permission-denied errors even though they should have full access. This can completely lock out administrators from managing the system.
+The search input filters `suppliersData.slice(startIndex, endIndex)` — the already-paginated subset — instead of the full `suppliersData` array. A supplier named "ABC Metals" on page 3 is invisible when the user types "abc" while on page 1. The table appears to have no results, yet the record exists.
 
 **Why it happens:**
-Developers assume Security Rules will "just work" for admins, forgetting that Firebase Security Rules have no concept of "super admin bypass" — every request goes through the same validation logic. If custom claims aren't used or the user document structure is incomplete, even admins get blocked.
+`renderSuppliersTable()` already slices for pagination. When a search filter is bolted on, the easiest path is to add a second `.filter()` call inside the same function that still operates on the already-sliced `pageItems` array. The pagination logic and the filter logic both read from the same array, and whichever runs first limits what the second one sees.
 
 **How to avoid:**
-1. **Option A (Custom Claims):** Use Firebase Auth custom claims for admin roles via Admin SDK: `auth.setCustomUserClaims(uid, {admin: true})`. Security Rules can then check `request.auth.token.admin == true` without database reads.
-2. **Option B (Document Structure Verification):** Ensure every Super Admin user document has the complete structure expected by Security Rules before deploying rules.
-3. **Option C (Emulator Testing):** Test Security Rules with emulator using actual Super Admin auth contexts before production deployment.
-4. **Option D (Fallback Rules):** Add admin UID whitelist as fallback: `request.auth.uid in ['uid1', 'uid2'] || hasRole(['super_admin'])`
+Maintain two separate arrays:
+- `suppliersData` — raw, unfiltered, always the full collection snapshot
+- `filteredSuppliersData` — result of applying current search term to `suppliersData`
+
+Pagination must operate on `filteredSuppliersData`, not `suppliersData`. When the user types:
+1. Filter `suppliersData` against the search term → write result into `filteredSuppliersData`
+2. Reset `suppliersCurrentPage = 1`
+3. Call `renderSuppliersTable()` which paginates from `filteredSuppliersData`
+
+Clearing the search input must restore `filteredSuppliersData = [...suppliersData]` before re-rendering.
 
 **Warning signs:**
-- Console errors: "Missing or insufficient permissions" when Super Admin performs operations
-- Security Rules call `getUserData()` but user document is missing expected fields
-- Manual Firestore document editing required after user creation
-- First Super Admin setup requires bypassing the application
+- Search returns zero results for known suppliers when on any page other than 1
+- Result count shows "15 of 15" instead of "2 of 47" when a filter term is active
+- Pagination controls disappear when search is active (because page count drops to 1 on the visible-page subset)
 
 **Phase to address:**
-Phase 1 (Security Rules Audit) — Verify all Super Admin user documents have complete structure, add emulator test cases for admin operations, consider custom claims migration.
-
-**Real-world impact:**
-Current project shows this exact issue: "Fix Clients tab permission denied error for Super Admin" and "Fix Projects tab permission denied error for Super Admin" — indicating Security Rules are blocking admin access.
-
-**Sources:**
-- [Control Access with Custom Claims and Security Rules](https://firebase.google.com/docs/auth/admin/custom-claims)
-- [Security Rules and Firebase Authentication](https://firebase.google.com/docs/rules/rules-and-auth)
+Phase 1 (Supplier Search) — Design the two-array split before writing any search code.
 
 ---
 
-### Pitfall 2: Window Functions Lost During SPA Tab Navigation
+### Pitfall 2: Search Firing on Every Keypress Without Debouncing, Causing Render Thrash
 
 **What goes wrong:**
-In zero-build SPAs using `onclick="window.functionName()"` handlers, clicking buttons throws `TypeError: window.functionName is not a function` because the router's `destroy()` method cleaned up window functions when switching tabs, but the HTML still references them.
+With `onkeyup="window.filterSuppliers()"` on the input, typing "ABC Metals" fires `filterSuppliers()` 9 times in rapid succession. Each call rebuilds the entire table DOM. On a 200-supplier list this is imperceptibly fast today, but the pattern is wrong and will degrade noticeably if supplier count grows or if the filter is also used to drive a Firestore query (not the case here, but a future risk).
 
 **Why it happens:**
-Developers treat tab switching as "full navigation" and call `destroy()` to prevent memory leaks. But `destroy()` removes window functions that are still referenced by DOM elements rendered in the new tab. The disconnect happens because:
-1. Router calls `view.destroy()` when tab changes
-2. `destroy()` removes window functions: `delete window.functionName`
-3. New tab renders with `onclick="window.functionName()"` in HTML
-4. Click triggers error because function no longer exists
+The existing `histSearchInput` in the Records tab uses `onkeyup` directly. Copying the same pattern for supplier search is the natural move.
 
 **How to avoid:**
-1. **Router-level detection:** Check if navigation is same-view tab switch vs. different-view navigation. Only call `destroy()` for different views.
-2. **Pattern:**
-   ```javascript
-   const isSameView = currentRoute === path;
-   if (!isSameView && currentView && typeof currentView.destroy === 'function') {
-       await currentView.destroy(); // Only destroy when changing views
-   }
-   ```
-3. **View module pattern:** Separate tab-specific initialization from view-level initialization. Window functions should persist during tab switches.
-4. **Event delegation:** Use event delegation instead of inline onclick handlers to avoid window function dependency.
-
-**Warning signs:**
-- `TypeError: window.X is not a function` in console after tab navigation
-- Functions work on initial page load but fail after switching tabs and returning
-- Router logs show `destroy()` being called during tab switches
-- Manual page refresh fixes the issue temporarily
-
-**Phase to address:**
-Phase 2 (Finance Workflow Fixes) — Fix immediate button errors, then audit all window function lifecycle management in procurement.js, finance.js, and other multi-tab views.
-
-**Real-world impact:**
-Current project shows: "Fix Transport Request Review button error (window.viewTRDetails is not a function)" — classic symptom of window function cleanup during tab navigation.
-
-**Sources:**
-- [Why Does this Become Undefined in onClick in JavaScript?](https://medium.com/@a1guy/why-does-this-become-undefined-in-onclick-in-javascript-and-how-to-fix-it-bf9dba8a4bc7)
-- [Javascript function is undefined on onclick event](https://www.sitepoint.com/community/t/javascript-function-is-undefined-on-onclick-event/250115)
-- Project codebase: `app/router.js` lines 257-266 (router already implements this fix)
-
----
-
-### Pitfall 3: Floating-Point Precision Errors in Financial Aggregations
-
-**What goes wrong:**
-Financial calculations like `totalAmount = items.reduce((sum, item) => sum + item.cost, 0)` produce results like `-300046.7899999998` or `5000.000000000001` instead of clean decimal values. When aggregating PO amounts by project, users see nonsensical cents values and lose trust in the system's accuracy.
-
-**Why it happens:**
-JavaScript uses IEEE 754 double-precision floating-point, where `0.1 + 0.2 !== 0.3` (actually equals `0.30000000000000004`). Each operation introduces imperceptible errors that compound during aggregation. This is especially problematic when:
-1. Multiplying quantities by unit costs: `qty * unitCost`
-2. Summing results: `.reduce((sum, x) => sum + x, 0)`
-3. Displaying totals without rounding: users see raw floating-point errors
-
-**How to avoid:**
-1. **Integer arithmetic (recommended):** Convert to cents/pesos before calculation:
-   ```javascript
-   const totalCents = items.reduce((sum, item) => sum + Math.round(item.cost * 100), 0);
-   const totalAmount = totalCents / 100;
-   ```
-2. **Display-only rounding:** Round for display but never for calculation:
-   ```javascript
-   const display = totalAmount.toFixed(2); // Display only
-   // Store totalAmount without rounding
-   ```
-3. **Libraries (if needed):** Use currency.js, dinero.js, or decimal.js for complex financial logic.
-4. **Validation:** Assert totals match itemized sums within acceptable tolerance (0.01 for two-decimal currencies).
-
-**Warning signs:**
-- Dashboard shows amounts like `5000.000000000001` or `99.99999999999999`
-- Line item totals don't sum exactly to displayed grand total
-- User reports "numbers look weird" or "totals are off by a cent"
-- Aggregations by project/category show fractional cents
-
-**Phase to address:**
-Phase 3 (Finance Dashboard Fixes) — Audit all financial calculations in finance.js, procurement.js, and utils.js. Implement integer arithmetic pattern for aggregations.
-
-**Real-world impact:**
-Project requirement: "Aggregate PO data by project and category" — this will expose floating-point errors if not handled properly. Users will see cumulative errors across hundreds of line items.
-
-**Sources:**
-- [Financial Precision in JavaScript: Handle Money Without Losing a Cent](https://dev.to/benjamin_renoux/financial-precision-in-javascript-handle-money-without-losing-a-cent-1chc)
-- [JavaScript Rounding Errors (in Financial Applications)](https://www.robinwieruch.de/javascript-rounding-errors/)
-- [How to Handle Monetary Values in JavaScript](https://frontstuff.io/how-to-handle-monetary-values-in-javascript)
-
----
-
-### Pitfall 4: Firestore Listener Memory Leaks in Long-Lived SPAs
-
-**What goes wrong:**
-Real-time Firestore listeners (`onSnapshot`) accumulate in memory when views are navigated away from without calling `unsubscribe()`. This causes:
-1. Multiplying database reads (each listener triggers separately)
-2. Increasing memory usage (listeners hold references to DOM elements)
-3. UI freezes or browser crashes in long sessions
-4. Escalating Firebase billing from redundant reads
-
-**Why it happens:**
-Developers forget that `onSnapshot` returns an unsubscribe function that must be called manually. In SPAs, view modules create listeners during `init()` but:
-1. Router navigates to new view
-2. Old view's DOM is destroyed
-3. Listener callback continues running, holding memory references
-4. Return to view creates NEW listener without cleaning up old one
-5. Each navigation cycle adds another listener
-
-**How to avoid:**
-1. **Store all listeners in array:**
-   ```javascript
-   let listeners = [];
-
-   export async function init() {
-       const unsubscribe = onSnapshot(collection(db, 'mrfs'), callback);
-       listeners.push(unsubscribe);
-   }
-
-   export async function destroy() {
-       listeners.forEach(unsub => unsub?.());
-       listeners = [];
-   }
-   ```
-2. **Router must call destroy:** Ensure router calls `view.destroy()` when navigating away (but not during tab switches in same view).
-3. **Monitor listener count:** Log listener array length to detect accumulation.
-4. **Window function cleanup:** Remove window functions in `destroy()` to prevent callbacks from accessing undefined functions.
-
-**Warning signs:**
-- Firebase Console shows increasing read operations over time in single session
-- Browser DevTools Memory Profiler shows retained Firestore connections
-- Console warnings about detached DOM nodes
-- UI becomes sluggish after multiple navigation cycles
-- Multiple identical updates firing for single Firestore change
-
-**Phase to address:**
-Phase 4 (Listener Audit) — Audit all view modules (finance.js, procurement.js, projects.js) to verify listener cleanup. Add monitoring logs for listener count.
-
-**Real-world impact:**
-Current project has 14 view modules with real-time listeners. Without proper cleanup, a user navigating between tabs 20 times could accumulate 20+ listeners per collection, multiplying read costs and degrading performance.
-
-**Sources:**
-- [How to Avoid Memory Leaks in JavaScript Event Listeners](https://dev.to/alex_aslam/how-to-avoid-memory-leaks-in-javascript-event-listeners-4hna)
-- [Understanding Real-Time Data with Firebase Firestore in JavaScript](https://dev.to/itselftools/understanding-real-time-data-with-firebase-firestore-in-javascript-5gc8)
-- [Unsubscribe from a Firestore watch listener](https://cloud.google.com/firestore/docs/samples/firestore-listen-detach)
-- Project codebase: router.js already implements conditional destroy (lines 261-266)
-
----
-
-### Pitfall 5: Audit Trail Implementation Without Cost Management
-
-**What goes wrong:**
-Implementing comprehensive audit logging by enabling Cloud Firestore Data Access audit logs results in massive, unexpected logging costs. Google charges for log storage and ingestion, and Firestore audit logs can generate gigabytes of data per day in active systems, potentially costing more than the application itself.
-
-**Why it happens:**
-Developers enable audit logging following Google's documentation without understanding the cost implications:
-1. Data Access logs capture EVERY read/write operation
-2. Active dashboard with real-time listeners generates thousands of reads/hour
-3. Each log entry includes full request context, timestamps, user data
-4. Logs accumulate in Cloud Logging with default 30-day retention
-5. No log filtering or sampling applied
-
-**How to avoid:**
-1. **Application-level logging (recommended for this project):**
-   ```javascript
-   // Create audit_trail collection in Firestore
-   await addDoc(collection(db, 'audit_trail'), {
-       action: 'pr_approved',
-       user_id: currentUser.uid,
-       resource_id: prId,
-       timestamp: serverTimestamp(),
-       metadata: { previous_status: 'pending', new_status: 'approved' }
-   });
-   ```
-2. **Cloud Function triggers (decoupled approach):**
-   Use Cloud Functions to listen for Firestore changes and write selective audit entries.
-3. **Cloud Audit Logs (only for compliance):**
-   - Enable ONLY for 2-3 days to analyze patterns
-   - Turn off immediately after analysis
-   - Use log sinks to export to cheaper storage (BigQuery, Cloud Storage)
-4. **Hybrid approach:**
-   Application logs for user actions, Cloud Audit Logs only for admin operations on sensitive collections.
-
-**Warning signs:**
-- Cloud Logging shows thousands of entries per hour
-- Firebase billing spike in "Cloud Logging" category
-- Audit logs consuming more storage than application data
-- Log ingestion charges exceeding database operation charges
-
-**Phase to address:**
-Phase 5 (Audit Trail Implementation) — Design application-level audit collection before touching Cloud Audit Logs. Estimate log volume based on user activity patterns.
-
-**Real-world impact:**
-Project requirement: "Timeline button shows full audit trail (MRF → PRs → POs → Delivered)". Implementing this with Cloud Audit Logs could cost $50-200/month. Application-level logging with Firestore collection costs <$1/month.
-
-**Sources:**
-- [Firestore audit logging information](https://docs.cloud.google.com/firestore/native/docs/audit-logging)
-- [Audit Log in Firebase Firestore database](https://medium.com/@md.mollaie/audit-log-in-firebase-firestore-database-3c6a7d71ac4a)
-- [Audit logs for Firestore documents](https://blog.emad.in/audit-logs-for-firestore-documents/)
-
----
-
-### Pitfall 6: Real-Time Aggregation Performance Degradation
-
-**What goes wrong:**
-Financial dashboards with real-time aggregations (e.g., "total PO amount by project") re-calculate entire sums on every Firestore update. As data grows, dashboard queries slow down from <100ms to 5+ seconds, making the app feel broken. Users see loading spinners constantly, and Firebase charges for repeated full-collection scans.
-
-**Why it happens:**
-Naive aggregation pattern fetches all documents every time:
+Wrap the filter call in a debounce:
 ```javascript
-onSnapshot(collection(db, 'pos'), (snapshot) => {
-    const totalByProject = {};
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        totalByProject[data.project_code] = (totalByProject[data.project_code] || 0) + data.total_amount;
-    });
-    renderDashboard(totalByProject);
-});
-```
-This works fine with 50 POs but breaks at 500+ because:
-1. Every PO creation/update triggers full snapshot
-2. All documents downloaded to client
-3. Aggregation re-calculated in JavaScript
-4. Firebase bills for full collection read on each update
-
-**How to avoid:**
-1. **Write-time aggregation (recommended):**
-   When creating PO, update aggregation document atomically:
-   ```javascript
-   const batch = writeBatch(db);
-   batch.set(doc(db, 'pos', poId), poData);
-   batch.set(doc(db, 'po_totals', projectCode), {
-       total: increment(poData.total_amount),
-       count: increment(1)
-   }, { merge: true });
-   await batch.commit();
-   ```
-2. **Aggregation queries (limited use):**
-   Firestore supports `count()`, `sum()`, `average()` but:
-   - No real-time updates (one-time reads only)
-   - Billing based on index entries scanned
-   - 60-second timeout for large datasets
-3. **Client-side caching with incremental updates:**
-   Track snapshot changes (`snapshot.docChanges()`) and update totals incrementally instead of full recalculation.
-4. **Scheduled aggregation (Cloud Functions):**
-   For non-real-time dashboards, aggregate daily via scheduled function.
-
-**Warning signs:**
-- Dashboard load time increases as data grows
-- Firebase Console shows increasing read operations for aggregation queries
-- `snapshot.size` in console shows hundreds/thousands of documents
-- Users report "dashboard is slow" or see extended loading states
-- Performance degrades linearly with document count
-
-**Phase to address:**
-Phase 3 (Finance Dashboard Fixes) — When implementing "Project List financial overview", use write-time aggregation pattern. Don't fetch all POs to calculate project totals.
-
-**Real-world impact:**
-Project requirement: "Aggregate PO data by project and category". Without write-time aggregation, this becomes O(n) query on every dashboard load and every PO update. With 200 projects × 10 POs each = 2000 documents fetched repeatedly.
-
-**Sources:**
-- [Write-time aggregations | Firestore](https://firebase.google.com/docs/firestore/solutions/aggregation)
-- [Summarize data with aggregation queries](https://firebase.google.com/docs/firestore/query-data/aggregation-queries)
-- [7+ Google Firestore Query Performance Best Practices for 2026](https://estuary.dev/blog/firestore-query-best-practices/)
-- [Firestore Finally Solved the Counter Problem... Almost](https://dev.to/jdgamble555/firestore-finally-solved-the-counter-problem-almost-4mb7)
-
----
-
-### Pitfall 7: Modal State Management Without Event Cleanup
-
-**What goes wrong:**
-Modals in SPAs attach event listeners (`addEventListener`) to close buttons, overlays, and ESC key handlers. When modals close, the DOM is removed but listeners remain attached to:
-1. Global `document` object (ESC key handler)
-2. Detached modal DOM nodes (close button, overlay)
-3. Window object (resize handlers)
-
-Over time, these accumulate causing memory leaks, degraded performance, and ghost interactions (ESC key triggers invisible modals).
-
-**Why it happens:**
-Developers use this pattern without cleanup:
-```javascript
-function showModal() {
-    const modal = document.createElement('div');
-    modal.innerHTML = `<div class="modal">...</div>`;
-    document.body.appendChild(modal);
-
-    modal.querySelector('.close-btn').addEventListener('click', closeModal);
-    document.addEventListener('keydown', handleEscape);
+let _supplierSearchTimeout = null;
+function onSupplierSearchInput(value) {
+    clearTimeout(_supplierSearchTimeout);
+    _supplierSearchTimeout = setTimeout(() => filterSuppliers(value), 200);
 }
+```
+200ms is imperceptible to the user and eliminates mid-word renders. The input value must be read from the event argument or from the input element inside the debounced callback — not captured in closure at call time — otherwise the final value is always the last character typed.
 
-function closeModal() {
-    document.querySelector('.modal').remove(); // DOM removed, listeners persist
+**Warning signs:**
+- Console shows `[Procurement] renderSuppliersTable` firing many times per typed word
+- Edit row loses focus when in-place editing a supplier and a keypress elsewhere triggers re-render
+
+**Phase to address:**
+Phase 1 (Supplier Search) — Write debounce helper once; reuse for contact person search.
+
+---
+
+### Pitfall 3: Page Number Not Reset to 1 When Search Term Changes
+
+**What goes wrong:**
+User is on page 3 of suppliers (items 31-45). They type "zenith" in the search bar. The filter reduces results to 2 suppliers, but `suppliersCurrentPage` is still 3. `filteredSuppliersData.slice((3-1)*15, 3*15)` = `filteredSuppliersData.slice(30, 45)` → empty array. The table shows "No suppliers found" even though 2 matches exist on what would be page 1.
+
+**Why it happens:**
+Pagination page state is module-level. The search handler updates the filter but does not reset the page counter because it was added independently from the pagination code.
+
+**How to avoid:**
+Any function that changes `filteredSuppliersData` must set `suppliersCurrentPage = 1` before calling `renderSuppliersTable()`. This includes: typing in search, clearing search, and adding/deleting a supplier while a search term is active.
+
+**Warning signs:**
+- Searching while on page 2+ shows empty table for valid queries
+- "Showing 0 – 0 of 2" in pagination info text
+
+**Phase to address:**
+Phase 1 (Supplier Search) — Add page reset to every path that modifies the filtered dataset.
+
+---
+
+### Pitfall 4: Storing Raw Google Drive Sharing URLs That Expire or Lose Permissions
+
+**What goes wrong:**
+Procurement saves a direct "anyone with link" Google Drive share URL to the `pos` collection. Later:
+- The document owner revokes sharing
+- The Google account changes ownership
+- Google detects the file as sensitive and restricts it
+- The shared-link format changes (`drive.google.com/open?id=` vs `drive.google.com/file/d/`)
+
+Finance opens the PO later and the link returns a 403 or a Google login wall — with no indication in the UI that the document is unavailable.
+
+**Why it happens:**
+Drive sharing URLs feel permanent because they work immediately after pasting. Developers treat them as immutable references.
+
+**How to avoid:**
+- Store the URL as-entered — no transformation or "normalize to preview format" logic. Attempting to rewrite Drive URLs programmatically is fragile and breaks frequently.
+- Display proof links with explicit "opens in new tab" behaviour and a disclaimer that the link depends on Google Drive permissions.
+- Do not validate link reachability at save time (no `fetch(url)` pre-check). CORS blocks this from the browser, and a live check at save time doesn't guarantee future access.
+- Accept any URL that passes basic URL format validation (`/^https?:\/\//`). Do not restrict to `drive.google.com` domain — users may upload to OneDrive, Dropbox, or a project SharePoint, all of which are equivalent for this use case.
+
+**Warning signs:**
+- Code that calls `URL()` constructor to normalize the Drive link before storing
+- Code that attempts to convert a `/file/d/ID/view?usp=sharing` URL to a `/uc?export=download` URL
+- `fetch()` or `XMLHttpRequest` calls used to pre-validate a link
+
+**Phase to address:**
+Phase 2 (Proof of Procurement) — Define the storage and display contract before implementation.
+
+---
+
+### Pitfall 5: Blocking Proof-of-Procurement Edits on Delivered POs Without a Requirements Decision
+
+**What goes wrong:**
+The developer assumes that once a PO is `Delivered`, the proof link is immutable. The UI disables the edit control. A procurement officer then needs to replace a corrupted Drive link or add a second document. They cannot do so without a developer intervention to manually edit Firestore.
+
+Alternatively, the developer assumes edits are always allowed. Finance then has no assurance that a proof document cannot be quietly swapped after they review it.
+
+**Why it happens:**
+The requirement "can they still upload after Delivered?" was not answered before coding started. The developer picks one behaviour by default.
+
+**How to avoid:**
+Decide explicitly before Phase 2 implementation:
+- **Recommended:** Allow proof link updates at any `procurement_status` but only for Procurement role. Finance (read-only on this field) sees whatever link Procurement saved last. This matches real-world workflows where a "final invoice scan" replaces a "purchase order scan" after delivery.
+- If immutability after Delivered is genuinely required, add a locked field indicator and an override pathway (e.g., Super Admin only) rather than a hard block with no escape.
+
+The decision must be reflected in both the UI logic and in Firestore Security Rules (who can `update` the `proof_link` field on a PO doc).
+
+**Warning signs:**
+- Code that checks `po.procurement_status === 'Delivered'` to conditionally disable the proof link input, without a corresponding escalation path
+- Security Rules `allow update: if ...` block that does not account for proof link updates independently of procurement status updates
+
+**Phase to address:**
+Phase 2 (Proof of Procurement) — Resolve with product owner before writing any UI code.
+
+---
+
+### Pitfall 6: Putting RFP Data on the PO Document Instead of a Separate Collection
+
+**What goes wrong:**
+The simplest implementation stores payment data on the PO document itself: `pos/{poId}` gains fields `rfp_status`, `rfp_amount`, `payment_date`, etc. This seems fine until:
+- A PO requires multiple partial payments (paid 50% in March, 50% in April)
+- Finance needs an RFP approval audit trail (who requested, who approved, when)
+- The payables list needs to be sorted/filtered independently of PO list
+- The RFP is submitted before the PO exists (edge case, but happens in practice)
+
+Adding more fields to an already large document also triggers a re-download of the entire PO document on every payment update, which re-runs all PO listeners.
+
+**Why it happens:**
+Putting fields on an existing document requires no new collection, no new Security Rules, and no new schema thinking. It is the path of least resistance in a Firestore schemaless system.
+
+**How to avoid:**
+Create a dedicated `rfps` collection (or `payables` — name to be decided in planning):
+```
+rfps/{rfpId}
+  rfp_id: "RFP-2026-###"
+  po_id: string           -- references pos collection
+  pr_id: string           -- for display context
+  mrf_id: string          -- for display context
+  supplier_name: string   -- denormalized for list display
+  amount_requested: number
+  payment_terms: string
+  due_date: timestamp
+  status: "Pending" | "Approved" | "Paid" | "Rejected"
+  submitted_by: string    -- uid
+  approved_by: string     -- uid, null until approved
+  date_submitted: timestamp
+  date_approved: timestamp
+  date_paid: timestamp
+```
+
+This allows multiple RFPs per PO, independent filtering, and a clean Finance approval workflow without touching the PO document.
+
+**Warning signs:**
+- `pos` document gains more than 3 new fields related to payment
+- Any field named `rfp_*` or `payment_*` appearing directly on the PO document schema
+- No new Firestore collection created as part of the RFP feature
+
+**Phase to address:**
+Phase 3 (RFP + Payables) — Define the `rfps` schema before writing any code.
+
+---
+
+### Pitfall 7: Forgetting Security Rules for the New `rfps` Collection
+
+**What goes wrong:**
+Developer creates `rfps` collection in code. It works in development with relaxed rules or because the developer is a Super Admin. When tested with a Finance role, all `rfps` reads return "Missing or insufficient permissions." The Finance payables view is blank. This is the same issue that caused the Phase 11 "Clients tab permission denied for Super Admin" regression.
+
+**Why it happens:**
+Firestore denies all access by default. The developer adds the collection, verifies it works for their account (Super Admin), and ships. The firestore.rules file is on a different mental track from the application code.
+
+**How to avoid:**
+Add the `rfps` collection rules to `firestore.rules` in the same commit that creates the first `addDoc` to `rfps` in application code. Never create a collection without simultaneous rules.
+
+Template (from existing `firestore.rules` header):
+```
+match /rfps/{rfpId} {
+  allow read: if isActiveUser();
+  allow create: if hasRole(['super_admin', 'procurement', 'finance']);
+  allow update: if hasRole(['super_admin', 'finance']);  // Finance approves
+  allow delete: if hasRole(['super_admin']);
 }
 ```
 
-The `document.addEventListener` call attaches to global scope, not the modal element. Removing modal from DOM doesn't remove global listener.
-
-**How to avoid:**
-1. **Store listener references and clean up:**
-   ```javascript
-   let escapeHandler = null;
-
-   function showModal() {
-       // ... create modal
-       escapeHandler = (e) => { if (e.key === 'Escape') closeModal(); };
-       document.addEventListener('keydown', escapeHandler);
-   }
-
-   function closeModal() {
-       document.querySelector('.modal')?.remove();
-       if (escapeHandler) {
-           document.removeEventListener('keydown', escapeHandler);
-           escapeHandler = null;
-       }
-   }
-   ```
-2. **Event delegation (preferred for click events):**
-   ```javascript
-   document.body.addEventListener('click', (e) => {
-       if (e.target.matches('.modal-close')) closeModal();
-   });
-   ```
-3. **AbortController (modern approach):**
-   ```javascript
-   const controller = new AbortController();
-   document.addEventListener('keydown', handler, { signal: controller.signal });
-   // Later: controller.abort(); // Removes all listeners with this signal
-   ```
-4. **WeakMap for metadata:**
-   Use WeakMap to attach state to DOM nodes without preventing garbage collection.
+Run `firebase deploy --only firestore:rules` before testing the UI.
 
 **Warning signs:**
-- ESC key closes modals that aren't visible
-- Multiple modals open simultaneously when one is expected
-- Console shows increasing event listener count (Chrome DevTools → Memory → Listeners)
-- Modal close button requires multiple clicks
-- Browser becomes sluggish after opening/closing many modals
+- `rfps` collection has any documents in Firestore but Finance user's payables view is empty
+- Console shows "permission-denied" errors in Network tab for `rfps` queries
+- Security Rules file was last modified before the `rfps` collection code was written
 
 **Phase to address:**
-Phase 2 (Finance Workflow Fixes) — When implementing "expense breakdown modal", use AbortController pattern or strict listener cleanup.
-
-**Real-world impact:**
-Current project has multiple modals in procurement.js (MRF details, supplier details, PO timeline), finance.js (PR approval, TR review), and user-management.js (invitation codes, role assignment). Without cleanup, a user reviewing 50 PRs in one session accumulates 50+ orphaned ESC handlers.
-
-**Sources:**
-- [How to Avoid Memory Leaks in JavaScript Event Listeners](https://dev.to/alex_aslam/how-to-avoid-memory-leaks-in-javascript-event-listeners-4hna)
-- [How to Prevent Memory Leaks in State Management Systems](https://blog.pixelfreestudio.com/how-to-prevent-memory-leaks-in-state-management-systems/)
-- [State Management in Vanilla JS: 2026 Trends](https://medium.com/@chirag.dave/state-management-in-vanilla-js-2026-trends-f9baed7599de)
+Phase 3 (RFP + Payables) — Rules must land in the same PR as the collection creation code.
 
 ---
 
-### Pitfall 8: Security Rules Testing Without Admin SDK Emulation
+### Pitfall 8: Overcomplicated RFP State Machine That Doesn't Match Real Workflow
 
 **What goes wrong:**
-Developers test Security Rules by manually creating test users in Authentication and checking access in the browser. This misses critical edge cases:
-1. Missing user document (authenticated but no Firestore doc)
-2. Malformed permission structure (missing `role` field)
-3. Race conditions (auth created before user doc)
-4. Admin SDK bypass behavior (Cloud Functions skip rules)
-
-When deploying to production, these untested scenarios cause permission-denied errors that block legitimate users.
+Developer models RFP as a multi-step state machine: `Draft → Submitted → Under Review → Approved → Payment Processing → Partially Paid → Paid`. Each state requires a different UI and transition logic. Implementation bloats to 600+ lines. Users encounter states that don't correspond to anything they do in practice. Finance rejects the feature because the workflow doesn't match how the company actually approves payments.
 
 **Why it happens:**
-Manual testing only validates the happy path. Security Rules Emulator provides:
-- `RulesTestEnvironment.authenticatedContext(auth)` — create test users without Firebase Auth
-- `RulesTestEnvironment.withSecurityRulesDisabled()` — bypass rules to set up test data
-- Custom claim mocking — test admin roles without Admin SDK
-- Automated assertions — verify ALLOW and DENY scenarios programmatically
-
-But developers skip emulator setup thinking "I'll just test in browser" because:
-1. Emulator requires `npm install @firebase/rules-unit-testing`
-2. Test syntax is unfamiliar
-3. Manual testing feels faster initially
+Payment systems in enterprise software are genuinely complex. Developers pattern-match to enterprise AR/AP systems and over-engineer the MVP.
 
 **How to avoid:**
-1. **Set up Rules Emulator testing:**
-   ```javascript
-   import { assertSucceeds, assertFails } from '@firebase/rules-unit-testing';
+Start with three states: `Pending` (submitted by Procurement) → `Approved` (by Finance) → `Paid` (Finance marks as paid). That covers 95% of use cases. Add `Rejected` for Finance to push back with a reason. Do not add partial payment tracking until a real user request arises — Firestore is schemaless so adding it later has zero migration cost.
 
-   it('allows super_admin to read all projects', async () => {
-       const admin = testEnv.authenticatedContext('admin-uid', { role: 'super_admin' });
-       await assertSucceeds(admin.firestore().collection('projects').get());
-   });
-
-   it('denies operations_user without user document', async () => {
-       const user = testEnv.authenticatedContext('user-uid'); // No Firestore doc
-       await assertFails(user.firestore().collection('projects').get());
-   });
-   ```
-2. **Test negative cases:**
-   - User authenticated but user doc missing
-   - User doc exists but `status === 'pending'`
-   - User doc missing `role` field
-   - User doc has unknown role value
-3. **Test admin bypass scenarios:**
-   Admin SDK operations should succeed even with restrictive rules.
-4. **Automated regression suite:**
-   Run tests on every Security Rules change before deployment.
+The four-state model: `Pending | Approved | Rejected | Paid`
 
 **Warning signs:**
-- Production errors that don't reproduce in development
-- "Missing or insufficient permissions" for users who should have access
-- Security Rules changes break existing functionality
-- No automated test suite for firestore.rules
-- Deployment requires immediate rollback
+- State names include "Processing", "Partial", "Under Review", "Queued", or "Pending Payment"
+- More than 4 distinct `rfp_status` values defined before any user feedback
+- State transition logic requires knowing the previous state (e.g., `if (rfp.status === 'Under Review' && prevStatus === 'Submitted')`)
 
 **Phase to address:**
-Phase 1 (Security Rules Audit) — Add emulator test cases for Super Admin edge cases (missing user doc, malformed permissions). Current project has 17/17 tests passing but may need additional admin bypass test coverage.
+Phase 3 (RFP + Payables) — Lock in the 4-state model in the schema design; defer complexity.
 
-**Real-world impact:**
-Current project symptoms: "Clients tab permission denied error for Super Admin" suggests Security Rules are denying access that should succeed. Emulator testing would catch this before production deployment.
+---
 
-**Sources:**
-- [Test your Cloud Firestore Security Rules](https://firebase.google.com/docs/firestore/security/test-rules-emulator)
-- [Build unit tests | Firebase Security Rules](https://firebase.google.com/docs/rules/unit-tests)
-- [Tutorial: Testing Firestore Security Rules With the Emulator](https://fireship.io/lessons/testing-firestore-security-rules-with-the-emulator/)
+### Pitfall 9: Finance Workflow Integration Assumption — RFP Appearing in Wrong Tab
+
+**What goes wrong:**
+RFPs are built as a standalone "Payables" tab in the Finance view. But Finance users already have a workflow in the existing "Pending Approvals" tab. They now have two separate approval queues to check. Pending RFPs get missed because Finance thinks "Pending Approvals" is all they need to act on. Procurement follows up manually.
+
+**Why it happens:**
+The developer builds the RFP system as a new feature in isolation, choosing a new tab as the cleanest separation. The integration point with existing Finance workflows is not considered.
+
+**How to avoid:**
+Two options — decide before building:
+
+**Option A (Integrated):** Add a "Payables" sub-tab to the existing Finance view alongside "Pending Approvals" and "Purchase Orders". Finance sees all outstanding items in one view. The tab badge count includes pending RFPs.
+
+**Option B (Separate View):** Create a standalone Payables view with its own route (`#/payables`), accessible only to Finance and Super Admin. Finance navigates there deliberately for payment processing rather than routine approvals.
+
+Option A is recommended. The Finance view already has the right permission context, the right listener patterns, and the right users. Adding a sub-tab avoids nav proliferation and keeps the Finance workflow consolidated.
+
+Either way, document the decision before Phase 3 begins.
+
+**Warning signs:**
+- RFP feature starts development without a decision on where it lives in the navigation
+- A fourth top-level nav item is added for a feature primarily used by Finance
+
+**Phase to address:**
+Phase 3 (RFP + Payables) — Navigation placement decision belongs in requirements, not mid-implementation.
+
+---
+
+### Pitfall 10: procurement.js Already at 6,354 Lines — Adding More Without Extraction
+
+**What goes wrong:**
+Supplier search adds ~80 lines. Proof-of-procurement UI adds ~150 lines. If the RFP submission UI is also placed in `procurement.js`, the file grows beyond 7,000 lines. Cognitive load increases, scrolling-to-find-function becomes the primary navigation method, and merge conflicts become frequent because every feature touches the same file.
+
+**Why it happens:**
+Existing patterns are already in `procurement.js`. Adding adjacent functionality to the same file follows the path of least resistance and avoids decisions about where new code belongs.
+
+**How to avoid:**
+- Supplier search: stays in `procurement.js` — it is directly modifying the existing suppliers sub-tab, not a new feature surface. Estimated addition: ~100 lines.
+- Proof-of-procurement link: stays on `procurement.js` in the PO Tracking tab — it is a field addition to existing PO rows, not a new sub-system. Estimated addition: ~60 lines.
+- RFP + Payables: **extract to a new view file** (`app/views/payables.js` or handled entirely in `finance.js` as a new sub-tab). RFP has its own collection, its own state machine, and its own Finance workflow. It does not belong in `procurement.js`.
+
+This keeps each addition proportionate. The two procurement-side features are field additions; the payables tracking feature is a new system.
+
+**Warning signs:**
+- `procurement.js` line count exceeds 7,000 lines after v3.2
+- RFP-related functions appear in `procurement.js` rather than a Finance-context file
+- `app/views/` directory gains no new files despite a new collection being created
+
+**Phase to address:**
+Phase 3 (RFP + Payables) — Decide file structure before writing any code.
 
 ---
 
@@ -458,31 +303,27 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Using `window.functionName` for onclick instead of event delegation | Zero-build simplicity, no bundler needed | Memory leaks, cleanup complexity, harder testing | Acceptable for v1.0/v2.0, must audit cleanup in v2.1 |
-| Storing financial amounts as raw floats | No conversion logic needed | Precision errors accumulate, incorrect totals | Never acceptable for financial apps |
-| Manual Firestore document editing for first Super Admin | Fastest initial setup (2 minutes) | Not auditable, bypasses validation, fragile | Acceptable for one-time setup, must document clearly |
-| Denormalizing project_code + project_name in MRFs | Fast reads, no joins, historical accuracy | Update complexity if project renamed | Acceptable (intentional design for performance) |
-| Client-side permission checks without Security Rules | Faster development, easier debugging | Security bypass via console, no enforcement | Never acceptable (must have server-side rules) |
-| Skipping emulator tests for Security Rules | Faster iteration in development | Production bugs, lockout scenarios | Never acceptable after v2.0 (auth system deployed) |
-| Real-time listeners without unsubscribe tracking | Simpler init() code, fewer lines | Memory leaks, escalating costs | Never acceptable in production SPA |
-| Global `document.addEventListener` without cleanup | Works initially, simple implementation | Ghost interactions, memory leaks | Acceptable for static pages, never for SPAs with modals |
+| Storing proof link directly on PO doc | No new collection, no new rules | Cannot support multiple docs per PO, triggers PO listeners on every link update | Acceptable only if single-link-per-PO is a hard requirement forever |
+| Adding RFP fields to `pos` doc | No schema work | Blocks partial payment, pollutes PO queries with payment data, inflates PO listener payload | Never |
+| Search filtering paginated slice only | Ships faster | Search silently misses records not on current page — user trust damage | Never |
+| Skipping Security Rules for `rfps` at launch | Faster iteration in dev | Permission errors for all non-admin roles in production | Never |
+| Accepting any pasted text as a proof link | Simpler validation | Broken links stored silently; no user feedback on malformed input | Acceptable only with a minimal `https://` prefix check at save time |
+| 6+ state RFP machine from day one | Feels "complete" | Workflow mismatch with real users, implementation cost before feedback | Never for MVP |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when connecting to external services.
+Common mistakes when connecting features to the existing system.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Firebase Security Rules | Assuming `isRole('super_admin')` works without user document | Ensure user document exists with `role` field before rules check, OR use custom claims on auth token |
-| Firestore `onSnapshot` | Not storing unsubscribe function | Store in array: `listeners.push(onSnapshot(...))`, clean up in `destroy()` |
-| Firebase Auth state | Checking `auth.currentUser` synchronously on page load | Use `onAuthStateChanged` listener, wait for auth ready before routing |
-| Firestore aggregation queries | Expecting real-time updates like `onSnapshot` | Aggregation queries (`count()`, `sum()`) are one-time reads only, use write-time aggregation for real-time |
-| Cloud Audit Logs | Enabling Data Access logs for audit trail | Use application-level audit collection or Cloud Functions, Cloud Audit Logs cost $$$ |
-| Firestore transactions | Using transactions for simple aggregation | Transactions have 5-attempt limit and contention issues, use `increment()` for counters |
-| Security Rules testing | Testing only in browser with manual user creation | Use `@firebase/rules-unit-testing` emulator with `assertSucceeds`/`assertFails` |
-| Firebase Admin SDK | Using Admin SDK in client code | Admin SDK is server-only (Cloud Functions, Node.js backend), client uses Firebase SDK |
+| Supplier search + existing pagination | Filter the paginated slice, not the source array | Always filter `suppliersData` → write to `filteredSuppliersData` → paginate from that |
+| Proof link + PO listener | Adding a new field to a PO doc causes the existing `onSnapshot` for POs to re-fire and re-render the entire PO tracking table | Acceptable cost; the existing listener already handles updates. No extra action needed, but don't add a second `onSnapshot` for proof link changes. |
+| RFP collection + Finance view | Finance sub-tabs use the same `listeners[]` array but `finance.js` has its own `destroy()` lifecycle | RFP listener must be pushed to `finance.js`'s `listeners` array if RFP lives in the Finance view, or to `payables.js`'s own array if extracted |
+| RFP `rfp_id` sequential generation | Sequential ID utils (`generateSequentialId`) already exist in utils.js but are keyed to known collection names | Verify `generateSequentialId` accepts a custom prefix argument or add a new `generateRFPId()` following the same year-padded pattern |
+| Google Drive links + CSP headers | If `connect-src` in `_headers` or Netlify config is restricted, linking to external Drive URLs for display still works (they open in new tab), but any `fetch()` call to validate them will be blocked | Do not attempt server-side or client-side link validation via `fetch()` |
+| New `rfps` Security Rules + existing rules test suite | Adding a new collection without adding emulator test cases leaves a gap | Add at minimum 3 tests: Finance can read, Procurement can create, unauthenticated user is denied |
 
 ---
 
@@ -492,70 +333,58 @@ Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Full-collection reads for aggregation | Dashboard slow on load, increasing read costs | Use write-time aggregation or indexed sum collections | 500+ documents per collection |
-| Naive real-time listeners re-rendering entire list | UI freezes during updates, React warning floods | Use `snapshot.docChanges()` to update incrementally | 100+ documents in real-time view |
-| Sequential Firestore writes in loops | Form submission takes seconds, UI unresponsive | Use `writeBatch()` for bulk operations (max 500 per batch) | 20+ sequential writes |
-| No pagination on list views | Initial page load >5 seconds, browser memory warning | Implement pagination (Firestore `limit()` + `startAfter()`) | 200+ items in list |
-| Client-side filtering of large collections | `getDocs()` downloads thousands of documents | Use Firestore `where()` queries on indexed fields | 1000+ documents fetched |
-| Accumulating Firestore listeners without cleanup | Memory usage grows over session, UI sluggish | Track listeners in array, call `unsubscribe()` in `destroy()` | 10+ navigation cycles |
-| String concatenation in render loops | Slow UI updates, dropped frames | Use template literals or DocumentFragment | 100+ items rendered |
-| Floating-point aggregation without rounding | Nonsensical decimal places, user confusion | Convert to integer cents, calculate, convert back | Any financial calculation |
+| Client-side supplier search on full `suppliersData` array per keypress | Imperceptible now, noticeable sluggish render at scale | Debounce 200ms; acceptable at current scale (100s of suppliers), no Firestore query needed | 1,000+ suppliers (not expected, but debounce is free) |
+| `onSnapshot` for `rfps` collection with no query filter | All RFPs downloaded to every client session | Query by `status == 'Pending'` for Finance approval queue; query by `po_id` for PO-specific view | 500+ RFP documents |
+| Recomputing payables total on every `rfps` snapshot update | Re-aggregates all RFPs on every status change | For the MVP payables list, client-side aggregation is fine; if a "total outstanding payables" scoreboard is needed, use `getAggregateFromServer(sum(...))` as a one-time read | 1,000+ RFPs |
+| Proof link field added to PO rows in existing table re-renders the full PO table on every PO update | Already the case today — not a new problem introduced by the feature | Existing behavior; acceptable at current PO volumes | 500+ concurrent POs in `Procuring` state |
 
 ---
 
 ## Security Mistakes
 
-Domain-specific security issues beyond general web security.
+Domain-specific security issues for v3.2 features.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Checking permissions only in UI (hiding buttons) | Console bypass allows unauthorized operations | Enforce with Firebase Security Rules server-side |
-| Using `isActiveUser()` for all checks without role validation | Deactivated users continue operating until token expires | Security Rules check `status == 'active'` AND validate role |
-| Granting read access based on `isSignedIn()` instead of `isActiveUser()` | Pending/rejected users read sensitive data | Use `isActiveUser()` (checks active status) not `isSignedIn()` |
-| No minimum admin safeguard | Last Super Admin deactivates self, complete lockout | Enforce minimum 2 Super Admins in app logic AND Security Rules |
-| Missing user document structure validation | Authenticated user has no Firestore doc, all operations fail | Validate user doc creation in registration, test with emulator |
-| Custom claims not synced to Security Rules | Rules check `getUserData().role`, custom claims on token ignored | Decide: custom claims OR user doc role, not both (confusion) |
-| Operations Admin can modify Super Admin | Privilege escalation: Ops Admin promotes self to Super Admin | Security Rules: prevent updating users with higher role |
-| Delete audit trail allows permanent removal | Compliance violation, can't prove data wasn't tampered with | Set Security Rules: `allow delete: if false;` for audit collections |
+| `rfps` collection with no Security Rules | All Finance/Procurement read access denied in production; RFP submissions silently fail | Deploy rules in same commit as first collection write |
+| Proof link field writable by any role | A requester could overwrite a Finance-reviewed proof document | Restrict `proof_link` update to `procurement` role in Security Rules; Finance reads, not writes |
+| Displaying raw proof URLs without `escapeHTML` | XSS if a malicious URL is stored (e.g., `javascript:...` prefix) | Apply `escapeHTML()` to proof URL before inserting into `href` attribute; use `rel="noopener noreferrer"` on `<a target="_blank">` |
+| RFP `amount_requested` stored as string | Finance sees "100" + "200" = "100200" in payables total | Always `parseFloat()` or `Number()` at read time; validate numeric at write time |
+| Finance approving RFP without permission check | Any active user who can reach the Finance view could POST an approval | Security Rules must restrict `rfps` update to `finance` and `super_admin` roles; client-side `canEditTab('finance')` check alone is not sufficient |
 
 ---
 
 ## UX Pitfalls
 
-Common user experience mistakes in this domain.
+Common user experience mistakes for v3.2 features.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Permission denied shown as generic error | Users think system is broken, file support tickets | Show specific message: "Contact admin for [Feature] access" |
-| Real-time updates move items while user is clicking | Click hits wrong item, frustration | Preserve scroll position, highlight changed items |
-| Financial totals showing floating-point noise | Users question accuracy: "Why $5000.000000001?" | Always display currency with `.toFixed(2)` |
-| No loading state during aggregation | Users think dashboard is frozen, refresh repeatedly | Show skeleton loaders or spinner for >200ms operations |
-| Modal ESC key closes wrong modal | User loses form data, has to re-enter | Track modal stack, ESC closes topmost only |
-| Tab switch destroys and recreates listeners | Flicker, loading state, poor UX | Router should skip destroy for same-view tab navigation |
-| Permission changes require logout | Users frustrated: "I was just granted access, why logout?" | Real-time permission listener with `permissionsChanged` event |
-| Audit trail shows technical IDs not human names | "PR-2026-005 updated by uid: xyz123..." meaningless | Denormalize user name in audit entries |
-| Delete confirmation says "Are you sure?" | Users don't understand consequences | Specific: "Delete client ABC will orphan 5 projects. Type ABC to confirm." |
+| Search bar that resets to page 1 mid-typing (visible jump) | Jarring if user is scanning results while typing | Reset page only after debounce fires, not on every keypress |
+| Proof link field always visible even when no link exists | Row looks broken with empty `<a>` tag or "undefined" text | Render a "-" dash when `proof_link` is absent; render a "View Document" link only when set |
+| Proof link opens in same tab | User loses their place in the PO tracking view | Always `target="_blank"` with `rel="noopener noreferrer"` |
+| RFP submission on a PO that already has an approved RFP | Duplicate payment risk; Finance approves two RFPs for the same PO | At RFP submission time, warn if an `Approved` or `Pending` RFP already exists for the same `po_id` |
+| No visual indicator that a PO has an attached proof document | Finance cannot tell at a glance which POs have documentation | Add a small icon or badge in the PO row when `proof_link` is set |
+| Payables list showing all historical paid RFPs by default | Finance scans a long list of already-paid items looking for pending actions | Default filter to `status != 'Paid'`; provide a "Show All" toggle |
+| Empty state for "no pending RFPs" looks like an error | Finance thinks the feature is broken on first visit | Explicit empty-state copy: "No pending payment requests." |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Firestore listeners:** Often missing `unsubscribe()` tracking — verify `listeners` array exists and `destroy()` cleans up
-- [ ] **Window functions:** Often missing `destroy()` cleanup — verify `delete window.functionName` or function persistence strategy
-- [ ] **Security Rules:** Often missing negative test cases — verify emulator tests for missing user doc, inactive status, wrong role
-- [ ] **Financial calculations:** Often missing precision handling — verify integer arithmetic or `.toFixed()` on all currency displays
-- [ ] **Real-time aggregation:** Often missing write-time updates — verify aggregation doc updates in same batch as source doc write
-- [ ] **Modal event handlers:** Often missing `removeEventListener` — verify ESC handler, overlay click cleanup
-- [ ] **Permission checks:** Often missing server-side enforcement — verify Security Rules match client-side permission checks
-- [ ] **Tab navigation:** Often calling `destroy()` unnecessarily — verify router checks `isSameView` before cleanup
-- [ ] **Audit trail:** Often missing cost analysis — verify application-level logs, NOT Cloud Audit Logs
-- [ ] **Form validation:** Often missing edge cases — verify empty string, null, undefined, whitespace-only values
-- [ ] **Error handling:** Often showing generic messages — verify specific user-facing error messages for permission denied
-- [ ] **Loading states:** Often missing for aggregations — verify skeleton/spinner for operations >200ms
-- [ ] **Pagination:** Often missing on list views — verify Firestore `limit()` applied to collections with 100+ docs expected
-- [ ] **Batch operations:** Often using loops — verify `writeBatch()` for 3+ sequential writes
+- [ ] **Supplier search:** Test on page 2+ — results exist but page doesn't reset to show them
+- [ ] **Supplier search:** Clear the search field — confirm all suppliers reappear (not just the filtered subset)
+- [ ] **Supplier search:** Add a supplier while search is active — new supplier appears in filtered results if it matches
+- [ ] **Proof link:** Test saving an empty string — confirm it clears the field, not stores `""`
+- [ ] **Proof link:** Test with a non-Drive URL (Dropbox, SharePoint) — link should work the same
+- [ ] **Proof link:** Test with a long URL containing special characters — `escapeHTML()` applied to href
+- [ ] **Proof link:** Verify Finance users can see but not edit the link
+- [ ] **RFP Security Rules:** Deploy rules before testing with Finance or Procurement role accounts (not Super Admin)
+- [ ] **RFP:** Submit a second RFP for the same PO — system warns or blocks duplicate
+- [ ] **RFP:** Finance approves RFP — status updates in real-time in Procurement's view (if cross-view listener exists)
+- [ ] **RFP sequential ID:** Verify `RFP-2026-001` format matches existing ID patterns in the system
+- [ ] **Payables total:** Verify amounts are `parseFloat`-ed before summing — not string-concatenated
+- [ ] **Finance view:** Pending RFPs are visible to Finance without navigating to a new top-level page
 
 ---
 
@@ -565,15 +394,12 @@ When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Super Admin locked out by Security Rules | MEDIUM | 1. Firebase Console → Firestore → manually update user doc with correct `role: 'super_admin'`, 2. OR add UID to admin whitelist in rules, 3. Deploy rules fix, 4. Add emulator test to prevent recurrence |
-| Window functions undefined after tab switch | LOW | 1. Identify which view's `destroy()` is removing functions, 2. Update router to skip `destroy()` for same-view tab navigation, 3. Redeploy, no data impact |
-| Floating-point errors in financial reports | MEDIUM | 1. Audit all financial calculations, 2. Implement integer arithmetic (multiply by 100), 3. Migrate display code to use `.toFixed(2)`, 4. No database migration needed if storing raw values |
-| Firestore listener memory leak | LOW | 1. Add listener tracking array to affected views, 2. Implement `destroy()` with `listeners.forEach(unsub => unsub())`, 3. Redeploy, users may need to refresh |
-| Cloud Audit Log cost spike | LOW | 1. Firebase Console → Cloud Logging → disable Data Access audit logs immediately, 2. Implement application-level audit collection, 3. Export existing logs to Cloud Storage if needed |
-| Real-time aggregation too slow | HIGH | 1. Implement write-time aggregation (requires schema change), 2. Backfill aggregation docs for existing data with Cloud Function, 3. Update dashboard to read aggregation collection |
-| Modal event handlers accumulating | LOW | 1. Add AbortController to modal creation, 2. Call `controller.abort()` in close function, 3. Redeploy, users may need to refresh for listener cleanup |
-| Permission check bypass via console | CRITICAL | 1. Identify missing Security Rule, 2. Write emulator test for scenario, 3. Deploy rule fix immediately, 4. Audit logs for unauthorized access |
-| Missing user document after auth | MEDIUM | 1. Check registration flow for race condition, 2. Add retry logic or wait for user doc creation, 3. Backfill missing user docs in Firestore, 4. Add emulator test |
+| Search only works on current page | LOW | Split `suppliersData` / `filteredSuppliersData` arrays; no database changes needed |
+| Proof links stored with normalized format that breaks | LOW | Update the display code to handle old and new formats; Firestore docs are schemaless so field values are whatever was stored |
+| RFP fields on PO documents instead of separate collection | HIGH | Schema migration: read each PO, write corresponding `rfps` doc, clear PO fields; requires downtime window or dual-read shim period |
+| `rfps` collection blocked by missing Security Rules | LOW | Deploy rules immediately; no data loss; users just need to refresh |
+| RFP state machine too complex to ship | MEDIUM | Collapse to 4 states in the data model; repaint UI; no data migration if no documents exist yet |
+| Proof link XSS via `javascript:` URL stored | MEDIUM | Audit all `href` attributes using proof_link; add `escapeHTML` and `^https?://` validation; no data loss but requires immediate deploy |
 
 ---
 
@@ -583,42 +409,36 @@ How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Security Rules blocking Super Admin | Phase 1: Security Rules Audit | Emulator test: Super Admin can read/write all collections |
-| Window functions undefined | Phase 2: Finance Workflow Fixes | Manual test: switch tabs 5x, all buttons work |
-| Floating-point precision errors | Phase 3: Finance Dashboard Fixes | Automated test: assert totals match `.toFixed(2)` display |
-| Firestore listener memory leaks | Phase 4: Listener Lifecycle Audit | DevTools Memory: listener count stable after 10 navigation cycles |
-| Audit trail cost overruns | Phase 5: Audit Trail Implementation | Cost projection: estimate log volume before enabling Cloud Audit Logs |
-| Real-time aggregation slowness | Phase 3: Finance Dashboard Fixes | Performance test: dashboard loads <500ms with 1000 POs |
-| Modal event handler leaks | Phase 2: Finance Workflow Fixes | DevTools: ESC handler count = visible modal count |
-| Security Rules not tested | Phase 1: Security Rules Audit | CI: 25+ emulator tests passing including negative cases |
+| Search filters only current page | Phase 1: Supplier Search | Manual test: with 20+ suppliers, navigate to page 2, search for supplier on page 1 — must appear |
+| Page not reset on search | Phase 1: Supplier Search | Manual test: navigate to last page, type search term — page jumps to 1 |
+| Debounce missing | Phase 1: Supplier Search | Console test: typing 5 chars produces 1 render call, not 5 |
+| Drive URLs expire/break | Phase 2: Proof of Procurement | Design decision documented before coding; no validation code added |
+| Proof link editable post-Delivered | Phase 2: Proof of Procurement | Requirements decision recorded; Security Rules reflect the decision |
+| RFP on PO document | Phase 3: RFP + Payables | Schema review: `rfps` collection exists in Firestore before any UI code ships |
+| Missing `rfps` Security Rules | Phase 3: RFP + Payables | Test with Finance role account before marking phase complete |
+| Overcomplicated state machine | Phase 3: RFP + Payables | Requirements doc shows exactly 4 RFP statuses, no more |
+| RFP in wrong nav location | Phase 3: RFP + Payables | Product decision in phase spec; Finance user can find pending RFPs without navigating away from Finance view |
+| `procurement.js` bloat | Phase 3: RFP + Payables | File count check: `app/views/` should have at least one new file for RFP/payables feature |
 
 ---
 
 ## Sources
 
-### Official Documentation (HIGH confidence)
-- [Control Access with Custom Claims and Security Rules](https://firebase.google.com/docs/auth/admin/custom-claims)
-- [Security Rules and Firebase Authentication](https://firebase.google.com/docs/rules/rules-and-auth)
-- [Test your Cloud Firestore Security Rules](https://firebase.google.com/docs/firestore/security/test-rules-emulator)
-- [Write-time aggregations | Firestore](https://firebase.google.com/docs/firestore/solutions/aggregation)
-- [Summarize data with aggregation queries](https://firebase.google.com/docs/firestore/query-data/aggregation-queries)
-- [Unsubscribe from a Firestore watch listener](https://cloud.google.com/firestore/docs/samples/firestore-listen-detach)
-- [Firestore audit logging information](https://docs.cloud.google.com/firestore/native/docs/audit-logging)
-
-### Community Resources (MEDIUM confidence)
-- [Financial Precision in JavaScript: Handle Money Without Losing a Cent](https://dev.to/benjamin_renoux/financial-precision-in-javascript-handle-money-without-losing-a-cent-1chc)
-- [JavaScript Rounding Errors (in Financial Applications)](https://www.robinwieruch.de/javascript-rounding-errors/)
-- [How to Avoid Memory Leaks in JavaScript Event Listeners](https://dev.to/alex_aslam/how-to-avoid-memory-leaks-in-javascript-event-listeners-4hna)
-- [State Management in Vanilla JS: 2026 Trends](https://medium.com/@chirag.dave/state-management-in-vanilla-js-2026-trends-f9baed7599de)
-- [Tutorial: Testing Firestore Security Rules With the Emulator](https://fireship.io/lessons/testing-firestore-security-rules-with-the-emulator/)
-- [Firestore Finally Solved the Counter Problem... Almost](https://dev.to/jdgamble555/firestore-finally-solved-the-counter-problem-almost-4mb7)
-
 ### Project Codebase (HIGH confidence)
-- `firestore.rules` lines 1-270 — Current Security Rules implementation
-- `app/router.js` lines 257-266 — Router implements same-view tab navigation pattern
-- `.planning/PROJECT.md` — Known issues: permission denied errors, window function errors
-- `CLAUDE.md` — DOM selection patterns, listener management, sequential ID generation
+- `app/views/procurement.js` lines 2537–2591 — Existing `renderSuppliersTable()` implementation showing pagination pattern
+- `app/views/procurement.js` lines 16–20 — `suppliersData`, `suppliersCurrentPage`, `suppliersItemsPerPage` globals
+- `firestore.rules` lines 1–39 — Security Rules template and "ADDING NEW COLLECTIONS" warning header
+- `CLAUDE.md` — DOM selection patterns, listener management, sequential ID generation patterns
+- `.planning/PROJECT.md` — Known issues: "Firestore 'in' query limited to 10 items", IndexedDB performance notes
+
+### Prior Research (HIGH confidence — same codebase)
+- `.planning/research/PITFALLS.md` (v2.1 era) — Window function lifecycle, listener cleanup, Security Rules patterns; all still applicable to new features
+
+### Domain Knowledge (MEDIUM confidence)
+- Google Drive sharing URL instability is a known operational issue in document management systems; no single source, but consistent with documented Drive API behavior re: permission revocation
+- Firestore default-deny security model: https://firebase.google.com/docs/firestore/security/get-started
+- Client-side search on in-memory array is the standard approach for < 10,000 records with Firestore; Firestore full-text search requires Algolia/Typesense at larger scale (not needed here)
 
 ---
-*Pitfalls research for: CLMC Procurement System v2.1 System Refinement*
-*Researched: 2026-02-05*
+*Pitfalls research for: CLMC Procurement System v3.2 — Supplier Search, Proof of Procurement, RFP + Payables*
+*Researched: 2026-03-13*

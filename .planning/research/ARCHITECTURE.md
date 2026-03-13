@@ -1,895 +1,451 @@
-# Architecture: Multi-Department System with Role Isolation
+# Architecture Research
 
-**Domain:** Firebase/Vanilla JS SPA with parallel department workflows
-**Researched:** 2026-02-12
-**Confidence:** HIGH
-
-## Executive Summary
-
-Adding Services department to an existing Projects-based procurement system requires careful architectural integration to maintain department isolation while sharing common pipeline infrastructure (Finance, Procurement). The key challenge is balancing code reuse with department-scoped data access, all within a zero-build Firebase SPA architecture.
-
-**Critical Design Decisions:**
-1. **Collections:** `services` collection parallels `projects` collection, NOT subcollection
-2. **Routing:** `#/services` view mirrors `#/projects` structure with separate tab navigation
-3. **Code generation:** Shared counter queries BOTH collections for max sequential number
-4. **Permissions:** Department-scoped role checks (`isRole('services_user')`) alongside existing roles
-5. **Security Rules:** Multi-collection validation functions prevent cross-department access
-6. **MRF form:** Conditional dropdown rendering based on user role department
-
-**Architectural Philosophy:**
-- **Duplicate UI, share utilities** — Department views are separate modules; shared utils (formatCurrency, generateSequentialId) remain centralized
-- **Parallel not nested** — Services is NOT a subcollection of Projects; both are root collections
-- **Role-scoped access** — operations_user sees Projects tab, services_user sees Services tab, Finance/Procurement see both
-- **Single sequence namespace** — CLMC_CLIENT_YYYY### codes span both collections to prevent duplicates
+**Domain:** Zero-build static SPA — procurement management (vanilla JS + Firebase Firestore)
+**Researched:** 2026-03-13
+**Confidence:** HIGH (based on direct codebase inspection + official Google Drive API docs)
 
 ---
 
-## System Architecture Overview
+## Feature Integration Analysis
 
-### Current Architecture (v2.2 baseline)
+### Feature 1: Supplier Search Bar
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser (SPA)                             │
-├─────────────────────────────────────────────────────────────────┤
-│  Hash Router (#/projects, #/mrf-form, #/procurement)            │
-│     ↓                                                             │
-│  View Lifecycle: render(tab) → init(tab) → destroy()            │
-│     ↓                                                             │
-│  Permission Checks: hasTabAccess('projects'), canEditTab(...)   │
-│     ↓                                                             │
-│  Firebase SDK: onSnapshot(), getDocs(), addDoc()                │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓ HTTP/S
-┌─────────────────────────────────────────────────────────────────┐
-│                    Firebase Firestore                            │
-├─────────────────────────────────────────────────────────────────┤
-│  Security Rules Evaluation (247 lines)                          │
-│     ↓                                                             │
-│  Collections:                                                    │
-│    • projects (project_code: CLMC_CLIENT_YYYY###)               │
-│    • mrfs (project_code, project_name denormalized)             │
-│    • prs (project_code denormalized)                            │
-│    • pos (project_code denormalized)                            │
-│    • transport_requests (project_code denormalized)             │
-│    • role_templates (permissions.tabs.projects.access/edit)     │
-│    • users (role, assigned_project_codes[])                     │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Question:** Client-side filter on loaded data, or new Firestore query?
 
-### Target Architecture (v3.0 with Services)
+**Answer: Client-side filter on `suppliersData[]` — zero new Firestore queries needed.**
+
+Rationale from code inspection:
+
+- `loadSuppliers()` (procurement.js:2509) already uses `onSnapshot` to load the entire `suppliers` collection into `suppliersData[]`
+- The collection is small (dozens to low hundreds of suppliers) and fully resident in memory
+- `renderSuppliersTable()` already slices `suppliersData` for pagination
+- A new Firestore query for search would be wasteful: Firestore has no `contains` operator, so partial-name matching requires either client-side filtering or a third-party search index
+
+**Integration point: `renderSuppliersTable()` function (procurement.js:2537)**
+
+The search filter sits between `suppliersData[]` (source of truth) and the pagination slice. A module-level `let supplierSearchTerm = ''` variable gates the slice. The render pipeline becomes:
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser (SPA)                             │
-├─────────────────────────────────────────────────────────────────┤
-│  Hash Router (#/projects, #/services, #/mrf-form, ...)         │
-│     ↓                                                             │
-│  View Modules:                                                   │
-│    • projects.js (existing)         • services.js (NEW)         │
-│    • project-detail.js (existing)   • service-detail.js (NEW)  │
-│    • mrf-form.js (modified for conditional dropdowns)           │
-│     ↓                                                             │
-│  Permission Checks:                                              │
-│    • operations_user → hasTabAccess('projects') = true          │
-│    • services_user → hasTabAccess('services') = true            │
-│    • finance/procurement → both tabs accessible                 │
-│     ↓                                                             │
-│  Shared Utilities (reused):                                      │
-│    • generateServiceCode(clientCode) — NEW, mirrors generateProjectCode │
-│    • getAssignedServiceCodes() — NEW, mirrors getAssignedProjectCodes │
-│    • formatCurrency, formatDate, normalizePersonnel (unchanged) │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓ HTTP/S
-┌─────────────────────────────────────────────────────────────────┐
-│                    Firebase Firestore                            │
-├─────────────────────────────────────────────────────────────────┤
-│  Security Rules Evaluation (~300 lines with Services)           │
-│     ↓                                                             │
-│  Collections:                                                    │
-│    • projects (existing)                                         │
-│    • services (NEW — parallel structure)                        │
-│    • mrfs (department field added)                              │
-│    • prs (department field added)                               │
-│    • pos (department field added)                               │
-│    • transport_requests (department field added)                │
-│    • role_templates (services tab added)                        │
-│    • users (assigned_service_codes[] added)                     │
-│    • counters (NEW — shared sequence tracking)                  │
-└─────────────────────────────────────────────────────────────────┘
+suppliersData[]
+    ↓ filter by supplierSearchTerm (name + contact_person, case-insensitive)
+filteredSuppliersData (local const)
+    ↓ slice for current page
+pageItems[]
+    ↓ render rows
+```
+
+**Where it lives in procurement.js:**
+
+1. HTML: add a search `<input>` above the suppliers table in the `render()` string (line ~238 in the suppliers-section)
+2. State: add `let supplierSearchTerm = '';` alongside existing supplier state variables (line ~19 area)
+3. New function: `filterSuppliers(term)` — sets `supplierSearchTerm`, resets `suppliersCurrentPage = 1`, calls `renderSuppliersTable()`
+4. Expose on window: `window.filterSuppliers = filterSuppliers` in `attachWindowFunctions()` (line ~115 area)
+5. Modify `renderSuppliersTable()`: apply filter before pagination slice
+
+**Search scope:** `supplier_name` and `contact_person` fields — the two columns users would naturally search by. The filter in `renderSuppliersTable` is the same pattern already used for client-side filtering in `filterPRPORecords()` in the same file. No new Firestore Security Rules required — suppliers collection is already readable by all active users.
+
+**Style match:** The existing Projects filter bar (search input + sort dropdowns) in `projects.js` is the reference. The v3.1 client search bar (ce0561b commit) also provides a styled pattern.
+
+---
+
+### Feature 2: Proof of Procurement Document Upload
+
+**Question:** Which approach fits a zero-build static SPA?
+
+**Architecture verdict: Manual link paste — recommended. Google Drive Picker — viable but adds OAuth complexity with no clear benefit given the workflow.**
+
+**Option A: Google Drive Picker API (OAuth popup)**
+
+What it actually does (verified against official docs): The Google Picker is a *file selector* — it opens a "File Open" dialog for files already in Drive. It does NOT upload files. To upload a new proof document, the user would need to upload it to Drive separately, then use the Picker to select it and get a shareable URL. The app would then need to call the Drive API to construct a shareable link — an additional API call with the same OAuth token.
+
+Scope required: `https://www.googleapis.com/auth/drive.file` or `drive.readonly`.
+
+Setup overhead: Google Cloud Console project, OAuth 2.0 Client ID, API key, Authorized JavaScript Origins for the Netlify domain. The OAuth popup uses Google Identity Services (tokenClient pattern, replacing deprecated gapi.auth2). CORS constraint: the Netlify deployment must not set `Cross-Origin-Opener-Policy: same-origin` on the HTML page — this would silently break the OAuth popup.
+
+**Verdict on Option A:** Over-engineered for the workflow. The Picker does not upload — the user still manually uploads to Drive first. Net benefit over Option B is an auto-populated link vs. manual copy-paste, which does not justify the Google Cloud Console setup, OAuth scope, and CORS risk at this application's scale.
+
+**Option B: Manual paste of Google Drive share link — recommended**
+
+The workflow:
+1. Procurement user uploads proof document to a shared Google Drive folder (outside the app)
+2. They copy the shareable link from Drive
+3. They paste the link into a text field on the PO detail in the app
+4. App stores the link on the PO document in Firestore
+
+This is the correct choice because:
+- Zero new dependencies
+- No OAuth setup, no Google Cloud Console changes, no CORS risk
+- Drive is already the team's document storage — this workflow is familiar
+- The "upload to Drive, get link" step takes 10 seconds and is within the existing workflow
+- The stored link opens in a new browser tab when clicked — no additional integration needed
+
+**Option C: Service account** — requires a backend server. Not applicable to this architecture.
+
+**Integration point: `pos` collection document**
+
+Add a `proof_url` field (string, nullable) to PO documents. No schema migration needed — Firestore is schemaless, and legacy POs simply have no `proof_url` field.
+
+**UI integration: Procurement > MRF Records tab (PO Tracking section)**
+
+The "Upload Proof" action appears on a PO row. The implementation path:
+
+1. A button on each PO row: "Add Proof" (if no proof_url) or "View Proof" (if proof_url exists), plus an edit icon
+2. Clicking "Add Proof" opens a small modal or inline edit: a text input for the Drive URL + Save button
+3. On save: `updateDoc(doc(db, 'pos', poId), { proof_url: url.trim(), proof_uploaded_at: serverTimestamp(), proof_uploaded_by: currentUser.uid })`
+4. "View Proof": `window.open(proofUrl, '_blank')`
+
+**Security Rules change required:** None. The `pos` collection update rule already allows `super_admin`, `finance`, and `procurement`. Adding `proof_url` to an update doc does not require a new rule — it is the same updateDoc permission already in use.
+
+**Firestore field addition on PO document:**
+
+```
+pos/{poId}
+  + proof_url: string | null          // Google Drive shareable link
+  + proof_uploaded_at: timestamp | null
+  + proof_uploaded_by: string | null  // uid of uploader
+```
+
+---
+
+### Feature 3: Request for Payment (RFP) + Payables Tracking
+
+**Question:** New collection? How does it relate to POs? Finance view shape? Security Rules?
+
+**Architecture verdict: New `rfps` collection linked to POs by `po_id` FK. Finance gets a new "Payables" tab.**
+
+#### Data Model
+
+RFP is the bridge between a delivered PO and actual payment. One PO maps to one RFP (one-to-one at current scope).
+
+```
+rfps/{rfpId}
+  rfp_id: string           // RFP-YYYY-### (sequential, same pattern as PO/PR IDs)
+  po_id: string            // FK to pos collection
+  pr_id: string            // denormalized from PO for display
+  mrf_id: string           // denormalized from PO for display
+  supplier_name: string    // denormalized from PO
+  total_amount: number     // matches PO total_amount
+  payment_terms: string    // "Net 30" | "Net 60" | "Upon Delivery" | freetext
+  due_date: string         // ISO date string
+  status: string           // "Pending" | "Approved" | "Paid" | "Rejected"
+  submitted_by: string     // uid of submitting user
+  submitted_at: timestamp
+  approved_by: string | null
+  approved_at: timestamp | null
+  paid_at: timestamp | null
+  notes: string | null
+  project_code: string     // denormalized for role-scoped filtering
+  service_code: string     // denormalized for role-scoped filtering
+  department: string       // 'projects' | 'services' — for dept filter dropdown
+```
+
+**Why denormalize project/service codes:** Every collection that needs role-scoped list queries must carry `project_code` or `service_code`. The existing pattern (prs, pos, transport_requests) consistently denormalizes these fields. Firestore Security Rules use `resource.data.project_code` directly for operations_user scoping.
+
+**Document hierarchy:**
+
+```
+mrfs/{mrfId}
+    └── prs/{prId}
+            └── pos/{poId}  ← proof_url field added here
+                    └── rfps/{rfpId}  ← new collection, po_id FK
+```
+
+The RFP is created *after* a PO exists and has been delivered (`procurement_status = 'Delivered'`). Finance surfaces RFPs for approval and payment tracking.
+
+#### UI Integration — Procurement Side
+
+In the PO Tracking table (Procurement > MRF Records tab), a "Submit RFP" button appears on PO rows where:
+- `procurement_status === 'Delivered'`
+- No RFP document exists for that PO yet (check by po_id)
+
+Clicking opens a modal to fill in payment terms and due date, then creates the RFP document.
+
+The Procurement view also needs to track which POs already have RFPs. This is done by loading rfp po_id values alongside PO data in `loadPOTracking()`, building a `Set` of `po_id` values with existing RFPs, and using that set to conditionally render the "Submit RFP" button.
+
+#### UI Integration — Finance Side
+
+Finance currently has three tabs: Pending Approvals, Purchase Orders, Historical Data. A fourth tab "Payables" is added, following the exact same tab pattern in `finance.js`.
+
+The Payables tab contains:
+- Scoreboard row: Total outstanding amount, # pending RFPs, # approved (awaiting payment), # paid this month
+- RFP table columns: RFP ID, PO ID, Supplier, Amount, Payment Terms, Due Date, Status, Actions
+- Row actions: "Approve" (Pending → Approved), "Mark Paid" (Approved → Paid), "Reject" (Pending → Rejected)
+- Filter by status (All / Pending / Approved / Paid), department filter (All / Projects / Services), supplier search
+
+The Payables tab follows the same `onSnapshot` listener pattern as Pending Approvals.
+
+#### Security Rules
+
+```javascript
+// Add after the pos block in firestore.rules
+
+// =============================================
+// rfps collection (Request for Payment)
+// =============================================
+match /rfps/{rfpId} {
+  // All active users can read
+  allow read: if isActiveUser();
+
+  // Create: procurement submits RFPs; finance and super_admin can also create
+  allow create: if hasRole(['super_admin', 'finance', 'procurement']);
+
+  // Update: finance approves/marks paid; procurement can resubmit; super_admin unrestricted
+  allow update: if hasRole(['super_admin', 'finance', 'procurement']);
+
+  // Delete: super_admin only
+  allow delete: if hasRole(['super_admin']);
+}
+```
+
+**Deployment timing:** Security Rules for `rfps` must be deployed *before* any UI code attempts to read or write the collection. This is the same requirement documented in CLAUDE.md for all new collections.
+
+---
+
+## System Overview
+
+```
+Browser (Vanilla JS ES6 Modules)
+┌──────────────────────────────────────────────────────────┐
+│  router.js  ──hash routing──>  view modules              │
+│                                                          │
+│  procurement.js (3,761 lines)                            │
+│  ├── Tab: MRF Processing          (unchanged)            │
+│  ├── Tab: Supplier Management  <── SEARCH BAR ADDED      │
+│  └── Tab: MRF Records          <── PROOF URL + RFP ADDED │
+│            └── PO Tracking section                       │
+│                ├── proof_url column + "Add Proof" button  │
+│                └── "Submit RFP" button on Delivered POs  │
+│                                                          │
+│  finance.js (1,077 lines)                                │
+│  ├── Tab: Pending Approvals       (unchanged)            │
+│  ├── Tab: Purchase Orders         (unchanged)            │
+│  ├── Tab: Historical Data         (unchanged)            │
+│  └── Tab: Payables  [NEW TAB]                            │
+│            ├── RFP table (onSnapshot on rfps)            │
+│            └── Approve / Mark Paid / Reject actions      │
+└──────────────────────────────────────────────────────────┘
+         │
+         │ Firestore SDK v10.7.1 (CDN)
+         ▼
+Firebase Firestore (clmc-procurement)
+┌──────────────────────────────────────────────────────────┐
+│  suppliers    unchanged — filter is purely client-side   │
+│  pos          + proof_url, proof_uploaded_at, _by fields │
+│  rfps         [NEW COLLECTION]                           │
+│  mrfs / prs / transport_requests  unchanged              │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Component Responsibilities
 
-### View Layer Components
-
-| Component | Responsibility | Implementation Approach |
-|-----------|----------------|------------------------|
-| **projects.js** (existing) | Projects CRUD, personnel assignment, filtering | No changes — continues to operate independently |
-| **services.js** (NEW) | Services CRUD, personnel assignment, filtering | Duplicate projects.js structure with service_code, client_code fields |
-| **project-detail.js** (existing) | Project detail view with edit history | No changes — project-code based routing |
-| **service-detail.js** (NEW) | Service detail view with edit history | Duplicate project-detail.js for service-code routing |
-| **mrf-form.js** (modified) | MRF submission with project/service dropdown | Conditional rendering: if operations_user show Projects dropdown, if services_user show Services dropdown |
-| **procurement.js** (existing) | MRF processing, PR/TR generation | Minimal changes — handle department field in queries |
-| **finance.js** (existing) | PR/TR approval, PO tracking | Minimal changes — display department in lists |
-
-### Data Layer Components
-
-| Component | Responsibility | Implementation Approach |
-|-----------|----------------|------------------------|
-| **utils.js** | Shared utilities (formatting, code generation) | Add `generateServiceCode()`, `getAssignedServiceCodes()` alongside existing functions |
-| **permissions.js** | Role-based access control | Add `services` tab to permission checks; department-scoped role detection |
-| **router.js** | Hash-based routing with lazy loading | Add `/services` route, `/service-detail` route with permission mapping |
-| **firebase.js** | Firestore initialization | No changes — existing db export works for all collections |
-
-### Security Layer
-
-| Component | Responsibility | Implementation Approach |
-|-----------|----------------|------------------------|
-| **firestore.rules** | Collection-level access control | Add services collection rules (mirror projects), add department helpers, update mrfs/prs/pos rules for department filtering |
-| **role_templates** | Permission configuration per role | Add `services` tab with access/edit flags for each role |
-
----
-
-## Recommended Project Structure
-
-### Existing Structure (unchanged)
-```
-app/
-├── firebase.js           # Firestore initialization
-├── auth.js              # Authentication
-├── permissions.js       # Role-based access (modified for services)
-├── router.js            # Hash routing (add /services route)
-├── utils.js             # Shared utilities (add service code generation)
-├── components.js        # Reusable UI components
-├── edit-history.js      # Edit history recording
-└── views/
-    ├── home.js          # Dashboard (modify for services stats)
-    ├── projects.js      # Projects management (no changes)
-    ├── project-detail.js # Project detail (no changes)
-    ├── mrf-form.js      # MRF form (modify for conditional dropdowns)
-    ├── procurement.js   # Procurement workflow (minor modifications)
-    ├── finance.js       # Finance workflow (minor modifications)
-    └── ...
-```
-
-### New Structure (v3.0)
-```
-app/
-├── firebase.js           # [UNCHANGED]
-├── auth.js              # [UNCHANGED]
-├── permissions.js       # [MODIFIED] Add services tab checks
-├── router.js            # [MODIFIED] Add /services, /service-detail routes
-├── utils.js             # [MODIFIED] Add generateServiceCode(), getAssignedServiceCodes()
-├── components.js        # [UNCHANGED]
-├── edit-history.js      # [MODIFIED] Support service_code parameter
-└── views/
-    ├── home.js          # [MODIFIED] Add services stats to dashboard
-    ├── projects.js      # [UNCHANGED] Continues to work independently
-    ├── project-detail.js # [UNCHANGED]
-    ├── services.js      # [NEW] Duplicate projects.js structure
-    ├── service-detail.js # [NEW] Duplicate project-detail.js structure
-    ├── mrf-form.js      # [MODIFIED] Conditional dropdown rendering
-    ├── procurement.js   # [MODIFIED] Handle department field
-    ├── finance.js       # [MODIFIED] Handle department field
-    └── ...
-```
-
-### Structure Rationale
-
-- **Separate view modules** — `services.js` is a distinct file, not a conditional branch in `projects.js`. This maintains clear separation and allows independent evolution.
-- **Shared utility layer** — Code generation and formatting utilities are centralized in `utils.js`, avoiding duplication of business logic.
-- **Parallel routing** — `/services` and `/projects` are sibling routes, not nested. Router treats them as separate views with identical lifecycle patterns.
-- **Minimal modifications to existing views** — Procurement and Finance views add department filtering but don't restructure; existing Projects workflow is untouched.
+| Component | Responsibility | Change in v3.2 |
+|-----------|----------------|----------------|
+| `procurement.js` Supplier tab | CRUD + pagination for suppliers | Add search `<input>`, `supplierSearchTerm` state, `filterSuppliers()` window fn, filter in `renderSuppliersTable()` |
+| `procurement.js` MRF Records tab | PO tracking + PR-PO records | Add proof_url column/button on PO rows; "Submit RFP" button on Delivered POs; RFP po_id tracking Set |
+| `finance.js` | Finance approval + PO view + expense lists | Add Payables tab with `rfps` onSnapshot listener, render function, approval/payment actions |
+| `firestore.rules` | Security enforcement for all collections | Add `rfps` collection block |
+| `pos` Firestore documents | PO lifecycle | Add `proof_url`, `proof_uploaded_at`, `proof_uploaded_by` optional fields |
+| `rfps` Firestore collection | RFP/payables lifecycle | New collection — auto-created on first `addDoc` |
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Parallel Collections with Shared Sequence
+### Pattern 1: Client-Side Filter on Resident Data
 
-**What:** Services and Projects collections share a single sequential counter namespace (CLMC_CLIENT_YYYY###) to prevent code collisions.
+**What:** Load entire collection into module-level array via `onSnapshot`, filter in-memory before rendering/paginating.
 
-**When to use:** When multiple departments need unique codes but the business requires a single global sequence across all work items.
+**When to use:** Collection is small, already loaded for other purposes, Firestore has no partial-string-match operator.
 
-**Trade-offs:**
-- **Pro:** Prevents duplicate codes across departments (critical for billing/tracking)
-- **Pro:** Single source of truth for "next number" logic
-- **Con:** Code generation queries TWO collections, slightly slower (acceptable at <1000 records/year)
-- **Con:** Race condition possible with simultaneous creates (acceptable for v3.0, can add distributed counter later)
+**Already used in this codebase:** `filterPRPORecords()` filters `allPRPORecords[]` by project code, date, status. `applyPODeptFilter()` filters `poData[]` by department.
 
-**Example:**
+**Trade-offs:** Works at current scale. If suppliers grow to thousands, a dedicated search service (Algolia, Typesense) would be needed. For v3.2 scale, client-side is correct.
+
 ```javascript
-// utils.js
-export async function generateProjectCode(clientCode, year = null) {
-    const currentYear = year || new Date().getFullYear();
+// Follow this exact pattern — mirrors filterPRPORecords()
+let supplierSearchTerm = '';
 
-    // Query BOTH collections for max number
-    const projectsQuery = query(
-        collection(db, 'projects'),
-        where('client_code', '==', clientCode),
-        where('project_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
-        where('project_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
-    );
+function filterSuppliers(term) {
+    supplierSearchTerm = term.toLowerCase().trim();
+    suppliersCurrentPage = 1;  // Reset to page 1 on new search
+    renderSuppliersTable();
+}
 
-    const servicesQuery = query(
-        collection(db, 'services'),
-        where('client_code', '==', clientCode),
-        where('service_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
-        where('service_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
-    );
+// Inside renderSuppliersTable(), before pagination:
+const filtered = supplierSearchTerm
+    ? suppliersData.filter(s =>
+        s.supplier_name.toLowerCase().includes(supplierSearchTerm) ||
+        s.contact_person.toLowerCase().includes(supplierSearchTerm)
+      )
+    : suppliersData;
 
-    const [projectsSnapshot, servicesSnapshot] = await Promise.all([
-        getDocs(projectsQuery),
-        getDocs(servicesQuery)
-    ]);
+const totalPages = Math.ceil(filtered.length / suppliersItemsPerPage);
+const startIndex = (suppliersCurrentPage - 1) * suppliersItemsPerPage;
+const pageItems = filtered.slice(startIndex, startIndex + suppliersItemsPerPage);
+```
 
-    // Find max number across BOTH collections
-    let maxNum = 0;
-    projectsSnapshot.forEach(doc => {
-        const match = doc.data().project_code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
+### Pattern 2: New Tab in Existing View File
+
+**What:** Add a fourth tab to `finance.js` by (a) adding a tab button to the `render()` HTML string, (b) adding a new `<section>`, (c) adding module-level state, (d) registering an `onSnapshot` listener in `init()` lazily, (e) adding a render function.
+
+**When to use:** The new feature belongs to the same role (Finance), shares the same view lifecycle, and doesn't warrant a new route.
+
+**Already used:** `finance.js` has three tabs with this exact pattern. Payables is a fourth instance.
+
+**Lazy loading guard (matches existing TTL cache pattern):**
+
+```javascript
+let rfpsData = [];
+let _rfpsCachedAt = 0;
+const RFP_TTL_MS = 5 * 60 * 1000;
+let _rfpListenerActive = false;  // mirrors _mrfListenerActive in procurement.js
+
+async function loadRFPs() {
+    if (rfpsData.length > 0 && (Date.now() - _rfpsCachedAt) < RFP_TTL_MS) {
+        renderRFPsTable();
+        return;
+    }
+    if (_rfpListenerActive) return;
+    _rfpListenerActive = true;
+    const listener = onSnapshot(collection(db, 'rfps'), (snapshot) => {
+        rfpsData = [];
+        snapshot.forEach(doc => rfpsData.push({ id: doc.id, ...doc.data() }));
+        _rfpsCachedAt = Date.now();
+        renderRFPsTable();
     });
-    servicesSnapshot.forEach(doc => {
-        const match = doc.data().service_code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
-    });
-
-    const newNum = maxNum + 1;
-    return `CLMC_${clientCode}_${currentYear}${String(newNum).padStart(3, '0')}`;
-}
-
-// Services uses the SAME function
-export async function generateServiceCode(clientCode, year = null) {
-    return generateProjectCode(clientCode, year); // Shared implementation
+    listeners.push(listener);
 }
 ```
 
-**Source:** [Firebase distributed counters documentation](https://firebase.google.com/docs/firestore/solutions/counters) — for future optimization if race conditions become an issue.
+### Pattern 3: External Link Storage on Firestore Document
 
----
+**What:** Store a URL string on an existing document. Display as a clickable link or "View" button. Edit via a small modal with a text input.
 
-### Pattern 2: Department-Scoped Role Checks
+**When to use:** Document storage is external (Google Drive, SharePoint), app only needs to reference it.
 
-**What:** Permission checks filter tab access based on role department (operations_user → Projects, services_user → Services).
+**XSS note:** URLs stored in Firestore and rendered via template literals must pass through `escapeHTML()` before injection into `innerHTML`. The existing `escapeHTML()` utility in `utils.js` handles this.
 
-**When to use:** When different user groups need isolated views of parallel workflows but share approval roles (Finance, Procurement).
-
-**Trade-offs:**
-- **Pro:** Clear separation of concerns, users only see relevant tabs
-- **Pro:** Centralizes role logic in permissions.js, not scattered across views
-- **Con:** Requires careful role template configuration (new services tab for each role)
-- **Con:** Mixed-role users (operations + services) require special handling (use role flags, not multiple roles)
-
-**Example:**
 ```javascript
-// permissions.js (no changes needed — tab-based checks already work)
-export function hasTabAccess(tabId) {
-    if (!currentPermissions || !currentPermissions.tabs) return undefined;
+// Save
+await updateDoc(doc(db, 'pos', poId), {
+    proof_url: url.trim(),
+    proof_uploaded_at: serverTimestamp(),
+    proof_uploaded_by: auth.currentUser?.uid || null
+});
 
-    const currentUser = window.getCurrentUser?.();
-    if (currentUser && currentUser.role === 'super_admin') {
-        return true; // Super Admin bypass
-    }
-
-    return currentPermissions.tabs[tabId]?.access || false;
-}
-
-// Role templates structure (Firestore)
-// role_templates/operations_user
-{
-    permissions: {
-        tabs: {
-            projects: { access: true, edit: true },
-            services: { access: false, edit: false }, // ← Operations can't see Services
-            mrf_form: { access: true, edit: true },
-            procurement: { access: false, edit: false },
-            finance: { access: false, edit: false }
-        }
-    }
-}
-
-// role_templates/services_user
-{
-    permissions: {
-        tabs: {
-            projects: { access: false, edit: false }, // ← Services can't see Projects
-            services: { access: true, edit: true },
-            mrf_form: { access: true, edit: true },
-            procurement: { access: false, edit: false },
-            finance: { access: false, edit: false }
-        }
-    }
-}
-
-// role_templates/finance
-{
-    permissions: {
-        tabs: {
-            projects: { access: true, edit: false }, // ← Finance sees both departments (view-only)
-            services: { access: true, edit: false },
-            mrf_form: { access: false, edit: false },
-            procurement: { access: false, edit: false },
-            finance: { access: true, edit: true }
-        }
-    }
-}
+// Render in table row (escapeHTML on the URL prevents XSS)
+const proofCell = po.proof_url
+    ? `<a href="${escapeHTML(po.proof_url)}" target="_blank" rel="noopener noreferrer">View Proof</a>`
+    : `<button onclick="window.showAddProofModal('${po.id}')">Add Proof</button>`;
 ```
-
-**Source:** [WorkOS multi-tenant SaaS guide](https://workos.com/blog/developers-guide-saas-multi-tenant-architecture) — role-based tenant isolation patterns.
-
----
-
-### Pattern 3: Conditional Form Rendering Based on Role
-
-**What:** MRF form renders different dropdowns (Projects vs Services) based on user role, using the same form structure.
-
-**When to use:** When the same form serves multiple departments but data sources differ.
-
-**Trade-offs:**
-- **Pro:** Single MRF form component, no duplication
-- **Pro:** User sees only relevant options (no confusion between Projects/Services)
-- **Con:** Adds conditional logic to form rendering (increases complexity)
-- **Con:** Requires department field on MRF documents for routing back to correct department
-
-**Example:**
-```javascript
-// mrf-form.js
-export function render() {
-    const canEdit = window.canEditTab?.('mrf_form');
-    if (canEdit === false) {
-        return `<div class="view-only-notice">...</div>`;
-    }
-
-    // Determine user department
-    const user = window.getCurrentUser?.();
-    const isOperations = user?.role === 'operations_user' || user?.role === 'operations_admin';
-    const isServices = user?.role === 'services_user' || user?.role === 'services_admin';
-
-    // Mixed-role users (super_admin, finance, procurement) see both dropdowns or default to Projects
-    const showProjectsDropdown = isOperations || (!isServices && !isOperations);
-    const showServicesDropdown = isServices;
-
-    return `
-        <form id="mrfForm">
-            ${showProjectsDropdown ? `
-                <div class="form-group">
-                    <label>Select Project *</label>
-                    <select id="projectSelect" name="project" required>
-                        <option value="">Select Project</option>
-                        <!-- Populated in init() from projects collection -->
-                    </select>
-                </div>
-            ` : ''}
-
-            ${showServicesDropdown ? `
-                <div class="form-group">
-                    <label>Select Service *</label>
-                    <select id="serviceSelect" name="service" required>
-                        <option value="">Select Service</option>
-                        <!-- Populated in init() from services collection -->
-                    </select>
-                </div>
-            ` : ''}
-
-            <!-- Hidden field to track department -->
-            <input type="hidden" id="departmentField"
-                   value="${showProjectsDropdown ? 'projects' : 'services'}" />
-
-            <!-- Rest of form... -->
-        </form>
-    `;
-}
-
-export async function init() {
-    const user = window.getCurrentUser?.();
-    const isOperations = user?.role === 'operations_user' || user?.role === 'operations_admin';
-    const isServices = user?.role === 'services_user' || user?.role === 'services_admin';
-
-    if (isOperations) {
-        // Load projects with assignment filtering
-        const projectCodes = getAssignedProjectCodes();
-        const projectsQuery = projectCodes
-            ? query(collection(db, 'projects'), where('project_code', 'in', projectCodes))
-            : query(collection(db, 'projects'));
-
-        const listener = onSnapshot(projectsQuery, (snapshot) => {
-            const projects = [];
-            snapshot.forEach(doc => projects.push({ id: doc.id, ...doc.data() }));
-            renderProjectDropdown(projects);
-        });
-        listeners.push(listener);
-    }
-
-    if (isServices) {
-        // Load services with assignment filtering
-        const serviceCodes = getAssignedServiceCodes(); // NEW utility function
-        const servicesQuery = serviceCodes
-            ? query(collection(db, 'services'), where('service_code', 'in', serviceCodes))
-            : query(collection(db, 'services'));
-
-        const listener = onSnapshot(servicesQuery, (snapshot) => {
-            const services = [];
-            snapshot.forEach(doc => services.push({ id: doc.id, ...doc.data() }));
-            renderServiceDropdown(services);
-        });
-        listeners.push(listener);
-    }
-}
-```
-
-**Source:** [Conditional form rendering patterns](https://docs.softr.io/building-blocks/vikC2AWEpQGkZd4jGyoVxo/conditional-forms/afyKqnGDXd54U8d4xLNcsR) — dynamic form logic based on user attributes.
-
----
-
-### Pattern 4: Multi-Collection Security Rules with Shared Helpers
-
-**What:** Firestore Security Rules use helper functions to validate access across both Projects and Services collections with consistent logic.
-
-**When to use:** When multiple collections share similar access patterns but need department-specific filtering.
-
-**Trade-offs:**
-- **Pro:** DRY — single source of truth for role checks (isRole, hasRole, isActiveUser)
-- **Pro:** Consistent security across departments
-- **Con:** Rules file grows (~300 lines with Services added)
-- **Con:** Must deploy rules carefully (test in emulator first)
-
-**Example:**
-```javascript
-// firestore.rules
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    // =============================================
-    // HELPER FUNCTIONS (existing, reused)
-    // =============================================
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isActiveUser() {
-      return isSignedIn() && getUserData().status == 'active';
-    }
-
-    function hasRole(roles) {
-      return isActiveUser() && getUserData().role in roles;
-    }
-
-    function isRole(role) {
-      return hasRole([role]);
-    }
-
-    // =============================================
-    // DEPARTMENT-SPECIFIC HELPERS (NEW)
-    // =============================================
-
-    // Check if operations_user is assigned to a project_code
-    function isAssignedToProject(projectCode) {
-      return getUserData().all_projects == true ||
-             projectCode in getUserData().assigned_project_codes;
-    }
-
-    // Check if services_user is assigned to a service_code (NEW)
-    function isAssignedToService(serviceCode) {
-      return getUserData().all_services == true ||
-             serviceCode in getUserData().assigned_service_codes;
-    }
-
-    // Check if user can access based on department field (NEW)
-    function canAccessDepartment(department, code) {
-      return department == 'projects' && isAssignedToProject(code) ||
-             department == 'services' && isAssignedToService(code);
-    }
-
-    // =============================================
-    // projects collection (existing, unchanged)
-    // =============================================
-    match /projects/{projectId} {
-      allow read: if isActiveUser();
-      allow create: if hasRole(['super_admin', 'operations_admin']);
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
-      allow delete: if hasRole(['super_admin', 'operations_admin']);
-
-      match /edit_history/{entryId} {
-        allow read: if isActiveUser();
-        allow create: if hasRole(['super_admin', 'operations_admin', 'finance']);
-        allow update: if false;
-        allow delete: if false;
-      }
-    }
-
-    // =============================================
-    // services collection (NEW — parallel structure)
-    // =============================================
-    match /services/{serviceId} {
-      allow read: if isActiveUser();
-      allow create: if hasRole(['super_admin', 'services_admin']);
-      allow update: if hasRole(['super_admin', 'services_admin', 'finance']);
-      allow delete: if hasRole(['super_admin', 'services_admin']);
-
-      match /edit_history/{entryId} {
-        allow read: if isActiveUser();
-        allow create: if hasRole(['super_admin', 'services_admin', 'finance']);
-        allow update: if false;
-        allow delete: if false;
-      }
-    }
-
-    // =============================================
-    // mrfs collection (MODIFIED — add department filtering)
-    // =============================================
-    match /mrfs/{mrfId} {
-      allow get: if isActiveUser();
-
-      // List: filter by department and assigned codes
-      allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && resource.data.department == 'projects' && isAssignedToProject(resource.data.project_code)) ||
-        (isRole('services_user') && resource.data.department == 'services' && isAssignedToService(resource.data.service_code))
-      );
-
-      // Create: operations can create Projects MRFs, services can create Services MRFs
-      allow create: if hasRole(['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'procurement']);
-
-      // Update: admins, finance, procurement
-      allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']);
-
-      // Delete: admins only
-      allow delete: if hasRole(['super_admin', 'operations_admin', 'services_admin']);
-    }
-
-    // Similar modifications for prs, pos, transport_requests...
-  }
-}
-```
-
-**Source:** [Firestore security rules structure documentation](https://firebase.google.com/docs/firestore/security/rules-structure) — helper functions for rule reuse.
-
----
-
-### Pattern 5: Denormalized Department Field
-
-**What:** MRFs, PRs, POs, and TRs store both `project_code`/`service_code` AND a `department` field ('projects' or 'services') for efficient filtering.
-
-**When to use:** When documents need to be queried by department without checking existence in multiple collections.
-
-**Trade-offs:**
-- **Pro:** Single query to filter by department (`where('department', '==', 'services')`)
-- **Pro:** No need for compound queries or client-side filtering
-- **Con:** Denormalization — department must be kept in sync with code field
-- **Con:** Requires migration of existing data (add department: 'projects' to all existing MRFs)
-
-**Example:**
-```javascript
-// Data structure in Firestore
-
-// MRF document (Projects department)
-{
-    mrf_id: "MRF-2026-123",
-    department: "projects",        // ← NEW denormalized field
-    project_code: "CLMC_ACME_2026001",
-    project_name: "ACME Building Project",
-    // ... rest of fields
-}
-
-// MRF document (Services department)
-{
-    mrf_id: "MRF-2026-124",
-    department: "services",        // ← NEW denormalized field
-    service_code: "CLMC_ACME_2026002",
-    service_name: "ACME Maintenance Service",
-    // ... rest of fields
-}
-
-// Query pattern in procurement.js
-const mrfsQuery = query(
-    collection(db, 'mrfs'),
-    where('department', '==', 'services') // Filter by department
-);
-
-// Display pattern in finance.js
-function renderMRFRow(mrf) {
-    const departmentBadge = mrf.department === 'projects'
-        ? '<span class="badge badge-primary">Projects</span>'
-        : '<span class="badge badge-info">Services</span>';
-
-    return `
-        <tr>
-            <td>${mrf.mrf_id}</td>
-            <td>${departmentBadge}</td>
-            <td>${mrf.department === 'projects' ? mrf.project_code : mrf.service_code}</td>
-            <td>${mrf.department === 'projects' ? mrf.project_name : mrf.service_name}</td>
-            <!-- ... -->
-        </tr>
-    `;
-}
-```
-
-**Source:** [Multi-tenant data isolation patterns](https://medium.com/@justhamade/architecting-secure-multi-tenant-data-isolation-d8f36cb0d25e) — denormalization for efficient tenant filtering.
 
 ---
 
 ## Data Flow
 
-### Request Flow: Creating a Service MRF
+### Supplier Search Flow
 
 ```
-User (services_user) navigates to #/mrf-form
-    ↓
-Router checks hasTabAccess('mrf_form') → true
-    ↓
-mrf-form.js renders
-    ↓ (conditional rendering)
-User sees Service dropdown (NOT Project dropdown)
-    ↓
-init() establishes onSnapshot listener on services collection
-    ↓ (filtered by assigned_service_codes if services_user)
-Services dropdown populated with user's assigned services
-    ↓
-User selects service, fills items, submits
-    ↓
-submitMRF() extracts service_code, service_name from dropdown
-    ↓
-addDoc(collection(db, 'mrfs'), {
-    department: 'services',
-    service_code: 'CLMC_ACME_2026002',
-    service_name: 'ACME Maintenance Service',
-    // ...
-})
-    ↓
-Security Rules validate:
-  - isRole('services_user') → true
-  - department matches user's role → true
-    ↓
-Document created in mrfs collection
-    ↓
-Procurement view (Finance/Procurement roles) sees new MRF
-    ↓ (onSnapshot listener includes both departments)
-MRF appears in Procurement tab with "Services" badge
+User types in search input
+    ↓ oninput → window.filterSuppliers(this.value)
+filterSuppliers()
+    ↓ sets supplierSearchTerm, resets suppliersCurrentPage = 1
+renderSuppliersTable()
+    ↓ filters suppliersData[] in memory (no network call)
+    ↓ slices for current page
+    ↓ updates tbody innerHTML + pagination controls
+DOM update complete
 ```
 
-### Request Flow: Generating Service Code
+### Proof of Procurement Flow
 
 ```
-User (services_admin) creates new service in #/services
-    ↓
-services.js calls generateServiceCode('ACME')
-    ↓
-utils.js queries BOTH projects and services collections
-    ↓
-Promise.all([
-    getDocs(query(db, 'projects', where('client_code', '==', 'ACME'))),
-    getDocs(query(db, 'services', where('client_code', '==', 'ACME')))
-])
-    ↓
-Extract max number from BOTH collections
-    ↓
-maxNum = 1 (from projects: CLMC_ACME_2026001)
-    ↓
-Generate newNum = 2 → CLMC_ACME_2026002
-    ↓
-Return 'CLMC_ACME_2026002' to services.js
-    ↓
-addDoc(collection(db, 'services'), {
-    service_code: 'CLMC_ACME_2026002',
-    client_code: 'ACME',
-    // ...
-})
-    ↓
-Security Rules validate:
-  - isRole('services_admin') → true
-    ↓
-Service created with globally unique code
+Procurement user: Procurement > MRF Records > PO Tracking
+    ↓ PO row shows "Add Proof" button (no proof_url field)
+User clicks "Add Proof"
+    ↓ Modal opens with URL text input
+User pastes Google Drive shareable link, clicks Save
+    ↓ window.saveProofUrl(poId, url)
+    ↓ updateDoc(pos/poId, { proof_url, proof_uploaded_at, proof_uploaded_by })
+onSnapshot fires → poData[] updates → renderPOTrackingTable()
+    ↓ Row now shows "View Proof" link (opens Drive URL in new tab)
 ```
 
-### State Management: Permission Checks
+### RFP Submission and Approval Flow
 
 ```
-User logs in → auth.js calls initPermissionsObserver(user)
-    ↓
-permissions.js establishes onSnapshot listener on role_templates/{role}
-    ↓
-Role template loaded into memory (currentPermissions)
-    ↓
-Custom event 'permissionsChanged' dispatched
-    ↓
-Navigation menu updates (show/hide tabs based on permissions.tabs.*.access)
-    ↓
-User clicks #/services link
-    ↓
-Router calls hasTabAccess('services')
-    ↓
-permissions.js checks currentPermissions.tabs.services.access
-    ↓ (if services_user)
-Returns true → Router navigates to /services
-    ↓
-services.js renders, calls canEditTab('services')
-    ↓
-Returns true → Edit controls rendered
-    ↓
-User modifies service, saves
-    ↓
-services.js calls updateDoc()
-    ↓
-Security Rules validate:
-  - hasRole(['super_admin', 'services_admin']) → true (if services_admin)
-    ↓
-Document updated in services collection
+Procurement: Procurement > MRF Records > PO Tracking
+    ↓ PO with procurement_status='Delivered' and no existing RFP shows "Submit RFP"
+User fills payment terms + due date in modal
+    ↓ window.submitRFP(poId)
+    ↓ addDoc(rfps, { rfp_id, po_id, pr_id, mrf_id, supplier_name, total_amount,
+                     payment_terms, due_date, status: 'Pending', submitted_by, submitted_at,
+                     project_code, service_code, department })
+Finance: Finance > Payables tab
+    ↓ onSnapshot on rfps → rfpsData[] updates → renderRFPsTable()
+    ↓ New RFP appears with status badge 'Pending'
+Finance approves: window.approveRFP(rfpId)
+    ↓ updateDoc(rfps/rfpId, { status: 'Approved', approved_by, approved_at })
+Finance marks paid: window.markRFPPaid(rfpId)
+    ↓ updateDoc(rfps/rfpId, { status: 'Paid', paid_at: serverTimestamp() })
 ```
 
 ---
 
-## Scaling Considerations
+## New vs Modified Components
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 0-500 projects/services | Current architecture sufficient — sequential code generation queries <1000 docs, acceptable latency |
-| 500-5000 total work items | Consider distributed counter for code generation (Firebase solution: sharded counters), cache dropdown options client-side |
-| 5000+ total work items | Implement Firestore aggregation queries for dashboard stats, paginate dropdown options, add search/autocomplete |
+### New
 
-### Scaling Priorities
+| Component | Type | Location |
+|-----------|------|----------|
+| `rfps` Firestore collection | Database | Auto-created on first `addDoc` call |
+| `rfps` Security Rules block | Rules | `firestore.rules` — after `pos` block |
+| Payables tab HTML | View | `finance.js` `render()` string |
+| `loadRFPs()` / `renderRFPsTable()` | Functions | `finance.js` |
+| `approveRFP()` / `markRFPPaid()` / `rejectRFP()` | Functions | `finance.js` |
+| `submitRFP()` | Function | `procurement.js` |
+| `showAddProofModal()` / `saveProofUrl()` | Functions | `procurement.js` |
 
-1. **First bottleneck: Code generation queries** — When projects + services > 1000 per client/year, sequential queries become slow. Solution: Implement [Firebase distributed counters](https://firebase.google.com/docs/firestore/solutions/counters) with sharded counter documents.
+### Modified
 
-2. **Second bottleneck: Dropdown population** — When services > 100, dropdowns slow to render. Solution: Implement virtualized dropdowns with search/filter (use Firestore `orderBy().limit(20)` with client-side search).
-
-3. **Third bottleneck: Dashboard aggregations** — When total documents > 10k, client-side counting becomes expensive. Solution: Use [Firestore aggregation queries](https://firebase.google.com/docs/firestore/query-data/aggregation-queries) with `getAggregateFromServer()` for counts/sums.
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Nested Collections (services as subcollection of projects)
-
-**What people might do:**
-```javascript
-// ❌ WRONG: services as subcollection
-/projects/{projectId}/services/{serviceId}
-```
-
-**Why it's wrong:**
-- Services are not children of Projects — they're parallel workflows
-- Querying across all services requires collection group queries (slower, more complex)
-- MRF form can't easily reference service without knowing parent project
-- Security Rules become convoluted (need to check parent project access)
-- Code generation can't query both collections in parallel
-
-**Do this instead:**
-```javascript
-// ✅ CORRECT: services as root collection
-/services/{serviceId}
-```
-
-Both projects and services are top-level collections with independent lifecycles.
+| Component | Change | Location |
+|-----------|--------|----------|
+| `procurement.js` `render()` | Add search `<input>` above suppliers table | ~line 238 |
+| `procurement.js` global state | Add `let supplierSearchTerm = ''` | ~line 19 |
+| `procurement.js` `attachWindowFunctions()` | Add `filterSuppliers`, `saveProofUrl`, `showAddProofModal`, `submitRFP` | ~line 96 |
+| `procurement.js` `renderSuppliersTable()` | Apply filter before pagination slice | line 2537 |
+| `procurement.js` PO Tracking table render | Add proof_url column; add "Submit RFP" on Delivered POs | PO row template |
+| `procurement.js` `loadPOTracking()` | Load existing RFP po_ids to build a Set for button gating | loadPOTracking function |
+| `finance.js` tab nav HTML | Add "Payables" tab button | `render()` string |
+| `finance.js` global state | Add `rfpsData`, `_rfpsCachedAt`, `_rfpListenerActive`, filter state | ~line 47 area |
+| `finance.js` `init()` | Register Payables tab activation (lazy load on first tab visit) | `init()` function |
+| `finance.js` `attachWindowFunctions()` | Add `approveRFP`, `markRFPPaid`, `rejectRFP`, `loadRFPs` | ~line 153 |
+| `firestore.rules` | Add `rfps` collection block | After `pos` block |
 
 ---
 
-### Anti-Pattern 2: Single View with Mode Toggle
+## Build Order (Dependency-Aware)
 
-**What people might do:**
-```javascript
-// ❌ WRONG: Single projects.js with mode toggle
-if (mode === 'services') {
-    // Render services
-} else {
-    // Render projects
-}
-```
+The three features have no hard dependencies on each other. This order minimizes risk:
 
-**Why it's wrong:**
-- Violates separation of concerns — projects and services are distinct workflows
-- Creates complex conditional logic throughout the module (harder to maintain)
-- Increases module size (projects.js already 596 lines)
-- Makes testing harder (need to test both modes in every function)
-- Breaks router's view lifecycle model (mode changes don't trigger destroy)
+**Phase 1: Supplier Search** (lowest risk, zero new infrastructure)
+- Scope: `procurement.js` only, no Firestore changes, no Security Rules changes
+- Self-contained: add state var, new function, modify one existing function, update render HTML
+- Risk: none — worst case the filter doesn't work, existing table is unaffected
 
-**Do this instead:**
-```javascript
-// ✅ CORRECT: Separate view modules
-// app/views/projects.js — handles projects collection
-// app/views/services.js — handles services collection
-```
+**Phase 2: Proof of Procurement Link** (low risk, minimal Firestore change)
+- Scope: `procurement.js` PO Tracking table, optional fields on `pos` documents
+- No new collection, no Security Rules change
+- Single `updateDoc` call; backward compatible (legacy POs have no `proof_url`, code checks for its existence)
+- Can be implemented and tested before RFP exists
 
-Duplicate view structure, share utilities.
-
----
-
-### Anti-Pattern 3: Department Field Inference
-
-**What people might do:**
-```javascript
-// ❌ WRONG: Infer department from field existence
-if (mrf.project_code) {
-    department = 'projects';
-} else if (mrf.service_code) {
-    department = 'services';
-}
-```
-
-**Why it's wrong:**
-- Fragile — breaks if both fields exist (due to migration bugs)
-- Requires client-side logic in every view that displays department
-- Security Rules can't efficiently filter without explicit department field
-- Queries need compound conditions (`where('project_code', '!=', null)` AND `where('service_code', '==', null)`)
-
-**Do this instead:**
-```javascript
-// ✅ CORRECT: Explicit department field
-{
-    department: 'services',  // Single source of truth
-    service_code: 'CLMC_ACME_2026002',
-    // ...
-}
-```
-
-Denormalized but explicit.
-
----
-
-### Anti-Pattern 4: Separate Code Sequences Per Department
-
-**What people might do:**
-```javascript
-// ❌ WRONG: Independent sequences
-Projects: CLMC_ACME_2026001, CLMC_ACME_2026002
-Services: CLMC_ACME_2026001, CLMC_ACME_2026002  // Collision!
-```
-
-**Why it's wrong:**
-- Code collisions break system-wide uniqueness assumption
-- Finance/Procurement can't distinguish "002" (is it Project or Service?)
-- Reporting/billing systems expect globally unique codes
-- Historical data becomes ambiguous
-
-**Do this instead:**
-```javascript
-// ✅ CORRECT: Shared sequence across departments
-Projects: CLMC_ACME_2026001
-Services: CLMC_ACME_2026002
-Projects: CLMC_ACME_2026003
-Services: CLMC_ACME_2026004
-```
-
-Single global sequence, department tracked in department field.
-
----
-
-### Anti-Pattern 5: Hard-Coded Role Department Assumptions
-
-**What people might do:**
-```javascript
-// ❌ WRONG: Assume role name indicates department
-if (user.role.includes('operations')) {
-    showProjectsTab = true;
-}
-```
-
-**Why it's wrong:**
-- Fragile — breaks if role names change
-- Doesn't handle mixed-role users (Finance, Procurement see both)
-- Bypasses permission system (ignores role_templates configuration)
-- Hard to extend (what if we add "maintenance" department?)
-
-**Do this instead:**
-```javascript
-// ✅ CORRECT: Use permission system
-const hasProjectsAccess = window.hasTabAccess('projects');
-const hasServicesAccess = window.hasTabAccess('services');
-
-if (hasProjectsAccess) showProjectsTab = true;
-if (hasServicesAccess) showServicesTab = true;
-```
-
-Let role_templates define access, not code assumptions.
+**Phase 3: RFP + Payables Tracking** (medium complexity, new collection + new tab)
+- Scope: new `rfps` collection, new Security Rules block, new tab in `finance.js`, new window functions in both view files
+- Security Rules must be deployed first (before any UI code runs)
+- Build last because it launches from the PO Tracking UI (needs proof_url work to be stable first, and shares the PO row)
+- The sequential ID generator (`generateSequentialId` or inline pattern) for `RFP-YYYY-###` follows the exact same approach as `PR-YYYY-###` and `PO-YYYY-###`
 
 ---
 
@@ -899,403 +455,73 @@ Let role_templates define access, not code assumptions.
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| **Firebase Firestore** | Direct SDK calls via firebase.js | v10.7.1, loaded from CDN, no build step required |
-| **Firebase Auth** | Built-in authentication (auth.js) | Email/password, session persistence in localStorage |
-| **Netlify** | Static deploy (git push → auto deploy) | No environment variables needed, CSP headers configured |
+| Google Drive | Shareable URL paste — no API integration | User uploads to Drive manually, copies the share link, pastes into the app's text input. URL stored as a plain string in Firestore. No OAuth, no API key, no Cloud Console setup required. Clicking "View Proof" opens the URL in a new tab via `window.open`. |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| **Router ↔ Views** | Function calls (render, init, destroy) | Router manages view lifecycle, passes activeTab parameter |
-| **Views ↔ Permissions** | Window functions (hasTabAccess, canEditTab) | Synchronous checks, returns true/false/undefined |
-| **Views ↔ Firestore** | Firebase SDK (onSnapshot, getDocs, addDoc) | Real-time listeners stored in module-scoped array for cleanup |
-| **Views ↔ Utils** | ES6 module imports | Shared utilities (formatCurrency, generateProjectCode) |
-| **Projects ↔ Services** | **NO DIRECT COMMUNICATION** | Isolated — shared data only via Firestore collections |
-| **MRF Form ↔ Projects/Services** | Firestore queries in init() | Conditional based on user role, populates relevant dropdown |
-| **Procurement ↔ Both Departments** | Unified mrfs collection with department field | Single onSnapshot listener, filter/display by department |
-| **Finance ↔ Both Departments** | Unified prs/pos collections with department field | Single onSnapshot listener, filter/display by department |
+| `procurement.js` ↔ `rfps` collection | `addDoc` on RFP submit; `getDocs` to build existing-RFP Set | Procurement creates RFPs |
+| `finance.js` ↔ `rfps` collection | `onSnapshot` for list; `updateDoc` on approve/mark paid/reject | Finance manages RFP lifecycle |
+| `procurement.js` ↔ `pos` collection | `updateDoc` to add `proof_url` fields | Existing update permission covers this; no rule change |
+| Supplier search ↔ `suppliers` collection | Read-only; filter is in-memory only | No Firestore interaction during search |
 
 ---
 
-## Component Reuse vs Duplication Strategy
-
-### Reuse (Shared Code)
-
-| Component | Why Shared |
-|-----------|------------|
-| **utils.js** | Business logic (code generation, formatting) is identical across departments |
-| **permissions.js** | Permission checks are role-based, not department-specific |
-| **router.js** | Routing logic is generic, works for any view |
-| **firebase.js** | Single Firestore instance serves all collections |
-| **components.js** | UI components (modals, badges) are department-agnostic |
-| **edit-history.js** | Edit history recording logic is identical (just parameterized) |
-
-### Duplicate (Department-Specific)
-
-| Component | Why Duplicated |
-|-----------|----------------|
-| **services.js** | Department-specific CRUD logic, queries services collection, manages service_code |
-| **service-detail.js** | Detail view specific to service documents, edit history for services |
-| **Navigation menu items** | Separate tabs for Projects and Services (conditional visibility) |
-| **Security Rules blocks** | Separate match blocks for projects and services collections (parallel structure) |
-| **Role templates entries** | Separate permission entries for projects and services tabs |
-
-### Conditional (Department-Aware)
-
-| Component | Why Conditional |
-|-----------|----------------|
-| **mrf-form.js** | Same form structure, but dropdown source differs by role |
-| **procurement.js** | Same workflow, but adds department badge/filter in display |
-| **finance.js** | Same workflow, but adds department badge/filter in display |
-| **home.js** | Dashboard adds services stats alongside projects stats |
-
----
-
-## Build Order (Dependency-Based Phases)
-
-### Phase 1: Foundation (Backend Structure)
-**What:** Add services collection, update Security Rules, modify role_templates
-**Why:** Required before any UI work can begin
-**Risk:** Low (additive changes, doesn't break existing Projects workflow)
-**Testing:** Firebase emulator, verify services_admin can CRUD services
-
-**Tasks:**
-1. Add services collection Security Rules (mirror projects structure)
-2. Add department helper functions (isAssignedToService, canAccessDepartment)
-3. Update role_templates to include services tab for each role
-4. Create services_admin and services_user role templates
-5. Deploy rules with `firebase deploy --only firestore:rules`
-
----
-
-### Phase 2: Shared Utilities (Code Generation)
-**What:** Modify utils.js to support service code generation with shared sequence
-**Why:** Services view needs code generation before it can create documents
-**Risk:** Medium (modifies existing generateProjectCode, requires testing for race conditions)
-**Testing:** Unit test with mock data, verify codes don't collide
-
-**Tasks:**
-1. Modify generateProjectCode() to query both collections
-2. Add generateServiceCode() as alias
-3. Add getAssignedServiceCodes() utility (mirrors getAssignedProjectCodes)
-4. Update users collection schema to include assigned_service_codes array
-5. Test code generation with simultaneous creates
-
----
-
-### Phase 3: Services View (Isolated Department UI)
-**What:** Create services.js and service-detail.js views
-**Why:** Core department functionality, isolated from existing Projects
-**Risk:** Low (new modules, doesn't modify existing code)
-**Testing:** Manual testing with services_admin role, verify CRUD operations
-
-**Tasks:**
-1. Duplicate projects.js → services.js (replace project_code → service_code)
-2. Duplicate project-detail.js → service-detail.js
-3. Update router.js to add /services and /service-detail routes
-4. Add permission mapping (routePermissionMap['/services'] = 'services')
-5. Add navigation menu item (conditional visibility based on hasTabAccess)
-6. Test view lifecycle (render → init → destroy)
-
----
-
-### Phase 4: MRF Form Integration (Conditional Dropdowns)
-**What:** Modify mrf-form.js to support conditional Project/Service dropdown
-**Why:** Users need to create MRFs linked to Services
-**Risk:** Medium (modifies existing form, requires careful testing of conditional logic)
-**Testing:** Test with operations_user, services_user, and mixed-role users (Finance)
-
-**Tasks:**
-1. Add conditional rendering logic in render() (showProjectsDropdown vs showServicesDropdown)
-2. Add services dropdown population in init()
-3. Add department field to MRF submission logic
-4. Update Security Rules for mrfs collection (add department filtering)
-5. Test with multiple roles, verify correct dropdown visibility
-6. Test MRF creation for both departments
-
----
-
-### Phase 5: Procurement/Finance Integration (Cross-Department Workflows)
-**What:** Modify procurement.js and finance.js to handle both departments
-**Why:** Finance/Procurement approve work from both Projects and Services
-**Risk:** Medium (modifies critical approval workflows)
-**Testing:** End-to-end test with MRFs from both departments, verify approval flow
-
-**Tasks:**
-1. Add department badge rendering in MRF/PR/PO lists
-2. Add department filter controls (optional dropdown to filter by department)
-3. Update queries to include department field (no change if showing all)
-4. Test PR generation from Services MRFs
-5. Test PO issuance for Services PRs
-6. Verify Finance can approve both departments
-
----
-
-### Phase 6: Dashboard Integration (Services Stats)
-**What:** Modify home.js to include services statistics
-**Why:** Users need visibility into services workload
-**Risk:** Low (additive changes to dashboard)
-**Testing:** Verify stats match document counts in Firestore
-
-**Tasks:**
-1. Add services stats queries (mirror projects stats)
-2. Add services stats cards to dashboard
-3. Add department breakdown chart (Projects vs Services)
-4. Test with mixed data (projects and services MRFs)
-
----
-
-### Phase 7: Data Migration (Existing Documents)
-**What:** Add department: 'projects' to all existing MRFs, PRs, POs, TRs
-**Why:** Security Rules and queries rely on department field
-**Risk:** High (bulk update of production data)
-**Testing:** Test on copy of production data first, verify no data loss
-
-**Tasks:**
-1. Write migration script (Cloud Function or local script with Admin SDK)
-2. Add department: 'projects' to all documents where field is missing
-3. Verify all documents have department field
-4. Deploy Security Rules that REQUIRE department field (enforce going forward)
-5. Monitor production for errors after deployment
-
----
-
-## Testing Strategy
-
-### Unit Testing (Client-Side Logic)
-
-**Code Generation:**
-```javascript
-// Test shared sequence across collections
-const mockProjects = [{ project_code: 'CLMC_ACME_2026001' }];
-const mockServices = [{ service_code: 'CLMC_ACME_2026002' }];
-
-// Expected: generateProjectCode('ACME') returns 'CLMC_ACME_2026003'
-```
-
-**Permission Checks:**
-```javascript
-// Test department-scoped access
-const operationsUser = { role: 'operations_user', assigned_project_codes: ['CLMC_ACME_2026001'] };
-const servicesUser = { role: 'services_user', assigned_service_codes: ['CLMC_ACME_2026002'] };
-
-// Expected: operations_user hasTabAccess('projects') = true, hasTabAccess('services') = false
-// Expected: services_user hasTabAccess('projects') = false, hasTabAccess('services') = true
-```
-
-**Conditional Rendering:**
-```javascript
-// Test MRF form dropdown visibility
-const operationsUser = { role: 'operations_user' };
-const html = renderMRFForm(operationsUser);
-
-// Expected: html.includes('id="projectSelect"') = true
-// Expected: html.includes('id="serviceSelect"') = false
-```
-
-### Integration Testing (End-to-End)
-
-**Services MRF Workflow:**
-1. Login as services_user
-2. Navigate to #/mrf-form
-3. Verify Service dropdown visible (NOT Project dropdown)
-4. Select service, fill items, submit
-5. Verify MRF created with department: 'services'
-6. Login as Finance
-7. Verify MRF appears in Pending Approvals with "Services" badge
-8. Approve MRF → Generate PR
-9. Verify PR created with department: 'services'
-10. Issue PO
-11. Verify PO created with department: 'services'
-
-**Cross-Department Dashboard:**
-1. Create 3 Projects MRFs, 2 Services MRFs
-2. Navigate to #/
-3. Verify dashboard shows correct counts (3 projects, 2 services)
-4. Verify department breakdown chart
-
-**Role Isolation:**
-1. Login as operations_user
-2. Verify Projects tab visible, Services tab NOT visible
-3. Login as services_user
-4. Verify Services tab visible, Projects tab NOT visible
-5. Login as Finance
-6. Verify BOTH tabs visible (view-only)
-
-### Security Rules Testing
-
-**Firebase Emulator Suite:**
-```javascript
-// Test services_user can't access projects
-const servicesUser = testEnv.authenticatedContext('services-user-uid', {
-    role: 'services_user',
-    assigned_service_codes: ['CLMC_ACME_2026002']
-});
-
-// Expected: DENIED
-await assertFails(servicesUser.firestore().collection('projects').get());
-
-// Expected: ALLOWED
-await assertSucceeds(servicesUser.firestore().collection('services').get());
-```
-
-**Department Filtering:**
-```javascript
-// Test operations_user can't see services MRFs
-const operationsUser = testEnv.authenticatedContext('operations-user-uid', {
-    role: 'operations_user',
-    assigned_project_codes: ['CLMC_ACME_2026001']
-});
-
-// Expected: DENIED (wrong department)
-const servicesMRF = await operationsUser.firestore()
-    .collection('mrfs')
-    .doc('mrf-with-department-services')
-    .get();
-
-await assertFails(servicesMRF);
-```
-
----
-
-## Performance Considerations
-
-### Code Generation Performance
-
-**Current approach (queries both collections):**
-- Latency: ~200-500ms with <1000 docs total per client/year
-- Billable reads: 2 queries (acceptable for infrequent operation)
-
-**Optimization for high-volume (future):**
-- Implement [distributed counter](https://firebase.google.com/docs/firestore/solutions/counters) with sharded counter documents
-- Trade-off: Complex write logic, but near-instant reads
-- Implement when: >1000 work items per client per year
-
-### Dropdown Population Performance
-
-**Current approach (real-time onSnapshot):**
-- Fetches all projects/services user has access to
-- Acceptable for <100 items
-
-**Optimization for large datasets (future):**
-- Implement virtualized dropdown with search
-- Load only first 20 items, fetch more on scroll/search
-- Use Firestore `orderBy().limit(20)` with client-side search
-
-### Dashboard Aggregation Performance
-
-**Current approach (client-side counting):**
-- Fetches all documents, counts in JavaScript
-- Acceptable for <1000 total documents
-
-**Optimization for large datasets (future):**
-- Use [Firestore aggregation queries](https://firebase.google.com/docs/firestore/query-data/aggregation-queries)
-- `getAggregateFromServer()` with `count()` and `sum()`
-- Single billable read instead of N reads
-
----
-
-## Migration Strategy
-
-### Data Migration (Existing Documents)
-
-**Step 1: Assess Current Data**
-```javascript
-// Count documents missing department field
-const mrfs = await getDocs(collection(db, 'mrfs'));
-let missingDepartment = 0;
-mrfs.forEach(doc => {
-    if (!doc.data().department) missingDepartment++;
-});
-console.log(`MRFs missing department: ${missingDepartment}`);
-```
-
-**Step 2: Batch Update**
-```javascript
-// Add department: 'projects' to all existing documents
-const batch = writeBatch(db);
-const mrfs = await getDocs(collection(db, 'mrfs'));
-
-mrfs.forEach(doc => {
-    if (!doc.data().department) {
-        batch.update(doc.ref, { department: 'projects' });
-    }
-});
-
-await batch.commit();
-console.log('Migration complete');
-```
-
-**Step 3: Verify Migration**
-```javascript
-// Verify all documents have department field
-const mrfs = await getDocs(collection(db, 'mrfs'));
-let missingDepartment = 0;
-mrfs.forEach(doc => {
-    if (!doc.data().department) {
-        console.error('Missing department:', doc.id);
-        missingDepartment++;
-    }
-});
-
-if (missingDepartment === 0) {
-    console.log('✅ All documents have department field');
-} else {
-    console.error(`❌ ${missingDepartment} documents still missing department`);
-}
-```
-
-**Step 4: Deploy Enforcement Rules**
-```javascript
-// Security Rules (AFTER migration)
-match /mrfs/{mrfId} {
-    // Require department field on create
-    allow create: if request.resource.data.department in ['projects', 'services'];
-}
-```
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Firestore Query for Supplier Search
+
+**What people do:** Add a Firestore query with `where('supplier_name', '>=', searchTerm)` for partial name matching.
+
+**Why it's wrong:** Firestore range queries only match prefixes (starts-with), not substrings. "ABC Corp" would not match a search for "corp". The `suppliers` collection is already fully loaded via `onSnapshot` — a second query is wasteful and returns worse results.
+
+**Do this instead:** Filter `suppliersData[]` in memory inside `renderSuppliersTable()`.
+
+### Anti-Pattern 2: Google Drive Picker API for Document Upload
+
+**What people do:** Integrate the Google Drive Picker for a "professional" file picker experience.
+
+**Why it's wrong:** The Picker is a file *selector* for files already in Drive — it does not upload. Users still must upload to Drive first. The OAuth setup (Google Cloud Console, Client ID, Authorized Origins) adds maintenance overhead, and the CORS constraint (`Cross-Origin-Opener-Policy`) could silently break the OAuth popup after a Netlify headers change. Net result is identical to Option B (a Drive link stored in Firestore) with significantly more complexity.
+
+**Do this instead:** URL paste input. Same end result with zero infrastructure overhead.
+
+### Anti-Pattern 3: Standalone View File for RFPs
+
+**What people do:** Create `app/views/rfps.js` as a standalone view with its own hash route.
+
+**Why it's wrong:** RFP submission is a Procurement action launched from the PO row. RFP approval/tracking is a Finance action. Neither warrants a standalone page — both are modal or tab-level interactions that belong within their existing host views.
+
+**Do this instead:** RFP submission logic in `procurement.js`. RFP list and approval in `finance.js` as a new Payables tab.
+
+### Anti-Pattern 4: Not Resetting Page Number on Filter Change
+
+**What people do:** Apply the supplier search filter but leave `suppliersCurrentPage` at its current value.
+
+**Why it's wrong:** If the user is on page 3 and types a search term that returns 5 total results, page 3 is empty — no results appear and there is no visible feedback.
+
+**Do this instead:** Always set `suppliersCurrentPage = 1` before calling `renderSuppliersTable()` in `filterSuppliers()`.
+
+### Anti-Pattern 5: Deploying RFP UI Before Security Rules
+
+**What people do:** Add the Payables tab UI and window functions before updating `firestore.rules`.
+
+**Why it's wrong:** Firestore denies all access by default. Every read/write to `rfps` will throw "Missing or insufficient permissions" — even for Super Admin. This is a known footgun documented in CLAUDE.md.
+
+**Do this instead:** Add the `rfps` Security Rules block to `firestore.rules` and deploy as the first step of Phase 3, before writing any UI code that touches the collection.
 
 ---
 
 ## Sources
 
-### Multi-Tenant Architecture
-- [The developer's guide to SaaS multi-tenant architecture — WorkOS](https://workos.com/blog/developers-guide-saas-multi-tenant-architecture)
-- [Architecting Secure Multi-Tenant Data Isolation | Medium](https://medium.com/@justhamade/architecting-secure-multi-tenant-data-isolation-d8f36cb0d25e)
-- [Tenant isolation - SaaS Architecture Fundamentals | AWS](https://docs.aws.amazon.com/whitepapers/latest/saas-architecture-fundamentals/tenant-isolation.html)
-- [Multi-Tenant Deployment: 2026 Complete Guide | Qrvey](https://qrvey.com/blog/multi-tenant-deployment/)
-
-### Firebase Firestore Patterns
-- [Distributed counters | Firestore | Firebase](https://firebase.google.com/docs/firestore/solutions/counters)
-- [Generating Auto-Incrementing Sequences With Firestore | Medium](https://medium.com/firebase-developers/generating-auto-incrementing-sequences-with-firestore-b51ab713c571)
-- [Structuring Cloud Firestore Security Rules | Firebase](https://firebase.google.com/docs/firestore/security/rules-structure)
-- [Write conditions for security rules | Firestore Documentation](https://cloud.google.com/firestore/docs/security/rules-conditions)
-
-### Form Patterns
-- [Conditional Forms – Softr Help Docs](https://docs.softr.io/building-blocks/vikC2AWEpQGkZd4jGyoVxo/conditional-forms/afyKqnGDXd54U8d4xLNcsR)
-- [Dropdown Interaction Patterns: A Complete Guide | UXPin](https://www.uxpin.com/studio/blog/dropdown-interaction-patterns-a-complete-guide/)
-- [Filter UX Design Patterns & Best Practices](https://www.pencilandpaper.io/articles/ux-pattern-analysis-enterprise-filtering)
-
-### Aggregation & Performance
-- [Introducing COUNT, TTLs, and better scaling in Firestore](https://firebase.blog/posts/2022/12/introducing-firestore-count-ttl-scale/)
-- [The Four Ways to Count in Firestore - Code.Build](https://code.build/p/the-four-ways-to-count-in-firestore-nNnqKF)
+- Direct code inspection: `app/views/procurement.js` (loadSuppliers at line 2509, renderSuppliersTable at line 2537, attachWindowFunctions at line 96, filterPRPORecords pattern)
+- Direct code inspection: `app/views/finance.js` (tab structure, onSnapshot listener pattern, TTL cache guard pattern)
+- Direct code inspection: `firestore.rules` (role structure, list scoping pattern, new-collection template block at lines 1-39)
+- Direct code inspection: `.planning/PROJECT.md` (v3.2 milestone requirements, current codebase state)
+- [Google Drive Picker API Overview](https://developers.google.com/workspace/drive/picker/guides/overview) — confirmed Picker is file-selector only (not uploader); OAuth required; fully client-side capable
+- [Google Drive Picker Code Sample](https://developers.google.com/drive/picker/guides/sample) — confirmed no backend required; tokenClient (Google Identity Services) pattern
+- [OAuth 2.0 for Client-side Web Applications](https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow) — confirmed client-side token acquisition mechanics and scope requirements
 
 ---
-
-**Confidence Assessment:**
-
-| Area | Confidence | Source |
-|------|------------|--------|
-| Multi-department isolation patterns | HIGH | Existing firestore.rules + official Firebase documentation |
-| Shared sequence counter | HIGH | Existing generateProjectCode() + Firebase distributed counters docs |
-| Conditional form rendering | HIGH | Existing mrf-form.js + conditional form patterns research |
-| Security Rules multi-collection | HIGH | Existing firestore.rules structure + official Firebase documentation |
-| Component reuse strategy | HIGH | Existing codebase analysis (projects.js, utils.js, permissions.js) |
-| Build order dependencies | HIGH | Existing router/view lifecycle patterns + milestone planning experience |
-
-All recommendations verified against existing codebase patterns and official Firebase documentation. Ready for roadmap creation.
-
----
-
-*Architecture research for: Multi-department procurement system (Projects + Services)*
-*Researched: 2026-02-12*
+*Architecture research for: CLMC Procurement System v3.2 — Supplier Search, Proof of Procurement, RFP + Payables*
+*Researched: 2026-03-13*

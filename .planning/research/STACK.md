@@ -1,511 +1,367 @@
-# Stack Research: Services Department Support
+# Stack Research: v3.2 — Supplier Search, Proof of Procurement & Payables Tracking
 
-**Domain:** Multi-department procurement workflow with role-based isolation
-**Researched:** 2026-02-12
-**Confidence:** HIGH
+**Domain:** Zero-build static SPA — new external integration (Google Drive) + client-side filtering + Firestore schema additions
+**Researched:** 2026-03-13
+**Confidence:** HIGH (supplier search + Firestore schema) / MEDIUM (Google Drive integration)
+
+---
 
 ## Executive Summary
 
-**No new libraries or SDK versions needed.** The Services department addition is a pure architectural extension using existing Firebase Firestore v10.7.1 and Firebase Auth v10.7.1 already in use. All required capabilities (multi-collection isolation, role-based access control, shared sequence generation, real-time listeners) are already validated in the current v2.2 codebase.
+Two of the three features require zero new libraries:
 
-This is **NOT** a stack addition project — it's an architectural pattern extension within the proven zero-build vanilla JavaScript + Firebase stack.
+1. **Supplier search bar** — pure client-side filtering of an already-loaded in-memory array. No Firestore query changes. No library. One input event listener.
 
-## Existing Stack (Unchanged)
+2. **RFP / payables tracking** — new Firestore collections and fields only. No date library needed; all payment-due-date arithmetic is 1–3 lines of vanilla `Date` math. Staggered payments stored as a subcollection within each RFP document.
 
-| Technology | Current Version | Purpose | Status |
-|------------|----------------|---------|--------|
-| Firebase Firestore | v10.7.1 (CDN) | Multi-collection database with real-time listeners | ✓ Validated, no changes |
-| Firebase Auth | v10.7.1 (CDN) | Role-based authentication with session persistence | ✓ Validated, no changes |
-| Vanilla JavaScript | ES6 Modules | Zero-build SPA with hash routing | ✓ Validated, no changes |
-| Firebase Security Rules | rules_version 2 | Server-side permission enforcement | ✓ Extension only |
+3. **Proof of procurement (Google Drive upload)** — the only genuine stack addition. Requires two Google CDN scripts. Works entirely client-side with the OAuth token model (no backend required). The Drive link is stored in Firestore; no Firebase Storage is touched.
 
-**Deployment:** Netlify (unchanged)
-**No build tools, no new dependencies, no version upgrades needed.**
+The core zero-build vanilla JS + Firebase Firestore v10.7.1 stack is unchanged. No npm packages, no build step, no new Firebase products.
 
-## Stack Extension Patterns
+---
 
-### 1. Multi-Collection Parallel Workflow
+## Feature 1: Supplier Search Bar
 
-**Pattern:** Mirror the `projects` collection structure for `services` collection
+### Decision: Client-side filtering, not Firestore query
 
-**Why existing stack supports this:**
-- Firestore is schemaless — adding new collection requires zero migration
-- Real-time listeners (`onSnapshot`) work identically across collections
-- Security Rules support multiple collection blocks with independent access control
-- Proven pattern: 9 existing collections (users, projects, clients, mrfs, prs, pos, transport_requests, suppliers, deleted_mrfs)
+The suppliers collection is already loaded in full via an `onSnapshot` listener in `procurement.js`. Filtering against an in-memory array is instantaneous and costs zero Firestore reads.
 
-**Implementation:**
+A Firestore `where('supplier_name', '>=', term)` range query would require a composite index, consume reads on every keystroke, and still not support substring matching (Firestore only supports prefix queries on strings). Client-side substring matching with `String.prototype.includes()` or `toLowerCase()` covers the "search by name and/or contact person" requirement fully.
+
+### Implementation
+
 ```javascript
-// NO NEW CODE PATTERNS — reuse existing project CRUD patterns
-collection(db, 'services')  // vs collection(db, 'projects')
-```
+// No new library. No new Firestore query.
+// Filter the existing suppliersData array already in memory:
 
-**File changes:**
-- Add `app/views/services.js` (copy `app/views/projects.js` structure)
-- Add `app/views/service-detail.js` (copy `app/views/project-detail.js` structure)
-
-**Confidence:** HIGH — identical to 9 existing collections already working in production
-
-### 2. Department-Scoped Role Isolation
-
-**Pattern:** Extend existing role-based access control with department filtering
-
-**Why existing stack supports this:**
-- Role templates already support custom permission structures (v2.0)
-- Security Rules already enforce role-based filtering (17/17 tests passing)
-- Real-time permission updates via `permissionsChanged` event (v2.0)
-- `getAssignedProjectCodes()` utility already implements scoped filtering for `operations_user`
-
-**Implementation:**
-```javascript
-// EXISTING PATTERN (already working for operations_user):
-function getAssignedProjectCodes() {
-    if (user.role !== 'operations_user') return null; // No filter
-    if (user.all_projects === true) return null;
-    return user.assigned_project_codes || [];
-}
-
-// EXTENSION FOR SERVICES (same pattern, different field):
-function getAssignedServiceCodes() {
-    if (user.role !== 'services_user') return null;
-    if (user.all_services === true) return null;
-    return user.assigned_service_codes || [];
-}
-```
-
-**Firestore Security Rules Extension:**
-```javascript
-// EXISTING PATTERN (projects collection, lines 114-126):
-match /projects/{projectId} {
-    allow read: if isActiveUser();  // All active users
-    allow create: if hasRole(['super_admin', 'operations_admin']);
-    allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
-    allow delete: if hasRole(['super_admin', 'operations_admin']);
-}
-
-// NEW PATTERN (services collection — identical structure):
-match /services/{serviceId} {
-    allow read: if isActiveUser();  // All active users
-    allow create: if hasRole(['super_admin', 'services_admin']);
-    allow update: if hasRole(['super_admin', 'services_admin', 'finance']);
-    allow delete: if hasRole(['super_admin', 'services_admin']);
-}
-```
-
-**Role template additions:**
-```javascript
-// EXISTING roles in role_templates collection:
-// super_admin, operations_admin, operations_user, finance, procurement
-
-// NEW roles (same structure, different tabs):
-{
-    role_id: 'services_admin',
-    permissions: {
-        tabs: {
-            dashboard: { access: true, edit: false },
-            services: { access: true, edit: true },  // vs projects
-            mrf_form: { access: true, edit: true },
-            // NO access to projects tab
-        }
-    }
-}
-```
-
-**Confidence:** HIGH — exact same pattern as existing `operations_admin` / `operations_user` roles
-
-### 3. Shared Code Sequence Across Collections
-
-**Pattern:** Modify `generateProjectCode()` to query both `projects` and `services` collections
-
-**Why existing stack supports this:**
-- `generateProjectCode()` already uses regex parsing for flexible formats (line 211 in utils.js)
-- Firestore `getDocs()` supports parallel collection queries
-- Current implementation uses range queries with composite keys
-- Race condition acknowledged and accepted in v1.0 (line 191 comment)
-
-**Implementation:**
-```javascript
-// EXISTING PATTERN (utils.js lines 192-226):
-export async function generateProjectCode(clientCode, year = null) {
-    const currentYear = year || new Date().getFullYear();
-
-    // Query projects for this client and year
-    const q = query(
-        collection(db, 'projects'),
-        where('client_code', '==', clientCode),
-        where('project_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
-        where('project_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
+function renderFilteredSuppliers(searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    const filtered = suppliersData.filter(s =>
+        s.supplier_name?.toLowerCase().includes(term) ||
+        s.contact_person?.toLowerCase().includes(term)
     );
-    const snapshot = await getDocs(q);
-
-    let maxNum = 0;
-    snapshot.forEach(doc => {
-        const match = code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
-    });
-
-    return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+    renderSuppliersTable(filtered);
 }
 
-// MODIFIED PATTERN (add parallel services query):
-export async function generateProjectOrServiceCode(clientCode, year = null) {
-    const currentYear = year || new Date().getFullYear();
-
-    // Query BOTH projects AND services for this client and year
-    const projectsQuery = query(/* same as above */);
-    const servicesQuery = query(
-        collection(db, 'services'),
-        where('client_code', '==', clientCode),
-        where('service_code', '>=', `CLMC_${clientCode}_${currentYear}000`),
-        where('service_code', '<=', `CLMC_${clientCode}_${currentYear}999`)
-    );
-
-    // Execute queries in parallel
-    const [projectsSnapshot, servicesSnapshot] = await Promise.all([
-        getDocs(projectsQuery),
-        getDocs(servicesQuery)
-    ]);
-
-    // Find max number across BOTH collections
-    let maxNum = 0;
-    projectsSnapshot.forEach(doc => {
-        const match = doc.data().project_code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
-    });
-    servicesSnapshot.forEach(doc => {
-        const match = doc.data().service_code.match(/^CLMC_.+_\d{4}(\d{3})$/);
-        if (match) maxNum = Math.max(maxNum, parseInt(match[1]));
-    });
-
-    return `CLMC_${clientCode}_${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
-}
-```
-
-**Firestore capabilities used:**
-- `Promise.all()` for parallel queries (standard JavaScript, not Firebase-specific)
-- Range queries with composite keys (already validated in v1.0)
-- Regex parsing for code extraction (existing pattern)
-
-**Race condition risk:** Same as existing implementation — acceptable for expected usage volume (comment line 191: "Race condition possible with simultaneous creates - acceptable for v1.0")
-
-**Confidence:** HIGH — extends existing validated pattern with parallel query
-
-### 4. Role-Based MRF Dropdown Visibility
-
-**Pattern:** Filter active projects/services by user role before rendering dropdown
-
-**Why existing stack supports this:**
-- `getActiveProjects()` utility already exists (utils.js lines 252-267)
-- Assignment filtering already implemented for `operations_user` (lines 237-246)
-- Client-side filtering pattern validated in project-assignments.js
-
-**Implementation:**
-```javascript
-// EXISTING PATTERN (utils.js lines 252-267):
-export async function getActiveProjects() {
-    const q = query(
-        collection(db, 'projects'),
-        where('status', '==', 'active')
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
-}
-
-// EXTENSION (add parallel services query):
-export async function getActiveProjectsAndServices() {
-    const user = window.getCurrentUser?.();
-    const role = user?.role;
-
-    // Determine which collections to query based on role
-    const queries = [];
-
-    if (!role) return []; // Not logged in
-
-    // Operations roles see only Projects
-    if (role === 'operations_admin' || role === 'operations_user') {
-        queries.push(
-            getDocs(query(collection(db, 'projects'), where('status', '==', 'active')))
-        );
-    }
-
-    // Services roles see only Services
-    if (role === 'services_admin' || role === 'services_user') {
-        queries.push(
-            getDocs(query(collection(db, 'services'), where('status', '==', 'active')))
-        );
-    }
-
-    // Cross-department roles see both
-    if (role === 'super_admin' || role === 'finance' || role === 'procurement') {
-        queries.push(
-            getDocs(query(collection(db, 'projects'), where('status', '==', 'active'))),
-            getDocs(query(collection(db, 'services'), where('status', '==', 'active')))
-        );
-    }
-
-    // Execute queries in parallel and merge results
-    const snapshots = await Promise.all(queries);
-    return snapshots.flatMap(snapshot =>
-        snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-    );
-}
-```
-
-**Confidence:** HIGH — combines two existing validated patterns (role checking + active filtering)
-
-## Security Rules Extension
-
-**Current state:** 247 lines, 17/17 tests passing, production deployed
-
-**Changes needed:**
-1. Add `services` collection block (mirror `projects` structure)
-2. Add `isAssignedToService()` helper (mirror `isAssignedToProject()` pattern)
-3. Extend `hasRole()` checks to include `services_admin` and `services_user`
-
-**Pattern:**
-```javascript
-// EXISTING HELPER (lines 35-47):
-function isAssignedToProject(projectCode) {
-    return getUserData().all_projects == true ||
-           projectCode in getUserData().assigned_project_codes;
-}
-
-// NEW HELPER (identical pattern for services):
-function isAssignedToService(serviceCode) {
-    return getUserData().all_services == true ||
-           serviceCode in getUserData().assigned_service_codes;
-}
-
-// EXISTING COLLECTION (lines 114-126):
-match /projects/{projectId} {
-    allow read: if isActiveUser();
-    allow create: if hasRole(['super_admin', 'operations_admin']);
-    // ...
-}
-
-// NEW COLLECTION (mirror structure):
-match /services/{serviceId} {
-    allow read: if isActiveUser();
-    allow create: if hasRole(['super_admin', 'services_admin']);
-    allow update: if hasRole(['super_admin', 'services_admin', 'finance']);
-    allow delete: if hasRole(['super_admin', 'services_admin']);
-
-    // Edit history subcollection (same pattern as projects)
-    match /edit_history/{entryId} {
-        allow read: if isActiveUser();
-        allow create: if hasRole(['super_admin', 'services_admin', 'finance']);
-        allow update: if false;  // Append-only
-        allow delete: if false;
-    }
-}
-
-// EXTEND MRF/PR/PO LIST RULES (lines 166-169, 189-192, 211-215):
-// Add services_user filtering alongside operations_user
-allow list: if isActiveUser() && (
-    hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-    (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-    (isRole('services_user') && isLegacyOrAssigned(resource.data.service_code))  // NEW
-);
-```
-
-**Testing pattern:**
-```javascript
-// EXISTING TEST PATTERN (firestore.test.js lines 64-71):
-await setDoc(doc(db, "users", "active-ops-user"), {
-    role: "operations_user",
-    assigned_project_codes: ["CLMC_TEST_2026001"],
-    all_projects: false,
-});
-
-// NEW TEST (mirror pattern for services_user):
-await setDoc(doc(db, "users", "active-services-user"), {
-    role: "services_user",
-    assigned_service_codes: ["CLMC_VENDOR_2026001"],
-    all_services: false,
-});
-
-// Test services collection access
-it("services_user can read assigned service", async () => {
-    const servicesUserDb = testEnv.authenticatedContext("active-services-user").firestore();
-    await assertSucceeds(getDoc(doc(servicesUserDb, "services", "assigned-service")));
+// Attach to existing search input:
+document.getElementById('supplierSearch').addEventListener('input', e => {
+    renderFilteredSuppliers(e.target.value);
 });
 ```
 
-**Estimated new rules:** +30 lines (services collection block + helper function)
-**Estimated new tests:** +5 tests (mirror existing project tests)
+**Confidence:** HIGH — exact same pattern already used for the project search bar (projects.js) and client search bar (clients.js) in the current codebase.
 
-**Confidence:** HIGH — exact pattern replication of existing validated rules
+---
 
-## Permission System Extension
+## Feature 2: Proof of Procurement — Google Drive Integration
 
-**Current state:** Real-time permission updates via Firestore listeners (permissions.js)
+### Stack Additions Required
 
-**Changes needed:**
-1. Add `services` tab to permission matrix
-2. Extend role templates with 2 new roles (services_admin, services_user)
+| Technology | Source | Purpose |
+|------------|--------|---------|
+| Google API Client Library (gapi) | `https://apis.google.com/js/api.js` (CDN) | Loads Picker library, wraps Drive API v3 calls |
+| Google Identity Services (GIS) | `https://accounts.google.com/gsi/client` (CDN) | OAuth 2.0 token model — issues access tokens client-side |
 
-**Pattern:**
+Both are loaded as `<script defer>` in `index.html`. No npm install. No build step.
+
+### OAuth Approach: Token Model (Implicit-style), Not Authorization Code Flow
+
+The recommended long-term approach is Authorization Code + PKCE, but it requires a backend to exchange the code and manage refresh tokens. This project has no backend and cannot add one.
+
+The **token model** (`google.accounts.oauth2.initTokenClient`) is:
+- Still fully supported (Google's own Picker quickstart uses it as of 2025)
+- Works entirely in the browser without a server
+- Appropriate for internal tools where users are a known, small set
+- Issues a short-lived access token (~1 hour) sufficient for a one-time upload session
+
+The authorization code flow is the right choice for a consumer app that needs long-lived offline access. It is the wrong choice here.
+
+**Confidence:** MEDIUM — token model support confirmed in official quickstart docs. Google has signaled long-term preference for auth-code flow but has not deprecated the token model.
+
+### Required Google Cloud Setup (one-time, outside codebase)
+
+1. Enable Google Drive API and Google Picker API in Google Cloud Console
+2. Create an OAuth 2.0 Client ID (type: Web Application) — add `https://your-netlify-domain.app` as authorized JS origin
+3. Create an API Key (restricted to Picker API + your domain)
+4. App ID = Google Cloud project number (from IAM & Admin > Settings)
+
+These values are **not secrets** — they are safe to embed in client-side JavaScript. The OAuth Client ID for a web application does not expose privileged access; it only allows the OAuth consent flow to proceed.
+
+### OAuth Consent Screen: "Unverified App" Warning
+
+The app will show a Google "unverified app" warning until the OAuth consent screen is verified. For an internal company tool with fewer than 100 users, this warning is acceptable and Google does not require verification. The Procurement officer sees it once, clicks "Advanced > Go to [app] (unsafe)", and proceeds. Verification requires domain ownership in Google Search Console + a submitted app review (2–3 days).
+
+**Recommendation:** Ship without verification first. If the "unverified" warning creates friction for users, do verification. It is not a blocker.
+
+### Scope: Use `drive.file`, Not `drive`
+
+```
+https://www.googleapis.com/auth/drive.file
+```
+
+`drive.file` is non-sensitive (no verification required for it alone). It grants read/write access only to files the app creates — the user cannot accidentally expose their entire Drive. `drive` (full access) triggers sensitive scope verification and shows a stronger warning.
+
+### Upload Flow
+
 ```javascript
-// EXISTING PERMISSION CHECK (permissions.js lines 36-40):
-export function hasTabAccess(tabId) {
-    if (!currentPermissions || !currentPermissions.tabs) return undefined;
-    return currentPermissions.tabs[tabId]?.access || false;
+// 1. Load both CDN scripts (index.html):
+// <script src="https://apis.google.com/js/api.js" defer></script>
+// <script src="https://accounts.google.com/gsi/client" defer></script>
+
+// 2. Initialize token client (once, on Procurement tab init):
+const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    callback: (tokenResponse) => {
+        accessToken = tokenResponse.access_token;
+    },
+});
+
+// 3. On "Upload Document" button click — request token then upload:
+function uploadProofDocument(file, poId) {
+    tokenClient.requestAccessToken({ prompt: '' });
+    // callback fires with accessToken, then:
+    const metadata = { name: `PO-${poId}-proof-${Date.now()}`, mimeType: file.type };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', file);
+
+    fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+    })
+    .then(r => r.json())
+    .then(driveFile => {
+        // driveFile.id is the Drive file ID
+        // Store driveFile.webViewLink (or construct it) in Firestore on the PO document
+        updateDoc(doc(db, 'pos', poId), {
+            proof_drive_file_id: driveFile.id,
+            proof_drive_link: `https://drive.google.com/file/d/${driveFile.id}/view`,
+            proof_uploaded_by: currentUser.uid,
+            proof_uploaded_at: serverTimestamp(),
+        });
+    });
+}
+```
+
+**File size limit:** Multipart upload supports up to 5 MB. For larger files (invoices, photos), switch to `uploadType=resumable`. Procurement documents (PDFs, photos) are typically under 5 MB.
+
+### What Gets Stored in Firestore
+
+No binary data goes to Firestore or Firebase Storage. Only:
+
+```
+pos/{poId}:
+  proof_drive_file_id: "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms"
+  proof_drive_link: "https://drive.google.com/file/d/.../view"
+  proof_uploaded_by: "uid-of-procurement-user"
+  proof_uploaded_at: Timestamp
+```
+
+**Confidence:** HIGH — pattern confirmed via official Drive API v3 multipart upload documentation.
+
+### Alternative Considered: Direct Google Drive Folder Link
+
+The simplest approach would be: give Procurement a shared Google Drive folder URL, they upload manually via Google Drive's own UI, then paste the link into a Firestore text field. This requires zero code. It was considered and rejected because it creates no audit trail, no upload timestamp, no uploader identity — and the link field could be any URL (malformed, wrong doc, etc.). The API approach ties the upload to the specific PO and records who did it.
+
+### Alternative Considered: Firebase Storage
+
+Explicitly rejected by the user. Firebase Storage costs mount with document storage; the company already has Google Drive with available space.
+
+---
+
+## Feature 3: RFP / Payables Tracking — Firestore Schema
+
+### Decision: No Date Library
+
+Payment due date math is addition of N days to a known date. Vanilla JavaScript handles this in one line:
+
+```javascript
+// Add 30 days to a date — no library:
+function addDays(date, days) {
+    const d = new Date(date);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d;
 }
 
-// NO CHANGES NEEDED — function already generic
+// Example: Net 30 from PO issue date
+const dueDate = addDays(po.date_issued.toDate(), 30);
+```
 
-// NEW ROLE TEMPLATES (firestore data):
-{
-    role_id: 'services_admin',
-    permissions: {
-        tabs: {
-            dashboard: { access: true, edit: false },
-            services: { access: true, edit: true },     // NEW tab
-            mrf_form: { access: true, edit: true },
-            procurement: { access: true, edit: true },
-            // projects tab: no access (department isolation)
-        }
+DST edge cases do not affect this use case because payment terms are in calendar days, not hours. Using `setUTCDate` avoids the DST-crossing bug. No `date-fns`, no `dayjs`, no `moment` needed.
+
+**Confidence:** HIGH — this is a solved problem in vanilla JS.
+
+### New Firestore Collection: `rfps`
+
+```
+rfps/{rfpId}
+  rfp_id: "RFP-2026-001"           // Sequential, same pattern as PR-YYYY-###
+  po_id: "PO-2026-012"             // Parent PO
+  pr_id: "PR-2026-009"             // Linked PR
+  mrf_id: "MRF-2026-004"          // Linked MRF
+  supplier_name: string            // Denormalized for display (no join)
+  total_amount: number             // Full PO amount
+  payment_terms: string            // "Net 30" | "Net 60" | "Net 90" | "50/50" | "Custom"
+  payment_notes: string            // Optional freetext
+  status: "Pending" | "Approved" | "Rejected" | "Partially Paid" | "Paid"
+  submitted_by: string             // uid
+  submitted_at: Timestamp
+  approved_by: string              // uid (Finance)
+  approved_at: Timestamp
+  proof_drive_link: string         // Drive link (if attached at RFP submission)
+```
+
+### Subcollection: `rfps/{rfpId}/payment_schedule`
+
+Staggered payments are stored as a subcollection (not an array field) because each installment has its own status lifecycle and will be queried/updated independently by Finance.
+
+```
+rfps/{rfpId}/payment_schedule/{scheduleId}
+  installment_number: number       // 1, 2, 3...
+  amount: number                   // This installment's amount
+  percentage: number               // Optional: 50, 25, 25...
+  due_date: Timestamp              // Calculated from payment_terms + po date_issued
+  status: "Pending" | "Paid"
+  paid_at: Timestamp               // Set when Finance marks paid
+  paid_by: string                  // uid
+  notes: string                    // Optional
+```
+
+**Why subcollection, not array:** Firestore arrays cannot be partially updated — updating one installment's status requires reading and rewriting the entire array. A subcollection allows `updateDoc(doc(db, 'rfps', rfpId, 'payment_schedule', scheduleId), { status: 'Paid' })` without touching sibling installments.
+
+### PO Document: New Fields
+
+```
+pos/{poId}:
+  rfp_id: string                   // Set when RFP is created for this PO (null if none yet)
+  payment_status: "Unpaid" | "Partially Paid" | "Paid"   // Derived and stored for display
+  proof_drive_file_id: string      // From Google Drive upload
+  proof_drive_link: string         // Viewable URL
+  proof_uploaded_by: string        // uid
+  proof_uploaded_at: Timestamp
+```
+
+### Payables View: Client-Side Aggregation
+
+The Finance payables summary (total outstanding per supplier) is computed client-side from the `rfps` collection, exactly like the existing expense breakdown modal. No new Firestore aggregation queries, no Cloud Functions. At the current data volume this is performant.
+
+```javascript
+// Aggregate outstanding payables per supplier:
+const payablesBySupplier = {};
+rfpsData.forEach(rfp => {
+    if (rfp.status !== 'Paid') {
+        payablesBySupplier[rfp.supplier_name] =
+            (payablesBySupplier[rfp.supplier_name] || 0) + rfp.total_amount;
     }
-}
-
-{
-    role_id: 'services_user',
-    permissions: {
-        tabs: {
-            dashboard: { access: true, edit: false },
-            services: { access: true, edit: false },    // View-only
-            mrf_form: { access: true, edit: true },
-            // projects/procurement tabs: no access
-        }
-    }
-}
+});
 ```
 
-**Navigation visibility:**
-```javascript
-// EXISTING PATTERN (index.html navigation, uses hasTabAccess()):
-<a href="#/projects" class="nav-link" data-tab="projects">Projects</a>
-<a href="#/services" class="nav-link" data-tab="services">Services</a>  // NEW
+**Confidence:** HIGH — same pattern as existing expense breakdown modal (expense-modal.js).
 
-// NO JavaScript CHANGES — router.js already filters nav by hasTabAccess()
-```
+### Sequential ID Generation for RFPs
 
-**Confidence:** HIGH — zero code changes to permission system, only data additions
+Reuse `generateSequentialId()` from `utils.js` with `rfps` collection and prefix `RFP`. No new utility needed.
 
-## Code Generation Pattern Modifications
+---
 
-**Current implementation:** `generateProjectCode()` in utils.js (lines 192-226)
+## Recommended Stack Summary
 
-**Required changes:**
-1. Rename to `generateCode()` (generic function)
-2. Add `collectionType` parameter ('project' or 'service')
-3. Query both collections for max number calculation
-4. Return code with appropriate field name (project_code or service_code)
+### Core Technologies (Unchanged)
 
-**Backward compatibility:**
-```javascript
-// KEEP EXISTING FUNCTION (for backward compatibility):
-export async function generateProjectCode(clientCode, year = null) {
-    return generateCode('project', clientCode, year);
-}
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Firebase Firestore | v10.7.1 (CDN) | Data storage, real-time listeners, new `rfps` collection |
+| Firebase Auth | v10.7.1 (CDN) | Existing auth — unchanged |
+| Vanilla JavaScript | ES6 Modules | Zero-build SPA — unchanged |
 
-// ADD NEW GENERIC FUNCTION:
-export async function generateCode(type, clientCode, year = null) {
-    // Query both collections, return max + 1
-    // Same pattern as existing, extended with parallel query
-}
+### New CDN Additions (Google Drive integration only)
 
-// ADD SERVICE WRAPPER:
-export async function generateServiceCode(clientCode, year = null) {
-    return generateCode('service', clientCode, year);
-}
-```
+| Library | CDN URL | Purpose | When to Load |
+|---------|---------|---------|--------------|
+| Google API Client (gapi) | `https://apis.google.com/js/api.js` | Picker library loader, Drive API wrapper | `index.html` with `defer` |
+| Google Identity Services | `https://accounts.google.com/gsi/client` | OAuth 2.0 token model for access tokens | `index.html` with `defer` |
 
-**Migration risk:** NONE — existing callers continue using `generateProjectCode()`, services use new `generateServiceCode()`
+These two scripts add ~150 KB to the initial page load (both are served by Google CDN and likely cached). They are not needed for supplier search or RFP features — but since they load deferred and are only initialized when the Procurement tab is accessed, there is no perceptible impact.
 
-**Confidence:** HIGH — additive changes only, no breaking modifications
+### No New Libraries For
 
-## Integration Points
+| Capability | Why No Library |
+|------------|----------------|
+| Supplier search/filter | `Array.prototype.filter()` + `String.prototype.includes()` — 3 lines |
+| Payment date arithmetic | `Date.setUTCDate()` — 4 lines, no DST issues |
+| Payables aggregation | `Array.prototype.reduce()` — same as existing expense modal |
+| RFP ID generation | `generateSequentialId()` already in `utils.js` |
 
-### What Changes
+---
 
-| Component | Current | After Services Addition | Change Type |
-|-----------|---------|------------------------|-------------|
-| Firebase SDK | v10.7.1 | v10.7.1 | No change |
-| Security Rules | 247 lines, 9 collections | ~280 lines, 10 collections | Extension |
-| Role templates | 5 roles | 7 roles | Addition |
-| Permission checks | 7 tabs | 8 tabs | Addition |
-| Code generation | 1 function | 3 functions (backward compatible) | Extension |
-| MRF form | Project dropdown | Project/Service dropdown (filtered) | Logic change |
+## Alternatives Considered
 
-### What Stays the Same
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Google Drive API + GIS token model | Firebase Storage | User explicitly rejected; storage costs at scale |
+| Google Drive API + GIS token model | Dropbox API | No existing company Dropbox; adds unfamiliar service |
+| Google Drive API + GIS token model | Auth code + PKCE with backend | No backend exists; would require Netlify Functions or similar — major scope increase |
+| Firestore `rfps` subcollection for installments | Array field on `rfps` | Arrays require full rewrite on partial update; subcollection allows per-installment status updates |
+| Client-side payables aggregation | Firestore aggregate queries | Aggregate queries require Firestore billing plan; current data volume makes client-side fast enough |
+| `Array.filter()` for supplier search | Firestore prefix query | Prefix query: requires composite index, costs reads per keystroke, no substring match. Client filter: free, instant, substring-capable |
 
-| Component | Why Unchanged |
-|-----------|---------------|
-| Firebase version | All required features already available in v10.7.1 |
-| Auth system | Role-based access already supports N roles |
-| Real-time listeners | `onSnapshot()` works identically across all collections |
-| Router | Hash routing already supports `/services` path |
-| Finance workflow | Approves PRs regardless of project vs service origin |
-| Procurement workflow | Creates POs regardless of department |
-| Supplier management | Shared across all departments |
-| Client management | Shared across all departments |
+---
 
-## Version Compatibility
-
-**No compatibility concerns** — all extensions use existing Firebase v10.7.1 APIs already in use.
-
-| Current Pattern | Services Extension | API Used |
-|----------------|-------------------|----------|
-| `collection(db, 'projects')` | `collection(db, 'services')` | Same API |
-| `hasRole(['operations_admin'])` | `hasRole(['services_admin'])` | Same Security Rules helper |
-| `user.assigned_project_codes` | `user.assigned_service_codes` | Same Firestore field pattern |
-| `project_code: 'CLMC_X_2026001'` | `service_code: 'CLMC_X_2026001'` | Same string format |
-
-## What NOT to Use
+## What NOT to Add
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Firebase SDK upgrade | v10.7.1 has all needed features; upgrade risks breaking changes | Keep v10.7.1 (validated) |
-| Separate Firebase project | Security Rules enforce isolation; separate project adds complexity | Single project, multi-collection |
-| Client-side only filtering | Bypassable via console; fails requirement "Firebase Security Rules enforcement" | Security Rules + client filtering |
-| New permission system | Existing system supports N roles and M tabs | Extend role_templates data |
-| Build tools for tree-shaking | Zero-build architecture is core constraint | Keep CDN imports |
+| Firebase Storage | User explicitly rejected; Drive already available | Google Drive API |
+| `date-fns` or `dayjs` | 4-line vanilla `Date` math covers all payment term arithmetic | `Date.setUTCDate()` |
+| Netlify Functions / backend proxy | Adds deployment complexity, new failure surface | GIS token model works fully client-side |
+| `drive` (full Drive scope) | Triggers sensitive scope verification, wider permissions | `drive.file` (non-sensitive, files created by app only) |
+| Google Picker API (for uploads) | Picker is for *selecting existing* Drive files, not for uploading new files | Drive API v3 multipart upload via `fetch` |
 
-## Installation
+---
 
-**NO INSTALLATION NEEDED** — all required technologies already installed and validated.
+## Security Rules Changes Required
 
-### Verification
-
-Current versions already in use:
-```html
-<!-- app/firebase.js lines 7-41 -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-</script>
 ```
+// New collection (add to firestore.rules):
+match /rfps/{rfpId} {
+    allow read: if isActiveUser();
+    allow create: if hasRole(['super_admin', 'procurement', 'finance']);
+    allow update: if hasRole(['super_admin', 'procurement', 'finance']);
+    allow delete: if hasRole(['super_admin']);
+
+    match /payment_schedule/{scheduleId} {
+        allow read: if isActiveUser();
+        allow create: if hasRole(['super_admin', 'finance', 'procurement']);
+        allow update: if hasRole(['super_admin', 'finance']);
+        allow delete: if false;  // Append-only schedule
+    }
+}
+```
+
+---
+
+## Version Compatibility
+
+| Existing Package | New Addition | Compatibility |
+|-----------------|-------------|---------------|
+| Firebase SDK v10.7.1 | Google APIs CDN scripts | No interaction — separate scripts on separate origins. No conflict. |
+| `apis.google.com/js/api.js` | `accounts.google.com/gsi/client` | Both required; `gapi` handles Drive calls, GIS handles tokens. Load order: both `defer`, GIS initializes first in practice. |
+
+---
 
 ## Sources
 
-**HIGH Confidence — All findings from existing codebase analysis:**
-
-- **Firebase SDK v10.7.1:** C:\Users\Admin\Roaming\pr-po\app\firebase.js (lines 7-41) — Current production version
-- **Security Rules patterns:** C:\Users\Admin\Roaming\pr-po\firestore.rules (247 lines) — 17/17 tests passing
-- **Multi-collection precedent:** 9 existing collections (users, projects, clients, mrfs, prs, pos, transport_requests, suppliers, deleted_mrfs)
-- **Role-based filtering:** app/utils.js `getAssignedProjectCodes()` (lines 237-246) — Validated for operations_user
-- **Permission system:** app/permissions.js (133 lines) — Real-time updates via `permissionsChanged` event
-- **Code generation:** app/utils.js `generateProjectCode()` (lines 192-226) — Regex-based parsing, race condition acknowledged
-- **Test patterns:** test/firestore.test.js (336 lines, 17 tests) — Seed users, role checks, assignment filtering
-
-**No external research needed** — all capabilities already exist in v2.2 codebase.
+- [Google Picker API Overview](https://developers.google.com/workspace/drive/picker/guides/overview) — Picker is for file selection; upload requires Drive API v3 directly (HIGH confidence, official docs)
+- [Google Drive API JavaScript Quickstart](https://developers.google.com/workspace/drive/api/quickstart/js) — Confirms token model still used in official samples, both CDN scripts required, works client-side (HIGH confidence, official docs)
+- [Migrate to Google Identity Services](https://developers.google.com/identity/oauth2/web/guides/migration-to-gis) — Auth code flow recommended for backend apps; token model remains valid for browser-only SPAs (MEDIUM confidence — docs favor auth-code but don't deprecate token model)
+- [Google Drive API: Manage Uploads](https://developers.google.com/workspace/drive/api/guides/manage-uploads) — Multipart upload spec, 5 MB limit, fetch-compatible (HIGH confidence, official docs)
+- [Google Drive API Scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth) — `drive.file` is non-sensitive, does not trigger verification (HIGH confidence, official docs)
+- [Unverified Apps — Google Cloud](https://support.google.com/cloud/answer/7454865) — Apps with <100 users and internal use do not require verification (HIGH confidence, official support page)
+- [Firestore Data Modeling — Subcollections](https://firebase.google.com/docs/firestore/manage-data/structure-data) — Subcollections preferred when child documents have independent lifecycles (HIGH confidence, official docs)
 
 ---
-*Stack research for: Services Department Support*
-*Researched: 2026-02-12*
-*Confidence: HIGH — All findings from validated v2.2 production codebase*
+*Stack research for: v3.2 Supplier Search, Proof of Procurement & Payables Tracking*
+*Researched: 2026-03-13*
+*Confidence: HIGH (supplier search, Firestore schema, payment math) / MEDIUM (Google Drive OAuth token model longevity)*

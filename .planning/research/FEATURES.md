@@ -1,275 +1,255 @@
-# Feature Research: Services Department
+# Feature Research
 
-**Domain:** Service management for repair/maintenance work (engineering firm)
-**Researched:** 2026-02-12
-**Confidence:** HIGH
+**Domain:** Procurement management SPA — v3.2 milestone features
+**Researched:** 2026-03-13
+**Confidence:** HIGH (supplier search, RFP/payables data model), MEDIUM (Google Drive integration path)
+
+---
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = Services department cannot function.
-
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Service CRUD operations | Standard data management - create, edit, delete services | LOW | Mirror Projects CRUD exactly, reuse patterns |
-| Service code generation | Unique identifier for tracking, shared CLMC_CLIENT_YYYY### sequence | LOW | Reuse generateProjectCode utility with sequence sharing |
-| Service type differentiation | One-time vs recurring services have different tracking needs | LOW | Single field: service_type ('one-time' or 'recurring') |
-| Client association | Services are performed for clients, same as Projects | LOW | Reuse existing clients collection and dropdown |
-| Budget/contract cost tracking | Financial tracking essential for service profitability | LOW | Same fields as Projects (budget, contract_cost) |
-| Active/inactive flag | Control which services can receive MRFs, prevent orphaned work | LOW | Exact mirror of Projects active flag logic |
-| Service list view with filtering | Users need to find services quickly (by client, status, type) | LOW | Mirror Projects list view, add service_type filter |
-| MRF-Service integration | MRFs must reference services, same as project-based workflow | LOW | Dropdown shows services (denormalized: service_code + service_name) |
-| Role-based department isolation | Services users should NEVER see Projects data, vice versa | MEDIUM | Firestore Security Rules + UI filtering by role |
-| Assignment-based access for services_user | Non-admin services users see only assigned services | MEDIUM | Reuse Projects assignment pattern exactly |
-| Personnel tracking | Track who works on which services | LOW | Reuse multi-personnel selection with pill UI (v2.2 pattern) |
-| Internal/project status fields | Same workflow states as Projects | LOW | Reuse exact status options from Projects |
+| Supplier search by name | Any list with 15+ items needs a search box | LOW | Filter on already-loaded `suppliersData` array; no Firestore query needed |
+| Supplier search by contact person | Users look up suppliers by who they know, not just company name | LOW | Same filter pass — extend substring match to `contact_person` field |
+| Proof-of-procurement attachment link on PO | POs need evidence; auditors and Finance need a reference document | LOW | Store a URL string as `proof_url` on `pos` doc; uploading to Drive happens outside the app |
+| RFP linked to a specific PO | Payment requests must trace back to a procurement document | MEDIUM | New `rfps` collection; `po_id` and `supplier_name` as foreign keys |
+| Outstanding payables list for Finance | Finance cannot manage cash flow without a view of what is owed and when | MEDIUM | Query `rfps` where `payment_status != 'Fully Paid'`; new Finance sub-section |
+| Payable closed automatically when fully paid | "Paid" state is the resolution event; users should not have to manually toggle it | LOW | Computed from `total_paid >= amount_requested`; system updates status on payment record |
 
-### Differentiators (Competitive Advantage)
-
-Features that set Services management apart. Not required, but valuable.
+### Differentiators (Valuable but Not Expected)
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Shared code sequence with Projects | Unified numbering (CLMC_CLIENT_2026001, 2026002...) prevents confusion | LOW | Requires single sequence counter across both collections |
-| Sub-tabs for Services/Recurring | Immediate visual separation of work types without filtering | LOW | Router sub-route pattern: #/services/services, #/services/recurring |
-| Recurring service visual indicators | At-a-glance identification in lists (icon, badge, color coding) | LOW | Display enhancement only, no data changes |
-| Cross-department Finance/Procurement view | Finance approves PRs from both departments in single interface | MEDIUM | Filter PRs/POs by source (project_code vs service_code), display department tag |
-| Automatic personnel-to-assignment sync | When services_user added to personnel, auto-assign access | LOW | Reuse v2.2 syncPersonnelToAssignments pattern |
-| Service detail page with inline editing | Same UX efficiency as Projects detail page | LOW | Copy Projects detail page pattern exactly |
-| Real-time collaboration on services | Multiple users see updates immediately (Firebase real-time) | LOW | Already working for Projects, extends naturally |
-| Search by service code or name | Quick service lookup in large datasets | LOW | Mirror Projects search implementation |
+| Staggered / partial payment tracking | Engineering procurement commonly uses split payments (50% down, 50% on delivery) — most simple AP tools force one payment per invoice | MEDIUM | `payment_records` array on `rfps` doc; each entry captures amount, date paid, method, reference |
+| Payment due date display | Shows urgency without Finance doing mental math on payment terms | LOW | Client-side: `dueDate = invoiceDate + netDays`; stored as ISO string on `rfps` doc |
+| Proof-of-procurement link on Timeline | Clicking a PO timeline surfaces the document link alongside procurement history | LOW | Extend existing `showTimeline()` to render `proof_url` if present |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems for v2.3.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Recurring service schedule automation | "Auto-generate monthly pest control MRFs" sounds efficient | Scope creep - requires scheduling engine, notification system, calendar integration; no user validation requested this | Defer to v3.0+; v2.3 tracks recurring services manually, users create MRFs when work is performed |
-| Contract expiration reminders | Prevent missed renewals for recurring services | Notification system not in scope; email not validated; adds complexity without user request | Defer to v3.0+; users manage contract renewals manually |
-| Service history timeline | View all MRFs/PRs/POs for a service | Already available via project detail expense breakdown; expensive to duplicate for services in v2.3 | Use existing expense breakdown in service detail (mirror Projects pattern exactly) |
-| Separate supplier pools per department | Operations suppliers vs Services suppliers | No evidence this is needed; adds complexity; supplier database is centralized resource | Single supplier pool shared across departments (current model) |
-| Department-specific roles for Finance/Procurement | Finance_Projects vs Finance_Services roles | Finance and Procurement explicitly cross-department in requirements; splitting creates permission complexity | Single Finance and Procurement roles approve work from both departments |
-| Service type beyond one-time/recurring | Add "Emergency", "Preventive", "Corrective" types | Not validated in requirements; service_type is for workflow differentiation, not categorization | v2.3: Two types only (one-time, recurring); defer granular categorization to v3.0+ |
-| Merge Projects and Services into single collection | Simplify data model with single "work" collection | Different user groups need complete isolation; shared collection requires complex filtering everywhere | Keep separate collections for clean role-based isolation |
+| Firebase Storage for proof documents | Familiar; already in the stack | User explicitly rejected due to data cost concern; Storage charges per GB and per operation at scale | Store Google Drive share link as a plain string field on the PO; zero storage cost |
+| Google Drive Picker API (in-app file picker) | Polished UX; user never leaves the app to copy a link | Requires Google Cloud Console setup (OAuth 2.0 Client ID, Picker API enabled). Requires a second OAuth flow in-browser separate from Firebase Auth. Requires CSP expansion: `frame-src docs.google.com drive.google.com accounts.google.com` and `script-src apis.google.com accounts.google.com`. Drive.file scope only grants access to files the user explicitly opens through the Picker — not a shared company folder. HIGH setup complexity for marginal UX gain over paste-a-link. | Simple text input — Procurement copies the Drive share URL and pastes it. Zero OAuth, zero CSP changes, zero Google Cloud setup |
+| Automated payment reminders / due-date notifications | Finance wants alerts when a payable is due | Email notifications are explicitly out of scope per PROJECT.md | Color-coded "Due Soon" and "Overdue" badges in the payables list using client-side date comparison |
+| Full AP automation (auto-match invoices to POs) | Reduces manual data entry | Over-engineering for current scale and team; manual verification is intentional in this workflow | Structured RFP form fields capture the same data manually with a clear audit trail |
+| RFP creation by Finance | Finance may want to initiate payment requests | Violates separation of duties: Finance approves payment, Procurement requests it | Finance role records payments against existing RFPs; only Procurement creates RFPs |
+
+---
+
+## Feature Behaviour: Detailed Analysis
+
+### Feature 1: Supplier Search Bar
+
+**Approach: client-side filter on loaded data, not a server-side Firestore query.**
+
+The `suppliersData` array is already fully loaded and TTL-cached at session start (see `loadSuppliers()` in `procurement.js`). Applying a search means filtering that in-memory array before slicing for pagination. This is the same pattern already used in `projects.js` and `services.js`.
+
+**Fields searched:** `supplier_name` (primary) and `contact_person` (secondary). Both are free-text string fields already in the Firestore `suppliers` schema. A single text input searches across both simultaneously via a case-insensitive `includes()` check.
+
+**UX:** One text input above the suppliers table (and above the "Add Supplier" button). On `input` event: filter `suppliersData` → reset `suppliersCurrentPage` to 1 → call `renderSuppliersTable()`. No debounce needed at this data scale. Clearing the input restores the full list.
+
+**Pagination interaction:** The filtered subset drives pagination totals — filtered count shown in `pagination-info`, pages calculated from filtered length. The `renderSuppliersTable()` function already accepts the slice bounds; change the source array from raw `suppliersData` to `getFilteredSuppliers()` (or inline `.filter()`) to keep the rest of the function unchanged.
+
+**What does NOT change:** Sorting (alphabetical by supplier_name), add/edit/delete flows, the purchase history modal, or any Firestore query. This is purely a display-layer filter.
+
+---
+
+### Feature 2: Proof of Procurement (Google Drive Link)
+
+**Approach: paste-a-link (recommended over Google Picker API).**
+
+Procurement manually copies a share link from Google Drive (or any cloud storage: OneDrive, Dropbox, a direct URL) and pastes it into a text field in the PO status update modal. The URL is stored as `proof_url` (string) on the `pos` Firestore document.
+
+**UX flow:**
+1. Procurement opens a PO in Procurement > PO Tracking.
+2. The existing "Edit PO" or status-update modal gains an optional "Proof of Procurement" field: a text input with a placeholder ("Paste Google Drive share link...") and an adjacent "Open" button that calls `window.open(url)`.
+3. The field is shown regardless of PO status but is most relevant when status is "Procured" or "Delivered".
+4. On save, `proof_url` is written to the `pos` doc alongside any other updated fields.
+5. Wherever a PO is displayed (Finance PO tab, Procurement PO Tracking table row, Timeline modal), a "View Document" link appears if `proof_url` is set.
+
+**Why not Google Picker API (detailed):**
+- Requires a second OAuth flow. The user is already signed in with Firebase Auth (email/password). Google Picker requires Google Identity Services, meaning the user must also authenticate their Google account in the same browser session. Two separate auth states to manage.
+- Requires Google Cloud Console configuration: enable Picker API, create an OAuth 2.0 Client ID, register `https://yourapp.netlify.app` under Authorized JavaScript Origins.
+- Requires CSP header expansion in Netlify config: add `frame-src https://docs.google.com https://drive.google.com https://accounts.google.com` and `script-src https://apis.google.com https://accounts.google.com`. This modifies the hardened CSP from v2.5 Security Audit.
+- The `drive.file` scope means the Picker only shows files the user has opened via the app before — a shared company Procurement folder would require `drive.readonly` scope, which triggers Google's sensitive scope verification process.
+- All of this for a feature whose core value is "attach a URL to a PO." The paste-link approach achieves 100% of the functional value.
+
+**Firestore change:** Add `proof_url` (string, optional) to `pos` documents. Backward compatible — existing POs without the field simply show no link. No migration, no new collection, no Security Rules change beyond ensuring the `pos` write rules already allow Procurement to update this field (they do).
+
+---
+
+### Feature 3: Request for Payment (RFP) and Payables Tracking
+
+**How an RFP fits the existing workflow:**
+
+After a PO moves to "Procured" or "Delivered", the supplier presents an invoice. Procurement creates an RFP in the system to formally request that Finance process payment. Finance uses the payables view to track what is owed, when it is due, and how much has been paid. This extends the existing P2P chain: MRF → PR → PO → **RFP → Payment**.
+
+**Standard RFP fields (informed by AP domain research):**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `rfp_id` | string | Sequential: `RFP-YYYY-###` |
+| `po_id` | string | Foreign key to `pos` collection |
+| `pr_id` | string | Denormalized from PO for display without a join |
+| `mrf_id` | string | Denormalized from PO for full traceability |
+| `supplier_name` | string | Denormalized from PO |
+| `total_po_amount` | number | Snapshot of PO total at RFP creation |
+| `invoice_number` | string | Supplier's invoice reference number |
+| `invoice_date` | string (ISO date) | Date on the supplier's invoice |
+| `amount_requested` | number | Amount being requested (may differ from PO total for partial deliveries) |
+| `payment_terms` | string | e.g., "Net 30", "50% down 50% on delivery", free text |
+| `due_date` | string (ISO date) | Calculated or manually entered |
+| `payment_status` | string | `Pending` / `Partially Paid` / `Fully Paid` |
+| `total_paid` | number | Running sum across all payment records |
+| `payment_records` | array | Each entry: amount, date_paid, method, reference, recorded_by |
+| `notes` | string | Optional; special terms, split payment reason |
+| `submitted_by` | string | Display name of Procurement user who created the RFP |
+| `date_submitted` | Firestore Timestamp | Auto-set on creation |
+
+**Staggered / partial payment tracking:**
+
+Each `rfps` document stores a `payment_records` array field. Each element:
+```json
+{
+  "amount": 50000,
+  "date_paid": "2026-03-15",
+  "method": "Bank Transfer",
+  "reference": "TXN-20260315-001",
+  "recorded_by": "finance_user_name",
+  "recorded_at": "2026-03-15T10:30:00.000Z"
+}
+```
+
+**Why array, not sub-collection:** Payment records per RFP will be small in practice (1–5 entries). An array avoids an extra Firestore listener per RFP, is simpler to write and read in one document fetch, and is consistent with the existing `items_json` pattern on MRFs/PRs. The full RFP document including all payment history loads in a single read.
+
+**Payment status computation:**
+- `Pending`: no payment records yet (or `total_paid == 0`)
+- `Partially Paid`: `total_paid > 0 AND total_paid < amount_requested`
+- `Fully Paid`: `total_paid >= amount_requested`
+
+Finance does NOT manually set this status. When Finance records a payment via the "Record Payment" form, the system recalculates `total_paid` and updates `payment_status` atomically using Firestore `updateDoc`. This prevents status/balance inconsistency.
+
+**What triggers a payable to be "closed":** A payable is closed when `total_paid >= amount_requested`. The system auto-sets `payment_status = 'Fully Paid'` at that point. Closed RFPs move out of the default Finance payables view (they can still be found via a "Show Paid" toggle or historical view).
+
+**Who does what:**
+- Procurement role: creates RFP linked to a PO (PO must be `Procured` or `Delivered`)
+- Finance role: views payables list, opens RFP detail, records payments
+- Operations Admin / Super Admin: view-only on payables; no payment recording
+
+**Finance payables view:** New section in Finance tab (new sub-tab or within the existing PO section). Columns: RFP ID, PO ID, Supplier, Invoice #, Amount Requested, Total Paid, Balance, Due Date, Status badge. Default filter: `payment_status != 'Fully Paid'`. Clicking a row opens a detail modal: full RFP fields + payment history table + "Record Payment" form (Finance only).
+
+---
 
 ## Feature Dependencies
 
 ```
-[Service CRUD]
-    └──requires──> [Clients collection] (already exists)
-    └──requires──> [Users collection] (already exists, v2.0)
+[Supplier Search]
+    reads──> suppliersData (already in memory, no new dependency)
 
-[Service detail page with inline editing]
-    └──requires──> [Service CRUD]
-    └──requires──> [Personnel multi-select] (already exists, v2.2)
+[Proof of Procurement]
+    writes──> pos document (po_id must already exist)
+    visible in──> Finance PO tab, Procurement PO Tracking, Timeline modal
 
-[Assignment-based access]
-    └──requires──> [Service CRUD]
-    └──requires──> [Role system] (already exists, v2.0)
-    └──requires──> [Firebase Security Rules for services collection]
+[Request for Payment (RFP)]
+    requires──> pos document (po_id must exist, status Procured or Delivered)
+    requires──> rfps collection + Firestore Security Rules
+    enables──> Finance payables view
 
-[MRF-Service integration]
-    └──requires──> [Service CRUD]
-    └──requires──> [Role-based dropdown filtering]
-
-[Role-based department isolation]
-    └──requires──> [Role templates for services_admin, services_user]
-    └──requires──> [Firebase Security Rules for services collection]
-    └──requires──> [UI visibility logic by role]
-
-[Sub-tabs for Services/Recurring]
-    └──requires──> [Service CRUD with service_type field]
-    └──enhances──> [Service list view] (provides pre-filtered views)
-
-[Cross-department Finance/Procurement view]
-    └──requires──> [MRF-Service integration] (MRFs reference services)
-    └──requires──> [Department tagging] (identify source: project or service)
+[Payment Records (partial payments)]
+    requires──> rfps document (embedded as array, no sub-collection needed)
+    updates──> rfps.total_paid and rfps.payment_status
 ```
 
 ### Dependency Notes
 
-- **Service CRUD requires Clients and Users:** Same dependencies as Projects, collections already exist
-- **Assignment-based access requires Security Rules:** Cannot rely on UI-only filtering for security; server-side enforcement critical
-- **MRF integration requires role-based filtering:** Operations users must never see Services in dropdown, vice versa; UI + Security Rules enforcement
-- **Sub-tabs enhance list view:** Router pattern already supports sub-routes (#/procurement/mrfs); extend to #/services/services and #/services/recurring
-- **Cross-department Finance/Procurement requires source tagging:** PRs/POs need to display which department originated the work
+- **Supplier search has no new dependencies.** It operates on cached in-memory data. Implement first — lowest risk, highest confidence.
+- **Proof of procurement has no new collections.** It is a field addition to `pos`. No Security Rules change. Implement second — low risk, high value.
+- **RFP requires a new `rfps` collection and Security Rules.** Per the established pattern in CLAUDE.md: add Security Rules FIRST before writing any code that creates documents. Finance will get permission errors otherwise even as Super Admin.
+- **RFP creation must be gated on PO status.** The "Create RFP" action should only appear for POs with `procurement_status` of `Procured` or `Delivered`. Enforce in UI (conditional button render) and optionally in Security Rules (allow `rfps` create only when the referenced `pos` doc has the right status — but client-side gating is sufficient for this app's threat model).
+- **Payables view depends on the `rfps` collection existing.** No Finance UI can be built before the collection and rules are in place.
 
-## MVP Definition (v2.3 Services Department)
+---
 
-### Launch With (v2.3)
+## MVP Definition
 
-Minimum viable Services department — what's needed to enable parallel workflows.
+### Launch With (v3.2 — this milestone)
 
-- [x] **Services collection with service_type field** — Core data model; distinguishes one-time vs recurring
-- [x] **Services CRUD operations (create, edit, delete)** — Standard management operations mirroring Projects
-- [x] **Service code generation sharing CLMC_CLIENT_YYYY### sequence** — Unified numbering across Projects and Services
-- [x] **Services tab with sub-tabs (Services, Recurring)** — Visual separation of work types via router sub-routes
-- [x] **Role templates for services_admin and services_user** — Two new roles mirroring operations roles
-- [x] **Assignment system for services_user** — Non-admin services users see only assigned services
-- [x] **Firebase Security Rules for services collection** — Server-side enforcement of role-based access
-- [x] **Role-based MRF dropdown filtering** — Operations sees Projects, services sees Services, never mixed
-- [x] **Department isolation in navigation** — Operations roles never see Services tab, vice versa (except Super Admin, Finance, Procurement)
-- [x] **Service detail page with inline editing** — Same UX as Projects detail page (v1.0 pattern)
-- [x] **Multi-personnel selection for services** — Reuse v2.2 pill UI for personnel tracking
-- [x] **Automatic personnel-to-assignment sync** — services_user added to personnel → auto-assign access
+- [ ] Supplier search bar — client-side filter by name and contact person, resets pagination on each keystroke
+- [ ] Proof of procurement link — `proof_url` field on `pos` doc, paste-a-link input in PO modal, "View Document" link shown in Finance and Procurement views
+- [ ] RFP creation form — Procurement creates RFP from an eligible PO; captures invoice number, invoice date, amount requested, payment terms, due date, notes
+- [ ] RFP list view for Finance — shows open payables with balance, due date, status badge
+- [ ] Record payment flow — Finance enters amount + date + method + reference; system updates `total_paid` and derives `payment_status`
+- [ ] Partial vs full payment — system derives `Partially Paid` / `Fully Paid` from payment records; no manual status toggle
 
-### Add After Validation (v2.3.x)
+### Add After Validation (v3.x)
 
-Features to add once Services department is working and users provide feedback.
+- [ ] Overdue badge — color-coded indicator when `due_date < today` AND `payment_status != 'Fully Paid'`; client-side date comparison, no Firestore query
+- [ ] RFP event on procurement timeline — show RFP creation and payment events in the existing `showTimeline()` modal
+- [ ] CSV export of payables — Finance exports outstanding RFPs list via existing `downloadCSV()` utility
 
-- [ ] **Search by service code or name** — Triggered by: "We have too many services to scroll through"
-- [ ] **Advanced filtering (by date range, budget)** — Triggered by: "I need to find services from Q4 2025"
-- [ ] **Service expense breakdown modal** — Triggered by: "How much have we spent on this service?" (mirror Projects expense breakdown)
-- [ ] **Recurring service visual indicators** — Triggered by: "Hard to tell one-time from recurring at a glance"
-- [ ] **Bulk assignment operations** — Triggered by: "Assigning services one by one is tedious"
+### Future Consideration (v4.0+)
 
-### Future Consideration (v3.0+)
+- [ ] Google Drive Picker API — only if paste-a-link proves too friction-heavy in practice for Procurement users
+- [ ] Payables summary on Finance dashboard scoreboard — total outstanding amount across all open RFPs
+- [ ] Per-supplier payables aggregation — how much is owed to each supplier across all open RFPs
+- [ ] RFP approval workflow — if Finance needs a second sign-off before payment is recorded
 
-Features to defer until Services department is validated and usage patterns emerge.
-
-- [ ] **Recurring service schedule automation** — Defer until: Users request "auto-generate MRFs for monthly services"
-- [ ] **Contract expiration tracking** — Defer until: Users request "remind me when pest control contract expires"
-- [ ] **Service history timeline** — Defer until: Users request "show all work performed for this service"
-- [ ] **Service performance metrics** — Defer until: "Track on-time completion rates for recurring services"
-- [ ] **Service-specific document types** — Defer until: "Upload service contracts separate from MRFs"
-- [ ] **Service categories/tags** — Defer until: "Group services by type (HVAC, electrical, pest control)"
+---
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Services CRUD operations | HIGH | LOW | P1 |
-| Service code generation (shared sequence) | HIGH | LOW | P1 |
-| Service type differentiation (field) | HIGH | LOW | P1 |
-| Role templates (services_admin, services_user) | HIGH | LOW | P1 |
-| Firebase Security Rules (services collection) | HIGH | MEDIUM | P1 |
-| MRF dropdown role-based filtering | HIGH | MEDIUM | P1 |
-| Department isolation (UI visibility) | HIGH | MEDIUM | P1 |
-| Assignment system for services_user | HIGH | MEDIUM | P1 |
-| Services tab with sub-tabs | MEDIUM | LOW | P1 |
-| Service detail page with inline editing | MEDIUM | LOW | P1 |
-| Multi-personnel selection | MEDIUM | LOW | P1 |
-| Auto personnel-to-assignment sync | MEDIUM | LOW | P1 |
-| Search by service code/name | MEDIUM | LOW | P2 |
-| Advanced filtering (date, budget) | MEDIUM | LOW | P2 |
-| Service expense breakdown modal | MEDIUM | MEDIUM | P2 |
-| Recurring service visual indicators | LOW | LOW | P2 |
-| Bulk assignment operations | MEDIUM | MEDIUM | P2 |
-| Recurring schedule automation | HIGH | HIGH | P3 |
-| Contract expiration tracking | MEDIUM | MEDIUM | P3 |
-| Service history timeline | MEDIUM | MEDIUM | P3 |
-| Service performance metrics | LOW | HIGH | P3 |
-| Service-specific document types | LOW | MEDIUM | P3 |
-| Service categories/tags | MEDIUM | LOW | P3 |
+| Supplier search (name + contact person) | HIGH | LOW | P1 |
+| Proof of procurement — paste link + store URL | HIGH | LOW | P1 |
+| RFP creation form | HIGH | MEDIUM | P1 |
+| Finance payables list (open RFPs) | HIGH | MEDIUM | P1 |
+| Record payment / partial tracking | HIGH | MEDIUM | P1 |
+| Payment due date display and calculation | MEDIUM | LOW | P1 |
+| Overdue badge (client-side date check) | MEDIUM | LOW | P2 |
+| RFP event on procurement timeline | LOW | LOW | P2 |
+| CSV export of payables | MEDIUM | LOW | P2 |
+| Google Picker API | LOW | HIGH | P3 |
+| Payables dashboard scoreboard | MEDIUM | LOW | P3 |
+| Per-supplier payables aggregation | MEDIUM | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Must have for v2.3 launch — Services department cannot function without these
-- P2: Should have, add when possible — Improves UX but not blocking
-- P3: Nice to have, future consideration — Defer until usage patterns validate need
+- P1: Must have for v3.2 launch
+- P2: Add once v3.2 core is stable
+- P3: Future consideration only
 
-## Comparison: Services Management vs Project Management
+---
 
-| Feature | Projects (existing) | Services (v2.3) | Implementation Notes |
-|---------|---------------------|-----------------|----------------------|
-| Code generation | CLMC_CLIENT_YYYY### sequence | Same shared sequence | Single counter, type determined by collection |
-| CRUD operations | Full create/edit/delete | Mirror exactly | Reuse Projects patterns, swap collection name |
-| Detail page | Inline editing with auto-save | Mirror exactly | Copy Projects detail page pattern |
-| List view | Filter by status, client, active flag | Add service_type filter | Extend existing filtering logic |
-| Role isolation | Operations roles only | Services roles only | New: Department-level isolation, not just tab-level |
-| Assignment system | operations_user sees assigned projects | services_user sees assigned services | Reuse exact assignment pattern |
-| Personnel tracking | Multi-select pill UI (v2.2) | Mirror exactly | Reuse v2.2 implementation |
-| MRF integration | Dropdown shows active projects | Dropdown shows active services (role-based) | New: Role determines which collection to query |
-| Sub-routes | #/projects (no sub-routes) | #/services/services, #/services/recurring | New: Sub-tab navigation via router |
-| Security Rules | projects collection rules | services collection rules (mirror) | Copy-paste Projects rules, swap collection name |
-| Finance/Procurement view | View project-based PRs/POs | View both project and service PRs/POs | New: Cross-department display with source tagging |
+## Complexity Notes for Roadmap Phasing
 
-## User Workflow Analysis
+**Supplier search — 1 phase:**
+Pure client-side display logic. Add one `<input>` element, one `input` event listener, one filter function. Touches `procurement.js` only. No Firestore, no Security Rules, no new collection. Ideal as the first phase of v3.2.
 
-### Services Admin Workflow
+**Proof of procurement — 1 phase:**
+One optional string field on an existing document. Add one input to the PO edit modal, one "View Document" link in 2–3 display locations (Procurement PO Tracking, Finance PO tab, Timeline). Touches `procurement.js` and `finance.js`. No new collection, no Security Rules change.
 
-1. **Create service record**
-   - Click "Add New Service" button
-   - Select client from dropdown (reuse clients collection)
-   - Enter service name (e.g., "AC Repair - Building A")
-   - Select service type (one-time or recurring)
-   - Optional: Enter budget, contract cost
-   - Optional: Select personnel
-   - System auto-generates service code (CLMC_CLIENT_YYYY###)
-   - Save → Service created with active flag = true
+**RFP + payables system — 3–4 phases:**
+New collection (`rfps`), new Security Rules, new Firestore sequential ID generation (`RFP-YYYY-###`), RFP creation form (Procurement), Finance payables view, record-payment modal, `total_paid` / `payment_status` computation. Self-contained but the largest feature in this milestone. Should be split into: (a) Security Rules + collection design, (b) RFP creation in Procurement, (c) Finance payables view + record payment.
 
-2. **Assign service to services_user**
-   - Open service detail page
-   - Multi-select personnel (includes services_user accounts)
-   - Auto-sync: services_user role gets assignment record
+**Google Drive Picker — out of scope for v3.2:**
+OAuth setup, CSP changes, second auth state, Picker library loading, user Google account requirement. Complexity does not justify the marginal UX improvement over paste-a-link for the current team size and usage volume.
 
-3. **Services user creates MRF**
-   - Navigate to MRF form
-   - Service dropdown shows ONLY services assigned to them (or all if services_admin)
-   - Select service → auto-populate service_code and service_name
-   - Complete MRF → standard procurement workflow
-
-### Recurring Service Workflow
-
-1. **Create recurring service**
-   - Same as one-time service creation
-   - Select service_type = "recurring"
-   - Enter contract cost (e.g., monthly pest control fee)
-   - Add personnel (technicians who perform work)
-
-2. **Perform recurring work**
-   - Each time work is performed, create new MRF
-   - Select same recurring service from dropdown
-   - MRF tracks individual work instance
-   - Expense breakdown shows all MRFs for that service
-
-3. **Track recurring expenses**
-   - Service detail page shows total expenses across all MRFs
-   - Finance sees all PRs/POs tagged to recurring service
-   - Budget vs actual comparison (same as Projects)
-
-### Cross-Department Finance Workflow
-
-1. **Finance reviews pending PRs**
-   - Finance tab → Pending Approvals
-   - List shows PRs from BOTH Projects and Services departments
-   - Each PR displays source tag (Project: CLMC_AAA_2026001 or Service: CLMC_BBB_2026002)
-   - Finance approves/rejects regardless of source department
-   - No workflow changes from v2.2
-
-2. **Procurement tracks POs**
-   - Procurement tab → PO Tracking
-   - List shows POs from BOTH departments
-   - Update status (Pending → Procuring → Procured → Delivered)
-   - No workflow changes from v2.2
+---
 
 ## Sources
 
-**Service Management Systems & Features:**
-- [Recurring Billing Software and Solutions for 2026](https://www.agencyhandy.com/recurring-billing-software/) — One-time vs recurring patterns
-- [Field Service Management Software in 2026](https://buildops.com/resources/field-service-management-software/) — AC repair and maintenance workflows
-- [Maintenance Agreement & Recurring Service Scheduling](https://www.housecallpro.com/features/recurring-service-plans/) — Recurring service automation patterns
-- [Service Contract Management Software](https://www.commusoft.com/en-us/features/service-contract-management-software/) — Contract-based recurring services
-- [Preventive Maintenance Scheduling](https://ftmaintenance.com/cmms-features/preventive-maintenance/) — Quarterly PM workflows
-
-**Project vs Service Management:**
-- [Project Management vs. Service Management: Key Differences](https://www.motadata.com/blog/project-management-vs-service-management/) — Temporary vs ongoing nature
-- [IT Project Management vs. Service Management](https://www.manageengine.com/products/service-desk/itsm/project-management-vs-it-service-management.html) — Process differences
-- [Integrating Project Management and Service Management](https://www.pmi.org/learning/library/integrating-project-service-management-6328) — Integration patterns
-
-**Role-Based Access & Multi-Department:**
-- [Role-Based Access Control Best Practices for 2026](https://www.techprescient.com/blogs/role-based-access-control-best-practices/) — RBAC patterns
-- [Role-Based Access Control: A Comprehensive Guide 2026](https://www.zluri.com/blog/role-based-access-control) — Granular permissions
-- [Separation of Duties Policy Examples for 2026](https://www.zluri.com/blog/separation-of-duties-policy-example) — Cross-department access patterns
-
-**Maintenance & Repair Workflows:**
-- [Maintenance Management System Best Practices 2026](https://www.getsockeye.com/blog/best-maintenance-scheduling-software/) — Recurring maintenance patterns
-- [Pest Control Work Order Software](https://www.maintenancecare.com/pest-control-work-order-software) — Recurring service workflows
-- [HVAC Preventive Maintenance Checklist 2026](https://oxmaint.com/industries/hvac/hvac-preventive-maintenance-checklist-2026) — Quarterly maintenance patterns
-- [Service Maintenance Contracts: Key Elements & Best Practices](https://www.servicegeeni.com/blog/understanding-service-maintenance-contracts) — Contract-based services
+- Google Drive Picker API official overview: https://developers.google.com/workspace/drive/picker/guides/overview
+- Google Drive Picker web app integration guide (DEV Community): https://dev.to/googleworkspace/easily-integrate-google-drive-picker-into-your-web-apps-2304
+- Google Drive API scopes reference: https://developers.google.com/workspace/drive/api/guides/api-specific-auth
+- Google Drive Picker CSP requirements (WebSearch finding, MEDIUM confidence): includes `frame-src docs.google.com drive.google.com accounts.google.com` and `script-src apis.google.com accounts.google.com`
+- Accounts payable full cycle process (Medius): https://www.medius.com/blog/full-process-accounts-payable-cycle/
+- AP terms and payment tracking glossary (NetSuite): https://www.netsuite.com/portal/resource/articles/accounting/accounts-payable-terms.shtml
+- Procure-to-pay process overview (Pipefy): https://www.pipefy.com/blog/procure-to-pay/
+- Client-side table search pattern (DEV Community): https://dev.to/michelc/search-and-filter-a-table-with-javascript-28mi
 
 ---
-*Feature research for: Services Department (CLMC Procurement System)*
-*Researched: 2026-02-12*
-*Research confidence: HIGH — Based on verified service management patterns, existing Projects implementation analysis, and validated user requirements*
+*Feature research for: CLMC Procurement System v3.2 — Supplier Search, Proof of Procurement, Payables Tracking*
+*Researched: 2026-03-13*
