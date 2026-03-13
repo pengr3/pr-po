@@ -11,6 +11,7 @@
 - ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
 - ✅ **v3.0 Fixes** — Phases 54-56 (shipped 2026-03-04)
 - ✅ **v3.1 PR/TR Routing Fix & Procurement Workflow Improvements** — Phases 57-62.2 (shipped 2026-03-10)
+- 🚧 **v3.2 Supplier Search, Proof of Procurement & Payables Tracking** — Phases 63-65 (in progress)
 
 ## Phases
 
@@ -145,7 +146,54 @@
 
 </details>
 
+### 🚧 v3.2 Supplier Search, Proof of Procurement & Payables Tracking (In Progress)
+
+**Milestone Goal:** Add supplier search in Procurement, document-backed proof of procurement via external URL, and a payables tracking system with Request for Payment workflow.
+
+- [ ] **Phase 63: Supplier Search** - Client-side search bar filtering the supplier list by name and contact person
+- [ ] **Phase 64: Proof of Procurement** - Optional proof URL field on POs for document-backed procurement evidence
+- [ ] **Phase 65: RFP + Payables Tracking** - Request for Payment submission workflow and Finance Payables tab with payment recording
+
+## Phase Details
+
+### Phase 63: Supplier Search
+**Goal**: Procurement users can instantly find suppliers by name or contact person without scrolling through pages
+**Depends on**: Nothing (first phase of v3.2; no Firestore changes)
+**Requirements**: SUPSRCH-01, SUPSRCH-02, SUPSRCH-03, SUPSRCH-04
+**Success Criteria** (what must be TRUE):
+  1. User can type in a search bar above the supplier table and the list narrows to suppliers whose name or contact person contains the typed text (case-insensitive)
+  2. User can clear the search bar and the full supplier list is restored
+  3. Pagination controls reflect the filtered result count — page count and "Showing X of Y" update to match the filtered set, not the total supplier count
+  4. Search bar styling matches the existing client and project filter bars
+**Plans**: TBD
+
+### Phase 64: Proof of Procurement
+**Goal**: Procurement users can attach an external document URL to any PO, and Finance users can view that link from their PO Tracking tab
+**Depends on**: Phase 63
+**Requirements**: PROOF-01, PROOF-02, PROOF-03, PROOF-04
+**Success Criteria** (what must be TRUE):
+  1. Procurement user can paste an `https://` URL (Google Drive, OneDrive, SharePoint, etc.) onto any PO row in PO Tracking and the link is saved to the PO document
+  2. Procurement user can update or replace the proof URL on a PO regardless of its current procurement status, including after Delivered
+  3. Finance user sees a "View Document" link on PO rows in their Finance PO Tracking tab that opens the proof URL in a new tab
+  4. The procurement timeline modal shows a "Proof attached" event when a proof URL is first saved to a PO
+**Plans**: TBD
+
+### Phase 65: RFP + Payables Tracking
+**Goal**: Procurement can formally request payment against a PO, and Finance can track, record, and partially pay those requests from a dedicated Payables tab
+**Depends on**: Phase 64
+**Requirements**: RFP-01, RFP-02, RFP-03, RFP-04, RFP-05, RFP-06
+**Success Criteria** (what must be TRUE):
+  1. Procurement user can submit a Request for Payment on any PO, entering invoice number, amount, payment terms, and due date — the RFP is assigned an `RFP-[PROJECT CODE]-###` ID (e.g. `RFP-CLMC-001`) scoped per project code, and linked to the PO
+  2. Finance user sees a Payables tab listing all open RFPs with supplier, PO reference, amount, balance remaining, due date, and a derived payment status badge (Pending / Partially Paid / Fully Paid)
+  3. Finance user can record a payment against an RFP — entering amount, date, method, and reference — and the system immediately recalculates the balance and updates the payment status badge without Finance manually setting it
+  4. RFPs whose due date has passed and are not fully paid display an overdue indicator
+  5. Procurement user can see the payment status of each RFP (Pending / Partially Paid / Fully Paid) directly on their PO Tracking view
+**Plans**: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 63 → 64 → 65
 
 | Phase | Milestone | Plans | Status | Completed |
 |-------|-----------|-------|--------|-----------|
@@ -158,8 +206,11 @@
 | 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
 | 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
 | 57-62.2 | v3.1 | 22/22 | Complete | 2026-03-10 |
+| 63. Supplier Search | v3.2 | 0/TBD | Not started | - |
+| 64. Proof of Procurement | v3.2 | 0/TBD | Not started | - |
+| 65. RFP + Payables Tracking | v3.2 | 0/TBD | Not started | - |
 
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-10 — v3.1 milestone archived*
+*Last updated: 2026-03-13 — v3.2 roadmap created*
