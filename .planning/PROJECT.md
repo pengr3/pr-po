@@ -8,10 +8,19 @@ A zero-build static SPA for managing engineering procurement workflows (MRFs, PR
 
 Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
 
+## Current Milestone: v3.2 Supplier Search, Proof of Procurement & Payables Tracking
+
+**Goal:** Add supplier search in Procurement, document-backed proof of procurement via external storage, and a payables tracking system with Request for Payment workflow.
+
+**Target features:**
+- Supplier search bar in Procurement > Supplier Management (search by name and/or contact person)
+- Proof of procurement — Procurement uploads supporting documents to Google Drive (or equivalent), link stored in Firestore
+- Request for Payment — Procurement/Finance submits RFP with payment terms; system tracks outstanding payables per PO
+
 ## Current State
 
 **Latest shipped:** v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (2026-03-10)
-**Active milestone:** None — planning next milestone
+**Active milestone:** v3.2 in progress
 
 See `.planning/MILESTONES.md` for full milestone history.
 
@@ -453,4 +462,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 56: Finance tab as reference alignment (do not modify) | All other tabs normalize to Finance's two-level sub-nav pattern and 1600px width | ✓ Good - clear single source of truth for layout |
 
 ---
-*Last updated: 2026-03-05 after v3.1 milestone start*
+*Last updated: 2026-03-13 after v3.2 milestone start*

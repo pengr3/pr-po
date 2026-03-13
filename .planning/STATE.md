@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.1
-milestone_name: PR/TR Routing Fix & Procurement Workflow Improvements
-status: complete
-last_updated: "2026-03-09T09:50:17.093Z"
+milestone: v3.2
+milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
+status: defining requirements
+last_updated: "2026-03-13T00:00:00.000Z"
 progress:
-  total_phases: 64
-  completed_phases: 64
-  total_plans: 167
-  completed_plans: 167
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-05 after v3.1 milestone start)
 
 ## Current Position
 
-Phase: 62.2 of 62.2 (MRF rejection timeline event) — COMPLETE
-Plan: 1 of 1 in Phase 62.2 — COMPLETE
-Status: Complete
-Last activity: 2026-03-10 — Phase 62.2 complete — MRF rejection event in Procurement and My Requests timelines
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-13 — Milestone v3.2 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
