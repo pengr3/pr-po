@@ -265,6 +265,18 @@ export function render(activeTab = 'mrfs') {
                         </div>
                     </div>
 
+                    <!-- Supplier Search Filter Bar -->
+                    <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                        <div class="form-group" style="margin: 0; flex: 2; min-width: 200px;">
+                            <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Search</label>
+                            <input type="text"
+                                   id="supplierSearchInput"
+                                   placeholder="Search by supplier name or contact person..."
+                                   oninput="window.applySupplierSearch()"
+                                   style="width: 100%;">
+                        </div>
+                    </div>
+
                     <!-- Suppliers Table -->
                     <div class="table-scroll-container">
                     <table>
