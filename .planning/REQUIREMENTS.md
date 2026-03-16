@@ -8,10 +8,10 @@
 
 ### Supplier Search
 
-- [ ] **SUPSRCH-01**: User can filter the supplier list by typing in a search bar that matches against supplier name
-- [ ] **SUPSRCH-02**: User can filter the supplier list using the same search bar to match against contact person name (both fields searched simultaneously)
-- [ ] **SUPSRCH-03**: User can clear the supplier search to restore the full supplier list
-- [ ] **SUPSRCH-04**: Supplier search filters the full supplier dataset — results paginate correctly from the filtered set, not just the current page
+- [x] **SUPSRCH-01**: User can filter the supplier list by typing in a search bar that matches against supplier name
+- [x] **SUPSRCH-02**: User can filter the supplier list using the same search bar to match against contact person name (both fields searched simultaneously)
+- [x] **SUPSRCH-03**: User can clear the supplier search to restore the full supplier list
+- [x] **SUPSRCH-04**: Supplier search filters the full supplier dataset — results paginate correctly from the filtered set, not just the current page
 
 ### Proof of Procurement
 
@@ -57,26 +57,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SUPSRCH-01 | — | Pending |
-| SUPSRCH-02 | — | Pending |
-| SUPSRCH-03 | — | Pending |
-| SUPSRCH-04 | — | Pending |
-| PROOF-01 | — | Pending |
-| PROOF-02 | — | Pending |
-| PROOF-03 | — | Pending |
-| PROOF-04 | — | Pending |
-| RFP-01 | — | Pending |
-| RFP-02 | — | Pending |
-| RFP-03 | — | Pending |
-| RFP-04 | — | Pending |
-| RFP-05 | — | Pending |
-| RFP-06 | — | Pending |
+| SUPSRCH-01 | Phase 63 | Complete |
+| SUPSRCH-02 | Phase 63 | Complete |
+| SUPSRCH-03 | Phase 63 | Complete |
+| SUPSRCH-04 | Phase 63 | Complete |
+| PROOF-01 | Phase 64 | Pending |
+| PROOF-02 | Phase 64 | Pending |
+| PROOF-03 | Phase 64 | Pending |
+| PROOF-04 | Phase 64 | Pending |
+| RFP-01 | Phase 65 | Pending |
+| RFP-02 | Phase 65 | Pending |
+| RFP-03 | Phase 65 | Pending |
+| RFP-04 | Phase 65 | Pending |
+| RFP-05 | Phase 65 | Pending |
+| RFP-06 | Phase 65 | Pending |
 
 **Coverage:**
 - v3.2 requirements: 14 total
-- Mapped to phases: 0
-- Unmapped: 14 ⚠️
+- Mapped to phases: 14
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 — traceability updated after roadmap creation*

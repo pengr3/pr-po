@@ -150,7 +150,7 @@
 
 **Milestone Goal:** Add supplier search in Procurement, document-backed proof of procurement via external URL, and a payables tracking system with Request for Payment workflow.
 
-- [ ] **Phase 63: Supplier Search** - Client-side search bar filtering the supplier list by name and contact person
+- [x] **Phase 63: Supplier Search** - Client-side search bar filtering the supplier list by name and contact person (completed 2026-03-16)
 - [ ] **Phase 64: Proof of Procurement** - Optional proof URL field on POs for document-backed procurement evidence
 - [ ] **Phase 65: RFP + Payables Tracking** - Request for Payment submission workflow and Finance Payables tab with payment recording
 
@@ -209,7 +209,7 @@ Phases execute in numeric order: 63 → 64 → 65
 | 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
 | 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
 | 57-62.2 | v3.1 | 22/22 | Complete | 2026-03-10 |
-| 63. Supplier Search | v3.2 | 0/TBD | Not started | - |
+| 63. Supplier Search | 1/1 | Complete   | 2026-03-16 | - |
 | 64. Proof of Procurement | v3.2 | 0/TBD | Not started | - |
 | 65. RFP + Payables Tracking | v3.2 | 0/TBD | Not started | - |
 
