@@ -165,7 +165,10 @@
   2. User can clear the search bar and the full supplier list is restored
   3. Pagination controls reflect the filtered result count — page count and "Showing X of Y" update to match the filtered set, not the total supplier count
   4. Search bar styling matches the existing client and project filter bars
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 63-01-PLAN.md — Add filteredSuppliersData, applySupplierSearch, filter-bar HTML; wire pagination from filtered array
 
 ### Phase 64: Proof of Procurement
 **Goal**: Procurement users can attach an external document URL to any PO, and Finance users can view that link from their PO Tracking tab
