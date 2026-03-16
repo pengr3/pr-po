@@ -14,6 +14,7 @@ import { createStatusBadge, createModal, openModal, closeModal, createTimeline, 
 
 let currentMRF = null;
 let suppliersData = [];
+let filteredSuppliersData = []; // filtered view for search; pagination operates on this
 let projectsData = [];
 let editingSupplier = null;
 let suppliersCurrentPage = 1;
@@ -120,6 +121,7 @@ function attachWindowFunctions() {
     window.saveEdit = saveEdit;
     window.deleteSupplier = deleteSupplier;
     window.changeSuppliersPage = changeSuppliersPage;
+    window.applySupplierSearch = applySupplierSearch;
 
     // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
@@ -601,6 +603,7 @@ export async function destroy() {
     // Clear global state
     currentMRF = null;
     suppliersData = [];
+    filteredSuppliersData = [];
     projectsData = [];
     poData = [];
     allPRPORecords = [];
@@ -629,6 +632,7 @@ export async function destroy() {
     delete window.saveEdit;
     delete window.deleteSupplier;
     delete window.changeSuppliersPage;
+    delete window.applySupplierSearch;
     delete window.loadPRPORecords;
     delete window.filterPRPORecords;
     delete window.goToPRPOPage;
@@ -2721,6 +2725,18 @@ async function deleteSupplier(supplierId, supplierName) {
         showLoading(false);
     }
 };
+
+function applySupplierSearch() {
+    const term = document.getElementById('supplierSearchInput')?.value?.toLowerCase() || '';
+    filteredSuppliersData = !term
+        ? [...suppliersData]
+        : suppliersData.filter(s =>
+            (s.supplier_name && s.supplier_name.toLowerCase().includes(term)) ||
+            (s.contact_person && s.contact_person.toLowerCase().includes(term))
+          );
+    suppliersCurrentPage = 1;
+    renderSuppliersTable();
+}
 
 function changeSuppliersPage(direction) {
     const totalPages = Math.ceil(suppliersData.length / suppliersItemsPerPage);
