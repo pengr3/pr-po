@@ -2512,6 +2512,9 @@ async function rejectMRF() {
  */
 async function loadSuppliers() {
     if (suppliersData.length > 0 && (Date.now() - _suppliersCachedAt) < CACHE_TTL_MS) {
+        if (filteredSuppliersData.length === 0) {
+            filteredSuppliersData = [...suppliersData]; // ensure populated on cache-hit
+        }
         renderSuppliersTable(); // Paint cached data onto fresh DOM after tab switch
         return;
     }
@@ -2526,7 +2529,7 @@ async function loadSuppliers() {
             suppliersData.sort((a, b) => a.supplier_name.localeCompare(b.supplier_name));
             _suppliersCachedAt = Date.now();
 
-            renderSuppliersTable();
+            applySupplierSearch(); // re-derive filtered view and render
         });
 
         listeners.push(listener);
@@ -2545,18 +2548,22 @@ function renderSuppliersTable() {
     const canEdit = window.canEditTab?.('procurement');
     const showEditControls = canEdit !== false;
 
-    if (suppliersData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem;">No suppliers yet. Add your first supplier!</td></tr>';
+    if (filteredSuppliersData.length === 0) {
+        const term = document.getElementById('supplierSearchInput')?.value || '';
+        const message = term
+            ? 'No suppliers match your search.'
+            : 'No suppliers yet. Add your first supplier!';
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
         const paginationDiv = document.getElementById('suppliersPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
     }
 
     // Calculate pagination
-    const totalPages = Math.ceil(suppliersData.length / suppliersItemsPerPage);
+    const totalPages = Math.ceil(filteredSuppliersData.length / suppliersItemsPerPage);
     const startIndex = (suppliersCurrentPage - 1) * suppliersItemsPerPage;
-    const endIndex = Math.min(startIndex + suppliersItemsPerPage, suppliersData.length);
-    const pageItems = suppliersData.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + suppliersItemsPerPage, filteredSuppliersData.length);
+    const pageItems = filteredSuppliersData.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageItems.map(supplier => {
         if (editingSupplier === supplier.id) {
@@ -2591,7 +2598,7 @@ function renderSuppliersTable() {
     }).join('');
 
     // Update pagination controls
-    updateSuppliersPaginationControls(totalPages, startIndex, endIndex, suppliersData.length);
+    updateSuppliersPaginationControls(totalPages, startIndex, endIndex, filteredSuppliersData.length);
 }
 
 // Supplier management functions
@@ -2739,7 +2746,7 @@ function applySupplierSearch() {
 }
 
 function changeSuppliersPage(direction) {
-    const totalPages = Math.ceil(suppliersData.length / suppliersItemsPerPage);
+    const totalPages = Math.ceil(filteredSuppliersData.length / suppliersItemsPerPage);
 
     if (direction === 'prev' && suppliersCurrentPage > 1) {
         suppliersCurrentPage--;
