@@ -3330,7 +3330,8 @@ async function renderPRPORecords() {
                                 pr_id: poData.pr_id,
                                 procurement_status: poData.procurement_status,
                                 is_subcon: poData.is_subcon || false,
-                                supplier_name: poData.supplier_name
+                                supplier_name: poData.supplier_name,
+                                proof_url: poData.proof_url || ''
                             });
                         });
 
@@ -3586,6 +3587,43 @@ async function renderPRPORecords() {
             // poHtml stays '-'; procStatusHtml stays '-'
         }
 
+        let proofHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
+
+        if (type === 'Material' && prDataArray.length > 0) {
+            proofHtml = prDataArray.map((pr, i) => {
+                const matchedPOs = posByPrId[pr.pr_id] || [];
+                let content;
+                if (matchedPOs.length === 0) {
+                    content = `<span style="color: #94a3b8; font-size: 0.75rem;">&#8212;</span>`;
+                } else {
+                    content = matchedPOs.map(po => {
+                        const hasProof = !!po.proof_url;
+                        if (hasProof) {
+                            return `<span class="proof-indicator proof-filled"
+                                title="Left-click to open proof &middot; Right-click to replace"
+                                onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
+                                oncontextmenu="event.preventDefault(); window.showProofModal('${po.docId}', '${escapeHTML(po.proof_url)}', false, null)"
+                                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                                ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${po.docId}','${escapeHTML(po.proof_url)}',false,null)},600)"
+                                ontouchend="clearTimeout(window._proofLongPress)"
+                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+                        } else {
+                            return `<span class="proof-indicator proof-empty"
+                                title="Click to attach proof"
+                                onclick="window.showProofModal('${po.docId}', '', false, null)"
+                                onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                                onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
+                        }
+                    }).join(' ');
+                }
+                const rowStyle = i === 0
+                    ? 'height: 30px; display: flex; align-items: center; justify-content: center;'
+                    : 'height: 30px; display: flex; align-items: center; justify-content: center; border-top: 1px dashed #e5e7eb;';
+                return `<div style="${rowStyle}">${content}</div>`;
+            }).join('');
+        }
+
         // Append TR badge(s) for Material MRFs that also have transport items (mixed PRs + TRs)
         if (type === 'Material' && trDataArray.length > 0) {
             const hasPrs = prDataArray.length > 0;
@@ -3608,6 +3646,7 @@ async function renderPRPORecords() {
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${mrf.date_needed ? formatDate(mrf.date_needed) : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A')}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
+                <td style="padding: 0.75rem 0.5rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: top;">${proofHtml}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">
                     ${mrfStatusHtml}
                 </td>
@@ -3636,6 +3675,7 @@ async function renderPRPORecords() {
                     </th>
                     <th style="text-align: left;">PRs</th>
                     <th style="text-align: left;">POs</th>
+                    <th style="text-align: center; width: 40px;">Proof</th>
                     <th onclick="window.sortPRPORecords('status')" style="text-align: left; cursor: pointer; user-select: none;">
                         MRF Status ${getPRPOSortIndicator('status')}
                     </th>
