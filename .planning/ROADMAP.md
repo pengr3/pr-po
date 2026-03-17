@@ -146,7 +146,7 @@
 
 </details>
 
-### 🚧 v3.2 Supplier Search, Proof of Procurement & Payables Tracking (In Progress)
+### v3.2 Supplier Search, Proof of Procurement & Payables Tracking (In Progress)
 
 **Milestone Goal:** Add supplier search in Procurement, document-backed proof of procurement via external URL, and a payables tracking system with Request for Payment workflow.
 
@@ -179,11 +179,12 @@ Plans:
   2. Procurement user can update or replace the proof URL on a PO regardless of its current procurement status, including after Delivered
   3. Finance user sees a "View Document" link on PO rows in their Finance PO Tracking tab that opens the proof URL in a new tab
   4. The procurement timeline modal shows a "Proof attached" event when a proof URL is first saved to a PO
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
-- [ ] 64-01-PLAN.md — Proof URL modal, saveProofUrl helper, updatePOStatus integration, PO Tracking proof column, timeline event
-- [ ] 64-02-PLAN.md — MRF Records proof column (Procurement + My Requests), Finance PO table proof column, visual checkpoint
+- [x] 64-01-PLAN.md — Proof URL modal, saveProofUrl helper, updatePOStatus integration, PO Tracking proof column, timeline event
+- [x] 64-02-PLAN.md — MRF Records proof column (Procurement + My Requests), Finance PO table proof column, visual checkpoint
+- [ ] 64-03-PLAN.md — UAT gap closure: fix immediate re-render after proof save, add remarks field, reposition Finance Proof column
 
 ### Phase 65: RFP + Payables Tracking
 **Goal**: Procurement can formally request payment against a PO, and Finance can track, record, and partially pay those requests from a dedicated Payables tab
@@ -214,10 +215,10 @@ Phases execute in numeric order: 63 → 64 → 65
 | 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
 | 57-62.2 | v3.1 | 22/22 | Complete | 2026-03-10 |
 | 63. Supplier Search | 1/1 | Complete    | 2026-03-16 | - |
-| 64. Proof of Procurement | 1/2 | In Progress|  | - |
+| 64. Proof of Procurement | 2/3 | In Progress|  | - |
 | 65. RFP + Payables Tracking | v3.2 | 0/TBD | Not started | - |
 
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-17 — Phase 64 plans created*
+*Last updated: 2026-03-17 — Phase 64 gap closure plan created*
