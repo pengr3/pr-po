@@ -1487,21 +1487,21 @@ export function createMRFRecordsController(options) {
                                     return `<span class="proof-indicator proof-filled"
                                         title="Left-click to open proof &#183; Right-click to replace"
                                         onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
-                                        oncontextmenu="event.preventDefault(); if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '${escapeHTML(po.proof_url)}', false, null, '${escapeHTML(po.proof_remarks || '')}')}else{alert('Open Procurement > PO Tracking to edit proof')}"
+                                        oncontextmenu="event.preventDefault(); if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '${escapeHTML(po.proof_url)}', false, null, '${escapeHTML(po.proof_remarks || '')}')}else{alert('Kindly ask your Procurement Officer')}"
                                         onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
-                                        ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}','${escapeHTML(po.proof_url)}',false,null,'${escapeHTML(po.proof_remarks || '')}')}else{alert('Open Procurement > PO Tracking to edit proof')}},600)"
+                                        ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}','${escapeHTML(po.proof_url)}',false,null,'${escapeHTML(po.proof_remarks || '')}')}else{alert('Kindly ask your Procurement Officer')}},600)"
                                         ontouchend="clearTimeout(window._proofLongPress)"
                                         style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
                                 } else if (hasRemarks) {
                                     return `<span class="proof-indicator proof-remarks"
                                         title="Remarks only (no link) &#183; Click to view/edit"
-                                        onclick="if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '', false, null, '${escapeHTML(po.proof_remarks)}')}else{alert('Open Procurement > PO Tracking to edit proof')}"
+                                        onclick="if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '', false, null, '${escapeHTML(po.proof_remarks)}')}else{alert('Kindly ask your Procurement Officer')}"
                                         onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
                                         style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
                                 } else {
                                     return `<span class="proof-indicator proof-empty"
                                         title="Click to attach proof"
-                                        onclick="if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '', false, null, '')}else{alert('Open Procurement > PO Tracking to attach proof')}"
+                                        onclick="if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '', false, null, '')}else{alert('Kindly ask your Procurement Officer')}"
                                         onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
                                         onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
                                         style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;

@@ -411,33 +411,6 @@ export function render(activeTab = 'mrfs') {
                     <div id="prpoPagination"></div>
                 </div>
 
-                <!-- PO Tracking Table -->
-                <div class="card" style="margin-top: 1.5rem;">
-                    <div class="card-header">
-                        <h2>PO Tracking</h2>
-                    </div>
-                    <div class="table-scroll-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>PO ID</th>
-                                    <th>Supplier</th>
-                                    <th>MRF</th>
-                                    <th>Amount</th>
-                                    <th>Date Issued</th>
-                                    <th>Status</th>
-                                    <th style="text-align: center; width: 40px;">Proof</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="poTrackingBody">
-                                <tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading POs...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="poPagination"></div>
-                </div>
-
                 <!-- Procurement Timeline Modal -->
                 <div id="timelineModal" class="modal">
                     <div class="modal-content" style="max-width: 800px;">

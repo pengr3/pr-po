@@ -1,9 +1,9 @@
 ---
 status: complete
 phase: 64-proof-of-procurement
-source: 64-01-SUMMARY.md, 64-02-PLAN.md
-started: 2026-03-17T04:00:00Z
-updated: 2026-03-17T04:15:00Z
+source: 64-03-SUMMARY.md, 64-04-SUMMARY.md
+started: 2026-03-17T07:30:00Z
+updated: 2026-03-17T08:30:00Z
 ---
 
 ## Current Test
@@ -12,69 +12,55 @@ updated: 2026-03-17T04:15:00Z
 
 ## Tests
 
-### 1. PO Tracking Proof Column (Procurement)
-expected: Go to Procurement > PO Tracking tab. The table should have a "Proof" column. POs without proof show an empty circle indicator. POs with proof show a green checkmark indicator.
+### 1. Immediate Proof Indicator Update (PO Tracking)
+expected: Go to Procurement > PO Tracking tab. Click an empty proof circle on any PO. Enter a valid https:// URL and save. The indicator should change from empty circle to green checkmark immediately — no page refresh needed.
+result: skipped
+reason: PO Tracking tab removed — MRF Records is the only table
+
+### 2. Immediate Proof Indicator Update (MRF Records)
+expected: Go to Procurement > MRF Records tab. Find an MRF with POs. Click an empty proof circle on a PO sub-row. Enter a valid https:// URL and save. The indicator should change to green checkmark immediately without refresh.
 result: pass
 
-### 2. Attach Proof URL via Empty Indicator
-expected: Click on an empty proof circle in the PO Tracking table. A modal appears asking for a proof URL. Enter a valid https:// URL and save. The indicator changes to a green checkmark.
-result: issue
-reported: "URL is being saved however the indicator change is not happening until i refresh the page."
-severity: major
-
-### 3. View Proof URL via Filled Indicator
-expected: Left-click on a green checkmark proof indicator. The proof URL opens in a new tab/window.
+### 3. Proof Modal Remarks Field
+expected: Open the proof modal (click any empty proof circle). Below the URL input, there should be a "Remarks" textarea with a note "(optional — for cases without a link)". You can type remarks in this field.
 result: pass
 
-### 4. Edit Proof URL via Right-Click
-expected: Right-click on a green checkmark proof indicator. The proof modal opens pre-filled with the existing URL, allowing you to edit and save a new URL.
+### 4. Remarks-Only Save (Orange Indicator)
+expected: Open the proof modal on a PO with no proof. Leave the URL empty but type some remarks text. Click Save. The indicator should change to an orange circle with a dash (–) instead of the green checkmark.
 result: pass
 
-### 5. Proof URL Validation
-expected: Open the proof modal and enter a URL that does NOT start with "https://". An inline error message appears and the URL is not saved. A toast notification also shows.
+### 5. Remarks-Only Click Opens Modal
+expected: Click on an orange dash indicator. The proof modal should open with the remarks pre-filled in the textarea. You can add a URL or update the remarks.
 result: pass
 
-### 6. Status Change Triggers Proof Modal
-expected: Change a PO status to "Procured" (for material POs) or "Processed" (for SUBCON POs). After the status saves successfully, a proof modal automatically appears offering to attach proof. You can skip or attach.
+### 6. Finance Proof Column Position
+expected: Go to Finance > Purchase Orders tab. The Proof column should be the second column, immediately after PO ID (not at the end near Status/Actions).
 result: pass
 
-### 7. Proof Event in PO Timeline
-expected: Open the timeline for a PO that has proof attached. The timeline shows a "Proof Attached" event with the date and URL.
+### 7. Finance Three-State Indicators
+expected: In the Finance PO Tracking table, POs with proof URLs show green checkmarks, POs with remarks only show orange dashes, and POs with nothing show empty circles. Same behavior as Procurement view.
 result: pass
 
-### 8. MRF Records Proof Column (Procurement)
-expected: Go to Procurement > MRF Records tab. Expand an MRF that has POs. Each PO sub-row should show a Proof column with checkmark (filled) or empty circle indicators, matching the PO's proof status.
+### 8. My Requests Proof Column
+expected: Go to MRF Form > My Requests tab. The table should now have a "Proof" column between the POs and MRF Status columns. POs with proof show green checkmarks, POs with remarks show orange dashes, POs without show empty circles.
 result: pass
 
-### 9. Finance PO Tracking Proof Column
-expected: Go to Finance > Purchase Orders tab. The PO table should have a "Proof" column with the same indicators (empty circle / green checkmark) based on each PO's proof status.
-result: pass
-
-### 10. Finance Proof Interaction
-expected: In the Finance PO Tracking table, click an empty proof indicator to attach a URL, left-click a filled one to open it, and right-click a filled one to edit. Same behavior as Procurement view.
+### 9. My Requests Proof Indicator Click
+expected: In My Requests, click an empty proof circle or orange dash. An alert appears saying "Kindly ask your Procurement Officer".
 result: pass
 
 ## Summary
 
-total: 10
-passed: 9
-issues: 1
+total: 9
+passed: 8
+issues: 0
 pending: 0
-skipped: 0
+skipped: 1
 
 ## Enhancement Requests
 
-- Test 5: Add remarks field below URL input for users unable to provide a link. If remarks provided, show orange circle with "-" indicator instead of empty circle.
-- Test 9: Move Proof column next to POs column in Finance PO Tracking table.
+- Test 6: Finance proof modal should have the same remarks textarea and full functionality as Procurement's proof modal
 
 ## Gaps
 
-- truth: "After saving a proof URL, the indicator immediately changes from empty circle to green checkmark"
-  status: failed
-  reason: "User reported: URL is being saved however the indicator change is not happening until i refresh the page."
-  severity: major
-  test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
+[none]
