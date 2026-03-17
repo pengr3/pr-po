@@ -178,6 +178,35 @@ function attachWindowFunctions() {
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
 
+    // Proof URL helper — delegates to procurement's modal if available, otherwise uses prompt fallback
+    window.financeShowProofModal = function(poId, currentUrl) {
+        if (window.showProofModal) {
+            window.showProofModal(poId, currentUrl || '', false, null);
+            return;
+        }
+        // Fallback: simple prompt when procurement view is not loaded
+        const url = prompt(currentUrl ? 'Update Proof URL:' : 'Enter Proof URL (https://):', currentUrl || '');
+        if (url === null) return;
+        if (!url.startsWith('https://')) {
+            showToast('URL must start with https://', 'error');
+            return;
+        }
+        const isFirstAttach = !currentUrl;
+        const poRef = doc(db, 'pos', poId);
+        const updateData = { proof_url: url, updated_at: new Date().toISOString() };
+        if (isFirstAttach) {
+            updateData.proof_attached_at = serverTimestamp();
+        } else {
+            updateData.proof_updated_at = serverTimestamp();
+        }
+        updateDoc(poRef, updateData).then(() => {
+            showToast(isFirstAttach ? 'Proof URL attached' : 'Proof URL updated', 'success');
+        }).catch(err => {
+            console.error('[Finance] Error saving proof URL:', err);
+            showToast('Failed to save proof URL. Please try again.', 'error');
+        });
+    };
+
     // Project Expense Functions
     window.refreshProjectExpenses = refreshProjectExpenses;
     window.showProjectExpenseModal = (name) => showExpenseBreakdownModal(name, { mode: 'project' });
@@ -1629,6 +1658,7 @@ export async function destroy() {
     delete window.exportPOsCSV;
     delete window.promptPODocument;
     delete window.generatePODocument;
+    delete window.financeShowProofModal;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
     // closeProjectExpenseModal cleanup not needed - shared modal handles its own window functions
@@ -2861,11 +2891,29 @@ function renderPOs() {
                     <th onclick="window.sortPOs('procurement_status')" style="cursor: pointer; user-select: none;">
                         Status <span class="sort-indicator" data-col="procurement_status"></span>
                     </th>
+                    <th style="text-align: center; width: 40px;">Proof</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                ${recentPOs.map(po => `
+                ${recentPOs.map(po => {
+                    const hasProof = !!po.proof_url;
+                    const proofIndicator = hasProof
+                        ? `<span class="proof-indicator proof-filled"
+                                title="Left-click to open proof &middot; Right-click to replace"
+                                onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
+                                oncontextmenu="event.preventDefault(); window.financeShowProofModal('${po.id}', '${escapeHTML(po.proof_url)}')"
+                                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                                ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.financeShowProofModal('${po.id}','${escapeHTML(po.proof_url)}')},600)"
+                                ontouchend="clearTimeout(window._proofLongPress)"
+                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`
+                        : `<span class="proof-indicator proof-empty"
+                                title="Click to attach proof"
+                                onclick="window.financeShowProofModal('${po.id}', '')"
+                                onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                                onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
+                    return `
                     <tr>
                         <td><strong>${po.po_id}</strong></td>
                         <td>${po.pr_id}</td>
@@ -2874,11 +2922,13 @@ function renderPOs() {
                         <td><strong>₱${formatCurrency(po.total_amount || 0)}</strong></td>
                         <td>${formatPODate(po)}</td>
                         <td><span class="status-badge ${getStatusClass(po.procurement_status || 'Pending Procurement')}">${po.procurement_status || 'Pending'}</span></td>
+                        <td style="text-align: center;">${proofIndicator}</td>
                         <td>
                             <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
                         </td>
                     </tr>
-                `).join('')}
+                `;
+                }).join('')}
             </tbody>
         </table>
         </div>
