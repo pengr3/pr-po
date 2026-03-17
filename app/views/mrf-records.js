@@ -1364,7 +1364,9 @@ export function createMRFRecordsController(options) {
                                     pr_id: poData.pr_id || null,
                                     procurement_status: poData.procurement_status,
                                     is_subcon: poData.is_subcon || false,
-                                    supplier_name: poData.supplier_name
+                                    supplier_name: poData.supplier_name,
+                                    proof_url: poData.proof_url || '',
+                                    proof_remarks: poData.proof_remarks || ''
                                 });
                             });
 
@@ -1408,7 +1410,8 @@ export function createMRFRecordsController(options) {
                 _subDataCache.set(mrf.id, { prDataArray, poDataArray, trFinanceStatus, trDataArray });
             }
 
-            // Build HTML for PRs | POs | Procurement Status columns (runs for both cache hit and miss)
+            // Build HTML for PRs | POs | Proof | Procurement Status columns (runs for both cache hit and miss)
+            let proofHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
             if (type === 'Material') {
                 // Index POs by their parent pr_id for per-PR pairing
                 const posByPrId = {};
@@ -1465,6 +1468,44 @@ export function createMRFRecordsController(options) {
                                 const currentStatus = po.procurement_status || defaultStatus;
                                 const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
                                 return `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: 600; font-size: 0.7rem; white-space: nowrap;">${escapeHTML(currentStatus)}</span>`;
+                            }).join(' ');
+                        }
+                        return `<div style="${rowStyle(i)}">${content}</div>`;
+                    }).join('');
+
+                    // Build proof indicators per PO (three-state: green=URL, orange=remarks, empty=nothing)
+                    proofHtml = prDataArray.map((pr, i) => {
+                        const matchedPOs = posByPrId[pr.pr_id] || [];
+                        let content;
+                        if (matchedPOs.length === 0) {
+                            content = `<span style="color: #94a3b8; font-size: 0.75rem;">&#8212;</span>`;
+                        } else {
+                            content = matchedPOs.map(po => {
+                                const hasProof = !!po.proof_url;
+                                const hasRemarks = !!po.proof_remarks;
+                                if (hasProof) {
+                                    return `<span class="proof-indicator proof-filled"
+                                        title="Left-click to open proof &#183; Right-click to replace"
+                                        onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
+                                        oncontextmenu="event.preventDefault(); if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '${escapeHTML(po.proof_url)}', false, null, '${escapeHTML(po.proof_remarks || '')}')}else{alert('Open Procurement > PO Tracking to edit proof')}"
+                                        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                                        ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}','${escapeHTML(po.proof_url)}',false,null,'${escapeHTML(po.proof_remarks || '')}')}else{alert('Open Procurement > PO Tracking to edit proof')}},600)"
+                                        ontouchend="clearTimeout(window._proofLongPress)"
+                                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+                                } else if (hasRemarks) {
+                                    return `<span class="proof-indicator proof-remarks"
+                                        title="Remarks only (no link) &#183; Click to view/edit"
+                                        onclick="if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '', false, null, '${escapeHTML(po.proof_remarks)}')}else{alert('Open Procurement > PO Tracking to edit proof')}"
+                                        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
+                                } else {
+                                    return `<span class="proof-indicator proof-empty"
+                                        title="Click to attach proof"
+                                        onclick="if(typeof window.showProofModal==='function'){window.showProofModal('${po.docId}', '', false, null, '')}else{alert('Open Procurement > PO Tracking to attach proof')}"
+                                        onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                                        onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
+                                }
                             }).join(' ');
                         }
                         return `<div style="${rowStyle(i)}">${content}</div>`;
@@ -1530,6 +1571,7 @@ export function createMRFRecordsController(options) {
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${dateNeeded}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${poHtml}</td>
+                    <td style="padding: 0.75rem 0.5rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: top;">${proofHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: middle;">${mrfStatusHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${procStatusHtml}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle;">
@@ -1553,6 +1595,7 @@ export function createMRFRecordsController(options) {
                         <th onclick="window._myRequestsSort('date_needed')" style="text-align: center; cursor: pointer; user-select: none;">Date Needed ${getSortIndicator('date_needed')}</th>
                         <th style="text-align: left;">PRs</th>
                         <th style="text-align: left;">POs</th>
+                        <th style="text-align: center; width: 40px;">Proof</th>
                         <th onclick="window._myRequestsSort('status')" style="text-align: left; cursor: pointer; user-select: none;">MRF Status ${getSortIndicator('status')}</th>
                         <th onclick="window._myRequestsSort('procurement_status')" style="text-align: left; cursor: pointer; user-select: none;">Procurement Status ${getSortIndicator('procurement_status')}</th>
                         <th style="text-align: center;">Actions</th>
