@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: roadmap created
-stopped_at: Completed 64-01-PLAN.md (Proof of Procurement infrastructure)
-last_updated: "2026-03-17T03:53:30.836Z"
+stopped_at: Completed 64-03-PLAN.md (Proof indicator fix and remarks)
+last_updated: "2026-03-17T06:41:23.633Z"
 last_activity: 2026-03-13 — v3.2 roadmap created, 3 phases defined
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 ---
@@ -83,6 +83,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 63-supplier-search P01 | 30 | 4 tasks | 1 files |
 | Phase 64 P01 | 9 | 2 tasks | 1 files |
+| Phase 64 P03 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,8 @@ Recent decisions affecting current work:
 - [Phase 63-supplier-search]: onSnapshot calls applySupplierSearch() to re-derive filtered view on data refresh, preserving active search terms
 - [Phase 64]: Added poTrackingBody table HTML to records section (element was referenced but had no DOM equivalent)
 - [Phase 64]: Proof modal triggers AFTER status save; status changes regardless of proof attachment
+- [Phase 64]: Three-state proof indicator: green (URL), orange dash (remarks only), empty circle (nothing attached)
+- [Phase 64]: saveProofUrl explicitly re-renders active table after Firestore save for immediate visual feedback
 
 ### Pending Todos
 
@@ -115,7 +118,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-17T03:53:30.831Z
-Stopped at: Completed 64-01-PLAN.md (Proof of Procurement infrastructure)
+Last session: 2026-03-17T06:41:23.630Z
+Stopped at: Completed 64-03-PLAN.md (Proof indicator fix and remarks)
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
