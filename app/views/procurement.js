@@ -139,6 +139,10 @@ function attachWindowFunctions() {
     window.showSupplierPurchaseHistory = showSupplierPurchaseHistory;
     window.closeSupplierHistoryModal = closeSupplierHistoryModal;
 
+    // Proof of Procurement Functions
+    window.showProofModal = showProofModal;
+    window.saveProofUrl = saveProofUrl;
+
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
     window.generatePODocument = generatePODocument;
@@ -669,6 +673,8 @@ export async function destroy() {
     delete window.resubmitRejectedTR;
     delete window.saveRejectedTRChanges;
     delete window.deleteRejectedTR;
+    delete window.showProofModal;
+    delete window.saveProofUrl;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
@@ -4896,6 +4902,11 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
             ? `SUBCON status updated to ${newStatus}`
             : `PO status updated to ${newStatus}${newStatus === 'Delivered' ? ' with delivery fee: PHP ' + deliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2}) : ''}`;
         showToast(successMsg, 'success');
+
+        // Prompt for proof URL on Procured (material) or Processed (SUBCON)
+        if ((newStatus === 'Procured' && !isSubcon) || (newStatus === 'Processed' && isSubcon)) {
+            showProofModal(poId, '', true, null);
+        }
     } catch (error) {
         console.error('Error updating PO status:', error);
         showToast('Failed to update status', 'error');
@@ -4906,6 +4917,94 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
         showLoading(false);
     }
 };
+
+/**
+ * Show Proof URL Modal
+ * @param {string} poId - PO document ID
+ * @param {string} currentUrl - Existing proof URL (empty string if none)
+ * @param {boolean} isStatusChange - Whether triggered by status change
+ * @param {Function|null} statusChangeCallback - Callback to invoke after skip or save
+ */
+function showProofModal(poId, currentUrl = '', isStatusChange = false, statusChangeCallback = null) {
+    const isEdit = !!currentUrl;
+    const modalTitle = isStatusChange ? 'Attach Proof of Procurement' : (isEdit ? 'Update Proof URL' : 'Attach Proof of Procurement');
+
+    const infoText = isStatusChange
+        ? `<p style="font-size: 0.75rem; color: #64748b; margin-top: 8px;">Status will be updated regardless of whether you attach proof.</p>`
+        : '';
+
+    const body = `
+        <div style="padding: 0;">
+            <label style="display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 4px;">Proof URL</label>
+            <input type="url" id="proofUrlInput" value="${escapeHTML(currentUrl)}"
+                placeholder="https://drive.google.com/..."
+                style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.875rem; box-sizing: border-box;"
+                onfocus="this.style.borderColor='#1a73e8'; this.style.boxShadow='0 0 0 3px rgba(26,115,232,0.15)';"
+                onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none';" />
+            <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Paste a Google Drive, OneDrive, or SharePoint link (https:// required)</p>
+            <p id="proofUrlError" style="font-size: 0.75rem; color: #ea4335; margin-top: 4px; display: none;">URL must start with https://</p>
+            ${infoText}
+        </div>
+    `;
+
+    const skipBtn = isStatusChange
+        ? `<button class="btn btn-secondary" onclick="window._proofModalSkip()">Skip</button>`
+        : `<button class="btn btn-secondary" onclick="closeModal('proofUrlModal')">Cancel</button>`;
+    const saveLabel = isEdit ? 'Save Proof URL' : 'Attach Proof';
+    const footer = `${skipBtn} <button class="btn btn-primary" onclick="window._proofModalSave()">${saveLabel}</button>`;
+
+    // Remove existing modal if any
+    document.getElementById('proofUrlModal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', createModal({ id: 'proofUrlModal', title: modalTitle, body, footer }));
+    openModal('proofUrlModal');
+
+    window._proofModalSave = async () => {
+        const input = document.getElementById('proofUrlInput');
+        const url = input?.value?.trim() || '';
+        const errorEl = document.getElementById('proofUrlError');
+
+        if (!url.startsWith('https://')) {
+            if (errorEl) { errorEl.style.display = 'block'; }
+            if (input) { input.style.borderColor = '#ea4335'; input.style.background = '#fff5f5'; }
+            showToast('URL must start with https://', 'error');
+            return;
+        }
+
+        await saveProofUrl(poId, url, !currentUrl);
+        closeModal('proofUrlModal');
+        if (statusChangeCallback) statusChangeCallback();
+    };
+
+    window._proofModalSkip = () => {
+        closeModal('proofUrlModal');
+        if (statusChangeCallback) statusChangeCallback();
+    };
+}
+
+/**
+ * Save Proof URL to Firestore
+ * @param {string} poId - PO document ID
+ * @param {string} url - Proof URL to save (must start with https://)
+ * @param {boolean} isFirstAttach - Whether this is the first time attaching proof
+ */
+async function saveProofUrl(poId, url, isFirstAttach = true) {
+    try {
+        const poRef = doc(db, 'pos', poId);
+        const updateData = { proof_url: url, updated_at: new Date().toISOString() };
+        if (isFirstAttach) {
+            updateData.proof_attached_at = serverTimestamp();
+        } else {
+            updateData.proof_updated_at = serverTimestamp();
+        }
+        await updateDoc(poRef, updateData);
+        showToast(isFirstAttach ? 'Proof URL attached' : 'Proof URL updated', 'success');
+        // Invalidate sub-data cache so MRF Records re-fetches with proof_url
+        _prpoSubDataCache = new Map();
+    } catch (error) {
+        console.error('[Procurement] Error saving proof URL:', error);
+        showToast('Failed to save proof URL. Please try again.', 'error');
+    }
+}
 
 /**
  * View PR Details in a modal
