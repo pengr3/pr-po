@@ -15,10 +15,10 @@
 
 ### Proof of Procurement
 
-- [ ] **PROOF-01**: Procurement user can attach a proof URL (any `https://` link, e.g. Google Drive, OneDrive, SharePoint) to a PO
-- [ ] **PROOF-02**: Procurement user can update or replace the proof URL on a PO at any procurement status, including after Delivered
+- [x] **PROOF-01**: Procurement user can attach a proof URL (any `https://` link, e.g. Google Drive, OneDrive, SharePoint) to a PO
+- [x] **PROOF-02**: Procurement user can update or replace the proof URL on a PO at any procurement status, including after Delivered
 - [ ] **PROOF-03**: Finance user can view the proof document link from the Finance PO Tracking tab
-- [ ] **PROOF-04**: Proof attachment event appears in the procurement timeline modal
+- [x] **PROOF-04**: Proof attachment event appears in the procurement timeline modal
 
 ### Request for Payment / Payables
 
@@ -61,10 +61,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SUPSRCH-02 | Phase 63 | Complete |
 | SUPSRCH-03 | Phase 63 | Complete |
 | SUPSRCH-04 | Phase 63 | Complete |
-| PROOF-01 | Phase 64 | Pending |
-| PROOF-02 | Phase 64 | Pending |
+| PROOF-01 | Phase 64 | Complete |
+| PROOF-02 | Phase 64 | Complete |
 | PROOF-03 | Phase 64 | Pending |
-| PROOF-04 | Phase 64 | Pending |
+| PROOF-04 | Phase 64 | Complete |
 | RFP-01 | Phase 65 | Pending |
 | RFP-02 | Phase 65 | Pending |
 | RFP-03 | Phase 65 | Pending |
