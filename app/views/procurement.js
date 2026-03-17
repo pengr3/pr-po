@@ -411,6 +411,33 @@ export function render(activeTab = 'mrfs') {
                     <div id="prpoPagination"></div>
                 </div>
 
+                <!-- PO Tracking Table -->
+                <div class="card" style="margin-top: 1.5rem;">
+                    <div class="card-header">
+                        <h2>PO Tracking</h2>
+                    </div>
+                    <div class="table-scroll-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO ID</th>
+                                    <th>Supplier</th>
+                                    <th>MRF</th>
+                                    <th>Amount</th>
+                                    <th>Date Issued</th>
+                                    <th>Status</th>
+                                    <th style="text-align: center; width: 40px;">Proof</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="poTrackingBody">
+                                <tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading POs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="poPagination"></div>
+                </div>
+
                 <!-- Procurement Timeline Modal -->
                 <div id="timelineModal" class="modal">
                     <div class="modal-content" style="max-width: 800px;">
@@ -4657,7 +4684,7 @@ function renderPOTrackingTable(pos) {
         : pos;
 
     if (displayPos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No POs yet</td></tr>';
         // Hide pagination if no results
         const paginationDiv = document.getElementById('poPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
@@ -4707,6 +4734,24 @@ function renderPOTrackingTable(pos) {
         };
         const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
 
+        const hasProof = !!po.proof_url;
+        const proofIndicator = hasProof
+            ? `<span class="proof-indicator proof-filled"
+                    title="Left-click to open proof \u00b7 Right-click to replace"
+                    onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
+                    oncontextmenu="event.preventDefault(); window.showProofModal('${po.id}', '${escapeHTML(po.proof_url)}', false, null)"
+                    onmouseenter="this.style.opacity='0.85'"
+                    onmouseleave="this.style.opacity='1'"
+                    ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${po.id}','${escapeHTML(po.proof_url)}',false,null)},600)"
+                    ontouchend="clearTimeout(window._proofLongPress)"
+                    style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`
+            : `<span class="proof-indicator proof-empty"
+                    title="Click to attach proof"
+                    onclick="window.showProofModal('${po.id}', '', false, null)"
+                    onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                    onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                    style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;color:#bdc1c6;font-size:12px;cursor:pointer;user-select:none;">&nbsp;</span>`;
+
         return `
         <tr>
             <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
@@ -4723,6 +4768,7 @@ function renderPOTrackingTable(pos) {
                 </select>
                 ` : `<span style="background: ${statusColor.bg}; color: ${statusColor.color}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.75rem;">${currentStatus}</span>`}
             </td>
+            <td style="text-align: center; vertical-align: middle;">${proofIndicator}</td>
             <td>
                 <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')" style="margin-right: 4px;">View PO</button>
                 <button class="btn btn-sm btn-primary" onclick="viewPOTimeline('${po.id}')">Timeline</button>
@@ -5451,6 +5497,7 @@ function viewPOTimeline(poId) {
         if (po.processing_started_at && po.date_issued) {
             content += `  Time to start: ${calculateDays(po.date_issued, po.processing_started_at)}\n`;
         }
+        content += `${po.proof_url ? '✓' : '○'} Proof Attached: ${po.proof_attached_at ? formatTimestamp(po.proof_attached_at) : '(none)'}${po.proof_url ? ' \u2014 ' + (po.proof_url.length > 60 ? po.proof_url.substring(0, 60) + '...' : po.proof_url) : ''}\n`;
         content += `${po.processed_at || po.processed_date ? '✓' : '○'} Processed: ${(po.processed_at || po.processed_date) ? formatTimestamp(po.processed_at || po.processed_date) || 'Not yet processed' : 'Not yet processed'}\n`;
         if ((po.processed_at || po.processed_date) && po.processing_started_at) {
             content += `  Processing time: ${calculateDays(po.processing_started_at, po.processed_at || po.processed_date)}\n`;
@@ -5467,6 +5514,7 @@ function viewPOTimeline(poId) {
         if ((po.procured_at || po.procured_date) && po.procurement_started_at) {
             content += `  Time: ${calculateDays(po.procurement_started_at, po.procured_at || po.procured_date)}\n`;
         }
+        content += `${po.proof_url ? '✓' : '○'} Proof Attached: ${po.proof_attached_at ? formatTimestamp(po.proof_attached_at) : '(none)'}${po.proof_url ? ' \u2014 ' + (po.proof_url.length > 60 ? po.proof_url.substring(0, 60) + '...' : po.proof_url) : ''}\n`;
         content += `${po.delivered_at || po.delivered_date ? '✓' : '○'} Delivered: ${(po.delivered_at || po.delivered_date) ? formatTimestamp(po.delivered_at || po.delivered_date) || 'Not yet delivered' : 'Not yet delivered'}\n`;
         if ((po.delivered_at || po.delivered_date) && (po.procured_at || po.procured_date)) {
             content += `  Time: ${calculateDays(po.procured_at || po.procured_date, po.delivered_at || po.delivered_date)}\n`;
