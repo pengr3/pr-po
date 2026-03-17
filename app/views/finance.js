@@ -7,6 +7,7 @@ import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateD
 import { showToast, showLoading, formatCurrency, formatDate, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
+import { showProofModal } from '../proof-modal.js';
 
 // ========================================
 // UTILITY: Debounce helper for search inputs
@@ -178,33 +179,9 @@ function attachWindowFunctions() {
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
 
-    // Proof URL helper — delegates to procurement's modal if available, otherwise uses prompt fallback
+    // Proof URL helper — uses shared modal from proof-modal.js
     window.financeShowProofModal = function(poId, currentUrl, currentRemarks) {
-        if (window.showProofModal) {
-            window.showProofModal(poId, currentUrl || '', false, null, currentRemarks || '');
-            return;
-        }
-        // Fallback: simple prompt when procurement view is not loaded (no remarks support in fallback)
-        const url = prompt(currentUrl ? 'Update Proof URL:' : 'Enter Proof URL (https://):', currentUrl || '');
-        if (url === null) return;
-        if (!url.startsWith('https://')) {
-            showToast('URL must start with https://', 'error');
-            return;
-        }
-        const isFirstAttach = !currentUrl && !currentRemarks;
-        const poRef = doc(db, 'pos', poId);
-        const updateData = { proof_url: url, proof_remarks: currentRemarks || '', updated_at: new Date().toISOString() };
-        if (isFirstAttach) {
-            updateData.proof_attached_at = serverTimestamp();
-        } else {
-            updateData.proof_updated_at = serverTimestamp();
-        }
-        updateDoc(poRef, updateData).then(() => {
-            showToast(isFirstAttach ? 'Proof attached' : 'Proof updated', 'success');
-        }).catch(err => {
-            console.error('[Finance] Error saving proof:', err);
-            showToast('Failed to save proof. Please try again.', 'error');
-        });
+        showProofModal(poId, currentUrl || '', false, null, currentRemarks || '');
     };
 
     // Project Expense Functions
