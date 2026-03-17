@@ -3331,7 +3331,8 @@ async function renderPRPORecords() {
                                 procurement_status: poData.procurement_status,
                                 is_subcon: poData.is_subcon || false,
                                 supplier_name: poData.supplier_name,
-                                proof_url: poData.proof_url || ''
+                                proof_url: poData.proof_url || '',
+                                proof_remarks: poData.proof_remarks || ''
                             });
                         });
 
@@ -3598,19 +3599,26 @@ async function renderPRPORecords() {
                 } else {
                     content = matchedPOs.map(po => {
                         const hasProof = !!po.proof_url;
+                        const hasRemarks = !!po.proof_remarks;
                         if (hasProof) {
                             return `<span class="proof-indicator proof-filled"
                                 title="Left-click to open proof &middot; Right-click to replace"
                                 onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
-                                oncontextmenu="event.preventDefault(); window.showProofModal('${po.docId}', '${escapeHTML(po.proof_url)}', false, null)"
+                                oncontextmenu="event.preventDefault(); window.showProofModal('${po.docId}', '${escapeHTML(po.proof_url)}', false, null, '${escapeHTML(po.proof_remarks || '')}')"
                                 onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
-                                ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${po.docId}','${escapeHTML(po.proof_url)}',false,null)},600)"
+                                ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${po.docId}','${escapeHTML(po.proof_url)}',false,null,'${escapeHTML(po.proof_remarks || '')}')},600)"
                                 ontouchend="clearTimeout(window._proofLongPress)"
                                 style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+                        } else if (hasRemarks) {
+                            return `<span class="proof-indicator proof-remarks"
+                                title="Remarks only (no link) &middot; Click to view/edit"
+                                onclick="window.showProofModal('${po.docId}', '', false, null, '${escapeHTML(po.proof_remarks)}')"
+                                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
                         } else {
                             return `<span class="proof-indicator proof-empty"
                                 title="Click to attach proof"
-                                onclick="window.showProofModal('${po.docId}', '', false, null)"
+                                onclick="window.showProofModal('${po.docId}', '', false, null, '')"
                                 onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
                                 onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
                                 style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
@@ -4775,22 +4783,35 @@ function renderPOTrackingTable(pos) {
         const statusColor = statusColors[currentStatus] || { bg: '#f3f4f6', color: '#6b7280' };
 
         const hasProof = !!po.proof_url;
-        const proofIndicator = hasProof
-            ? `<span class="proof-indicator proof-filled"
+        const hasRemarks = !!po.proof_remarks;
+        let proofIndicator;
+        if (hasProof) {
+            // Green checkmark — has URL
+            proofIndicator = `<span class="proof-indicator proof-filled"
                     title="Left-click to open proof \u00b7 Right-click to replace"
                     onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
-                    oncontextmenu="event.preventDefault(); window.showProofModal('${po.id}', '${escapeHTML(po.proof_url)}', false, null)"
+                    oncontextmenu="event.preventDefault(); window.showProofModal('${po.id}', '${escapeHTML(po.proof_url)}', false, null, '${escapeHTML(po.proof_remarks || '')}')"
                     onmouseenter="this.style.opacity='0.85'"
                     onmouseleave="this.style.opacity='1'"
-                    ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${po.id}','${escapeHTML(po.proof_url)}',false,null)},600)"
+                    ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${po.id}','${escapeHTML(po.proof_url)}',false,null,'${escapeHTML(po.proof_remarks || '')}')},600)"
                     ontouchend="clearTimeout(window._proofLongPress)"
-                    style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`
-            : `<span class="proof-indicator proof-empty"
+                    style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+        } else if (hasRemarks) {
+            // Orange circle with dash — has remarks but no URL
+            proofIndicator = `<span class="proof-indicator proof-remarks"
+                    title="Remarks only (no link) \u00b7 Click to view/edit"
+                    onclick="window.showProofModal('${po.id}', '', false, null, '${escapeHTML(po.proof_remarks)}')"
+                    onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                    style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
+        } else {
+            // Empty circle — nothing attached
+            proofIndicator = `<span class="proof-indicator proof-empty"
                     title="Click to attach proof"
-                    onclick="window.showProofModal('${po.id}', '', false, null)"
+                    onclick="window.showProofModal('${po.id}', '', false, null, '')"
                     onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
                     onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
                     style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;color:#bdc1c6;font-size:12px;cursor:pointer;user-select:none;">&nbsp;</span>`;
+        }
 
         return `
         <tr>
@@ -4991,7 +5012,9 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
 
         // Prompt for proof URL on Procured (material) or Processed (SUBCON)
         if ((newStatus === 'Procured' && !isSubcon) || (newStatus === 'Processed' && isSubcon)) {
-            showProofModal(poId, '', true, null);
+            const currentPO = poData.find(p => p.id === poId);
+            const currentRemarks = currentPO?.proof_remarks || '';
+            showProofModal(poId, currentPO?.proof_url || '', true, null, currentRemarks);
         }
     } catch (error) {
         console.error('Error updating PO status:', error);
@@ -5010,10 +5033,11 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
  * @param {string} currentUrl - Existing proof URL (empty string if none)
  * @param {boolean} isStatusChange - Whether triggered by status change
  * @param {Function|null} statusChangeCallback - Callback to invoke after skip or save
+ * @param {string} currentRemarks - Existing proof remarks (empty string if none)
  */
-function showProofModal(poId, currentUrl = '', isStatusChange = false, statusChangeCallback = null) {
-    const isEdit = !!currentUrl;
-    const modalTitle = isStatusChange ? 'Attach Proof of Procurement' : (isEdit ? 'Update Proof URL' : 'Attach Proof of Procurement');
+function showProofModal(poId, currentUrl = '', isStatusChange = false, statusChangeCallback = null, currentRemarks = '') {
+    const isEdit = !!currentUrl || !!currentRemarks;
+    const modalTitle = isStatusChange ? 'Attach Proof of Procurement' : (isEdit ? 'Update Proof' : 'Attach Proof of Procurement');
 
     const infoText = isStatusChange
         ? `<p style="font-size: 0.75rem; color: #64748b; margin-top: 8px;">Status will be updated regardless of whether you attach proof.</p>`
@@ -5029,6 +5053,10 @@ function showProofModal(poId, currentUrl = '', isStatusChange = false, statusCha
                 onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none';" />
             <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Paste a Google Drive, OneDrive, or SharePoint link (https:// required)</p>
             <p id="proofUrlError" style="font-size: 0.75rem; color: #ea4335; margin-top: 4px; display: none;">URL must start with https://</p>
+            <div style="margin-top: 12px;">
+                <label style="display: block; font-weight: 500; margin-bottom: 4px; font-size: 0.85rem; color: #5f6368;">Remarks <span style="font-weight: 400; color: #999;">(optional — for cases without a link)</span></label>
+                <textarea id="proofRemarksInput" rows="2" style="width: 100%; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 0.9rem; resize: vertical; font-family: inherit; box-sizing: border-box;">${escapeHTML(currentRemarks || '')}</textarea>
+            </div>
             ${infoText}
         </div>
     `;
@@ -5036,7 +5064,7 @@ function showProofModal(poId, currentUrl = '', isStatusChange = false, statusCha
     const skipBtn = isStatusChange
         ? `<button class="btn btn-secondary" onclick="window._proofModalSkip()">Skip</button>`
         : `<button class="btn btn-secondary" onclick="closeModal('proofUrlModal')">Cancel</button>`;
-    const saveLabel = isEdit ? 'Save Proof URL' : 'Attach Proof';
+    const saveLabel = isEdit ? 'Save Proof' : 'Attach Proof';
     const footer = `${skipBtn} <button class="btn btn-primary" onclick="window._proofModalSave()">${saveLabel}</button>`;
 
     // Remove existing modal if any
@@ -5046,17 +5074,28 @@ function showProofModal(poId, currentUrl = '', isStatusChange = false, statusCha
 
     window._proofModalSave = async () => {
         const input = document.getElementById('proofUrlInput');
+        const remarksInput = document.getElementById('proofRemarksInput');
         const url = input?.value?.trim() || '';
+        const remarks = remarksInput?.value?.trim() || '';
         const errorEl = document.getElementById('proofUrlError');
 
-        if (!url.startsWith('https://')) {
-            if (errorEl) { errorEl.style.display = 'block'; }
+        // Allow save if EITHER url or remarks provided
+        if (!url && !remarks) {
+            if (errorEl) { errorEl.textContent = 'Provide a URL or remarks'; errorEl.style.display = 'block'; }
+            showToast('Provide a URL or remarks', 'error');
+            return;
+        }
+
+        // If URL is provided, it must be https
+        if (url && !url.startsWith('https://')) {
+            if (errorEl) { errorEl.textContent = 'URL must start with https://'; errorEl.style.display = 'block'; }
             if (input) { input.style.borderColor = '#ea4335'; input.style.background = '#fff5f5'; }
             showToast('URL must start with https://', 'error');
             return;
         }
 
-        await saveProofUrl(poId, url, !currentUrl);
+        // isFirstAttach = true if both currentUrl and currentRemarks were empty
+        await saveProofUrl(poId, url, !currentUrl && !currentRemarks, remarks);
         closeModal('proofUrlModal');
         if (statusChangeCallback) statusChangeCallback();
     };
@@ -5068,27 +5107,35 @@ function showProofModal(poId, currentUrl = '', isStatusChange = false, statusCha
 }
 
 /**
- * Save Proof URL to Firestore
+ * Save Proof URL (and optional remarks) to Firestore
  * @param {string} poId - PO document ID
- * @param {string} url - Proof URL to save (must start with https://)
+ * @param {string} url - Proof URL to save (must start with https://, or empty)
  * @param {boolean} isFirstAttach - Whether this is the first time attaching proof
+ * @param {string} remarks - Optional remarks for cases without a link
  */
-async function saveProofUrl(poId, url, isFirstAttach = true) {
+async function saveProofUrl(poId, url, isFirstAttach = true, remarks = '') {
     try {
         const poRef = doc(db, 'pos', poId);
-        const updateData = { proof_url: url, updated_at: new Date().toISOString() };
+        const updateData = { proof_url: url, proof_remarks: remarks, updated_at: new Date().toISOString() };
         if (isFirstAttach) {
             updateData.proof_attached_at = serverTimestamp();
         } else {
             updateData.proof_updated_at = serverTimestamp();
         }
         await updateDoc(poRef, updateData);
-        showToast(isFirstAttach ? 'Proof URL attached' : 'Proof URL updated', 'success');
-        // Invalidate sub-data cache so MRF Records re-fetches with proof_url
+        showToast(isFirstAttach ? 'Proof attached' : 'Proof updated', 'success');
+        // Invalidate sub-data cache so MRF Records re-fetches with proof_url and proof_remarks
         _prpoSubDataCache = new Map();
+        // Explicit re-render for immediate visual feedback (onSnapshot fires async, but we need instant update)
+        if (document.getElementById('poTrackingBody')) {
+            renderPOTrackingTable(poData);
+        }
+        if (document.getElementById('histSearchInput')) {
+            filterPRPORecords();
+        }
     } catch (error) {
-        console.error('[Procurement] Error saving proof URL:', error);
-        showToast('Failed to save proof URL. Please try again.', 'error');
+        console.error('[Procurement] Error saving proof:', error);
+        showToast('Failed to save proof. Please try again.', 'error');
     }
 }
 
