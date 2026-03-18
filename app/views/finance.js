@@ -242,15 +242,168 @@ function attachWindowFunctions() {
     window.togglePaymentHistory = togglePaymentHistory;
     window.openRecordPaymentModal = openRecordPaymentModal;
     window.voidPaymentRecord = voidPaymentRecord;
+    window.submitPaymentRecord = submitPaymentRecord;
+    window.toggleOtherMethod = toggleOtherMethod;
 }
 
 // ========================================
 // PAYABLES TAB
 // ========================================
 
-// Stubs — replaced by Plan 04 (payment recording)
-function openRecordPaymentModal(rfpDocId) { showToast('Payment recording will be available soon', 'info'); }
-function voidPaymentRecord(rfpDocId, paymentId) { showToast('Void will be available soon', 'info'); }
+/**
+ * Open the Record Payment modal for the given RFP document ID.
+ * Amount is read-only (full tranche amount). Finance user supplies date, method, reference.
+ */
+function openRecordPaymentModal(rfpDocId) {
+    const rfp = rfpsData.find(r => r.id === rfpDocId);
+    if (!rfp) { showToast('RFP not found', 'error'); return; }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const modalHtml = `
+    <div id="recordPaymentModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Record Payment &mdash; ${escapeHTML(rfp.rfp_id)}</h2>
+                <button class="modal-close" onclick="document.getElementById('recordPaymentModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.supplier_name)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">RFP Amount</div>
+                        <div style="font-weight:600;color:#1e293b;">${formatCurrency(rfp.amount_requested || 0)}</div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount</label>
+                        <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(rfp.amount_requested || 0)}" readonly
+                               style="width:100%;background:#f1f5f9;cursor:not-allowed;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Date <span style="color:#ea4335;">*</span></label>
+                        <input type="date" id="paymentDate" class="form-control" value="${today}" style="width:100%;" required>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Method <span style="color:#ea4335;">*</span></label>
+                        <select id="paymentMethod" class="form-control" style="width:100%;" onchange="window.toggleOtherMethod()">
+                            <option value="">Select method...</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Check">Check</option>
+                            <option value="Cash">Cash</option>
+                            <option value="GCash/E-Wallet">GCash/E-Wallet</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div id="otherMethodWrapper" style="display:none;">
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Method</label>
+                        <input type="text" id="paymentMethodOther" class="form-control" placeholder="Enter payment method" style="width:100%;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Reference Number</label>
+                        <input type="text" id="paymentReference" class="form-control" placeholder="Check number, transfer ref, etc." style="width:100%;">
+                    </div>
+                </div>
+                <div id="paymentErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('recordPaymentModal').remove()">Discard Payment</button>
+                <button class="btn btn-primary" style="background:#059669;border-color:#059669;" onclick="window.submitPaymentRecord('${rfpDocId}')">Record Payment</button>
+            </div>
+        </div>
+    </div>`;
+
+    const existing = document.getElementById('recordPaymentModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Toggle visibility of the "Specify Method" input when "Other" is selected.
+ */
+function toggleOtherMethod() {
+    const method = document.getElementById('paymentMethod')?.value;
+    const wrapper = document.getElementById('otherMethodWrapper');
+    if (wrapper) wrapper.style.display = method === 'Other' ? 'block' : 'none';
+}
+
+/**
+ * Validate and submit a payment record for an RFP.
+ * Appends to Firestore rfps document payment_records array via arrayUnion.
+ */
+async function submitPaymentRecord(rfpDocId) {
+    const rfp = rfpsData.find(r => r.id === rfpDocId);
+    if (!rfp) { showToast('RFP not found', 'error'); return; }
+
+    const paymentDate = document.getElementById('paymentDate')?.value;
+    const paymentMethod = document.getElementById('paymentMethod')?.value;
+    const methodOther = document.getElementById('paymentMethodOther')?.value?.trim() || '';
+    const reference = document.getElementById('paymentReference')?.value?.trim() || '';
+    const errorEl = document.getElementById('paymentErrorAlert');
+
+    if (!paymentDate || !paymentMethod) {
+        if (errorEl) { errorEl.textContent = 'Payment date and method are required.'; errorEl.style.display = 'block'; }
+        return;
+    }
+
+    if (paymentMethod === 'Other' && !methodOther) {
+        if (errorEl) { errorEl.textContent = 'Please specify the payment method.'; errorEl.style.display = 'block'; }
+        return;
+    }
+
+    const paymentRecord = {
+        payment_id: `PAY-${Date.now()}`,
+        amount: rfp.amount_requested,
+        date: paymentDate,
+        method: paymentMethod,
+        method_other: methodOther,
+        reference: reference,
+        status: 'active',
+        recorded_at: new Date().toISOString()
+    };
+
+    try {
+        await updateDoc(doc(db, 'rfps', rfpDocId), {
+            payment_records: arrayUnion(paymentRecord)
+        });
+        document.getElementById('recordPaymentModal')?.remove();
+        showToast(`Payment recorded for ${rfp.rfp_id}`, 'success');
+    } catch (error) {
+        console.error('[Finance] Payment record error:', error);
+        if (errorEl) {
+            errorEl.textContent = 'Failed to record payment. Check your connection and try again.';
+            errorEl.style.display = 'block';
+        }
+    }
+}
+
+/**
+ * Void a payment record by its payment_id. Uses read-modify-write to preserve audit trail.
+ * Voided records remain in the array with status: 'voided' and are excluded from paid totals.
+ */
+async function voidPaymentRecord(rfpDocId, paymentId) {
+    if (!confirm('Void this payment record? This cannot be undone.')) return;
+
+    try {
+        const rfpRef = doc(db, 'rfps', rfpDocId);
+        const snap = await getDoc(rfpRef);
+        if (!snap.exists()) { showToast('RFP not found', 'error'); return; }
+
+        const records = snap.data().payment_records || [];
+        const updated = records.map(r =>
+            r.payment_id === paymentId ? { ...r, status: 'voided' } : r
+        );
+        await updateDoc(rfpRef, { payment_records: updated });
+        showToast('Payment record voided', 'success');
+    } catch (error) {
+        console.error('[Finance] Void payment error:', error);
+        showToast('Failed to void payment record', 'error');
+    }
+}
 
 /**
  * Filter payables table client-side based on status and department dropdowns.
