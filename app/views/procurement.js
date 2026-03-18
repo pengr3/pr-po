@@ -56,6 +56,124 @@ let _prpoSubDataCache = new Map(); // key: mrf.id, value: { prDataArray, poDataA
 let _mrfListenerActive = false;
 let _poTrackingListenerActive = false;
 
+// ========================================
+// TRANCHE BUILDER HELPERS
+// ========================================
+
+/**
+ * Generate HTML for the tranche builder UI.
+ * @param {Array} tranches - Array of { label, percentage } objects
+ * @param {string} poId - Firestore document ID of the PO (used for element IDs)
+ * @returns {string} HTML string
+ */
+function renderTrancheBuilder(tranches, poId) {
+    const rows = tranches.map((t, i) => `
+        <div class="tranche-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <input type="text" class="form-control tranche-label" placeholder="Label" value="${escapeHTML(t.label)}"
+                   style="flex:0 0 65%;padding:0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.875rem;"
+                   oninput="window.recalculateTranches('${poId}')">
+            <input type="number" class="form-control tranche-pct" placeholder="%" value="${t.percentage}"
+                   min="0" max="100" step="0.01"
+                   style="flex:0 0 25%;padding:0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.875rem;"
+                   oninput="window.recalculateTranches('${poId}')">
+            <button type="button" class="icon-btn" aria-label="Remove tranche"
+                    onclick="window.removeTranche(this, '${poId}')"
+                    style="flex:0 0 10%;padding:0.25rem 0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;cursor:pointer;background:#fff;"
+                    ${tranches.length === 1 ? 'disabled' : ''}>&times;</button>
+        </div>
+    `).join('');
+
+    const initialTotal = tranches.reduce((s, t) => s + (parseFloat(t.percentage) || 0), 0);
+    const totalColor = Math.abs(initialTotal - 100) < 0.01 ? '#059669' : '#ef4444';
+
+    return `
+        <div id="trancheBuilder_${poId}">
+            ${rows}
+            <button type="button" class="btn btn-outline btn-sm"
+                    onclick="window.addTranche('${poId}')"
+                    style="margin-top:4px;">+ Add Tranche</button>
+        </div>
+        <div id="trancheTotal_${poId}" style="font-size:0.875rem;font-weight:600;margin-top:8px;color:${totalColor};">
+            Total: <span id="trancheTotalValue_${poId}">${initialTotal.toFixed(2).replace(/\.?0+$/, '')}</span>% / 100%
+        </div>
+    `;
+}
+
+/**
+ * Read all tranche rows from the DOM for a given PO.
+ * @param {string} poId
+ * @returns {Array} Array of { label, percentage }
+ */
+function readTranchesFromDOM(poId) {
+    const container = document.getElementById(`trancheBuilder_${poId}`);
+    if (!container) return [{ label: 'Full Payment', percentage: 100 }];
+    const rows = container.querySelectorAll('.tranche-row');
+    return Array.from(rows).map(row => ({
+        label: row.querySelector('.tranche-label')?.value?.trim() || '',
+        percentage: parseFloat(row.querySelector('.tranche-pct')?.value) || 0
+    }));
+}
+
+/**
+ * Recalculate and display the running total for the tranche builder.
+ * @param {string} poId
+ */
+function recalculateTranches(poId) {
+    const tranches = readTranchesFromDOM(poId);
+    const total = tranches.reduce((s, t) => s + t.percentage, 0);
+    const totalEl = document.getElementById(`trancheTotalValue_${poId}`);
+    const totalContainer = document.getElementById(`trancheTotal_${poId}`);
+    if (totalEl) totalEl.textContent = total.toFixed(2).replace(/\.?0+$/, '');
+    if (totalContainer) totalContainer.style.color = Math.abs(total - 100) < 0.01 ? '#059669' : '#ef4444';
+}
+
+/**
+ * Add a new empty tranche row to the builder.
+ * @param {string} poId
+ */
+function addTranche(poId) {
+    const container = document.getElementById(`trancheBuilder_${poId}`);
+    if (!container) return;
+    const addBtn = container.querySelector('button.btn-outline');
+    const row = document.createElement('div');
+    row.className = 'tranche-row';
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px;';
+    row.innerHTML = `
+        <input type="text" class="form-control tranche-label" placeholder="Label" value=""
+               style="flex:0 0 65%;padding:0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.875rem;"
+               oninput="window.recalculateTranches('${poId}')">
+        <input type="number" class="form-control tranche-pct" placeholder="%" value=""
+               min="0" max="100" step="0.01"
+               style="flex:0 0 25%;padding:0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.875rem;"
+               oninput="window.recalculateTranches('${poId}')">
+        <button type="button" class="icon-btn" aria-label="Remove tranche"
+                onclick="window.removeTranche(this, '${poId}')"
+                style="flex:0 0 10%;padding:0.25rem 0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;cursor:pointer;background:#fff;">&times;</button>
+    `;
+    container.insertBefore(row, addBtn);
+    // Enable remove buttons now that there are multiple rows
+    container.querySelectorAll('.tranche-row button').forEach(btn => btn.disabled = false);
+    recalculateTranches(poId);
+}
+
+/**
+ * Remove a tranche row from the builder.
+ * @param {HTMLElement} button - The remove button that was clicked
+ * @param {string} poId
+ */
+function removeTranche(button, poId) {
+    const container = document.getElementById(`trancheBuilder_${poId}`);
+    if (!container) return;
+    const row = button.closest('.tranche-row');
+    if (row) row.remove();
+    // Disable remove button if only 1 row remains
+    const remaining = container.querySelectorAll('.tranche-row');
+    if (remaining.length === 1) {
+        remaining[0].querySelector('button').disabled = true;
+    }
+    recalculateTranches(poId);
+}
+
 /**
  * Apply department filter to scoreboards and MRF Records table.
  * Called by the dept filter dropdown onchange handler.
@@ -147,6 +265,11 @@ function attachWindowFunctions() {
             filterPRPORecords();
         }
     };
+
+    // Tranche Builder Functions
+    window.recalculateTranches = recalculateTranches;
+    window.addTranche = addTranche;
+    window.removeTranche = removeTranche;
 
     // Document Generation Functions
     window.generatePRDocument = generatePRDocument;
@@ -662,6 +785,9 @@ export async function destroy() {
     delete window.viewPODetails;
     delete window.viewPOTimeline;
     delete window.updatePOStatus;
+    delete window.recalculateTranches;
+    delete window.addTranche;
+    delete window.removeTranche;
     delete window.generatePRDocument;
     delete window.generatePODocument;
     delete window.promptPODocument;
@@ -5290,6 +5416,11 @@ async function viewPODetails(poId) {
             }
         }
 
+        // Build tranche data for the payment tranches builder
+        const poTranches = Array.isArray(po.tranches) && po.tranches.length > 0
+            ? po.tranches
+            : [{ label: po.payment_terms || 'Full Payment', percentage: 100 }];
+
         // Build modal body content
         let modalBodyContent = `
             <div style="max-height: 60vh; overflow-y: auto;">
@@ -5334,11 +5465,9 @@ async function viewPODetails(poId) {
                 <div style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
                     <h4 style="margin-bottom: 1rem; color: #1e293b;">Document Details</h4>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Terms</label>
-                            <input type="text" id="editPaymentTerms_${po.id}" value="${po.payment_terms || ''}"
-                                   placeholder="e.g., 50% down payment, 50% upon delivery"
-                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Tranches</label>
+                            ${renderTrancheBuilder(poTranches, po.id)}
                         </div>
                         <div>
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Condition</label>
@@ -6284,7 +6413,9 @@ async function generatePODocument(poDocId) {
             QUOTE_REF: po.quote_ref || 'N/A',
             ITEMS_TABLE: generateItemsTableHTML(items, 'PO'),
             DELIVERY_ADDRESS: po.delivery_address,
-            PAYMENT_TERMS: po.payment_terms || '',
+            PAYMENT_TERMS: Array.isArray(po.tranches) && po.tranches.length > 0
+                ? po.tranches.map(t => `${t.label} (${t.percentage}%)`).join(', ')
+                : (po.payment_terms || ''),
             CONDITION: po.condition || '',
             DELIVERY_DATE: po.delivery_date ? formatDocumentDate(po.delivery_date) : '',
             FINANCE_APPROVER: po.finance_approver_name || po.finance_approver || DOCUMENT_CONFIG.defaultFinancePIC,
@@ -6324,10 +6455,15 @@ async function promptPODocument(poDocId) {
         const po = poDoc.data();
 
         // If all three document fields already exist, skip prompt and generate directly
-        if (po.payment_terms && po.condition && po.delivery_date) {
+        if ((Array.isArray(po.tranches) && po.tranches.length > 0 || po.payment_terms) && po.condition && po.delivery_date) {
             await generatePODocument(poDocId);
             return;
         }
+
+        // Build tranche data for the prompt modal
+        const promptTranches = Array.isArray(po.tranches) && po.tranches.length > 0
+            ? po.tranches
+            : [{ label: po.payment_terms || 'Full Payment', percentage: 100 }];
 
         // Create prompt modal using the codebase's createModal pattern
         let modalContainer = document.getElementById('poDocFieldsModalContainer');
@@ -6340,9 +6476,8 @@ async function promptPODocument(poDocId) {
         const modalBody = `
             <div style="display: flex; flex-direction: column; gap: 1rem;">
                 <div>
-                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Payment Terms</label>
-                    <input type="text" id="poDocPaymentTerms" value="${po.payment_terms || ''}" placeholder="e.g., 50% down payment, 50% upon delivery"
-                           style="width: 100%; padding: 0.75rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.875rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Payment Tranches</label>
+                    ${renderTrancheBuilder(promptTranches, poDocId)}
                 </div>
                 <div>
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #1e293b;">Condition</label>
@@ -6381,22 +6516,25 @@ async function promptPODocument(poDocId) {
  * @param {string} poId - Firestore document ID of the PO
  */
 async function savePODocumentFields(poId) {
-    const paymentTerms = document.getElementById(`editPaymentTerms_${poId}`)?.value?.trim() || '';
+    const tranches = readTranchesFromDOM(poId);
+    const trancheTotal = tranches.reduce((s, t) => s + t.percentage, 0);
+    if (Math.abs(trancheTotal - 100) > 0.01) {
+        showToast('Tranches must total exactly 100%. Current total: ' + trancheTotal.toFixed(2) + '%', 'error');
+        return;
+    }
     const condition = document.getElementById(`editCondition_${poId}`)?.value?.trim() || '';
     const deliveryDate = document.getElementById(`editDeliveryDate_${poId}`)?.value || '';
 
     try {
         const updateData = {};
-        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        updateData.tranches = tranches;
+        // Also write a human-readable payment_terms string for backward compat with PO document template
+        updateData.payment_terms = tranches.map(t => `${t.label} (${t.percentage}%)`).join(', ');
         if (condition) updateData.condition = condition;
         if (deliveryDate) updateData.delivery_date = deliveryDate;
 
-        if (Object.keys(updateData).length > 0) {
-            await updateDoc(doc(db, 'pos', poId), updateData);
-            showToast('Document details updated successfully', 'success');
-        } else {
-            showToast('No changes to save', 'info');
-        }
+        await updateDoc(doc(db, 'pos', poId), updateData);
+        showToast('Document details updated successfully', 'success');
     } catch (error) {
         console.error('Error saving document fields:', error);
         showToast('Failed to save document details', 'error');
@@ -6408,21 +6546,26 @@ async function savePODocumentFields(poId) {
  * @param {string} poDocId - Firestore document ID of the PO
  */
 async function generatePOWithFields(poDocId) {
-    const paymentTerms = document.getElementById('poDocPaymentTerms')?.value?.trim() || '';
+    const tranches = readTranchesFromDOM(poDocId);
+    const trancheTotal = tranches.reduce((s, t) => s + t.percentage, 0);
+    if (Math.abs(trancheTotal - 100) > 0.01) {
+        showToast('Tranches must total exactly 100%. Current total: ' + trancheTotal.toFixed(2) + '%', 'error');
+        return;
+    }
     const condition = document.getElementById('poDocCondition')?.value?.trim() || '';
     const deliveryDate = document.getElementById('poDocDeliveryDate')?.value || '';
 
     try {
         // Save fields to Firestore so they persist for future views
         const updateData = {};
-        if (paymentTerms) updateData.payment_terms = paymentTerms;
+        updateData.tranches = tranches;
+        // Also write a human-readable payment_terms string for backward compat with PO document template
+        updateData.payment_terms = tranches.map(t => `${t.label} (${t.percentage}%)`).join(', ');
         if (condition) updateData.condition = condition;
         if (deliveryDate) updateData.delivery_date = deliveryDate;
 
-        if (Object.keys(updateData).length > 0) {
-            const poRef = doc(db, 'pos', poDocId);
-            await updateDoc(poRef, updateData);
-        }
+        const poRef = doc(db, 'pos', poDocId);
+        await updateDoc(poRef, updateData);
 
         // Close the fields modal
         closeModal('poDocFieldsModal');
