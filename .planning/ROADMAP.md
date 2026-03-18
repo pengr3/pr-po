@@ -197,7 +197,13 @@ Plans:
   3. Finance user can record a payment against an RFP — entering amount, date, method, and reference — and the system immediately recalculates the balance and updates the payment status badge without Finance manually setting it
   4. RFPs whose due date has passed and are not fully paid display an overdue indicator
   5. Procurement user can see the payment status of each RFP (Pending / Partially Paid / Fully Paid) directly on their PO Tracking view
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 65-01-PLAN.md — Firestore rfps security rules + tranche builder in PO edit modal
+- [ ] 65-02-PLAN.md — RFP creation flow (context menu, modal, ID generator) + PO ID payment fill
+- [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
+- [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
 ## Progress
 
@@ -217,9 +223,9 @@ Phases execute in numeric order: 63 → 64 → 65
 | 57-62.2 | v3.1 | 22/22 | Complete | 2026-03-10 |
 | 63. Supplier Search | 1/1 | Complete    | 2026-03-16 | - |
 | 64. Proof of Procurement | 4/4 | Complete    | 2026-03-17 | - |
-| 65. RFP + Payables Tracking | v3.2 | 0/TBD | Not started | - |
+| 65. RFP + Payables Tracking | v3.2 | 0/4 | Not started | - |
 
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-17 — Phase 64 gap closure plan 04 created*
+*Last updated: 2026-03-18 — Phase 65 plans created (4 plans in 3 waves)*
