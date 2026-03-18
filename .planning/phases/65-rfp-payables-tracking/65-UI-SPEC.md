@@ -58,7 +58,7 @@ Source: styles/main.css body/h* declarations and component td/th sizes.
 | Body / table cell | 14px (0.875rem) | 400 | 1.5 |
 | Label / table header | 14px (0.875rem) | 600 | 1.5 |
 | Heading / modal title | 18px (1.125rem) | 600 | 1.2 |
-| Display / stat value | 32px (2rem) | 700 | 1.2 |
+| Display / stat value | 32px (2rem) | 600 | 1.2 |
 
 Notes:
 - All new table cells (Payables tab, tranche builder) use 14px / weight 400 — matches existing `td` rule
@@ -66,6 +66,7 @@ Notes:
 - Modal header (RFP creation modal, Record Payment modal) uses 18px / weight 600 — matches `.modal-header h2`
 - Modal detail labels (uppercase micro-labels) use 12px (0.75rem) / weight 600 / letter-spacing 0.1em — matches `.modal-detail-label`
 - Payment method "Other" reveal input: same 14px / weight 400 as all form controls
+- Display / stat value uses weight 600; size (32px) provides sufficient visual dominance without a third weight
 
 ---
 
@@ -142,7 +143,7 @@ RFP ID | Supplier | PO Ref | Project / Service | Tranche | Amount | Paid | Balan
 - Invoice number: `<input type="text">` — required
 - Due date: `<input type="date">` — required
 
-**Footer buttons:** "Cancel" (`.btn .btn-outline`) | "Submit RFP" (`.btn .btn-primary`)
+**Footer buttons:** "Discard RFP" (`.btn .btn-outline`) | "Submit RFP" (`.btn .btn-primary`)
 
 ### Record Payment Modal (Finance — one per RFP row)
 
@@ -157,7 +158,7 @@ RFP ID | Supplier | PO Ref | Project / Service | Tranche | Amount | Paid | Balan
 - "Other method" text input: hidden `<input type="text">` revealed only when Method = "Other" (inline display: none → block toggle)
 - Reference number: `<input type="text">` — optional
 
-**Footer buttons:** "Cancel" (`.btn .btn-outline`) | "Record Payment" (`.btn .btn-success`)
+**Footer buttons:** "Discard Payment" (`.btn .btn-outline`) | "Record Payment" (`.btn .btn-success`)
 
 ### Tranche Builder (PO creation/edit modal — replaces free-text payment_terms)
 
@@ -252,6 +253,8 @@ Running total: XX% / 100%   (red text if not 100%, green if exactly 100%)
 |---------|------|
 | Primary CTA (Procurement — RFP creation) | "Submit RFP" |
 | Primary CTA (Finance — payment recording) | "Record Payment" |
+| Dismiss CTA (RFP Creation Modal) | "Discard RFP" |
+| Dismiss CTA (Record Payment Modal) | "Discard Payment" |
 | Payables tab label | "Payables" |
 | Context menu option | "Request Payment" |
 | Empty state heading (Payables tab — no RFPs at all) | "No payment requests yet" |
