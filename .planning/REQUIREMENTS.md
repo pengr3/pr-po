@@ -27,7 +27,7 @@
 - [ ] **RFP-03**: Finance user can record a payment against an RFP (partial or full), including payment amount, date, method, and reference
 - [ ] **RFP-04**: System automatically derives payment status (Pending / Partially Paid / Fully Paid) from the running total of recorded payments vs amount requested — Finance never manually sets status
 - [ ] **RFP-05**: Overdue indicator is displayed when an RFP's due date has passed and it is not fully paid
-- [ ] **RFP-06**: Procurement user can see RFP status (Pending / Partially Paid / Fully Paid) on their PO Tracking view
+- [x] **RFP-06**: Procurement user can see RFP status (Pending / Partially Paid / Fully Paid) on their PO Tracking view
 
 ## Future Requirements
 
@@ -70,7 +70,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RFP-03 | Phase 65 | Pending |
 | RFP-04 | Phase 65 | Pending |
 | RFP-05 | Phase 65 | Pending |
-| RFP-06 | Phase 65 | Pending |
+| RFP-06 | Phase 65 | Complete |
 
 **Coverage:**
 - v3.2 requirements: 14 total
