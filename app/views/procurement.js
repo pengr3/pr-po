@@ -55,6 +55,11 @@ let _prpoSubDataCache = new Map(); // key: mrf.id, value: { prDataArray, poDataA
 // Listener dedup guards — prevent duplicate onSnapshot registrations on tab switches
 let _mrfListenerActive = false;
 let _poTrackingListenerActive = false;
+let _rfpListenerActive = false;
+
+// RFP payment data
+let rfpsData = [];        // all RFP documents from onSnapshot
+let rfpsByPO = {};        // { po_id: [rfp, rfp, ...] } for O(1) lookup per PO row
 
 // ========================================
 // TRANCHE BUILDER HELPERS
@@ -205,6 +210,295 @@ const PROCUREMENT_STATUS_ORDER = {
 };
 
 // ========================================
+// RFP (REQUEST FOR PAYMENT) HELPERS — Phase 65
+// ========================================
+
+/**
+ * Generate a scoped RFP ID: RFP-[PROJECT_CODE]-### (sequence per project code)
+ * @param {string} projectCode - e.g. "CLMC" or "DEPT-A"
+ * @returns {Promise<string>} e.g. "RFP-CLMC-001"
+ */
+async function generateRFPId(projectCode) {
+    const rfpsSnap = await getDocs(
+        query(collection(db, 'rfps'), where('project_code', '==', projectCode))
+    );
+    let maxNum = 0;
+    rfpsSnap.forEach(docSnap => {
+        const id = docSnap.data().rfp_id;
+        if (id) {
+            const parts = id.split('-');
+            const seqStr = parts[parts.length - 1];
+            const num = parseInt(seqStr);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+    });
+    return `RFP-${projectCode}-${String(maxNum + 1).padStart(3, '0')}`;
+}
+
+/**
+ * Derive human-readable RFP payment status from payment_records array.
+ * @param {Object} rfp - RFP document
+ * @returns {string} 'Pending' | 'Partially Paid' | 'Fully Paid' | 'Overdue'
+ */
+function deriveRFPStatus(rfp) {
+    const totalPaid = (rfp.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((sum, r) => sum + (r.amount || 0), 0);
+    const isOverdue = rfp.due_date && new Date(rfp.due_date) < new Date();
+    if (totalPaid >= rfp.amount_requested && rfp.amount_requested > 0) return 'Fully Paid';
+    if (isOverdue) return 'Overdue';
+    if (totalPaid > 0) return 'Partially Paid';
+    return 'Pending';
+}
+
+/**
+ * Compute fill data for a PO ID cell based on RFP payment status.
+ * @param {string} poId - PO ID string (e.g. "PO-2026-001"), NOT the Firestore doc ID
+ * @returns {{ pct: number, color: string, opacity: number, tooltip: string }}
+ */
+function getPOPaymentFill(poId) {
+    const rfps = rfpsByPO[poId] || [];
+    if (rfps.length === 0) {
+        return { pct: 100, color: '#ea4335', opacity: 0.20, tooltip: 'No payment requests submitted' };
+    }
+    // Find PO to get total_amount
+    const po = poData.find(p => p.po_id === poId);
+    const poTotal = po ? parseFloat(po.total_amount) || 0 : 0;
+    let totalPaidAllRFPs = 0;
+    let allFullyPaid = true;
+    let totalRequested = 0;
+    for (const rfp of rfps) {
+        const paid = (rfp.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (r.amount || 0), 0);
+        totalPaidAllRFPs += paid;
+        totalRequested += (rfp.amount_requested || 0);
+        if (paid < rfp.amount_requested) allFullyPaid = false;
+    }
+    if (allFullyPaid && rfps.length > 0) {
+        return { pct: 100, color: '#34a853', opacity: 0.35, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
+    }
+    const percentPaid = poTotal > 0 ? Math.min(100, Math.round((totalPaidAllRFPs / poTotal) * 100)) : 0;
+    const balance = poTotal - totalPaidAllRFPs;
+    return {
+        pct: percentPaid,
+        color: '#fbbc04',
+        opacity: 0.35,
+        tooltip: `Paid: ${formatCurrency(totalPaidAllRFPs)} | Balance: ${formatCurrency(balance)} | ${percentPaid}% complete`
+    };
+}
+
+/**
+ * Show right-click context menu on PO ID cell with "Request Payment" option.
+ * @param {MouseEvent} event
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+function showRFPContextMenu(event, poDocId) {
+    // Remove any existing context menu
+    const existing = document.getElementById('rfpContextMenu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'rfpContextMenu';
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:180px;`;
+    menu.innerHTML = `
+        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+             onmouseenter="this.style.background='#eff6ff'"
+             onmouseleave="this.style.background='transparent'"
+             onclick="window.openRFPModal('${poDocId}')">
+            Request Payment
+        </div>
+    `;
+    document.body.appendChild(menu);
+    // Close on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function handler() {
+            menu.remove();
+            document.removeEventListener('click', handler);
+        }, { once: true });
+    }, 10);
+}
+
+/**
+ * Open RFP creation modal pre-filled with PO data.
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function openRFPModal(poDocId) {
+    // Close context menu if still open
+    const ctx = document.getElementById('rfpContextMenu');
+    if (ctx) ctx.remove();
+
+    const po = poData.find(p => p.id === poDocId);
+    if (!po) { showToast('PO not found', 'error'); return; }
+
+    const tranches = Array.isArray(po.tranches) && po.tranches.length > 0
+        ? po.tranches
+        : [{ label: po.payment_terms || 'Full Payment', percentage: 100 }];
+
+    const poTotal = parseFloat(po.total_amount) || 0;
+
+    // Check which tranches already have RFPs
+    const existingRFPs = rfpsByPO[po.po_id] || [];
+    const usedTrancheLabels = new Set(existingRFPs.map(r => r.tranche_label));
+
+    const trancheOptions = tranches.map((t, i) => {
+        const used = usedTrancheLabels.has(t.label);
+        return `<option value="${i}" ${used ? 'disabled' : ''} ${i === 0 && !used ? 'selected' : ''}>${escapeHTML(t.label)} (${t.percentage}%)${used ? ' \u2014 RFP exists' : ''}</option>`;
+    }).join('');
+
+    const firstAvailable = tranches.findIndex((t) => !usedTrancheLabels.has(t.label));
+    const defaultAmount = firstAvailable >= 0 ? (tranches[firstAvailable].percentage / 100 * poTotal) : 0;
+
+    const deptLabel = po.service_code
+        ? `Service: ${escapeHTML(po.service_code)}`
+        : `Project: ${escapeHTML(po.project_code || '')}`;
+
+    const modalHtml = `
+    <div id="rfpModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:520px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Create Request for Payment</h2>
+                <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div>
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.supplier_name)}</div>
+                    </div>
+                    <div>
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">PO Reference</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.po_id)}</div>
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Department</div>
+                        <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche</label>
+                        <select id="rfpTrancheSelect" class="form-control" onchange="window.updateRFPAmount('${poDocId}')" style="width:100%;">
+                            ${trancheOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
+                        <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(defaultAmount)}" readonly
+                               style="width:100%;background:#f1f5f9;cursor:not-allowed;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Invoice Number <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Enter invoice number" style="width:100%;" required>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                        <input type="date" id="rfpDueDate" class="form-control" style="width:100%;" required>
+                    </div>
+                </div>
+                <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
+                <button class="btn btn-primary" onclick="window.submitRFP('${poDocId}')">Submit RFP</button>
+            </div>
+        </div>
+    </div>`;
+
+    // Remove any existing modal first
+    const existingModal = document.getElementById('rfpModal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Set the tranche select to the first available
+    if (firstAvailable >= 0) {
+        document.getElementById('rfpTrancheSelect').value = firstAvailable;
+    }
+}
+
+/**
+ * Update the Amount Requested field when the tranche selector changes.
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+function updateRFPAmount(poDocId) {
+    const po = poData.find(p => p.id === poDocId);
+    if (!po) return;
+    const tranches = Array.isArray(po.tranches) && po.tranches.length > 0
+        ? po.tranches
+        : [{ label: po.payment_terms || 'Full Payment', percentage: 100 }];
+    const select = document.getElementById('rfpTrancheSelect');
+    const idx = parseInt(select.value);
+    const tranche = tranches[idx];
+    const poTotal = parseFloat(po.total_amount) || 0;
+    const amount = tranche ? (tranche.percentage / 100 * poTotal) : 0;
+    document.getElementById('rfpAmount').value = formatCurrency(amount);
+}
+
+/**
+ * Submit the RFP form and write a document to the rfps Firestore collection.
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function submitRFP(poDocId) {
+    const po = poData.find(p => p.id === poDocId);
+    if (!po) { showToast('PO not found', 'error'); return; }
+
+    const invoiceNumber = document.getElementById('rfpInvoiceNumber')?.value?.trim();
+    const dueDate = document.getElementById('rfpDueDate')?.value;
+    const errorEl = document.getElementById('rfpErrorAlert');
+
+    if (!invoiceNumber || !dueDate) {
+        if (errorEl) { errorEl.textContent = 'Invoice number and due date are required.'; errorEl.style.display = 'block'; }
+        return;
+    }
+
+    const tranches = Array.isArray(po.tranches) && po.tranches.length > 0
+        ? po.tranches
+        : [{ label: po.payment_terms || 'Full Payment', percentage: 100 }];
+    const select = document.getElementById('rfpTrancheSelect');
+    const idx = parseInt(select.value);
+    const tranche = tranches[idx];
+    if (!tranche) { showToast('Please select a tranche', 'error'); return; }
+
+    const poTotal = parseFloat(po.total_amount) || 0;
+    const amountRequested = tranche.percentage / 100 * poTotal;
+
+    const projectCode = po.project_code || po.service_code || '';
+
+    try {
+        const rfpId = await generateRFPId(projectCode);
+
+        const rfpDoc = {
+            rfp_id: rfpId,
+            po_id: po.po_id,
+            po_doc_id: poDocId,
+            mrf_id: po.mrf_id || '',
+            project_code: po.project_code || '',
+            service_code: po.service_code || '',
+            supplier_name: po.supplier_name,
+            tranche_label: tranche.label,
+            tranche_percentage: tranche.percentage,
+            amount_requested: amountRequested,
+            invoice_number: invoiceNumber,
+            due_date: dueDate,
+            payment_records: [],
+            date_submitted: serverTimestamp()
+        };
+
+        await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        document.getElementById('rfpModal')?.remove();
+        showToast(`RFP ${rfpId} submitted successfully`, 'success');
+    } catch (error) {
+        console.error('[Procurement] RFP submission error:', error);
+        if (errorEl) {
+            errorEl.textContent = 'Failed to submit RFP. Check your connection and try again.';
+            errorEl.style.display = 'block';
+        }
+    }
+}
+
+// ========================================
 // WINDOW FUNCTIONS ATTACHMENT
 // ========================================
 
@@ -288,6 +582,12 @@ function attachWindowFunctions() {
     window.resubmitRejectedTR = resubmitRejectedTR;
     window.saveRejectedTRChanges = saveRejectedTRChanges;
     window.deleteRejectedTR = deleteRejectedTR;
+
+    // RFP Functions
+    window.showRFPContextMenu = showRFPContextMenu;
+    window.openRFPModal = openRFPModal;
+    window.updateRFPAmount = updateRFPAmount;
+    window.submitRFP = submitRFP;
 }
 
 // ========================================
@@ -743,6 +1043,7 @@ export async function destroy() {
     // Reset listener dedup guards so new listeners are registered on next view entry
     _mrfListenerActive = false;
     _poTrackingListenerActive = false;
+    _rfpListenerActive = false;
 
     // Clear global state
     currentMRF = null;
@@ -750,6 +1051,8 @@ export async function destroy() {
     filteredSuppliersData = [];
     projectsData = [];
     poData = [];
+    rfpsData = [];
+    rfpsByPO = {};
     allPRPORecords = [];
     filteredPRPORecords = [];
     _prpoSubDataCache = new Map();
@@ -805,6 +1108,10 @@ export async function destroy() {
     delete window.saveRejectedTRChanges;
     delete window.deleteRejectedTR;
     delete window._proofOnSaved;
+    delete window.showRFPContextMenu;
+    delete window.openRFPModal;
+    delete window.updateRFPAmount;
+    delete window.submitRFP;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
@@ -4723,6 +5030,28 @@ async function loadPOTracking() {
     });
 
     listeners.push(listener);
+
+    // RFP listener — load alongside PO tracking, deduped with same guard scope
+    if (!_rfpListenerActive) {
+        _rfpListenerActive = true;
+        const rfpsUnsub = onSnapshot(collection(db, 'rfps'), (snapshot) => {
+            rfpsData = [];
+            rfpsByPO = {};
+            snapshot.forEach(docSnap => {
+                const rfp = { id: docSnap.id, ...docSnap.data() };
+                rfpsData.push(rfp);
+                const poId = rfp.po_id;
+                if (!rfpsByPO[poId]) rfpsByPO[poId] = [];
+                rfpsByPO[poId].push(rfp);
+            });
+            // Re-render PO tracking table if it's currently visible to update fill colors
+            const recordsSection = document.getElementById('records-section');
+            if (recordsSection && recordsSection.classList.contains('active')) {
+                renderPOTrackingTable(poData);
+            }
+        });
+        listeners.push(rfpsUnsub);
+    }
 }
 
 /**
@@ -4916,9 +5245,17 @@ function renderPOTrackingTable(pos) {
                     style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;color:#bdc1c6;font-size:12px;cursor:pointer;user-select:none;">&nbsp;</span>`;
         }
 
+        const fillData = getPOPaymentFill(po.po_id);
+
         return `
         <tr>
-            <td><strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color: #1a73e8; text-decoration: none; cursor: pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600;">SUBCON</span>' : ''}</td>
+            <td class="po-id-cell" title="${escapeHTML(fillData.tooltip)}" style="position:relative;overflow:hidden;"
+                oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.id}')">
+                <div class="po-payment-fill" style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};transition:width 0.4s ease;pointer-events:none;"></div>
+                <span style="position:relative;z-index:1;">
+                    <strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:600;">SUBCON</span>' : ''}
+                </span>
+            </td>
             <td>${escapeHTML(po.supplier_name)}</td>
             <td><span style="display:inline-flex;align-items:center;gap:6px;">${getDeptBadgeHTML(po)} ${escapeHTML(getMRFLabel(po))}</span></td>
             <td>PHP ${parseFloat(po.total_amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
