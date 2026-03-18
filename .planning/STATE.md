@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: roadmap created
-stopped_at: Completed 65-04-PLAN.md (Record Payment modal and void flow)
-last_updated: "2026-03-18T07:35:33.064Z"
+stopped_at: Completed 65-05-PLAN.md (Payables table sort by PO Ref then tranche percentage)
+last_updated: "2026-03-18T10:21:21.381Z"
 last_activity: 2026-03-13 — v3.2 roadmap created, 3 phases defined
 progress:
   total_phases: 3
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 10
+  completed_plans: 10
 ---
 
 ---
@@ -104,6 +104,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 65-rfp-payables-tracking P02 | 8 | 2 tasks | 2 files |
 | Phase 65-rfp-payables-tracking P03 | 12 | 1 tasks | 1 files |
 | Phase 65-rfp-payables-tracking P04 | 2 | 1 tasks | 1 files |
+| Phase 65-rfp-payables-tracking P05 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,7 @@ Recent decisions affecting current work:
 - [Phase 65-rfp-payables-tracking]: Status derivation priority: Fully Paid > Overdue > Partially Paid > Pending — checked in this order so fully-paid overdue RFPs show green
 - [Phase 65-rfp-payables-tracking]: openRecordPaymentModal and voidPaymentRecord registered as stubs immediately to prevent runtime errors before Plan 04 lands
 - [Phase 65-rfp-payables-tracking]: Payment void uses read-modify-write (not arrayRemove) so voided records remain in array for audit trail
+- [Phase 65-rfp-payables-tracking]: Sort placed after both filter blocks so filtered results are also sorted; spread into new array to prevent rfpsData mutation
 
 ### Pending Todos
 
@@ -147,7 +149,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-18T07:35:33.060Z
-Stopped at: Completed 65-04-PLAN.md (Record Payment modal and void flow)
+Last session: 2026-03-18T10:21:21.376Z
+Stopped at: Completed 65-05-PLAN.md (Payables table sort by PO Ref then tranche percentage)
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
