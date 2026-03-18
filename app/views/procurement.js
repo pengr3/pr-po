@@ -73,17 +73,18 @@ let rfpsByPO = {};        // { po_id: [rfp, rfp, ...] } for O(1) lookup per PO r
  */
 function renderTrancheBuilder(tranches, poId) {
     const rows = tranches.map((t, i) => `
-        <div class="tranche-row" style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <div class="tranche-row" style="display:flex;gap:5px;align-items:center;margin-bottom:3px;">
             <input type="text" class="form-control tranche-label" placeholder="Label" value="${escapeHTML(t.label)}"
-                   style="flex:0 0 65%;padding:0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.875rem;"
+                   style="flex:1 1 auto;padding:0.25rem 0.4rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8125rem;"
                    oninput="window.recalculateTranches('${poId}')">
             <input type="number" class="form-control tranche-pct" placeholder="%" value="${t.percentage}"
                    min="0" max="100" step="0.01"
-                   style="flex:0 0 25%;padding:0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;font-size:0.875rem;"
+                   style="flex:0 0 56px;padding:0.25rem 0.4rem;border:1px solid #cbd5e1;border-radius:4px;font-size:0.8125rem;text-align:right;"
                    oninput="window.recalculateTranches('${poId}')">
-            <button type="button" class="icon-btn" aria-label="Remove tranche"
+            <span style="flex:0 0 auto;font-size:0.75rem;color:#94a3b8;">%</span>
+            <button type="button" aria-label="Remove tranche"
                     onclick="window.removeTranche(this, '${poId}')"
-                    style="flex:0 0 10%;padding:0.25rem 0.5rem;border:1.5px solid #cbd5e1;border-radius:6px;cursor:pointer;background:#fff;"
+                    style="flex:0 0 auto;width:20px;height:20px;padding:0;border:1px solid #cbd5e1;border-radius:3px;cursor:pointer;background:#fff;font-size:0.8rem;line-height:1;color:#94a3b8;"
                     ${tranches.length === 1 ? 'disabled' : ''}>&times;</button>
         </div>
     `).join('');
@@ -96,9 +97,9 @@ function renderTrancheBuilder(tranches, poId) {
             ${rows}
             <button type="button" class="btn btn-outline btn-sm"
                     onclick="window.addTranche('${poId}')"
-                    style="margin-top:4px;">+ Add Tranche</button>
+                    style="margin-top:3px;padding:0.2rem 0.55rem;font-size:0.78rem;">+ Add Tranche</button>
         </div>
-        <div id="trancheTotal_${poId}" style="font-size:0.875rem;font-weight:600;margin-top:8px;color:${totalColor};">
+        <div id="trancheTotal_${poId}" style="font-size:0.78rem;font-weight:600;margin-top:3px;color:${totalColor};">
             Total: <span id="trancheTotalValue_${poId}">${initialTotal.toFixed(2).replace(/\.?0+$/, '')}</span>% / 100%
         </div>
     `;
