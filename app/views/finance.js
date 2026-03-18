@@ -448,6 +448,13 @@ function renderPayablesTable() {
         });
     }
 
+    // Sort by PO Ref then tranche percentage so tranches under the same PO group together
+    displayed = [...displayed].sort((a, b) => {
+        const poCompare = (a.po_id || '').localeCompare(b.po_id || '');
+        if (poCompare !== 0) return poCompare;
+        return (a.tranche_percentage || 0) - (b.tranche_percentage || 0);
+    });
+
     if (displayed.length === 0) {
         const isFiltered = payablesStatusFilter || payablesDeptFilter;
         tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:#64748b;">
