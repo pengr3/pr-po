@@ -35,7 +35,7 @@ Declared values (must be multiples of 4). Source: existing CSS utilities and com
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, badge internal padding, pill gaps |
-| sm | 8px | Compact element spacing, button gaps, form field margins |
+| sm | 8px | Compact element spacing, button gaps, form field margins, payment history row padding top/bottom |
 | md | 16px | Default element spacing, form group margin-bottom |
 | lg | 24px | Section padding, card padding, modal body padding |
 | xl | 32px | Layout gaps, modal body 2rem |
@@ -45,7 +45,6 @@ Declared values (must be multiples of 4). Source: existing CSS utilities and com
 Exceptions:
 - Touch targets on mobile nav: 44px min height (hamburger button, mobile nav items at 52px) — existing pattern, do not change
 - Tranche builder rows: 8px vertical gap between rows to keep the table compact
-- Payment history expandable rows: 12px padding top/bottom (between sm and md) to distinguish from main table rows
 
 ---
 
@@ -118,7 +117,7 @@ RFP ID | Supplier | PO Ref | Project / Service | Tranche | Amount | Paid | Balan
 
 - "Actions" column: single "Record Payment" button (`.btn .btn-sm .btn-primary`) — Finance role only; disabled/hidden for non-Finance
 - Overdue rows get background-color: #fef2f2 applied inline
-- Payment history: expandable section below each RFP row, toggled by clicking a chevron/expand icon on the row. Uses `<tr class="payment-history-row">` with `display: none` toggled to `display: table-row`. History rows get a slightly indented left border (4px solid --gray-200) to visually nest under the parent RFP row.
+- Payment history: expandable section below each RFP row, toggled by clicking a chevron/expand icon on the row. Uses `<tr class="payment-history-row">` with `display: none` toggled to `display: table-row`. History rows get 8px padding top/bottom and a 4px solid left border (--gray-200) to visually nest under the parent RFP row.
 
 **Void button (in payment history):** `.btn .btn-sm` with `color: var(--danger); border: 1px solid var(--danger); background: white` — outline danger style. Label: "Void"
 
@@ -300,7 +299,7 @@ No third-party component registries. All UI is hand-authored CSS matching the ex
 
 3. **Payment fill opacity choice** — red fill uses 20% opacity (lower) because 100%-width red is visually alarming; orange and green use 35% because they're partial fills at lower widths and need more visibility.
 
-4. **Expandable payment history rows** — implement as a hidden `<tr>` immediately after each RFP row. The `<td>` inside spans all columns (`colspan="11"`). Content is a nested `<table>` or `<div>` list. Toggle via `style.display = row.style.display === 'table-row' ? 'none' : 'table-row'`.
+4. **Expandable payment history rows** — implement as a hidden `<tr>` immediately after each RFP row. The `<td>` inside spans all columns (`colspan="11"`). Content is a nested `<table>` or `<div>` list. Toggle via `style.display = row.style.display === 'table-row' ? 'none' : 'table-row'`. History rows use 8px padding top/bottom (sm token) and a 4px solid left border to provide visual nesting under the parent row.
 
 5. **Tranche builder** — rendered inside the existing PO edit modal body. The running-total display is a `<div>` at the bottom of the tranche section, updated on every `input` event via `addEventListener('input', recalculateTranches)` on the container.
 
