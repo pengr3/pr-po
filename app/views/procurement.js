@@ -5254,7 +5254,7 @@ function renderPOTrackingTable(pos) {
                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.id}')">
                 <div class="po-payment-fill" style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};transition:width 0.4s ease;pointer-events:none;"></div>
                 <span style="position:relative;z-index:1;">
-                    <strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:600;">SUBCON</span>' : ''}
+                    <strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.id}'); return false;" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:600;">SUBCON</span>' : ''}
                 </span>
             </td>
             <td>${escapeHTML(po.supplier_name)}</td>
