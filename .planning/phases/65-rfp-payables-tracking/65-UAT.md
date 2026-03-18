@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 65-rfp-payables-tracking
 source: 65-01-SUMMARY.md, 65-02-SUMMARY.md, 65-03-SUMMARY.md, 65-04-SUMMARY.md
 started: 2026-03-18T08:30:00Z
@@ -70,7 +70,10 @@ skipped: 0
   reason: "User reported: Table is sorted by RFP ID — each row is one RFP (one tranche). Should be sorted/grouped by PO Ref so all tranches under the same PO appear together."
   severity: major
   test: 5
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "renderPayablesTable has no sort — rows appear in Firestore insertion order. No .sort() exists in the rendering path. Fix: insert a two-key sort on displayed array (po_id asc, tranche_percentage asc) between the filter block and the empty-state check in app/views/finance.js."
+  artifacts:
+    - path: "app/views/finance.js"
+      issue: "renderPayablesTable maps rfpsData in insertion order with no sort"
+  missing:
+    - "Sort displayed array by po_id then tranche_percentage before rendering rows"
   debug_session: ""
