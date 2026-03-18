@@ -414,5 +414,22 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+
+    // =============================================
+    // rfps collection - Request for Payment
+    // =============================================
+    match /rfps/{rfpId} {
+      // All active users can read (procurement sees RFP status on PO Tracking)
+      allow read: if isActiveUser();
+
+      // Create: procurement submits RFPs
+      allow create: if hasRole(['super_admin', 'procurement']);
+
+      // Update: finance records payments (arrayUnion on payment_records); procurement can correct pre-submission fields
+      allow update: if hasRole(['super_admin', 'finance', 'procurement']);
+
+      // Delete: super_admin only (audit preservation)
+      allow delete: if hasRole(['super_admin']);
+    }
   }
 }
