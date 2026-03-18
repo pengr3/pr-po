@@ -22,7 +22,7 @@
 
 ### Request for Payment / Payables
 
-- [ ] **RFP-01**: Procurement user can submit a Request for Payment linked to any existing PO (regardless of procurement status), including invoice number, amount, payment terms, and due date
+- [x] **RFP-01**: Procurement user can submit a Request for Payment linked to any existing PO (regardless of procurement status), including invoice number, amount, payment terms, and due date
 - [ ] **RFP-02**: Finance user can view a Payables tab listing all open RFPs with supplier, amount, balance remaining, due date, and payment status
 - [ ] **RFP-03**: Finance user can record a payment against an RFP (partial or full), including payment amount, date, method, and reference
 - [ ] **RFP-04**: System automatically derives payment status (Pending / Partially Paid / Fully Paid) from the running total of recorded payments vs amount requested — Finance never manually sets status
@@ -65,7 +65,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROOF-02 | Phase 64 | Complete |
 | PROOF-03 | Phase 64 | Complete |
 | PROOF-04 | Phase 64 | Complete |
-| RFP-01 | Phase 65 | Pending |
+| RFP-01 | Phase 65 | Complete |
 | RFP-02 | Phase 65 | Pending |
 | RFP-03 | Phase 65 | Pending |
 | RFP-04 | Phase 65 | Pending |
