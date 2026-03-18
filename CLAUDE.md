@@ -26,11 +26,10 @@ python -m http.server 8000  # OR npx http-server
 ### Views (`app/views/`)
 - **home.js** (120 lines) - Real-time dashboard stats
 - **mrf-form.js** (600 lines) - MRF submission with dynamic items
-- **procurement.js** (3,761 lines, 44 functions) - 4 tabs:
-  - MRF Management (8 functions) - CRUD operations
-  - Supplier Management (7 functions) - CRUD with pagination
-  - PR/TR Generation (3 functions) - Smart generation, mixed items
-  - PO Tracking (8 functions) - Status updates, document generation
+- **procurement.js** (3,761 lines, 44 functions) - 3 tabs:
+  - MRF Management (`#/procurement/mrfs`) - CRUD operations
+  - Supplier Management (`#/procurement/suppliers`) - CRUD with pagination
+  - MRF Records (`#/procurement/records`) - Combined MRF/PR/PO view; scoreboards, status updates, document generation, RFP creation (right-click PO ID links)
 - **finance.js** (1,077 lines) - 3 tabs:
   - Pending Approvals - PR/TR review workflow
   - Purchase Orders - Real-time PO tracking

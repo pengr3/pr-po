@@ -3924,11 +3924,15 @@ async function renderPRPORecords() {
                         const subconBadge = isSubcon
                             ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>'
                             : '';
-                        return `<a href="javascript:void(0)"
-                            onclick="window.viewPODetails('${po.docId}')"
-                            oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
-                            style="color: #34a853; text-decoration: none; font-weight: 600; font-size: 0.8rem; white-space: nowrap; cursor: pointer;">
-                            ${escapeHTML(po.po_id)}</a>${subconBadge}`;
+                        const fillData = getPOPaymentFill(po.po_id);
+                        return `<span title="${escapeHTML(fillData.tooltip)}" style="position:relative;display:inline-block;overflow:hidden;border-radius:3px;vertical-align:middle;">
+                            <span style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};pointer-events:none;"></span>
+                            <a href="javascript:void(0)"
+                                onclick="window.viewPODetails('${po.docId}')"
+                                oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
+                                style="position:relative;z-index:1;color:#34a853;text-decoration:none;font-weight:600;font-size:0.8rem;white-space:nowrap;cursor:pointer;padding:1px 3px;">
+                                ${escapeHTML(po.po_id)}</a>
+                        </span>${subconBadge}`;
                     }).join(' ');
                 }
                 return `<div style="${rowStyle(i)}">${content}</div>`;
