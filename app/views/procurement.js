@@ -3987,7 +3987,7 @@ async function renderPRPORecords() {
                             <a href="javascript:void(0)"
                                 onclick="window.viewPODetails('${po.docId}')"
                                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
-                                style="position:relative;z-index:1;color:#34a853;text-decoration:none;font-weight:600;font-size:0.8rem;white-space:nowrap;cursor:pointer;padding:1px 3px;">
+                                style="position:relative;z-index:1;color:#1a73e8;text-decoration:none;font-weight:600;font-size:0.8rem;white-space:nowrap;cursor:pointer;padding:1px 3px;">
                                 ${escapeHTML(po.po_id)}</a>
                         </span>${subconBadge}`;
                     }).join(' ');
