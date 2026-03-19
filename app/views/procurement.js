@@ -3984,14 +3984,15 @@ async function renderPRPORecords() {
                         const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
                         const poStatus = po.procurement_status || defaultStatus;
                         const poStatusClass = getStatusClass(poStatus);
+                        const badgeBg = { 'Pending Procurement': '#fff3cd', 'Pending': '#fff3cd', 'Procuring': '#dbeafe', 'Procured': '#d4edda', 'Delivered': '#d1fae5' }[poStatus] || '#f1f5f9';
                         const fillData = getPOPaymentFill(po.po_id);
-                        return `<span title="${escapeHTML(fillData.tooltip)}" style="position:relative;display:inline-block;overflow:hidden;border-radius:12px;vertical-align:middle;">
-                            <span style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};pointer-events:none;border-radius:12px;"></span>
+                        return `<span title="${escapeHTML(fillData.tooltip)}" style="position:relative;display:inline-block;overflow:hidden;border-radius:12px;vertical-align:middle;background:${badgeBg};">
+                            <span style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};pointer-events:none;"></span>
                             <a href="javascript:void(0)"
                                 onclick="window.viewPODetails('${po.docId}')"
                                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
                                 class="status-badge ${poStatusClass}"
-                                style="position:relative;z-index:1;text-decoration:none;cursor:pointer;white-space:nowrap;font-size:0.75rem;">
+                                style="position:relative;z-index:1;text-decoration:none;cursor:pointer;white-space:nowrap;font-size:0.75rem;background:transparent;">
                                 ${escapeHTML(po.po_id)}</a>
                         </span>${subconBadge}`;
                     }).join(' ');
