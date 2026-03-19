@@ -260,7 +260,7 @@ function deriveRFPStatus(rfp) {
 function getPOPaymentFill(poId) {
     const rfps = rfpsByPO[poId] || [];
     if (rfps.length === 0) {
-        return { pct: 100, color: '#ea4335', opacity: 0.20, tooltip: 'No payment requests submitted' };
+        return { pct: 100, color: '#f8d7da', opacity: 0.7, tooltip: 'No payment requests submitted' };
     }
     // Find PO to get total_amount
     const po = poData.find(p => p.po_id === poId);
@@ -277,14 +277,14 @@ function getPOPaymentFill(poId) {
         if (paid < rfp.amount_requested) allFullyPaid = false;
     }
     if (allFullyPaid && rfps.length > 0) {
-        return { pct: 100, color: '#34a853', opacity: 0.35, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
+        return { pct: 100, color: '#d4edda', opacity: 0.7, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
     }
     const percentPaid = poTotal > 0 ? Math.min(100, Math.round((totalPaidAllRFPs / poTotal) * 100)) : 0;
     const balance = poTotal - totalPaidAllRFPs;
     return {
         pct: percentPaid,
-        color: '#fbbc04',
-        opacity: 0.35,
+        color: '#fff3cd',
+        opacity: 0.7,
         tooltip: `Paid: ${formatCurrency(totalPaidAllRFPs)} | Balance: ${formatCurrency(balance)} | ${percentPaid}% complete`
     };
 }
@@ -396,6 +396,34 @@ async function openRFPModal(poDocId) {
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
                         <input type="date" id="rfpDueDate" class="form-control" style="width:100%;" required>
                     </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Mode of Payment <span style="color:#ea4335;">*</span></label>
+                        <select id="rfpPaymentMode" class="form-control" style="width:100%;" onchange="window.toggleRFPBankFields()" required>
+                            <option value="">Select payment mode...</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Check">Check</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Name <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankAccountName" class="form-control" placeholder="Account holder name" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
+                        </div>
+                    </div>
+                    <div id="rfpOtherModeWrapper" style="display:none;">
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Payment Mode <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
+                    </div>
                 </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
             </div>
@@ -437,6 +465,18 @@ function updateRFPAmount(poDocId) {
 }
 
 /**
+ * Show/hide bank fields or "Other" specifier based on selected payment mode.
+ */
+function toggleRFPBankFields() {
+    const mode = document.getElementById('rfpPaymentMode')?.value;
+    const bankFields = document.getElementById('rfpBankFields');
+    const otherWrapper = document.getElementById('rfpOtherModeWrapper');
+    if (bankFields) bankFields.style.display = mode === 'Bank Transfer' ? 'flex' : 'none';
+    if (otherWrapper) otherWrapper.style.display = mode === 'Other' ? 'block' : 'none';
+}
+window.toggleRFPBankFields = toggleRFPBankFields;
+
+/**
  * Submit the RFP form and write a document to the rfps Firestore collection.
  * @param {string} poDocId - Firestore document ID of the PO
  */
@@ -446,10 +486,23 @@ async function submitRFP(poDocId) {
 
     const invoiceNumber = document.getElementById('rfpInvoiceNumber')?.value?.trim();
     const dueDate = document.getElementById('rfpDueDate')?.value;
+    const paymentMode = document.getElementById('rfpPaymentMode')?.value;
+    const bankName = document.getElementById('rfpBankName')?.value?.trim() || '';
+    const bankAccountName = document.getElementById('rfpBankAccountName')?.value?.trim() || '';
+    const bankDetails = document.getElementById('rfpBankDetails')?.value?.trim() || '';
+    const paymentModeOther = document.getElementById('rfpPaymentModeOther')?.value?.trim() || '';
     const errorEl = document.getElementById('rfpErrorAlert');
 
-    if (!invoiceNumber || !dueDate) {
-        if (errorEl) { errorEl.textContent = 'Invoice number and due date are required.'; errorEl.style.display = 'block'; }
+    if (!invoiceNumber || !dueDate || !paymentMode) {
+        if (errorEl) { errorEl.textContent = 'Invoice number, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
+        return;
+    }
+    if (paymentMode === 'Bank Transfer' && (!bankName || !bankAccountName || !bankDetails)) {
+        if (errorEl) { errorEl.textContent = 'Bank, account name, and account number are required for Bank Transfer.'; errorEl.style.display = 'block'; }
+        return;
+    }
+    if (paymentMode === 'Other' && !paymentModeOther) {
+        if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
 
@@ -482,6 +535,10 @@ async function submitRFP(poDocId) {
             amount_requested: amountRequested,
             invoice_number: invoiceNumber,
             due_date: dueDate,
+            mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
+            bank_name: paymentMode === 'Bank Transfer' ? bankName : '',
+            bank_account_name: paymentMode === 'Bank Transfer' ? bankAccountName : '',
+            bank_details: paymentMode === 'Bank Transfer' ? bankDetails : '',
             payment_records: [],
             date_submitted: serverTimestamp()
         };
