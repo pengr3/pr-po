@@ -502,6 +502,75 @@ function renderRFPTable() {
 }
 
 /**
+ * Group an array of RFPs by PO ID into a Map.
+ * Each entry contains the PO metadata and its list of RFPs.
+ * Computed at render time — NOT stored as module-level state.
+ */
+function buildPOMap(rfps) {
+    const poMap = new Map();
+    rfps.forEach(rfp => {
+        const poId = rfp.po_id || '';
+        if (!poMap.has(poId)) {
+            poMap.set(poId, {
+                poId,
+                supplier: rfp.supplier_name || '',
+                deptLabel: rfp.service_code
+                    ? escapeHTML(rfp.service_code)
+                    : escapeHTML(rfp.project_code || ''),
+                isService: !!rfp.service_code,
+                rfps: []
+            });
+        }
+        poMap.get(poId).rfps.push(rfp);
+    });
+    return poMap;
+}
+
+/**
+ * Compute aggregate totals and overall status for a PO from its RFP list.
+ * D-09: Current Active Tranche = first non-Fully-Paid tranche by tranche_percentage asc.
+ * D-10: Total Amount = sum of amount_requested across all RFPs.
+ * D-11: Total Paid = sum of non-voided payment records across all RFPs.
+ * D-12: Remaining = Total Amount - Total Paid.
+ * D-13: Overall Status: Fully Paid > Overdue > Partially Paid > Pending.
+ */
+function derivePOSummary(rfpList) {
+    const sorted = [...rfpList].sort((a, b) =>
+        (a.tranche_percentage || 0) - (b.tranche_percentage || 0)
+    );
+
+    const totalAmount = rfpList.reduce((s, r) => s + (r.amount_requested || 0), 0);
+
+    const totalPaid = rfpList.reduce((s, r) => {
+        return s + (r.payment_records || [])
+            .filter(p => p.status !== 'voided')
+            .reduce((ps, p) => ps + (p.amount || 0), 0);
+    }, 0);
+
+    const remaining = totalAmount - totalPaid;
+
+    // D-09: first non-fully-paid tranche label
+    const firstUnpaid = sorted.find(r => deriveRFPStatus(r) !== 'Fully Paid');
+    const currentTranche = firstUnpaid
+        ? `${escapeHTML(firstUnpaid.tranche_label || '')} (${firstUnpaid.tranche_percentage || 0}%)`
+        : 'Fully Paid';
+
+    // D-13: Overall status priority
+    let overallStatus;
+    if (remaining <= 0 && totalAmount > 0) {
+        overallStatus = 'Fully Paid';
+    } else if (rfpList.some(r => deriveRFPStatus(r) === 'Overdue')) {
+        overallStatus = 'Overdue';
+    } else if (totalPaid > 0) {
+        overallStatus = 'Partially Paid';
+    } else {
+        overallStatus = 'Pending';
+    }
+
+    return { totalAmount, totalPaid, remaining, currentTranche, overallStatus, sortedRFPs: sorted };
+}
+
+/**
  * Render the PO Payment Summary table (Table 2).
  * Groups rfpsData by PO ID and shows aggregated totals with expandable sub-tables.
  * Stub — full implementation in Plan 02.
