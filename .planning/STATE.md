@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Phase complete — ready for verification
-stopped_at: "Completed 65.1-02-PLAN.md: full renderPOSummaryTable with PO grouping and expandable sub-tables"
-last_updated: "2026-03-23T03:42:23.935Z"
+status: Ready to execute
+stopped_at: "Completed 65.1-03-PLAN.md: UAT gap closure — Table 1 sort order and Table 2 progress-billing status fix"
+last_updated: "2026-03-23T07:15:16.051Z"
 progress:
   total_phases: 4
   completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 65.1 (finance-payables-tab-dual-table-revamp-rfp-po-payments) — EXECUTING
-Plan: 2 of 2
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Plan: 2 of 2
 | Phase 65-rfp-payables-tracking P05 | 3 | 1 tasks | 1 files |
 | Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P01 | 15 | 2 tasks | 1 files |
 | Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P02 | 8 | 2 tasks | 1 files |
+| Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P03 | 3 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - [Phase 65.1]: renderPOSummaryTable() added as stub in Plan 01; full PO-grouped implementation deferred to Plan 02
 - [Phase 65.1]: buildPOMap is a render-time pure function — computed fresh on each renderPOSummaryTable call, not stored as module-level state
 - [Phase 65.1]: safePoId sanitizes PO IDs for DOM element IDs — replaces non-alphanumeric chars with underscore to prevent querySelector issues
+- [Phase 65.1]: statusPriority map defined inline in sort block — used only by Table 1 sort, no sharing needed
+- [Phase 65.1]: posAmountMap kept live via onSnapshot on pos collection in initPayablesTab; derivePOSummary poTotalAmount param optional with fallback to RFP sum for backward compatibility
 
 ### Roadmap Evolution
 
@@ -120,7 +123,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23T03:42:23.930Z
-Stopped at: Completed 65.1-02-PLAN.md: full renderPOSummaryTable with PO grouping and expandable sub-tables
+Last session: 2026-03-23T07:15:16.047Z
+Stopped at: Completed 65.1-03-PLAN.md: UAT gap closure — Table 1 sort order and Table 2 progress-billing status fix
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
