@@ -214,10 +214,10 @@ Plans:
   1. Partially paid POs show payment progress percentage (e.g., "Tranche 2 (50%) -- 30% Paid") in the Current Active Tranche column
   2. Fully Paid POs still display "Fully Paid"
   3. Pending POs (zero payments) show tranche label without paid suffix
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 65.3-01-PLAN.md — Add payment progress percentage to derivePOSummary currentTranche string for partially paid POs
+- [x] 65.3-01-PLAN.md — Add payment progress percentage to derivePOSummary currentTranche string for partially paid POs
 
 ### Phase 65.2: Remove Processed RFPs from RFP Processing Table (INSERTED)
 
