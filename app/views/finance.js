@@ -451,10 +451,14 @@ function renderRFPTable() {
         });
     }
 
-    // D-20: Sort by PO Ref asc then tranche_percentage asc
+    // D-20: Sort by PO Ref asc, status priority asc (unpaid first), tranche_percentage asc
+    const statusPriority = { 'Pending': 1, 'Overdue': 2, 'Partially Paid': 3, 'Fully Paid': 4 };
     displayed = [...displayed].sort((a, b) => {
         const poCompare = (a.po_id || '').localeCompare(b.po_id || '');
         if (poCompare !== 0) return poCompare;
+        const aPriority = statusPriority[deriveRFPStatus(a)] || 0;
+        const bPriority = statusPriority[deriveRFPStatus(b)] || 0;
+        if (aPriority !== bPriority) return aPriority - bPriority;
         return (a.tranche_percentage || 0) - (b.tranche_percentage || 0);
     });
 
