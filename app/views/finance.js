@@ -40,6 +40,14 @@ function deriveRFPStatus(rfp) {
     return 'Pending';
 }
 
+// Status badge color map — shared by renderRFPTable and renderPOSummaryTable
+const statusBadgeColors = {
+    'Pending': 'background:#fff3cd;color:#856404;',
+    'Partially Paid': 'background:#dbeafe;color:#1d4ed8;',
+    'Fully Paid': 'background:#d1fae5;color:#065f46;',
+    'Overdue': 'background:#fee2e2;color:#991b1b;'
+};
+
 // Format PO date - handles Firestore Timestamps, {seconds} objects, and strings
 function formatPODate(po) {
     const ts = po.date_issued;
@@ -391,20 +399,29 @@ async function voidPaymentRecord(rfpDocId, paymentId) {
 }
 
 /**
- * Filter payables table client-side based on status and department dropdowns.
+ * Filter Table 1 (RFP Processing) by reading its own filter dropdowns.
  */
-function filterPayables() {
-    payablesStatusFilter = document.getElementById('payablesStatusFilter')?.value || '';
-    payablesDeptFilter = document.getElementById('payablesDeptFilter')?.value || '';
-    renderPayablesTable();
+function filterRFPTable() {
+    rfpStatusFilter = document.getElementById('rfpStatusFilter')?.value || '';
+    rfpDeptFilter = document.getElementById('rfpDeptFilter')?.value || '';
+    renderRFPTable();
 }
 
 /**
- * Toggle expanded payment history row for an RFP.
+ * Filter Table 2 (PO Payment Summary) by reading its own filter dropdowns.
  */
-function togglePaymentHistory(rfpDocId) {
-    const row = document.getElementById(`history-${rfpDocId}`);
-    const chevron = document.getElementById(`chevron-${rfpDocId}`);
+function filterPOSummaryTable() {
+    poSummaryStatusFilter = document.getElementById('poSummaryStatusFilter')?.value || '';
+    poSummaryDeptFilter = document.getElementById('poSummaryDeptFilter')?.value || '';
+    renderPOSummaryTable();
+}
+
+/**
+ * Toggle expanded sub-table row for a PO in the PO Payment Summary table.
+ */
+function togglePOExpand(poId) {
+    const row = document.getElementById(`po-expand-${poId}`);
+    const chevron = document.getElementById(`po-chevron-${poId}`);
     if (!row) return;
     const isOpen = row.style.display === 'table-row';
     row.style.display = isOpen ? 'none' : 'table-row';
@@ -412,28 +429,29 @@ function togglePaymentHistory(rfpDocId) {
 }
 
 /**
- * Render the payables table from rfpsData applying active filters.
+ * Render Table 1: flat RFP list into rfpTableBody.
+ * No chevron column, no expand/history rows per D-02.
  */
-function renderPayablesTable() {
-    const tbody = document.getElementById('payablesTableBody');
+function renderRFPTable() {
+    const tbody = document.getElementById('rfpTableBody');
     if (!tbody) return;
 
     const canEdit = window.canEditTab?.('finance');
     const showEditControls = canEdit !== false;
 
-    // Apply filters client-side
+    // Apply Table 1 filters
     let displayed = rfpsData;
-    if (payablesStatusFilter) {
-        displayed = displayed.filter(r => deriveRFPStatus(r) === payablesStatusFilter);
+    if (rfpStatusFilter) {
+        displayed = displayed.filter(r => deriveRFPStatus(r) === rfpStatusFilter);
     }
-    if (payablesDeptFilter) {
+    if (rfpDeptFilter) {
         displayed = displayed.filter(r => {
             const dept = r.service_code ? 'services' : 'projects';
-            return dept === payablesDeptFilter;
+            return dept === rfpDeptFilter;
         });
     }
 
-    // Sort by PO Ref then tranche percentage so tranches under the same PO group together
+    // D-20: Sort by PO Ref asc then tranche_percentage asc
     displayed = [...displayed].sort((a, b) => {
         const poCompare = (a.po_id || '').localeCompare(b.po_id || '');
         if (poCompare !== 0) return poCompare;
@@ -441,11 +459,11 @@ function renderPayablesTable() {
     });
 
     if (displayed.length === 0) {
-        const isFiltered = payablesStatusFilter || payablesDeptFilter;
-        tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:#64748b;">
+        const isFiltered = rfpStatusFilter || rfpDeptFilter;
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">
             ${isFiltered
                 ? 'No RFPs match the selected filters. Clear filters to see all requests.'
-                : 'No payment requests yet. Payment requests will appear here once Procurement submits an RFP against a PO. Use filters to refine the list.'}
+                : 'No payment requests yet. Payment requests will appear here once Procurement submits an RFP against a PO.'}
         </td></tr>`;
         return;
     }
@@ -460,51 +478,14 @@ function renderPayablesTable() {
         const deptLabel = rfp.service_code
             ? escapeHTML(rfp.service_code)
             : escapeHTML(rfp.project_code || '');
-
-        const statusBadgeColors = {
-            'Pending': 'background:#fff3cd;color:#856404;',
-            'Partially Paid': 'background:#dbeafe;color:#1d4ed8;',
-            'Fully Paid': 'background:#d1fae5;color:#065f46;',
-            'Overdue': 'background:#fee2e2;color:#991b1b;'
-        };
         const badgeStyle = statusBadgeColors[status] || '';
-
-        const paymentRecords = (rfp.payment_records || []);
-
-        const historyHtml = paymentRecords.length === 0
-            ? '<div style="padding:8px 0;color:#64748b;font-size:0.875rem;">No payments recorded yet.</div>'
-            : `<table style="width:100%;font-size:0.8125rem;border-collapse:collapse;">
-                <thead><tr style="border-bottom:1px solid #e5e7eb;">
-                    <th style="text-align:left;padding:4px 8px;font-weight:600;">Date</th>
-                    <th style="text-align:left;padding:4px 8px;font-weight:600;">Method</th>
-                    <th style="text-align:left;padding:4px 8px;font-weight:600;">Reference</th>
-                    <th style="text-align:right;padding:4px 8px;font-weight:600;">Amount</th>
-                    <th style="text-align:center;padding:4px 8px;font-weight:600;">Status</th>
-                    <th style="text-align:center;padding:4px 8px;font-weight:600;"></th>
-                </tr></thead>
-                <tbody>${paymentRecords.map(pr => {
-                    const isVoided = pr.status === 'voided';
-                    const textStyle = isVoided ? 'text-decoration:line-through;color:#9ca3af;' : '';
-                    const methodDisplay = pr.method === 'Other' && pr.method_other ? pr.method_other : (pr.method || '');
-                    return `<tr style="border-bottom:1px solid #f3f4f6;">
-                        <td style="padding:4px 8px;${textStyle}">${escapeHTML(pr.date || '')}</td>
-                        <td style="padding:4px 8px;${textStyle}">${escapeHTML(methodDisplay)}</td>
-                        <td style="padding:4px 8px;${textStyle}">${escapeHTML(pr.reference || '')}</td>
-                        <td style="padding:4px 8px;text-align:right;${textStyle}">${formatCurrency(pr.amount || 0)}</td>
-                        <td style="padding:4px 8px;text-align:center;">${isVoided ? '<span style="color:#991b1b;font-weight:600;">Voided</span>' : '<span style="color:#065f46;">Active</span>'}</td>
-                        <td style="padding:4px 8px;text-align:center;">${!isVoided && showEditControls ? `<button class="btn btn-sm" style="color:var(--danger);border:1px solid var(--danger);background:white;padding:2px 8px;font-size:0.75rem;" onclick="window.voidPaymentRecord('${rfp.id}', '${pr.payment_id}')">Void</button>` : ''}</td>
-                    </tr>`;
-                }).join('')}</tbody>
-            </table>`;
 
         const recordPaymentBtn = showEditControls && status !== 'Fully Paid'
             ? `<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Record Payment</button>`
             : '';
 
+        // D-02: NO chevron column, NO history expand row — flat list only
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
-            <td style="text-align:center;cursor:pointer;user-select:none;" onclick="window.togglePaymentHistory('${rfp.id}')">
-                <span id="chevron-${rfp.id}" style="font-size:0.75rem;">&#9654;</span>
-            </td>
             <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
             <td>${escapeHTML(rfp.supplier_name || '')}</td>
             <td><a href="javascript:void(0)" style="color:#1a73e8;text-decoration:none;">${escapeHTML(rfp.po_id || '')}</a></td>
@@ -516,13 +497,19 @@ function renderPayablesTable() {
             <td>${rfp.due_date || 'N/A'}</td>
             <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${badgeStyle}">${status}</span></td>
             <td>${recordPaymentBtn}</td>
-        </tr>
-        <tr class="payment-history-row" id="history-${rfp.id}" style="display:none;">
-            <td colspan="12" style="padding:8px 16px;border-left:4px solid var(--gray-200);background:#f9fafb;">
-                ${historyHtml}
-            </td>
         </tr>`;
     }).join('');
+}
+
+/**
+ * Render the PO Payment Summary table (Table 2).
+ * Groups rfpsData by PO ID and shows aggregated totals with expandable sub-tables.
+ * Stub — full implementation in Plan 02.
+ */
+function renderPOSummaryTable() {
+    const tbody = document.getElementById('poSummaryTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#64748b;">PO summary loading...</td></tr>';
 }
 
 /**
@@ -534,7 +521,8 @@ async function initPayablesTab() {
         snapshot.forEach(docSnap => {
             rfpsData.push({ id: docSnap.id, ...docSnap.data() });
         });
-        renderPayablesTable();
+        renderRFPTable();
+        renderPOSummaryTable();
     });
     listeners.push(rfpsUnsub);
 }
