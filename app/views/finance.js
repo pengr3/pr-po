@@ -564,11 +564,20 @@ function derivePOSummary(rfpList, poTotalAmount) {
 
     const remaining = totalAmount - totalPaid;
 
-    // D-09: first non-fully-paid tranche label
+    // D-09: first non-fully-paid tranche label + payment progress for partially paid POs
     const firstUnpaid = sorted.find(r => deriveRFPStatus(r) !== 'Fully Paid');
-    const currentTranche = firstUnpaid
-        ? `${escapeHTML(firstUnpaid.tranche_label || '')} (${firstUnpaid.tranche_percentage || 0}%)`
-        : 'Fully Paid';
+    let currentTranche;
+    if (!firstUnpaid) {
+        currentTranche = 'Fully Paid';
+    } else {
+        const trancheText = `${escapeHTML(firstUnpaid.tranche_label || '')} (${firstUnpaid.tranche_percentage || 0}%)`;
+        if (totalPaid > 0 && totalAmount > 0) {
+            const pctPaid = Math.round((totalPaid / totalAmount) * 100);
+            currentTranche = `${trancheText} \u2014 ${pctPaid}% Paid`;
+        } else {
+            currentTranche = trancheText;
+        }
+    }
 
     // D-13: Overall status priority
     let overallStatus;
