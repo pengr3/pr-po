@@ -205,6 +205,23 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.1: Finance Payables Tab - Dual Table Revamp (RFP + PO Payments) (INSERTED)
+
+**Goal:** Restructure the Finance Payables tab from a single flat RFP table into two separate tables: Table 1 (RFP Processing) as a clean flat RFP list, and Table 2 (PO Payment Summary) grouping RFPs by PO ID with expandable sub-tables and aggregated totals
+**Requirements**: PAY65-01, PAY65-02, PAY65-03, PAY65-04, PAY65-05
+**Depends on:** Phase 65
+**Success Criteria** (what must be TRUE):
+  1. Finance user sees two distinct tables on the Payables tab — RFP Processing (flat list) on top and PO Payment Summary (grouped by PO) below
+  2. Table 1 shows all RFPs as a flat list without expand toggles, with its own independent Status and Department filter bar
+  3. Table 2 shows one row per PO ID with aggregated totals, expandable to reveal individual RFPs with Record Payment buttons
+  4. Both tables derive payment status automatically (Fully Paid > Overdue > Partially Paid > Pending) — Finance never manually sets status
+  5. Table 2 filters operate independently of Table 1 filters
+**Plans:** 2 plans
+
+Plans:
+- [ ] 65.1-01-PLAN.md — Split filter state, dual-table HTML layout, renderRFPTable (Table 1 flat RFP list)
+- [ ] 65.1-02-PLAN.md — renderPOSummaryTable (Table 2 PO grouping, aggregation, expandable sub-tables)
+
 ## Progress
 
 **Execution Order:**
@@ -228,4 +245,4 @@ Phases execute in numeric order: 63 → 64 → 65
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-18 — Phase 65 plans created (4 plans in 3 waves)*
+*Last updated: 2026-03-23 — Phase 65.1 plans created (2 plans in 2 waves)*
