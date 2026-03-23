@@ -84,6 +84,7 @@ let currentApprovalTarget = null;
 
 // Payables tab state
 let rfpsData = [];                // all RFP documents from onSnapshot
+let posAmountMap = new Map();     // po_id -> total_amount from PO document
 // Table 1 (RFP Processing) filter state
 let rfpStatusFilter = '';
 let rfpDeptFilter = '';
@@ -537,13 +538,17 @@ function buildPOMap(rfps) {
  * D-11: Total Paid = sum of non-voided payment records across all RFPs.
  * D-12: Remaining = Total Amount - Total Paid.
  * D-13: Overall Status: Fully Paid > Overdue > Partially Paid > Pending.
+ * @param {Array} rfpList - RFPs for this PO
+ * @param {number} [poTotalAmount] - PO document total_amount (authoritative); falls back to sum of RFP amounts if not provided
  */
-function derivePOSummary(rfpList) {
+function derivePOSummary(rfpList, poTotalAmount) {
     const sorted = [...rfpList].sort((a, b) =>
         (a.tranche_percentage || 0) - (b.tranche_percentage || 0)
     );
 
-    const totalAmount = rfpList.reduce((s, r) => s + (r.amount_requested || 0), 0);
+    const totalAmount = (poTotalAmount != null && poTotalAmount > 0)
+        ? poTotalAmount
+        : rfpList.reduce((s, r) => s + (r.amount_requested || 0), 0);
 
     const totalPaid = rfpList.reduce((s, r) => {
         return s + (r.payment_records || [])
@@ -595,7 +600,7 @@ function renderPOSummaryTable() {
     // Convert to array and derive summaries
     let poEntries = [];
     poMap.forEach((entry) => {
-        const summary = derivePOSummary(entry.rfps);
+        const summary = derivePOSummary(entry.rfps, posAmountMap.get(entry.poId));
         poEntries.push({
             poId: entry.poId,
             supplier: entry.supplier,
@@ -699,7 +704,7 @@ function renderPOSummaryTable() {
 }
 
 /**
- * Initialize the Payables tab — sets up rfps onSnapshot listener.
+ * Initialize the Payables tab — sets up rfps and pos onSnapshot listeners.
  */
 async function initPayablesTab() {
     const rfpsUnsub = onSnapshot(collection(db, 'rfps'), (snapshot) => {
@@ -711,6 +716,19 @@ async function initPayablesTab() {
         renderPOSummaryTable();
     });
     listeners.push(rfpsUnsub);
+
+    const posUnsub = onSnapshot(collection(db, 'pos'), (snapshot) => {
+        posAmountMap = new Map();
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.po_id && data.total_amount != null) {
+                posAmountMap.set(data.po_id, data.total_amount);
+            }
+        });
+        // Re-render Table 2 with updated PO totals
+        renderPOSummaryTable();
+    });
+    listeners.push(posUnsub);
 }
 
 /**
