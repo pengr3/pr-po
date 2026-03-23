@@ -205,6 +205,20 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.2: Remove Processed RFPs from RFP Processing Table (INSERTED)
+
+**Goal:** Filter out Fully Paid RFPs from Table 1 (RFP Processing) by default so only actionable/outstanding RFPs are shown; historical data remains in Table 2 (PO Payment Summary)
+**Requirements**: RFPFILTER-01
+**Depends on:** Phase 65.1
+**Success Criteria** (what must be TRUE):
+  1. Table 1 default view hides Fully Paid RFPs
+  2. User can explicitly select "Fully Paid" from the status filter to view them
+  3. Table 2 (PO Payment Summary) is completely unaffected
+**Plans:** 1 plan
+
+Plans:
+- [ ] 65.2-01-PLAN.md — Add default Fully Paid exclusion to renderRFPTable, update filter dropdown label
+
 ### Phase 65.1: Finance Payables Tab - Dual Table Revamp (RFP + PO Payments) (INSERTED)
 
 **Goal:** Restructure the Finance Payables tab from a single flat RFP table into two separate tables: Table 1 (RFP Processing) as a clean flat RFP list, and Table 2 (PO Payment Summary) grouping RFPs by PO ID with expandable sub-tables and aggregated totals
@@ -246,4 +260,4 @@ Phases execute in numeric order: 63 → 64 → 65
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-23 — Phase 65.1 plans created (2 plans in 2 waves)*
+*Last updated: 2026-03-23 — Phase 65.2 planned (1 plan, 1 wave)*

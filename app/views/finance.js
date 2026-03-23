@@ -442,6 +442,12 @@ function renderRFPTable() {
 
     // Apply Table 1 filters
     let displayed = rfpsData;
+
+    // Default: hide Fully Paid RFPs unless explicitly filtered to show them
+    if (rfpStatusFilter !== 'Fully Paid') {
+        displayed = displayed.filter(r => deriveRFPStatus(r) !== 'Fully Paid');
+    }
+
     if (rfpStatusFilter) {
         displayed = displayed.filter(r => deriveRFPStatus(r) === rfpStatusFilter);
     }
@@ -452,14 +458,14 @@ function renderRFPTable() {
         });
     }
 
-    // D-20: Sort by PO Ref asc, status priority asc (unpaid first), tranche_percentage asc
+    // D-20: Sort by status priority asc (unpaid first globally), then PO Ref asc, tranche_percentage asc
     const statusPriority = { 'Pending': 1, 'Overdue': 2, 'Partially Paid': 3, 'Fully Paid': 4 };
     displayed = [...displayed].sort((a, b) => {
-        const poCompare = (a.po_id || '').localeCompare(b.po_id || '');
-        if (poCompare !== 0) return poCompare;
         const aPriority = statusPriority[deriveRFPStatus(a)] || 0;
         const bPriority = statusPriority[deriveRFPStatus(b)] || 0;
         if (aPriority !== bPriority) return aPriority - bPriority;
+        const poCompare = (a.po_id || '').localeCompare(b.po_id || '');
+        if (poCompare !== 0) return poCompare;
         return (a.tranche_percentage || 0) - (b.tranche_percentage || 0);
     });
 
@@ -468,7 +474,7 @@ function renderRFPTable() {
         tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">
             ${isFiltered
                 ? 'No RFPs match the selected filters. Clear filters to see all requests.'
-                : 'No payment requests yet. Payment requests will appear here once Procurement submits an RFP against a PO.'}
+                : 'No outstanding payment requests. Use the status filter to view Fully Paid RFPs, or check the PO Payment Summary below.'}
         </td></tr>`;
         return;
     }
@@ -621,8 +627,14 @@ function renderPOSummaryTable() {
         });
     }
 
-    // D-21: Sort by PO ID alphabetically
-    poEntries.sort((a, b) => (a.poId || '').localeCompare(b.poId || ''));
+    // D-21: Sort by overall status priority (unpaid first), then PO ID alphabetically
+    const poStatusPriority = { 'Pending': 1, 'Overdue': 2, 'Partially Paid': 3, 'Fully Paid': 4 };
+    poEntries.sort((a, b) => {
+        const aPriority = poStatusPriority[a.overallStatus] || 0;
+        const bPriority = poStatusPriority[b.overallStatus] || 0;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        return (a.poId || '').localeCompare(b.poId || '');
+    });
 
     if (poEntries.length === 0) {
         const isFiltered = poSummaryStatusFilter || poSummaryDeptFilter;
@@ -1464,7 +1476,7 @@ export function render(activeTab = 'approvals') {
                 <h3 style="font-size:1.125rem;font-weight:700;margin:0 0 0.75rem 0;color:#1e293b;">RFP Processing</h3>
                 <div style="display:flex;gap:1rem;margin-bottom:0.75rem;align-items:center;flex-wrap:wrap;">
                     <select id="rfpStatusFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterRFPTable()">
-                        <option value="">All Statuses</option>
+                        <option value="">Outstanding (default)</option>
                         <option value="Pending">Pending</option>
                         <option value="Partially Paid">Partially Paid</option>
                         <option value="Fully Paid">Fully Paid</option>
