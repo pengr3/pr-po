@@ -216,10 +216,10 @@ Plans:
   3. Table 2 shows one row per PO ID with aggregated totals, expandable to reveal individual RFPs with Record Payment buttons
   4. Both tables derive payment status automatically (Fully Paid > Overdue > Partially Paid > Pending) — Finance never manually sets status
   5. Table 2 filters operate independently of Table 1 filters
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 65.1-01-PLAN.md — Split filter state, dual-table HTML layout, renderRFPTable (Table 1 flat RFP list)
+- [x] 65.1-01-PLAN.md — Split filter state, dual-table HTML layout, renderRFPTable (Table 1 flat RFP list)
 - [ ] 65.1-02-PLAN.md — renderPOSummaryTable (Table 2 PO grouping, aggregation, expandable sub-tables)
 
 ## Progress

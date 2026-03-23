@@ -2,59 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: roadmap created
-stopped_at: Completed 65-05-PLAN.md (Payables table sort by PO Ref then tranche percentage)
-last_updated: "2026-03-18T10:21:21.381Z"
-last_activity: 2026-03-13 — v3.2 roadmap created, 3 phases defined
+status: Ready to execute
+stopped_at: "Completed 65.1-01-PLAN.md: dual-table Payables HTML + renderRFPTable implementation"
+last_updated: "2026-03-23T03:38:26.800Z"
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 3
-  total_plans: 10
-  completed_plans: 10
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: roadmap created
-stopped_at: Completed 64-04-PLAN.md (My Requests proof column)
-last_updated: "2026-03-17T07:06:55.608Z"
-last_activity: 2026-03-13 — v3.2 roadmap created, 3 phases defined
-progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: roadmap created
-stopped_at: Completed 63-01-PLAN.md (Supplier Search)
-last_updated: "2026-03-16T03:35:49.559Z"
-last_activity: 2026-03-13 — v3.2 roadmap created, 3 phases defined
-progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 98
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: roadmap created
-last_updated: "2026-03-13T00:00:00.000Z"
-progress:
-  [██████████] 98%
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 12
+  completed_plans: 11
 ---
 
 # Project State
@@ -64,20 +19,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v3.2 — Phase 63: Supplier Search (ready to plan)
+**Current focus:** Phase 65.1 — finance-payables-tab-dual-table-revamp-rfp-po-payments
 
 ## Current Position
 
-Phase: 63 of 65 (Supplier Search)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-13 — v3.2 roadmap created, 3 phases defined
-
-Progress: [░░░░░░░░░░] 0%
+Phase: 65.1 (finance-payables-tab-dual-table-revamp-rfp-po-payments) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 167 (v1.0–v3.1)
 - Total milestones shipped: 10
 
@@ -105,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 65-rfp-payables-tracking P03 | 12 | 1 tasks | 1 files |
 | Phase 65-rfp-payables-tracking P04 | 2 | 1 tasks | 1 files |
 | Phase 65-rfp-payables-tracking P05 | 3 | 1 tasks | 1 files |
+| Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P01 | 15 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -136,6 +89,13 @@ Recent decisions affecting current work:
 - [Phase 65-rfp-payables-tracking]: openRecordPaymentModal and voidPaymentRecord registered as stubs immediately to prevent runtime errors before Plan 04 lands
 - [Phase 65-rfp-payables-tracking]: Payment void uses read-modify-write (not arrayRemove) so voided records remain in array for audit trail
 - [Phase 65-rfp-payables-tracking]: Sort placed after both filter blocks so filtered results are also sorted; spread into new array to prevent rfpsData mutation
+- [Phase 65.1]: Split payablesStatusFilter/payablesDeptFilter into 4 per-table filter state vars: rfpStatusFilter, rfpDeptFilter, poSummaryStatusFilter, poSummaryDeptFilter
+- [Phase 65.1]: statusBadgeColors extracted to module-level constant — shared between renderRFPTable and renderPOSummaryTable
+- [Phase 65.1]: renderPOSummaryTable() added as stub in Plan 01; full PO-grouped implementation deferred to Plan 02
+
+### Roadmap Evolution
+
+- Phase 65.1 inserted after Phase 65: Finance Payables Tab - Dual Table Revamp (RFP + PO Payments) (URGENT)
 
 ### Pending Todos
 
@@ -157,7 +117,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-19
-Stopped at: Completed quick task 260319-j5f: Style PO ID chips as status-badge pills in MRF Records
+Last session: 2026-03-23T03:38:26.796Z
+Stopped at: Completed 65.1-01-PLAN.md: dual-table Payables HTML + renderRFPTable implementation
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
