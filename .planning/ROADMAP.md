@@ -214,10 +214,10 @@ Plans:
   1. Table 1 default view hides Fully Paid RFPs
   2. User can explicitly select "Fully Paid" from the status filter to view them
   3. Table 2 (PO Payment Summary) is completely unaffected
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 65.2-01-PLAN.md — Add default Fully Paid exclusion to renderRFPTable, update filter dropdown label
+- [x] 65.2-01-PLAN.md — Add default Fully Paid exclusion to renderRFPTable, update filter dropdown label
 
 ### Phase 65.1: Finance Payables Tab - Dual Table Revamp (RFP + PO Payments) (INSERTED)
 

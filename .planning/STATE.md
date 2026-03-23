@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Ready to execute
-stopped_at: "Completed 65.1-03-PLAN.md: UAT gap closure — Table 1 sort order and Table 2 progress-billing status fix"
-last_updated: "2026-03-23T07:15:16.051Z"
+status: Phase complete — ready for verification
+stopped_at: "Completed 65.2-01-PLAN.md: Remove Fully Paid RFPs from Table 1 by default"
+last_updated: "2026-03-23T08:59:11.989Z"
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 13
-  completed_plans: 13
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 14
+  completed_plans: 14
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 65.1 — finance-payables-tab-dual-table-revamp-rfp-po-payments
+**Current focus:** Phase 65.2 — remove-processed-rfps
 
 ## Current Position
 
-Phase: 65.1 (finance-payables-tab-dual-table-revamp-rfp-po-payments) — EXECUTING
-Plan: 2 of 3
+Phase: 65.2 (remove-processed-rfps) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Plan: 2 of 3
 | Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P01 | 15 | 2 tasks | 1 files |
 | Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P02 | 8 | 2 tasks | 1 files |
 | Phase 65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments P03 | 3 | 2 tasks | 1 files |
+| Phase 65.2-remove-processed-rfps P01 | 3 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -98,10 +99,12 @@ Recent decisions affecting current work:
 - [Phase 65.1]: safePoId sanitizes PO IDs for DOM element IDs — replaces non-alphanumeric chars with underscore to prevent querySelector issues
 - [Phase 65.1]: statusPriority map defined inline in sort block — used only by Table 1 sort, no sharing needed
 - [Phase 65.1]: posAmountMap kept live via onSnapshot on pos collection in initPayablesTab; derivePOSummary poTotalAmount param optional with fallback to RFP sum for backward compatibility
+- [Phase 65.2-remove-processed-rfps]: Default exclusion of Fully Paid RFPs placed before user filter blocks in renderRFPTable() with rfpStatusFilter \!== 'Fully Paid' guard
 
 ### Roadmap Evolution
 
 - Phase 65.1 inserted after Phase 65: Finance Payables Tab - Dual Table Revamp (RFP + PO Payments) (URGENT)
+- Phase 65.2 inserted after Phase 65: Remove processed RFPs on the RFP Processing area to prevent flooding with paid RFPs; historical RFPs available on PO Payment Summary (URGENT)
 
 ### Pending Todos
 
@@ -123,7 +126,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-23T07:15:16.047Z
-Stopped at: Completed 65.1-03-PLAN.md: UAT gap closure — Table 1 sort order and Table 2 progress-billing status fix
+Last session: 2026-03-23T08:59:11.982Z
+Stopped at: Completed 65.2-01-PLAN.md: Remove Fully Paid RFPs from Table 1 by default
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
