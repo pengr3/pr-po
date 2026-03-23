@@ -76,8 +76,12 @@ let currentApprovalTarget = null;
 
 // Payables tab state
 let rfpsData = [];                // all RFP documents from onSnapshot
-let payablesStatusFilter = '';    // '' = All, or 'Pending' | 'Partially Paid' | 'Fully Paid' | 'Overdue'
-let payablesDeptFilter = '';      // '' = All, or 'projects' | 'services'
+// Table 1 (RFP Processing) filter state
+let rfpStatusFilter = '';
+let rfpDeptFilter = '';
+// Table 2 (PO Payment Summary) filter state
+let poSummaryStatusFilter = '';
+let poSummaryDeptFilter = '';
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
@@ -238,12 +242,12 @@ function attachWindowFunctions() {
     }, 300);
 
     // Payables tab window functions
-    window.filterPayables = filterPayables;
-    window.togglePaymentHistory = togglePaymentHistory;
+    window.filterRFPTable = filterRFPTable;
+    window.filterPOSummaryTable = filterPOSummaryTable;
+    window.togglePOExpand = togglePOExpand;
     window.openRecordPaymentModal = openRecordPaymentModal;
     window.voidPaymentRecord = voidPaymentRecord;
     window.submitPaymentRecord = submitPaymentRecord;
-    window.toggleOtherMethod = toggleOtherMethod;
 }
 
 // ========================================
@@ -259,6 +263,14 @@ function openRecordPaymentModal(rfpDocId) {
     if (!rfp) { showToast('RFP not found', 'error'); return; }
 
     const today = new Date().toISOString().split('T')[0];
+
+    const bankInfo = rfp.mode_of_payment === 'Bank Transfer' && rfp.bank_name
+        ? `<div style="font-size:0.8125rem;color:#475569;margin-top:4px;display:flex;flex-direction:column;gap:2px;">
+               <span>${escapeHTML(rfp.bank_name)}</span>
+               ${rfp.bank_account_name ? `<span>Acct Name: ${escapeHTML(rfp.bank_account_name)}</span>` : ''}
+               ${rfp.bank_details ? `<span>Acct No: ${escapeHTML(rfp.bank_details)}</span>` : ''}
+           </div>`
+        : '';
 
     const modalHtml = `
     <div id="recordPaymentModal" class="modal" style="display:flex;">
@@ -277,6 +289,11 @@ function openRecordPaymentModal(rfpDocId) {
                         <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">RFP Amount</div>
                         <div style="font-weight:600;color:#1e293b;">${formatCurrency(rfp.amount_requested || 0)}</div>
                     </div>
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Mode of Payment</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.mode_of_payment || 'Not specified')}</div>
+                        ${bankInfo}
+                    </div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
@@ -287,21 +304,6 @@ function openRecordPaymentModal(rfpDocId) {
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Date <span style="color:#ea4335;">*</span></label>
                         <input type="date" id="paymentDate" class="form-control" value="${today}" style="width:100%;" required>
-                    </div>
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Method <span style="color:#ea4335;">*</span></label>
-                        <select id="paymentMethod" class="form-control" style="width:100%;" onchange="window.toggleOtherMethod()">
-                            <option value="">Select method...</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="Check">Check</option>
-                            <option value="Cash">Cash</option>
-                            <option value="GCash/E-Wallet">GCash/E-Wallet</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div id="otherMethodWrapper" style="display:none;">
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Method</label>
-                        <input type="text" id="paymentMethodOther" class="form-control" placeholder="Enter payment method" style="width:100%;">
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Reference Number</label>
@@ -323,15 +325,6 @@ function openRecordPaymentModal(rfpDocId) {
 }
 
 /**
- * Toggle visibility of the "Specify Method" input when "Other" is selected.
- */
-function toggleOtherMethod() {
-    const method = document.getElementById('paymentMethod')?.value;
-    const wrapper = document.getElementById('otherMethodWrapper');
-    if (wrapper) wrapper.style.display = method === 'Other' ? 'block' : 'none';
-}
-
-/**
  * Validate and submit a payment record for an RFP.
  * Appends to Firestore rfps document payment_records array via arrayUnion.
  */
@@ -340,18 +333,11 @@ async function submitPaymentRecord(rfpDocId) {
     if (!rfp) { showToast('RFP not found', 'error'); return; }
 
     const paymentDate = document.getElementById('paymentDate')?.value;
-    const paymentMethod = document.getElementById('paymentMethod')?.value;
-    const methodOther = document.getElementById('paymentMethodOther')?.value?.trim() || '';
     const reference = document.getElementById('paymentReference')?.value?.trim() || '';
     const errorEl = document.getElementById('paymentErrorAlert');
 
-    if (!paymentDate || !paymentMethod) {
-        if (errorEl) { errorEl.textContent = 'Payment date and method are required.'; errorEl.style.display = 'block'; }
-        return;
-    }
-
-    if (paymentMethod === 'Other' && !methodOther) {
-        if (errorEl) { errorEl.textContent = 'Please specify the payment method.'; errorEl.style.display = 'block'; }
+    if (!paymentDate) {
+        if (errorEl) { errorEl.textContent = 'Payment date is required.'; errorEl.style.display = 'block'; }
         return;
     }
 
@@ -359,8 +345,7 @@ async function submitPaymentRecord(rfpDocId) {
         payment_id: `PAY-${Date.now()}`,
         amount: rfp.amount_requested,
         date: paymentDate,
-        method: paymentMethod,
-        method_other: methodOther,
+        method: rfp.mode_of_payment || '',
         reference: reference,
         status: 'active',
         recorded_at: new Date().toISOString()
@@ -1282,15 +1267,18 @@ export function render(activeTab = 'approvals') {
 
             <!-- Tab 4: Payables -->
             <section id="payables-section" class="section ${activeTab === 'payables' ? 'active' : ''}">
-                <div style="display:flex;gap:1rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap;">
-                    <select id="payablesStatusFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterPayables()">
+
+                <!-- Table 1: RFP Processing (D-01 through D-06) -->
+                <h3 style="font-size:1.125rem;font-weight:700;margin:0 0 0.75rem 0;color:#1e293b;">RFP Processing</h3>
+                <div style="display:flex;gap:1rem;margin-bottom:0.75rem;align-items:center;flex-wrap:wrap;">
+                    <select id="rfpStatusFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterRFPTable()">
                         <option value="">All Statuses</option>
                         <option value="Pending">Pending</option>
                         <option value="Partially Paid">Partially Paid</option>
                         <option value="Fully Paid">Fully Paid</option>
                         <option value="Overdue">Overdue</option>
                     </select>
-                    <select id="payablesDeptFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterPayables()">
+                    <select id="rfpDeptFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterRFPTable()">
                         <option value="">All Departments</option>
                         <option value="projects">Projects</option>
                         <option value="services">Services</option>
@@ -1300,7 +1288,6 @@ export function render(activeTab = 'approvals') {
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th style="width:30px;"></th>
                                 <th>RFP ID</th>
                                 <th>Supplier</th>
                                 <th>PO Ref</th>
@@ -1314,8 +1301,48 @@ export function render(activeTab = 'approvals') {
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="payablesTableBody">
-                            <tr><td colspan="12" style="text-align:center;padding:2rem;color:#64748b;">Loading payables...</td></tr>
+                        <tbody id="rfpTableBody">
+                            <tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">Loading RFPs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Spacer between the two tables -->
+                <div style="margin:2rem 0;border-top:1px solid #e5e7eb;"></div>
+
+                <!-- Table 2: PO Payment Summary (D-07 through D-17) -->
+                <h3 style="font-size:1.125rem;font-weight:700;margin:0 0 0.75rem 0;color:#1e293b;">PO Payment Summary</h3>
+                <div style="display:flex;gap:1rem;margin-bottom:0.75rem;align-items:center;flex-wrap:wrap;">
+                    <select id="poSummaryStatusFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterPOSummaryTable()">
+                        <option value="">All Statuses</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Partially Paid">Partially Paid</option>
+                        <option value="Fully Paid">Fully Paid</option>
+                        <option value="Overdue">Overdue</option>
+                    </select>
+                    <select id="poSummaryDeptFilter" class="form-control" style="width:auto;min-width:160px;font-size:0.875rem;" onchange="window.filterPOSummaryTable()">
+                        <option value="">All Departments</option>
+                        <option value="projects">Projects</option>
+                        <option value="services">Services</option>
+                    </select>
+                </div>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:30px;"></th>
+                                <th>PO ID</th>
+                                <th>Supplier</th>
+                                <th>Project / Service</th>
+                                <th>Current Active Tranche</th>
+                                <th style="text-align:right;">Total Amount</th>
+                                <th style="text-align:right;">Total Paid</th>
+                                <th style="text-align:right;">Remaining</th>
+                                <th>Overall Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poSummaryTableBody">
+                            <tr><td colspan="9" style="text-align:center;padding:2rem;color:#64748b;">Loading PO summary...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -2047,6 +2074,21 @@ export async function destroy() {
     delete window.debouncedProjectExpenseSearch;
     delete window.debouncedServiceExpenseSearch;
     delete window.debouncedRecurringExpenseSearch;
+
+    // Clean up payables window functions
+    delete window.filterRFPTable;
+    delete window.filterPOSummaryTable;
+    delete window.togglePOExpand;
+    delete window.openRecordPaymentModal;
+    delete window.voidPaymentRecord;
+    delete window.submitPaymentRecord;
+
+    // Reset payables filter state
+    rfpsData = [];
+    rfpStatusFilter = '';
+    rfpDeptFilter = '';
+    poSummaryStatusFilter = '';
+    poSummaryDeptFilter = '';
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
