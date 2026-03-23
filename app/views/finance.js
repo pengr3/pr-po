@@ -573,12 +573,125 @@ function derivePOSummary(rfpList) {
 /**
  * Render the PO Payment Summary table (Table 2).
  * Groups rfpsData by PO ID and shows aggregated totals with expandable sub-tables.
- * Stub — full implementation in Plan 02.
+ * D-07: One row per unique PO ID.
+ * D-08: Columns: Chevron | PO ID | Supplier | Dept | Current Active Tranche | Total Amount | Total Paid | Remaining | Overall Status.
+ * D-14: Expand chevron toggles sub-table of RFPs under this PO.
+ * D-16: Filters apply to PO rows by overall status and dept.
+ * D-21: Sorted by PO ID alphabetically.
  */
 function renderPOSummaryTable() {
     const tbody = document.getElementById('poSummaryTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#64748b;">PO summary loading...</td></tr>';
+
+    const canEdit = window.canEditTab?.('finance');
+    const showEditControls = canEdit !== false;
+
+    const poMap = buildPOMap(rfpsData);
+
+    // Convert to array and derive summaries
+    let poEntries = [];
+    poMap.forEach((entry) => {
+        const summary = derivePOSummary(entry.rfps);
+        poEntries.push({
+            poId: entry.poId,
+            supplier: entry.supplier,
+            deptLabel: entry.deptLabel,
+            isService: entry.isService,
+            ...summary
+        });
+    });
+
+    // D-16: Apply PO-level filters
+    if (poSummaryStatusFilter) {
+        poEntries = poEntries.filter(po => po.overallStatus === poSummaryStatusFilter);
+    }
+    if (poSummaryDeptFilter) {
+        poEntries = poEntries.filter(po => {
+            const dept = po.isService ? 'services' : 'projects';
+            return dept === poSummaryDeptFilter;
+        });
+    }
+
+    // D-21: Sort by PO ID alphabetically
+    poEntries.sort((a, b) => (a.poId || '').localeCompare(b.poId || ''));
+
+    if (poEntries.length === 0) {
+        const isFiltered = poSummaryStatusFilter || poSummaryDeptFilter;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:#64748b;">
+            ${isFiltered
+                ? 'No POs match the selected filters. Clear filters to see all.'
+                : 'No payment requests yet. PO summaries will appear once RFPs are submitted.'}
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = poEntries.map(po => {
+        const badgeStyle = statusBadgeColors[po.overallStatus] || '';
+        const isOverdue = po.overallStatus === 'Overdue';
+
+        // D-14: Build the sub-table for expanded view
+        const subTableRows = po.sortedRFPs.map(rfp => {
+            const rfpStatus = deriveRFPStatus(rfp);
+            const rfpTotalPaid = (rfp.payment_records || [])
+                .filter(r => r.status !== 'voided')
+                .reduce((s, r) => s + (r.amount || 0), 0);
+            const rfpBalance = (rfp.amount_requested || 0) - rfpTotalPaid;
+            const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
+            const rfpIsOverdue = rfpStatus === 'Overdue';
+
+            // D-15: Record Payment button in expanded sub-rows
+            const subRecordBtn = showEditControls && rfpStatus !== 'Fully Paid'
+                ? `<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Record Payment</button>`
+                : '';
+
+            return `<tr style="${rfpIsOverdue ? 'background-color:#fef2f2;' : ''}">
+                <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
+                <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
+                <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
+                <td style="text-align:right;">${formatCurrency(rfpTotalPaid)}</td>
+                <td style="text-align:right;">${formatCurrency(rfpBalance)}</td>
+                <td>${rfp.due_date || 'N/A'}</td>
+                <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${rfpBadgeStyle}">${rfpStatus}</span></td>
+                <td>${subRecordBtn}</td>
+            </tr>`;
+        }).join('');
+
+        const subTableHtml = `<table style="width:100%;font-size:0.875rem;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid #e5e7eb;">
+                <th style="text-align:left;padding:6px 8px;font-weight:600;">RFP ID</th>
+                <th style="text-align:left;padding:6px 8px;font-weight:600;">Tranche</th>
+                <th style="text-align:right;padding:6px 8px;font-weight:600;">Amount</th>
+                <th style="text-align:right;padding:6px 8px;font-weight:600;">Paid</th>
+                <th style="text-align:right;padding:6px 8px;font-weight:600;">Balance</th>
+                <th style="text-align:left;padding:6px 8px;font-weight:600;">Due Date</th>
+                <th style="text-align:left;padding:6px 8px;font-weight:600;">Status</th>
+                <th style="text-align:left;padding:6px 8px;font-weight:600;">Actions</th>
+            </tr></thead>
+            <tbody>${subTableRows}</tbody>
+        </table>`;
+
+        // Sanitize poId for use in DOM element IDs (replace special chars)
+        const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+        return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
+            <td style="text-align:center;cursor:pointer;user-select:none;" onclick="window.togglePOExpand('${safePoId}')">
+                <span id="po-chevron-${safePoId}" style="font-size:0.75rem;">&#9654;</span>
+            </td>
+            <td style="font-weight:600;">${escapeHTML(po.poId)}</td>
+            <td>${escapeHTML(po.supplier)}</td>
+            <td>${po.deptLabel}</td>
+            <td>${po.currentTranche}</td>
+            <td style="text-align:right;">${formatCurrency(po.totalAmount)}</td>
+            <td style="text-align:right;">${formatCurrency(po.totalPaid)}</td>
+            <td style="text-align:right;">${formatCurrency(po.remaining)}</td>
+            <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${badgeStyle}">${po.overallStatus}</span></td>
+        </tr>
+        <tr id="po-expand-${safePoId}" style="display:none;">
+            <td colspan="9" style="padding:8px 16px;border-left:4px solid #e5e7eb;background:#f9fafb;">
+                ${subTableHtml}
+            </td>
+        </tr>`;
+    }).join('');
 }
 
 /**
