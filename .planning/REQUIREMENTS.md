@@ -29,6 +29,10 @@
 - [x] **RFP-05**: Overdue indicator is displayed when an RFP's due date has passed and it is not fully paid
 - [x] **RFP-06**: Procurement user can see RFP status (Pending / Partially Paid / Fully Paid) on their PO Tracking view
 
+### Payables UX Fixes
+
+- [ ] **TRANCHE-01**: PO Payment Summary "Current Active Tranche" column displays payment progress percentage (e.g., "30% Paid") for partially paid POs so users can see how much has been paid at a glance
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -71,12 +75,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RFP-04 | Phase 65 | Complete |
 | RFP-05 | Phase 65 | Complete |
 | RFP-06 | Phase 65 | Complete |
+| TRANCHE-01 | Phase 65.3 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 14 total
-- Mapped to phases: 14
+- v3.2 requirements: 15 total
+- Mapped to phases: 15
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-17 — PROOF-03 marked complete after verification*
+*Last updated: 2026-03-23 — TRANCHE-01 added for Phase 65.3*

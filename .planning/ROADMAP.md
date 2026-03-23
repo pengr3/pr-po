@@ -205,6 +205,20 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.3: fix Current Active Tranche column for partially paid items - display (nn%) Paid so users know how much is paid (INSERTED)
+
+**Goal:** Fix the "Current Active Tranche" column in the Finance Payables PO Payment Summary table so that partially paid POs display the percentage paid (e.g., "50% Paid") alongside the tranche label, giving users at-a-glance payment progress
+**Requirements**: TRANCHE-01
+**Depends on:** Phase 65
+**Success Criteria** (what must be TRUE):
+  1. Partially paid POs show payment progress percentage (e.g., "Tranche 2 (50%) -- 30% Paid") in the Current Active Tranche column
+  2. Fully Paid POs still display "Fully Paid"
+  3. Pending POs (zero payments) show tranche label without paid suffix
+**Plans:** 1 plan
+
+Plans:
+- [ ] 65.3-01-PLAN.md — Add payment progress percentage to derivePOSummary currentTranche string for partially paid POs
+
 ### Phase 65.2: Remove Processed RFPs from RFP Processing Table (INSERTED)
 
 **Goal:** Filter out Fully Paid RFPs from Table 1 (RFP Processing) by default so only actionable/outstanding RFPs are shown; historical data remains in Table 2 (PO Payment Summary)
@@ -260,4 +274,4 @@ Phases execute in numeric order: 63 → 64 → 65
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-23 — Phase 65.2 planned (1 plan, 1 wave)*
+*Last updated: 2026-03-23 — Phase 65.3 planned (1 plan, 1 wave)*
