@@ -33,9 +33,16 @@
 
 - [x] **TRANCHE-01**: PO Payment Summary "Current Active Tranche" column displays payment progress percentage (e.g., "30% Paid") for partially paid POs so users can see how much has been paid at a glance
 
-n### RFP ID Generation
+### RFP ID Generation
 
 - [x] **RFPID-01**: New RFPs are assigned IDs in PO-scoped format `RFP-{PO-ID}-{n}` (e.g. `RFP-PO-2026-001-1`) instead of project-code-scoped format, eliminating duplicate IDs when multiple POs share a project code
+
+### PO Payment Progress Bar
+
+- [ ] **POBAR-01**: MRF Records PO badges display clean status-badge coloring without fill overlay — a separate flush progress bar below each badge shows payment percentage
+- [ ] **POBAR-02**: POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar, correctly representing zero payment progress
+- [ ] **POBAR-03**: PO badge font color is exclusively controlled by the status-badge CSS class with no overlay interference, ensuring readability
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -80,12 +87,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RFP-06 | Phase 65 | Complete |
 | TRANCHE-01 | Phase 65.3 | Planned |
 | RFPID-01 | Phase 65.4 | Planned |
+| POBAR-01 | Phase 66 | Planned |
+| POBAR-02 | Phase 66 | Planned |
+| POBAR-03 | Phase 66 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 16 total
-- Mapped to phases: 16
-- Unmapped: 0 ✓
+- v3.2 requirements: 19 total
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — RFPID-01 added for Phase 65.4*
+*Last updated: 2026-03-24 — POBAR-01, POBAR-02, POBAR-03 added for Phase 66*

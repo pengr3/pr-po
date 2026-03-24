@@ -289,13 +289,18 @@ Phases execute in numeric order: 63 → 64 → 65
 
 ### Phase 66: Fix MRF Records PO payment progress bar — remove existing badge fill, implement flush dynamic progress bar, fix font color
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Replace the badge-fill overlay on PO pill badges in MRF Records with a flush dynamic progress bar below each badge, and fix getPOPaymentFill to return 0% for POs with no RFPs
+**Requirements**: POBAR-01, POBAR-02, POBAR-03
 **Depends on:** Phase 65
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. PO badges in MRF Records show clean status-badge coloring with no fill overlay muddying text
+  2. A thin progress bar renders below each PO badge showing payment percentage
+  3. POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar
+  4. Badge font color is exclusively controlled by status-badge CSS class with no overlay interference
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 66 to break down)
+- [ ] 66-01-PLAN.md — Replace badge-fill overlay with flush progress bar, fix getPOPaymentFill no-RFP pct
 
 ---
-*Last updated: 2026-03-24 — Phase 65.4 planned (1 plan, 1 wave)*
+*Last updated: 2026-03-24 — Phase 66 planned (1 plan, 1 wave)*
