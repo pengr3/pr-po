@@ -49,13 +49,13 @@
 
 ### TR Proof of Procurement
 
-- [ ] **TRPROOF-01**: Procurement user can attach a proof URL to a Transport Request via the same proof modal used for POs, with proof saved to the `transport_requests` collection
-- [ ] **TRPROOF-02**: Transport MRF rows in MRF Records display three-state proof indicators (green checkmark for URL, orange dash for remarks-only, empty circle for no proof) in the Proof column
+- [x] **TRPROOF-01**: Procurement user can attach a proof URL to a Transport Request via the same proof modal used for POs, with proof saved to the `transport_requests` collection
+- [x] **TRPROOF-02**: Transport MRF rows in MRF Records display three-state proof indicators (green checkmark for URL, orange dash for remarks-only, empty circle for no proof) in the Proof column
 
 ### TR Payment Progress Bar
 
-- [ ] **TRBAR-01**: TR badges in MRF Records display a 3px payment progress bar below the badge, driven by RFP payment data keyed to `tr_id`
-- [ ] **TRBAR-02**: TRs with no RFPs show an empty progress bar (0% fill), consistent with PO behavior
+- [x] **TRBAR-01**: TR badges in MRF Records display a 3px payment progress bar below the badge, driven by RFP payment data keyed to `tr_id`
+- [x] **TRBAR-02**: TRs with no RFPs show an empty progress bar (0% fill), consistent with PO behavior
 
 ### TR RFP Creation
 

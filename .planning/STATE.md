@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: verifying
-stopped_at: "Completed 65.5-01-PLAN.md: Fix PO Ref column with clickable PO IDs in RFP Processing"
-last_updated: "2026-03-24T05:07:31.639Z"
+stopped_at: "Completed 67-01-PLAN.md: Extend TR proof badges and RFP features to PO column"
+last_updated: "2026-03-24T06:04:14.150Z"
 progress:
   total_phases: 10
   completed_phases: 9
-  total_plans: 16
-  completed_plans: 18
+  total_plans: 17
+  completed_plans: 19
   percent: 100
 ---
 
@@ -110,6 +110,7 @@ Plan: 1 of 1
 | Phase 65.4 P01 | 1 | 1 tasks | 1 files |
 | Phase 66 P01 | 5 | 2 tasks | 1 files |
 | Phase 65.5 P01 | 8 | 1 tasks | 1 files |
+| Phase 67 P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,8 @@ Recent decisions affecting current work:
 - [Phase 66]: getPOPaymentFill no-RFP case changed from pct:100 to pct:0 — semantically correct (zero payment progress = zero fill)
 - [Phase 65.5]: rfp.po_id in finance.js is the Firestore document ID of the PO — used directly as poDocId in viewPODetailsFromRFP
 - [Phase 65.5]: Modal overlay uses id=poDetailsOverlay to allow remove-before-create deduplication; reuses formatPODate, formatCurrency, escapeHTML, getMRFLabel — no new imports
+- [Phase 67]: proof-modal.js collectionName defaults to 'pos' so all existing callers are unaffected
+- [Phase 67]: getTRPaymentFill takes trTotalAmount as direct parameter instead of looking up from a data array
 
 ### Roadmap Evolution
 
@@ -185,7 +188,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T04:55:34.090Z
-Stopped at: Completed 65.5-01-PLAN.md: Fix PO Ref column with clickable PO IDs in RFP Processing
+Last session: 2026-03-24T06:04:14.139Z
+Stopped at: Completed 67-01-PLAN.md: Extend TR proof badges and RFP features to PO column
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
