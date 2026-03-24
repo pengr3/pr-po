@@ -72,6 +72,12 @@
 - [x] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, a "Select Saved Bank Account" button appears that shows a dropdown of unique bank accounts derived from previously submitted RFPs
 - [x] **RFPBANK-02**: Selecting a saved bank account from the dropdown auto-fills the Bank Name, Account Name, and Account Number fields in both PO RFP and TR RFP modals
 
+### PO Payment Summary Pagination
+
+- [ ] **POSUMPAG-01**: PO Payment Summary table displays at most 10 PO rows per page with Previous/Next and page number navigation controls
+- [ ] **POSUMPAG-02**: Pagination info shows "Showing X-Y of Z POs" reflecting the current filtered result count, not the total unfiltered count
+- [ ] **POSUMPAG-03**: Changing status or department filters resets pagination to page 1 and updates page count to match the filtered set
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -130,12 +136,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRPROOFCOL-01 | Phase 66.1 | Planned |
 | RFPBANK-01 | Phase 65.6 | Planned |
 | RFPBANK-02 | Phase 65.6 | Planned |
+| POSUMPAG-01 | Phase 65.7 | Planned |
+| POSUMPAG-02 | Phase 65.7 | Planned |
+| POSUMPAG-03 | Phase 65.7 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 30 total
-- Mapped to phases: 30
+- v3.2 requirements: 33 total
+- Mapped to phases: 33
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — Phase 65.6 requirements added (RFPBANK-01, RFPBANK-02)*
+*Last updated: 2026-03-24 — Phase 65.7 requirements added (POSUMPAG-01, POSUMPAG-02, POSUMPAG-03)*

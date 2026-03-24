@@ -205,6 +205,20 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.7: PO Payment Summary Table Pagination (INSERTED)
+
+**Goal:** Add pagination to the PO Payment Summary table (Table 2) in Finance Payables, using the same pagination pattern and styling as the existing Supplier table pagination
+**Requirements**: POSUMPAG-01, POSUMPAG-02, POSUMPAG-03
+**Depends on:** Phase 65
+**Success Criteria** (what must be TRUE):
+  1. PO Payment Summary table shows at most 10 PO rows per page with Previous/Next and page-number navigation
+  2. Pagination info shows "Showing X-Y of Z POs" reflecting the filtered result count
+  3. Changing status or department filters resets pagination to page 1
+**Plans:** 1 plan
+
+Plans:
+- [ ] 65.7-01-PLAN.md — Add pagination state, slice logic, controls, and page-change handler to renderPOSummaryTable
+
 ### Phase 65.6: RFP Bank Transfer Mode — Saved Bank Account Selector (INSERTED)
 
 **Goal:** Add a "Select Saved Bank Account" button to the RFP modal that appears when Bank Transfer is selected, showing a dropdown of unique bank accounts from previously submitted RFPs for quick auto-fill
@@ -363,6 +377,3 @@ Plans:
 Plans:
 - [ ] 67-01-PLAN.md — Extend proof-modal.js with collection param, TR data fetch fields, rfpsByTR map, getTRPaymentFill, TR proof column and progress bars
 - [ ] 67-02-PLAN.md — TR RFP context menu, modal, submission; Finance Payables guard for TR-linked RFPs
-
----
-*Last updated: 2026-03-24 — Phase 65.6 planned (1 plan, 1 wave)*
