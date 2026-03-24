@@ -3,10 +3,25 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: verifying
+stopped_at: "Completed 66.1-01-PLAN.md: TR proof indicators for Material+TR mixed MRF rows"
+last_updated: "2026-03-24T09:26:53.280Z"
+progress:
+  total_phases: 12
+  completed_phases: 11
+  total_plans: 19
+  completed_plans: 21
+  percent: 100
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.2
+milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
+status: verifying
 stopped_at: "Completed 67-02-PLAN.md: TR RFP context menu and Finance Payables guard"
 last_updated: "2026-03-24T06:13:14.719Z"
 progress:
-  total_phases: 10
+  [██████████] 100%
   completed_phases: 10
   total_plans: 17
   completed_plans: 20
@@ -112,6 +127,7 @@ Plan: 1 of 1
 | Phase 65.5 P01 | 8 | 1 tasks | 1 files |
 | Phase 67 P01 | 3 | 2 tasks | 2 files |
 | Phase 67 P02 | 5 | 2 tasks | 2 files |
+| Phase 66.1 P01 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -162,6 +178,7 @@ Recent decisions affecting current work:
 - [Phase 67]: openTRRFPModal and submitTRRFP fetch TR from Firestore on demand (not in-memory) because TRs are not pre-loaded into poData
 - [Phase 67]: buildPOMap groupKey = rfp.po_id || rfp.tr_id || '' prevents TR RFPs from collapsing under empty-string key in Finance Payables
 - [Phase 67]: isTR flag propagated from buildPOMap through poEntries to renderPOSummaryTable for conditional plain text vs PO link rendering
+- [Phase 66.1]: hasPOProof mirrors hasPrs pattern for Material+TR mixed proof append in renderPRPORecordsTable
 
 ### Roadmap Evolution
 
@@ -194,7 +211,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T06:09:46.046Z
-Stopped at: Completed 67-02-PLAN.md: TR RFP context menu and Finance Payables guard
+Last session: 2026-03-24T09:26:53.275Z
+Stopped at: Completed 66.1-01-PLAN.md: TR proof indicators for Material+TR mixed MRF rows
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

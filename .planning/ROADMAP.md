@@ -335,7 +335,7 @@ Plans:
   1. Material+TR mixed MRF rows show TR proof indicators in the Proof column alongside PO proof indicators
   2. TR proof indicators use the transport_requests collection parameter for saves
   3. Pure Transport and pure Material MRF proof display is unaffected
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 66.1-01-PLAN.md — Append TR proof indicators to proofHtml for Material+TR mixed rows

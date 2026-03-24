@@ -65,7 +65,12 @@
 
 ### TR Proof in Mixed MRFs
 
-- [ ] **TRPROOFCOL-01**: Material+TR mixed MRF rows in MRF Records display TR proof indicators in the Proof column alongside PO proof indicators, with TR proof saves routed to `transport_requests` collection
+- [x] **TRPROOFCOL-01**: Material+TR mixed MRF rows in MRF Records display TR proof indicators in the Proof column alongside PO proof indicators, with TR proof saves routed to `transport_requests` collection
+
+### RFP Bank Transfer Saved Accounts
+
+- [ ] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, a "Select Saved Bank Account" button appears that shows a dropdown of unique bank accounts derived from previously submitted RFPs
+- [ ] **RFPBANK-02**: Selecting a saved bank account from the dropdown auto-fills the Bank Name, Account Name, and Account Number fields in both PO RFP and TR RFP modals
 
 ## Future Requirements
 
@@ -123,12 +128,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRRFP-02 | Phase 67 | Planned |
 | TRRFP-03 | Phase 67 | Planned |
 | TRPROOFCOL-01 | Phase 66.1 | Planned |
+| RFPBANK-01 | Phase 65.6 | Planned |
+| RFPBANK-02 | Phase 65.6 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 28 total
-- Mapped to phases: 28
+- v3.2 requirements: 30 total
+- Mapped to phases: 30
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — Phase 66.1 requirement added (TRPROOFCOL-01)*
+*Last updated: 2026-03-24 — Phase 65.6 requirements added (RFPBANK-01, RFPBANK-02)*
