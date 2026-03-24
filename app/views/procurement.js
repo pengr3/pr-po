@@ -389,11 +389,14 @@ function showTRRFPContextMenu(event, trDocId) {
     const menu = document.createElement('div');
     menu.id = 'rfpContextMenu';
     menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:180px;`;
-    menu.innerHTML = `<div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;display:flex;align-items:center;gap:8px;"
-        onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='transparent'"
-        onclick="window.openTRRFPModal('${trDocId}')">
-        <span style="font-size:1rem;">&#128176;</span> Request Payment (TR)
-    </div>`;
+    menu.innerHTML = `
+        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+             onmouseenter="this.style.background='#eff6ff'"
+             onmouseleave="this.style.background='transparent'"
+             onclick="window.openTRRFPModal('${trDocId}')">
+            Request Payment
+        </div>
+    `;
     document.body.appendChild(menu);
 
     const closeMenu = (e) => {
@@ -4336,25 +4339,29 @@ async function renderPRPORecords() {
                 : 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;';
             prHtml = trDataArray.map((tr, i) => {
                 const statusClass = getStatusClass(tr.finance_status || 'Pending');
-                const fillData = getTRPaymentFill(tr.tr_id, tr.total_amount);
-                const emptyBg = '#e5e7eb';
-                const bgStyle = fillData.pct > 0 && fillData.pct < 100
-                    ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
-                    : fillData.pct >= 100
-                    ? `background:${fillData.color}`
-                    : `background:${emptyBg}`;
-                return `<div style="${rowStyle(i)}">
-                    <span style="display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;gap:2px;">
-                        <span class="status-badge ${statusClass}"
-                            style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
-                            title="${escapeHTML(fillData.tooltip)}"
-                            onclick="window.viewTRDetails('${tr.docId}')"
-                            oncontextmenu="event.preventDefault(); window.showTRRFPContextMenu(event, '${tr.docId}'); return false;">
-                            ${escapeHTML(tr.tr_id)}
-                        </span>
-                        <div style="width:100%;height:3px;border-radius:2px;overflow:hidden;${bgStyle}"></div>
-                    </span>
-                </div>`;
+                const isApproved = tr.finance_status === 'Approved';
+                let badge;
+                if (isApproved) {
+                    const fillData = getTRPaymentFill(tr.tr_id, tr.total_amount);
+                    const emptyBg = '#e5e7eb';
+                    const bgStyle = fillData.pct > 0 && fillData.pct < 100
+                        ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
+                        : fillData.pct >= 100
+                        ? `background:${fillData.color}`
+                        : `background:${emptyBg}`;
+                    badge = `<a href="javascript:void(0)"
+                        onclick="window.viewTRDetails('${tr.docId}')"
+                        oncontextmenu="event.preventDefault(); window.showTRRFPContextMenu(event, '${tr.docId}'); return false;"
+                        title="${escapeHTML(fillData.tooltip)}"
+                        style="padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600;color:#1e293b;text-decoration:none;cursor:pointer;white-space:nowrap;display:inline-block;${bgStyle}">
+                        ${escapeHTML(tr.tr_id)}</a>`;
+                } else {
+                    badge = `<span class="status-badge ${statusClass}"
+                        style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
+                        onclick="window.viewTRDetails('${tr.docId}')">
+                        ${escapeHTML(tr.tr_id)}</span>`;
+                }
+                return `<div style="${rowStyle(i)}">${badge}</div>`;
             }).join('');
             // poHtml stays '-'; procStatusHtml stays '-'
         }
@@ -4443,28 +4450,32 @@ async function renderPRPORecords() {
             const hasPrs = prDataArray.length > 0;
             const trBadges = trDataArray.map((tr, i) => {
                 const statusClass = getStatusClass(tr.finance_status || 'Pending');
-                const fillData = getTRPaymentFill(tr.tr_id, tr.total_amount);
-                const emptyBg = '#e5e7eb';
-                const bgStyle = fillData.pct > 0 && fillData.pct < 100
-                    ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
-                    : fillData.pct >= 100
-                    ? `background:${fillData.color}`
-                    : `background:${emptyBg}`;
+                const isApproved = tr.finance_status === 'Approved';
+                let badge;
+                if (isApproved) {
+                    const fillData = getTRPaymentFill(tr.tr_id, tr.total_amount);
+                    const emptyBg = '#e5e7eb';
+                    const bgStyle = fillData.pct > 0 && fillData.pct < 100
+                        ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
+                        : fillData.pct >= 100
+                        ? `background:${fillData.color}`
+                        : `background:${emptyBg}`;
+                    badge = `<a href="javascript:void(0)"
+                        onclick="window.viewTRDetails('${tr.docId}')"
+                        oncontextmenu="event.preventDefault(); window.showTRRFPContextMenu(event, '${tr.docId}'); return false;"
+                        title="${escapeHTML(fillData.tooltip)}"
+                        style="padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600;color:#1e293b;text-decoration:none;cursor:pointer;white-space:nowrap;display:inline-block;${bgStyle}">
+                        ${escapeHTML(tr.tr_id)}</a>`;
+                } else {
+                    badge = `<span class="status-badge ${statusClass}"
+                        style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
+                        onclick="window.viewTRDetails('${tr.docId}')">
+                        ${escapeHTML(tr.tr_id)}</span>`;
+                }
                 const rowStyleStr = (hasPrs || i > 0)
                     ? 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;'
                     : 'height: 30px; display: flex; align-items: center;';
-                return `<div style="${rowStyleStr}">
-                    <span style="display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;gap:2px;">
-                        <span class="status-badge ${statusClass}"
-                            style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
-                            title="${escapeHTML(fillData.tooltip)}"
-                            onclick="window.viewTRDetails('${tr.docId}')"
-                            oncontextmenu="event.preventDefault(); window.showTRRFPContextMenu(event, '${tr.docId}'); return false;">
-                            ${escapeHTML(tr.tr_id)}
-                        </span>
-                        <div style="width:100%;height:3px;border-radius:2px;overflow:hidden;${bgStyle}"></div>
-                    </span>
-                </div>`;
+                return `<div style="${rowStyleStr}">${badge}</div>`;
             }).join('');
             prHtml = hasPrs ? prHtml + trBadges : trBadges;
         }
