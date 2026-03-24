@@ -492,11 +492,6 @@ async function openRFPModal(poDocId) {
                         </select>
                     </div>
                     <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
-                        <div id="savedBankBtnContainer" style="position:relative;">
-                            <button type="button" class="btn btn-outline" onclick="window.toggleSavedBankDropdown()" style="width:100%;font-size:0.8125rem;padding:6px 12px;">
-                                Select Saved Bank Account
-                            </button>
-                        </div>
                         <div>
                             <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
                             <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
@@ -509,6 +504,29 @@ async function openRFPModal(poDocId) {
                             <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number <span style="color:#ea4335;">*</span></label>
                             <input type="text" id="rfpBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
                         </div>
+                        <div id="altBankSection" style="display:none;border-top:1px dashed #cbd5e1;padding-top:0.75rem;margin-top:0.25rem;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                                <span style="font-weight:600;color:#475569;font-size:0.8125rem;">Alternative Bank Account</span>
+                                <button type="button" class="btn btn-outline" onclick="window.removeAltBank()" style="font-size:0.75rem;padding:2px 8px;color:#ef4444;border-color:#ef4444;">Remove</button>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank</label>
+                                    <input type="text" id="rfpAltBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Name</label>
+                                    <input type="text" id="rfpAltBankAccountName" class="form-control" placeholder="Account holder name" style="width:100%;">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number</label>
+                                    <input type="text" id="rfpAltBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="addAltBankBtn" class="btn btn-outline" onclick="window.showAltBank()" style="width:100%;font-size:0.8125rem;padding:6px 12px;margin-top:0.25rem;color:#059669;border-color:#059669;">
+                            + Add Alternative Bank Account
+                        </button>
                     </div>
                     <div id="rfpOtherModeWrapper" style="display:none;">
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Payment Mode <span style="color:#ea4335;">*</span></label>
@@ -615,11 +633,6 @@ async function openTRRFPModal(trDocId) {
                         </select>
                     </div>
                     <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
-                        <div id="savedBankBtnContainer" style="position:relative;">
-                            <button type="button" class="btn btn-outline" onclick="window.toggleSavedBankDropdown()" style="width:100%;font-size:0.8125rem;padding:6px 12px;">
-                                Select Saved Bank Account
-                            </button>
-                        </div>
                         <div>
                             <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
                             <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
@@ -632,6 +645,29 @@ async function openTRRFPModal(trDocId) {
                             <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number <span style="color:#ea4335;">*</span></label>
                             <input type="text" id="rfpBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
                         </div>
+                        <div id="altBankSection" style="display:none;border-top:1px dashed #cbd5e1;padding-top:0.75rem;margin-top:0.25rem;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                                <span style="font-weight:600;color:#475569;font-size:0.8125rem;">Alternative Bank Account</span>
+                                <button type="button" class="btn btn-outline" onclick="window.removeAltBank()" style="font-size:0.75rem;padding:2px 8px;color:#ef4444;border-color:#ef4444;">Remove</button>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank</label>
+                                    <input type="text" id="rfpAltBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Name</label>
+                                    <input type="text" id="rfpAltBankAccountName" class="form-control" placeholder="Account holder name" style="width:100%;">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number</label>
+                                    <input type="text" id="rfpAltBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="addAltBankBtn" class="btn btn-outline" onclick="window.showAltBank()" style="width:100%;font-size:0.8125rem;padding:6px 12px;margin-top:0.25rem;color:#059669;border-color:#059669;">
+                            + Add Alternative Bank Account
+                        </button>
                     </div>
                     <div id="rfpOtherModeWrapper" style="display:none;">
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Payment Mode <span style="color:#ea4335;">*</span></label>
@@ -670,79 +706,25 @@ function updateRFPAmount(poDocId) {
     document.getElementById('rfpAmount').value = formatCurrency(amount);
 }
 
-/**
- * Extract unique bank accounts from existing RFPs for quick selection.
- * Returns array of { bank_name, bank_account_name, bank_details } objects.
- */
-function getSavedBankAccounts() {
-    const seen = new Set();
-    const accounts = [];
-    for (const rfp of rfpsData) {
-        if (rfp.mode_of_payment === 'Bank Transfer' && rfp.bank_name) {
-            const key = `${rfp.bank_name}|${rfp.bank_account_name || ''}|${rfp.bank_details || ''}`;
-            if (!seen.has(key)) {
-                seen.add(key);
-                accounts.push({
-                    bank_name: rfp.bank_name,
-                    bank_account_name: rfp.bank_account_name || '',
-                    bank_details: rfp.bank_details || ''
-                });
-            }
-        }
-    }
-    return accounts.sort((a, b) => a.bank_name.localeCompare(b.bank_name));
+function showAltBank() {
+    const section = document.getElementById('altBankSection');
+    const btn = document.getElementById('addAltBankBtn');
+    if (section) section.style.display = 'block';
+    if (btn) btn.style.display = 'none';
 }
+window.showAltBank = showAltBank;
 
-/**
- * Fill bank fields from a saved bank account selection.
- */
-function selectSavedBank(bankName, accountName, accountNumber) {
-    const nameEl = document.getElementById('rfpBankName');
-    const acctNameEl = document.getElementById('rfpBankAccountName');
-    const acctNoEl = document.getElementById('rfpBankDetails');
-    if (nameEl) nameEl.value = bankName;
-    if (acctNameEl) acctNameEl.value = accountName;
-    if (acctNoEl) acctNoEl.value = accountNumber;
-    // Close the dropdown
-    const dropdown = document.getElementById('savedBankDropdown');
-    if (dropdown) dropdown.style.display = 'none';
-}
-window.selectSavedBank = selectSavedBank;
-
-/**
- * Toggle the saved bank accounts dropdown. Builds options dynamically from rfpsData.
- */
-function toggleSavedBankDropdown() {
-    let dropdown = document.getElementById('savedBankDropdown');
-    if (dropdown && dropdown.style.display !== 'none') {
-        dropdown.style.display = 'none';
-        return;
+function removeAltBank() {
+    const section = document.getElementById('altBankSection');
+    const btn = document.getElementById('addAltBankBtn');
+    if (section) {
+        section.style.display = 'none';
+        const inputs = section.querySelectorAll('input');
+        inputs.forEach(inp => inp.value = '');
     }
-    const accounts = getSavedBankAccounts();
-    if (accounts.length === 0) {
-        showToast('No saved bank accounts found', 'info');
-        return;
-    }
-    const container = document.getElementById('savedBankBtnContainer');
-    if (!container) return;
-    // Remove existing dropdown
-    if (dropdown) dropdown.remove();
-    const optionsHtml = accounts.map((acct) =>
-        `<div onmousedown="window.selectSavedBank('${acct.bank_name.replace(/'/g, "\\'")}','${acct.bank_account_name.replace(/'/g, "\\'")}','${acct.bank_details.replace(/'/g, "\\'")}')"
-              style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #e5e7eb;font-size:0.8125rem;"
-              onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='white'">
-            <div style="font-weight:600;color:#1e293b;">${acct.bank_name}</div>
-            ${acct.bank_account_name ? `<div style="color:#64748b;font-size:0.75rem;">Acct: ${acct.bank_account_name}</div>` : ''}
-            ${acct.bank_details ? `<div style="color:#64748b;font-size:0.75rem;">No: ${acct.bank_details}</div>` : ''}
-        </div>`
-    ).join('');
-    container.insertAdjacentHTML('beforeend',
-        `<div id="savedBankDropdown" style="position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:1000;max-height:200px;overflow-y:auto;">
-            ${optionsHtml}
-        </div>`
-    );
+    if (btn) btn.style.display = 'block';
 }
-window.toggleSavedBankDropdown = toggleSavedBankDropdown;
+window.removeAltBank = removeAltBank;
 
 /**
  * Show/hide bank fields or "Other" specifier based on selected payment mode.
@@ -753,10 +735,12 @@ function toggleRFPBankFields() {
     const otherWrapper = document.getElementById('rfpOtherModeWrapper');
     if (bankFields) bankFields.style.display = mode === 'Bank Transfer' ? 'flex' : 'none';
     if (otherWrapper) otherWrapper.style.display = mode === 'Other' ? 'block' : 'none';
-    // Close saved bank dropdown when switching away from Bank Transfer
+    // Reset alt bank when switching away from Bank Transfer
     if (mode !== 'Bank Transfer') {
-        const dropdown = document.getElementById('savedBankDropdown');
-        if (dropdown) dropdown.remove();
+        const altSection = document.getElementById('altBankSection');
+        if (altSection) { altSection.style.display = 'none'; altSection.querySelectorAll('input').forEach(inp => inp.value = ''); }
+        const altBtn = document.getElementById('addAltBankBtn');
+        if (altBtn) altBtn.style.display = 'block';
     }
 }
 window.toggleRFPBankFields = toggleRFPBankFields;
@@ -775,6 +759,9 @@ async function submitRFP(poDocId) {
     const bankName = document.getElementById('rfpBankName')?.value?.trim() || '';
     const bankAccountName = document.getElementById('rfpBankAccountName')?.value?.trim() || '';
     const bankDetails = document.getElementById('rfpBankDetails')?.value?.trim() || '';
+    const altBankName = document.getElementById('rfpAltBankName')?.value?.trim() || '';
+    const altBankAccountName = document.getElementById('rfpAltBankAccountName')?.value?.trim() || '';
+    const altBankDetails = document.getElementById('rfpAltBankDetails')?.value?.trim() || '';
     const paymentModeOther = document.getElementById('rfpPaymentModeOther')?.value?.trim() || '';
     const errorEl = document.getElementById('rfpErrorAlert');
 
@@ -822,6 +809,9 @@ async function submitRFP(poDocId) {
             bank_name: paymentMode === 'Bank Transfer' ? bankName : '',
             bank_account_name: paymentMode === 'Bank Transfer' ? bankAccountName : '',
             bank_details: paymentMode === 'Bank Transfer' ? bankDetails : '',
+            alt_bank_name: paymentMode === 'Bank Transfer' ? altBankName : '',
+            alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
+            alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
             date_submitted: serverTimestamp()
         };
@@ -862,6 +852,9 @@ async function submitTRRFP(trDocId) {
     const bankName = document.getElementById('rfpBankName')?.value?.trim() || '';
     const bankAccountName = document.getElementById('rfpBankAccountName')?.value?.trim() || '';
     const bankDetails = document.getElementById('rfpBankDetails')?.value?.trim() || '';
+    const altBankName = document.getElementById('rfpAltBankName')?.value?.trim() || '';
+    const altBankAccountName = document.getElementById('rfpAltBankAccountName')?.value?.trim() || '';
+    const altBankDetails = document.getElementById('rfpAltBankDetails')?.value?.trim() || '';
     const paymentModeOther = document.getElementById('rfpPaymentModeOther')?.value?.trim() || '';
     const errorEl = document.getElementById('rfpErrorAlert');
 
@@ -902,6 +895,9 @@ async function submitTRRFP(trDocId) {
             bank_name: paymentMode === 'Bank Transfer' ? bankName : '',
             bank_account_name: paymentMode === 'Bank Transfer' ? bankAccountName : '',
             bank_details: paymentMode === 'Bank Transfer' ? bankDetails : '',
+            alt_bank_name: paymentMode === 'Bank Transfer' ? altBankName : '',
+            alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
+            alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
             date_submitted: serverTimestamp()
         };
@@ -1016,8 +1012,8 @@ function attachWindowFunctions() {
     window.submitTRRFP = submitTRRFP;
 
     // Saved Bank Functions
-    window.selectSavedBank = selectSavedBank;
-    window.toggleSavedBankDropdown = toggleSavedBankDropdown;
+    window.showAltBank = showAltBank;
+    window.removeAltBank = removeAltBank;
 }
 
 // ========================================
@@ -1542,8 +1538,8 @@ export async function destroy() {
     delete window.openRFPModal;
     delete window.updateRFPAmount;
     delete window.submitRFP;
-    delete window.selectSavedBank;
-    delete window.toggleSavedBankDropdown;
+    delete window.showAltBank;
+    delete window.removeAltBank;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }

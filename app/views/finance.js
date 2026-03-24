@@ -274,11 +274,23 @@ function openRecordPaymentModal(rfpDocId) {
 
     const today = new Date().toISOString().split('T')[0];
 
+    const bankCardStyle = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 12px;';
+    const bankLabelStyle = 'font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;';
+    const bankRowStyle = 'display:flex;justify-content:space-between;align-items:center;font-size:0.8125rem;color:#1e293b;padding:2px 0;';
+    const bankRowLabelStyle = 'color:#64748b;font-weight:500;';
+
+    const buildBankCard = (label, bankName, acctName, acctNo) => `
+        <div style="${bankCardStyle}">
+            <div style="${bankLabelStyle}">${label}</div>
+            <div style="${bankRowStyle}"><span style="${bankRowLabelStyle}">Bank</span><span style="font-weight:600;">${escapeHTML(bankName)}</span></div>
+            ${acctName ? `<div style="${bankRowStyle}"><span style="${bankRowLabelStyle}">Account Name</span><span>${escapeHTML(acctName)}</span></div>` : ''}
+            ${acctNo ? `<div style="${bankRowStyle}"><span style="${bankRowLabelStyle}">Account No.</span><span style="font-family:monospace;">${escapeHTML(acctNo)}</span></div>` : ''}
+        </div>`;
+
     const bankInfo = rfp.mode_of_payment === 'Bank Transfer' && rfp.bank_name
-        ? `<div style="font-size:0.8125rem;color:#475569;margin-top:4px;display:flex;flex-direction:column;gap:2px;">
-               <span>${escapeHTML(rfp.bank_name)}</span>
-               ${rfp.bank_account_name ? `<span>Acct Name: ${escapeHTML(rfp.bank_account_name)}</span>` : ''}
-               ${rfp.bank_details ? `<span>Acct No: ${escapeHTML(rfp.bank_details)}</span>` : ''}
+        ? `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+               ${buildBankCard('Primary Account', rfp.bank_name, rfp.bank_account_name, rfp.bank_details)}
+               ${rfp.alt_bank_name ? buildBankCard('Alternative Account', rfp.alt_bank_name, rfp.alt_bank_account_name, rfp.alt_bank_details) : ''}
            </div>`
         : '';
 
