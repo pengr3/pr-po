@@ -500,7 +500,12 @@ function renderRFPTable() {
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
             <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
             <td>${escapeHTML(rfp.supplier_name || '')}</td>
-            <td><a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id || '')}</a></td>
+            <td>${rfp.po_id
+                ? `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id)}</a>`
+                : rfp.tr_id
+                ? `<span style="color:#1e293b;font-weight:600;">${escapeHTML(rfp.tr_id)}</span>`
+                : '<span style="color:#999;">-</span>'
+            }</td>
             <td>${deptLabel}</td>
             <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
             <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
@@ -521,19 +526,20 @@ function renderRFPTable() {
 function buildPOMap(rfps) {
     const poMap = new Map();
     rfps.forEach(rfp => {
-        const poId = rfp.po_id || '';
-        if (!poMap.has(poId)) {
-            poMap.set(poId, {
-                poId,
+        const groupKey = rfp.po_id || rfp.tr_id || '';
+        if (!poMap.has(groupKey)) {
+            poMap.set(groupKey, {
+                poId: groupKey,
                 supplier: rfp.supplier_name || '',
                 deptLabel: rfp.service_code
                     ? escapeHTML(rfp.service_code)
                     : escapeHTML(rfp.project_code || ''),
                 isService: !!rfp.service_code,
+                isTR: !rfp.po_id && !!rfp.tr_id,
                 rfps: []
             });
         }
-        poMap.get(poId).rfps.push(rfp);
+        poMap.get(groupKey).rfps.push(rfp);
     });
     return poMap;
 }
@@ -627,6 +633,7 @@ function renderPOSummaryTable() {
             supplier: entry.supplier,
             deptLabel: entry.deptLabel,
             isService: entry.isService,
+            isTR: entry.isTR || false,
             ...summary
         });
     });
@@ -709,11 +716,15 @@ function renderPOSummaryTable() {
         // Sanitize poId for use in DOM element IDs (replace special chars)
         const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
+        const refDisplay = po.isTR
+            ? `<span style="font-weight:600;color:#1e293b;">${escapeHTML(po.poId)}</span>`
+            : `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${po.poId}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`;
+
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
             <td style="text-align:center;cursor:pointer;user-select:none;" onclick="window.togglePOExpand('${safePoId}')">
                 <span id="po-chevron-${safePoId}" style="font-size:0.75rem;">&#9654;</span>
             </td>
-            <td style="font-weight:600;">${escapeHTML(po.poId)}</td>
+            <td>${refDisplay}</td>
             <td>${escapeHTML(po.supplier)}</td>
             <td>${po.deptLabel}</td>
             <td>${po.currentTranche}</td>
