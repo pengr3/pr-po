@@ -260,7 +260,7 @@ function deriveRFPStatus(rfp) {
 function getPOPaymentFill(poId) {
     const rfps = rfpsByPO[poId] || [];
     if (rfps.length === 0) {
-        return { pct: 100, color: '#f8d7da', opacity: 0.7, tooltip: 'No payment requests submitted' };
+        return { pct: 0, color: '#f8d7da', opacity: 0.7, tooltip: 'No payment requests submitted' };
     }
     // Find PO to get total_amount
     const po = poData.find(p => p.po_id === poId);
@@ -3982,16 +3982,18 @@ async function renderPRPORecords() {
                         const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
                         const poStatus = po.procurement_status || defaultStatus;
                         const poStatusClass = getStatusClass(poStatus);
-                        const badgeBg = { 'Pending Procurement': '#fff3cd', 'Pending': '#fff3cd', 'Procuring': '#dbeafe', 'Procured': '#d4edda', 'Delivered': '#d1fae5' }[poStatus] || '#f1f5f9';
                         const fillData = getPOPaymentFill(po.po_id);
-                        return `<span title="${escapeHTML(fillData.tooltip)}" style="position:relative;display:inline-block;overflow:hidden;border-radius:12px;vertical-align:middle;background:${badgeBg};">
-                            <span style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};pointer-events:none;"></span>
+                        return `<span style="display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;gap:2px;">
                             <a href="javascript:void(0)"
                                 onclick="window.viewPODetails('${po.docId}')"
                                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
                                 class="status-badge ${poStatusClass}"
-                                style="position:relative;z-index:1;text-decoration:none;cursor:pointer;white-space:nowrap;font-size:0.75rem;background:transparent;">
+                                title="${escapeHTML(fillData.tooltip)}"
+                                style="text-decoration:none;cursor:pointer;white-space:nowrap;font-size:0.75rem;">
                                 ${escapeHTML(po.po_id)}</a>
+                            <div style="width:100%;height:3px;border-radius:2px;background:#e5e7eb;overflow:hidden;">
+                                <div style="height:100%;width:${fillData.pct}%;background:${fillData.color};transition:width 0.4s ease;"></div>
+                            </div>
                         </span>${subconBadge}`;
                     }).join(' ');
                 }
