@@ -492,6 +492,11 @@ async function openRFPModal(poDocId) {
                         </select>
                     </div>
                     <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
+                        <div id="savedBankBtnContainer" style="position:relative;">
+                            <button type="button" class="btn btn-outline" onclick="window.toggleSavedBankDropdown()" style="width:100%;font-size:0.8125rem;padding:6px 12px;">
+                                Select Saved Bank Account
+                            </button>
+                        </div>
                         <div>
                             <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
                             <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
@@ -610,6 +615,11 @@ async function openTRRFPModal(trDocId) {
                         </select>
                     </div>
                     <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
+                        <div id="savedBankBtnContainer" style="position:relative;">
+                            <button type="button" class="btn btn-outline" onclick="window.toggleSavedBankDropdown()" style="width:100%;font-size:0.8125rem;padding:6px 12px;">
+                                Select Saved Bank Account
+                            </button>
+                        </div>
                         <div>
                             <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
                             <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
@@ -661,6 +671,80 @@ function updateRFPAmount(poDocId) {
 }
 
 /**
+ * Extract unique bank accounts from existing RFPs for quick selection.
+ * Returns array of { bank_name, bank_account_name, bank_details } objects.
+ */
+function getSavedBankAccounts() {
+    const seen = new Set();
+    const accounts = [];
+    for (const rfp of rfpsData) {
+        if (rfp.mode_of_payment === 'Bank Transfer' && rfp.bank_name) {
+            const key = `${rfp.bank_name}|${rfp.bank_account_name || ''}|${rfp.bank_details || ''}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                accounts.push({
+                    bank_name: rfp.bank_name,
+                    bank_account_name: rfp.bank_account_name || '',
+                    bank_details: rfp.bank_details || ''
+                });
+            }
+        }
+    }
+    return accounts.sort((a, b) => a.bank_name.localeCompare(b.bank_name));
+}
+
+/**
+ * Fill bank fields from a saved bank account selection.
+ */
+function selectSavedBank(bankName, accountName, accountNumber) {
+    const nameEl = document.getElementById('rfpBankName');
+    const acctNameEl = document.getElementById('rfpBankAccountName');
+    const acctNoEl = document.getElementById('rfpBankDetails');
+    if (nameEl) nameEl.value = bankName;
+    if (acctNameEl) acctNameEl.value = accountName;
+    if (acctNoEl) acctNoEl.value = accountNumber;
+    // Close the dropdown
+    const dropdown = document.getElementById('savedBankDropdown');
+    if (dropdown) dropdown.style.display = 'none';
+}
+window.selectSavedBank = selectSavedBank;
+
+/**
+ * Toggle the saved bank accounts dropdown. Builds options dynamically from rfpsData.
+ */
+function toggleSavedBankDropdown() {
+    let dropdown = document.getElementById('savedBankDropdown');
+    if (dropdown && dropdown.style.display !== 'none') {
+        dropdown.style.display = 'none';
+        return;
+    }
+    const accounts = getSavedBankAccounts();
+    if (accounts.length === 0) {
+        showToast('No saved bank accounts found', 'info');
+        return;
+    }
+    const container = document.getElementById('savedBankBtnContainer');
+    if (!container) return;
+    // Remove existing dropdown
+    if (dropdown) dropdown.remove();
+    const optionsHtml = accounts.map((acct) =>
+        `<div onmousedown="window.selectSavedBank('${acct.bank_name.replace(/'/g, "\\'")}','${acct.bank_account_name.replace(/'/g, "\\'")}','${acct.bank_details.replace(/'/g, "\\'")}')"
+              style="padding:8px 12px;cursor:pointer;border-bottom:1px solid #e5e7eb;font-size:0.8125rem;"
+              onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='white'">
+            <div style="font-weight:600;color:#1e293b;">${acct.bank_name}</div>
+            ${acct.bank_account_name ? `<div style="color:#64748b;font-size:0.75rem;">Acct: ${acct.bank_account_name}</div>` : ''}
+            ${acct.bank_details ? `<div style="color:#64748b;font-size:0.75rem;">No: ${acct.bank_details}</div>` : ''}
+        </div>`
+    ).join('');
+    container.insertAdjacentHTML('beforeend',
+        `<div id="savedBankDropdown" style="position:absolute;top:100%;left:0;right:0;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:1000;max-height:200px;overflow-y:auto;">
+            ${optionsHtml}
+        </div>`
+    );
+}
+window.toggleSavedBankDropdown = toggleSavedBankDropdown;
+
+/**
  * Show/hide bank fields or "Other" specifier based on selected payment mode.
  */
 function toggleRFPBankFields() {
@@ -669,6 +753,11 @@ function toggleRFPBankFields() {
     const otherWrapper = document.getElementById('rfpOtherModeWrapper');
     if (bankFields) bankFields.style.display = mode === 'Bank Transfer' ? 'flex' : 'none';
     if (otherWrapper) otherWrapper.style.display = mode === 'Other' ? 'block' : 'none';
+    // Close saved bank dropdown when switching away from Bank Transfer
+    if (mode !== 'Bank Transfer') {
+        const dropdown = document.getElementById('savedBankDropdown');
+        if (dropdown) dropdown.remove();
+    }
 }
 window.toggleRFPBankFields = toggleRFPBankFields;
 
@@ -925,6 +1014,10 @@ function attachWindowFunctions() {
     window.showTRRFPContextMenu = showTRRFPContextMenu;
     window.openTRRFPModal = openTRRFPModal;
     window.submitTRRFP = submitTRRFP;
+
+    // Saved Bank Functions
+    window.selectSavedBank = selectSavedBank;
+    window.toggleSavedBankDropdown = toggleSavedBankDropdown;
 }
 
 // ========================================
@@ -4412,6 +4505,13 @@ async function renderPRPORecords() {
 
         if (type === 'Transport' && trDataArray.length > 0) {
             proofHtml = trDataArray.map((tr, i) => {
+                const isApproved = tr.finance_status === 'Approved';
+                if (!isApproved) {
+                    const proofRowStyle = i === 0
+                        ? 'height: 30px; display: flex; align-items: center; justify-content: center;'
+                        : 'height: 30px; display: flex; align-items: center; justify-content: center; border-top: 1px dashed #e5e7eb;';
+                    return `<div style="${proofRowStyle}">&nbsp;</div>`;
+                }
                 const hasProof = !!tr.proof_url;
                 const hasRemarks = !!tr.proof_remarks;
                 let content;
@@ -4482,6 +4582,13 @@ async function renderPRPORecords() {
             // Append TR proof indicators for Material+TR mixed rows
             const hasPOProof = prDataArray.length > 0;
             const trProofIndicators = trDataArray.map((tr, i) => {
+                const isApprovedTR = tr.finance_status === 'Approved';
+                if (!isApprovedTR) {
+                    const proofRowStyle = (hasPOProof || i > 0)
+                        ? 'height: 30px; display: flex; align-items: center; justify-content: center; border-top: 1px dashed #e5e7eb;'
+                        : 'height: 30px; display: flex; align-items: center; justify-content: center;';
+                    return `<div style="${proofRowStyle}">&nbsp;</div>`;
+                }
                 const hasProof = !!tr.proof_url;
                 const hasRemarks = !!tr.proof_remarks;
                 let content;
