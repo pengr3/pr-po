@@ -60,6 +60,7 @@ let _rfpListenerActive = false;
 // RFP payment data
 let rfpsData = [];        // all RFP documents from onSnapshot
 let rfpsByPO = {};        // { po_id: [rfp, rfp, ...] } for O(1) lookup per PO row
+let rfpsByTR = {};        // { tr_id: [rfp, rfp, ...] } for O(1) lookup per TR row
 
 // ========================================
 // TRANCHE BUILDER HELPERS
@@ -281,6 +282,40 @@ function getPOPaymentFill(poId) {
     }
     const percentPaid = poTotal > 0 ? Math.min(100, Math.round((totalPaidAllRFPs / poTotal) * 100)) : 0;
     const balance = poTotal - totalPaidAllRFPs;
+    return {
+        pct: percentPaid,
+        color: '#fff3cd',
+        opacity: 0.7,
+        tooltip: `Paid: ${formatCurrency(totalPaidAllRFPs)} | Balance: ${formatCurrency(balance)} | ${percentPaid}% complete`
+    };
+}
+
+/**
+ * Compute fill data for a TR badge based on RFP payment status.
+ * @param {string} trId - TR ID string (e.g. "TR-2026-001")
+ * @param {number} trTotalAmount - Total amount from the TR document
+ * @returns {{ pct: number, color: string, opacity: number, tooltip: string }}
+ */
+function getTRPaymentFill(trId, trTotalAmount) {
+    const rfps = rfpsByTR[trId] || [];
+    if (rfps.length === 0) {
+        return { pct: 0, color: '#f8d7da', opacity: 0.7, tooltip: 'No payment requests submitted' };
+    }
+    let totalPaidAllRFPs = 0;
+    let allFullyPaid = true;
+    for (const rfp of rfps) {
+        const paid = (rfp.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (r.amount || 0), 0);
+        totalPaidAllRFPs += paid;
+        if (paid < rfp.amount_requested) allFullyPaid = false;
+    }
+    if (allFullyPaid && rfps.length > 0) {
+        return { pct: 100, color: '#d4edda', opacity: 0.7, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
+    }
+    const trTotal = parseFloat(trTotalAmount) || 0;
+    const percentPaid = trTotal > 0 ? Math.min(100, Math.round((totalPaidAllRFPs / trTotal) * 100)) : 0;
+    const balance = trTotal - totalPaidAllRFPs;
     return {
         pct: percentPaid,
         color: '#fff3cd',
@@ -3757,7 +3792,10 @@ async function renderPRPORecords() {
                             trDataArray.push({
                                 docId: docSnap.id,
                                 tr_id: trData.tr_id || '',
-                                finance_status: trData.finance_status || 'Pending'
+                                finance_status: trData.finance_status || 'Pending',
+                                total_amount: parseFloat(trData.total_amount || 0),
+                                proof_url: trData.proof_url || '',
+                                proof_remarks: trData.proof_remarks || ''
                             });
                             trCost = parseFloat(trData.total_amount || 0);
                             trFinanceStatus = trData.finance_status || 'Pending';
@@ -3827,7 +3865,10 @@ async function renderPRPORecords() {
                                 trDataArray.push({
                                     docId: trDoc.id,
                                     tr_id: trData.tr_id || '',
-                                    finance_status: trData.finance_status || 'Pending'
+                                    finance_status: trData.finance_status || 'Pending',
+                                    total_amount: parseFloat(trData.total_amount || 0),
+                                    proof_url: trData.proof_url || '',
+                                    proof_remarks: trData.proof_remarks || ''
                                 });
                             });
                         }
@@ -5102,12 +5143,18 @@ async function loadPOTracking() {
         const rfpsUnsub = onSnapshot(collection(db, 'rfps'), (snapshot) => {
             rfpsData = [];
             rfpsByPO = {};
+            rfpsByTR = {};
             snapshot.forEach(docSnap => {
                 const rfp = { id: docSnap.id, ...docSnap.data() };
                 rfpsData.push(rfp);
                 const poId = rfp.po_id;
                 if (!rfpsByPO[poId]) rfpsByPO[poId] = [];
                 rfpsByPO[poId].push(rfp);
+                const trId = rfp.tr_id;
+                if (trId) {
+                    if (!rfpsByTR[trId]) rfpsByTR[trId] = [];
+                    rfpsByTR[trId].push(rfp);
+                }
             });
             // Re-render PO tracking table if it's currently visible to update fill colors
             const recordsSection = document.getElementById('records-section');
