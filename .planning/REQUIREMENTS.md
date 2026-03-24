@@ -63,6 +63,10 @@
 - [x] **TRRFP-02**: TR RFPs are saved to the `rfps` collection with a `tr_id` field and ID format `RFP-{TR-ID}-{n}` (e.g. `RFP-TR-2026-001-1`)
 - [x] **TRRFP-03**: Finance Payables renders TR-linked RFPs correctly, showing TR ID in the reference column instead of a blank PO link
 
+### TR Proof in Mixed MRFs
+
+- [ ] **TRPROOFCOL-01**: Material+TR mixed MRF rows in MRF Records display TR proof indicators in the Proof column alongside PO proof indicators, with TR proof saves routed to `transport_requests` collection
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -118,12 +122,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRRFP-01 | Phase 67 | Planned |
 | TRRFP-02 | Phase 67 | Planned |
 | TRRFP-03 | Phase 67 | Planned |
+| TRPROOFCOL-01 | Phase 66.1 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 27 total
-- Mapped to phases: 27
+- v3.2 requirements: 28 total
+- Mapped to phases: 28
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — Phase 67 requirements added (TRPROOF-01/02, TRBAR-01/02, TRRFP-01/02/03)*
+*Last updated: 2026-03-24 — Phase 66.1 requirement added (TRPROOFCOL-01)*

@@ -205,6 +205,16 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.6: RFP bank transfer mode — add supplementary button to select additional bank option (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 65
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 65.6 to break down)
+
 ### Phase 65.5: Fix PO Ref column with clickable PO IDs in RFP Processing (INSERTED)
 
 **Goal:** Make PO IDs in the Finance RFP Processing table clickable so users can view PO details in a modal, matching the existing behavior in MRF Records
@@ -316,6 +326,20 @@ Phases execute in numeric order: 63 → 64 → 65
 Plans:
 - [ ] 66-01-PLAN.md — Replace badge-fill overlay with flush progress bar, fix getPOPaymentFill no-RFP pct
 
+### Phase 66.1: Add proof-of-procurement column for TR rows in MRF Records (INSERTED)
+
+**Goal:** Append TR proof indicators to the Proof column for Material+TR mixed MRF rows in MRF Records, so users can attach and view proof-of-procurement for Transport Requests on mixed Material MRFs
+**Requirements**: TRPROOFCOL-01
+**Depends on:** Phase 67
+**Success Criteria** (what must be TRUE):
+  1. Material+TR mixed MRF rows show TR proof indicators in the Proof column alongside PO proof indicators
+  2. TR proof indicators use the transport_requests collection parameter for saves
+  3. Pure Transport and pure Material MRF proof display is unaffected
+**Plans:** 1 plan
+
+Plans:
+- [ ] 66.1-01-PLAN.md — Append TR proof indicators to proofHtml for Material+TR mixed rows
+
 ### Phase 67: Extend TR proof, badges, and RFP features to PO column
 
 **Goal:** Bring Transport Request display in MRF Records to parity with PO display by adding proof-of-procurement indicators, payment progress bars, and right-click RFP creation to TR badges, and guard Finance Payables for TR-linked RFPs
@@ -335,4 +359,4 @@ Plans:
 - [ ] 67-02-PLAN.md — TR RFP context menu, modal, submission; Finance Payables guard for TR-linked RFPs
 
 ---
-*Last updated: 2026-03-24 — Phase 67 planned (2 plans, 2 waves)*
+*Last updated: 2026-03-24 — Phase 66.1 planned (1 plan, 1 wave)*
