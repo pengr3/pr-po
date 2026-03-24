@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: verifying
-stopped_at: "Completed 67-01-PLAN.md: Extend TR proof badges and RFP features to PO column"
-last_updated: "2026-03-24T06:04:14.150Z"
+stopped_at: "Completed 67-02-PLAN.md: TR RFP context menu and Finance Payables guard"
+last_updated: "2026-03-24T06:09:46.054Z"
 progress:
   total_phases: 10
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 17
-  completed_plans: 19
+  completed_plans: 20
   percent: 100
 ---
 
@@ -111,6 +111,7 @@ Plan: 1 of 1
 | Phase 66 P01 | 5 | 2 tasks | 1 files |
 | Phase 65.5 P01 | 8 | 1 tasks | 1 files |
 | Phase 67 P01 | 3 | 2 tasks | 2 files |
+| Phase 67 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,9 @@ Recent decisions affecting current work:
 - [Phase 65.5]: Modal overlay uses id=poDetailsOverlay to allow remove-before-create deduplication; reuses formatPODate, formatCurrency, escapeHTML, getMRFLabel — no new imports
 - [Phase 67]: proof-modal.js collectionName defaults to 'pos' so all existing callers are unaffected
 - [Phase 67]: getTRPaymentFill takes trTotalAmount as direct parameter instead of looking up from a data array
+- [Phase 67]: openTRRFPModal and submitTRRFP fetch TR from Firestore on demand (not in-memory) because TRs are not pre-loaded into poData
+- [Phase 67]: buildPOMap groupKey = rfp.po_id || rfp.tr_id || '' prevents TR RFPs from collapsing under empty-string key in Finance Payables
+- [Phase 67]: isTR flag propagated from buildPOMap through poEntries to renderPOSummaryTable for conditional plain text vs PO link rendering
 
 ### Roadmap Evolution
 
@@ -188,7 +192,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T06:04:14.139Z
-Stopped at: Completed 67-01-PLAN.md: Extend TR proof badges and RFP features to PO column
+Last session: 2026-03-24T06:09:46.046Z
+Stopped at: Completed 67-02-PLAN.md: TR RFP context menu and Finance Payables guard
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

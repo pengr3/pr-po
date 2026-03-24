@@ -328,7 +328,7 @@ Plans:
   4. Right-clicking a TR badge opens an RFP creation modal pre-filled with TR data
   5. TR RFPs are saved with `tr_id` field and `RFP-{TR-ID}-{n}` format ID
   6. Finance Payables renders TR-linked RFPs without blank/broken rows
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 67-01-PLAN.md — Extend proof-modal.js with collection param, TR data fetch fields, rfpsByTR map, getTRPaymentFill, TR proof column and progress bars

@@ -59,9 +59,9 @@
 
 ### TR RFP Creation
 
-- [ ] **TRRFP-01**: Procurement user can right-click a TR badge in MRF Records to open a Request for Payment modal pre-filled with TR data (supplier, TR reference, amount)
-- [ ] **TRRFP-02**: TR RFPs are saved to the `rfps` collection with a `tr_id` field and ID format `RFP-{TR-ID}-{n}` (e.g. `RFP-TR-2026-001-1`)
-- [ ] **TRRFP-03**: Finance Payables renders TR-linked RFPs correctly, showing TR ID in the reference column instead of a blank PO link
+- [x] **TRRFP-01**: Procurement user can right-click a TR badge in MRF Records to open a Request for Payment modal pre-filled with TR data (supplier, TR reference, amount)
+- [x] **TRRFP-02**: TR RFPs are saved to the `rfps` collection with a `tr_id` field and ID format `RFP-{TR-ID}-{n}` (e.g. `RFP-TR-2026-001-1`)
+- [x] **TRRFP-03**: Finance Payables renders TR-linked RFPs correctly, showing TR ID in the reference column instead of a blank PO link
 
 ## Future Requirements
 
