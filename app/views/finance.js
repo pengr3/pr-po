@@ -91,6 +91,9 @@ let rfpDeptFilter = '';
 // Table 2 (PO Payment Summary) filter state
 let poSummaryStatusFilter = '';
 let poSummaryDeptFilter = '';
+// Table 2 (PO Payment Summary) pagination state
+let poSummaryCurrentPage = 1;
+const poSummaryItemsPerPage = 10;
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
@@ -255,6 +258,7 @@ function attachWindowFunctions() {
     window.filterRFPTable = filterRFPTable;
     window.filterPOSummaryTable = filterPOSummaryTable;
     window.togglePOExpand = togglePOExpand;
+    window.changePOSummaryPage = changePOSummaryPage;
     window.openRecordPaymentModal = openRecordPaymentModal;
     window.voidPaymentRecord = voidPaymentRecord;
     window.submitPaymentRecord = submitPaymentRecord;
@@ -427,6 +431,7 @@ function filterRFPTable() {
 function filterPOSummaryTable() {
     poSummaryStatusFilter = document.getElementById('poSummaryStatusFilter')?.value || '';
     poSummaryDeptFilter = document.getElementById('poSummaryDeptFilter')?.value || '';
+    poSummaryCurrentPage = 1;
     renderPOSummaryTable();
 }
 
@@ -440,6 +445,84 @@ function togglePOExpand(poId) {
     const isOpen = row.style.display === 'table-row';
     row.style.display = isOpen ? 'none' : 'table-row';
     if (chevron) chevron.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+}
+
+/**
+ * Change the current page of the PO Payment Summary table.
+ * @param {string|number} direction - 'prev', 'next', or a page number
+ */
+function changePOSummaryPage(direction) {
+    const poMap = buildPOMap(rfpsData);
+    let entryCount = 0;
+    poMap.forEach(() => entryCount++);
+    const totalPages = Math.ceil(entryCount / poSummaryItemsPerPage);
+
+    if (direction === 'prev' && poSummaryCurrentPage > 1) {
+        poSummaryCurrentPage--;
+    } else if (direction === 'next' && poSummaryCurrentPage < totalPages) {
+        poSummaryCurrentPage++;
+    } else if (typeof direction === 'number') {
+        poSummaryCurrentPage = direction;
+    }
+
+    renderPOSummaryTable();
+}
+
+/**
+ * Render or update the pagination controls for the PO Payment Summary table.
+ * Inserts the pagination div after the table if it doesn't exist yet.
+ */
+function updatePOSummaryPagination(totalPages, startIndex, endIndex, totalItems) {
+    let paginationDiv = document.getElementById('poSummaryPagination');
+
+    if (!paginationDiv) {
+        paginationDiv = document.createElement('div');
+        paginationDiv.id = 'poSummaryPagination';
+        paginationDiv.className = 'pagination-container';
+
+        const tbody = document.getElementById('poSummaryTableBody');
+        const table = tbody?.closest('table');
+        if (table && table.parentNode) {
+            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
+        }
+    }
+
+    if (totalPages <= 1) {
+        paginationDiv.style.display = 'none';
+        return;
+    }
+    paginationDiv.style.display = '';
+
+    let paginationHTML = `
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> POs
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="window.changePOSummaryPage('prev')" ${poSummaryCurrentPage === 1 ? 'disabled' : ''}>
+                &larr; Previous
+            </button>
+    `;
+
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= poSummaryCurrentPage - 1 && i <= poSummaryCurrentPage + 1)) {
+            paginationHTML += `
+                <button class="pagination-btn ${i === poSummaryCurrentPage ? 'active' : ''}" onclick="window.changePOSummaryPage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === poSummaryCurrentPage - 2 || i === poSummaryCurrentPage + 2) {
+            paginationHTML += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+
+    paginationHTML += `
+            <button class="pagination-btn" onclick="window.changePOSummaryPage('next')" ${poSummaryCurrentPage === totalPages ? 'disabled' : ''}>
+                Next &rarr;
+            </button>
+        </div>
+    `;
+
+    paginationDiv.innerHTML = paginationHTML;
 }
 
 /**
@@ -677,10 +760,20 @@ function renderPOSummaryTable() {
                 ? 'No POs match the selected filters. Clear filters to see all.'
                 : 'No payment requests yet. PO summaries will appear once RFPs are submitted.'}
         </td></tr>`;
+        const paginationDiv = document.getElementById('poSummaryPagination');
+        if (paginationDiv) paginationDiv.style.display = 'none';
         return;
     }
 
-    tbody.innerHTML = poEntries.map(po => {
+    // Pagination
+    const totalPages = Math.ceil(poEntries.length / poSummaryItemsPerPage);
+    if (poSummaryCurrentPage > totalPages && totalPages > 0) poSummaryCurrentPage = totalPages;
+    const startIndex = (poSummaryCurrentPage - 1) * poSummaryItemsPerPage;
+    const endIndex = Math.min(startIndex + poSummaryItemsPerPage, poEntries.length);
+    const totalFiltered = poEntries.length;
+    const pageEntries = poEntries.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageEntries.map(po => {
         const badgeStyle = statusBadgeColors[po.overallStatus] || '';
         const isOverdue = po.overallStatus === 'Overdue';
 
@@ -751,6 +844,8 @@ function renderPOSummaryTable() {
             </td>
         </tr>`;
     }).join('');
+
+    updatePOSummaryPagination(totalPages, startIndex, endIndex, totalFiltered);
 }
 
 /**
@@ -2426,6 +2521,7 @@ export async function destroy() {
     delete window.filterRFPTable;
     delete window.filterPOSummaryTable;
     delete window.togglePOExpand;
+    delete window.changePOSummaryPage;
     delete window.openRecordPaymentModal;
     delete window.voidPaymentRecord;
     delete window.submitPaymentRecord;
@@ -2436,6 +2532,7 @@ export async function destroy() {
     rfpDeptFilter = '';
     poSummaryStatusFilter = '';
     poSummaryDeptFilter = '';
+    poSummaryCurrentPage = 1;
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
