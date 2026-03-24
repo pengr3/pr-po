@@ -1542,6 +1542,8 @@ export async function destroy() {
     delete window.openRFPModal;
     delete window.updateRFPAmount;
     delete window.submitRFP;
+    delete window.selectSavedBank;
+    delete window.toggleSavedBankDropdown;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
