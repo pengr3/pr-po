@@ -219,6 +219,20 @@ Plans:
 Plans:
 - [x] 65.3-01-PLAN.md — Add payment progress percentage to derivePOSummary currentTranche string for partially paid POs
 
+### Phase 65.4: Improve RFP Code Generation — RFP-{PO-ID}-{n} Format (INSERTED)
+
+**Goal:** Replace project-code-scoped RFP ID generation (`RFP-[PROJECT CODE]-###`) with PO-scoped IDs (`RFP-{PO-ID}-{n}`, e.g. `RFP-PO-2026-001-1`) to eliminate duplicate/non-unique codes when multiple POs share the same project code
+**Requirements**: RFPID-01
+**Depends on:** Phase 65
+**Success Criteria** (what must be TRUE):
+  1. New RFPs are assigned IDs in the format `RFP-{PO-ID}-{n}` (e.g. `RFP-PO-2026-001-1`) where n is a sequential counter scoped to that PO
+  2. Existing `RFP-CLMC-###` format IDs continue to display correctly in all tables (no backfill)
+  3. The `generateRFPId` function signature changes from `projectCode` to `poId` and the call site in `submitRFP` is updated atomically
+**Plans:** 0/1 plans
+
+Plans:
+- [ ] 65.4-01-PLAN.md — Replace generateRFPId to use PO-scoped counter with RFP-{PO-ID}-{n} format
+
 ### Phase 65.2: Remove Processed RFPs from RFP Processing Table (INSERTED)
 
 **Goal:** Filter out Fully Paid RFPs from Table 1 (RFP Processing) by default so only actionable/outstanding RFPs are shown; historical data remains in Table 2 (PO Payment Summary)
