@@ -39,9 +39,9 @@
 
 ### PO Payment Progress Bar
 
-- [ ] **POBAR-01**: MRF Records PO badges display clean status-badge coloring without fill overlay — a separate flush progress bar below each badge shows payment percentage
-- [ ] **POBAR-02**: POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar, correctly representing zero payment progress
-- [ ] **POBAR-03**: PO badge font color is exclusively controlled by the status-badge CSS class with no overlay interference, ensuring readability
+- [x] **POBAR-01**: MRF Records PO badges display clean status-badge coloring without fill overlay — a separate flush progress bar below each badge shows payment percentage
+- [x] **POBAR-02**: POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar, correctly representing zero payment progress
+- [x] **POBAR-03**: PO badge font color is exclusively controlled by the status-badge CSS class with no overlay interference, ensuring readability
 
 ## Future Requirements
 

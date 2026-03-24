@@ -205,6 +205,16 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.5: Fix PO Ref column with clickable PO IDs in RFP Processing (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 65
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 65.5 to break down)
+
 ### Phase 65.3: fix Current Active Tranche column for partially paid items - display (nn%) Paid so users know how much is paid (INSERTED)
 
 **Goal:** Fix the "Current Active Tranche" column in the Finance Payables PO Payment Summary table so that partially paid POs display the percentage paid (e.g., "50% Paid") alongside the tranche label, giving users at-a-glance payment progress
@@ -297,7 +307,7 @@ Phases execute in numeric order: 63 → 64 → 65
   2. A thin progress bar renders below each PO badge showing payment percentage
   3. POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar
   4. Badge font color is exclusively controlled by status-badge CSS class with no overlay interference
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 66-01-PLAN.md — Replace badge-fill overlay with flush progress bar, fix getPOPaymentFill no-RFP pct
