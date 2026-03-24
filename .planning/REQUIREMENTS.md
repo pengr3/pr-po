@@ -43,6 +43,10 @@
 - [x] **POBAR-02**: POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar, correctly representing zero payment progress
 - [x] **POBAR-03**: PO badge font color is exclusively controlled by the status-badge CSS class with no overlay interference, ensuring readability
 
+### PO Ref Clickability
+
+- [ ] **POREF-01**: PO IDs in the Finance RFP Processing table are clickable links that open a PO details modal showing PO metadata (ID, MRF ref, supplier, project, date, status, amount) and line items
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -90,12 +94,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POBAR-01 | Phase 66 | Planned |
 | POBAR-02 | Phase 66 | Planned |
 | POBAR-03 | Phase 66 | Planned |
+| POREF-01 | Phase 65.5 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 19 total
-- Mapped to phases: 19
+- v3.2 requirements: 20 total
+- Mapped to phases: 20
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — POBAR-01, POBAR-02, POBAR-03 added for Phase 66*
+*Last updated: 2026-03-24 — POREF-01 added for Phase 65.5*

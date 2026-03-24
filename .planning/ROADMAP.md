@@ -207,13 +207,17 @@ Plans:
 
 ### Phase 65.5: Fix PO Ref column with clickable PO IDs in RFP Processing (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Make PO IDs in the Finance RFP Processing table clickable so users can view PO details in a modal, matching the existing behavior in MRF Records
+**Requirements**: POREF-01
 **Depends on:** Phase 65
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. User can click a PO ID in the RFP Processing table and see PO details in a modal
+  2. PO details modal shows PO ID, MRF reference, supplier, project, date issued, status, total amount, and line items
+  3. Modal can be closed and the RFP table remains functional
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 65.5 to break down)
+- [ ] 65.5-01-PLAN.md — Add viewPODetailsFromRFP function and wire PO Ref onclick in RFP table
 
 ### Phase 65.3: fix Current Active Tranche column for partially paid items - display (nn%) Paid so users know how much is paid (INSERTED)
 
@@ -313,4 +317,4 @@ Plans:
 - [ ] 66-01-PLAN.md — Replace badge-fill overlay with flush progress bar, fix getPOPaymentFill no-RFP pct
 
 ---
-*Last updated: 2026-03-24 — Phase 66 planned (1 plan, 1 wave)*
+*Last updated: 2026-03-24 — Phase 65.5 planned (1 plan, 1 wave)*
