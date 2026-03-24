@@ -205,15 +205,21 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
-### Phase 65.6: RFP bank transfer mode — add supplementary button to select additional bank option (INSERTED)
+### Phase 65.6: RFP Bank Transfer Mode — Saved Bank Account Selector (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Add a "Select Saved Bank Account" button to the RFP modal that appears when Bank Transfer is selected, showing a dropdown of unique bank accounts from previously submitted RFPs for quick auto-fill
+**Requirements**: RFPBANK-01, RFPBANK-02
 **Depends on:** Phase 65
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. When Bank Transfer is selected in the RFP modal, a "Select Saved Bank Account" button appears above the bank input fields
+  2. Clicking the button shows a dropdown of unique bank accounts derived from existing RFPs
+  3. Selecting a saved bank auto-fills Bank Name, Account Name, and Account Number fields
+  4. Manual entry of bank details remains fully functional
+  5. Both PO RFP and TR RFP modals have the saved bank selector
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 65.6 to break down)
+- [ ] 65.6-01-PLAN.md — Add getSavedBankAccounts helper, saved bank dropdown UI to both RFP modals
 
 ### Phase 65.5: Fix PO Ref column with clickable PO IDs in RFP Processing (INSERTED)
 
@@ -359,4 +365,4 @@ Plans:
 - [ ] 67-02-PLAN.md — TR RFP context menu, modal, submission; Finance Payables guard for TR-linked RFPs
 
 ---
-*Last updated: 2026-03-24 — Phase 66.1 planned (1 plan, 1 wave)*
+*Last updated: 2026-03-24 — Phase 65.6 planned (1 plan, 1 wave)*
