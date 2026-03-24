@@ -214,7 +214,7 @@ Plans:
   1. User can click a PO ID in the RFP Processing table and see PO details in a modal
   2. PO details modal shows PO ID, MRF reference, supplier, project, date issued, status, total amount, and line items
   3. Modal can be closed and the RFP table remains functional
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 65.5-01-PLAN.md — Add viewPODetailsFromRFP function and wire PO Ref onclick in RFP table
@@ -315,6 +315,16 @@ Phases execute in numeric order: 63 → 64 → 65
 
 Plans:
 - [ ] 66-01-PLAN.md — Replace badge-fill overlay with flush progress bar, fix getPOPaymentFill no-RFP pct
+
+### Phase 67: Extend TR proof, badges, and RFP features to PO column
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 66
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 67 to break down)
 
 ---
 *Last updated: 2026-03-24 — Phase 65.5 planned (1 plan, 1 wave)*

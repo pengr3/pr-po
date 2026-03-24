@@ -45,7 +45,7 @@
 
 ### PO Ref Clickability
 
-- [ ] **POREF-01**: PO IDs in the Finance RFP Processing table are clickable links that open a PO details modal showing PO metadata (ID, MRF ref, supplier, project, date, status, amount) and line items
+- [x] **POREF-01**: PO IDs in the Finance RFP Processing table are clickable links that open a PO details modal showing PO metadata (ID, MRF ref, supplier, project, date, status, amount) and line items
 
 ## Future Requirements
 
