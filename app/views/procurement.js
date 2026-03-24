@@ -4478,6 +4478,42 @@ async function renderPRPORecords() {
                 return `<div style="${rowStyleStr}">${badge}</div>`;
             }).join('');
             prHtml = hasPrs ? prHtml + trBadges : trBadges;
+
+            // Append TR proof indicators for Material+TR mixed rows
+            const hasPOProof = prDataArray.length > 0;
+            const trProofIndicators = trDataArray.map((tr, i) => {
+                const hasProof = !!tr.proof_url;
+                const hasRemarks = !!tr.proof_remarks;
+                let content;
+                if (hasProof) {
+                    content = `<span class="proof-indicator proof-filled"
+                        title="Left-click to open proof &middot; Right-click to replace"
+                        onclick="window.open('${escapeHTML(tr.proof_url)}', '_blank')"
+                        oncontextmenu="event.preventDefault(); window.showProofModal('${tr.docId}', '${escapeHTML(tr.proof_url)}', false, null, '${escapeHTML(tr.proof_remarks || '')}', null, 'transport_requests')"
+                        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                        ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${tr.docId}','${escapeHTML(tr.proof_url)}',false,null,'${escapeHTML(tr.proof_remarks || '')}',null,'transport_requests')},600)"
+                        ontouchend="clearTimeout(window._proofLongPress)"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+                } else if (hasRemarks) {
+                    content = `<span class="proof-indicator proof-remarks"
+                        title="Remarks only (no link) &middot; Click to view/edit"
+                        onclick="window.showProofModal('${tr.docId}', '', false, null, '${escapeHTML(tr.proof_remarks)}', null, 'transport_requests')"
+                        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
+                } else {
+                    content = `<span class="proof-indicator proof-empty"
+                        title="Click to attach proof"
+                        onclick="window.showProofModal('${tr.docId}', '', false, null, '', null, 'transport_requests')"
+                        onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                        onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
+                }
+                const proofRowStyle = (hasPOProof || i > 0)
+                    ? 'height: 30px; display: flex; align-items: center; justify-content: center; border-top: 1px dashed #e5e7eb;'
+                    : 'height: 30px; display: flex; align-items: center; justify-content: center;';
+                return `<div style="${proofRowStyle}">${content}</div>`;
+            }).join('');
+            proofHtml = hasPOProof ? proofHtml + trProofIndicators : trProofIndicators;
         }
 
         return `
