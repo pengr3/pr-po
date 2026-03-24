@@ -171,6 +171,8 @@ Recent decisions affecting current work:
 - Phase 66 added: Fix MRF Records PO payment progress bar — remove existing badge fill, implement flush dynamic progress bar, fix font color
 - Phase 65.5 inserted after Phase 65: Fix PO Ref column with clickable PO IDs in RFP Processing (URGENT)
 - Phase 67 added: Extend TR proof, badges, and RFP features to PO column
+- Phase 66.1 inserted after Phase 66: Add proof-of-procurement column for TR rows in MRF Records (URGENT)
+- Phase 65.6 inserted after Phase 65: RFP bank transfer mode — add supplementary button to select additional bank option (URGENT)
 
 ### Pending Todos
 
