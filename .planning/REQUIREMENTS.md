@@ -74,9 +74,9 @@
 
 ### PO Payment Summary Pagination
 
-- [ ] **POSUMPAG-01**: PO Payment Summary table displays at most 10 PO rows per page with Previous/Next and page number navigation controls
-- [ ] **POSUMPAG-02**: Pagination info shows "Showing X-Y of Z POs" reflecting the current filtered result count, not the total unfiltered count
-- [ ] **POSUMPAG-03**: Changing status or department filters resets pagination to page 1 and updates page count to match the filtered set
+- [x] **POSUMPAG-01**: PO Payment Summary table displays at most 10 PO rows per page with Previous/Next and page number navigation controls
+- [x] **POSUMPAG-02**: Pagination info shows "Showing X-Y of Z POs" reflecting the current filtered result count, not the total unfiltered count
+- [x] **POSUMPAG-03**: Changing status or department filters resets pagination to page 1 and updates page count to match the filtered set
 
 ## Future Requirements
 

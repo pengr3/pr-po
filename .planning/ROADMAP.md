@@ -214,7 +214,7 @@ Plans:
   1. PO Payment Summary table shows at most 10 PO rows per page with Previous/Next and page-number navigation
   2. Pagination info shows "Showing X-Y of Z POs" reflecting the filtered result count
   3. Changing status or department filters resets pagination to page 1
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 65.7-01-PLAN.md — Add pagination state, slice logic, controls, and page-change handler to renderPOSummaryTable
