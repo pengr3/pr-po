@@ -4093,11 +4093,22 @@ async function renderPRPORecords() {
                 : 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;';
             prHtml = trDataArray.map((tr, i) => {
                 const statusClass = getStatusClass(tr.finance_status || 'Pending');
+                const fillData = getTRPaymentFill(tr.tr_id, tr.total_amount);
+                const emptyBg = '#e5e7eb';
+                const bgStyle = fillData.pct > 0 && fillData.pct < 100
+                    ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
+                    : fillData.pct >= 100
+                    ? `background:${fillData.color}`
+                    : `background:${emptyBg}`;
                 return `<div style="${rowStyle(i)}">
-                    <span class="status-badge ${statusClass}"
-                        style="font-size: 0.75rem; display: inline-block; white-space: nowrap; cursor: pointer;"
-                        onclick="window.viewTRDetails('${tr.docId}')">
-                        ${escapeHTML(tr.tr_id)}
+                    <span style="display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;gap:2px;">
+                        <span class="status-badge ${statusClass}"
+                            style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
+                            title="${escapeHTML(fillData.tooltip)}"
+                            onclick="window.viewTRDetails('${tr.docId}')">
+                            ${escapeHTML(tr.tr_id)}
+                        </span>
+                        <div style="width:100%;height:3px;border-radius:2px;overflow:hidden;${bgStyle}"></div>
                     </span>
                 </div>`;
             }).join('');
@@ -4148,16 +4159,66 @@ async function renderPRPORecords() {
             }).join('');
         }
 
+        if (type === 'Transport' && trDataArray.length > 0) {
+            proofHtml = trDataArray.map((tr, i) => {
+                const hasProof = !!tr.proof_url;
+                const hasRemarks = !!tr.proof_remarks;
+                let content;
+                if (hasProof) {
+                    content = `<span class="proof-indicator proof-filled"
+                        title="Left-click to open proof &middot; Right-click to replace"
+                        onclick="window.open('${escapeHTML(tr.proof_url)}', '_blank')"
+                        oncontextmenu="event.preventDefault(); window.showProofModal('${tr.docId}', '${escapeHTML(tr.proof_url)}', false, null, '${escapeHTML(tr.proof_remarks || '')}', null, 'transport_requests')"
+                        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                        ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.showProofModal('${tr.docId}','${escapeHTML(tr.proof_url)}',false,null,'${escapeHTML(tr.proof_remarks || '')}',null,'transport_requests')},600)"
+                        ontouchend="clearTimeout(window._proofLongPress)"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+                } else if (hasRemarks) {
+                    content = `<span class="proof-indicator proof-remarks"
+                        title="Remarks only (no link) &middot; Click to view/edit"
+                        onclick="window.showProofModal('${tr.docId}', '', false, null, '${escapeHTML(tr.proof_remarks)}', null, 'transport_requests')"
+                        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
+                } else {
+                    content = `<span class="proof-indicator proof-empty"
+                        title="Click to attach proof"
+                        onclick="window.showProofModal('${tr.docId}', '', false, null, '', null, 'transport_requests')"
+                        onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                        onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                        style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
+                }
+                const proofRowStyle = i === 0
+                    ? 'height: 30px; display: flex; align-items: center; justify-content: center;'
+                    : 'height: 30px; display: flex; align-items: center; justify-content: center; border-top: 1px dashed #e5e7eb;';
+                return `<div style="${proofRowStyle}">${content}</div>`;
+            }).join('');
+        }
+
         // Append TR badge(s) for Material MRFs that also have transport items (mixed PRs + TRs)
         if (type === 'Material' && trDataArray.length > 0) {
             const hasPrs = prDataArray.length > 0;
             const trBadges = trDataArray.map((tr, i) => {
                 const statusClass = getStatusClass(tr.finance_status || 'Pending');
-                const rowStyle = (hasPrs || i > 0)
+                const fillData = getTRPaymentFill(tr.tr_id, tr.total_amount);
+                const emptyBg = '#e5e7eb';
+                const bgStyle = fillData.pct > 0 && fillData.pct < 100
+                    ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
+                    : fillData.pct >= 100
+                    ? `background:${fillData.color}`
+                    : `background:${emptyBg}`;
+                const rowStyleStr = (hasPrs || i > 0)
                     ? 'height: 30px; display: flex; align-items: center; border-top: 1px dashed #e5e7eb;'
                     : 'height: 30px; display: flex; align-items: center;';
-                return `<div style="${rowStyle}">
-                    <span class="status-badge ${statusClass}" style="font-size: 0.75rem; display: inline-block; white-space: nowrap; cursor: pointer;" onclick="window.viewTRDetails('${tr.docId}')">${escapeHTML(tr.tr_id)}</span>
+                return `<div style="${rowStyleStr}">
+                    <span style="display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;gap:2px;">
+                        <span class="status-badge ${statusClass}"
+                            style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
+                            title="${escapeHTML(fillData.tooltip)}"
+                            onclick="window.viewTRDetails('${tr.docId}')">
+                            ${escapeHTML(tr.tr_id)}
+                        </span>
+                        <div style="width:100%;height:3px;border-radius:2px;overflow:hidden;${bgStyle}"></div>
+                    </span>
                 </div>`;
             }).join('');
             prHtml = hasPrs ? prHtml + trBadges : trBadges;
