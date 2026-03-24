@@ -212,6 +212,7 @@ function attachWindowFunctions() {
     window.exportPOsCSV = exportPOsCSV;
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
+    window.viewPODetailsFromRFP = viewPODetailsFromRFP;
 
     // Proof URL helper — uses shared modal from proof-modal.js
     window.financeShowProofModal = function(poId, currentUrl, currentRemarks) {
@@ -499,7 +500,7 @@ function renderRFPTable() {
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
             <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
             <td>${escapeHTML(rfp.supplier_name || '')}</td>
-            <td><a href="javascript:void(0)" style="color:#1a73e8;text-decoration:none;">${escapeHTML(rfp.po_id || '')}</a></td>
+            <td><a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id || '')}</a></td>
             <td>${deptLabel}</td>
             <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
             <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
@@ -1210,6 +1211,109 @@ async function generatePODocument(poDocId) {
  */
 async function promptPODocument(poDocId) {
     await generatePODocument(poDocId);
+}
+
+/**
+ * View PO details from RFP Processing table
+ * @param {string} poDocId - Firestore document ID of the PO (stored as rfp.po_id)
+ */
+async function viewPODetailsFromRFP(poDocId) {
+    showLoading(true);
+    try {
+        const poDoc = await getDoc(doc(db, 'pos', poDocId));
+        if (!poDoc.exists()) {
+            showToast('PO not found.', 'error');
+            return;
+        }
+        const po = { id: poDoc.id, ...poDoc.data() };
+        const items = JSON.parse(po.items_json || '[]');
+
+        const isSubcon = po.is_subcon || false;
+        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
+        const status = po.procurement_status || defaultStatus;
+
+        let statusStyle = '';
+        if (['Pending', 'Procuring', 'Pending Procurement'].includes(status)) {
+            statusStyle = 'background:#fef3c7;color:#92400e;';
+        } else if (['Delivered', 'Processed'].includes(status)) {
+            statusStyle = 'background:#d1fae5;color:#065f46;';
+        } else if (['Procured', 'Processing'].includes(status)) {
+            statusStyle = 'background:#dbeafe;color:#1e40af;';
+        }
+
+        const itemsHTML = items.length > 0 ? `
+            <table style="width:100%;border-collapse:collapse;margin-top:0.5rem;">
+                <thead><tr style="background:#f8fafc;">
+                    <th style="padding:0.5rem;border:1px solid #e5e7eb;text-align:left;font-size:0.75rem;">Item</th>
+                    <th style="padding:0.5rem;border:1px solid #e5e7eb;text-align:left;font-size:0.75rem;">Category</th>
+                    <th style="padding:0.5rem;border:1px solid #e5e7eb;text-align:center;font-size:0.75rem;">Qty</th>
+                    <th style="padding:0.5rem;border:1px solid #e5e7eb;text-align:left;font-size:0.75rem;">Unit</th>
+                    <th style="padding:0.5rem;border:1px solid #e5e7eb;text-align:right;font-size:0.75rem;">Unit Cost</th>
+                    <th style="padding:0.5rem;border:1px solid #e5e7eb;text-align:right;font-size:0.75rem;">Total</th>
+                </tr></thead>
+                <tbody>${items.map(item => `<tr>
+                    <td style="padding:0.5rem;border:1px solid #e5e7eb;">${escapeHTML(item.item_name || item.name || '')}</td>
+                    <td style="padding:0.5rem;border:1px solid #e5e7eb;">${escapeHTML(item.category || '')}</td>
+                    <td style="padding:0.5rem;border:1px solid #e5e7eb;text-align:center;">${item.quantity || item.qty || 0}</td>
+                    <td style="padding:0.5rem;border:1px solid #e5e7eb;">${escapeHTML(item.unit || 'pcs')}</td>
+                    <td style="padding:0.5rem;border:1px solid #e5e7eb;text-align:right;">${formatCurrency(item.unit_cost || 0)}</td>
+                    <td style="padding:0.5rem;border:1px solid #e5e7eb;text-align:right;">${formatCurrency((item.quantity || item.qty || 0) * (item.unit_cost || 0))}</td>
+                </tr>`).join('')}</tbody>
+            </table>` : '<p style="color:#64748b;font-style:italic;">No line items</p>';
+
+        document.getElementById('poDetailsOverlay')?.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'poDetailsOverlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.3);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div style="background:white;border-radius:12px;padding:2rem;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+                    <h3 style="margin:0;font-size:1.25rem;">PO Details</h3>
+                    <button onclick="document.getElementById('poDetailsOverlay').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">&times;</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div>
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">PO ID</div>
+                        <div style="font-weight:600;">${escapeHTML(po.po_id || po.id)}${isSubcon ? ' <span style="background:#fef3c7;color:#92400e;font-size:0.7rem;padding:1px 6px;border-radius:4px;font-weight:600;">SUBCON</span>' : ''}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">MRF Reference</div>
+                        <div>${escapeHTML(po.mrf_id || 'N/A')}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">Supplier</div>
+                        <div>${escapeHTML(po.supplier_name || 'N/A')}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">Project / Service</div>
+                        <div>${escapeHTML(getMRFLabel(po) || 'N/A')}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">Date Issued</div>
+                        <div>${escapeHTML(formatPODate(po) || 'N/A')}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">Status</div>
+                        <div><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${statusStyle}">${escapeHTML(status)}</span></div>
+                    </div>
+                    <div style="grid-column:1/-1;">
+                        <div style="font-size:0.75rem;color:#64748b;font-weight:600;margin-bottom:0.25rem;">Total Amount</div>
+                        <div style="font-size:1.1rem;font-weight:700;color:#1e293b;">${formatCurrency(po.total_amount || 0)}</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:0.875rem;font-weight:600;color:#1e293b;margin-bottom:0.5rem;">Line Items</div>
+                    ${itemsHTML}
+                </div>
+            </div>`;
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+    } catch (err) {
+        console.error('[Finance] viewPODetailsFromRFP error:', err);
+        showToast('Failed to load PO details.', 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 /**
@@ -2266,6 +2370,7 @@ export async function destroy() {
     delete window.exportPOsCSV;
     delete window.promptPODocument;
     delete window.generatePODocument;
+    delete window.viewPODetailsFromRFP;
     delete window.financeShowProofModal;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
