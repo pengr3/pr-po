@@ -215,25 +215,25 @@ const PROCUREMENT_STATUS_ORDER = {
 // ========================================
 
 /**
- * Generate a scoped RFP ID: RFP-[PROJECT_CODE]-### (sequence per project code)
- * @param {string} projectCode - e.g. "CLMC" or "DEPT-A"
- * @returns {Promise<string>} e.g. "RFP-CLMC-001"
+ * Generate a PO-scoped RFP ID: RFP-{PO-ID}-{n} (sequence per PO)
+ * @param {string} poId - e.g. "PO-2026-001"
+ * @returns {Promise<string>} e.g. "RFP-PO-2026-001-1"
  */
-async function generateRFPId(projectCode) {
+async function generateRFPId(poId) {
     const rfpsSnap = await getDocs(
-        query(collection(db, 'rfps'), where('project_code', '==', projectCode))
+        query(collection(db, 'rfps'), where('po_id', '==', poId))
     );
     let maxNum = 0;
     rfpsSnap.forEach(docSnap => {
         const id = docSnap.data().rfp_id;
         if (id) {
-            const parts = id.split('-');
-            const seqStr = parts[parts.length - 1];
+            const lastDash = id.lastIndexOf('-');
+            const seqStr = id.slice(lastDash + 1);
             const num = parseInt(seqStr);
             if (!isNaN(num) && num > maxNum) maxNum = num;
         }
     });
-    return `RFP-${projectCode}-${String(maxNum + 1).padStart(3, '0')}`;
+    return `RFP-${poId}-${maxNum + 1}`;
 }
 
 /**
@@ -517,10 +517,8 @@ async function submitRFP(poDocId) {
     const poTotal = parseFloat(po.total_amount) || 0;
     const amountRequested = tranche.percentage / 100 * poTotal;
 
-    const projectCode = po.project_code || po.service_code || '';
-
     try {
-        const rfpId = await generateRFPId(projectCode);
+        const rfpId = await generateRFPId(po.po_id);
 
         const rfpDoc = {
             rfp_id: rfpId,
