@@ -47,6 +47,22 @@
 
 - [x] **POREF-01**: PO IDs in the Finance RFP Processing table are clickable links that open a PO details modal showing PO metadata (ID, MRF ref, supplier, project, date, status, amount) and line items
 
+### TR Proof of Procurement
+
+- [ ] **TRPROOF-01**: Procurement user can attach a proof URL to a Transport Request via the same proof modal used for POs, with proof saved to the `transport_requests` collection
+- [ ] **TRPROOF-02**: Transport MRF rows in MRF Records display three-state proof indicators (green checkmark for URL, orange dash for remarks-only, empty circle for no proof) in the Proof column
+
+### TR Payment Progress Bar
+
+- [ ] **TRBAR-01**: TR badges in MRF Records display a 3px payment progress bar below the badge, driven by RFP payment data keyed to `tr_id`
+- [ ] **TRBAR-02**: TRs with no RFPs show an empty progress bar (0% fill), consistent with PO behavior
+
+### TR RFP Creation
+
+- [ ] **TRRFP-01**: Procurement user can right-click a TR badge in MRF Records to open a Request for Payment modal pre-filled with TR data (supplier, TR reference, amount)
+- [ ] **TRRFP-02**: TR RFPs are saved to the `rfps` collection with a `tr_id` field and ID format `RFP-{TR-ID}-{n}` (e.g. `RFP-TR-2026-001-1`)
+- [ ] **TRRFP-03**: Finance Payables renders TR-linked RFPs correctly, showing TR ID in the reference column instead of a blank PO link
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -95,12 +111,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POBAR-02 | Phase 66 | Planned |
 | POBAR-03 | Phase 66 | Planned |
 | POREF-01 | Phase 65.5 | Planned |
+| TRPROOF-01 | Phase 67 | Planned |
+| TRPROOF-02 | Phase 67 | Planned |
+| TRBAR-01 | Phase 67 | Planned |
+| TRBAR-02 | Phase 67 | Planned |
+| TRRFP-01 | Phase 67 | Planned |
+| TRRFP-02 | Phase 67 | Planned |
+| TRRFP-03 | Phase 67 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 20 total
-- Mapped to phases: 20
+- v3.2 requirements: 27 total
+- Mapped to phases: 27
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — POREF-01 added for Phase 65.5*
+*Last updated: 2026-03-24 — Phase 67 requirements added (TRPROOF-01/02, TRBAR-01/02, TRRFP-01/02/03)*

@@ -318,13 +318,21 @@ Plans:
 
 ### Phase 67: Extend TR proof, badges, and RFP features to PO column
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Bring Transport Request display in MRF Records to parity with PO display by adding proof-of-procurement indicators, payment progress bars, and right-click RFP creation to TR badges, and guard Finance Payables for TR-linked RFPs
+**Requirements**: TRPROOF-01, TRPROOF-02, TRBAR-01, TRBAR-02, TRRFP-01, TRRFP-02, TRRFP-03
 **Depends on:** Phase 66
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. Transport MRF rows in MRF Records show three-state proof indicators (green/orange/empty circle) in the Proof column
+  2. Proof saves from TR indicators route to `transport_requests` collection (not `pos`)
+  3. TR badges show 3px payment progress bars driven by RFP data keyed to `tr_id`
+  4. Right-clicking a TR badge opens an RFP creation modal pre-filled with TR data
+  5. TR RFPs are saved with `tr_id` field and `RFP-{TR-ID}-{n}` format ID
+  6. Finance Payables renders TR-linked RFPs without blank/broken rows
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 67 to break down)
+- [ ] 67-01-PLAN.md — Extend proof-modal.js with collection param, TR data fetch fields, rfpsByTR map, getTRPaymentFill, TR proof column and progress bars
+- [ ] 67-02-PLAN.md — TR RFP context menu, modal, submission; Finance Payables guard for TR-linked RFPs
 
 ---
-*Last updated: 2026-03-24 — Phase 65.5 planned (1 plan, 1 wave)*
+*Last updated: 2026-03-24 — Phase 67 planned (2 plans, 2 waves)*
