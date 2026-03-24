@@ -238,6 +238,28 @@ async function generateRFPId(poId) {
 }
 
 /**
+ * Generate a TR-scoped RFP ID: RFP-{TR-ID}-{n} (sequence per TR)
+ * @param {string} trId - e.g. "TR-2026-001"
+ * @returns {Promise<string>} e.g. "RFP-TR-2026-001-1"
+ */
+async function generateTRRFPId(trId) {
+    const rfpsSnap = await getDocs(
+        query(collection(db, 'rfps'), where('tr_id', '==', trId))
+    );
+    let maxNum = 0;
+    rfpsSnap.forEach(docSnap => {
+        const id = docSnap.data().rfp_id;
+        if (id) {
+            const lastDash = id.lastIndexOf('-');
+            const seqStr = id.slice(lastDash + 1);
+            const num = parseInt(seqStr);
+            if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+    });
+    return `RFP-${trId}-${maxNum + 1}`;
+}
+
+/**
  * Derive human-readable RFP payment status from payment_records array.
  * @param {Object} rfp - RFP document
  * @returns {string} 'Pending' | 'Partially Paid' | 'Fully Paid' | 'Overdue'
@@ -353,6 +375,31 @@ function showRFPContextMenu(event, poDocId) {
             document.removeEventListener('click', handler);
         }, { once: true });
     }, 10);
+}
+
+/**
+ * Show right-click context menu on TR badge with "Request Payment (TR)" option.
+ * @param {MouseEvent} event
+ * @param {string} trDocId - Firestore document ID of the TR
+ */
+function showTRRFPContextMenu(event, trDocId) {
+    const existing = document.getElementById('rfpContextMenu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'rfpContextMenu';
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:180px;`;
+    menu.innerHTML = `<div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;display:flex;align-items:center;gap:8px;"
+        onmouseenter="this.style.background='#f1f5f9'" onmouseleave="this.style.background='transparent'"
+        onclick="window.openTRRFPModal('${trDocId}')">
+        <span style="font-size:1rem;">&#128176;</span> Request Payment (TR)
+    </div>`;
+    document.body.appendChild(menu);
+
+    const closeMenu = (e) => {
+        if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', closeMenu); }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
 }
 
 /**
@@ -482,6 +529,117 @@ async function openRFPModal(poDocId) {
 }
 
 /**
+ * Open TR RFP creation modal pre-filled with TR data.
+ * @param {string} trDocId - Firestore document ID of the TR
+ */
+async function openTRRFPModal(trDocId) {
+    const ctx = document.getElementById('rfpContextMenu');
+    if (ctx) ctx.remove();
+
+    // Fetch TR document from Firestore
+    let tr;
+    try {
+        const trDocRef = doc(db, 'transport_requests', trDocId);
+        const trSnap = await getDoc(trDocRef);
+        if (!trSnap.exists()) { showToast('TR not found', 'error'); return; }
+        tr = { id: trSnap.id, ...trSnap.data() };
+    } catch (error) {
+        console.error('[Procurement] Error fetching TR for RFP:', error);
+        showToast('Failed to load TR data', 'error');
+        return;
+    }
+
+    const trTotal = parseFloat(tr.total_amount) || 0;
+
+    // Check existing RFPs for this TR
+    const existingRFPs = rfpsByTR[tr.tr_id] || [];
+    const hasExistingRFP = existingRFPs.length > 0;
+
+    const deptLabel = tr.service_code
+        ? `Service: ${escapeHTML(tr.service_code)}`
+        : `Project: ${escapeHTML(tr.project_code || '')}`;
+
+    const modalHtml = `
+    <div id="rfpModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:520px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Create Request for Payment (TR)</h2>
+                <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div>
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(tr.supplier_name || '')}</div>
+                    </div>
+                    <div>
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">TR Reference</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(tr.tr_id || '')}</div>
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Department</div>
+                        <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
+                    </div>
+                </div>
+                ${hasExistingRFP ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fff3cd;color:#856404;border-radius:6px;font-size:0.875rem;">An RFP already exists for this TR. You can still create another one.</div>' : ''}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
+                        <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(trTotal)}" readonly
+                               style="width:100%;background:#f1f5f9;cursor:not-allowed;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Invoice Number <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Enter invoice number" style="width:100%;" required>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                        <input type="date" id="rfpDueDate" class="form-control" style="width:100%;" required>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Mode of Payment <span style="color:#ea4335;">*</span></label>
+                        <select id="rfpPaymentMode" class="form-control" style="width:100%;" onchange="window.toggleRFPBankFields()" required>
+                            <option value="">Select payment mode...</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Check">Check</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Name <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankAccountName" class="form-control" placeholder="Account holder name" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
+                        </div>
+                    </div>
+                    <div id="rfpOtherModeWrapper" style="display:none;">
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Payment Mode <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
+                    </div>
+                </div>
+                <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
+                <button class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')">Submit RFP</button>
+            </div>
+        </div>
+    </div>`;
+
+    const existingModal = document.getElementById('rfpModal');
+    if (existingModal) existingModal.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
  * Update the Amount Requested field when the tranche selector changes.
  * @param {string} poDocId - Firestore document ID of the PO
  */
@@ -589,6 +747,86 @@ async function submitRFP(poDocId) {
     }
 }
 
+/**
+ * Submit the TR RFP form and write a document to the rfps Firestore collection.
+ * @param {string} trDocId - Firestore document ID of the TR
+ */
+async function submitTRRFP(trDocId) {
+    let tr;
+    try {
+        const trDocRef = doc(db, 'transport_requests', trDocId);
+        const trSnap = await getDoc(trDocRef);
+        if (!trSnap.exists()) { showToast('TR not found', 'error'); return; }
+        tr = { id: trSnap.id, ...trSnap.data() };
+    } catch (error) {
+        console.error('[Procurement] Error fetching TR for RFP submit:', error);
+        showToast('Failed to load TR data', 'error');
+        return;
+    }
+
+    const invoiceNumber = document.getElementById('rfpInvoiceNumber')?.value?.trim();
+    const dueDate = document.getElementById('rfpDueDate')?.value;
+    const paymentMode = document.getElementById('rfpPaymentMode')?.value;
+    const bankName = document.getElementById('rfpBankName')?.value?.trim() || '';
+    const bankAccountName = document.getElementById('rfpBankAccountName')?.value?.trim() || '';
+    const bankDetails = document.getElementById('rfpBankDetails')?.value?.trim() || '';
+    const paymentModeOther = document.getElementById('rfpPaymentModeOther')?.value?.trim() || '';
+    const errorEl = document.getElementById('rfpErrorAlert');
+
+    if (!invoiceNumber || !dueDate || !paymentMode) {
+        if (errorEl) { errorEl.textContent = 'Invoice number, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
+        return;
+    }
+    if (paymentMode === 'Bank Transfer' && (!bankName || !bankAccountName || !bankDetails)) {
+        if (errorEl) { errorEl.textContent = 'Bank, account name, and account number are required for Bank Transfer.'; errorEl.style.display = 'block'; }
+        return;
+    }
+    if (paymentMode === 'Other' && !paymentModeOther) {
+        if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
+        return;
+    }
+
+    const trTotal = parseFloat(tr.total_amount) || 0;
+
+    try {
+        const rfpId = await generateTRRFPId(tr.tr_id);
+
+        const rfpDoc = {
+            rfp_id: rfpId,
+            tr_id: tr.tr_id,
+            tr_doc_id: trDocId,
+            po_id: '',
+            po_doc_id: '',
+            mrf_id: tr.mrf_id || '',
+            project_code: tr.project_code || '',
+            service_code: tr.service_code || '',
+            supplier_name: tr.supplier_name || '',
+            tranche_label: 'Full Payment',
+            tranche_percentage: 100,
+            amount_requested: trTotal,
+            invoice_number: invoiceNumber,
+            due_date: dueDate,
+            mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
+            bank_name: paymentMode === 'Bank Transfer' ? bankName : '',
+            bank_account_name: paymentMode === 'Bank Transfer' ? bankAccountName : '',
+            bank_details: paymentMode === 'Bank Transfer' ? bankDetails : '',
+            payment_records: [],
+            date_submitted: serverTimestamp()
+        };
+
+        await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        document.getElementById('rfpModal')?.remove();
+        showToast(`RFP ${rfpId} submitted successfully`, 'success');
+    } catch (error) {
+        console.error('[Procurement] TR RFP submission error:', error);
+        if (errorEl) {
+            errorEl.textContent = 'Failed to submit RFP. Check your connection and try again.';
+            errorEl.style.display = 'block';
+        }
+    }
+}
+
 // ========================================
 // WINDOW FUNCTIONS ATTACHMENT
 // ========================================
@@ -679,6 +917,11 @@ function attachWindowFunctions() {
     window.openRFPModal = openRFPModal;
     window.updateRFPAmount = updateRFPAmount;
     window.submitRFP = submitRFP;
+
+    // TR RFP Functions
+    window.showTRRFPContextMenu = showTRRFPContextMenu;
+    window.openTRRFPModal = openTRRFPModal;
+    window.submitTRRFP = submitTRRFP;
 }
 
 // ========================================
@@ -4105,7 +4348,8 @@ async function renderPRPORecords() {
                         <span class="status-badge ${statusClass}"
                             style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
                             title="${escapeHTML(fillData.tooltip)}"
-                            onclick="window.viewTRDetails('${tr.docId}')">
+                            onclick="window.viewTRDetails('${tr.docId}')"
+                            oncontextmenu="event.preventDefault(); window.showTRRFPContextMenu(event, '${tr.docId}'); return false;">
                             ${escapeHTML(tr.tr_id)}
                         </span>
                         <div style="width:100%;height:3px;border-radius:2px;overflow:hidden;${bgStyle}"></div>
@@ -4214,7 +4458,8 @@ async function renderPRPORecords() {
                         <span class="status-badge ${statusClass}"
                             style="font-size:0.75rem;display:inline-block;white-space:nowrap;cursor:pointer;"
                             title="${escapeHTML(fillData.tooltip)}"
-                            onclick="window.viewTRDetails('${tr.docId}')">
+                            onclick="window.viewTRDetails('${tr.docId}')"
+                            oncontextmenu="event.preventDefault(); window.showTRRFPContextMenu(event, '${tr.docId}'); return false;">
                             ${escapeHTML(tr.tr_id)}
                         </span>
                         <div style="width:100%;height:3px;border-radius:2px;overflow:hidden;${bgStyle}"></div>
