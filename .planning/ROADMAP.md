@@ -287,5 +287,15 @@ Phases execute in numeric order: 63 → 64 → 65
 
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
+### Phase 66: Fix MRF Records PO payment progress bar — remove existing badge fill, implement flush dynamic progress bar, fix font color
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 65
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 66 to break down)
+
 ---
 *Last updated: 2026-03-24 — Phase 65.4 planned (1 plan, 1 wave)*

@@ -125,6 +125,7 @@ Recent decisions affecting current work:
 - Phase 65.1 inserted after Phase 65: Finance Payables Tab - Dual Table Revamp (RFP + PO Payments) (URGENT)
 - Phase 65.2 inserted after Phase 65: Remove processed RFPs on the RFP Processing area to prevent flooding with paid RFPs; historical RFPs available on PO Payment Summary (URGENT)
 - Phase 65.3 inserted after Phase 65: Fix Current Active Tranche column for partially paid items — display "(nn%) Paid" so users can see payment progress at a glance (URGENT)
+- Phase 66 added: Fix MRF Records PO payment progress bar — remove existing badge fill, implement flush dynamic progress bar, fix font color
 
 ### Pending Todos
 
