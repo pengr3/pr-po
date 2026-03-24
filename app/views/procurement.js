@@ -3979,22 +3979,19 @@ async function renderPRPORecords() {
                         const subconBadge = isSubcon
                             ? ' <span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; font-weight: 600;">SUBCON</span>'
                             : '';
-                        const defaultStatus = isSubcon ? 'Pending' : 'Pending Procurement';
-                        const poStatus = po.procurement_status || defaultStatus;
-                        const poStatusClass = getStatusClass(poStatus);
                         const fillData = getPOPaymentFill(po.po_id);
-                        return `<span style="display:inline-flex;flex-direction:column;align-items:stretch;vertical-align:middle;gap:2px;">
-                            <a href="javascript:void(0)"
+                        const emptyBg = '#e5e7eb';
+                        const bgStyle = fillData.pct > 0 && fillData.pct < 100
+                            ? `background:linear-gradient(to right, ${fillData.color} ${fillData.pct}%, ${emptyBg} ${fillData.pct}%)`
+                            : fillData.pct >= 100
+                            ? `background:${fillData.color}`
+                            : `background:${emptyBg}`;
+                        return `<a href="javascript:void(0)"
                                 onclick="window.viewPODetails('${po.docId}')"
                                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
-                                class="status-badge ${poStatusClass}"
                                 title="${escapeHTML(fillData.tooltip)}"
-                                style="text-decoration:none;cursor:pointer;white-space:nowrap;font-size:0.75rem;">
-                                ${escapeHTML(po.po_id)}</a>
-                            <div style="width:100%;height:3px;border-radius:2px;background:#e5e7eb;overflow:hidden;">
-                                <div style="height:100%;width:${fillData.pct}%;background:${fillData.color};transition:width 0.4s ease;"></div>
-                            </div>
-                        </span>${subconBadge}`;
+                                style="padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600;color:#1e293b;text-decoration:none;cursor:pointer;white-space:nowrap;display:inline-block;${bgStyle}">
+                                ${escapeHTML(po.po_id)}</a>${subconBadge}`;
                     }).join(' ');
                 }
                 return `<div style="${rowStyle(i)}">${content}</div>`;
