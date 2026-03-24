@@ -33,6 +33,9 @@
 
 - [x] **TRANCHE-01**: PO Payment Summary "Current Active Tranche" column displays payment progress percentage (e.g., "30% Paid") for partially paid POs so users can see how much has been paid at a glance
 
+n### RFP ID Generation
+
+- [ ] **RFPID-01**: New RFPs are assigned IDs in PO-scoped format `RFP-{PO-ID}-{n}` (e.g. `RFP-PO-2026-001-1`) instead of project-code-scoped format, eliminating duplicate IDs when multiple POs share a project code
 ## Future Requirements
 
 ### Payables Enhancements
@@ -76,12 +79,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RFP-05 | Phase 65 | Complete |
 | RFP-06 | Phase 65 | Complete |
 | TRANCHE-01 | Phase 65.3 | Planned |
+| RFPID-01 | Phase 65.4 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 15 total
-- Mapped to phases: 15
+- v3.2 requirements: 16 total
+- Mapped to phases: 16
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-23 — TRANCHE-01 added for Phase 65.3*
+*Last updated: 2026-03-24 — RFPID-01 added for Phase 65.4*

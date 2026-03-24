@@ -228,7 +228,7 @@ Plans:
   1. New RFPs are assigned IDs in the format `RFP-{PO-ID}-{n}` (e.g. `RFP-PO-2026-001-1`) where n is a sequential counter scoped to that PO
   2. Existing `RFP-CLMC-###` format IDs continue to display correctly in all tables (no backfill)
   3. The `generateRFPId` function signature changes from `projectCode` to `poId` and the call site in `submitRFP` is updated atomically
-**Plans:** 0/1 plans
+**Plans:** 1/1 plans
 
 Plans:
 - [ ] 65.4-01-PLAN.md — Replace generateRFPId to use PO-scoped counter with RFP-{PO-ID}-{n} format
@@ -288,4 +288,4 @@ Phases execute in numeric order: 63 → 64 → 65
 **Total shipped: 64 phases, 167 plans, 10 milestones**
 
 ---
-*Last updated: 2026-03-23 — Phase 65.3 planned (1 plan, 1 wave)*
+*Last updated: 2026-03-24 — Phase 65.4 planned (1 plan, 1 wave)*
