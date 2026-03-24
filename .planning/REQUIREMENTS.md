@@ -35,7 +35,7 @@
 
 n### RFP ID Generation
 
-- [ ] **RFPID-01**: New RFPs are assigned IDs in PO-scoped format `RFP-{PO-ID}-{n}` (e.g. `RFP-PO-2026-001-1`) instead of project-code-scoped format, eliminating duplicate IDs when multiple POs share a project code
+- [x] **RFPID-01**: New RFPs are assigned IDs in PO-scoped format `RFP-{PO-ID}-{n}` (e.g. `RFP-PO-2026-001-1`) instead of project-code-scoped format, eliminating duplicate IDs when multiple POs share a project code
 ## Future Requirements
 
 ### Payables Enhancements
