@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: verifying
-stopped_at: "Completed 66.1-01-PLAN.md: TR proof indicators for Material+TR mixed MRF rows"
-last_updated: "2026-03-24T09:42:32.483Z"
+stopped_at: "Completed 65.6-01-PLAN.md: RFP saved bank account selector for both PO and TR RFP modals"
+last_updated: "2026-03-24T09:44:29.222Z"
 progress:
   total_phases: 12
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 19
-  completed_plans: 21
+  completed_plans: 22
   percent: 100
 ---
 
@@ -128,6 +128,7 @@ Plan: 1 of 1
 | Phase 67 P01 | 3 | 2 tasks | 2 files |
 | Phase 67 P02 | 5 | 2 tasks | 2 files |
 | Phase 66.1 P01 | 5 | 1 tasks | 1 files |
+| Phase 65.6 P01 | 8 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,7 @@ Recent decisions affecting current work:
 - [Phase 67]: buildPOMap groupKey = rfp.po_id || rfp.tr_id || '' prevents TR RFPs from collapsing under empty-string key in Finance Payables
 - [Phase 67]: isTR flag propagated from buildPOMap through poEntries to renderPOSummaryTable for conditional plain text vs PO link rendering
 - [Phase 66.1]: hasPOProof mirrors hasPrs pattern for Material+TR mixed proof append in renderPRPORecordsTable
+- [Phase 65.6]: getSavedBankAccounts deduplicates by composite key bank_name+bank_account_name+bank_details; onmousedown used in dropdown items for blur-before-click safety; dropdown rebuilt on each toggle from rfpsData
 
 ### Roadmap Evolution
 
@@ -211,7 +213,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T09:26:53.275Z
-Stopped at: Completed 66.1-01-PLAN.md: TR proof indicators for Material+TR mixed MRF rows
+Last session: 2026-03-24T09:44:29.218Z
+Stopped at: Completed 65.6-01-PLAN.md: RFP saved bank account selector for both PO and TR RFP modals
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

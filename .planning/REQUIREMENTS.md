@@ -69,8 +69,8 @@
 
 ### RFP Bank Transfer Saved Accounts
 
-- [ ] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, a "Select Saved Bank Account" button appears that shows a dropdown of unique bank accounts derived from previously submitted RFPs
-- [ ] **RFPBANK-02**: Selecting a saved bank account from the dropdown auto-fills the Bank Name, Account Name, and Account Number fields in both PO RFP and TR RFP modals
+- [x] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, a "Select Saved Bank Account" button appears that shows a dropdown of unique bank accounts derived from previously submitted RFPs
+- [x] **RFPBANK-02**: Selecting a saved bank account from the dropdown auto-fills the Bank Name, Account Name, and Account Number fields in both PO RFP and TR RFP modals
 
 ## Future Requirements
 

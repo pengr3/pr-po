@@ -216,7 +216,7 @@ Plans:
   3. Selecting a saved bank auto-fills Bank Name, Account Name, and Account Number fields
   4. Manual entry of bank details remains fully functional
   5. Both PO RFP and TR RFP modals have the saved bank selector
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 65.6-01-PLAN.md — Add getSavedBankAccounts helper, saved bank dropdown UI to both RFP modals
