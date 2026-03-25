@@ -93,7 +93,7 @@ let poSummaryStatusFilter = '';
 let poSummaryDeptFilter = '';
 // Table 2 (PO Payment Summary) pagination state
 let poSummaryCurrentPage = 1;
-const poSummaryItemsPerPage = 10;
+const poSummaryItemsPerPage = 5;
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
