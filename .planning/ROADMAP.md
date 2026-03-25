@@ -422,7 +422,7 @@ Plans:
 **Goal:** Add payable tracking scoreboard row to the shared expense breakdown modal showing Total Requested (RFPs), Total Paid, and Remaining Payable derived from the rfps collection, giving users visibility into how much of total project/service cost has been paid
 **Requirements**: EXPPAY-01, EXPPAY-02, EXPPAY-03
 **Depends on:** Phase 68
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 69-01-PLAN.md — Add RFP query, payable computation, and 3-card scoreboard row to expense modal
+- [x] 69-01-PLAN.md — Add RFP query, payable computation, and 3-card scoreboard row to expense modal

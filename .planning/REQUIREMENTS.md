@@ -93,8 +93,8 @@
 
 ### Expense Modal Payable Tracking
 
-- [ ] **EXPPAY-01**: Expense breakdown modal shows "Total Requested (RFPs)", "Total Paid", and "Remaining Payable" scoreboard cards when RFPs exist for the project or service
-- [ ] **EXPPAY-02**: Payable scoreboard row is hidden when no RFPs exist for the project or service (no misleading zero values)
+- [x] **EXPPAY-01**: Expense breakdown modal shows "Total Requested (RFPs)", "Total Paid", and "Remaining Payable" scoreboard cards when RFPs exist for the project or service
+- [x] **EXPPAY-02**: Payable scoreboard row is hidden when no RFPs exist for the project or service (no misleading zero values)
 - [ ] **EXPPAY-03**: Remaining Payable card displays red styling when amount is outstanding and green styling when fully paid
 
 ## Future Requirements

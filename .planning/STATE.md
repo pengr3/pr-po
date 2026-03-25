@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Ready to plan
-stopped_at: Phase 69 UI-SPEC approved
-last_updated: "2026-03-25T03:28:30.067Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 69-01-PLAN.md
+last_updated: "2026-03-25T03:45:42.077Z"
 progress:
   total_phases: 17
-  completed_phases: 15
-  total_plans: 22
-  completed_plans: 25
+  completed_phases: 16
+  total_plans: 23
+  completed_plans: 26
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 68 — fix-expense-breakdown-modal-remove-document-count-from-scoreboard-and-show-line-items-instead-of-po-id
+**Current focus:** Phase 69 — revise-expense-modal-scoreboards-to-add-remaining-payable-tracking
 
 ## Current Position
 
-Phase: 66
-Plan: Not started
+Phase: 69 (revise-expense-modal-scoreboards-to-add-remaining-payable-tracking) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -71,6 +71,7 @@ Plan: Not started
 | Phase 65.6 P01 | 8 | 1 tasks | 1 files |
 | Phase 65.7 P01 | 2 | 1 tasks | 1 files |
 | Phase 68 P01 | 5 | 1 tasks | 1 files |
+| Phase 69-revise-expense-modal-scoreboards-to-add-remaining-payable-tracking P01 | 53 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,7 @@ Recent decisions affecting current work:
 - [Phase 65.6]: getSavedBankAccounts deduplicates by composite key bank_name+bank_account_name+bank_details; onmousedown used in dropdown items for blur-before-click safety; dropdown rebuilt on each toggle from rfpsData
 - [Phase 65.7]: poSummaryItemsPerPage=10 matching records pagination (not suppliers 15); changePOSummaryPage uses buildPOMap for live boundary enforcement; empty state hides pagination via display:none
 - [Phase 68]: PO ID excluded from modal display tables only — CSV export retains PO ID for spreadsheet reconciliation
+- [Phase 69]: Re-fetch project doc in RFP block (projectSnapshot2) to get project_code — project const scoped inside else block prevents access after closing brace; avoids structural refactor at cost of one extra Firestore read
 
 ### Roadmap Evolution
 
@@ -162,7 +164,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T03:26:01.271Z
-Stopped at: Phase 69 UI-SPEC approved
-Resume file: .planning/phases/69-revise-expense-modal-scoreboards-to-add-remaining-payable-tracking/69-UI-SPEC.md
+Last session: 2026-03-25T03:45:42.071Z
+Stopped at: Completed 69-01-PLAN.md
+Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
