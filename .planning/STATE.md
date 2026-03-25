@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: "Completed 68-01-PLAN.md: Expense breakdown modal cleanup"
-last_updated: "2026-03-25T02:43:42.722Z"
+status: Ready to plan
+stopped_at: Phase 69 UI-SPEC approved
+last_updated: "2026-03-25T03:28:30.067Z"
 progress:
-  total_phases: 14
-  completed_phases: 14
-  total_plans: 21
-  completed_plans: 24
+  total_phases: 17
+  completed_phases: 15
+  total_plans: 22
+  completed_plans: 25
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 ## Current Position
 
-Phase: 68
+Phase: 66
 Plan: Not started
 
 ## Performance Metrics
@@ -140,6 +140,7 @@ Recent decisions affecting current work:
 - Phase 68 added: Fix expense breakdown modal — remove document count note from Total Cost scoreboard and show actual line items instead of PO ID in expense breakdown
 - Phase 68.1 inserted after Phase 68: Fix subcon cost scorecard showing zero when subcon items are categorized as subcon in items_json but po is_subcon flag is not set (URGENT)
 - Phase 65.8 inserted after Phase 65: fix Payables tab UI containment and add pagination (URGENT)
+- Phase 69 added: Revise expense-modal scoreboards to add remaining payable tracking
 
 ### Pending Todos
 
@@ -161,7 +162,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T02:41:19.171Z
-Stopped at: Completed 68-01-PLAN.md: Expense breakdown modal cleanup
-Resume file: None
+Last session: 2026-03-25T03:26:01.271Z
+Stopped at: Phase 69 UI-SPEC approved
+Resume file: .planning/phases/69-revise-expense-modal-scoreboards-to-add-remaining-payable-tracking/69-UI-SPEC.md
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

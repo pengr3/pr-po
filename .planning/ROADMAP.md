@@ -205,15 +205,19 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
-### Phase 65.8: fix Payables tab UI containment and add pagination (INSERTED)
+### Phase 65.8: fix Payables tab UI containment (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Replace broken `table-container` class (no CSS definition) with the existing `table-scroll-container` class on both Payables tables for horizontal scroll containment
+**Requirements**: PAYCON-01, PAYCON-02
 **Depends on:** Phase 65
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. Both Payables tables (RFP Processing and PO Payment Summary) scroll horizontally on narrow viewports instead of breaking page layout
+  2. Table 1 (RFP Processing) continues to show ALL RFPs without pagination (intentional for Finance workflow)
+  3. Table 2 (PO Payment Summary) pagination is completely unaffected
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 65.8 to break down)
+- [ ] 65.8-01-PLAN.md — Replace table-container with table-scroll-container on both Payables table wrappers
 
 ### Phase 65.7: PO Payment Summary Table Pagination (INSERTED)
 
@@ -412,3 +416,13 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 68.1 to break down)
+
+### Phase 69: revise expense-modal scoreboards to add remaining payable tracking
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 68
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 69 to break down)
