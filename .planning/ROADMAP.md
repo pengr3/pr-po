@@ -417,12 +417,12 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 68.1 to break down)
 
-### Phase 69: revise expense-modal scoreboards to add remaining payable tracking
+### Phase 69: Revise expense-modal scoreboards to add remaining payable tracking
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add payable tracking scoreboard row to the shared expense breakdown modal showing Total Requested (RFPs), Total Paid, and Remaining Payable derived from the rfps collection, giving users visibility into how much of total project/service cost has been paid
+**Requirements**: EXPPAY-01, EXPPAY-02, EXPPAY-03
 **Depends on:** Phase 68
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 69 to break down)
+- [ ] 69-01-PLAN.md — Add RFP query, payable computation, and 3-card scoreboard row to expense modal

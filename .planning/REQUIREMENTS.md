@@ -83,6 +83,20 @@
 - [x] **EXPMOD-01**: Total Cost scoreboard card in expense breakdown modal displays only the total amount — no document count note (e.g., "N documents") shown below it
 - [x] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows Supplier instead of PO ID
 
+### Payables Tab UI Containment & Pagination
+
+- [ ] **PAYCON-01**: Both Payables tables (RFP Processing and PO Payment Summary) are wrapped in `table-scroll-container` providing horizontal scroll containment on narrow viewports
+- [ ] **PAYCON-02**: Payables tables do not break out of their container or cause page-level horizontal overflow on screens narrower than the table content
+- [ ] **PAYPAG-01**: Table 1 (RFP Processing) shows at most 10 rows per page with Previous/Next and page-number navigation controls
+- [ ] **PAYPAG-02**: Table 1 pagination info shows "Showing X-Y of Z RFPs" reflecting the current filtered result count, not the total unfiltered count
+- [ ] **PAYPAG-03**: Changing Table 1 status or department filters resets pagination to page 1 and updates page count to match the filtered set
+
+### Expense Modal Payable Tracking
+
+- [ ] **EXPPAY-01**: Expense breakdown modal shows "Total Requested (RFPs)", "Total Paid", and "Remaining Payable" scoreboard cards when RFPs exist for the project or service
+- [ ] **EXPPAY-02**: Payable scoreboard row is hidden when no RFPs exist for the project or service (no misleading zero values)
+- [ ] **EXPPAY-03**: Remaining Payable card displays red styling when amount is outstanding and green styling when fully paid
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -146,12 +160,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POSUMPAG-03 | Phase 65.7 | Planned |
 | EXPMOD-01 | Phase 68 | Planned |
 | EXPMOD-02 | Phase 68 | Planned |
+| PAYCON-01 | Phase 65.8 | Planned |
+| PAYCON-02 | Phase 65.8 | Planned |
+| PAYPAG-01 | Phase 65.8 | Planned |
+| PAYPAG-02 | Phase 65.8 | Planned |
+| PAYPAG-03 | Phase 65.8 | Planned |
+| EXPPAY-01 | Phase 69 | Planned |
+| EXPPAY-02 | Phase 69 | Planned |
+| EXPPAY-03 | Phase 69 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 35 total
-- Mapped to phases: 35
+- v3.2 requirements: 43 total
+- Mapped to phases: 43
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-25 — Phase 68 requirements added (EXPMOD-01, EXPMOD-02)*
+*Last updated: 2026-03-25 — Phase 69 requirements added (EXPPAY-01, EXPPAY-02, EXPPAY-03)*
