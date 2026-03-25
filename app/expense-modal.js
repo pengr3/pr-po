@@ -116,6 +116,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
     // Fetch TRs
     const transportRequests = [];
+    const trLineItems = [];
     let trTotal = 0;
 
     trsSnapshot.forEach(trDoc => {
@@ -125,6 +126,15 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             trTotal += amount;
             transportRequests.push({
                 tr_id: tr.tr_id, supplier: tr.supplier_name || 'N/A', amount
+            });
+            const trItems = JSON.parse(tr.items_json || '[]');
+            trItems.forEach(item => {
+                const itemName = item.item || item.item_name || item.itemName || item.name || 'Unnamed Item';
+                const qty = item.qty || item.quantity || 0;
+                const unit = item.unit || 'pcs';
+                const unitCost = parseFloat(item.unit_cost || item.unitCost || item.price || 0);
+                const subtotal = parseFloat(item.subtotal || item.total || (qty * unitCost) || 0);
+                trLineItems.push({ tr_id: tr.tr_id, item_name: itemName, quantity: qty, unit, unit_cost: unitCost, subtotal });
             });
         }
     });
@@ -204,11 +214,24 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 </div>
                 <div class="category-items" style="display: none;">
                     <table class="modal-items-table">
-                        <thead><tr><th>TR ID</th><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
+                        <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
                         <tbody>
-                            ${transportRequests.map(tr => `
-                                <tr><td>${tr.tr_id}</td><td>${tr.supplier}</td><td style="text-align: right;">${formatCurrency(tr.amount)}</td></tr>
-                            `).join('')}
+                            ${trLineItems.length > 0
+                                ? trLineItems.map(item => `
+                                    <tr>
+                                        <td>${item.item_name}</td>
+                                        <td>${item.quantity}</td><td>${item.unit}</td><td>${formatCurrency(item.unit_cost)}</td>
+                                        <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
+                                    </tr>
+                                `).join('')
+                                : transportRequests.map(tr => `
+                                    <tr>
+                                        <td>${tr.tr_id}</td>
+                                        <td>1</td><td>lot</td><td>${formatCurrency(tr.amount)}</td>
+                                        <td style="text-align: right;">${formatCurrency(tr.amount)}</td>
+                                    </tr>
+                                `).join('')
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -250,10 +273,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 </div>
                 <div class="category-items" style="display: none;">
                     <table class="modal-items-table">
-                        <thead><tr><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
+                        <thead><tr><th>PO ID</th><th style="text-align: right;">Amount</th></tr></thead>
                         <tbody>
                             ${deliveryFeeItems.map(item => `
-                                <tr><td>${item.supplier}</td><td style="text-align: right;">${formatCurrency(item.amount)}</td></tr>
+                                <tr><td>${item.po_id}</td><td style="text-align: right;">${formatCurrency(item.amount)}</td></tr>
                             `).join('')}
                         </tbody>
                     </table>
