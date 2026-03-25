@@ -138,6 +138,8 @@ Recent decisions affecting current work:
 - Phase 65.6 inserted after Phase 65: RFP bank transfer mode — add supplementary button to select additional bank option (URGENT)
 - Phase 65.7 inserted after Phase 65: Introduce pagination for PO Payment Summary Table, refer to existing pagination format and structure on our codebase (URGENT)
 - Phase 68 added: Fix expense breakdown modal — remove document count note from Total Cost scoreboard and show actual line items instead of PO ID in expense breakdown
+- Phase 68.1 inserted after Phase 68: Fix subcon cost scorecard showing zero when subcon items are categorized as subcon in items_json but po is_subcon flag is not set (URGENT)
+- Phase 65.8 inserted after Phase 65: fix Payables tab UI containment and add pagination (URGENT)
 
 ### Pending Todos
 

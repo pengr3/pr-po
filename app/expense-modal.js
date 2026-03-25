@@ -91,14 +91,21 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
             const isTransportItem = category.toLowerCase().includes('transportation') ||
                                    category.toLowerCase().includes('hauling');
+            // Category-level subcon detection: only for non-is_subcon POs (is_subcon POs
+            // are already totalled at PO level via po.total_amount above)
+            const isSubconCategory = !isSubcon && category.toLowerCase().includes('subcon');
 
-            if (isTransportItem) {
+            if (isSubcon) {
+                // Already counted via po.total_amount — skip item loop entirely
+            } else if (isTransportItem) {
                 transportCategoryItems.push({
                     po_id: po.po_id, item_name: itemName,
                     quantity: qty, unit, unit_cost: unitCost, subtotal, category,
                     date: poDate, supplier: poSupplier
                 });
-            } else if (!isSubcon) {
+            } else if (isSubconCategory) {
+                subconTotal += subtotal;
+            } else {
                 if (!categoryTotals[category]) {
                     categoryTotals[category] = { amount: 0, items: [] };
                 }
@@ -108,9 +115,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     quantity: qty, unit, unit_cost: unitCost, subtotal,
                     date: poDate, supplier: poSupplier
                 });
+                materialTotal += subtotal;
             }
-
-            if (!isSubcon) materialTotal += subtotal;
         });
     });
 

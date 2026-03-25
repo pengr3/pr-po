@@ -205,6 +205,16 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.8: fix Payables tab UI containment and add pagination (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 65
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 65.8 to break down)
+
 ### Phase 65.7: PO Payment Summary Table Pagination (INSERTED)
 
 **Goal:** Add pagination to the PO Payment Summary table (Table 2) in Finance Payables, using the same pagination pattern and styling as the existing Supplier table pagination
@@ -392,3 +402,13 @@ Plans:
 
 Plans:
 - [x] 68-01-PLAN.md — Remove document count from Total Cost, replace PO ID columns with line item details
+
+### Phase 68.1: fix subcon cost scorecard showing zero when subcon items are categorized as subcon in items_json but po is_subcon flag is not set (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 68
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 68.1 to break down)
