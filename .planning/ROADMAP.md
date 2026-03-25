@@ -388,7 +388,7 @@ Plans:
   2. Category item tables show Item Name, Qty, Unit, Unit Cost, Subtotal columns (no PO ID column)
   3. Delivery Fees table shows Supplier and Amount columns (no PO ID column)
   4. CSV export and Transport Requests table (TR ID / Supplier / Amount) are unchanged
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 68-01-PLAN.md — Remove document count from Total Cost, replace PO ID columns with line item details
+- [x] 68-01-PLAN.md — Remove document count from Total Cost, replace PO ID columns with line item details

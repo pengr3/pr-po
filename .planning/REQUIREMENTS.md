@@ -80,8 +80,8 @@
 
 ### Expense Breakdown Modal Cleanup
 
-- [ ] **EXPMOD-01**: Total Cost scoreboard card in expense breakdown modal displays only the total amount — no document count note (e.g., "N documents") shown below it
-- [ ] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows Supplier instead of PO ID
+- [x] **EXPMOD-01**: Total Cost scoreboard card in expense breakdown modal displays only the total amount — no document count note (e.g., "N documents") shown below it
+- [x] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows Supplier instead of PO ID
 
 ## Future Requirements
 

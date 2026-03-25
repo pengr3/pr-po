@@ -2,103 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: verifying
-stopped_at: "Completed 65.7-01-PLAN.md: PO Payment Summary pagination"
-last_updated: "2026-03-24T12:32:39.907Z"
-progress:
-  total_phases: 13
-  completed_phases: 13
-  total_plans: 20
-  completed_plans: 23
-  percent: 100
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: verifying
-stopped_at: "Completed 65.6-01-PLAN.md: RFP saved bank account selector for both PO and TR RFP modals"
-last_updated: "2026-03-24T10:52:52.784Z"
-progress:
-  [██████████] 100%
-  completed_phases: 12
-  total_plans: 19
-  completed_plans: 22
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: verifying
-stopped_at: "Completed 65.6-01-PLAN.md: RFP saved bank account selector for both PO and TR RFP modals"
-last_updated: "2026-03-24T09:46:55.546Z"
-progress:
-  total_phases: 12
-  completed_phases: 12
-  total_plans: 19
-  completed_plans: 22
-  percent: 100
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: verifying
-stopped_at: "Completed 67-02-PLAN.md: TR RFP context menu and Finance Payables guard"
-last_updated: "2026-03-24T06:13:14.719Z"
-progress:
-  [██████████] 100%
-  completed_phases: 10
-  total_plans: 17
-  completed_plans: 20
-  percent: 100
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: verifying
-stopped_at: "Completed 66-01-PLAN.md: Fix MRF Records PO payment progress bar"
-last_updated: "2026-03-24T04:35:06.222Z"
-progress:
-  [██████████] 100%
-  completed_phases: 8
-  total_plans: 14
-  completed_plans: 17
-  percent: 100
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: verifying
-stopped_at: "Completed 65.4-01-PLAN.md: Replace RFP ID generation with PO-scoped counter"
-last_updated: "2026-03-24T03:45:52.493Z"
-progress:
-  [██████████] 100%
-  completed_phases: 7
-  total_plans: 13
-  completed_plans: 16
-  percent: 100
----
-
----
-gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Phase complete — ready for verification
-stopped_at: "Completed 65.3-01-PLAN.md: Fix Current Active Tranche payment progress percentage"
-last_updated: "2026-03-23T09:31:36.185Z"
+stopped_at: "Completed 68-01-PLAN.md: Expense breakdown modal cleanup"
+last_updated: "2026-03-25T02:41:19.185Z"
 progress:
-  [██████████] 100%
-  completed_phases: 6
-  total_plans: 15
-  completed_plans: 15
+  total_phases: 14
+  completed_phases: 14
+  total_plans: 21
+  completed_plans: 24
 ---
 
 # Project State
@@ -108,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 65.3 — fix-current-active-tranche-column-for-partially-paid-items-display-nn-paid-so-users-know-how-much-is-paid
+**Current focus:** Phase 68 — fix-expense-breakdown-modal-remove-document-count-from-scoreboard-and-show-line-items-instead-of-po-id
 
 ## Current Position
 
-Phase: 65.3 (fix-current-active-tranche-column-for-partially-paid-items-display-nn-paid-so-users-know-how-much-is-paid) — EXECUTING
+Phase: 68 (fix-expense-breakdown-modal-remove-document-count-from-scoreboard-and-show-line-items-instead-of-po-id) — EXECUTING
 Plan: 1 of 1
 
 ## Performance Metrics
@@ -159,6 +70,7 @@ Plan: 1 of 1
 | Phase 66.1 P01 | 5 | 1 tasks | 1 files |
 | Phase 65.6 P01 | 8 | 1 tasks | 1 files |
 | Phase 65.7 P01 | 2 | 1 tasks | 1 files |
+| Phase 68 P01 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -212,6 +124,7 @@ Recent decisions affecting current work:
 - [Phase 66.1]: hasPOProof mirrors hasPrs pattern for Material+TR mixed proof append in renderPRPORecordsTable
 - [Phase 65.6]: getSavedBankAccounts deduplicates by composite key bank_name+bank_account_name+bank_details; onmousedown used in dropdown items for blur-before-click safety; dropdown rebuilt on each toggle from rfpsData
 - [Phase 65.7]: poSummaryItemsPerPage=10 matching records pagination (not suppliers 15); changePOSummaryPage uses buildPOMap for live boundary enforcement; empty state hides pagination via display:none
+- [Phase 68]: PO ID excluded from modal display tables only — CSV export retains PO ID for spreadsheet reconciliation
 
 ### Roadmap Evolution
 
@@ -224,7 +137,7 @@ Recent decisions affecting current work:
 - Phase 66.1 inserted after Phase 66: Add proof-of-procurement column for TR rows in MRF Records (URGENT)
 - Phase 65.6 inserted after Phase 65: RFP bank transfer mode — add supplementary button to select additional bank option (URGENT)
 - Phase 65.7 inserted after Phase 65: Introduce pagination for PO Payment Summary Table, refer to existing pagination format and structure on our codebase (URGENT)
-- Phase 68 added: Introduce pagination for PO Payment Summary Table, refer to existing pagination format and structure on our codebase
+- Phase 68 added: Fix expense breakdown modal — remove document count note from Total Cost scoreboard and show actual line items instead of PO ID in expense breakdown
 
 ### Pending Todos
 
@@ -246,7 +159,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-24T12:29:52.152Z
-Stopped at: Completed 65.7-01-PLAN.md: PO Payment Summary pagination
+Last session: 2026-03-25T02:41:19.171Z
+Stopped at: Completed 68-01-PLAN.md: Expense breakdown modal cleanup
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
