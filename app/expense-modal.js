@@ -56,6 +56,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     let deliveryFeeTotal = 0;
     let subconTotal = 0;
     let subconCount = 0;
+    const subconPoIds = new Set();
     let materialCount = 0;
 
     posSnapshot.forEach(poDoc => {
@@ -105,6 +106,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 });
             } else if (isSubconCategory) {
                 subconTotal += subtotal;
+                subconPoIds.add(po.po_id);
             } else {
                 if (!categoryTotals[category]) {
                     categoryTotals[category] = { amount: 0, items: [] };
@@ -343,7 +345,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Subcon Cost</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(subconTotal)}</div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${subconCount} POs</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">${subconCount + subconPoIds.size} POs</div>
                         </div>
                     </div>
 
