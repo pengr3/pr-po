@@ -377,3 +377,18 @@ Plans:
 Plans:
 - [ ] 67-01-PLAN.md — Extend proof-modal.js with collection param, TR data fetch fields, rfpsByTR map, getTRPaymentFill, TR proof column and progress bars
 - [ ] 67-02-PLAN.md — TR RFP context menu, modal, submission; Finance Payables guard for TR-linked RFPs
+
+### Phase 68: Fix expense breakdown modal: remove document count from scoreboard and show line items instead of PO ID
+
+**Goal:** Clean up the expense breakdown modal by removing the misleading document count note from the Total Cost scoreboard and replacing PO ID columns in item breakdown tables with actual line item details (item name, quantity, unit)
+**Requirements**: EXPMOD-01, EXPMOD-02
+**Depends on:** Phase 67
+**Success Criteria** (what must be TRUE):
+  1. Total Cost scoreboard card shows only the total amount — no "N documents" note below it
+  2. Category item tables show Item Name, Qty, Unit, Unit Cost, Subtotal columns (no PO ID column)
+  3. Delivery Fees table shows Supplier and Amount columns (no PO ID column)
+  4. CSV export and Transport Requests table (TR ID / Supplier / Amount) are unchanged
+**Plans:** 1 plan
+
+Plans:
+- [ ] 68-01-PLAN.md — Remove document count from Total Cost, replace PO ID columns with line item details

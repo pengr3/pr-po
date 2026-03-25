@@ -78,6 +78,11 @@
 - [x] **POSUMPAG-02**: Pagination info shows "Showing X-Y of Z POs" reflecting the current filtered result count, not the total unfiltered count
 - [x] **POSUMPAG-03**: Changing status or department filters resets pagination to page 1 and updates page count to match the filtered set
 
+### Expense Breakdown Modal Cleanup
+
+- [ ] **EXPMOD-01**: Total Cost scoreboard card in expense breakdown modal displays only the total amount — no document count note (e.g., "N documents") shown below it
+- [ ] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows Supplier instead of PO ID
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -139,12 +144,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POSUMPAG-01 | Phase 65.7 | Planned |
 | POSUMPAG-02 | Phase 65.7 | Planned |
 | POSUMPAG-03 | Phase 65.7 | Planned |
+| EXPMOD-01 | Phase 68 | Planned |
+| EXPMOD-02 | Phase 68 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 33 total
-- Mapped to phases: 33
+- v3.2 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-24 — Phase 65.7 requirements added (POSUMPAG-01, POSUMPAG-02, POSUMPAG-03)*
+*Last updated: 2026-03-25 — Phase 68 requirements added (EXPMOD-01, EXPMOD-02)*
