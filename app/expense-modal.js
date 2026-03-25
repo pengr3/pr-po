@@ -127,8 +127,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             transportRequests.push({
                 tr_id: tr.tr_id, supplier: tr.supplier_name || 'N/A', amount
             });
-            const trDate = tr.date_generated
-                ? (tr.date_generated.toDate ? tr.date_generated.toDate().toISOString().slice(0, 10) : String(tr.date_generated).slice(0, 10))
+            const trDate = tr.date_submitted
+                ? (tr.date_submitted.toDate ? tr.date_submitted.toDate().toISOString().slice(0, 10) : String(tr.date_submitted).slice(0, 10))
                 : '';
             const trSupplier = tr.supplier_name || '';
             const trItems = JSON.parse(tr.items_json || '[]');
