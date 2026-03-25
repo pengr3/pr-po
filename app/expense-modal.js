@@ -127,6 +127,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             transportRequests.push({
                 tr_id: tr.tr_id, supplier: tr.supplier_name || 'N/A', amount
             });
+            const trDate = tr.date_generated
+                ? (tr.date_generated.toDate ? tr.date_generated.toDate().toISOString().slice(0, 10) : String(tr.date_generated).slice(0, 10))
+                : '';
+            const trSupplier = tr.supplier_name || '';
             const trItems = JSON.parse(tr.items_json || '[]');
             trItems.forEach(item => {
                 const itemName = item.item || item.item_name || item.itemName || item.name || 'Unnamed Item';
@@ -134,7 +138,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 const unit = item.unit || 'pcs';
                 const unitCost = parseFloat(item.unit_cost || item.unitCost || item.price || 0);
                 const subtotal = parseFloat(item.subtotal || item.total || (qty * unitCost) || 0);
-                trLineItems.push({ tr_id: tr.tr_id, item_name: itemName, quantity: qty, unit, unit_cost: unitCost, subtotal });
+                trLineItems.push({ tr_id: tr.tr_id, item_name: itemName, quantity: qty, unit, unit_cost: unitCost, subtotal, date: trDate, supplier: trSupplier });
             });
         }
     });
@@ -155,9 +159,15 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         deliveryFeeItems.forEach(item => {
             rows.push([item.date, 'Delivery Fee', item.supplier, 'Delivery Fee', 1, 'lot', item.amount.toFixed(2), item.amount.toFixed(2), '', '']);
         });
-        transportRequests.forEach(tr => {
-            rows.push(['', 'Transport Fees', tr.supplier, 'Transport Request', 1, 'lot', tr.amount.toFixed(2), tr.amount.toFixed(2), '', '']);
-        });
+        if (trLineItems.length > 0) {
+            trLineItems.forEach(item => {
+                rows.push([item.date, 'Transport Fees', item.supplier, item.item_name, item.quantity, item.unit, item.unit_cost.toFixed(2), item.subtotal.toFixed(2), '', '']);
+            });
+        } else {
+            transportRequests.forEach(tr => {
+                rows.push(['', 'Transport Fees', tr.supplier, 'Transport Request', 1, 'lot', tr.amount.toFixed(2), tr.amount.toFixed(2), '', '']);
+            });
+        }
         if (rows.length === 0) return;
         const today = new Date().toISOString().slice(0, 10);
         const safeName = exportTitle.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_]/g, '');
