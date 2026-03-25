@@ -45,6 +45,36 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     }
 
     // -----------------------------------------------------------------------
+    // Fetch RFPs for remaining payable calculation
+    // -----------------------------------------------------------------------
+    let rfpsForPayable = [];
+    if (mode === 'service') {
+        const rfpSnap = await getDocs(
+            query(collection(db, 'rfps'), where('service_code', '==', identifier))
+        );
+        rfpSnap.forEach(d => rfpsForPayable.push(d.data()));
+    } else {
+        const projectSnapshot2 = await getDocs(
+            query(collection(db, 'projects'), where('project_name', '==', identifier))
+        );
+        const projectForRfp = projectSnapshot2.docs[0]?.data() || {};
+        const projectCode = projectForRfp.project_code || '';
+        if (projectCode) {
+            const rfpSnap = await getDocs(
+                query(collection(db, 'rfps'), where('project_code', '==', projectCode))
+            );
+            rfpSnap.forEach(d => rfpsForPayable.push(d.data()));
+        }
+    }
+    let totalRequested = 0;
+    let totalPaid = 0;
+    rfpsForPayable.forEach(rfp => {
+        totalRequested += parseFloat(rfp.amount_requested || 0);
+        totalPaid += (rfp.payment_records || []).reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+    });
+    const remainingPayable = totalRequested - totalPaid;
+
+    // -----------------------------------------------------------------------
     // All downstream logic is identical for both modes
     // -----------------------------------------------------------------------
 
@@ -349,10 +379,16 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         </div>
                     </div>
 
-                    <!-- Total Cost -->
-                    <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
-                        <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Cost</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">&#8369;${formatCurrency(totalCost)}</div>
+                    <!-- Row 3: Projected Cost + Remaining Payable -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                        <div style="padding: 1.25rem; border-radius: 8px; border: 1px solid #3b82f6; background: #eff6ff;">
+                            <div style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600; margin-bottom: 0.5rem;">Projected Cost</div>
+                            <div style="font-size: 2rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(totalCost)}</div>
+                        </div>
+                        <div style="padding: 1.25rem; border-radius: 8px; border: 1px solid ${remainingPayable > 0 ? '#fca5a5' : '#e2e8f0'}; background: ${remainingPayable > 0 ? '#fef2f2' : '#ffffff'};">
+                            <div style="font-size: 0.875rem; color: ${remainingPayable > 0 ? '#991b1b' : '#64748b'}; font-weight: 600; margin-bottom: 0.5rem;">Remaining Payable</div>
+                            <div style="font-size: 2rem; font-weight: 700; color: ${remainingPayable > 0 ? '#ef4444' : '#059669'};">&#8369;${formatCurrency(remainingPayable)}</div>
+                        </div>
                     </div>
 
                     <!-- Tab Navigation -->
