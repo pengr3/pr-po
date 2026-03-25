@@ -379,7 +379,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         </div>
                     </div>
 
-                    <!-- Row 3: Projected Cost + Remaining Payable -->
+                    <!-- Row 3: Projected Cost + Remaining Payable (only when RFPs exist) -->
+                    ${totalRequested > 0 ? `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
                         <div style="padding: 1.25rem; border-radius: 8px; border: 1px solid #3b82f6; background: #eff6ff;">
                             <div style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600; margin-bottom: 0.5rem;">Projected Cost</div>
@@ -390,6 +391,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                             <div style="font-size: 2rem; font-weight: 700; color: ${remainingPayable > 0 ? '#ef4444' : '#059669'};">&#8369;${formatCurrency(remainingPayable)}</div>
                         </div>
                     </div>
+                    ` : ''}
 
                     <!-- Tab Navigation -->
                     <div style="border-bottom: 2px solid #e5e7eb;">
