@@ -174,12 +174,12 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 </div>
                 <div class="category-items" style="display: none;">
                     <table class="modal-items-table">
-                        <thead><tr><th>PO ID</th><th>Item</th><th>Qty</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
+                        <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
                         <tbody>
                             ${data.items.map(item => `
                                 <tr>
-                                    <td>${item.po_id}</td><td>${item.item_name}</td>
-                                    <td>${item.quantity} ${item.unit}</td><td>${formatCurrency(item.unit_cost)}</td>
+                                    <td>${item.item_name}</td>
+                                    <td>${item.quantity}</td><td>${item.unit}</td><td>${formatCurrency(item.unit_cost)}</td>
                                     <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
                                 </tr>
                             `).join('')}
@@ -225,12 +225,12 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 </div>
                 <div class="category-items" style="display: none;">
                     <table class="modal-items-table">
-                        <thead><tr><th>PO ID</th><th>Item</th><th>Qty</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
+                        <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th style="text-align: right;">Subtotal</th></tr></thead>
                         <tbody>
                             ${transportCategoryItems.map(item => `
                                 <tr>
-                                    <td>${item.po_id}</td><td>${item.item_name}</td>
-                                    <td>${item.quantity} ${item.unit}</td><td>${formatCurrency(item.unit_cost)}</td>
+                                    <td>${item.item_name}</td>
+                                    <td>${item.quantity}</td><td>${item.unit}</td><td>${formatCurrency(item.unit_cost)}</td>
                                     <td style="text-align: right;">${formatCurrency(item.subtotal)}</td>
                                 </tr>
                             `).join('')}
@@ -250,10 +250,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 </div>
                 <div class="category-items" style="display: none;">
                     <table class="modal-items-table">
-                        <thead><tr><th>PO ID</th><th style="text-align: right;">Amount</th></tr></thead>
+                        <thead><tr><th>Supplier</th><th style="text-align: right;">Amount</th></tr></thead>
                         <tbody>
                             ${deliveryFeeItems.map(item => `
-                                <tr><td>${item.po_id}</td><td style="text-align: right;">${formatCurrency(item.amount)}</td></tr>
+                                <tr><td>${item.supplier}</td><td style="text-align: right;">${formatCurrency(item.amount)}</td></tr>
                             `).join('')}
                         </tbody>
                     </table>
@@ -312,7 +312,6 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     <div style="background: #eff6ff; border: 2px solid #3b82f6; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
                         <div style="font-size: 0.875rem; color: #1e40af; font-weight: 600; margin-bottom: 0.5rem;">Total Cost</div>
                         <div style="font-size: 2rem; font-weight: 700; color: #1e40af;">&#8369;${formatCurrency(totalCost)}</div>
-                        <div style="font-size: 0.75rem; color: #1e40af; margin-top: 0.25rem;">${materialCount + transportRequests.length + subconCount} documents</div>
                     </div>
 
                     <!-- Tab Navigation -->
