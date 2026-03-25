@@ -1725,7 +1725,7 @@ export function render(activeTab = 'approvals') {
                         <option value="services">Services</option>
                     </select>
                 </div>
-                <div class="table-container">
+                <div class="table-scroll-container">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -1767,7 +1767,7 @@ export function render(activeTab = 'approvals') {
                         <option value="services">Services</option>
                     </select>
                 </div>
-                <div class="table-container">
+                <div class="table-scroll-container">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -1787,6 +1787,7 @@ export function render(activeTab = 'approvals') {
                         </tbody>
                     </table>
                 </div>
+                <div id="poSummaryPagination"></div>
             </section>
         </div>
 
