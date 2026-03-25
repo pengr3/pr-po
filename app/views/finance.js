@@ -91,9 +91,6 @@ let rfpDeptFilter = '';
 // Table 2 (PO Payment Summary) filter state
 let poSummaryStatusFilter = '';
 let poSummaryDeptFilter = '';
-// Table 1 (RFP Processing) pagination state
-let rfpCurrentPage = 1;
-const rfpItemsPerPage = 10;
 // Table 2 (PO Payment Summary) pagination state
 let poSummaryCurrentPage = 1;
 const poSummaryItemsPerPage = 10;
@@ -259,7 +256,6 @@ function attachWindowFunctions() {
 
     // Payables tab window functions
     window.filterRFPTable = filterRFPTable;
-    window.changeRFPPage = changeRFPPage;
     window.filterPOSummaryTable = filterPOSummaryTable;
     window.togglePOExpand = togglePOExpand;
     window.changePOSummaryPage = changePOSummaryPage;
@@ -426,7 +422,6 @@ async function voidPaymentRecord(rfpDocId, paymentId) {
 function filterRFPTable() {
     rfpStatusFilter = document.getElementById('rfpStatusFilter')?.value || '';
     rfpDeptFilter = document.getElementById('rfpDeptFilter')?.value || '';
-    rfpCurrentPage = 1;
     renderRFPTable();
 }
 
@@ -531,55 +526,6 @@ function updatePOSummaryPagination(totalPages, startIndex, endIndex, totalItems)
 }
 
 /**
- * Change the current page of the RFP Processing table.
- */
-function changeRFPPage(direction) {
-    const totalPages = Math.ceil(_rfpFilteredCount / rfpItemsPerPage);
-    if (direction === 'prev' && rfpCurrentPage > 1) {
-        rfpCurrentPage--;
-    } else if (direction === 'next' && rfpCurrentPage < totalPages) {
-        rfpCurrentPage++;
-    } else if (typeof direction === 'number') {
-        rfpCurrentPage = direction;
-    }
-    renderRFPTable();
-}
-
-/** Track filtered count for pagination outside renderRFPTable. */
-let _rfpFilteredCount = 0;
-
-/**
- * Render or update the pagination controls for the RFP Processing table.
- */
-function updateRFPPagination(totalPages, startIndex, endIndex, totalItems) {
-    let paginationDiv = document.getElementById('rfpPagination');
-    if (!paginationDiv) return;
-
-    if (totalPages <= 1) {
-        paginationDiv.style.display = 'none';
-        return;
-    }
-    paginationDiv.style.display = '';
-
-    let html = `
-        <div class="pagination-info">
-            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> RFPs
-        </div>
-        <div class="pagination-controls">
-            <button class="pagination-btn" onclick="window.changeRFPPage('prev')" ${rfpCurrentPage === 1 ? 'disabled' : ''}>&larr; Previous</button>
-    `;
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= rfpCurrentPage - 1 && i <= rfpCurrentPage + 1)) {
-            html += `<button class="pagination-btn ${i === rfpCurrentPage ? 'active' : ''}" onclick="window.changeRFPPage(${i})">${i}</button>`;
-        } else if (i === rfpCurrentPage - 2 || i === rfpCurrentPage + 2) {
-            html += '<span class="pagination-ellipsis">...</span>';
-        }
-    }
-    html += `<button class="pagination-btn" onclick="window.changeRFPPage('next')" ${rfpCurrentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button></div>`;
-    paginationDiv.innerHTML = html;
-}
-
-/**
  * Render Table 1: flat RFP list into rfpTableBody.
  * No chevron column, no expand/history rows per D-02.
  */
@@ -619,8 +565,6 @@ function renderRFPTable() {
         return (a.tranche_percentage || 0) - (b.tranche_percentage || 0);
     });
 
-    _rfpFilteredCount = displayed.length;
-
     if (displayed.length === 0) {
         const isFiltered = rfpStatusFilter || rfpDeptFilter;
         tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">
@@ -628,21 +572,10 @@ function renderRFPTable() {
                 ? 'No RFPs match the selected filters. Clear filters to see all requests.'
                 : 'No outstanding payment requests. Use the status filter to view Fully Paid RFPs, or check the PO Payment Summary below.'}
         </td></tr>`;
-        const paginationDiv = document.getElementById('rfpPagination');
-        if (paginationDiv) paginationDiv.style.display = 'none';
         return;
     }
 
-    // Pagination slice
-    const totalPages = Math.ceil(displayed.length / rfpItemsPerPage);
-    if (rfpCurrentPage > totalPages) rfpCurrentPage = 1;
-    const startIndex = (rfpCurrentPage - 1) * rfpItemsPerPage;
-    const endIndex = Math.min(startIndex + rfpItemsPerPage, displayed.length);
-    const pageItems = displayed.slice(startIndex, endIndex);
-
-    updateRFPPagination(totalPages, startIndex, endIndex, displayed.length);
-
-    tbody.innerHTML = pageItems.map(rfp => {
+    tbody.innerHTML = displayed.map(rfp => {
         const status = deriveRFPStatus(rfp);
         const totalPaid = (rfp.payment_records || [])
             .filter(r => r.status !== 'voided')
@@ -1818,7 +1751,6 @@ export function render(activeTab = 'approvals') {
                                 </tbody>
                             </table>
                         </div>
-                        <div id="rfpPagination" class="pagination-container"></div>
                     </div>
                 </div>
 
