@@ -359,6 +359,10 @@ function showRFPContextMenu(event, poDocId) {
     const menu = document.createElement('div');
     menu.id = 'rfpContextMenu';
     menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:180px;`;
+    const po = poData.find(p => p.id === poDocId);
+    const hasDeliveryFee = po && parseFloat(po.delivery_fee) > 0;
+    const deliveryFeeRFPExists = hasDeliveryFee && (rfpsByPO[po.po_id] || []).some(r => r.tranche_label === 'Delivery Fee');
+
     menu.innerHTML = `
         <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
              onmouseenter="this.style.background='#eff6ff'"
@@ -366,6 +370,12 @@ function showRFPContextMenu(event, poDocId) {
              onclick="window.openRFPModal('${poDocId}')">
             Request Payment
         </div>
+        ${hasDeliveryFee ? `
+        <div style="padding:8px 16px;cursor:${deliveryFeeRFPExists ? 'not-allowed' : 'pointer'};font-size:0.875rem;color:${deliveryFeeRFPExists ? '#9ca3af' : '#1e293b'};${deliveryFeeRFPExists ? 'opacity:0.6;' : ''}"
+             ${deliveryFeeRFPExists ? '' : `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"`}
+             onclick="${deliveryFeeRFPExists ? '' : `window.openDeliveryFeeRFPModal('${poDocId}')`}">
+            Request Delivery Fee Payment${deliveryFeeRFPExists ? ' <span style="font-size:0.75rem;color:#9ca3af;">(RFP exists)</span>' : ''}
+        </div>` : ''}
     `;
     document.body.appendChild(menu);
     // Close on click outside
@@ -552,6 +562,135 @@ async function openRFPModal(poDocId) {
     if (firstAvailable >= 0) {
         document.getElementById('rfpTrancheSelect').value = firstAvailable;
     }
+}
+
+/**
+ * Open simplified Delivery Fee RFP creation modal pre-filled with PO delivery fee data.
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function openDeliveryFeeRFPModal(poDocId) {
+    const ctx = document.getElementById('rfpContextMenu');
+    if (ctx) ctx.remove();
+
+    const po = poData.find(p => p.id === poDocId);
+    if (!po) { showToast('PO not found', 'error'); return; }
+
+    const deliveryFee = parseFloat(po.delivery_fee) || 0;
+    if (deliveryFee <= 0) { showToast('No delivery fee on this PO', 'error'); return; }
+
+    // Double-check dedup
+    const existingRFPs = rfpsByPO[po.po_id] || [];
+    if (existingRFPs.some(r => r.tranche_label === 'Delivery Fee')) {
+        showToast('A Delivery Fee RFP already exists for this PO', 'error');
+        return;
+    }
+
+    const deptLabel = po.service_code
+        ? `Service: ${escapeHTML(po.service_code)}`
+        : `Project: ${escapeHTML(po.project_code || '')}`;
+
+    const modalHtml = `
+    <div id="rfpModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:520px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Create Request for Payment (Delivery Fee)</h2>
+                <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div>
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.supplier_name)}</div>
+                    </div>
+                    <div>
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">PO Reference</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.po_id)}</div>
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Department</div>
+                        <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested (Delivery Fee)</label>
+                        <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(deliveryFee)}" readonly
+                               style="width:100%;background:#f1f5f9;cursor:not-allowed;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Invoice Number <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Enter invoice number" style="width:100%;" required>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                        <input type="date" id="rfpDueDate" class="form-control" style="width:100%;" required>
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Mode of Payment <span style="color:#ea4335;">*</span></label>
+                        <select id="rfpPaymentMode" class="form-control" style="width:100%;" onchange="window.toggleRFPBankFields()" required>
+                            <option value="">Select payment mode...</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Check">Check</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div id="rfpBankFields" style="display:none;flex-direction:column;gap:1rem;">
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Name <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankAccountName" class="form-control" placeholder="Account holder name" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number <span style="color:#ea4335;">*</span></label>
+                            <input type="text" id="rfpBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
+                        </div>
+                        <div id="altBankSection" style="display:none;border-top:1px dashed #cbd5e1;padding-top:0.75rem;margin-top:0.25rem;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                                <span style="font-weight:600;color:#475569;font-size:0.8125rem;">Alternative Bank Account</span>
+                                <button type="button" class="btn btn-outline" onclick="window.removeAltBank()" style="font-size:0.75rem;padding:2px 8px;color:#ef4444;border-color:#ef4444;">Remove</button>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Bank</label>
+                                    <input type="text" id="rfpAltBankName" class="form-control" placeholder="e.g. BDO, BPI, Metrobank" style="width:100%;">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Name</label>
+                                    <input type="text" id="rfpAltBankAccountName" class="form-control" placeholder="Account holder name" style="width:100%;">
+                                </div>
+                                <div>
+                                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Account Number</label>
+                                    <input type="text" id="rfpAltBankDetails" class="form-control" placeholder="Account number" style="width:100%;">
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="addAltBankBtn" class="btn btn-outline" onclick="window.showAltBank()" style="width:100%;font-size:0.8125rem;padding:6px 12px;margin-top:0.25rem;color:#059669;border-color:#059669;">
+                            + Add Alternative Bank Account
+                        </button>
+                    </div>
+                    <div id="rfpOtherModeWrapper" style="display:none;">
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Specify Payment Mode <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
+                    </div>
+                </div>
+                <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
+                <button class="btn btn-primary" onclick="window.submitDeliveryFeeRFP('${poDocId}')">Submit RFP</button>
+            </div>
+        </div>
+    </div>`;
+
+    // Remove any existing modal first
+    const existingModal = document.getElementById('rfpModal');
+    if (existingModal) existingModal.remove();
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 
 /**
@@ -915,6 +1054,80 @@ async function submitTRRFP(trDocId) {
     }
 }
 
+/**
+ * Submit the Delivery Fee RFP form and write a document to the rfps Firestore collection.
+ * @param {string} poDocId - Firestore document ID of the PO
+ */
+async function submitDeliveryFeeRFP(poDocId) {
+    const po = poData.find(p => p.id === poDocId);
+    if (!po) { showToast('PO not found', 'error'); return; }
+
+    const invoiceNumber = document.getElementById('rfpInvoiceNumber')?.value?.trim();
+    const dueDate = document.getElementById('rfpDueDate')?.value;
+    const paymentMode = document.getElementById('rfpPaymentMode')?.value;
+    const bankName = document.getElementById('rfpBankName')?.value?.trim() || '';
+    const bankAccountName = document.getElementById('rfpBankAccountName')?.value?.trim() || '';
+    const bankDetails = document.getElementById('rfpBankDetails')?.value?.trim() || '';
+    const altBankName = document.getElementById('rfpAltBankName')?.value?.trim() || '';
+    const altBankAccountName = document.getElementById('rfpAltBankAccountName')?.value?.trim() || '';
+    const altBankDetails = document.getElementById('rfpAltBankDetails')?.value?.trim() || '';
+    const paymentModeOther = document.getElementById('rfpPaymentModeOther')?.value?.trim() || '';
+    const errorEl = document.getElementById('rfpErrorAlert');
+
+    if (!invoiceNumber || !dueDate || !paymentMode) {
+        if (errorEl) { errorEl.textContent = 'Invoice number, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
+        return;
+    }
+    if (paymentMode === 'Bank Transfer' && (!bankName || !bankAccountName || !bankDetails)) {
+        if (errorEl) { errorEl.textContent = 'Bank, account name, and account number are required for Bank Transfer.'; errorEl.style.display = 'block'; }
+        return;
+    }
+    if (paymentMode === 'Other' && !paymentModeOther) {
+        if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
+        return;
+    }
+
+    const deliveryFee = parseFloat(po.delivery_fee) || 0;
+
+    try {
+        const rfpId = await generateRFPId(po.po_id);
+
+        const rfpDoc = {
+            rfp_id: rfpId,
+            po_id: po.po_id,
+            po_doc_id: poDocId,
+            mrf_id: po.mrf_id || '',
+            project_code: po.project_code || '',
+            service_code: po.service_code || '',
+            supplier_name: po.supplier_name,
+            tranche_label: 'Delivery Fee',
+            tranche_percentage: 0,
+            amount_requested: deliveryFee,
+            invoice_number: invoiceNumber,
+            due_date: dueDate,
+            mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
+            bank_name: paymentMode === 'Bank Transfer' ? bankName : '',
+            bank_account_name: paymentMode === 'Bank Transfer' ? bankAccountName : '',
+            bank_details: paymentMode === 'Bank Transfer' ? bankDetails : '',
+            alt_bank_name: paymentMode === 'Bank Transfer' ? altBankName : '',
+            alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
+            alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
+            payment_records: [],
+            date_submitted: serverTimestamp()
+        };
+
+        await addDoc(collection(db, 'rfps'), rfpDoc);
+        document.getElementById('rfpModal')?.remove();
+        showToast(`RFP ${rfpId} (Delivery Fee) submitted successfully`, 'success');
+    } catch (error) {
+        console.error('[Procurement] Delivery Fee RFP submission error:', error);
+        if (errorEl) {
+            errorEl.textContent = 'Failed to submit RFP. Check your connection and try again.';
+            errorEl.style.display = 'block';
+        }
+    }
+}
+
 // ========================================
 // WINDOW FUNCTIONS ATTACHMENT
 // ========================================
@@ -1005,6 +1218,8 @@ function attachWindowFunctions() {
     window.openRFPModal = openRFPModal;
     window.updateRFPAmount = updateRFPAmount;
     window.submitRFP = submitRFP;
+    window.openDeliveryFeeRFPModal = openDeliveryFeeRFPModal;
+    window.submitDeliveryFeeRFP = submitDeliveryFeeRFP;
 
     // TR RFP Functions
     window.showTRRFPContextMenu = showTRRFPContextMenu;
@@ -1538,6 +1753,8 @@ export async function destroy() {
     delete window.openRFPModal;
     delete window.updateRFPAmount;
     delete window.submitRFP;
+    delete window.openDeliveryFeeRFPModal;
+    delete window.submitDeliveryFeeRFP;
     delete window.showAltBank;
     delete window.removeAltBank;
     activePODeptFilter = '';
