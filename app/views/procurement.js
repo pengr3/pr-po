@@ -4390,7 +4390,8 @@ async function renderPRPORecords() {
                                 is_subcon: poData.is_subcon || false,
                                 supplier_name: poData.supplier_name,
                                 proof_url: poData.proof_url || '',
-                                proof_remarks: poData.proof_remarks || ''
+                                proof_remarks: poData.proof_remarks || '',
+                                delivery_fee: parseFloat(poData.delivery_fee) || 0
                             });
                         });
 
@@ -4586,15 +4587,18 @@ async function renderPRPORecords() {
                         const chipDeliveryFee = parseFloat(po.delivery_fee) || 0;
                         if (chipDeliveryFee > 0) {
                             const dfRFPs = (rfpsByPO[po.po_id] || []).filter(r => r.tranche_label === 'Delivery Fee');
-                            let dfPaid = false;
-                            if (dfRFPs.length > 0) {
+                            let chipDotColor, chipDotLabel;
+                            if (dfRFPs.length === 0) {
+                                chipDotColor = '#ef4444'; chipDotLabel = 'No RFP submitted';
+                            } else {
                                 const dfTotalPaid = (dfRFPs[0].payment_records || [])
                                     .filter(r => r.status !== 'voided')
                                     .reduce((sum, r) => sum + (r.amount || 0), 0);
-                                dfPaid = dfTotalPaid >= dfRFPs[0].amount_requested && dfRFPs[0].amount_requested > 0;
+                                const dfPaid = dfTotalPaid >= dfRFPs[0].amount_requested && dfRFPs[0].amount_requested > 0;
+                                chipDotColor = dfPaid ? '#059669' : '#f59e0b';
+                                chipDotLabel = dfPaid ? 'Paid' : 'RFP submitted, not yet paid';
                             }
-                            const chipDotColor = dfPaid ? '#059669' : '#ef4444';
-                            const chipDotTip = `Delivery Fee: PHP ${chipDeliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2})} \u2014 ${dfPaid ? 'Paid' : 'Not yet paid'}`;
+                            const chipDotTip = `Delivery Fee: PHP ${chipDeliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2})} \u2014 ${chipDotLabel}`;
                             chipDotHtml = `<span title="${escapeHTML(chipDotTip)}" style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:${chipDotColor};z-index:2;pointer-events:auto;"></span>`;
                         }
                         return `<span style="position:relative;display:inline-block;"><a href="javascript:void(0)"
@@ -6055,16 +6059,19 @@ function renderPOTrackingTable(pos) {
         const poDeliveryFee = parseFloat(po.delivery_fee) || 0;
         if (poDeliveryFee > 0) {
             const deliveryFeeRFPs = (rfpsByPO[po.po_id] || []).filter(r => r.tranche_label === 'Delivery Fee');
-            let dfPaid = false;
-            if (deliveryFeeRFPs.length > 0) {
+            let dotColor, dotLabel;
+            if (deliveryFeeRFPs.length === 0) {
+                dotColor = '#ef4444'; dotLabel = 'No RFP submitted';
+            } else {
                 const dfRfp = deliveryFeeRFPs[0];
                 const dfTotalPaid = (dfRfp.payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((sum, r) => sum + (r.amount || 0), 0);
-                dfPaid = dfTotalPaid >= dfRfp.amount_requested && dfRfp.amount_requested > 0;
+                const dfPaid = dfTotalPaid >= dfRfp.amount_requested && dfRfp.amount_requested > 0;
+                dotColor = dfPaid ? '#059669' : '#f59e0b';
+                dotLabel = dfPaid ? 'Paid' : 'RFP submitted, not yet paid';
             }
-            const dotColor = dfPaid ? '#059669' : '#ef4444';
-            const dotTooltip = `Delivery Fee: PHP ${poDeliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2})} \u2014 ${dfPaid ? 'Paid' : 'Not yet paid'}`;
+            const dotTooltip = `Delivery Fee: PHP ${poDeliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2})} \u2014 ${dotLabel}`;
             deliveryFeeDotHtml = `<span title="${escapeHTML(dotTooltip)}" style="position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:${dotColor};z-index:2;pointer-events:auto;"></span>`;
         }
 
