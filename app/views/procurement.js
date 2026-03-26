@@ -6034,11 +6034,30 @@ function renderPOTrackingTable(pos) {
 
         const fillData = getPOPaymentFill(po.po_id);
 
+        // Delivery fee status dot (shown only when delivery_fee > 0)
+        let deliveryFeeDotHtml = '';
+        const poDeliveryFee = parseFloat(po.delivery_fee) || 0;
+        if (poDeliveryFee > 0) {
+            const deliveryFeeRFPs = (rfpsByPO[po.po_id] || []).filter(r => r.tranche_label === 'Delivery Fee');
+            let dfPaid = false;
+            if (deliveryFeeRFPs.length > 0) {
+                const dfRfp = deliveryFeeRFPs[0];
+                const dfTotalPaid = (dfRfp.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((sum, r) => sum + (r.amount || 0), 0);
+                dfPaid = dfTotalPaid >= dfRfp.amount_requested && dfRfp.amount_requested > 0;
+            }
+            const dotColor = dfPaid ? '#059669' : '#ef4444';
+            const dotTooltip = `Delivery Fee: PHP ${poDeliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2})} \u2014 ${dfPaid ? 'Paid' : 'Not yet paid'}`;
+            deliveryFeeDotHtml = `<span title="${escapeHTML(dotTooltip)}" style="position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:${dotColor};z-index:2;pointer-events:auto;"></span>`;
+        }
+
         return `
         <tr>
             <td class="po-id-cell" title="${escapeHTML(fillData.tooltip)}" style="position:relative;overflow:hidden;"
                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.id}')">
                 <div class="po-payment-fill" style="position:absolute;left:0;top:0;height:100%;width:${fillData.pct}%;background:${fillData.color};opacity:${fillData.opacity};transition:width 0.4s ease;pointer-events:none;"></div>
+                ${deliveryFeeDotHtml}
                 <span style="position:relative;z-index:1;">
                     <strong><a href="javascript:void(0)" onclick="window.viewPODetails('${po.id}')" oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.id}'); return false;" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(po.po_id)}</a></strong>${isSubcon ? ' <span style="background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:4px;font-size:0.7rem;font-weight:600;">SUBCON</span>' : ''}
                 </span>
