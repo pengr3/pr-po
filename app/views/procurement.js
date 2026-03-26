@@ -281,7 +281,8 @@ function deriveRFPStatus(rfp) {
  * @returns {{ pct: number, color: string, opacity: number, tooltip: string }}
  */
 function getPOPaymentFill(poId) {
-    const rfps = rfpsByPO[poId] || [];
+    // Exclude Delivery Fee RFPs — they are tracked separately via the dot indicator
+    const rfps = (rfpsByPO[poId] || []).filter(r => r.tranche_label !== 'Delivery Fee');
     if (rfps.length === 0) {
         return { pct: 0, color: '#f8d7da', opacity: 0.7, tooltip: 'No payment requests submitted' };
     }
@@ -5855,6 +5856,8 @@ async function loadPOTracking() {
             const recordsSection = document.getElementById('records-section');
             if (recordsSection && recordsSection.classList.contains('active')) {
                 renderPOTrackingTable(poData);
+                // Also re-render MRF Records chips so delivery fee dots update immediately
+                renderPRPORecords();
             }
         });
         listeners.push(rfpsUnsub);
