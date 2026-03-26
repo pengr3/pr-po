@@ -4581,12 +4581,28 @@ async function renderPRPORecords() {
                             : fillData.pct >= 100
                             ? `background:${fillData.color}`
                             : `background:${emptyBg}`;
-                        return `<a href="javascript:void(0)"
+                        // Delivery fee dot
+                        let chipDotHtml = '';
+                        const chipDeliveryFee = parseFloat(po.delivery_fee) || 0;
+                        if (chipDeliveryFee > 0) {
+                            const dfRFPs = (rfpsByPO[po.po_id] || []).filter(r => r.tranche_label === 'Delivery Fee');
+                            let dfPaid = false;
+                            if (dfRFPs.length > 0) {
+                                const dfTotalPaid = (dfRFPs[0].payment_records || [])
+                                    .filter(r => r.status !== 'voided')
+                                    .reduce((sum, r) => sum + (r.amount || 0), 0);
+                                dfPaid = dfTotalPaid >= dfRFPs[0].amount_requested && dfRFPs[0].amount_requested > 0;
+                            }
+                            const chipDotColor = dfPaid ? '#059669' : '#ef4444';
+                            const chipDotTip = `Delivery Fee: PHP ${chipDeliveryFee.toLocaleString('en-PH', {minimumFractionDigits: 2})} \u2014 ${dfPaid ? 'Paid' : 'Not yet paid'}`;
+                            chipDotHtml = `<span title="${escapeHTML(chipDotTip)}" style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:${chipDotColor};z-index:2;pointer-events:auto;"></span>`;
+                        }
+                        return `<span style="position:relative;display:inline-block;"><a href="javascript:void(0)"
                                 onclick="window.viewPODetails('${po.docId}')"
                                 oncontextmenu="event.preventDefault(); window.showRFPContextMenu(event, '${po.docId}'); return false;"
                                 title="${escapeHTML(fillData.tooltip)}"
                                 style="padding:0.25rem 0.75rem;border-radius:12px;font-size:0.75rem;font-weight:600;color:#1e293b;text-decoration:none;cursor:pointer;white-space:nowrap;display:inline-block;${bgStyle}">
-                                ${escapeHTML(po.po_id)}</a>${subconBadge}`;
+                                ${escapeHTML(po.po_id)}</a>${chipDotHtml}</span>${subconBadge}`;
                     }).join(' ');
                 }
                 return `<div style="${rowStyle(i)}">${content}</div>`;
