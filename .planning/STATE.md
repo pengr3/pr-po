@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: Completed 69-01-PLAN.md
-last_updated: "2026-03-25T05:19:19.469Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 65.9-01-PLAN.md
+last_updated: "2026-03-26T02:12:20.981Z"
 progress:
-  total_phases: 17
-  completed_phases: 16
-  total_plans: 23
-  completed_plans: 26
+  total_phases: 18
+  completed_phases: 17
+  total_plans: 24
+  completed_plans: 27
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 69 — revise-expense-modal-scoreboards-to-add-remaining-payable-tracking
+**Current focus:** Phase 65.9 — integrate-delivery-fees-rfp-support
 
 ## Current Position
 
-Phase: 69
-Plan: Not started
+Phase: 65.9 (integrate-delivery-fees-rfp-support) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Plan: Not started
 | Phase 65.7 P01 | 2 | 1 tasks | 1 files |
 | Phase 68 P01 | 5 | 1 tasks | 1 files |
 | Phase 69-revise-expense-modal-scoreboards-to-add-remaining-payable-tracking P01 | 53 | 1 tasks | 1 files |
+| Phase 65.9 P01 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -127,6 +128,9 @@ Recent decisions affecting current work:
 - [Phase 65.7]: poSummaryItemsPerPage=10 matching records pagination (not suppliers 15); changePOSummaryPage uses buildPOMap for live boundary enforcement; empty state hides pagination via display:none
 - [Phase 68]: PO ID excluded from modal display tables only — CSV export retains PO ID for spreadsheet reconciliation
 - [Phase 69]: Re-fetch project doc in RFP block (projectSnapshot2) to get project_code — project const scoped inside else block prevents access after closing brace; avoids structural refactor at cost of one extra Firestore read
+- [Phase 65.9]: Delivery fee option in context menu hidden entirely when delivery_fee <= 0, shown disabled with (RFP exists) when RFP already exists
+- [Phase 65.9]: submitDeliveryFeeRFP uses tranche_percentage=0 and tranche_label='Delivery Fee' to distinguish from regular tranche RFPs
+- [Phase 65.9]: Delivery fee dot is red when no Delivery Fee RFP exists so unsubmitted cases show as attention-needed, green only when payment_records cover full amount_requested
 
 ### Roadmap Evolution
 
@@ -143,6 +147,7 @@ Recent decisions affecting current work:
 - Phase 68.1 inserted after Phase 68: Fix subcon cost scorecard showing zero when subcon items are categorized as subcon in items_json but po is_subcon flag is not set (URGENT)
 - Phase 65.8 inserted after Phase 65: fix Payables tab UI containment and add pagination (URGENT)
 - Phase 69 added: Revise expense-modal scoreboards to add remaining payable tracking
+- Phase 65.9 inserted after Phase 65: Integrate Delivery Fees to Enable RFP for Delivery (URGENT)
 
 ### Pending Todos
 
@@ -164,7 +169,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-25T03:45:42.071Z
-Stopped at: Completed 69-01-PLAN.md
+Last session: 2026-03-26T02:12:20.975Z
+Stopped at: Completed 65.9-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

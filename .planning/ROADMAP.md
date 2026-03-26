@@ -216,10 +216,10 @@ Plans:
   3. The option is hidden when no delivery fee exists, and disabled (grayed out) when a delivery fee RFP already exists
   4. PO ID cells in PO Tracking show an 8px colored dot (red=unpaid, green=paid) when delivery_fee > 0
   5. Delivery fee RFPs flow through existing Finance Payables without any additional changes
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 65.9-01-PLAN.md — Extend context menu, add delivery fee RFP modal/submit, add PO ID status dot indicator
+- [x] 65.9-01-PLAN.md — Extend context menu, add delivery fee RFP modal/submit, add PO ID status dot indicator
 
 ### Phase 65.8: fix Payables tab UI containment (INSERTED)
 
