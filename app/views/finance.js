@@ -650,15 +650,18 @@ function buildPOMap(rfps) {
  * @param {number} [poTotalAmount] - PO document total_amount (authoritative); falls back to sum of RFP amounts if not provided
  */
 function derivePOSummary(rfpList, poTotalAmount) {
-    const sorted = [...rfpList].sort((a, b) =>
+    // Exclude Delivery Fee RFPs from tranche progress — they are separate from the PO payment schedule
+    const regularRFPs = rfpList.filter(r => r.tranche_label !== 'Delivery Fee');
+
+    const sorted = [...regularRFPs].sort((a, b) =>
         (a.tranche_percentage || 0) - (b.tranche_percentage || 0)
     );
 
     const totalAmount = (poTotalAmount != null && poTotalAmount > 0)
         ? poTotalAmount
-        : rfpList.reduce((s, r) => s + (r.amount_requested || 0), 0);
+        : regularRFPs.reduce((s, r) => s + (r.amount_requested || 0), 0);
 
-    const totalPaid = rfpList.reduce((s, r) => {
+    const totalPaid = regularRFPs.reduce((s, r) => {
         return s + (r.payment_records || [])
             .filter(p => p.status !== 'voided')
             .reduce((ps, p) => ps + (p.amount || 0), 0);
@@ -690,7 +693,7 @@ function derivePOSummary(rfpList, poTotalAmount) {
     let overallStatus;
     if (remaining <= 0 && totalAmount > 0) {
         overallStatus = 'Fully Paid';
-    } else if (rfpList.some(r => deriveRFPStatus(r) === 'Overdue')) {
+    } else if (regularRFPs.some(r => deriveRFPStatus(r) === 'Overdue')) {
         overallStatus = 'Overdue';
     } else if (totalPaid > 0) {
         overallStatus = 'Partially Paid';
@@ -698,7 +701,12 @@ function derivePOSummary(rfpList, poTotalAmount) {
         overallStatus = 'Pending';
     }
 
-    return { totalAmount, totalPaid, remaining, currentTranche, overallStatus, sortedRFPs: sorted };
+    // sortedRFPs includes all RFPs (including Delivery Fee) for sub-table display;
+    // aggregate calculations above use regularRFPs only.
+    const allSorted = [...rfpList].sort((a, b) =>
+        (a.tranche_percentage || 0) - (b.tranche_percentage || 0)
+    );
+    return { totalAmount, totalPaid, remaining, currentTranche, overallStatus, sortedRFPs: allSorted };
 }
 
 /**
