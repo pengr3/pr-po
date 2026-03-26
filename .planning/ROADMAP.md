@@ -205,6 +205,22 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.9: Integrate Delivery Fees to Enable RFP for Delivery (INSERTED)
+
+**Goal:** Enable delivery fees captured on POs to be submitted as RFPs through the existing payment workflow, with a visual dot indicator on PO ID cells showing delivery fee payment status
+**Requirements**: TBD
+**Depends on:** Phase 65
+**Success Criteria** (what must be TRUE):
+  1. Procurement user can right-click a PO ID and see "Request Delivery Fee Payment" option when delivery_fee > 0
+  2. Clicking the option opens a simplified RFP modal with read-only delivery fee amount, and submitting creates an rfps document with tranche_label='Delivery Fee'
+  3. The option is hidden when no delivery fee exists, and disabled (grayed out) when a delivery fee RFP already exists
+  4. PO ID cells in PO Tracking show an 8px colored dot (red=unpaid, green=paid) when delivery_fee > 0
+  5. Delivery fee RFPs flow through existing Finance Payables without any additional changes
+**Plans:** 1 plan
+
+Plans:
+- [ ] 65.9-01-PLAN.md — Extend context menu, add delivery fee RFP modal/submit, add PO ID status dot indicator
+
 ### Phase 65.8: fix Payables tab UI containment (INSERTED)
 
 **Goal:** Replace broken `table-container` class (no CSS definition) with the existing `table-scroll-container` class on both Payables tables for horizontal scroll containment
