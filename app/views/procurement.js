@@ -435,15 +435,30 @@ async function openRFPModal(poDocId) {
     const poTotal = parseFloat(po.total_amount) || 0;
 
     // Check which tranches already have RFPs
+    // Use tranche_index (position-based) for deduplication so two tranches with identical
+    // labels are treated independently. Fall back to label-based matching for legacy RFPs
+    // that pre-date tranche_index being stored.
     const existingRFPs = rfpsByPO[po.po_id] || [];
-    const usedTrancheLabels = new Set(existingRFPs.map(r => r.tranche_label));
+    const usedTrancheIndices = new Set(
+        existingRFPs
+            .filter(r => r.tranche_index != null)
+            .map(r => r.tranche_index)
+    );
+    // Legacy fallback: for RFPs without tranche_index, find the first tranche whose label
+    // matches and mark that index used (best-effort — avoids double-filing on old data).
+    existingRFPs
+        .filter(r => r.tranche_index == null && r.tranche_label !== 'Delivery Fee')
+        .forEach(r => {
+            const matchIdx = tranches.findIndex((t, i) => t.label === r.tranche_label && !usedTrancheIndices.has(i));
+            if (matchIdx >= 0) usedTrancheIndices.add(matchIdx);
+        });
 
     const trancheOptions = tranches.map((t, i) => {
-        const used = usedTrancheLabels.has(t.label);
+        const used = usedTrancheIndices.has(i);
         return `<option value="${i}" ${used ? 'disabled' : ''} ${i === 0 && !used ? 'selected' : ''}>${escapeHTML(t.label)} (${t.percentage}%)${used ? ' \u2014 RFP exists' : ''}</option>`;
     }).join('');
 
-    const firstAvailable = tranches.findIndex((t) => !usedTrancheLabels.has(t.label));
+    const firstAvailable = tranches.findIndex((t, i) => !usedTrancheIndices.has(i));
     const defaultAmount = firstAvailable >= 0 ? (tranches[firstAvailable].percentage / 100 * poTotal) : 0;
 
     const deptLabel = po.service_code
@@ -940,6 +955,7 @@ async function submitRFP(poDocId) {
             project_code: po.project_code || '',
             service_code: po.service_code || '',
             supplier_name: po.supplier_name,
+            tranche_index: idx,
             tranche_label: tranche.label,
             tranche_percentage: tranche.percentage,
             amount_requested: amountRequested,
