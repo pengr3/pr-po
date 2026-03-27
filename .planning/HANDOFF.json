@@ -1,55 +1,63 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-23T10:12:20.226Z",
-  "phase": "65.4",
-  "phase_name": "improve-rfp-code-generation-as-sometimes-i-get-duplicate-or-non-unique-codes-instead-lets-do-this-rfp-po-id-n",
-  "phase_dir": ".planning/phases/65.4-improve-rfp-code-generation-as-sometimes-i-get-duplicate-or-non-unique-codes-instead-lets-do-this-rfp-po-id-n",
-  "plan": 0,
+  "timestamp": "2026-03-27T11:02:40.303Z",
+  "phase": "70",
+  "phase_name": "Cancel PRs and restore MRF to processing area",
+  "phase_dir": ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area",
+  "plan": 1,
   "task": 0,
-  "total_tasks": 0,
+  "total_tasks": 2,
   "status": "paused",
   "completed_tasks": [],
   "remaining_tasks": [
-    {"id": 1, "name": "Plan phase 65.4 (research already done)", "status": "not_started"},
-    {"id": 2, "name": "Execute 65.4-01-PLAN.md", "status": "not_started"}
+    {"id": 1, "name": "Add recallMRF() function with dual-path logic", "status": "not_started"},
+    {"id": 2, "name": "Add blockedMRFIds cache, showMRFContextMenu(), and wire to MRF list rows", "status": "not_started"}
   ],
   "blockers": [],
-  "human_actions_pending": [
-    {
-      "action": "Manual browser UAT for phase 65.3 (Current Active Tranche % Paid column)",
-      "context": "65.3-VERIFICATION.md has 6 human_needed items — verify partially paid POs show 'Tranche N — NN% Paid' in Finance Payables Table 2",
-      "blocking": false
-    }
-  ],
+  "human_actions_pending": [],
   "decisions": [
     {
-      "decision": "Replace RFP-{PROJECT_CODE}-### with RFP-{PO-ID}-{n} format",
-      "rationale": "Scoping to PO ID eliminates duplicate risk (each PO has 1-5 RFPs max); no migration needed for existing records",
-      "phase": "65.4"
+      "decision": "Trigger via right-click context menu on MRF rows, not action bar buttons",
+      "rationale": "User requirement — consistent with existing PO ID right-click pattern for RFP creation",
+      "phase": "70"
     },
     {
-      "decision": "No zero-padding on n counter",
-      "rationale": "Single digits are cleaner; n rarely exceeds 5 (one per tranche); matches user-provided example 'RFP-PO-ID-n'",
-      "phase": "65.4"
+      "decision": "Two-path recall: simple cancel (all PRs Pending/Rejected) vs force recall (Finance-Approved PRs with POs at Pending Procurement)",
+      "rationale": "Option B chosen by user — covers both pre-Finance and post-Finance scenarios in one action",
+      "phase": "70"
     },
     {
-      "decision": "No backfill of existing RFP IDs",
-      "rationale": "Old RFP-CLMC-### IDs coexist fine in Finance tables (displayed as plain strings); migration would risk corrupting records that already have duplicates",
-      "phase": "65.4"
+      "decision": "Block recall entirely if any linked PO is Procuring/Procured/Delivered",
+      "rationale": "User requirement — safety net to prevent cancellation of in-progress procurement",
+      "phase": "70"
+    },
+    {
+      "decision": "Safety net at context menu level: blockedMRFIds Set suppresses menu before user can click",
+      "rationale": "UX safety net — context menu simply does not appear for blocked MRFs, preventing confusion",
+      "phase": "70"
+    },
+    {
+      "decision": "refreshBlockedMRFs() queries pos by mrf_id with compound where clause, not by pr_id per PR",
+      "rationale": "System efficiency — N reads instead of N×M reads per snapshot cycle; server-side filtering avoids transferring non-blocking PO documents",
+      "phase": "70"
+    },
+    {
+      "decision": "Void approved POs by setting procurement_status: 'Cancelled', not deleting",
+      "rationale": "Preserves audit trail; deletion is irreversible and removes history",
+      "phase": "70"
+    },
+    {
+      "decision": "Finance-approval recall flow added to BACKLOG.md (not this phase)",
+      "rationale": "Phase 70 delivers immediate unblocking. Full recall-with-Finance-approval is a separate workflow to design alongside the Finance Pending Approvals tab",
+      "phase": "70"
     }
   ],
   "uncommitted_files": [
-    ".planning/ROADMAP.md",
-    ".planning/STATE.md",
-    ".planning/config.json",
-    ".planning/phases/65.1-finance-payables-tab-dual-table-revamp-rfp-po-payments/65.1-HUMAN-UAT.md",
-    ".planning/phases/65-rfp-payables-tracking/65-01-PLAN.md",
-    ".planning/phases/65-rfp-payables-tracking/65-02-PLAN.md",
-    ".planning/phases/65-rfp-payables-tracking/65-VERIFICATION.md",
-    ".planning/phases/65.4-improve-rfp-code-generation-as-sometimes-i-get-duplicate-or-non-unique-codes-instead-lets-do-this-rfp-po-id-n/65.4-RESEARCH.md",
-    ".planning/phases/65.3-fix-current-active-tranche-column-for-partially-paid-items-display-nn-paid-so-users-know-how-much-is-paid/65.3-HUMAN-UAT.md",
-    ".planning/phases/65.3-fix-current-active-tranche-column-for-partially-paid-items-display-nn-paid-so-users-know-how-much-is-paid/65.3-VERIFICATION.md"
+    ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area/70-01-PLAN.md",
+    ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area/70-RESEARCH.md",
+    ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area/70-VALIDATION.md",
+    ".planning/BACKLOG.md"
   ],
-  "next_action": "Run /gsd:plan-phase 65.4 — research is complete and ready, plan creation is the immediate next step",
-  "context_notes": "All prior phases (63, 64, 65, 65.1, 65.2, 65.3) are fully executed. Phase 65.4 has thorough RESEARCH.md: replace generateRFPId(projectCode) with generateRFPId(poId), change query to where('po_id', '==', poId), update template to RFP-${poId}-${n}, use lastIndexOf for parsing. Only procurement.js touched — 2 edits: function body + call site in submitRFP. Outstanding: 65.3 human UAT (non-blocking) and 1 skipped UAT in 64 (superseded, not actionable)."
+  "next_action": "Run /gsd:execute-phase 70 after /clear — execute Task 1 (recallMRF function) then Task 2 (blockedMRFIds cache + showMRFContextMenu + MRF row wiring)",
+  "context_notes": "Plan is fully refined and verification-passed. All design decisions are locked. The plan went through 2 checker iterations: first pass had missing VALIDATION.md and a must_haves gap; both fixed. Then user requested 3 revisions post-verification: (1) right-click trigger instead of action bar buttons, (2) two-path Option B with procurement-progress edge case, (3) safety net suppressing the context menu entirely for blocked MRFs. Final efficiency improvement: refreshBlockedMRFs uses mrf_id compound query instead of pr_id loop — reduces N×M Firestore reads to N reads per snapshot cycle."
 }
