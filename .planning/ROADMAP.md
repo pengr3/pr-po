@@ -446,7 +446,7 @@ Plans:
 ### Phase 70: Cancel PRs and Restore MRF to Processing Area
 
 **Goal:** Allow users to cancel generated PRs by right-clicking the MRF ID in MRF Records, restoring the MRF to In Progress so items can be revised and re-submitted
-**Requirements**: TBD
+**Requirements**: PRCANCEL-01, PRCANCEL-02, PRCANCEL-03, PRCANCEL-04, PRCANCEL-05
 **Depends on:** Phase 69
 **Success Criteria** (what must be TRUE):
   1. User can right-click an MRF ID in MRF Records and see a "Cancel PRs" option for MRFs with PR Generated status
@@ -454,7 +454,7 @@ Plans:
   3. If any linked PRs are Finance-Approved with POs at Pending Procurement, a force-recall path voids POs to Cancelled and deletes all PRs
   4. If any linked POs have procurement progress (Procuring/Procured/Delivered), cancellation is blocked with an error message
   5. The MRF Processing panel is NOT modified — PR Generated MRFs do NOT appear in the left panel
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 70 to break down)
+- [ ] 70-01-PLAN.md — Add MRF ID right-click context menu with Cancel PRs flow (simple cancel, force-recall, block)
