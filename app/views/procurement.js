@@ -52,6 +52,8 @@ let _suppliersCachedAt = 0;
 let _prpoRecordsCachedAt = 0;
 let _prpoSubDataCache = new Map(); // key: mrf.id, value: { prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus }
 
+let blockedMRFIds = new Set(); // MRF IDs whose linked POs have procurement progress
+
 // Listener dedup guards — prevent duplicate onSnapshot registrations on tab switches
 let _mrfListenerActive = false;
 let _poTrackingListenerActive = false;
@@ -1166,6 +1168,7 @@ function attachWindowFunctions() {
     window.generatePR = generatePR;
     window.generatePRandTR = generatePRandTR;
     window.recallMRF = recallMRF;
+    window.showMRFContextMenu = showMRFContextMenu;
     window.submitTransportRequest = submitTransportRequest;
 
     // Line Items Functions
@@ -1727,6 +1730,9 @@ export async function destroy() {
     delete window.generatePR;
     delete window.generatePRandTR;
     delete window.recallMRF;
+    delete window.showMRFContextMenu;
+    blockedMRFIds = new Set();
+    document.getElementById('mrfContextMenu')?.remove();
     delete window.submitTransportRequest;
     delete window.calculateSubtotal;
     delete window.addLineItem;
@@ -1852,7 +1858,7 @@ async function loadMRFs() {
     _mrfListenerActive = true;
 
     const mrfsRef = collection(db, 'mrfs');
-    const statuses = ['Pending', 'In Progress', 'Rejected', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
+    const statuses = ['Pending', 'In Progress', 'Rejected', 'PR Rejected', 'TR Rejected', 'Finance Rejected', 'PR Generated'];
     const q = query(mrfsRef, where('status', 'in', statuses));
 
     const listener = onSnapshot(q, (snapshot) => {
@@ -1891,6 +1897,7 @@ async function loadMRFs() {
         transportMRFs.sort(sortByDeadline);
 
         renderMRFList(materialMRFs, transportMRFs);
+        refreshBlockedMRFs().catch(err => console.warn('[Procurement] refreshBlockedMRFs error:', err));
     }, (error) => {
         console.error('  MRF listener error:', error);
         showToast('Error loading MRFs: ' + error.message, 'error');
@@ -2015,7 +2022,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                                mrf.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
 
         return `
-            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
+            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)" oncontextmenu="return window.showMRFContextMenu(event, '${mrf.id}')"
                  style="border-left: 4px solid ${urgencyLevelColor};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                     <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
@@ -2060,7 +2067,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                                    mrf.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
 
             return `
-                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
+                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)" oncontextmenu="return window.showMRFContextMenu(event, '${mrf.id}')"
                      style="border-left: 4px solid ${urgencyLevelColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                         <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
@@ -3754,6 +3761,76 @@ async function recallMRF() {
     } finally {
         showLoading(false);
     }
+}
+
+/**
+ * Refresh the set of MRF IDs that are blocked from recall because one or more
+ * linked POs have procurement progress (Procuring/Procured/Delivered).
+ * Called non-blocking after every MRF snapshot update.
+ */
+async function refreshBlockedMRFs() {
+    const newBlocked = new Set();
+    const prGeneratedMRFs = cachedAllMRFs.filter(m => m.status === 'PR Generated');
+    for (const mrf of prGeneratedMRFs) {
+        // Single query per MRF — uses mrf_id field on pos documents
+        const posSnap = await getDocs(query(
+            collection(db, 'pos'),
+            where('mrf_id', '==', mrf.mrf_id),
+            where('procurement_status', 'in', ['Procuring', 'Procured', 'Delivered'])
+        ));
+        if (!posSnap.empty) newBlocked.add(mrf.id);
+    }
+    blockedMRFIds = newBlocked;
+}
+
+/**
+ * Show right-click context menu on MRF list rows.
+ * Shows "Recall MRF" only for PR Generated MRFs with no in-progress POs.
+ * Suppressed entirely (no menu) when the MRF has blocking POs.
+ * @param {MouseEvent} event
+ * @param {string} mrfId - Firestore document ID of the MRF
+ */
+function showMRFContextMenu(event, mrfId) {
+    event.preventDefault();
+
+    // Remove any existing context menus
+    const existing = document.getElementById('mrfContextMenu');
+    if (existing) existing.remove();
+
+    // Safety net: suppress menu entirely if any linked PO has procurement progress
+    if (blockedMRFIds.has(mrfId)) return false;
+
+    // Find the MRF data
+    const mrf = cachedAllMRFs.find(m => m.id === mrfId);
+    if (!mrf) return false;
+
+    // Build menu items — only for PR Generated MRFs
+    let menuItems = '';
+    if (mrf.status === 'PR Generated') {
+        // Pre-select the MRF so recallMRF() has currentMRF populated when invoked from menu
+        currentMRF = mrf;
+        menuItems += `<div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+             onmouseenter="this.style.background='#eff6ff'"
+             onmouseleave="this.style.background='transparent'"
+             onclick="window.recallMRF(); document.getElementById('mrfContextMenu')?.remove();">
+            &#8635; Recall MRF
+        </div>`;
+    }
+
+    if (!menuItems) return false; // No actions available for this MRF state
+
+    const menu = document.createElement('div');
+    menu.id = 'mrfContextMenu';
+    menu.style.cssText = `position:fixed;top:${event.clientY}px;left:${event.clientX}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:160px;`;
+    menu.innerHTML = menuItems;
+    document.body.appendChild(menu);
+
+    // Close on next click anywhere
+    setTimeout(() => {
+        document.addEventListener('click', () => document.getElementById('mrfContextMenu')?.remove(), { once: true });
+    }, 0);
+
+    return false;
 }
 
 // ========================================
