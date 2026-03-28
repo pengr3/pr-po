@@ -1165,6 +1165,7 @@ function attachWindowFunctions() {
     window.rejectMRF = rejectMRF;
     window.generatePR = generatePR;
     window.generatePRandTR = generatePRandTR;
+    window.recallMRF = recallMRF;
     window.submitTransportRequest = submitTransportRequest;
 
     // Line Items Functions
@@ -1725,6 +1726,7 @@ export async function destroy() {
     delete window.rejectMRF;
     delete window.generatePR;
     delete window.generatePRandTR;
+    delete window.recallMRF;
     delete window.submitTransportRequest;
     delete window.calculateSubtotal;
     delete window.addLineItem;
@@ -3615,6 +3617,140 @@ async function rejectMRF() {
     } catch (error) {
         console.error('Error rejecting MRF:', error);
         showToast('Failed to reject MRF: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ========================================
+// RECALL MRF
+// ========================================
+
+/**
+ * Cancel all PRs linked to the current MRF and restore MRF to In Progress.
+ * Two paths:
+ *   - Simple cancel: all PRs are Pending/Rejected → delete PRs, restore MRF
+ *   - Force recall: some PRs are Finance-Approved → check linked POs; void POs at
+ *     Pending Procurement, block entirely if any PO has procurement progress
+ */
+async function recallMRF() {
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+    if (!currentMRF) return;
+
+    showLoading(true);
+    try {
+        // 1. Query all PRs linked to this MRF
+        const prsSnap = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', currentMRF.mrf_id)));
+
+        const pendingPRs = [];    // finance_status: 'Pending' or 'Rejected' — safe to delete
+        const approvedPRs = [];   // finance_status: 'Approved' — need PO check
+
+        prsSnap.forEach((docSnap) => {
+            const pr = { id: docSnap.id, ...docSnap.data() };
+            if (pr.finance_status === 'Approved') {
+                approvedPRs.push(pr);
+            } else {
+                // Pending and Rejected both go into pendingPRs for deletion
+                pendingPRs.push(pr);
+            }
+        });
+
+        // 2. If no PRs at all
+        if (pendingPRs.length === 0 && approvedPRs.length === 0) {
+            showToast('No PRs found for this MRF.', 'warning');
+            return;
+        }
+
+        // 3. Force-recall path: some PRs are Finance-Approved
+        if (approvedPRs.length > 0) {
+            // Fetch linked POs for all approved PRs
+            const linkedPOs = [];
+            const blockedPOs = []; // POs with procurement progress
+
+            for (const pr of approvedPRs) {
+                const posSnap = await getDocs(query(collection(db, 'pos'), where('pr_id', '==', pr.pr_id)));
+                posSnap.forEach((docSnap) => {
+                    const po = { id: docSnap.id, ...docSnap.data() };
+                    if (['Procuring', 'Procured', 'Delivered'].includes(po.procurement_status)) {
+                        blockedPOs.push(po);
+                    } else {
+                        linkedPOs.push(po); // 'Pending Procurement' — can be voided
+                    }
+                });
+            }
+
+            // 4. Edge case: any PO has procurement progress — block entirely
+            if (blockedPOs.length > 0) {
+                showToast(
+                    `Cannot recall MRF — ${blockedPOs.length} PO(s) already in progress: ` +
+                    blockedPOs.map(p => `${p.po_id} (${p.procurement_status})`).join(', '),
+                    'error'
+                );
+                return;
+            }
+
+            // 5. Force recall: all linked POs are still at Pending Procurement
+            const allPRIds = [...pendingPRs, ...approvedPRs].map(p => p.pr_id).join(', ');
+            const poIds = linkedPOs.map(p => p.po_id).join(', ');
+            const confirmed = confirm(
+                `Force Recall MRF "${currentMRF.mrf_id}"?\n\n` +
+                `${approvedPRs.length} PR(s) were Finance-Approved and have linked POs.\n\n` +
+                `PRs to delete: ${allPRIds}\n` +
+                `POs to void: ${poIds}\n\n` +
+                `Voided POs will be marked Cancelled. The MRF will return to "In Progress" for revision.`
+            );
+            if (!confirmed) return;
+
+            // Void linked POs (set procurement_status: 'Cancelled')
+            for (const po of linkedPOs) {
+                await updateDoc(doc(db, 'pos', po.id), {
+                    procurement_status: 'Cancelled',
+                    updated_at: new Date().toISOString()
+                });
+            }
+
+            // Delete all PRs (pending + approved)
+            for (const pr of [...pendingPRs, ...approvedPRs]) {
+                await deleteDoc(doc(db, 'prs', pr.id));
+            }
+
+        } else {
+            // 6. Simple cancel path: all PRs are Pending/Rejected
+            const confirmed = confirm(
+                `Cancel ${pendingPRs.length} PR(s) and restore MRF "${currentMRF.mrf_id}" to processing?\n\n` +
+                `PRs to cancel: ${pendingPRs.map(p => p.pr_id).join(', ')}\n\n` +
+                `The MRF will return to "In Progress" so you can revise and re-submit.`
+            );
+            if (!confirmed) return;
+
+            for (const pr of pendingPRs) {
+                await deleteDoc(doc(db, 'prs', pr.id));
+            }
+        }
+
+        // 7. Restore MRF to processing area (both paths reach here)
+        await updateDoc(doc(db, 'mrfs', currentMRF.id), {
+            status: 'In Progress',
+            pr_ids: [],
+            updated_at: new Date().toISOString()
+        });
+
+        // 8. Reset detail panel — MRF re-appears in list via onSnapshot
+        currentMRF = null;
+        const mrfDetails = document.getElementById('mrfDetails');
+        if (mrfDetails) {
+            mrfDetails.innerHTML = `<div style="text-align:center;padding:3rem;color:#999;">
+                MRF recalled to processing. Select it from the list to edit.
+            </div>`;
+        }
+        showToast('MRF recalled to processing area.', 'success');
+
+    } catch (error) {
+        console.error('[Procurement] Error recalling MRF:', error);
+        showToast('Failed to recall MRF: ' + error.message, 'error');
     } finally {
         showLoading(false);
     }
