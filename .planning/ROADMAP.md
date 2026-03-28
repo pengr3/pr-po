@@ -205,6 +205,22 @@ Plans:
 - [ ] 65-03-PLAN.md — Finance Payables tab with rfps listener, status derivation, filters, overdue indicators
 - [ ] 65-04-PLAN.md — Record Payment modal, void payment flow in Finance Payables
 
+### Phase 65.10: Cancel RFP capability — cancel whole RFP when no existing RFPs filed and cancel unapproved tranche (INSERTED)
+
+**Goal:** Enable Procurement users to cancel zero-payment RFPs via right-click context menus on PO ID cells and TR badges, deleting the rfps document and freeing the tranche for re-filing
+**Requirements**: RFPCANCEL-01, RFPCANCEL-02, RFPCANCEL-03
+**Depends on:** Phase 65
+**Success Criteria** (what must be TRUE):
+  1. Procurement user can right-click a PO ID and see "Cancel {RFP-ID}" items for each zero-payment RFP filed against that PO
+  2. Procurement user can right-click a TR badge and see "Cancel {RFP-ID}" for the TR's zero-payment RFP
+  3. Clicking cancel confirms with the user, deletes the rfps document, and the tranche becomes available to re-file
+  4. RFPs with any recorded non-voided payments do not show cancel option
+  5. Firestore rules allow procurement role to delete rfps documents
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 65.10-01-PLAN.md — Add isRFPCancellable guard, cancelRFPDocument, extend PO and TR context menus, update firestore.rules
+
 ### Phase 65.9: Integrate Delivery Fees to Enable RFP for Delivery (INSERTED)
 
 **Goal:** Enable delivery fees captured on POs to be submitted as RFPs through the existing payment workflow, with a visual dot indicator on PO ID cells showing delivery fee payment status
