@@ -52,8 +52,6 @@ let _suppliersCachedAt = 0;
 let _prpoRecordsCachedAt = 0;
 let _prpoSubDataCache = new Map(); // key: mrf.id, value: { prDataArray, poDataArray, totalCost, prCount, prApprovedCount, trCost, trFinanceStatus }
 
-let blockedMRFIds = new Set(); // MRF IDs whose linked POs have procurement progress
-
 // Listener dedup guards — prevent duplicate onSnapshot registrations on tab switches
 let _mrfListenerActive = false;
 let _poTrackingListenerActive = false;
@@ -1167,8 +1165,6 @@ function attachWindowFunctions() {
     window.rejectMRF = rejectMRF;
     window.generatePR = generatePR;
     window.generatePRandTR = generatePRandTR;
-    window.recallMRF = recallMRF;
-    window.showMRFContextMenu = showMRFContextMenu;
     window.submitTransportRequest = submitTransportRequest;
 
     // Line Items Functions
@@ -1729,10 +1725,6 @@ export async function destroy() {
     delete window.rejectMRF;
     delete window.generatePR;
     delete window.generatePRandTR;
-    delete window.recallMRF;
-    delete window.showMRFContextMenu;
-    blockedMRFIds = new Set();
-    document.getElementById('mrfContextMenu')?.remove();
     delete window.submitTransportRequest;
     delete window.calculateSubtotal;
     delete window.addLineItem;
@@ -1858,7 +1850,7 @@ async function loadMRFs() {
     _mrfListenerActive = true;
 
     const mrfsRef = collection(db, 'mrfs');
-    const statuses = ['Pending', 'In Progress', 'Rejected', 'PR Rejected', 'TR Rejected', 'Finance Rejected', 'PR Generated'];
+    const statuses = ['Pending', 'In Progress', 'Rejected', 'PR Rejected', 'TR Rejected', 'Finance Rejected'];
     const q = query(mrfsRef, where('status', 'in', statuses));
 
     const listener = onSnapshot(q, (snapshot) => {
@@ -1897,7 +1889,6 @@ async function loadMRFs() {
         transportMRFs.sort(sortByDeadline);
 
         renderMRFList(materialMRFs, transportMRFs);
-        refreshBlockedMRFs().catch(err => console.warn('[Procurement] refreshBlockedMRFs error:', err));
     }, (error) => {
         console.error('  MRF listener error:', error);
         showToast('Error loading MRFs: ' + error.message, 'error');
@@ -2022,7 +2013,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                                mrf.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
 
         return `
-            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)" oncontextmenu="return window.showMRFContextMenu(event, '${mrf.id}')"
+            <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
                  style="border-left: 4px solid ${urgencyLevelColor};">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                     <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
@@ -2067,7 +2058,7 @@ function renderMRFList(materialMRFs, transportMRFs) {
                                    mrf.urgency_level === 'Medium' ? '#fef3c7' : '#dcfce7';
 
             return `
-                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)" oncontextmenu="return window.showMRFContextMenu(event, '${mrf.id}')"
+                <div class="mrf-item" data-mrf-id="${mrf.id}" onclick="window.selectMRF('${mrf.id}', this)"
                      style="border-left: 4px solid ${urgencyLevelColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
                         <span style="font-weight: 600;">${escapeHTML(mrf.mrf_id)}</span>
@@ -3627,210 +3618,6 @@ async function rejectMRF() {
     } finally {
         showLoading(false);
     }
-}
-
-// ========================================
-// RECALL MRF
-// ========================================
-
-/**
- * Cancel all PRs linked to the current MRF and restore MRF to In Progress.
- * Two paths:
- *   - Simple cancel: all PRs are Pending/Rejected → delete PRs, restore MRF
- *   - Force recall: some PRs are Finance-Approved → check linked POs; void POs at
- *     Pending Procurement, block entirely if any PO has procurement progress
- */
-async function recallMRF() {
-    if (window.canEditTab?.('procurement') === false) {
-        showToast('You do not have permission to edit procurement data', 'error');
-        return;
-    }
-    if (!currentMRF) return;
-
-    showLoading(true);
-    try {
-        // 1. Query all PRs linked to this MRF
-        const prsSnap = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', currentMRF.mrf_id)));
-
-        const pendingPRs = [];    // finance_status: 'Pending' or 'Rejected' — safe to delete
-        const approvedPRs = [];   // finance_status: 'Approved' — need PO check
-
-        prsSnap.forEach((docSnap) => {
-            const pr = { id: docSnap.id, ...docSnap.data() };
-            if (pr.finance_status === 'Approved') {
-                approvedPRs.push(pr);
-            } else {
-                // Pending and Rejected both go into pendingPRs for deletion
-                pendingPRs.push(pr);
-            }
-        });
-
-        // 2. If no PRs at all
-        if (pendingPRs.length === 0 && approvedPRs.length === 0) {
-            showToast('No PRs found for this MRF.', 'warning');
-            return;
-        }
-
-        // 3. Force-recall path: some PRs are Finance-Approved
-        if (approvedPRs.length > 0) {
-            // Fetch linked POs for all approved PRs
-            const linkedPOs = [];
-            const blockedPOs = []; // POs with procurement progress
-
-            for (const pr of approvedPRs) {
-                const posSnap = await getDocs(query(collection(db, 'pos'), where('pr_id', '==', pr.pr_id)));
-                posSnap.forEach((docSnap) => {
-                    const po = { id: docSnap.id, ...docSnap.data() };
-                    if (['Procuring', 'Procured', 'Delivered'].includes(po.procurement_status)) {
-                        blockedPOs.push(po);
-                    } else {
-                        linkedPOs.push(po); // 'Pending Procurement' — can be voided
-                    }
-                });
-            }
-
-            // 4. Edge case: any PO has procurement progress — block entirely
-            if (blockedPOs.length > 0) {
-                showToast(
-                    `Cannot recall MRF — ${blockedPOs.length} PO(s) already in progress: ` +
-                    blockedPOs.map(p => `${p.po_id} (${p.procurement_status})`).join(', '),
-                    'error'
-                );
-                return;
-            }
-
-            // 5. Force recall: all linked POs are still at Pending Procurement
-            const allPRIds = [...pendingPRs, ...approvedPRs].map(p => p.pr_id).join(', ');
-            const poIds = linkedPOs.map(p => p.po_id).join(', ');
-            const confirmed = confirm(
-                `Force Recall MRF "${currentMRF.mrf_id}"?\n\n` +
-                `${approvedPRs.length} PR(s) were Finance-Approved and have linked POs.\n\n` +
-                `PRs to delete: ${allPRIds}\n` +
-                `POs to void: ${poIds}\n\n` +
-                `Voided POs will be marked Cancelled. The MRF will return to "In Progress" for revision.`
-            );
-            if (!confirmed) return;
-
-            // Void linked POs (set procurement_status: 'Cancelled')
-            for (const po of linkedPOs) {
-                await updateDoc(doc(db, 'pos', po.id), {
-                    procurement_status: 'Cancelled',
-                    updated_at: new Date().toISOString()
-                });
-            }
-
-            // Delete all PRs (pending + approved)
-            for (const pr of [...pendingPRs, ...approvedPRs]) {
-                await deleteDoc(doc(db, 'prs', pr.id));
-            }
-
-        } else {
-            // 6. Simple cancel path: all PRs are Pending/Rejected
-            const confirmed = confirm(
-                `Cancel ${pendingPRs.length} PR(s) and restore MRF "${currentMRF.mrf_id}" to processing?\n\n` +
-                `PRs to cancel: ${pendingPRs.map(p => p.pr_id).join(', ')}\n\n` +
-                `The MRF will return to "In Progress" so you can revise and re-submit.`
-            );
-            if (!confirmed) return;
-
-            for (const pr of pendingPRs) {
-                await deleteDoc(doc(db, 'prs', pr.id));
-            }
-        }
-
-        // 7. Restore MRF to processing area (both paths reach here)
-        await updateDoc(doc(db, 'mrfs', currentMRF.id), {
-            status: 'In Progress',
-            pr_ids: [],
-            updated_at: new Date().toISOString()
-        });
-
-        // 8. Reset detail panel — MRF re-appears in list via onSnapshot
-        currentMRF = null;
-        const mrfDetails = document.getElementById('mrfDetails');
-        if (mrfDetails) {
-            mrfDetails.innerHTML = `<div style="text-align:center;padding:3rem;color:#999;">
-                MRF recalled to processing. Select it from the list to edit.
-            </div>`;
-        }
-        showToast('MRF recalled to processing area.', 'success');
-
-    } catch (error) {
-        console.error('[Procurement] Error recalling MRF:', error);
-        showToast('Failed to recall MRF: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-/**
- * Refresh the set of MRF IDs that are blocked from recall because one or more
- * linked POs have procurement progress (Procuring/Procured/Delivered).
- * Called non-blocking after every MRF snapshot update.
- */
-async function refreshBlockedMRFs() {
-    const newBlocked = new Set();
-    const prGeneratedMRFs = cachedAllMRFs.filter(m => m.status === 'PR Generated');
-    for (const mrf of prGeneratedMRFs) {
-        // Single query per MRF — uses mrf_id field on pos documents
-        const posSnap = await getDocs(query(
-            collection(db, 'pos'),
-            where('mrf_id', '==', mrf.mrf_id),
-            where('procurement_status', 'in', ['Procuring', 'Procured', 'Delivered'])
-        ));
-        if (!posSnap.empty) newBlocked.add(mrf.id);
-    }
-    blockedMRFIds = newBlocked;
-}
-
-/**
- * Show right-click context menu on MRF list rows.
- * Shows "Recall MRF" only for PR Generated MRFs with no in-progress POs.
- * Suppressed entirely (no menu) when the MRF has blocking POs.
- * @param {MouseEvent} event
- * @param {string} mrfId - Firestore document ID of the MRF
- */
-function showMRFContextMenu(event, mrfId) {
-    event.preventDefault();
-
-    // Remove any existing context menus
-    const existing = document.getElementById('mrfContextMenu');
-    if (existing) existing.remove();
-
-    // Safety net: suppress menu entirely if any linked PO has procurement progress
-    if (blockedMRFIds.has(mrfId)) return false;
-
-    // Find the MRF data
-    const mrf = cachedAllMRFs.find(m => m.id === mrfId);
-    if (!mrf) return false;
-
-    // Build menu items — only for PR Generated MRFs
-    let menuItems = '';
-    if (mrf.status === 'PR Generated') {
-        // Pre-select the MRF so recallMRF() has currentMRF populated when invoked from menu
-        currentMRF = mrf;
-        menuItems += `<div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
-             onmouseenter="this.style.background='#eff6ff'"
-             onmouseleave="this.style.background='transparent'"
-             onclick="window.recallMRF(); document.getElementById('mrfContextMenu')?.remove();">
-            &#8635; Recall MRF
-        </div>`;
-    }
-
-    if (!menuItems) return false; // No actions available for this MRF state
-
-    const menu = document.createElement('div');
-    menu.id = 'mrfContextMenu';
-    menu.style.cssText = `position:fixed;top:${event.clientY}px;left:${event.clientX}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:160px;`;
-    menu.innerHTML = menuItems;
-    document.body.appendChild(menu);
-
-    // Close on next click anywhere
-    setTimeout(() => {
-        document.addEventListener('click', () => document.getElementById('mrfContextMenu')?.remove(), { once: true });
-    }, 0);
-
-    return false;
 }
 
 // ========================================
