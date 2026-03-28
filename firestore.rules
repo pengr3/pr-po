@@ -428,8 +428,8 @@ service cloud.firestore {
       // Update: finance records payments (arrayUnion on payment_records); procurement can correct pre-submission fields
       allow update: if hasRole(['super_admin', 'finance', 'procurement']);
 
-      // Delete: super_admin only (audit preservation)
-      allow delete: if hasRole(['super_admin']);
+      // Delete: super_admin or procurement (cancel mis-filed RFPs with zero payments; client-side payment guard enforced)
+      allow delete: if hasRole(['super_admin', 'procurement']);
     }
   }
 }
