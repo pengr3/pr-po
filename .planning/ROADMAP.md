@@ -442,3 +442,19 @@ Plans:
 
 Plans:
 - [x] 69-01-PLAN.md — Add RFP query, payable computation, and 3-card scoreboard row to expense modal
+
+### Phase 70: Cancel PRs and Restore MRF to Processing Area
+
+**Goal:** Allow users to cancel generated PRs by right-clicking the MRF ID in MRF Records, restoring the MRF to In Progress so items can be revised and re-submitted
+**Requirements**: TBD
+**Depends on:** Phase 69
+**Success Criteria** (what must be TRUE):
+  1. User can right-click an MRF ID in MRF Records and see a "Cancel PRs" option for MRFs with PR Generated status
+  2. Clicking "Cancel PRs" deletes linked PRs (Pending/Rejected) and restores MRF status to In Progress
+  3. If any linked PRs are Finance-Approved with POs at Pending Procurement, a force-recall path voids POs to Cancelled and deletes all PRs
+  4. If any linked POs have procurement progress (Procuring/Procured/Delivered), cancellation is blocked with an error message
+  5. The MRF Processing panel is NOT modified — PR Generated MRFs do NOT appear in the left panel
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 70 to break down)
