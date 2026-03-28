@@ -348,6 +348,154 @@ function getTRPaymentFill(trId, trTotalAmount) {
 }
 
 /**
+ * Check if an RFP can be cancelled (zero non-voided payments recorded).
+ * @param {Object} rfp - RFP document from rfpsData
+ * @returns {boolean}
+ */
+function isRFPCancellable(rfp) {
+    const totalPaid = (rfp.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((sum, r) => sum + (r.amount || 0), 0);
+    return totalPaid === 0;
+}
+
+/**
+ * Pre-fill the RFP modal form fields with data from a cancelled RFP.
+ * Must be called AFTER the modal HTML is inserted into the DOM.
+ * @param {Object} savedData - Captured fields from the cancelled RFP document
+ */
+function prefillRFPForm(savedData) {
+    // Invoice number
+    const invoiceEl = document.getElementById('rfpInvoiceNumber');
+    if (invoiceEl && savedData.invoice_number) invoiceEl.value = savedData.invoice_number;
+
+    // Due date
+    const dueDateEl = document.getElementById('rfpDueDate');
+    if (dueDateEl && savedData.due_date) dueDateEl.value = savedData.due_date;
+
+    // Payment mode
+    const modeEl = document.getElementById('rfpPaymentMode');
+    if (modeEl && savedData.mode_of_payment) {
+        const standardModes = ['Bank Transfer', 'Check', 'Cash', 'Other'];
+        if (standardModes.includes(savedData.mode_of_payment)) {
+            modeEl.value = savedData.mode_of_payment;
+        } else {
+            // Non-standard mode: user originally selected "Other" and typed a custom value
+            modeEl.value = 'Other';
+        }
+        // Trigger the bank fields toggle so the correct sections show
+        toggleRFPBankFields();
+    }
+
+    // Bank fields (only relevant when mode is Bank Transfer)
+    if (savedData.mode_of_payment === 'Bank Transfer') {
+        const bankNameEl = document.getElementById('rfpBankName');
+        if (bankNameEl && savedData.bank_name) bankNameEl.value = savedData.bank_name;
+
+        const bankAccNameEl = document.getElementById('rfpBankAccountName');
+        if (bankAccNameEl && savedData.bank_account_name) bankAccNameEl.value = savedData.bank_account_name;
+
+        const bankDetailsEl = document.getElementById('rfpBankDetails');
+        if (bankDetailsEl && savedData.bank_details) bankDetailsEl.value = savedData.bank_details;
+
+        // Alt bank fields - if any alt bank data exists, show the alt bank section
+        if (savedData.alt_bank_name || savedData.alt_bank_account_name || savedData.alt_bank_details) {
+            showAltBank(); // shows alt section and hides the "Add" button
+            const altBankNameEl = document.getElementById('rfpAltBankName');
+            if (altBankNameEl && savedData.alt_bank_name) altBankNameEl.value = savedData.alt_bank_name;
+
+            const altBankAccNameEl = document.getElementById('rfpAltBankAccountName');
+            if (altBankAccNameEl && savedData.alt_bank_account_name) altBankAccNameEl.value = savedData.alt_bank_account_name;
+
+            const altBankDetailsEl = document.getElementById('rfpAltBankDetails');
+            if (altBankDetailsEl && savedData.alt_bank_details) altBankDetailsEl.value = savedData.alt_bank_details;
+        }
+    }
+
+    // Other payment mode text
+    const standardModes = ['Bank Transfer', 'Check', 'Cash', 'Other'];
+    if (savedData.mode_of_payment && !standardModes.includes(savedData.mode_of_payment)) {
+        const otherEl = document.getElementById('rfpPaymentModeOther');
+        if (otherEl) otherEl.value = savedData.mode_of_payment;
+    }
+
+    // Tranche selection (PO RFPs only, not TR/Delivery Fee)
+    if (savedData.tranche_index != null) {
+        const trancheSelect = document.getElementById('rfpTrancheSelect');
+        if (trancheSelect) {
+            // The cancelled RFP's tranche is now available again (document was deleted),
+            // so the option should no longer be disabled. Set it as selected.
+            const option = trancheSelect.querySelector(`option[value="${savedData.tranche_index}"]`);
+            if (option && !option.disabled) {
+                trancheSelect.value = savedData.tranche_index;
+                // Trigger amount update for this tranche
+                if (window.updateRFPAmount && savedData.po_doc_id) {
+                    window.updateRFPAmount(savedData.po_doc_id);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Cancel (delete) an RFP document with zero payments, then re-open the
+ * RFP filing form pre-filled with the cancelled RFP's details for easy re-filing.
+ * @param {string} rfpDocId - Firestore document ID of the RFP
+ */
+async function cancelRFPDocument(rfpDocId) {
+    document.getElementById('rfpContextMenu')?.remove();
+    const rfp = rfpsData.find(r => r.id === rfpDocId);
+    if (!rfp) { showToast('RFP not found', 'error'); return; }
+    if (!isRFPCancellable(rfp)) {
+        showToast('Cannot cancel — payment has been recorded on this RFP', 'error');
+        return;
+    }
+    if (!confirm(`Cancel ${rfp.rfp_id}?\n\nThis will delete the RFP and re-open the form with its details pre-filled so you can re-file.`)) return;
+
+    // Capture the RFP's data BEFORE deleting so we can pre-fill the re-opened form
+    const savedData = {
+        invoice_number: rfp.invoice_number || '',
+        due_date: rfp.due_date || '',
+        mode_of_payment: rfp.mode_of_payment || '',
+        bank_name: rfp.bank_name || '',
+        bank_account_name: rfp.bank_account_name || '',
+        bank_details: rfp.bank_details || '',
+        alt_bank_name: rfp.alt_bank_name || '',
+        alt_bank_account_name: rfp.alt_bank_account_name || '',
+        alt_bank_details: rfp.alt_bank_details || '',
+        tranche_index: rfp.tranche_index,
+        tranche_label: rfp.tranche_label || '',
+        po_doc_id: rfp.po_doc_id || '',
+        tr_doc_id: rfp.tr_doc_id || '',
+        po_id: rfp.po_id || '',
+        tr_id: rfp.tr_id || ''
+    };
+
+    try {
+        await deleteDoc(doc(db, 'rfps', rfpDocId));
+        showToast(`${rfp.rfp_id} cancelled — re-filing form opened`, 'success');
+
+        // Determine which modal to re-open based on the RFP type, then pre-fill
+        if (savedData.tr_id && savedData.tr_doc_id) {
+            // TR RFP — re-open TR RFP modal
+            await openTRRFPModal(savedData.tr_doc_id);
+            prefillRFPForm(savedData);
+        } else if (savedData.tranche_label === 'Delivery Fee' && savedData.po_doc_id) {
+            // Delivery Fee RFP — re-open Delivery Fee RFP modal
+            await openDeliveryFeeRFPModal(savedData.po_doc_id);
+            prefillRFPForm(savedData);
+        } else if (savedData.po_doc_id) {
+            // Regular PO tranche RFP — re-open standard RFP modal
+            await openRFPModal(savedData.po_doc_id);
+            prefillRFPForm(savedData);
+        }
+    } catch (err) {
+        console.error('[Procurement] RFP cancel error:', err);
+        showToast('Failed to cancel RFP. Check permissions.', 'error');
+    }
+}
+
+/**
  * Show right-click context menu on PO ID cell with "Request Payment" option.
  * @param {MouseEvent} event
  * @param {string} poDocId - Firestore document ID of the PO
@@ -363,6 +511,8 @@ function showRFPContextMenu(event, poDocId) {
     const po = poData.find(p => p.id === poDocId);
     const hasDeliveryFee = po && parseFloat(po.delivery_fee) > 0;
     const deliveryFeeRFPExists = hasDeliveryFee && (rfpsByPO[po.po_id] || []).some(r => r.tranche_label === 'Delivery Fee');
+    const existingRFPs = rfpsByPO[po?.po_id] || [];
+    const cancellableRFPs = existingRFPs.filter(r => isRFPCancellable(r));
 
     menu.innerHTML = `
         <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
@@ -377,6 +527,15 @@ function showRFPContextMenu(event, poDocId) {
              onclick="${deliveryFeeRFPExists ? '' : `window.openDeliveryFeeRFPModal('${poDocId}')`}">
             Request Delivery Fee Payment${deliveryFeeRFPExists ? ' <span style="font-size:0.75rem;color:#9ca3af;">(RFP exists)</span>' : ''}
         </div>` : ''}
+        ${cancellableRFPs.length > 0 ? `
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            ${cancellableRFPs.map(rfp => `
+                <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                     onmouseenter="this.style.background='#fef2f2'"
+                     onmouseleave="this.style.background='transparent'"
+                     onclick="window.cancelRFPDocument('${rfp.id}')">
+                    Cancel ${escapeHTML(rfp.rfp_id)}
+                </div>`).join('')}` : ''}
     `;
     document.body.appendChild(menu);
     // Close on click outside
@@ -400,6 +559,9 @@ function showTRRFPContextMenu(event, trDocId) {
     const menu = document.createElement('div');
     menu.id = 'rfpContextMenu';
     menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:180px;`;
+    const tr = poData.flatMap(p => p.transportRequests || []).find(t => t.docId === trDocId) || {};
+    const existingTRRFPs = rfpsByTR[tr?.tr_id] || [];
+    const cancellableTRRFP = existingTRRFPs.find(r => isRFPCancellable(r));
     menu.innerHTML = `
         <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
              onmouseenter="this.style.background='#eff6ff'"
@@ -407,6 +569,14 @@ function showTRRFPContextMenu(event, trDocId) {
              onclick="window.openTRRFPModal('${trDocId}')">
             Request Payment
         </div>
+        ${cancellableTRRFP ? `
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                 onmouseenter="this.style.background='#fef2f2'"
+                 onmouseleave="this.style.background='transparent'"
+                 onclick="window.cancelRFPDocument('${cancellableTRRFP.id}')">
+                Cancel ${escapeHTML(cancellableTRRFP.rfp_id)}
+            </div>` : ''}
     `;
     document.body.appendChild(menu);
 
@@ -668,6 +838,7 @@ async function openRFPModal(poDocId) {
                         <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
                     </div>
                 </div>
+                ${firstAvailable < 0 ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">RFPs have already been submitted for all tranches on this PO. You cannot create another one.</div>' : ''}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche</label>
@@ -744,7 +915,7 @@ async function openRFPModal(poDocId) {
             </div>
             <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitRFP('${poDocId}')">Submit RFP</button>
+                <button class="btn btn-primary" onclick="window.submitRFP('${poDocId}')" ${firstAvailable < 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -943,7 +1114,7 @@ async function openTRRFPModal(trDocId) {
                         <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
                     </div>
                 </div>
-                ${hasExistingRFP ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fff3cd;color:#856404;border-radius:6px;font-size:0.875rem;">An RFP already exists for this TR. You can still create another one.</div>' : ''}
+                ${hasExistingRFP ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">An RFP already exists for this TR. You cannot create another one.</div>' : ''}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
@@ -1014,7 +1185,7 @@ async function openTRRFPModal(trDocId) {
             </div>
             <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')">Submit RFP</button>
+                <button class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')" ${hasExistingRFP ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -1122,6 +1293,22 @@ async function submitRFP(poDocId) {
     const tranche = tranches[idx];
     if (!tranche) { showToast('Please select a tranche', 'error'); return; }
 
+    // Guard against duplicate tranche submission (also prevents bypass via browser console)
+    const existingRFPsForPO = rfpsByPO[po.po_id] || [];
+    const usedIndicesCheck = new Set(
+        existingRFPsForPO.filter(r => r.tranche_index != null).map(r => r.tranche_index)
+    );
+    existingRFPsForPO
+        .filter(r => r.tranche_index == null && r.tranche_label !== 'Delivery Fee')
+        .forEach(r => {
+            const matchIdx = tranches.findIndex((t, i) => t.label === r.tranche_label && !usedIndicesCheck.has(i));
+            if (matchIdx >= 0) usedIndicesCheck.add(matchIdx);
+        });
+    if (usedIndicesCheck.has(idx)) {
+        showToast('An RFP already exists for this tranche', 'error');
+        return;
+    }
+
     const poTotal = parseFloat(po.total_amount) || 0;
     const amountRequested = tranche.percentage / 100 * poTotal;
 
@@ -1180,6 +1367,13 @@ async function submitTRRFP(trDocId) {
     } catch (error) {
         console.error('[Procurement] Error fetching TR for RFP submit:', error);
         showToast('Failed to load TR data', 'error');
+        return;
+    }
+
+    // Guard against duplicates (also prevents bypass via browser console)
+    const existingRFPs = rfpsByTR[tr.tr_id] || [];
+    if (existingRFPs.length > 0) {
+        showToast('An RFP already exists for this TR', 'error');
         return;
     }
 
@@ -1427,6 +1621,9 @@ function attachWindowFunctions() {
     // MRF Cancel PRs Functions
     window.showMRFContextMenu = showMRFContextMenu;
     window.cancelMRFPRs = cancelMRFPRs;
+
+    // RFP Cancel Functions
+    window.cancelRFPDocument = cancelRFPDocument;
 
     // Saved Bank Functions
     window.showAltBank = showAltBank;
@@ -1961,6 +2158,7 @@ export async function destroy() {
     delete window.removeAltBank;
     delete window.showMRFContextMenu;
     delete window.cancelMRFPRs;
+    delete window.cancelRFPDocument;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
