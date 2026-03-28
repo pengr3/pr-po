@@ -417,6 +417,187 @@ function showTRRFPContextMenu(event, trDocId) {
 }
 
 /**
+ * Show right-click context menu on MRF ID cell with "Cancel PRs" option.
+ * @param {MouseEvent} event
+ * @param {string} mrfDocId - Firestore document ID of the MRF
+ * @param {string} mrfStatus - Current MRF status
+ */
+function showMRFContextMenu(event, mrfDocId, mrfStatus) {
+    document.getElementById('mrfContextMenu')?.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'mrfContextMenu';
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
+
+    const cancellableStatuses = ['PR Generated', 'PR Submitted', 'Finance Approved', 'PO Issued'];
+    if (cancellableStatuses.includes(mrfStatus)) {
+        menu.innerHTML = `
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                 onmouseenter="this.style.background='#fef2f2'"
+                 onmouseleave="this.style.background='transparent'"
+                 onclick="window.cancelMRFPRs('${mrfDocId}')">
+                Cancel MRF
+            </div>
+        `;
+    } else {
+        menu.innerHTML = `
+            <div style="padding:8px 16px;font-size:0.875rem;color:#9ca3af;cursor:default;">
+                No actions available
+            </div>
+        `;
+    }
+
+    document.body.appendChild(menu);
+    setTimeout(() => {
+        document.addEventListener('click', function handler() {
+            menu.remove();
+            document.removeEventListener('click', handler);
+        }, { once: true });
+    }, 10);
+}
+
+/**
+ * Cancel all PRs for an MRF and restore MRF to In Progress status.
+ * Handles three paths: simple cancel, force-recall (POs at Pending), and block (POs in progress).
+ * @param {string} mrfDocId - Firestore document ID of the MRF
+ */
+async function cancelMRFPRs(mrfDocId) {
+    document.getElementById('mrfContextMenu')?.remove();
+
+    const mrf = allPRPORecords.find(m => m.id === mrfDocId);
+    if (!mrf) { showToast('MRF not found', 'error'); return; }
+
+    // Fetch linked PRs
+    const prSnap = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', mrf.mrf_id)));
+    const prs = [];
+    prSnap.forEach(d => prs.push({ id: d.id, ...d.data() }));
+
+    // Fetch linked TRs
+    const trSnap = await getDocs(query(collection(db, 'transport_requests'), where('mrf_id', '==', mrf.mrf_id)));
+    const trs = [];
+    trSnap.forEach(d => trs.push({ id: d.id, ...d.data() }));
+
+    if (prs.length === 0 && trs.length === 0) {
+        showToast('No PRs or TRs found for this MRF', 'error');
+        return;
+    }
+
+    // Fetch linked POs
+    const poSnap = await getDocs(query(collection(db, 'pos'), where('mrf_id', '==', mrf.mrf_id)));
+    const pos = [];
+    poSnap.forEach(d => pos.push({ id: d.id, ...d.data() }));
+
+    // BLOCK CHECK: POs already in procurement progress
+    const blockedStatuses = ['Procuring', 'Procured', 'Delivered', 'Processing', 'Processed'];
+    if (pos.some(po => blockedStatuses.includes(po.procurement_status))) {
+        showToast('Cannot cancel — PO(s) already in procurement progress. Contact admin.', 'error');
+        return;
+    }
+
+    // BLOCK CHECK: Any RFP linked to a PO or TR has been (at least partially) paid
+    // Payment status is computed from payment_records — never stored directly on the rfp document.
+    // We mirror the same arithmetic used by deriveRFPStatus.
+    const rfpHasPaidAmount = (rfp) => {
+        const totalPaid = (rfp.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((sum, r) => sum + (r.amount || 0), 0);
+        return totalPaid > 0;
+    };
+
+    // Check PO-linked RFPs
+    for (const po of pos) {
+        if (!po.po_id) continue;
+        const poRfpSnap = await getDocs(query(collection(db, 'rfps'), where('po_id', '==', po.po_id)));
+        for (const rfpDoc of poRfpSnap.docs) {
+            if (rfpHasPaidAmount(rfpDoc.data())) {
+                showToast(`Cannot cancel — ${po.po_id} has recorded payment(s). Contact admin.`, 'error');
+                return;
+            }
+        }
+    }
+
+    // Check TR-linked RFPs
+    for (const tr of trs) {
+        if (!tr.tr_id) continue;
+        const trRfpSnap = await getDocs(query(collection(db, 'rfps'), where('tr_id', '==', tr.tr_id)));
+        for (const rfpDoc of trRfpSnap.docs) {
+            if (rfpHasPaidAmount(rfpDoc.data())) {
+                showToast(`Cannot cancel — ${tr.tr_id} has recorded payment(s). Contact admin.`, 'error');
+                return;
+            }
+        }
+    }
+
+    // Build summary for confirm dialog
+    const parts = [];
+    if (prs.length > 0) parts.push(`${prs.length} PR(s)`);
+    if (trs.length > 0) parts.push(`${trs.length} TR(s)`);
+    const docSummary = parts.join(' and ');
+
+    // FORCE-RECALL: POs at Pending Procurement
+    const pendingPOs = pos.filter(po => po.procurement_status === 'Pending Procurement' || po.procurement_status === 'Pending');
+    if (pendingPOs.length > 0) {
+        const confirmed = confirm(
+            `${pos.length} PO(s) have been issued (Pending Procurement). Cancelling will:\n\n` +
+            `- Set ${pos.length} PO(s) to Cancelled status\n` +
+            `- Delete ${docSummary}\n` +
+            `- Restore MRF to In Progress\n\n` +
+            `Continue?`
+        );
+        if (!confirmed) return;
+
+        // Cancel POs and delete linked RFPs
+        for (const po of pendingPOs) {
+            await updateDoc(doc(db, 'pos', po.id), {
+                procurement_status: 'Cancelled',
+                cancelled_at: new Date().toISOString(),
+                cancelled_reason: 'PR cancellation — MRF recalled for revision'
+            });
+            const rfpSnap = await getDocs(query(collection(db, 'rfps'), where('po_id', '==', po.po_id)));
+            rfpSnap.forEach(async (rfpDoc) => {
+                await deleteDoc(doc(db, 'rfps', rfpDoc.id));
+            });
+        }
+    } else {
+        // SIMPLE CANCEL: No POs or only cancelled POs
+        const confirmed = confirm(
+            `Cancel ${docSummary} for ${mrf.mrf_id}?\n\nThis will delete all linked PRs/TRs and restore the MRF to In Progress for revision.`
+        );
+        if (!confirmed) return;
+    }
+
+    // Delete all PRs
+    for (const pr of prs) {
+        await deleteDoc(doc(db, 'prs', pr.id));
+    }
+
+    // Delete all TRs
+    for (const tr of trs) {
+        await deleteDoc(doc(db, 'transport_requests', tr.id));
+    }
+
+    // Restore MRF to In Progress — clear pr_ids and tr_id
+    await updateDoc(doc(db, 'mrfs', mrfDocId), {
+        status: 'In Progress',
+        pr_ids: [],
+        tr_id: null,
+        updated_at: new Date().toISOString()
+    });
+
+    // Invalidate cache and update local state
+    _prpoSubDataCache.delete(mrfDocId);
+    const localMrf = allPRPORecords.find(m => m.id === mrfDocId);
+    if (localMrf) {
+        localMrf.status = 'In Progress';
+        localMrf.pr_ids = [];
+        localMrf.tr_id = null;
+    }
+
+    filterPRPORecords();
+    showToast(`${docSummary} cancelled. MRF restored to In Progress.`, 'success');
+}
+
+/**
  * Open RFP creation modal pre-filled with PO data.
  * @param {string} poDocId - Firestore document ID of the PO
  */
@@ -1243,6 +1424,10 @@ function attachWindowFunctions() {
     window.openTRRFPModal = openTRRFPModal;
     window.submitTRRFP = submitTRRFP;
 
+    // MRF Cancel PRs Functions
+    window.showMRFContextMenu = showMRFContextMenu;
+    window.cancelMRFPRs = cancelMRFPRs;
+
     // Saved Bank Functions
     window.showAltBank = showAltBank;
     window.removeAltBank = removeAltBank;
@@ -1774,6 +1959,8 @@ export async function destroy() {
     delete window.submitDeliveryFeeRFP;
     delete window.showAltBank;
     delete window.removeAltBank;
+    delete window.showMRFContextMenu;
+    delete window.cancelMRFPRs;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
 }
@@ -4877,7 +5064,9 @@ async function renderPRPORecords() {
 
         return `
             <tr>
-                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${escapeHTML(displayId)}</strong></td>
+                <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle; cursor: context-menu;"
+                    oncontextmenu="event.preventDefault(); window.showMRFContextMenu(event, '${mrf.id}', '${escapeHTML(mrf.status)}'); return false;">
+                    <strong>${escapeHTML(displayId)}</strong></td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${mrf.date_needed ? formatDate(mrf.date_needed) : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A')}</td>
                 <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
