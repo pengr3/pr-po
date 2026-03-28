@@ -2,11 +2,26 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
+status: planning
+stopped_at: Completed 70-01-PLAN.md
+last_updated: "2026-03-28T06:29:29.710Z"
+progress:
+  total_phases: 18
+  completed_phases: 16
+  total_plans: 23
+  completed_plans: 27
+  percent: 100
+---
+
+---
+gsd_state_version: 1.0
+milestone: v3.2
+milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Ready to plan
 stopped_at: Completed 65.9-01-PLAN.md
 last_updated: "2026-03-26T02:14:51.319Z"
 progress:
-  total_phases: 18
+  [██████████] 100%
   completed_phases: 17
   total_plans: 24
   completed_plans: 27
@@ -73,6 +88,7 @@ Plan: Not started
 | Phase 68 P01 | 5 | 1 tasks | 1 files |
 | Phase 69-revise-expense-modal-scoreboards-to-add-remaining-payable-tracking P01 | 53 | 1 tasks | 1 files |
 | Phase 65.9 P01 | 2 | 2 tasks | 1 files |
+| Phase 70 P01 | 20 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -131,6 +147,9 @@ Recent decisions affecting current work:
 - [Phase 65.9]: Delivery fee option in context menu hidden entirely when delivery_fee <= 0, shown disabled with (RFP exists) when RFP already exists
 - [Phase 65.9]: submitDeliveryFeeRFP uses tranche_percentage=0 and tranche_label='Delivery Fee' to distinguish from regular tranche RFPs
 - [Phase 65.9]: Delivery fee dot is red when no Delivery Fee RFP exists so unsubmitted cases show as attention-needed, green only when payment_records cover full amount_requested
+- [Phase 70]: PR Generated added to loadMRFs query filter so those MRFs appear in left panel for right-click recall
+- [Phase 70]: showMRFContextMenu pre-sets currentMRF from cachedAllMRFs to avoid async Firestore read before recallMRF()
+- [Phase 70]: recallMRF dual-path: simple cancel for Pending/Rejected PRs vs force recall for Finance-Approved PRs — POs at Pending Procurement voided, Procuring/Procured/Delivered blocks entirely
 
 ### Roadmap Evolution
 
@@ -169,7 +188,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-26T02:12:20.975Z
-Stopped at: Completed 65.9-01-PLAN.md
+Last session: 2026-03-28T06:29:29.705Z
+Stopped at: Completed 70-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
