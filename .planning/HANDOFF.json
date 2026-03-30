@@ -1,63 +1,52 @@
 {
   "version": "1.0",
-  "timestamp": "2026-03-27T11:02:40.303Z",
-  "phase": "70",
-  "phase_name": "Cancel PRs and restore MRF to processing area",
-  "phase_dir": ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area",
+  "timestamp": "2026-03-30T10:28:45.182Z",
+  "phase": "69.1",
+  "phase_name": "fix-remaining-payable-calculation-to-include-un-rfp-d-po-costs-inserted",
+  "phase_dir": ".planning/phases/69.1-fix-remaining-payable-calculation-to-include-un-rfp-d-po-costs-inserted",
   "plan": 1,
-  "task": 0,
+  "task": 2,
   "total_tasks": 2,
   "status": "paused",
-  "completed_tasks": [],
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Fix remainingPayable formula, voided payment filter, and render gate",
+      "status": "done",
+      "commit": "100520e"
+    }
+  ],
   "remaining_tasks": [
-    {"id": 1, "name": "Add recallMRF() function with dual-path logic", "status": "not_started"},
-    {"id": 2, "name": "Add blockedMRFIds cache, showMRFContextMenu(), and wire to MRF list rows", "status": "not_started"}
+    {
+      "id": 2,
+      "name": "UAT - Remaining Payable shows total unpaid cost including un-RFPd POs",
+      "status": "not_started",
+      "type": "checkpoint:human-verify"
+    }
   ],
   "blockers": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    {
+      "action": "Run UAT: open Expense Breakdown modal, verify Remaining Payable = Projected Cost minus non-voided payments",
+      "context": "Code fix committed (100520e on v3.3). Must be on v3.3 branch when running the server.",
+      "blocking": true
+    }
+  ],
   "decisions": [
     {
-      "decision": "Trigger via right-click context menu on MRF rows, not action bar buttons",
-      "rationale": "User requirement — consistent with existing PO ID right-click pattern for RFP creation",
-      "phase": "70"
+      "decision": "Executor ran in worktree isolation on v3.3",
+      "rationale": "GSD isolation=worktree pattern — commits go to v3.3, main working dir must match",
+      "phase": "69.1"
     },
     {
-      "decision": "Two-path recall: simple cancel (all PRs Pending/Rejected) vs force recall (Finance-Approved PRs with POs at Pending Procurement)",
-      "rationale": "Option B chosen by user — covers both pre-Finance and post-Finance scenarios in one action",
-      "phase": "70"
-    },
-    {
-      "decision": "Block recall entirely if any linked PO is Procuring/Procured/Delivered",
-      "rationale": "User requirement — safety net to prevent cancellation of in-progress procurement",
-      "phase": "70"
-    },
-    {
-      "decision": "Safety net at context menu level: blockedMRFIds Set suppresses menu before user can click",
-      "rationale": "UX safety net — context menu simply does not appear for blocked MRFs, preventing confusion",
-      "phase": "70"
-    },
-    {
-      "decision": "refreshBlockedMRFs() queries pos by mrf_id with compound where clause, not by pr_id per PR",
-      "rationale": "System efficiency — N reads instead of N×M reads per snapshot cycle; server-side filtering avoids transferring non-blocking PO documents",
-      "phase": "70"
-    },
-    {
-      "decision": "Void approved POs by setting procurement_status: 'Cancelled', not deleting",
-      "rationale": "Preserves audit trail; deletion is irreversible and removes history",
-      "phase": "70"
-    },
-    {
-      "decision": "Finance-approval recall flow added to BACKLOG.md (not this phase)",
-      "rationale": "Phase 70 delivers immediate unblocking. Full recall-with-Finance-approval is a separate workflow to design alongside the Finance Pending Approvals tab",
-      "phase": "70"
+      "decision": "totalRequested variable left in place",
+      "rationale": "Removing it is out of scope — only formula and render gate changes required",
+      "phase": "69.1"
     }
   ],
   "uncommitted_files": [
-    ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area/70-01-PLAN.md",
-    ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area/70-RESEARCH.md",
-    ".planning/phases/70-cancel-prs-and-restore-mrf-to-processing-area/70-VALIDATION.md",
-    ".planning/BACKLOG.md"
+    ".planning/phases/69.1-fix-remaining-payable-calculation-to-include-un-rfp-d-po-costs-inserted/69.1-UAT.md"
   ],
-  "next_action": "Run /gsd:execute-phase 70 after /clear — execute Task 1 (recallMRF function) then Task 2 (blockedMRFIds cache + showMRFContextMenu + MRF row wiring)",
-  "context_notes": "Plan is fully refined and verification-passed. All design decisions are locked. The plan went through 2 checker iterations: first pass had missing VALIDATION.md and a must_haves gap; both fixed. Then user requested 3 revisions post-verification: (1) right-click trigger instead of action bar buttons, (2) two-path Option B with procurement-progress edge case, (3) safety net suppressing the context menu entirely for blocked MRFs. Final efficiency improvement: refreshBlockedMRFs uses mrf_id compound query instead of pr_id loop — reduces N×M Firestore reads to N reads per snapshot cycle."
+  "next_action": "Run /gsd:verify-work 69.1 on v3.3 branch to complete UAT checkpoint",
+  "context_notes": "All code is done. Phase 69.1 is one UAT session away from completion. Branch confusion (main vs v3.3) was the only issue this session — already resolved by switching back to v3.3."
 }
