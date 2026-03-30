@@ -70,10 +70,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     let totalPaid = 0;
     rfpsForPayable.forEach(rfp => {
         totalRequested += parseFloat(rfp.amount_requested || 0);
-        totalPaid += (rfp.payment_records || []).reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+        totalPaid += (rfp.payment_records || []).filter(r => r.status !== 'voided').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
     });
-    const remainingPayable = totalRequested - totalPaid;
-
     // -----------------------------------------------------------------------
     // All downstream logic is identical for both modes
     // -----------------------------------------------------------------------
@@ -217,6 +215,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     const materialsDisplay = materialTotal - transportCategoryTotal;
     const transportDisplay = trTotal + transportCategoryTotal + deliveryFeeTotal;
     const totalCost = materialsDisplay + transportDisplay + subconTotal;
+    const remainingPayable = totalCost - totalPaid;
     const remaining = budget - totalCost;
 
     // Build category sections HTML
@@ -379,8 +378,8 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         </div>
                     </div>
 
-                    <!-- Row 3: Projected Cost + Remaining Payable (only when RFPs exist) -->
-                    ${totalRequested > 0 ? `
+                    <!-- Row 3: Projected Cost + Remaining Payable (only when POs exist) -->
+                    ${totalCost > 0 ? `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
                         <div style="padding: 1.25rem; border-radius: 8px; border: 1px solid #3b82f6; background: #eff6ff;">
                             <div style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600; margin-bottom: 0.5rem;">Projected Cost</div>
