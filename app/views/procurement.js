@@ -534,7 +534,7 @@ function showRFPContextMenu(event, poDocId) {
                      onmouseenter="this.style.background='#fef2f2'"
                      onmouseleave="this.style.background='transparent'"
                      onclick="window.cancelRFPDocument('${rfp.id}')">
-                    Cancel ${escapeHTML(rfp.rfp_id)}
+                    Cancel ${escapeHTML(rfp.rfp_id)}${rfp.tranche_label ? ` <span style="font-size:0.75rem;color:#b91c1c;">(${escapeHTML(rfp.tranche_label)})</span>` : ''}
                 </div>`).join('')}` : ''}
     `;
     document.body.appendChild(menu);

@@ -152,6 +152,7 @@ Recent decisions affecting current work:
 - Phase 69 added: Revise expense-modal scoreboards to add remaining payable tracking
 - Phase 65.9 inserted after Phase 65: Integrate Delivery Fees to Enable RFP for Delivery (URGENT)
 - Phase 65.10 inserted after Phase 65: Cancel RFP capability — cancel whole RFP when no existing RFPs filed and cancel unapproved tranche (URGENT)
+- Phase 70 added: Cancel PRs and restore MRF to processing area
 
 ### Pending Todos
 
