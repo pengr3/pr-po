@@ -270,7 +270,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
         if (!firstUnpaid) {
             // All individual RFPs closed but PO not fully paid (data edge case)
-            return { statusBucket: 'Partial', statusLabel: 'Partial', totalPayable, totalPaid };
+            // Mirror finance.js:derivePOSummary lines 719-722 — format a readable label
+            const pctPaid = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
+            const fallbackLabel = totalPaid > 0 ? `${pctPaid}% Paid` : 'Requested';
+            return { statusBucket: 'Partial', statusLabel: fallbackLabel, totalPayable, totalPaid };
         }
 
         // Active tranche payment status
