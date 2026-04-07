@@ -338,7 +338,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         <div id="expenseBreakdownModal" class="modal active">
             <div class="modal-content" style="max-width: 900px;">
                 <div class="modal-header">
-                    <h3>Expense Breakdown: ${title}</h3>
+                    <h3>Financial Breakdown: ${title}</h3>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <button onclick="window._exportExpenseBreakdownCSV()" class="btn btn-sm btn-secondary" style="font-size: 0.8125rem;">Export CSV &#8681;</button>
                         <button class="modal-close" onclick="window._closeExpenseBreakdownModal()">&times;</button>
