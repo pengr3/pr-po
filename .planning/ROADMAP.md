@@ -480,7 +480,7 @@ Plans:
 **Goal:** Revamp the shared expense modal into a 'Financial Breakdown' modal: rename the user-visible title and add a third 'Payables' tab showing a sorted, read-only worklist of every payable entity (POs, TRs, Delivery Fees) with Particulars / Status / Total Payable / Total Paid columns
 **Requirements**: TBD
 **Depends on:** Phase 70
-**Plans:** 2/2 plans complete
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 71-01-PLAN.md — Rename modal h3 from 'Expense Breakdown' to 'Financial Breakdown' (user-visible only, internal symbols frozen per D-09)
