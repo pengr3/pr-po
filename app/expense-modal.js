@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, getDocs } from './firebase.js';
-import { formatCurrency, downloadCSV } from './utils.js';
+import { formatCurrency, downloadCSV, escapeHTML } from './utils.js';
 
 /**
  * Show unified expense breakdown modal for a project or service.
@@ -402,6 +402,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                             style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
                             Transport Fees
                         </button>
+                        <button class="expense-tab" onclick="window._switchExpenseBreakdownTab('payables')" data-tab="payables"
+                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
+                            Payables
+                        </button>
                     </div>
 
                     <!-- By Category Tab -->
@@ -412,6 +416,11 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     <!-- Transport Fees Tab -->
                     <div id="expBreakdownTransportTab" style="display: none; margin-top: 1.5rem;">
                         ${transportHTML}
+                    </div>
+
+                    <!-- Payables Tab -->
+                    <div id="expBreakdownPayablesTab" style="display: none; margin-top: 1.5rem;">
+                        ${payablesHTML || ''}
                     </div>
                 </div>
             </div>
@@ -432,7 +441,8 @@ window._closeExpenseBreakdownModal = function() {
 window._switchExpenseBreakdownTab = function(tab) {
     const categoryTab = document.getElementById('expBreakdownCategoryTab');
     const transportTab = document.getElementById('expBreakdownTransportTab');
-    if (!categoryTab || !transportTab) return;
+    const payablesTab = document.getElementById('expBreakdownPayablesTab');
+    if (!categoryTab || !transportTab || !payablesTab) return;
 
     const buttons = document.querySelectorAll('#expenseBreakdownModal .expense-tab');
     buttons.forEach(btn => {
@@ -449,6 +459,7 @@ window._switchExpenseBreakdownTab = function(tab) {
 
     categoryTab.style.display = tab === 'category' ? 'block' : 'none';
     transportTab.style.display = tab === 'transport' ? 'block' : 'none';
+    payablesTab.style.display = tab === 'payables' ? 'block' : 'none';
 };
 
 window._toggleExpenseCategory = function(headerEl) {
