@@ -76,6 +76,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     // All downstream logic is identical for both modes
     // -----------------------------------------------------------------------
 
+    // Phase 71: Payables tab data accumulators
+    const payablesPOs = [];
+    const payablesTRs = [];
+
     // Parse items from POs for category breakdown
     const categoryTotals = {};
     const transportCategoryItems = [];
@@ -101,6 +105,14 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             deliveryFeeTotal += fee;
             deliveryFeeItems.push({ po_id: po.po_id, amount: fee, date: poDate, supplier: poSupplier });
         }
+
+        // Phase 71: collect raw PO data for Payables tab
+        payablesPOs.push({
+            po_id: po.po_id || '',
+            supplier_name: poSupplier,
+            total_amount: parseFloat(po.total_amount || 0),
+            delivery_fee: fee,
+        });
 
         if (isSubcon) {
             subconTotal += parseFloat(po.total_amount || 0) - fee;
@@ -163,6 +175,12 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             transportRequests.push({
                 tr_id: tr.tr_id, supplier: tr.supplier_name || 'N/A', amount
             });
+            // Phase 71: collect raw TR data for Payables tab
+            payablesTRs.push({
+                tr_id: tr.tr_id || '',
+                supplier_name: tr.supplier_name || 'N/A',
+                total_amount: amount,
+            });
             const trDate = tr.date_submitted
                 ? (tr.date_submitted.toDate ? tr.date_submitted.toDate().toISOString().slice(0, 10) : String(tr.date_submitted).slice(0, 10))
                 : '';
@@ -209,6 +227,248 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         const safeName = exportTitle.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_]/g, '');
         downloadCSV(headers, rows, `${safeName}-expenses-${today}.csv`);
     };
+
+    // -----------------------------------------------------------------------
+    // Phase 71: Payables tab — status derivation helpers + row construction
+    // Ported from app/views/finance.js derivePOSummary (Phase 65.3) — do NOT import
+    // from view modules to avoid circular dependencies.
+    // -----------------------------------------------------------------------
+
+    // Active-tranche status derivation for POs (multi-tranche collapse per D-01/D-03)
+    function deriveStatusForPO(poRfps, poTotalAmount) {
+        // Exclude Delivery Fee RFPs — they belong to a separate Delivery Fee row (D-01)
+        const regularRFPs = poRfps.filter(r => r.tranche_label !== 'Delivery Fee');
+
+        const totalPayable = poTotalAmount;
+        const totalPaid = regularRFPs.reduce((s, r) => {
+            return s + (r.payment_records || [])
+                .filter(p => p.status !== 'voided')
+                .reduce((ps, p) => ps + parseFloat(p.amount || 0), 0);
+        }, 0);
+
+        // No RFP at all → Not Requested
+        if (regularRFPs.length === 0) {
+            return { statusBucket: 'Not Requested', statusLabel: 'Not Requested', totalPayable, totalPaid: 0 };
+        }
+
+        // Fully paid (PO-level)
+        if (totalPaid >= totalPayable && totalPayable > 0) {
+            return { statusBucket: 'Fully Paid', statusLabel: 'Fully Paid', totalPayable, totalPaid };
+        }
+
+        // Find currently active tranche: first (sorted by tranche_percentage asc) that is not fully paid
+        const sorted = [...regularRFPs].sort((a, b) =>
+            (parseFloat(a.tranche_percentage) || 0) - (parseFloat(b.tranche_percentage) || 0)
+        );
+        const firstUnpaid = sorted.find(r => {
+            const reqAmt = parseFloat(r.amount_requested || 0);
+            const paidAmt = (r.payment_records || [])
+                .filter(p => p.status !== 'voided')
+                .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+            return paidAmt < reqAmt;
+        });
+
+        if (!firstUnpaid) {
+            // All individual RFPs closed but PO not fully paid (data edge case)
+            return { statusBucket: 'Partial', statusLabel: 'Partial', totalPayable, totalPaid };
+        }
+
+        // Active tranche payment status
+        const activePaid = (firstUnpaid.payment_records || [])
+            .filter(p => p.status !== 'voided')
+            .reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+
+        if (activePaid <= 0 && totalPaid <= 0) {
+            // RFP exists for active tranche, no payments anywhere → Requested
+            return { statusBucket: 'Requested', statusLabel: 'Requested', totalPayable, totalPaid: 0 };
+        }
+
+        // Partial: at least some payment recorded somewhere
+        // Format per Phase 65.3: "{TrancheLabel} — NN% Paid"
+        const pctPaid = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
+        const trancheLabel = firstUnpaid.tranche_label || 'Tranche';
+        return {
+            statusBucket: 'Partial',
+            statusLabel: `${escapeHTML(trancheLabel)} \u2014 ${pctPaid}% Paid`,
+            totalPayable,
+            totalPaid,
+        };
+    }
+
+    // TR status derivation (TRs are single-shot, simpler than PO tranches)
+    function deriveStatusForTR(trRfps, trTotalAmount) {
+        const totalPayable = trTotalAmount;
+        const totalPaid = trRfps.reduce((s, r) => {
+            return s + (r.payment_records || [])
+                .filter(p => p.status !== 'voided')
+                .reduce((ps, p) => ps + parseFloat(p.amount || 0), 0);
+        }, 0);
+
+        if (trRfps.length === 0) {
+            return { statusBucket: 'Not Requested', statusLabel: 'Not Requested', totalPayable, totalPaid: 0 };
+        }
+        if (totalPaid >= totalPayable && totalPayable > 0) {
+            return { statusBucket: 'Fully Paid', statusLabel: 'Fully Paid', totalPayable, totalPaid };
+        }
+        if (totalPaid <= 0) {
+            return { statusBucket: 'Requested', statusLabel: 'Requested', totalPayable, totalPaid: 0 };
+        }
+        // Partial — format per Phase 65.3
+        const pctPaid = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
+        const trancheLabel = (trRfps[0] && trRfps[0].tranche_label) || 'Payment';
+        return {
+            statusBucket: 'Partial',
+            statusLabel: `${escapeHTML(trancheLabel)} \u2014 ${pctPaid}% Paid`,
+            totalPayable,
+            totalPaid,
+        };
+    }
+
+    // Delivery Fee status derivation per D-04 (3-state subset: Not Requested / Requested / Fully Paid)
+    function deriveStatusForDeliveryFee(dfRfps, dfAmount) {
+        const totalPayable = dfAmount;
+        const totalPaid = dfRfps.reduce((s, r) => {
+            return s + (r.payment_records || [])
+                .filter(p => p.status !== 'voided')
+                .reduce((ps, p) => ps + parseFloat(p.amount || 0), 0);
+        }, 0);
+        if (dfRfps.length === 0) {
+            return { statusBucket: 'Not Requested', statusLabel: 'Not Requested', totalPayable, totalPaid: 0 };
+        }
+        if (totalPaid >= totalPayable && totalPayable > 0) {
+            return { statusBucket: 'Fully Paid', statusLabel: 'Fully Paid', totalPayable, totalPaid };
+        }
+        if (totalPaid <= 0) {
+            return { statusBucket: 'Requested', statusLabel: 'Requested', totalPayable, totalPaid: 0 };
+        }
+        // Partial fallback per D-04 — edge case, render as generic Partial
+        const pctPaid = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
+        return {
+            statusBucket: 'Partial',
+            statusLabel: `Delivery Fee \u2014 ${pctPaid}% Paid`,
+            totalPayable,
+            totalPaid,
+        };
+    }
+
+    // Group RFPs by their target payable (D-01: one row per entity)
+    const rfpsByPoId = new Map();          // po_id -> RFP[] (regular tranches only)
+    const rfpsByTrId = new Map();          // tr_id -> RFP[]
+    const deliveryFeeRfpsByPoId = new Map(); // po_id -> RFP[] where tranche_label === 'Delivery Fee'
+
+    rfpsForPayable.forEach(rfp => {
+        if (rfp.po_id && rfp.tranche_label === 'Delivery Fee') {
+            if (!deliveryFeeRfpsByPoId.has(rfp.po_id)) deliveryFeeRfpsByPoId.set(rfp.po_id, []);
+            deliveryFeeRfpsByPoId.get(rfp.po_id).push(rfp);
+        } else if (rfp.po_id) {
+            if (!rfpsByPoId.has(rfp.po_id)) rfpsByPoId.set(rfp.po_id, []);
+            rfpsByPoId.get(rfp.po_id).push(rfp);
+        } else if (rfp.tr_id) {
+            if (!rfpsByTrId.has(rfp.tr_id)) rfpsByTrId.set(rfp.tr_id, []);
+            rfpsByTrId.get(rfp.tr_id).push(rfp);
+        }
+    });
+
+    // Build payable rows: one per PO, one per Delivery Fee, one per Approved TR (D-01)
+    const payablesRows = [];
+
+    payablesPOs.forEach(po => {
+        // PO row — total_amount minus delivery fee (delivery fee is its own separate row)
+        const poTotalForRow = po.total_amount - po.delivery_fee;
+        if (poTotalForRow > 0) {
+            const status = deriveStatusForPO(rfpsByPoId.get(po.po_id) || [], poTotalForRow);
+            payablesRows.push({
+                particulars: `${escapeHTML(po.po_id)} \u2014 ${escapeHTML(po.supplier_name || 'N/A')}`,
+                statusBucket: status.statusBucket,
+                statusLabel: status.statusLabel,
+                totalPayable: status.totalPayable,
+                totalPaid: status.totalPaid,
+                kind: 'po',
+            });
+        }
+        // Delivery Fee row — separate row per D-01
+        if (po.delivery_fee > 0) {
+            const dfStatus = deriveStatusForDeliveryFee(deliveryFeeRfpsByPoId.get(po.po_id) || [], po.delivery_fee);
+            payablesRows.push({
+                particulars: `${escapeHTML(po.po_id)} \u2014 Delivery Fee`,
+                statusBucket: dfStatus.statusBucket,
+                statusLabel: dfStatus.statusLabel,
+                totalPayable: dfStatus.totalPayable,
+                totalPaid: dfStatus.totalPaid,
+                kind: 'delivery_fee',
+            });
+        }
+    });
+
+    payablesTRs.forEach(tr => {
+        const status = deriveStatusForTR(rfpsByTrId.get(tr.tr_id) || [], tr.total_amount);
+        payablesRows.push({
+            particulars: `${escapeHTML(tr.tr_id)} \u2014 ${escapeHTML(tr.supplier_name || 'N/A')}`,
+            statusBucket: status.statusBucket,
+            statusLabel: status.statusLabel,
+            totalPayable: status.totalPayable,
+            totalPaid: status.totalPaid,
+            kind: 'tr',
+        });
+    });
+
+    // D-06: sort by status bucket order, action-needed first
+    // D-07: secondary sort — Total Payable descending within each bucket
+    const bucketOrder = { 'Not Requested': 0, 'Requested': 1, 'Partial': 2, 'Fully Paid': 3 };
+    payablesRows.sort((a, b) => {
+        const ba = bucketOrder[a.statusBucket] ?? 99;
+        const bb = bucketOrder[b.statusBucket] ?? 99;
+        if (ba !== bb) return ba - bb;
+        return b.totalPayable - a.totalPayable;
+    });
+
+    const payablesTotalSum = payablesRows.reduce((s, r) => s + r.totalPayable, 0);
+
+    // Build Payables tab card HTML (single collapsible card per D-10)
+    // Status badge color palette per D-10 / Claude's Discretion
+    const statusColors = {
+        'Not Requested': '#991b1b',  // red — needs action
+        'Requested':     '#1d4ed8',  // blue — in progress
+        'Partial':       '#1d4ed8',  // blue — in progress
+        'Fully Paid':    '#166534',  // green — done
+    };
+
+    const payablesHTML = payablesRows.length > 0 ? `
+        <div class="category-card collapsible">
+            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="category-toggle">&#9654;</span>
+                    <span class="category-name">PAYABLES</span>
+                </div>
+                <span class="category-amount">${formatCurrency(payablesTotalSum)}</span>
+            </div>
+            <div class="category-items" style="display: none;">
+                <table class="modal-items-table">
+                    <thead>
+                        <tr>
+                            <th>PARTICULARS</th>
+                            <th>STATUS</th>
+                            <th style="text-align: right;">TOTAL PAYABLE</th>
+                            <th style="text-align: right;">TOTAL PAID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${payablesRows.map(row => {
+                            const color = statusColors[row.statusBucket] || '#64748b';
+                            return `
+                                <tr>
+                                    <td>${row.particulars}</td>
+                                    <td style="color: ${color}; font-weight: 600;">${row.statusLabel}</td>
+                                    <td style="text-align: right;">${formatCurrency(row.totalPayable)}</td>
+                                    <td style="text-align: right;">${formatCurrency(row.totalPaid)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No payables recorded.</p>';
 
     // Calculate totals
     const transportCategoryTotal = transportCategoryItems.reduce((s, item) => s + item.subtotal, 0);
@@ -420,7 +680,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
                     <!-- Payables Tab -->
                     <div id="expBreakdownPayablesTab" style="display: none; margin-top: 1.5rem;">
-                        ${payablesHTML || ''}
+                        ${payablesHTML}
                     </div>
                 </div>
             </div>
