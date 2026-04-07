@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Phase complete — ready for verification
-stopped_at: Completed 65.10-01-PLAN.md
-last_updated: "2026-03-28T14:14:29.875Z"
+status: Ready to execute
+stopped_at: Completed 71-01-PLAN.md
+last_updated: "2026-04-07T09:40:46.435Z"
 progress:
-  total_phases: 20
-  completed_phases: 17
-  total_plans: 25
-  completed_plans: 28
+  total_phases: 21
+  completed_phases: 16
+  total_plans: 26
+  completed_plans: 30
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 65.10 — cancel-rfp-capability-cancel-whole-rfp-when-no-existing-rfps-filed-and-cancel-unapproved-tranche
+**Current focus:** Phase 71 — revamp-expense-modal-into-financials-modal
 
 ## Current Position
 
-Phase: 65.10 (cancel-rfp-capability-cancel-whole-rfp-when-no-existing-rfps-filed-and-cancel-unapproved-tranche) — EXECUTING
-Plan: 1 of 1
+Phase: 71 (revamp-expense-modal-into-financials-modal) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -74,6 +74,7 @@ Plan: 1 of 1
 | Phase 69-revise-expense-modal-scoreboards-to-add-remaining-payable-tracking P01 | 53 | 1 tasks | 1 files |
 | Phase 65.9 P01 | 2 | 2 tasks | 1 files |
 | Phase 65.10 P01 | 5 | 2 tasks | 2 files |
+| Phase 71 P01 | -9 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,7 @@ Recent decisions affecting current work:
 - [Phase 65.9]: Delivery fee dot is red when no Delivery Fee RFP exists so unsubmitted cases show as attention-needed, green only when payment_records cover full amount_requested
 - [Phase 65.10]: Payment guard (zero non-voided payments) enforced client-side in isRFPCancellable, consistent with cancelMRFPRs pattern
 - [Phase 65.10]: cancelRFPDocument captures RFP fields into savedData before deleteDoc, then re-opens appropriate modal (PO/TR/Delivery Fee) with pre-filled form for easy correction
+- [Phase 71-01]: Per D-09: rename is user-visible only — internal symbols (showExpenseBreakdownModal, expenseBreakdownModal, .expense-tab, window._* functions) stay unchanged to produce a zero-risk one-line diff
 
 ### Roadmap Evolution
 
@@ -153,6 +155,7 @@ Recent decisions affecting current work:
 - Phase 65.9 inserted after Phase 65: Integrate Delivery Fees to Enable RFP for Delivery (URGENT)
 - Phase 65.10 inserted after Phase 65: Cancel RFP capability — cancel whole RFP when no existing RFPs filed and cancel unapproved tranche (URGENT)
 - Phase 70 added: Cancel PRs and restore MRF to processing area
+- Phase 71 added: Revamp Expense modal into Financials modal — rename to Financial Breakdown, add Payables tab with Particulars/Status/Total Payable/Total Paid columns sorted by status
 
 ### Pending Todos
 
@@ -174,7 +177,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T14:14:29.868Z
-Stopped at: Completed 65.10-01-PLAN.md
+Last session: 2026-04-07T09:40:46.416Z
+Stopped at: Completed 71-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
