@@ -6993,6 +6993,59 @@ async function viewPODetails(poId) {
             ? po.tranches
             : [{ label: po.payment_terms || 'Full Payment', percentage: 100 }];
 
+        // Lock predicate: any active non-Delivery-Fee RFP against this PO
+        const hasActiveRFP = (rfpsByPO[po.po_id] || [])
+            .some(r => r.tranche_label !== 'Delivery Fee');
+
+        // Build Document Details section (locked or editable)
+        const documentDetailsHTML = hasActiveRFP
+            ? `<div style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin-bottom: 1rem; color: #1e293b;">Document Details</h4>
+                    <div style="padding: 0.5rem 0.75rem; background: #fef3c7; color: #92400e; border-radius: 6px; font-size: 0.8125rem; margin-bottom: 0.75rem; font-weight: 600;">
+                        Locked: Document Details cannot be edited while an active RFP is in progress. Cancel all RFPs for this PO to edit again.
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Tranches</label>
+                            <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.875rem; color: #1e293b;">
+                                ${poTranches.map(t => `<li>${escapeHTML(t.label || '')} — ${Number(t.percentage || 0)}%</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Condition</label>
+                            <span style="display: block; font-size: 0.875rem; color: #1e293b;">${escapeHTML(po.condition || '—')}</span>
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Delivery Date</label>
+                            <span style="display: block; font-size: 0.875rem; color: #1e293b;">${escapeHTML(po.delivery_date || '—')}</span>
+                        </div>
+                    </div>
+                </div>`
+            : `<div style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="margin-bottom: 1rem; color: #1e293b;">Document Details</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Tranches</label>
+                            ${renderTrancheBuilder(poTranches, po.id)}
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Condition</label>
+                            <input type="text" id="editCondition_${po.id}" value="${po.condition || ''}"
+                                   placeholder="e.g., Items must meet quality standards"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Delivery Date</label>
+                            <input type="date" id="editDeliveryDate_${po.id}" value="${po.delivery_date || ''}"
+                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="savePODocumentFields('${po.id}')"
+                            style="margin-top: 1rem;">
+                        Save Document Details
+                    </button>
+                </div>`;
+
         // Build modal body content
         let modalBodyContent = `
             <div style="max-height: 60vh; overflow-y: auto;">
@@ -7033,31 +7086,7 @@ async function viewPODetails(poId) {
                     ` : ''}
                 </div>
 
-                <!-- Document Details (Editable) -->
-                <div style="margin-top: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <h4 style="margin-bottom: 1rem; color: #1e293b;">Document Details</h4>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <div style="grid-column: span 2;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Payment Tranches</label>
-                            ${renderTrancheBuilder(poTranches, po.id)}
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Condition</label>
-                            <input type="text" id="editCondition_${po.id}" value="${po.condition || ''}"
-                                   placeholder="e.g., Items must meet quality standards"
-                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
-                        </div>
-                        <div style="grid-column: span 2;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.875rem;">Delivery Date</label>
-                            <input type="date" id="editDeliveryDate_${po.id}" value="${po.delivery_date || ''}"
-                                   style="width: 100%; padding: 0.5rem; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem;">
-                        </div>
-                    </div>
-                    <button class="btn btn-sm btn-primary" onclick="savePODocumentFields('${po.id}')"
-                            style="margin-top: 1rem;">
-                        Save Document Details
-                    </button>
-                </div>
+                ${documentDetailsHTML}
 
                 <div style="margin-top: 1.5rem;">
                     <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
