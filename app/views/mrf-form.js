@@ -383,6 +383,7 @@ export async function init(activeTab = 'form') {
         delete window._myRequestsReload;
         delete window._myRequestsExportCSV;
         delete window._myRequestsSort;
+        delete window._myRequestsCancelMRF;
     }
 
     try {
@@ -616,8 +617,46 @@ async function initMyRequests() {
             filterFn: userName
                 ? (mrf) => mrf.requestor_name === userName
                 : null, // If no user, show all (fallback)
-            onCancel: cancelRequestorMRFItems
+            onContextMenu: (event, mrfDocId, mrfStatus) => {
+                // Remove any stale context menu
+                document.getElementById('myRequestsMRFContextMenu')?.remove();
+
+                const cancellableStatuses = ['Pending', 'In Progress', 'PR Generated'];
+                const menu = document.createElement('div');
+                menu.id = 'myRequestsMRFContextMenu';
+                menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
+
+                if (cancellableStatuses.includes(mrfStatus)) {
+                    menu.innerHTML = `
+                        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                             onmouseenter="this.style.background='#fef2f2'"
+                             onmouseleave="this.style.background='transparent'"
+                             onclick="document.getElementById('myRequestsMRFContextMenu')?.remove(); window._myRequestsCancelMRF('${mrfDocId}')">
+                            Cancel MRF
+                        </div>
+                    `;
+                } else {
+                    menu.innerHTML = `
+                        <div style="padding:8px 16px;font-size:0.875rem;color:#9ca3af;cursor:default;">
+                            No actions available
+                        </div>
+                    `;
+                }
+
+                document.body.appendChild(menu);
+                setTimeout(() => {
+                    document.addEventListener('click', function handler() {
+                        menu.remove();
+                        document.removeEventListener('click', handler);
+                    }, { once: true });
+                }, 10);
+            }
         });
+
+        // Expose cancel handler for context menu onclick (HTML attribute string, needs window access)
+        window._myRequestsCancelMRF = async (mrfDocId) => {
+            try { await cancelRequestorMRFItems(mrfDocId); } catch (e) { console.error('[MRFForm] cancelRequestorMRFItems failed:', e); }
+        };
 
         // Expose filter and reload for inline event handlers
         window._myRequestsFilter = () => {
@@ -1110,6 +1149,7 @@ export async function destroy() {
     delete window._myRequestsReload;
     delete window._myRequestsExportCSV;
     delete window._myRequestsSort;
+    delete window._myRequestsCancelMRF;
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');

@@ -1091,7 +1091,7 @@ export function createMRFRecordsController(options) {
         statusFilter = null,
         filterFn = null,
         itemsPerPage = 10,
-        onCancel = null
+        onContextMenu = null
     } = options;
 
     // Instance-scoped state (not module-level — prevents cross-instance leakage)
@@ -1567,7 +1567,7 @@ export function createMRFRecordsController(options) {
 
             return `
                 <tr>
-                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;"><strong>${escapeHTML(displayId)}</strong></td>
+                    <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;${onContextMenu ? ' cursor: context-menu;' : ''}"${onContextMenu ? ` oncontextmenu="event.preventDefault(); window['_mrfRecordsContextMenu_${containerId}'](event, '${mrf.id}', '${escapeHTML(mrf.status)}'); return false;"` : ''}><strong>${escapeHTML(displayId)}</strong></td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: center; vertical-align: middle; font-size: 0.85rem;">${dateNeeded}</td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top;">${prHtml}</td>
@@ -1580,13 +1580,7 @@ export function createMRFRecordsController(options) {
                             onclick="window['_mrfRecordsTimeline_${containerId}']('${mrf.mrf_id}')"
                             style="font-size: 0.75rem; padding: 0.25rem 0.5rem; white-space: nowrap;">
                             Timeline
-                        </button>${onCancel ? `
-                        <button class="btn btn-sm btn-danger"
-                            onclick="window['_mrfRecordsCancel_${containerId}']('${mrf.id}')"
-                            style="font-size: 0.75rem; padding: 0.25rem 0.5rem; white-space: nowrap; margin-left: 0.25rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;"
-                            title="Cancel items that have no PR generated">
-                            Cancel
-                        </button>` : ''}
+                        </button>
                     </td>
                 </tr>
             `;
@@ -1717,9 +1711,9 @@ export function createMRFRecordsController(options) {
     window[`_mrfRecordsViewPO_${containerId}`] = viewPODetailsLocal;
     window[`_mrfRecordsTimeline_${containerId}`] = showTimelineLocal;
 
-    if (onCancel) {
-        window[`_mrfRecordsCancel_${containerId}`] = async (mrfDocId) => {
-            try { await onCancel(mrfDocId); } catch (e) { console.error('[MRFRecords] onCancel failed:', e); }
+    if (onContextMenu) {
+        window[`_mrfRecordsContextMenu_${containerId}`] = (event, mrfDocId, mrfStatus) => {
+            try { onContextMenu(event, mrfDocId, mrfStatus); } catch (e) { console.error('[MRFRecords] onContextMenu failed:', e); }
         };
     }
 
@@ -1746,7 +1740,7 @@ export function createMRFRecordsController(options) {
         delete window[`_mrfRecordsViewPR_${containerId}`];
         delete window[`_mrfRecordsViewPO_${containerId}`];
         delete window[`_mrfRecordsTimeline_${containerId}`];
-        delete window[`_mrfRecordsCancel_${containerId}`];
+        delete window[`_mrfRecordsContextMenu_${containerId}`];
         delete window.generatePRDocumentLocal;
         delete window.generatePODocumentLocal;
         if (window.viewTRDetails === viewTRDetailsLocal) {
