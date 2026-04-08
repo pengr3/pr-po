@@ -34,7 +34,7 @@ metrics:
 |------|------|--------|-------|
 | 1 | Allow decimals in mrf-form.js (HTML + parseInt fix) | c20df98 | app/views/mrf-form.js |
 | 2 | Allow decimals in all three procurement.js item-qty inputs | 3f5eabd | app/views/procurement.js |
-| 3 | Manual UAT — verify decimal QTY works in all three entry points | — | checkpoint (awaiting human verify) |
+| 3 | Manual UAT — verify decimal QTY works in all three entry points | approved | checkpoint (human-verify: APPROVED) |
 
 ## Changes Made
 
@@ -72,9 +72,15 @@ None — plan executed exactly as written. Four HTML attributes updated, one par
 
 None.
 
-## Awaiting
+## UAT Result
 
-Task 3 — manual UAT checkpoint. User must verify decimal QTY works in browser across all three entry points before this quick fix is considered complete.
+**Status: APPROVED by user (2026-04-08)**
+
+All three entry points verified working:
+- Standalone Create MRF (mrf-form.js) — decimal QTY accepted; persists to Firestore as decimal numbers
+- Procurement > Create MRF — decimal QTY accepted; subtotals calculate correctly (e.g. 0.5 * 100 = 50)
+- Procurement > MRF Details edit — decimal QTY accepted; subtotal recalculates on input
+- Regression: zero/negative values blocked by min="0.01"; whole numbers work unchanged
 
 ## Self-Check
 
