@@ -298,6 +298,57 @@ function openRecordPaymentModal(rfpDocId) {
            </div>`
         : '';
 
+    // Build "Existing Payments" section
+    const records = rfp.payment_records || [];
+    const activeRecords = records.filter(r => r.status !== 'voided');
+    let existingPaymentsHtml = '';
+    if (activeRecords.length > 0) {
+        const rowsHtml = activeRecords.map(r => `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:0.8125rem;font-weight:600;color:#1e293b;">${formatCurrency(r.amount)}</span>
+                    <span style="font-size:0.75rem;color:#64748b;">${r.date || ''}${r.reference ? ' &mdash; ' + escapeHTML(r.reference) : ''}</span>
+                </div>
+                <button class="btn btn-sm" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:0.75rem;border-radius:4px;cursor:pointer;"
+                    onclick="window.voidPaymentRecord('${rfpDocId}', '${escapeHTML(r.payment_id)}'); document.getElementById('recordPaymentModal').remove();">Void</button>
+            </div>`).join('');
+        existingPaymentsHtml = `
+            <div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #e5e7eb;">
+                <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Existing Payments (${activeRecords.length})</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">${rowsHtml}</div>
+            </div>`;
+    }
+
+    // Determine if RFP is fully paid to conditionally show/hide the new-payment form
+    const totalActivePaid = activeRecords.reduce((s, r) => s + (r.amount || 0), 0);
+    const isFullyPaid = totalActivePaid >= (rfp.amount_requested || 0) && (rfp.amount_requested || 0) > 0;
+
+    const newPaymentFormHtml = isFullyPaid
+        ? `<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#065f46;font-size:0.875rem;">
+               This RFP is fully paid. You can void existing payments above to record a correction.
+           </div>`
+        : `<div style="display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount</label>
+                    <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(rfp.amount_requested || 0)}" readonly
+                           style="width:100%;background:#f1f5f9;cursor:not-allowed;">
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="paymentDate" class="form-control" value="${today}" style="width:100%;" required>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Reference Number</label>
+                    <input type="text" id="paymentReference" class="form-control" placeholder="Check number, transfer ref, etc." style="width:100%;">
+                </div>
+            </div>
+            <div id="paymentErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>`;
+
+    const footerHtml = isFullyPaid
+        ? `<button class="btn btn-outline" onclick="document.getElementById('recordPaymentModal').remove()">Close</button>`
+        : `<button class="btn btn-outline" onclick="document.getElementById('recordPaymentModal').remove()">Discard Payment</button>
+           <button class="btn btn-primary" style="background:#059669;border-color:#059669;" onclick="window.submitPaymentRecord('${rfpDocId}')">Record Payment</button>`;
+
     const modalHtml = `
     <div id="recordPaymentModal" class="modal" style="display:flex;">
         <div class="modal-content" style="max-width:480px;margin:auto;">
@@ -321,26 +372,11 @@ function openRecordPaymentModal(rfpDocId) {
                         ${bankInfo}
                     </div>
                 </div>
-                <div style="display:flex;flex-direction:column;gap:1rem;">
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount</label>
-                        <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(rfp.amount_requested || 0)}" readonly
-                               style="width:100%;background:#f1f5f9;cursor:not-allowed;">
-                    </div>
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Date <span style="color:#ea4335;">*</span></label>
-                        <input type="date" id="paymentDate" class="form-control" value="${today}" style="width:100%;" required>
-                    </div>
-                    <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Reference Number</label>
-                        <input type="text" id="paymentReference" class="form-control" placeholder="Check number, transfer ref, etc." style="width:100%;">
-                    </div>
-                </div>
-                <div id="paymentErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                ${existingPaymentsHtml}
+                ${newPaymentFormHtml}
             </div>
             <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <button class="btn btn-outline" onclick="document.getElementById('recordPaymentModal').remove()">Discard Payment</button>
-                <button class="btn btn-primary" style="background:#059669;border-color:#059669;" onclick="window.submitPaymentRecord('${rfpDocId}')">Record Payment</button>
+                ${footerHtml}
             </div>
         </div>
     </div>`;
@@ -587,8 +623,10 @@ function renderRFPTable() {
             : escapeHTML(rfp.project_code || '');
         const badgeStyle = statusBadgeColors[status] || '';
 
-        const recordPaymentBtn = showEditControls && status !== 'Fully Paid'
-            ? `<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Record Payment</button>`
+        const recordPaymentBtn = showEditControls
+            ? (status === 'Fully Paid'
+                ? `<button class="btn btn-sm btn-outline" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Manage Payments</button>`
+                : `<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Record Payment</button>`)
             : '';
 
         // D-02: NO chevron column, NO history expand row — flat list only
