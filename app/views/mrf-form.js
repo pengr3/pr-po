@@ -384,6 +384,7 @@ export async function init(activeTab = 'form') {
         delete window._myRequestsExportCSV;
         delete window._myRequestsSort;
         delete window._myRequestsCancelMRF;
+        delete window._myRequestsEditMRF;
     }
 
     try {
@@ -457,149 +458,325 @@ export async function init(activeTab = 'form') {
 // ----------------------------------------
 
 /**
- * Requestor-side MRF item cancellation.
- * Fetches the MRF, determines which items have a PR generated against them,
- * lets the requestor cancel only the items WITHOUT a PR.
- * Mirrors the user-confirmation pattern of procurement.js cancelMRFPRs but
- * operates at the item level and never touches existing PRs/POs/TRs/RFPs.
+ * Requestor-side MRF cancellation (whole-MRF, no item selection).
+ * Blocks if any PRs exist. Otherwise confirms and sets status to Cancelled.
  */
-async function cancelRequestorMRFItems(mrfDocId) {
+async function cancelRequestorMRF(mrfDocId) {
     // 1. Fetch MRF by Firestore document ID
     const mrfRef = doc(db, 'mrfs', mrfDocId);
     const mrfSnap = await getDoc(mrfRef);
     if (!mrfSnap.exists()) { alert('MRF not found'); return; }
     const mrfData = { id: mrfSnap.id, ...mrfSnap.data() };
 
-    // 2. Status guard — only cancellable while still under requestor control
-    const cancellableStatuses = ['Pending', 'In Progress', 'PR Generated'];
-    if (!cancellableStatuses.includes(mrfData.status)) {
-        alert(`MRF cannot be cancelled at its current status: ${mrfData.status}`);
+    // 2. Check for existing PRs — if any exist, block cancellation
+    const prSnap = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', mrfData.mrf_id)));
+    if (!prSnap.empty) {
+        alert('Cannot cancel — this MRF has PRs generated. Contact procurement to cancel.');
         return;
     }
 
-    // 3. Parse items
+    // 3. Confirm with user
+    if (!confirm(`Cancel MRF ${mrfData.mrf_id}? This cannot be undone.`)) return;
+
+    // 4. Update Firestore
+    try {
+        await updateDoc(mrfRef, {
+            status: 'Cancelled',
+            cancelled_at: new Date().toISOString(),
+            cancelled_reason: 'Cancelled by requestor',
+            updated_at: new Date().toISOString()
+        });
+        // Reload My Requests list
+        if (typeof window._myRequestsReload === 'function') {
+            await window._myRequestsReload();
+        }
+    } catch (err) {
+        console.error('[MRFForm] cancelRequestorMRF write failed:', err);
+        alert('Failed to cancel MRF: ' + err.message);
+    }
+}
+
+// Unit options shared between create form and edit modal
+const UNIT_OPTIONS = [
+    'pcs','boxes','bags','lot','gallons','bottles','bundle','cans',
+    'trucks','ride','sheets','yards','pail','rolls','sets','packs',
+    'liter','pairs','meters','quarts','kg'
+];
+
+const CATEGORY_OPTIONS = [
+    'CIVIL','ELECTRICAL','HVAC','PLUMBING','TOOLS & EQUIPMENTS',
+    'SAFETY','SUBCON','TRANSPORTATION','HAULING & DELIVERY',
+    'DELIVERY BY SUPPLIER','OTHERS'
+];
+
+/**
+ * Build a unit <select> HTML string, pre-selecting the given value.
+ */
+function buildUnitSelect(selectedVal) {
+    const opts = UNIT_OPTIONS.map(u =>
+        `<option value="${u}"${selectedVal === u ? ' selected' : ''}>${u}</option>`
+    ).join('');
+    return `<select class="edit-item-unit" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+        <option value="">Unit</option>
+        ${opts}
+        <option value="others"${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? ' selected' : ''}>Others (specify)</option>
+    </select>
+    <input type="text" class="edit-item-unit-custom" placeholder="Specify unit"
+        style="display:${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? 'block' : 'none'};width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;margin-top:0.3rem;"
+        value="${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? selectedVal.replace(/"/g, '&quot;') : ''}">`;
+}
+
+/**
+ * Build a category <select> HTML string, pre-selecting the given value.
+ */
+function buildCategorySelect(selectedVal) {
+    const opts = CATEGORY_OPTIONS.map(c =>
+        `<option value="${c}"${selectedVal === c ? ' selected' : ''}>${c}</option>`
+    ).join('');
+    return `<select class="edit-item-category" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+        <option value="">Category</option>
+        ${opts}
+    </select>`;
+}
+
+/**
+ * Build one editable item row for the edit modal.
+ */
+function buildEditItemRow(item) {
+    const nameVal = (item.item || item.item_name || '').replace(/"/g, '&quot;');
+    const qtyVal = item.qty || item.quantity || '';
+    const unitVal = item.unit || '';
+    const catVal = item.category || '';
+    return `<tr>
+        <td style="padding:0.4rem;">
+            <input type="text" class="edit-item-name" value="${nameVal}"
+                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+        </td>
+        <td style="padding:0.4rem;">
+            <input type="number" class="edit-item-qty" value="${qtyVal}" min="0.01" step="any"
+                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+        </td>
+        <td style="padding:0.4rem;">${buildUnitSelect(unitVal)}</td>
+        <td style="padding:0.4rem;">${buildCategorySelect(catVal)}</td>
+        <td style="padding:0.4rem;text-align:center;">
+            <button type="button" onclick="this.closest('tr').remove()"
+                style="background:#ef4444;color:white;border:none;border-radius:4px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;">
+                Remove
+            </button>
+        </td>
+    </tr>`;
+}
+
+/**
+ * Requestor-side MRF edit modal.
+ * Opens a full-form modal pre-filled with current MRF values.
+ * On save, updates the Firestore document and reloads My Requests.
+ */
+async function editRequestorMRF(mrfDocId) {
+    // 1. Fetch MRF
+    const mrfRef = doc(db, 'mrfs', mrfDocId);
+    const mrfSnap = await getDoc(mrfRef);
+    if (!mrfSnap.exists()) { alert('MRF not found'); return; }
+    const mrfData = { id: mrfSnap.id, ...mrfSnap.data() };
+
+    // 2. Parse items
     let items = [];
     try { items = JSON.parse(mrfData.items_json || '[]'); } catch (e) { items = []; }
-    if (!Array.isArray(items) || items.length === 0) {
-        alert('MRF has no items to cancel');
-        return;
-    }
 
-    // 4. Determine which items have a PR. Strategy: fetch all PRs for this mrf_id,
-    //    parse each PR's items_json, collect a Set of item identifiers
-    //    (composite key: item_name + supplier).
-    const prSnap = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', mrfData.mrf_id)));
-    const prItemKeys = new Set();
-    prSnap.forEach(prDoc => {
-        const prData = prDoc.data();
-        let prItems = [];
-        try { prItems = JSON.parse(prData.items_json || '[]'); } catch (e) {}
-        prItems.forEach(it => {
-            const key = `${(it.item_name || '').trim()}|${(it.supplier || prData.supplier_name || '').trim()}`;
-            prItemKeys.add(key);
-        });
-    });
+    // 3. Build initial item rows HTML
+    const initialRows = items.length > 0
+        ? items.map(buildEditItemRow).join('')
+        : buildEditItemRow({ item: '', qty: '', unit: '', category: '' });
 
-    // Helper: does this MRF item have a PR?
-    const itemHasPR = (item) => {
-        const key = `${(item.item_name || '').trim()}|${(item.supplier || '').trim()}`;
-        return prItemKeys.has(key);
-    };
+    // 4. Build project/service display value for simple text input
+    const projectServiceVal = (mrfData.project_code || mrfData.service_code || '').replace(/"/g, '&quot;');
+    const projectServiceDisplay = (() => {
+        if (mrfData.project_code && mrfData.project_name) return `${mrfData.project_code} - ${mrfData.project_name}`;
+        if (mrfData.service_code && mrfData.service_name) return `${mrfData.service_code} - ${mrfData.service_name}`;
+        return mrfData.project_code || mrfData.service_code || '';
+    })();
 
-    // 5. Render modal listing items with checkboxes
-    const existingModal = document.getElementById('requestorCancelModal');
-    if (existingModal) existingModal.remove();
+    const urgencyOptions = ['Low','Medium','High','Critical'].map(u =>
+        `<option value="${u}"${mrfData.urgency_level === u ? ' selected' : ''}>${u}</option>`
+    ).join('');
 
-    const itemRowsHtml = items.map((it, idx) => {
-        const hasPR = itemHasPR(it);
-        const disabled = hasPR ? 'disabled' : '';
-        const checked = hasPR ? '' : 'checked';
-        const badge = hasPR
-            ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-left:0.5rem;">PR Generated</span>'
-            : '';
-        const itemName = (it.item_name || '').replace(/</g, '&lt;');
-        const supplierName = (it.supplier || '').replace(/</g, '&lt;');
-        return `
-            <tr>
-                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:center;">
-                    <input type="checkbox" class="cancel-item-checkbox" data-idx="${idx}" ${disabled} ${checked}>
-                </td>
-                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;">${itemName}${badge}</td>
-                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:right;">${it.qty || it.quantity || ''} ${it.unit || ''}</td>
-                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;">${supplierName}</td>
-            </tr>
-        `;
-    }).join('');
+    // 5. Build and append modal
+    document.getElementById('requestorEditMRFModal')?.remove();
 
     const overlay = document.createElement('div');
-    overlay.id = 'requestorCancelModal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    overlay.id = 'requestorEditMRFModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;z-index:10000;overflow-y:auto;padding:2rem 1rem;';
     overlay.innerHTML = `
-        <div style="background:white;border-radius:8px;max-width:760px;width:90%;max-height:85vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
-            <div style="padding:1.5rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="margin:0;color:#1e293b;">Cancel Items \u2014 ${mrfData.mrf_id}</h3>
-                <button onclick="document.getElementById('requestorCancelModal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">&times;</button>
+        <div style="background:white;border-radius:10px;max-width:900px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+            <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">Edit MRF &mdash; ${mrfData.mrf_id}</h3>
+                <button id="editMRFCloseBtn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">&times;</button>
             </div>
-            <div style="padding:1rem 1.5rem;color:#64748b;font-size:0.875rem;">
-                Only items that do NOT yet have a PR generated can be cancelled. Items with an active PR are locked.
+
+            <div style="padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                <!-- Project / Service (read-only display) -->
+                <div style="grid-column:1/-1;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Project / Service</label>
+                    <input type="text" id="editMRFProjectService" value="${projectServiceDisplay.replace(/"/g, '&quot;')}" readonly
+                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;background:#f8fafc;color:#475569;cursor:not-allowed;box-sizing:border-box;">
+                </div>
+
+                <!-- Requestor Name -->
+                <div>
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Requestor Name</label>
+                    <input type="text" id="editMRFRequestorName" value="${(mrfData.requestor_name || '').replace(/"/g, '&quot;')}"
+                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;">
+                </div>
+
+                <!-- Date Needed -->
+                <div>
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Date Needed</label>
+                    <input type="date" id="editMRFDateNeeded" value="${mrfData.date_needed || ''}"
+                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;">
+                </div>
+
+                <!-- Urgency Level -->
+                <div>
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Urgency Level</label>
+                    <select id="editMRFUrgency" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;">
+                        ${urgencyOptions}
+                    </select>
+                </div>
+
+                <!-- Delivery Address -->
+                <div style="grid-column:1/-1;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Delivery Address</label>
+                    <textarea id="editMRFDeliveryAddress" rows="2"
+                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;resize:vertical;box-sizing:border-box;">${(mrfData.delivery_address || '').replace(/</g, '&lt;')}</textarea>
+                </div>
+
+                <!-- Justification -->
+                <div style="grid-column:1/-1;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Justification</label>
+                    <textarea id="editMRFJustification" rows="3"
+                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;resize:vertical;box-sizing:border-box;">${(mrfData.justification || '').replace(/</g, '&lt;')}</textarea>
+                </div>
             </div>
-            <div style="padding:0 1.5rem;">
-                <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
-                    <thead>
-                        <tr style="background:#f8f9fa;">
-                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;width:40px;">Cancel</th>
-                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;">Item</th>
-                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;text-align:right;">Qty</th>
-                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;">Supplier</th>
-                        </tr>
-                    </thead>
-                    <tbody>${itemRowsHtml}</tbody>
-                </table>
+
+            <!-- Items Table -->
+            <div style="padding:0 1.5rem 1rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;">Items</label>
+                    <button type="button" id="editMRFAddItemBtn"
+                        style="background:#f1f5f9;border:1px solid #e5e7eb;border-radius:4px;padding:0.3rem 0.75rem;cursor:pointer;font-size:0.8rem;color:#374151;">
+                        + Add Item
+                    </button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr style="background:#f8f9fa;">
+                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;">Item Description</th>
+                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;width:80px;">Qty</th>
+                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;width:140px;">Unit</th>
+                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;width:180px;">Category</th>
+                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;width:60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="editMRFItemsBody">
+                            ${initialRows}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div style="padding:1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;">
-                <button class="btn btn-secondary" onclick="document.getElementById('requestorCancelModal').remove()">Close</button>
-                <button class="btn" id="requestorCancelConfirmBtn" style="background:#ef4444;color:white;">Cancel Selected Items</button>
+
+            <!-- Footer Buttons -->
+            <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;">
+                <button id="editMRFCancelBtn" style="background:#f1f5f9;border:1px solid #e5e7eb;border-radius:6px;padding:0.5rem 1.25rem;cursor:pointer;font-size:0.875rem;color:#374151;">
+                    Cancel
+                </button>
+                <button id="editMRFSaveBtn" style="background:#1a73e8;color:white;border:none;border-radius:6px;padding:0.5rem 1.25rem;cursor:pointer;font-size:0.875rem;font-weight:600;">
+                    Save Changes
+                </button>
             </div>
         </div>
     `;
     document.body.appendChild(overlay);
 
-    document.getElementById('requestorCancelConfirmBtn').onclick = async () => {
-        const checks = overlay.querySelectorAll('.cancel-item-checkbox:not(:disabled)');
-        const toCancelIdx = new Set();
-        checks.forEach(c => { if (c.checked) toCancelIdx.add(parseInt(c.dataset.idx, 10)); });
-        if (toCancelIdx.size === 0) {
-            alert('Select at least one item to cancel');
-            return;
-        }
-        const remaining = items.filter((_, idx) => !toCancelIdx.has(idx));
+    // Close handlers
+    const closeModal = () => overlay.remove();
+    overlay.querySelector('#editMRFCloseBtn').addEventListener('click', closeModal);
+    overlay.querySelector('#editMRFCancelBtn').addEventListener('click', closeModal);
 
-        // Confirm
-        if (!confirm(`Cancel ${toCancelIdx.size} item(s) from ${mrfData.mrf_id}?\n\n${remaining.length} item(s) will remain.`)) return;
-
-        // Write back
-        const updatePayload = {
-            items_json: JSON.stringify(remaining),
-            updated_at: new Date().toISOString()
-        };
-        if (remaining.length === 0) {
-            updatePayload.status = 'Cancelled';
-            updatePayload.cancelled_at = new Date().toISOString();
-            updatePayload.cancelled_reason = 'All items cancelled by requestor';
+    // Unit "others" toggle handler
+    overlay.addEventListener('change', (e) => {
+        if (e.target.classList.contains('edit-item-unit')) {
+            const customInput = e.target.closest('td').querySelector('.edit-item-unit-custom');
+            if (customInput) {
+                customInput.style.display = e.target.value === 'others' ? 'block' : 'none';
+                if (e.target.value !== 'others') customInput.value = '';
+            }
         }
+    });
+
+    // Add item row
+    overlay.querySelector('#editMRFAddItemBtn').addEventListener('click', () => {
+        const tbody = overlay.querySelector('#editMRFItemsBody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' }).replace(/^<tr>/, '').replace(/<\/tr>$/, '');
+        // buildEditItemRow wraps in <tr>...</tr>, so parse properly
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' });
+        tbody.appendChild(tempDiv.firstElementChild);
+    });
+
+    // Save handler
+    overlay.querySelector('#editMRFSaveBtn').addEventListener('click', async () => {
+        const requestorName = overlay.querySelector('#editMRFRequestorName').value.trim();
+        const dateNeeded = overlay.querySelector('#editMRFDateNeeded').value.trim();
+        const urgencyLevel = overlay.querySelector('#editMRFUrgency').value;
+        const deliveryAddress = overlay.querySelector('#editMRFDeliveryAddress').value.trim();
+        const justification = overlay.querySelector('#editMRFJustification').value.trim();
+
+        if (!requestorName) { alert('Requestor name is required'); return; }
+        if (!dateNeeded) { alert('Date needed is required'); return; }
+
+        // Collect items from table
+        const itemRows = overlay.querySelectorAll('#editMRFItemsBody tr');
+        const newItems = [];
+        for (const row of itemRows) {
+            const name = row.querySelector('.edit-item-name')?.value.trim() || '';
+            const qty = parseFloat(row.querySelector('.edit-item-qty')?.value) || 0;
+            const unitSel = row.querySelector('.edit-item-unit');
+            const unitCustom = row.querySelector('.edit-item-unit-custom');
+            const unit = unitSel?.value === 'others' ? (unitCustom?.value.trim() || '') : (unitSel?.value || '');
+            const category = row.querySelector('.edit-item-category')?.value || '';
+            if (name && qty > 0) {
+                newItems.push({ item: name, qty, unit, category });
+            }
+        }
+        if (newItems.length === 0) { alert('At least one valid item is required'); return; }
+
+        const saveBtn = overlay.querySelector('#editMRFSaveBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
         try {
-            await updateDoc(doc(db, 'mrfs', mrfDocId), updatePayload);
+            await updateDoc(mrfRef, {
+                requestor_name: requestorName,
+                date_needed: dateNeeded,
+                urgency_level: urgencyLevel,
+                delivery_address: deliveryAddress,
+                justification: justification,
+                items_json: JSON.stringify(newItems),
+                updated_at: new Date().toISOString()
+            });
             overlay.remove();
-            alert(`Cancelled ${toCancelIdx.size} item(s)${remaining.length === 0 ? ' \u2014 MRF marked Cancelled' : ''}.`);
-            // Trigger reload of My Requests
             if (typeof window._myRequestsReload === 'function') {
                 await window._myRequestsReload();
             }
         } catch (err) {
-            console.error('[MRFForm] cancelRequestorMRFItems write failed:', err);
-            alert('Failed to cancel items: ' + err.message);
+            console.error('[MRFForm] editRequestorMRF save failed:', err);
+            alert('Failed to save changes: ' + err.message);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Changes';
         }
-    };
+    });
 }
 
 async function initMyRequests() {
@@ -621,13 +798,19 @@ async function initMyRequests() {
                 // Remove any stale context menu
                 document.getElementById('myRequestsMRFContextMenu')?.remove();
 
-                const cancellableStatuses = ['Pending', 'In Progress', 'PR Generated'];
+                const actionableStatuses = ['Pending', 'In Progress'];
                 const menu = document.createElement('div');
                 menu.id = 'myRequestsMRFContextMenu';
                 menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
 
-                if (cancellableStatuses.includes(mrfStatus)) {
+                if (actionableStatuses.includes(mrfStatus)) {
                     menu.innerHTML = `
+                        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1a73e8;"
+                             onmouseenter="this.style.background='#eff6ff'"
+                             onmouseleave="this.style.background='transparent'"
+                             onclick="document.getElementById('myRequestsMRFContextMenu')?.remove(); window._myRequestsEditMRF('${mrfDocId}')">
+                            Edit MRF
+                        </div>
                         <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
                              onmouseenter="this.style.background='#fef2f2'"
                              onmouseleave="this.style.background='transparent'"
@@ -653,9 +836,12 @@ async function initMyRequests() {
             }
         });
 
-        // Expose cancel handler for context menu onclick (HTML attribute string, needs window access)
+        // Expose cancel and edit handlers for context menu onclick (HTML attribute strings, need window access)
         window._myRequestsCancelMRF = async (mrfDocId) => {
-            try { await cancelRequestorMRFItems(mrfDocId); } catch (e) { console.error('[MRFForm] cancelRequestorMRFItems failed:', e); }
+            try { await cancelRequestorMRF(mrfDocId); } catch (e) { console.error('[MRFForm] cancelRequestorMRF failed:', e); }
+        };
+        window._myRequestsEditMRF = async (mrfDocId) => {
+            try { await editRequestorMRF(mrfDocId); } catch (e) { console.error('[MRFForm] editRequestorMRF failed:', e); }
         };
 
         // Expose filter and reload for inline event handlers
@@ -1150,6 +1336,7 @@ export async function destroy() {
     delete window._myRequestsExportCSV;
     delete window._myRequestsSort;
     delete window._myRequestsCancelMRF;
+    delete window._myRequestsEditMRF;
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');
