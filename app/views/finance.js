@@ -833,9 +833,11 @@ function renderPOSummaryTable() {
             const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
             const rfpIsOverdue = rfpStatus === 'Overdue';
 
-            // D-15: Record Payment button in expanded sub-rows
-            const subRecordBtn = showEditControls && rfpStatus !== 'Fully Paid'
-                ? `<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Record Payment</button>`
+            // D-15: Record Payment / Manage Payments button in expanded sub-rows
+            const subRecordBtn = showEditControls
+                ? (rfpStatus === 'Fully Paid'
+                    ? `<button class="btn btn-sm btn-outline" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Manage Payments</button>`
+                    : `<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal('${rfp.id}')" style="white-space:nowrap;">Record Payment</button>`)
                 : '';
 
             return `<tr style="${rfpIsOverdue ? 'background-color:#fef2f2;' : ''}">
