@@ -183,10 +183,11 @@ None.
 | 260408-fog | Fix MRF QTY field to allow decimal values less than 1 (e.g. 0.5) | 2026-04-08 | 6318944 | Verified | [260408-fog-fix-mrf-qty-field-to-allow-decimal-value](.planning/quick/260408-fog-fix-mrf-qty-field-to-allow-decimal-value/) |
 | 260408-g2n | Investigate and restore missing Void button in Finance Payables Record Payment modal | 2026-04-08 | 21a682c, 3e64cc0 | Verified | [260408-g2n-investigate-and-restore-missing-void-but](.planning/quick/260408-g2n-investigate-and-restore-missing-void-but/) |
 | 260408-ikv | Lock PO Document Details when active RFP exists | 2026-04-08 | f67d545 | Awaiting UAT | [260408-ikv-lock-po-document-details-when-active-rfp](.planning/quick/260408-ikv-lock-po-document-details-when-active-rfp/) |
+| 260408-j0d | Add MRF cancellation for requestors only (item-level, PR-linked items protected) | 2026-04-08 | da509aa, 1b99410 | Awaiting UAT | [260408-j0d-add-mrf-cancellation-for-requestors-only](.planning/quick/260408-j0d-add-mrf-cancellation-for-requestors-only/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-08 - Quick task 260408-ikv: Lock PO Document Details when active RFP — awaiting UAT verification
+Last activity: 2026-04-08 - Quick task 260408-j0d: Add MRF cancellation for requestors — awaiting UAT verification
 Last session: 2026-04-07T11:41:18.339Z
 Stopped at: Completed 71-03-PLAN.md
 Resume file: None
