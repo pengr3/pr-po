@@ -1090,7 +1090,8 @@ export function createMRFRecordsController(options) {
         paginationId = containerId + 'Pagination',
         statusFilter = null,
         filterFn = null,
-        itemsPerPage = 10
+        itemsPerPage = 10,
+        onCancel = null
     } = options;
 
     // Instance-scoped state (not module-level — prevents cross-instance leakage)
@@ -1579,7 +1580,13 @@ export function createMRFRecordsController(options) {
                             onclick="window['_mrfRecordsTimeline_${containerId}']('${mrf.mrf_id}')"
                             style="font-size: 0.75rem; padding: 0.25rem 0.5rem; white-space: nowrap;">
                             Timeline
-                        </button>
+                        </button>${onCancel ? `
+                        <button class="btn btn-sm btn-danger"
+                            onclick="window['_mrfRecordsCancel_${containerId}']('${mrf.id}')"
+                            style="font-size: 0.75rem; padding: 0.25rem 0.5rem; white-space: nowrap; margin-left: 0.25rem; background:#ef4444; color:white; border:none; border-radius:4px; cursor:pointer;"
+                            title="Cancel items that have no PR generated">
+                            Cancel
+                        </button>` : ''}
                     </td>
                 </tr>
             `;
@@ -1710,6 +1717,12 @@ export function createMRFRecordsController(options) {
     window[`_mrfRecordsViewPO_${containerId}`] = viewPODetailsLocal;
     window[`_mrfRecordsTimeline_${containerId}`] = showTimelineLocal;
 
+    if (onCancel) {
+        window[`_mrfRecordsCancel_${containerId}`] = async (mrfDocId) => {
+            try { await onCancel(mrfDocId); } catch (e) { console.error('[MRFRecords] onCancel failed:', e); }
+        };
+    }
+
     // Register viewTRDetails on window if not already provided by procurement.js.
     // procurement.js overwrites this with its full implementation when loaded.
     if (!window.viewTRDetails) {
@@ -1733,6 +1746,7 @@ export function createMRFRecordsController(options) {
         delete window[`_mrfRecordsViewPR_${containerId}`];
         delete window[`_mrfRecordsViewPO_${containerId}`];
         delete window[`_mrfRecordsTimeline_${containerId}`];
+        delete window[`_mrfRecordsCancel_${containerId}`];
         delete window.generatePRDocumentLocal;
         delete window.generatePODocumentLocal;
         if (window.viewTRDetails === viewTRDetailsLocal) {
