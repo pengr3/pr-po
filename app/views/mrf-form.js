@@ -274,7 +274,7 @@ export function render(activeTab = 'form') {
                                     <tbody id="itemsTableBody">
                                         <tr>
                                             <td><input type="text" class="item-name" required></td>
-                                            <td><input type="number" class="item-qty" min="1" required></td>
+                                            <td><input type="number" class="item-qty" min="0.01" step="any" required></td>
                                             <td>
                                                 <select class="item-unit" onchange="toggleCustomUnit(this)" required>
                                                     <option value="">Select Unit</option>
@@ -724,7 +724,7 @@ function collectItems() {
 
     for (let row of tbody.rows) {
         const itemName = row.querySelector('.item-name').value.trim();
-        const qty = parseInt(row.querySelector('.item-qty').value);
+        const qty = parseFloat(row.querySelector('.item-qty').value);
         const unitSelect = row.querySelector('.item-unit');
         const customUnitInput = row.querySelector('.custom-unit-input');
         const unit = unitSelect.value === 'others' ? customUnitInput.value.trim() : unitSelect.value;
