@@ -7,7 +7,7 @@ tags: [void-payment, payables-tab, record-payment-modal, finance-ui]
 dependency_graph:
   requires: []
   provides: [void-payment-ui-entry-point]
-  affects: [finance.js/openRecordPaymentModal, finance.js/renderRFPTable]
+  affects: [finance.js/openRecordPaymentModal, finance.js/renderRFPTable, finance.js/renderPOSummaryTable]
 tech_stack:
   added: []
   patterns: [modal-enhancement, conditional-form-rendering]
@@ -20,9 +20,9 @@ decisions:
   - isFullyPaid computed inline from activeRecords sum vs amount_requested — mirrors deriveRFPStatus logic without importing/calling that function inside the modal builder
   - Manage Payments button shown at all times for Fully Paid RFPs so users can access the void flow without having to change the status filter first
 metrics:
-  duration_minutes: 8
+  duration_minutes: ~30
   completed_date: "2026-04-08"
-  tasks_completed: 1
+  tasks_completed: 2
   tasks_total: 2
   files_modified: 1
 ---
@@ -55,6 +55,10 @@ Added logic before the `modalHtml` template literal:
 Changed the `recordPaymentBtn` ternary:
 - Previously: only rendered button when `status !== 'Fully Paid'`
 - Now: always renders a button for users with edit access; Fully Paid gets grey outline "Manage Payments" button, all others keep the green primary "Record Payment" button.
+
+**Function modified: `renderPOSummaryTable` sub-rows (debug fix — commit `3e64cc0`)**
+
+The same "Manage Payments" pattern was missing from Table 2 (PO Payment Summary) sub-rows. RFP sub-rows inside `renderPOSummaryTable` still showed no action button for Fully Paid RFPs, preventing access to the void flow from that table. Applied the identical ternary: Fully Paid sub-rows now show a grey outline "Manage Payments" button; others retain "Record Payment".
 
 **No other functions were touched.** `voidPaymentRecord`, `submitPaymentRecord`, and all filter/sort/pagination logic are unchanged.
 
@@ -93,20 +97,35 @@ Returns 4 lines:
 ```
 grep -n "Manage Payments" app/views/finance.js
 ```
-Returns exactly 1 line (line 628): the Fully Paid action button in `renderRFPTable`.
+Returns 2 lines: the Fully Paid action button in `renderRFPTable` (Table 1) and the equivalent button in `renderPOSummaryTable` sub-rows (Table 2) added in the debug fix.
 
-## Task 1 Commit
+## Commits
 
-- `21a682c` — `fix(260408-g2n-01): restore Void button UI in Record Payment modal`
-  - `app/views/finance.js` — 58 insertions, 20 deletions
+- `21a682c` — `fix(260408-g2n-01): restore Void button UI in Record Payment modal` — enhanced `openRecordPaymentModal` with Existing Payments section and Void buttons; added "Manage Payments" button for Fully Paid RFPs in `renderRFPTable` (Table 1).
+- `3e64cc0` — debug fix: applied same "Manage Payments" button to `renderPOSummaryTable` sub-rows (Table 2) — missed in Task 1 because the plan's scope only referenced `renderRFPTable`.
 
-## UAT Status
+## UAT Results
 
-Task 2 (browser UAT) is a `checkpoint:human-verify` — awaiting manual verification of cases A-E (see PLAN.md Task 2 for full test script).
+Task 2 (browser UAT) completed and approved by Finance user. All five cases verified:
+
+| Case | Description | Result |
+|------|-------------|--------|
+| A | Pending RFP with zero payments — modal identical to pre-change | Passed |
+| B | Partially Paid RFP — "Existing Payments (1)" section visible above form | Passed |
+| C | Void a payment — toast shown, modal closes, table recomputes (Total Paid, Balance, badge) | Passed |
+| D | Fully Paid RFP — "Manage Payments" outline button; modal shows payments only, no input form | Passed |
+| E | D-02 preservation — no new columns, no chevrons, no expand rows in DevTools | Passed |
+
+Zero JS console errors across all cases.
 
 ## Deviations from Plan
 
-None — plan executed exactly as written.
+**[Rule 1 - Bug] Applied "Manage Payments" button to renderPOSummaryTable (Table 2) sub-rows**
+- Found during: post-Task-1 debug review
+- Issue: Plan only specified adding the button to `renderRFPTable` (Table 1). `renderPOSummaryTable` sub-rows (Table 2) still showed no action for Fully Paid RFPs, leaving the void path inaccessible from that table.
+- Fix: Applied the identical Fully Paid / non-Fully-Paid ternary to Table 2 sub-row action cells.
+- Files modified: `app/views/finance.js`
+- Commit: `3e64cc0`
 
 ## Known Stubs
 
@@ -114,6 +133,7 @@ None — no placeholder data or hardcoded empty values introduced.
 
 ## Self-Check: PASSED
 
-- `app/views/finance.js` modified and committed at `21a682c`
-- Commit verified: present in git log
+- `app/views/finance.js` modified and committed at `21a682c` and `3e64cc0`
+- Both commits verified in git log
 - Grep checks confirm correct occurrence counts for "Existing Payments", "voidPaymentRecord", and "Manage Payments"
+- UAT approved by Finance user — all 5 cases passed, zero JS errors
