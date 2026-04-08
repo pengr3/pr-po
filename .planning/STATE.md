@@ -175,14 +175,16 @@ None.
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260319-gkf | Improve RFP payment fill progress bar color scheme to match text label colors like PRs column | 2026-03-19 | e369df7 | [260319-gkf-improve-rfp-payment-fill-progress-bar-co](.planning/quick/260319-gkf-improve-rfp-payment-fill-progress-bar-co/) |
-| 260319-j18 | Fix PO ID link font color in MRF Records table from green (#34a853) to primary blue (#1a73e8) | 2026-03-19 | 7f5c841 | [260319-j18-fix-po-id-link-font-color-in-mrf-records](.planning/quick/260319-j18-fix-po-id-link-font-color-in-mrf-records/) |
-| 260319-j5f | Style PO ID chips in MRF Records POs column as status-badge pill badges matching PR/TR chips | 2026-03-19 | 3c40f50 | [260319-j5f-style-po-id-chips-in-mrf-records-pos-col](.planning/quick/260319-j5f-style-po-id-chips-in-mrf-records-pos-col/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260319-gkf | Improve RFP payment fill progress bar color scheme to match text label colors like PRs column | 2026-03-19 | e369df7 | | [260319-gkf-improve-rfp-payment-fill-progress-bar-co](.planning/quick/260319-gkf-improve-rfp-payment-fill-progress-bar-co/) |
+| 260319-j18 | Fix PO ID link font color in MRF Records table from green (#34a853) to primary blue (#1a73e8) | 2026-03-19 | 7f5c841 | | [260319-j18-fix-po-id-link-font-color-in-mrf-records](.planning/quick/260319-j18-fix-po-id-link-font-color-in-mrf-records/) |
+| 260319-j5f | Style PO ID chips in MRF Records POs column as status-badge pill badges matching PR/TR chips | 2026-03-19 | 3c40f50 | | [260319-j5f-style-po-id-chips-in-mrf-records-pos-col](.planning/quick/260319-j5f-style-po-id-chips-in-mrf-records-pos-col/) |
+| 260408-fog | Fix MRF QTY field to allow decimal values less than 1 (e.g. 0.5) | 2026-04-08 | 6318944 | Verified | [260408-fog-fix-mrf-qty-field-to-allow-decimal-value](.planning/quick/260408-fog-fix-mrf-qty-field-to-allow-decimal-value/) |
 
 ## Session Continuity
 
+Last activity: 2026-04-08 - Completed quick task 260408-fog: Fix MRF QTY field to allow decimal values less than 1 (e.g. 0.5)
 Last session: 2026-04-07T11:41:18.339Z
 Stopped at: Completed 71-03-PLAN.md
 Resume file: None
