@@ -2602,7 +2602,7 @@ function selectRejectedTR(trDocId) {
                        class="item-qty table-input table-input-sm"
                        data-index="${index}"
                        value="${item.qty || ''}"
-                       min="1"
+                       min="0.01" step="any"
                        placeholder="0"
                        oninput="window.calculateSubtotal(${index})">
             </td>
@@ -3110,7 +3110,7 @@ function renderMRFDetails(mrf, isNew = false) {
                                        class="item-qty table-input table-input-sm"
                                        data-index="${index}"
                                        value="${item.qty || item.quantity || ''}"
-                                       min="1"
+                                       min="0.01" step="any"
                                        placeholder="0"
                                        oninput="window.calculateSubtotal(${index})">
                             </td>
@@ -3340,7 +3340,7 @@ function addLineItem() {
                    class="item-qty table-input table-input-sm"
                    data-index="${newIndex}"
                    value=""
-                   min="1"
+                   min="0.01" step="any"
                    placeholder="0"
                    oninput="window.calculateSubtotal(${newIndex})">
         </td>
