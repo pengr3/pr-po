@@ -6,7 +6,7 @@
      - 'my-requests' → My Requests: user's submitted MRFs
    ======================================== */
 
-import { db, collection, addDoc, getDocs, query, where, onSnapshot } from '../firebase.js';
+import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc } from '../firebase.js';
 import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
 
@@ -455,6 +455,152 @@ export async function init(activeTab = 'form') {
 // MY REQUESTS INIT
 // ----------------------------------------
 
+/**
+ * Requestor-side MRF item cancellation.
+ * Fetches the MRF, determines which items have a PR generated against them,
+ * lets the requestor cancel only the items WITHOUT a PR.
+ * Mirrors the user-confirmation pattern of procurement.js cancelMRFPRs but
+ * operates at the item level and never touches existing PRs/POs/TRs/RFPs.
+ */
+async function cancelRequestorMRFItems(mrfDocId) {
+    // 1. Fetch MRF by Firestore document ID
+    const mrfRef = doc(db, 'mrfs', mrfDocId);
+    const mrfSnap = await getDoc(mrfRef);
+    if (!mrfSnap.exists()) { alert('MRF not found'); return; }
+    const mrfData = { id: mrfSnap.id, ...mrfSnap.data() };
+
+    // 2. Status guard — only cancellable while still under requestor control
+    const cancellableStatuses = ['Pending', 'In Progress', 'PR Generated'];
+    if (!cancellableStatuses.includes(mrfData.status)) {
+        alert(`MRF cannot be cancelled at its current status: ${mrfData.status}`);
+        return;
+    }
+
+    // 3. Parse items
+    let items = [];
+    try { items = JSON.parse(mrfData.items_json || '[]'); } catch (e) { items = []; }
+    if (!Array.isArray(items) || items.length === 0) {
+        alert('MRF has no items to cancel');
+        return;
+    }
+
+    // 4. Determine which items have a PR. Strategy: fetch all PRs for this mrf_id,
+    //    parse each PR's items_json, collect a Set of item identifiers
+    //    (composite key: item_name + supplier).
+    const prSnap = await getDocs(query(collection(db, 'prs'), where('mrf_id', '==', mrfData.mrf_id)));
+    const prItemKeys = new Set();
+    prSnap.forEach(prDoc => {
+        const prData = prDoc.data();
+        let prItems = [];
+        try { prItems = JSON.parse(prData.items_json || '[]'); } catch (e) {}
+        prItems.forEach(it => {
+            const key = `${(it.item_name || '').trim()}|${(it.supplier || prData.supplier_name || '').trim()}`;
+            prItemKeys.add(key);
+        });
+    });
+
+    // Helper: does this MRF item have a PR?
+    const itemHasPR = (item) => {
+        const key = `${(item.item_name || '').trim()}|${(item.supplier || '').trim()}`;
+        return prItemKeys.has(key);
+    };
+
+    // 5. Render modal listing items with checkboxes
+    const existingModal = document.getElementById('requestorCancelModal');
+    if (existingModal) existingModal.remove();
+
+    const itemRowsHtml = items.map((it, idx) => {
+        const hasPR = itemHasPR(it);
+        const disabled = hasPR ? 'disabled' : '';
+        const checked = hasPR ? '' : 'checked';
+        const badge = hasPR
+            ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;margin-left:0.5rem;">PR Generated</span>'
+            : '';
+        const itemName = (it.item_name || '').replace(/</g, '&lt;');
+        const supplierName = (it.supplier || '').replace(/</g, '&lt;');
+        return `
+            <tr>
+                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:center;">
+                    <input type="checkbox" class="cancel-item-checkbox" data-idx="${idx}" ${disabled} ${checked}>
+                </td>
+                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;">${itemName}${badge}</td>
+                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:right;">${it.qty || it.quantity || ''} ${it.unit || ''}</td>
+                <td style="padding:0.5rem;border-bottom:1px solid #e5e7eb;">${supplierName}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'requestorCancelModal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    overlay.innerHTML = `
+        <div style="background:white;border-radius:8px;max-width:760px;width:90%;max-height:85vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+            <div style="padding:1.5rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;color:#1e293b;">Cancel Items \u2014 ${mrfData.mrf_id}</h3>
+                <button onclick="document.getElementById('requestorCancelModal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">&times;</button>
+            </div>
+            <div style="padding:1rem 1.5rem;color:#64748b;font-size:0.875rem;">
+                Only items that do NOT yet have a PR generated can be cancelled. Items with an active PR are locked.
+            </div>
+            <div style="padding:0 1.5rem;">
+                <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                    <thead>
+                        <tr style="background:#f8f9fa;">
+                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;width:40px;">Cancel</th>
+                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;">Item</th>
+                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;text-align:right;">Qty</th>
+                            <th style="padding:0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;">Supplier</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemRowsHtml}</tbody>
+                </table>
+            </div>
+            <div style="padding:1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;">
+                <button class="btn btn-secondary" onclick="document.getElementById('requestorCancelModal').remove()">Close</button>
+                <button class="btn" id="requestorCancelConfirmBtn" style="background:#ef4444;color:white;">Cancel Selected Items</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    document.getElementById('requestorCancelConfirmBtn').onclick = async () => {
+        const checks = overlay.querySelectorAll('.cancel-item-checkbox:not(:disabled)');
+        const toCancelIdx = new Set();
+        checks.forEach(c => { if (c.checked) toCancelIdx.add(parseInt(c.dataset.idx, 10)); });
+        if (toCancelIdx.size === 0) {
+            alert('Select at least one item to cancel');
+            return;
+        }
+        const remaining = items.filter((_, idx) => !toCancelIdx.has(idx));
+
+        // Confirm
+        if (!confirm(`Cancel ${toCancelIdx.size} item(s) from ${mrfData.mrf_id}?\n\n${remaining.length} item(s) will remain.`)) return;
+
+        // Write back
+        const updatePayload = {
+            items_json: JSON.stringify(remaining),
+            updated_at: new Date().toISOString()
+        };
+        if (remaining.length === 0) {
+            updatePayload.status = 'Cancelled';
+            updatePayload.cancelled_at = new Date().toISOString();
+            updatePayload.cancelled_reason = 'All items cancelled by requestor';
+        }
+        try {
+            await updateDoc(doc(db, 'mrfs', mrfDocId), updatePayload);
+            overlay.remove();
+            alert(`Cancelled ${toCancelIdx.size} item(s)${remaining.length === 0 ? ' \u2014 MRF marked Cancelled' : ''}.`);
+            // Trigger reload of My Requests
+            if (typeof window._myRequestsReload === 'function') {
+                await window._myRequestsReload();
+            }
+        } catch (err) {
+            console.error('[MRFForm] cancelRequestorMRFItems write failed:', err);
+            alert('Failed to cancel items: ' + err.message);
+        }
+    };
+}
+
 async function initMyRequests() {
 
     try {
@@ -469,7 +615,8 @@ async function initMyRequests() {
             statusFilter: null, // Fetch ALL statuses — requestors want to see Pending too
             filterFn: userName
                 ? (mrf) => mrf.requestor_name === userName
-                : null // If no user, show all (fallback)
+                : null, // If no user, show all (fallback)
+            onCancel: cancelRequestorMRFItems
         });
 
         // Expose filter and reload for inline event handlers
