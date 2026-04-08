@@ -717,12 +717,10 @@ async function editRequestorMRF(mrfDocId) {
     // Add item row
     overlay.querySelector('#editMRFAddItemBtn').addEventListener('click', () => {
         const tbody = overlay.querySelector('#editMRFItemsBody');
-        const tr = document.createElement('tr');
-        tr.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' }).replace(/^<tr>/, '').replace(/<\/tr>$/, '');
-        // buildEditItemRow wraps in <tr>...</tr>, so parse properly
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' });
-        tbody.appendChild(tempDiv.firstElementChild);
+        // Use a <tbody> as the temp container — browsers strip <tr> when injected into a <div>
+        const tempTbody = document.createElement('tbody');
+        tempTbody.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' });
+        tbody.appendChild(tempTbody.firstElementChild);
     });
 
     // Save handler
