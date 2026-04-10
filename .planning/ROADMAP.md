@@ -485,3 +485,20 @@ Plans:
 Plans:
 - [x] 71-01-PLAN.md — Rename modal h3 from 'Expense Breakdown' to 'Financial Breakdown' (user-visible only, internal symbols frozen per D-09)
 - [x] 71-02-PLAN.md — Add Payables tab: third tab button + container, status derivation (reusing Phase 65.3 active-tranche format), row build, sort, render
+
+### Phase 72: Add paid and remaining payable to project/service financial summary cards with clickable refresh
+
+**Goal:** Add Paid and Remaining Payable fields to the Financial Summary card on both Project Detail and Service Detail pages, derived from the rfps collection, and change the Refresh button to also open the Financial Breakdown modal after refreshing
+**Requirements**: FINSUMCARD-01, FINSUMCARD-02, FINSUMCARD-03, FINSUMCARD-04, FINSUMCARD-05, FINSUMCARD-06
+**Depends on:** Phase 71
+**Success Criteria** (what must be TRUE):
+  1. Project detail Financial Summary card shows Paid and Remaining Payable cells when RFPs exist for that project
+  2. Service detail Financial Summary card shows Paid and Remaining Payable cells when RFPs exist for that service
+  3. Paid and Remaining Payable cells are hidden when no RFPs exist (no misleading zero values)
+  4. Remaining Payable shows red styling when amount > 0 and green when fully paid
+  5. Clicking the Refresh button refreshes expense data AND opens the Financial Breakdown modal
+  6. Navigating between project/service detail pages does not leak stale Paid/Remaining Payable values
+**Plans:** 1 plan
+
+Plans:
+- [ ] 72-01-PLAN.md — Extend currentExpense/currentServiceExpense state, add RFP query to refresh functions, add Paid/Remaining Payable card cells, wire refresh-and-modal button

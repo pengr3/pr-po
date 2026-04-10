@@ -97,6 +97,15 @@
 - [x] **EXPPAY-02**: Payable scoreboard row (Row 3) is hidden when no RFPs exist for the project or service (no misleading zero values)
 - [x] **EXPPAY-03**: Remaining Payable card displays red styling when amount is outstanding and green styling when fully paid
 
+### Financial Summary Card Payable Fields
+
+- [ ] **FINSUMCARD-01**: Project detail Financial Summary card shows "Paid" cell with total non-voided payments from RFPs when RFPs exist for the project
+- [ ] **FINSUMCARD-02**: Project detail Financial Summary card shows "Remaining Payable" cell (rfpTotalRequested - rfpTotalPaid) with red styling when > 0 and green when fully paid
+- [ ] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code
+- [ ] **FINSUMCARD-04**: Paid and Remaining Payable cells are hidden when no RFPs exist for the project or service (no misleading zero values)
+- [ ] **FINSUMCARD-05**: Clicking the Refresh button on Financial Summary card refreshes expense data AND opens the Financial Breakdown modal
+- [ ] **FINSUMCARD-06**: Navigating between project/service detail pages does not leak stale Paid or Remaining Payable values from previous page
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -168,12 +177,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXPPAY-01 | Phase 69 | Planned |
 | EXPPAY-02 | Phase 69 | Planned |
 | EXPPAY-03 | Phase 69 | Planned |
+| FINSUMCARD-01 | Phase 72 | Planned |
+| FINSUMCARD-02 | Phase 72 | Planned |
+| FINSUMCARD-03 | Phase 72 | Planned |
+| FINSUMCARD-04 | Phase 72 | Planned |
+| FINSUMCARD-05 | Phase 72 | Planned |
+| FINSUMCARD-06 | Phase 72 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 43 total
-- Mapped to phases: 43
+- v3.2 requirements: 49 total
+- Mapped to phases: 49
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-25 — Phase 69 requirements added (EXPPAY-01, EXPPAY-02, EXPPAY-03)*
+*Last updated: 2026-04-10 — Phase 72 requirements added (FINSUMCARD-01 through FINSUMCARD-06)*
