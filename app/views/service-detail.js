@@ -403,7 +403,7 @@ function renderServiceDetail() {
                                    ${!showEditControls ? 'disabled' : ''}>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Expense</label>
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Projected Cost</label>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem; cursor: pointer;"
                                      onclick="window.showServiceExpenseModal()">
@@ -874,7 +874,7 @@ async function refreshServiceExpense(silent = false) {
             poTotal: posAgg.data().poTotal || 0,
             poCount: posAgg.data().poCount || 0,
             totalPaid: rfpTotalPaid,
-            remainingPayable: ((prsAgg.data().prTotal || 0) + (posAgg.data().poTotal || 0)) - rfpTotalPaid,
+            remainingPayable: (posAgg.data().poTotal || 0) + (prsAgg.data().prTotal || 0) - rfpTotalPaid,
             hasRfps
         };
 

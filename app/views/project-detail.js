@@ -334,7 +334,7 @@ function renderProjectDetail() {
                             <input type="number" data-field="contract_cost" value="${currentProject.contract_cost || ''}" onblur="window.saveField('contract_cost', this.value)" placeholder="(Not set)" min="0" step="0.01" ${!showEditControls ? 'disabled' : ''}>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Expense</label>
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Projected Cost</label>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem; cursor: pointer;"
                                      onclick="window.showExpenseModal()">
