@@ -708,7 +708,7 @@ async function refreshExpense(silent = false) {
             poCount: posAggregate.data().poCount || 0,
             trCount: trsAggregate.data().trCount || 0,
             totalPaid: rfpTotalPaid,
-            remainingPayable: rfpTotalRequested - rfpTotalPaid,
+            remainingPayable: (poTotal + trTotal) - rfpTotalPaid,
             hasRfps
         };
 
