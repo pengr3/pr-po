@@ -13,7 +13,7 @@ let projectCode = null;
 let listener = null;
 let usersData = [];
 let usersListenerUnsub = null;
-let currentExpense = { total: 0, poCount: 0, trCount: 0 };
+let currentExpense = { total: 0, poCount: 0, trCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 let detailSelectedPersonnel = []; // Array of { id: string, name: string } for pill state
 let personnelClickOutsideHandler = null;
 
@@ -180,12 +180,14 @@ export async function destroy() {
 
     currentProject = null;
     projectCode = null;
+    currentExpense = { total: 0, poCount: 0, trCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 
     delete window.saveField;
     delete window.toggleActive;
     delete window.confirmDelete;
     delete window.refreshExpense;
     delete window.showExpenseModal;
+    delete window.refreshAndShowExpenseModal;
     delete window.selectDetailPersonnel;
     delete window.removeDetailPersonnel;
     delete window.filterDetailPersonnel;
@@ -338,7 +340,7 @@ function renderProjectDetail() {
                                      onclick="window.showExpenseModal()">
                                     ${currentExpense.total > 0 ? formatCurrency(currentExpense.total) : '—'}
                                 </div>
-                                <button class="btn btn-sm btn-secondary" onclick="window.refreshExpense()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🔄 Refresh</button>
+                                <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowExpenseModal()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">&#x1F504; Refresh</button>
                             </div>
                             <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
                                 Click amount to view breakdown
@@ -355,6 +357,20 @@ function renderProjectDetail() {
                                     : `<div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>`;
                             })()}
                         </div>
+                        ${currentExpense.hasRfps ? `
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Paid</label>
+                            <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
+                                ${formatCurrency(currentExpense.totalPaid)}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Payable</label>
+                            <div style="font-weight: 600; color: ${currentExpense.remainingPayable > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
+                                ${formatCurrency(currentExpense.remainingPayable)}
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -668,10 +684,32 @@ async function refreshExpense(silent = false) {
         const poTotal = posAggregate.data().totalAmount || 0;
         const trTotal = trsAggregate.data().totalAmount || 0;
 
+        // RFP payables query
+        let rfpTotalRequested = 0;
+        let rfpTotalPaid = 0;
+        let hasRfps = false;
+        const projectCode = currentProject.project_code || '';
+        if (projectCode) {
+            const rfpSnap = await getDocs(
+                query(collection(db, 'rfps'), where('project_code', '==', projectCode))
+            );
+            hasRfps = rfpSnap.size > 0;
+            rfpSnap.forEach(d => {
+                const rfp = d.data();
+                rfpTotalRequested += parseFloat(rfp.amount_requested || 0);
+                rfpTotalPaid += (rfp.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+            });
+        }
+
         currentExpense = {
             total: poTotal + trTotal,
             poCount: posAggregate.data().poCount || 0,
-            trCount: trsAggregate.data().trCount || 0
+            trCount: trsAggregate.data().trCount || 0,
+            totalPaid: rfpTotalPaid,
+            remainingPayable: rfpTotalRequested - rfpTotalPaid,
+            hasRfps
         };
 
         // Re-render to show updated expense
@@ -836,6 +874,11 @@ function attachWindowFunctions() {
     window.confirmDelete = confirmDelete;
     window.refreshExpense = refreshExpense;
     window.showExpenseModal = () => currentProject && showExpenseBreakdownModal(currentProject.project_name, { mode: 'project' });
+    window.refreshAndShowExpenseModal = async () => {
+        if (!currentProject) return;
+        await refreshExpense(true);
+        showExpenseBreakdownModal(currentProject.project_name, { mode: 'project' });
+    };
     window.selectDetailPersonnel = selectDetailPersonnel;
     window.removeDetailPersonnel = removeDetailPersonnel;
     window.filterDetailPersonnel = filterDetailPersonnel;
