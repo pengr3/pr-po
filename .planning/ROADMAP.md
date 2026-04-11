@@ -498,7 +498,7 @@ Plans:
   4. Remaining Payable shows red styling when amount > 0 and green when fully paid
   5. Clicking the Refresh button refreshes expense data AND opens the Financial Breakdown modal
   6. Navigating between project/service detail pages does not leak stale Paid/Remaining Payable values
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 72-01-PLAN.md — Extend currentExpense/currentServiceExpense state, add RFP query to refresh functions, add Paid/Remaining Payable card cells, wire refresh-and-modal button
+- [x] 72-01-PLAN.md — Extend currentExpense/currentServiceExpense state, add RFP query to refresh functions, add Paid/Remaining Payable card cells, wire refresh-and-modal button

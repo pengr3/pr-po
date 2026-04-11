@@ -3,13 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Phase complete — ready for verification
-stopped_at: Completed 71-03-PLAN.md
-last_updated: "2026-04-07T11:41:18.348Z"
+stopped_at: "Completed 72-01-PLAN.md — awaiting checkpoint:human-verify"
+last_updated: "2026-04-11T08:36:03.991Z"
+last_activity: 2026-04-11
 progress:
-  total_phases: 21
-  completed_phases: 17
-  total_plans: 27
-  completed_plans: 32
+  total_phases: 22
+  completed_phases: 18
+  total_plans: 28
+  completed_plans: 33
 ---
 
 # Project State
@@ -19,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 71 — revamp-expense-modal-into-financials-modal
+**Current focus:** Phase 72 — add-paid-and-remaining-payable-to-project-service-financial-summary-cards-with-clickable-refresh
 
 ## Current Position
 
-Phase: 71 (revamp-expense-modal-into-financials-modal) — EXECUTING
-Plan: 2 of 2
+Phase: 72 (add-paid-and-remaining-payable-to-project-service-financial-summary-cards-with-clickable-refresh) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -77,6 +78,7 @@ Plan: 2 of 2
 | Phase 71 P01 | -9 | 1 tasks | 1 files |
 | Phase 71 P02 | 15 | 2 tasks | 1 files |
 | Phase 71 P03 | 5 | 1 tasks | 1 files |
+| Phase 72 P01 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -142,6 +144,7 @@ Recent decisions affecting current work:
 - [Phase 71]: deriveStatusForPO/TR/DeliveryFee defined as nested functions inside showExpenseBreakdownModal to avoid circular import from finance.js view module
 - [Phase 71]: poTotalForRow = total_amount - delivery_fee so PO row Total Payable excludes delivery fee (which gets its own separate row per D-01)
 - [Phase 71-03]: statusBucket stays 'Partial' in deriveStatusForPO fallback — only statusLabel changes so D-06 sort order is unaffected
+- [Phase 72]: RFP query uses project_code/service_code (not name fields) for consistent Firestore queries; cells hidden when hasRfps===false; Refresh button opens modal after silent data refresh; destroy() resets new state fields to prevent cross-navigation stale data
 
 ### Roadmap Evolution
 
@@ -187,8 +190,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-04-08 - Quick task 260408-j0d: Add MRF cancellation for requestors — awaiting UAT verification
-Last session: 2026-04-07T11:41:18.339Z
-Stopped at: Completed 71-03-PLAN.md
+Last activity: 2026-04-11
+Last session: 2026-04-11T08:36:03.977Z
+Stopped at: Completed 72-01-PLAN.md — awaiting checkpoint:human-verify
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

@@ -99,12 +99,12 @@
 
 ### Financial Summary Card Payable Fields
 
-- [ ] **FINSUMCARD-01**: Project detail Financial Summary card shows "Paid" cell with total non-voided payments from RFPs when RFPs exist for the project
-- [ ] **FINSUMCARD-02**: Project detail Financial Summary card shows "Remaining Payable" cell (rfpTotalRequested - rfpTotalPaid) with red styling when > 0 and green when fully paid
-- [ ] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code
-- [ ] **FINSUMCARD-04**: Paid and Remaining Payable cells are hidden when no RFPs exist for the project or service (no misleading zero values)
-- [ ] **FINSUMCARD-05**: Clicking the Refresh button on Financial Summary card refreshes expense data AND opens the Financial Breakdown modal
-- [ ] **FINSUMCARD-06**: Navigating between project/service detail pages does not leak stale Paid or Remaining Payable values from previous page
+- [x] **FINSUMCARD-01**: Project detail Financial Summary card shows "Paid" cell with total non-voided payments from RFPs when RFPs exist for the project
+- [x] **FINSUMCARD-02**: Project detail Financial Summary card shows "Remaining Payable" cell (rfpTotalRequested - rfpTotalPaid) with red styling when > 0 and green when fully paid
+- [x] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code
+- [x] **FINSUMCARD-04**: Paid and Remaining Payable cells are hidden when no RFPs exist for the project or service (no misleading zero values)
+- [x] **FINSUMCARD-05**: Clicking the Refresh button on Financial Summary card refreshes expense data AND opens the Financial Breakdown modal
+- [x] **FINSUMCARD-06**: Navigating between project/service detail pages does not leak stale Paid or Remaining Payable values from previous page
 
 ## Future Requirements
 
