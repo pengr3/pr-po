@@ -18,7 +18,7 @@ let selectedDetailPersonnel = []; // Array of { id: string, name: string } for p
 let listener = null;
 let usersListenerUnsub = null;
 let personnelClickOutsideHandler = null;
-let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0 };
+let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -203,7 +203,7 @@ export async function destroy() {
         personnelClickOutsideHandler = null;
     }
     selectedDetailPersonnel = [];
-    currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0 };
+    currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 
     currentService = null;
     currentServiceDocId = null;
@@ -217,6 +217,7 @@ export async function destroy() {
     delete window.showDetailServicePersonnelDropdown;
     delete window.refreshServiceExpense;
     delete window.showServiceExpenseModal;
+    delete window.refreshAndShowServiceExpenseModal;
     delete window.showEditHistory;
     delete window.exportServiceExpenseCSV;
 }
@@ -408,7 +409,7 @@ function renderServiceDetail() {
                                      onclick="window.showServiceExpenseModal()">
                                     ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal) : '—'}
                                 </div>
-                                <button class="btn btn-sm btn-secondary" onclick="window.refreshServiceExpense()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">🔄 Refresh</button>
+                                <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowServiceExpenseModal()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">&#x1F504; Refresh</button>
                             </div>
                             <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
                                 Click amount to view breakdown
@@ -426,6 +427,20 @@ function renderServiceDetail() {
                                     : `<div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>`;
                             })()}
                         </div>
+                        ${currentServiceExpense.hasRfps ? `
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Paid</label>
+                            <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
+                                ${formatCurrency(currentServiceExpense.totalPaid)}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Payable</label>
+                            <div style="font-weight: 600; color: ${currentServiceExpense.remainingPayable > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
+                                ${formatCurrency(currentServiceExpense.remainingPayable)}
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             </div>
@@ -833,12 +848,34 @@ async function refreshServiceExpense(silent = false) {
             poCount: count()
         });
 
+        // RFP payables query
+        let rfpTotalRequested = 0;
+        let rfpTotalPaid = 0;
+        let hasRfps = false;
+        const serviceCode = currentService.service_code;
+        if (serviceCode) {
+            const rfpSnap = await getDocs(
+                query(collection(db, 'rfps'), where('service_code', '==', serviceCode))
+            );
+            hasRfps = rfpSnap.size > 0;
+            rfpSnap.forEach(d => {
+                const rfp = d.data();
+                rfpTotalRequested += parseFloat(rfp.amount_requested || 0);
+                rfpTotalPaid += (rfp.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+            });
+        }
+
         currentServiceExpense = {
             mrfCount: mrfsAgg.data().mrfCount || 0,
             prTotal: prsAgg.data().prTotal || 0,
             prCount: prsAgg.data().prCount || 0,
             poTotal: posAgg.data().poTotal || 0,
-            poCount: posAgg.data().poCount || 0
+            poCount: posAgg.data().poCount || 0,
+            totalPaid: rfpTotalPaid,
+            remainingPayable: rfpTotalRequested - rfpTotalPaid,
+            hasRfps
         };
 
         // Re-render to show updated expense (does NOT call refreshServiceExpense — no loop)
@@ -931,6 +968,15 @@ function attachWindowFunctions() {
             displayName: currentService.service_name,
             budget: currentService.budget
         });
+    window.refreshAndShowServiceExpenseModal = async () => {
+        if (!currentService) return;
+        await refreshServiceExpense(true);
+        showExpenseBreakdownModal(currentService.service_code, {
+            mode: 'service',
+            displayName: currentService.service_name,
+            budget: currentService.budget
+        });
+    };
     window.showEditHistory = () => currentService && currentServiceDocId &&
         showEditHistoryModal(currentServiceDocId, currentService.service_code, 'services');
     window.exportServiceExpenseCSV = exportServiceExpenseCSV;
