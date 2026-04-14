@@ -357,7 +357,6 @@ function renderProjectDetail() {
                                     : `<div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>`;
                             })()}
                         </div>
-                        ${currentExpense.hasRfps ? `
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Paid</label>
                             <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
@@ -370,7 +369,6 @@ function renderProjectDetail() {
                                 ${formatCurrency(currentExpense.remainingPayable)}
                             </div>
                         </div>
-                        ` : ''}
                     </div>
                 </div>
             </div>
