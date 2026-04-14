@@ -462,4 +462,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 56: Finance tab as reference alignment (do not modify) | All other tabs normalize to Finance's two-level sub-nav pattern and 1600px width | ✓ Good - clear single source of truth for layout |
 
 ---
-*Last updated: 2026-03-13 after v3.2 milestone start*
+*Last updated: 2026-04-14 after Phase 72.1 (always-visible Paid/Remaining Payable) complete*
