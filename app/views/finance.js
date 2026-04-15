@@ -139,6 +139,10 @@ let trSortDirection = 'desc';
 // Department filter state for Pending Approvals and POs
 let activeDeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
 
+// Phase 73.3: Scroll-hide/show handler for sticky Finance sub-nav
+let _financeNavScrollHandler = null;
+let _financeNavLastScrollY = 0;
+
 /**
  * Apply department filter to all three finance tables.
  * Called by the dept filter dropdown onchange handler.
@@ -1653,33 +1657,29 @@ export function render(activeTab = 'approvals') {
     const showEditControls = canEdit !== false;
 
     return `
-        <!-- Tab Navigation -->
-        <div style="background: white; border-bottom: 2px solid var(--gray-200);">
-            <div class="finance-tab-nav-inner" style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
-                <!-- Desktop: normal tab bar (hidden on mobile) -->
-                <div class="tabs-nav finance-tabs-desktop">
-                    <a href="#/finance/approvals" class="tab-btn ${activeTab === 'approvals' ? 'active' : ''}">
-                        Pending Approvals
-                    </a>
-                    <a href="#/finance/pos" class="tab-btn ${activeTab === 'pos' ? 'active' : ''}">
-                        Purchase Orders
-                    </a>
-                    <a href="#/finance/projects" class="tab-btn ${activeTab === 'projects' ? 'active' : ''}">
-                        Project List
-                    </a>
-                    <a href="#/finance/payables" class="tab-btn ${activeTab === 'payables' ? 'active' : ''}">
-                        Payables
-                    </a>
+        <!-- Finance sub-tab navigation (Phase 73.3: unified pill bar + sticky + scroll-hide) -->
+        <nav class="finance-sub-nav" id="financeSubNav" role="navigation" aria-label="Finance sections">
+            <div class="finance-sub-nav-inner">
+                <div class="finance-sub-nav-tabs" role="tablist">
+                    <a href="#/finance/approvals"
+                       class="finance-sub-nav-tab ${activeTab === 'approvals' ? 'finance-sub-nav-tab--active' : ''}"
+                       role="tab"
+                       aria-selected="${activeTab === 'approvals' ? 'true' : 'false'}">Pending Approvals</a>
+                    <a href="#/finance/pos"
+                       class="finance-sub-nav-tab ${activeTab === 'pos' ? 'finance-sub-nav-tab--active' : ''}"
+                       role="tab"
+                       aria-selected="${activeTab === 'pos' ? 'true' : 'false'}">Purchase Orders</a>
+                    <a href="#/finance/projects"
+                       class="finance-sub-nav-tab ${activeTab === 'projects' ? 'finance-sub-nav-tab--active' : ''}"
+                       role="tab"
+                       aria-selected="${activeTab === 'projects' ? 'true' : 'false'}">Project List</a>
+                    <a href="#/finance/payables"
+                       class="finance-sub-nav-tab ${activeTab === 'payables' ? 'finance-sub-nav-tab--active' : ''}"
+                       role="tab"
+                       aria-selected="${activeTab === 'payables' ? 'true' : 'false'}">Payables</a>
                 </div>
-                <!-- Mobile: dropdown (shown on mobile, hidden on desktop) -->
-                <select class="finance-tab-select" onchange="window.location.hash = this.value">
-                    <option value="/finance/approvals" ${activeTab === 'approvals' ? 'selected' : ''}>Pending Approvals</option>
-                    <option value="/finance/pos" ${activeTab === 'pos' ? 'selected' : ''}>Purchase Orders</option>
-                    <option value="/finance/projects" ${activeTab === 'projects' ? 'selected' : ''}>Project List &amp; Expenses</option>
-                    <option value="/finance/payables" ${activeTab === 'payables' ? 'selected' : ''}>Payables</option>
-                </select>
             </div>
-        </div>
+        </nav>
 
         <div class="container" style="max-width: 1600px; margin: 0 auto; padding: 1.5rem;">
             <!-- Tab 1: Pending Approvals -->
@@ -2089,6 +2089,32 @@ export async function init(activeTab = 'approvals') {
 
     // Setup ESC key modal listeners
     setupModalListeners();
+
+    // Phase 73.3: Attach scroll-hide/show listener for the sticky Finance sub-nav.
+    // Router does NOT call destroy() when switching sub-tabs within Finance view,
+    // so guard against re-attach on repeated init() calls.
+    if (!_financeNavScrollHandler) {
+        _financeNavLastScrollY = window.scrollY || 0;
+        _financeNavScrollHandler = function () {
+            const nav = document.getElementById('financeSubNav');
+            if (!nav) return;
+            const currentY = window.scrollY || 0;
+            const delta = currentY - _financeNavLastScrollY;
+            // Ignore tiny jitters and ignore when near top (always show near top).
+            if (Math.abs(delta) < 5) return;
+            if (currentY < 80) {
+                nav.classList.remove('finance-sub-nav--hidden');
+            } else if (delta > 0) {
+                // Scrolling DOWN -> hide
+                nav.classList.add('finance-sub-nav--hidden');
+            } else {
+                // Scrolling UP -> show
+                nav.classList.remove('finance-sub-nav--hidden');
+            }
+            _financeNavLastScrollY = currentY;
+        };
+        window.addEventListener('scroll', _financeNavScrollHandler, { passive: true });
+    }
 
     try {
         await loadPRs();
@@ -2754,6 +2780,13 @@ export async function destroy() {
         }
     });
     listeners = [];
+
+    // Phase 73.3: Detach scroll-hide/show listener.
+    if (_financeNavScrollHandler) {
+        window.removeEventListener('scroll', _financeNavScrollHandler);
+        _financeNavScrollHandler = null;
+    }
+    _financeNavLastScrollY = 0;
 
     // Clean up signature pad
     if (approvalSignaturePad) {

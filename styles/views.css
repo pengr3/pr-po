@@ -1630,41 +1630,91 @@
 }
 
 /* ========================================
-   FINANCE TAB — MOBILE RESPONSIVE
-   Added by Phase 73 — see .planning/phases/73-optimize-finance-tab-for-mobile-use/
-   Scoped to Finance-only elements (no global side-effects).
-   Global card-header mobile stacking lives in components.css @ 768px block.
+   FINANCE TAB — SUB-NAV (Phase 73.3)
+   Unified pill/tab bar, sticky, scroll-hide/show behavior.
+   Replaces prior desktop-tabs + mobile-dropdown split (Phase 73).
    ======================================== */
 
-/* Desktop defaults: show tab bar, hide dropdown */
-.finance-tabs-desktop { display: flex; }
-.finance-tab-select { display: none; }
+.finance-sub-nav {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    background: #ffffff;
+    border-bottom: 1px solid var(--gray-200);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transform: translateY(0);
+    opacity: 1;
+    transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+    will-change: transform;
+}
+
+.finance-sub-nav--hidden {
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.finance-sub-nav-inner {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0.5rem 1rem;
+}
+
+.finance-sub-nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.finance-sub-nav-tabs::-webkit-scrollbar { display: none; }
+
+.finance-sub-nav-tab {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.125rem;
+    min-height: 44px;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    background: transparent;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.finance-sub-nav-tab:hover {
+    background: var(--gray-50);
+    color: var(--gray-900);
+}
+
+.finance-sub-nav-tab--active {
+    color: #ffffff;
+    background: var(--primary);
+    box-shadow: 0 1px 2px rgba(26, 115, 232, 0.25);
+}
+
+.finance-sub-nav-tab--active:hover {
+    background: var(--primary-dark);
+    color: #ffffff;
+}
 
 @media (max-width: 768px) {
-    /* Swap tab bar for dropdown on mobile */
-    .finance-tabs-desktop { display: none !important; }
-    .finance-tab-nav-inner {
-        padding: 0.75rem 1rem;
+    .finance-sub-nav-inner {
+        padding: 0.5rem 0.75rem;
     }
-    .finance-tab-select {
-        display: block;
-        width: 100%;
-        padding: 0.75rem;
-        font-size: 1rem;
-        min-height: 44px;
-        border: 1.5px solid #e2e8f0;
-        border-radius: 8px;
-        background: white;
-        color: #1e293b;
-        font-weight: 500;
-        cursor: pointer;
+    .finance-sub-nav-tab {
+        padding: 0.5rem 0.875rem;
+        font-size: 0.8125rem;
     }
 
-    /* Project List sub-tab bar: distribute tabs evenly, no horizontal scroll */
+    /* Project List sub-tab bar — Phase 73 rules preserved verbatim */
     .finance-expense-subtab-bar {
         overflow-x: visible;
     }
-
     .finance-expense-subtab-bar button {
         flex: 1;
         text-align: center;
