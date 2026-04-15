@@ -1581,6 +1581,7 @@ export function render(activeTab = 'approvals') {
                         </tbody>
                     </table>
                     </div>
+                    <div class="fc-card-list" id="materialPRsCardList"></div>
                 </div>
 
                 <div style="margin: 2rem 0;"></div>
@@ -1610,6 +1611,7 @@ export function render(activeTab = 'approvals') {
                         </tbody>
                     </table>
                     </div>
+                    <div class="fc-card-list" id="transportRequestsCardList"></div>
                 </div>
             </section>
 
@@ -2738,6 +2740,46 @@ async function loadPRs() {
 }
 
 /**
+ * Build a mobile card HTML string for a single Material PR.
+ * Mirrors the table row columns from renderMaterialPRs().
+ * Note: desktop PR rows do NOT apply overdue highlighting, so .fc-overdue is not used here
+ * (REVIEWS Concern 1 — parity with desktop).
+ */
+function buildMaterialPRCard(pr) {
+    const items = JSON.parse(pr.items_json || '[]');
+    const supplier = pr.supplier_name || (items[0] && items[0].supplier) || 'N/A';
+    const urgencyLevel = pr.urgency_level || 'Low';
+    const urgencyColors = {
+        'Critical': { bg: '#fef2f2', color: '#dc2626' },
+        'High':     { bg: '#fef2f2', color: '#ef4444' },
+        'Medium':   { bg: '#fef3c7', color: '#f59e0b' },
+        'Low':      { bg: '#dcfce7', color: '#22c55e' }
+    };
+    const uc = urgencyColors[urgencyLevel] || urgencyColors['Low'];
+    const dateNeeded = mrfCache.get(pr.mrf_id)?.date_needed
+        ? formatDate(mrfCache.get(pr.mrf_id).date_needed)
+        : '—';
+    return `
+        <div class="fc-card">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${escapeHTML(pr.pr_id || '')}</span>
+                <span style="background:${uc.bg};color:${uc.color};padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">${urgencyLevel}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Project</span><span class="fc-value">${getDeptBadgeHTML(pr)} ${escapeHTML(pr.project_name || pr.service_name || 'N/A')}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Supplier</span><span class="fc-value">${escapeHTML(supplier)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">₱${formatCurrency(pr.total_amount || 0)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Date Issued</span><span class="fc-value">${formatDate(pr.date_generated)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Date Needed</span><span class="fc-value">${dateNeeded}</span></div>
+                <div class="fc-card-row"><span class="fc-label">MRF</span><span class="fc-value" style="font-size:0.8125rem;color:#64748b;">${escapeHTML(pr.mrf_id || '')}</span></div>
+            </div>
+            <div class="fc-card-actions">
+                <button class="btn btn-sm btn-primary" onclick="window.viewPRDetails('${pr.id}')">Review PR</button>
+            </div>
+        </div>`;
+}
+
+/**
  * Render Material PRs table
  */
 function renderMaterialPRs() {
@@ -2802,6 +2844,55 @@ function renderMaterialPRs() {
             }
         });
     }
+
+    // Mobile card list (Phase 73.1) — populated alongside tbody
+    const cardList = document.getElementById('materialPRsCardList');
+    if (cardList) {
+        if (filtered.length === 0) {
+            cardList.innerHTML = `<div class="fc-empty">No pending material PRs to review${activeDeptFilter ? ' for ' + (activeDeptFilter === 'services' ? 'Services' : 'Projects') : ''}</div>`;
+        } else {
+            cardList.innerHTML = filtered.map(pr => buildMaterialPRCard(pr)).join('');
+        }
+    }
+}
+
+/**
+ * Build a mobile card HTML string for a single Transport Request.
+ * Mirrors the table row columns from renderTransportRequests().
+ * Note: desktop TR rows do NOT apply overdue highlighting (REVIEWS Concern 1 — parity with desktop).
+ */
+function buildTRCard(tr) {
+    const items = JSON.parse(tr.items_json || '[]');
+    const serviceType = items[0]?.category || 'Transportation';
+    const urgencyLevel = tr.urgency_level || 'Low';
+    const urgencyColors = {
+        'Critical': { bg: '#fef2f2', color: '#dc2626' },
+        'High':     { bg: '#fef2f2', color: '#ef4444' },
+        'Medium':   { bg: '#fef3c7', color: '#f59e0b' },
+        'Low':      { bg: '#dcfce7', color: '#22c55e' }
+    };
+    const uc = urgencyColors[urgencyLevel] || urgencyColors['Low'];
+    const dateNeeded = mrfCache.get(tr.mrf_id)?.date_needed
+        ? formatDate(mrfCache.get(tr.mrf_id).date_needed)
+        : '—';
+    return `
+        <div class="fc-card">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${escapeHTML(tr.tr_id || '')}</span>
+                <span style="background:${uc.bg};color:${uc.color};padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">${urgencyLevel}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Project</span><span class="fc-value">${getDeptBadgeHTML(tr)} ${escapeHTML(tr.project_name || tr.service_name || 'N/A')}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Service Type</span><span class="fc-value">${escapeHTML(serviceType)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">₱${formatCurrency(tr.total_amount || 0)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Date Issued</span><span class="fc-value">${formatDate(tr.date_submitted)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Date Needed</span><span class="fc-value">${dateNeeded}</span></div>
+                <div class="fc-card-row"><span class="fc-label">MRF</span><span class="fc-value" style="font-size:0.8125rem;color:#64748b;">${escapeHTML(tr.mrf_id || '')}</span></div>
+            </div>
+            <div class="fc-card-actions">
+                <button class="btn btn-sm btn-primary" onclick="window.viewTRDetails('${tr.id}')">Review TR</button>
+            </div>
+        </div>`;
 }
 
 /**
@@ -2868,6 +2959,16 @@ function renderTransportRequests() {
                 indicator.style.color = '#94a3b8';
             }
         });
+    }
+
+    // Mobile card list (Phase 73.1) — populated alongside tbody
+    const trCardList = document.getElementById('transportRequestsCardList');
+    if (trCardList) {
+        if (filtered.length === 0) {
+            trCardList.innerHTML = `<div class="fc-empty">No pending transport requests to review${activeDeptFilter ? ' for ' + (activeDeptFilter === 'services' ? 'Services' : 'Projects') : ''}</div>`;
+        } else {
+            trCardList.innerHTML = filtered.map(tr => buildTRCard(tr)).join('');
+        }
     }
 }
 
