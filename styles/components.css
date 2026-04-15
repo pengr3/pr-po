@@ -1379,6 +1379,39 @@ tr:hover {
         width: 100%;
         min-height: 44px;
     }
+
+    /* Filter toolbars (search + action button rows) — stack on mobile */
+    .filter-toolbar {
+        flex-direction: column;
+    }
+
+    .filter-toolbar input[type="text"],
+    .filter-toolbar select,
+    .filter-toolbar .btn {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    /* Sticky first column on scrollable tables — row identifier stays visible while scrolling */
+    .table-scroll-container th:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background: var(--gray-50, #f9fafb);
+        box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+    }
+
+    .table-scroll-container td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background: white;
+        box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+    }
+
+    .table-scroll-container tr:hover td:first-child {
+        background: var(--gray-50, #f9fafb);
+    }
 }
 
 /* ========================================

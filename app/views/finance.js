@@ -1497,7 +1497,8 @@ export function render(activeTab = 'approvals') {
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 2px solid var(--gray-200);">
             <div class="finance-tab-nav-inner" style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
-                <div class="tabs-nav">
+                <!-- Desktop: normal tab bar (hidden on mobile) -->
+                <div class="tabs-nav finance-tabs-desktop">
                     <a href="#/finance/approvals" class="tab-btn ${activeTab === 'approvals' ? 'active' : ''}">
                         Pending Approvals
                     </a>
@@ -1511,6 +1512,13 @@ export function render(activeTab = 'approvals') {
                         Payables
                     </a>
                 </div>
+                <!-- Mobile: dropdown (shown on mobile, hidden on desktop) -->
+                <select class="finance-tab-select" onchange="window.location.hash = this.value">
+                    <option value="/finance/approvals" ${activeTab === 'approvals' ? 'selected' : ''}>Pending Approvals</option>
+                    <option value="/finance/pos" ${activeTab === 'pos' ? 'selected' : ''}>Purchase Orders</option>
+                    <option value="/finance/projects" ${activeTab === 'projects' ? 'selected' : ''}>Project List &amp; Expenses</option>
+                    <option value="/finance/payables" ${activeTab === 'payables' ? 'selected' : ''}>Payables</option>
+                </select>
             </div>
         </div>
 
@@ -1658,7 +1666,7 @@ export function render(activeTab = 'approvals') {
 
                     <!-- Projects Sub-tab Section -->
                     <div id="projectsExpenseSection" style="padding: 0 1rem 1rem;">
-                        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+                        <div class="filter-toolbar" style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
                             <input type="text" id="projectExpenseSearch"
                                    placeholder="Search by name or code..."
                                    oninput="window.debouncedProjectExpenseSearch()"
@@ -1690,7 +1698,7 @@ export function render(activeTab = 'approvals') {
 
                     <!-- Services Sub-tab Section -->
                     <div id="servicesExpenseSection" style="display: none; padding: 0 1rem 1rem;">
-                        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+                        <div class="filter-toolbar" style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
                             <input type="text" id="serviceExpenseSearch"
                                    placeholder="Search by name or code..."
                                    oninput="window.debouncedServiceExpenseSearch()"
@@ -1722,7 +1730,7 @@ export function render(activeTab = 'approvals') {
 
                     <!-- Recurring Sub-tab Section -->
                     <div id="recurringExpenseSection" style="display: none; padding: 0 1rem 1rem;">
-                        <div style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
+                        <div class="filter-toolbar" style="display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1rem;">
                             <input type="text" id="recurringExpenseSearch"
                                    placeholder="Search by name or code..."
                                    oninput="window.debouncedRecurringExpenseSearch()"

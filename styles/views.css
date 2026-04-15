@@ -1636,10 +1636,28 @@
    Global card-header mobile stacking lives in components.css @ 768px block.
    ======================================== */
 
+/* Desktop defaults: show tab bar, hide dropdown */
+.finance-tabs-desktop { display: flex; }
+.finance-tab-select { display: none; }
+
 @media (max-width: 768px) {
-    /* Tab nav container: remove side padding so tab bar gets full viewport width */
+    /* Swap tab bar for dropdown on mobile */
+    .finance-tabs-desktop { display: none !important; }
     .finance-tab-nav-inner {
-        padding: 0;
+        padding: 0.75rem 1rem;
+    }
+    .finance-tab-select {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 1rem;
+        min-height: 44px;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        background: white;
+        color: #1e293b;
+        font-weight: 500;
+        cursor: pointer;
     }
 
     /* Project List sub-tab bar: horizontal scroll on narrow screens (320px safety) */
@@ -1650,13 +1668,5 @@
 
     .finance-expense-subtab-bar button {
         white-space: nowrap;
-    }
-}
-
-@media (max-width: 480px) {
-    /* Compact tab buttons on small phones so more tabs fit before scrolling */
-    .finance-tab-nav-inner .tab-btn {
-        padding: 0.75rem 0.875rem;
-        font-size: 0.875rem;
     }
 }
