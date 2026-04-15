@@ -127,6 +127,16 @@
 - [x] **MOBCARD-09**: At viewport <=768px on Finance > Project List > Services and Recurring sub-tabs, the expense tables are hidden and vertical stacks of clickable service/recurring expense cards are visible with identical behavior to Projects (tapping anywhere on the card opens the expense breakdown modal)
 - [x] **MOBCARD-10**: Empty-state parity — when a table has no data to render, the corresponding card list shows a matching `.fc-empty` message (e.g. "No pending material PRs to review at this time.") so empty states render identically on mobile and desktop
 
+### Finance Tab Navigation Polish
+
+- [x] **FINNAV-01**: Finance sub-tab navigation renders as a sticky horizontal pill/tab bar at all viewport widths (no mobile dropdown) — the prior desktop `.tab-btn` row plus mobile `<select>` dropdown is replaced with a single unified `.finance-sub-nav` pill bar visible on both desktop (>=769px) and mobile (<=768px)
+- [x] **FINNAV-02**: Finance sub-tab nav hides (slides up via `transform: translateY(-100%)`) when scrolling down and reappears when scrolling up, following the classic mobile UX pattern; the nav is always visible when scroll position is within the top 80px of the page
+- [x] **FINNAV-03**: Scroll listener is bound once on `init()` (guarded by a module-level `_financeNavScrollHandler` null check) and removed on `destroy()`; switching between Finance sub-tabs (e.g. approvals -> payables) does not bind a second listener because the router does not call `destroy()` on intra-view tab switches
+
+### PR Details Modal Cleanup
+
+- [x] **PRMOD-SUP-01**: The Supplier column (th + td) is removed from the PR Details modal items table in `viewPRDetails()`; the `<tfoot>` TOTAL row `colspan` is updated from 5 to 4 so the TOTAL label aligns right under Unit Cost and the amount sits under Subtotal. Supplier remains visible in the PR modal header details block (unchanged) since a PR is already scoped to a single supplier.
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -219,12 +229,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MOBCARD-08 | Phase 73.1 | Planned |
 | MOBCARD-09 | Phase 73.1 | Planned |
 | MOBCARD-10 | Phase 73.1 | Planned |
+| FINNAV-01 | Phase 73.3 | Planned |
+| FINNAV-02 | Phase 73.3 | Planned |
+| FINNAV-03 | Phase 73.3 | Planned |
+| PRMOD-SUP-01 | Phase 73.3 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 64 total
-- Mapped to phases: 64
+- v3.2 requirements: 68 total
+- Mapped to phases: 68
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-04-15 — Phase 73.1 requirements added (MOBCARD-CSS, MOBCARD-01 through MOBCARD-10)*
+*Last updated: 2026-04-15 — Phase 73.3 requirements added (FINNAV-01, FINNAV-02, FINNAV-03, PRMOD-SUP-01)*

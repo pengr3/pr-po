@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Phase complete — ready for verification
-stopped_at: Completed 73.2-01-PLAN.md
-last_updated: "2026-04-15T07:41:51.444Z"
+stopped_at: Completed 73.3-01-PLAN.md
+last_updated: "2026-04-15T09:58:54.838Z"
 last_activity: 2026-04-15
 progress:
-  total_phases: 25
-  completed_phases: 22
-  total_plans: 37
-  completed_plans: 41
+  total_phases: 26
+  completed_phases: 23
+  total_plans: 38
+  completed_plans: 42
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 73.2 — mobile-optimize-finance-modals-financial-breakdown-modal-pr-details-modal
+**Current focus:** Phase 73.3 — improve-finance-tab-navigation-bar-and-remove-redundant-supplier-column-from-pr-modal
 
 ## Current Position
 
-Phase: 73.2 (mobile-optimize-finance-modals-financial-breakdown-modal-pr-details-modal) — EXECUTING
-Plan: 2 of 2
+Phase: 73.3 (improve-finance-tab-navigation-bar-and-remove-redundant-supplier-column-from-pr-modal) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Plan: 2 of 2
 | Phase 73.1 P04 | 15 | 2 tasks | 1 files |
 | Phase 73.2 P02 | 5 | 2 tasks | 2 files |
 | Phase 73.2 P01 | 3 | 2 tasks | 2 files |
+| Phase 73.3-improve-finance-tab-navigation-bar-and-remove-redundant-supplier-column-from-pr-modal P01 | 20 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,9 @@ Recent decisions affecting current work:
 - [Phase 73.2]: min-width: 400px on #expenseBreakdownModal .category-items table forces horizontal scroll instead of vertical cell wrap (Gemini MEDIUM #1)
 - [Phase 73.2]: TR modal grid uses .modal-details-grid class instead of inline style to enable CSS 1-col mobile collapse without JS
 - [Phase 73.2]: Item tables in PR/TR modals require explicit min-width (500px/450px) to force horizontal scroll — without it browsers collapse vertically
+- [Phase 73.3]: New .finance-sub-nav-tab class prefix (not .tab-btn) keeps Finance pill style scoped — Procurement .tab-btn rules untouched
+- [Phase 73.3]: Init guard if (!_financeNavScrollHandler) prevents duplicate scroll listener binding on repeated init() calls during intra-Finance sub-tab switches (router does not call destroy() on tab switch)
+- [Phase 73.3]: Supplier column removed from PR Details modal items table only — supplier display preserved in modal header .modal-details-grid (canonical location per PRMOD-SUP-01)
 
 ### Roadmap Evolution
 
@@ -188,6 +192,7 @@ Recent decisions affecting current work:
 - Phase 73 added: Optimize Finance Tab for mobile use
 - Phase 73.1 inserted after Phase 73: Replace Finance tab scrollable tables with card-based mobile layout (URGENT)
 - Phase 73.2 inserted after Phase 73: Mobile-optimize Finance modals (Financial Breakdown Modal + PR Details Modal) (URGENT)
+- Phase 73.3 inserted after Phase 73: Improve finance tab navigation bar and remove redundant supplier column from PR modal (URGENT)
 
 ### Pending Todos
 
@@ -214,7 +219,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-15
-Last session: 2026-04-15T07:41:51.437Z
-Stopped at: Completed 73.2-01-PLAN.md
+Last session: 2026-04-15T09:58:54.830Z
+Stopped at: Completed 73.3-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

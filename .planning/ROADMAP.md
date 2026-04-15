@@ -514,6 +514,16 @@ Plans:
 - [ ] 73-01-PLAN.md — Add mobile CSS rules: global .card-header stacking with 44px touch targets in components.css + scoped .finance-expense-subtab-bar scroll rule in views.css
 - [ ] 73-02-PLAN.md — Upgrade 5 bare overflow-x:auto wrappers to .table-scroll-container and add finance-expense-subtab-bar class to sub-tab bar container in app/views/finance.js
 
+### Phase 73.3: improve finance tab navigation bar and remove redundant supplier column from PR modal (INSERTED)
+
+**Goal:** Replace the Finance sub-tab navigation (desktop .tab-btn bar + mobile <select> dropdown) with a single unified sticky pill/tab bar that hides on scroll-down and reveals on scroll-up (classic mobile UX), and remove the redundant Supplier column from the PR Details modal items table (supplier already shown in PR modal header).
+**Requirements:** FINNAV-01, FINNAV-02, FINNAV-03, PRMOD-SUP-01
+**Depends on:** Phase 73
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 73.3-01-PLAN.md — Remove Supplier column from PR Details modal + rebuild Finance sub-nav as unified sticky pill bar with scroll-hide/show
+
 ### Phase 73.2: Mobile-optimize Finance modals (Financial Breakdown Modal + PR Details Modal) (INSERTED)
 
 **Goal:** Make the Finance tab's PR Details modal, TR Details modal, and Financial Breakdown Modal usable on 375-414px phone viewports via CSS-only responsive overrides and template-string scroll wrappers. Outer 2-column detail grids collapse to 1-column, wide multi-column tables become horizontally scrollable inside their cards, and Financial Breakdown scorecard rows (2/3/2) collapse to 1-column at <=768px. Desktop (>=769px) layouts unchanged. No data logic changes.
