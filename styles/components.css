@@ -1365,19 +1365,18 @@ tr:hover {
         gap: 0.5rem;
     }
 
-    /* Right-side controls container goes full-width and wraps */
+    /* Right-side controls container: full-width column stack */
     .card-header > div {
         width: 100%;
         display: flex;
-        flex-wrap: wrap;
+        flex-direction: column;
         gap: 0.5rem;
     }
 
-    /* Card-header selects and buttons: full-flex with 44px touch target */
+    /* Card-header selects and buttons: full-width with 44px touch target */
     .card-header select,
     .card-header .btn {
-        flex: 1;
-        min-width: 0;
+        width: 100%;
         min-height: 44px;
     }
 }
