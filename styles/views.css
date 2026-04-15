@@ -1628,3 +1628,22 @@
     transition: width 0.4s ease;
     pointer-events: none;
 }
+
+/* ========================================
+   FINANCE TAB — MOBILE RESPONSIVE
+   Added by Phase 73 — see .planning/phases/73-optimize-finance-tab-for-mobile-use/
+   Scoped to Finance-only elements (no global side-effects).
+   Global card-header mobile stacking lives in components.css @ 768px block.
+   ======================================== */
+
+@media (max-width: 768px) {
+    /* Project List sub-tab bar: horizontal scroll on narrow screens (320px safety) */
+    .finance-expense-subtab-bar {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .finance-expense-subtab-bar button {
+        white-space: nowrap;
+    }
+}
