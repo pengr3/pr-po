@@ -3429,9 +3429,8 @@ async function viewPRDetails(prId) {
             </div>
 
             <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Items Breakdown</h4>
-                <!-- Desktop: scrollable table -->
-                <div class="pr-items-table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <table class="modal-items-table" style="min-width: 500px;">
+                <div class="pr-items-scroll">
+                <table class="modal-items-table pr-items-table">
                     <thead>
                     <tr>
                         <th>Item</th>
@@ -3461,40 +3460,6 @@ async function viewPRDetails(prId) {
                     </tr>
                 </tfoot>
                 </table>
-                </div>
-                <!-- Mobile: stacked cards per item -->
-                <div class="pr-items-cards">
-                    ${items.map(item => `
-                        <div class="pr-items-card">
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Item</span>
-                                <span class="pr-items-card-value">${escapeHTML(item.item || item.item_name)}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Category</span>
-                                <span class="pr-items-card-value">${escapeHTML(item.category || 'N/A')}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Qty</span>
-                                <span class="pr-items-card-value">${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Unit Cost</span>
-                                <span class="pr-items-card-value">₱${formatCurrency(item.unit_cost || 0)}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Supplier</span>
-                                <span class="pr-items-card-value">${escapeHTML(item.supplier || 'N/A')}</span>
-                            </div>
-                            <div class="pr-items-card-total">
-                                <span>Total</span>
-                                <span>₱${formatCurrency(item.subtotal || 0)}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                    <div style="text-align: right; font-weight: 700; color: #059669; padding: 0.5rem 0; border-top: 2px solid #e2e8f0; margin-top: 0.25rem;">
-                        Grand Total: ₱${formatCurrency(pr.total_amount || 0)}
-                    </div>
                 </div>
         `;
 
@@ -3615,66 +3580,35 @@ async function viewTRDetails(trId) {
 
             <div style="margin: 1.5rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
                 <h4 style="margin-bottom: 1rem;">Service Items</h4>
-                    <!-- Desktop: scrollable table -->
-                    <div class="pr-items-table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                    <table style="width: 100%; min-width: 450px; font-size: 0.875rem;">
+                    <div class="pr-items-scroll">
+                    <table class="modal-items-table pr-items-table">
                     <thead>
-                        <tr style="background: white;">
-                            <th style="padding: 0.5rem;">Service</th>
-                            <th style="padding: 0.5rem;">Category</th>
-                            <th style="padding: 0.5rem;">Qty</th>
-                            <th style="padding: 0.5rem;">Unit Cost</th>
-                            <th style="padding: 0.5rem;">Subtotal</th>
+                        <tr>
+                            <th>Service</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit Cost</th>
+                            <th>Subtotal</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${items.map(item => `
-                            <tr style="background: white;">
-                                <td style="padding: 0.5rem;">${escapeHTML(item.item || item.item_name)}</td>
-                                <td style="padding: 0.5rem;">${escapeHTML(item.category || 'N/A')}</td>
-                                <td style="padding: 0.5rem;">${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</td>
-                                <td style="padding: 0.5rem;">₱${formatCurrency(item.unit_cost || 0)}</td>
-                                <td style="padding: 0.5rem;"><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
+                            <tr>
+                                <td>${escapeHTML(item.item || item.item_name)}</td>
+                                <td>${escapeHTML(item.category || 'N/A')}</td>
+                                <td>${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</td>
+                                <td>₱${formatCurrency(item.unit_cost || 0)}</td>
+                                <td><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
                             </tr>
                         `).join('')}
                     </tbody>
                     <tfoot>
-                        <tr style="background: white; font-weight: 600;">
-                            <td colspan="4" style="padding: 0.75rem; text-align: right; border-top: 2px solid #dee2e6;">TOTAL:</td>
-                            <td style="padding: 0.75rem; border-top: 2px solid #dee2e6;">₱${formatCurrency(tr.total_amount || 0)}</td>
+                        <tr>
+                            <td colspan="4" style="text-align: right; border-top: 2px solid #dee2e6;">TOTAL:</td>
+                            <td style="border-top: 2px solid #dee2e6;">₱${formatCurrency(tr.total_amount || 0)}</td>
                         </tr>
                     </tfoot>
                 </table>
-                </div>
-                <!-- Mobile: stacked cards per item -->
-                <div class="pr-items-cards">
-                    ${items.map(item => `
-                        <div class="pr-items-card">
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Service</span>
-                                <span class="pr-items-card-value">${escapeHTML(item.item || item.item_name)}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Category</span>
-                                <span class="pr-items-card-value">${escapeHTML(item.category || 'N/A')}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Qty</span>
-                                <span class="pr-items-card-value">${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</span>
-                            </div>
-                            <div class="pr-items-card-row">
-                                <span class="pr-items-card-label">Unit Cost</span>
-                                <span class="pr-items-card-value">₱${formatCurrency(item.unit_cost || 0)}</span>
-                            </div>
-                            <div class="pr-items-card-total">
-                                <span>Total</span>
-                                <span>₱${formatCurrency(item.subtotal || 0)}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                    <div style="text-align: right; font-weight: 700; color: #059669; padding: 0.5rem 0; border-top: 2px solid #e2e8f0; margin-top: 0.25rem;">
-                        Grand Total: ₱${formatCurrency(tr.total_amount || 0)}
-                    </div>
                 </div>
             </div>
 

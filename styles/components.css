@@ -1277,9 +1277,19 @@ tr:hover {
     border-color: var(--danger);
 }
 
-/* PR/TR items stacked cards — hidden by default (desktop), shown on mobile via media query below */
-.pr-items-cards {
-    display: none;
+/* PR/TR items scroll container — right-edge shadow signals horizontal scroll */
+.pr-items-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Fade-shadow technique: shows left/right shadows only when content overflows */
+    background:
+        linear-gradient(to right, #ffffff 20%, rgba(255,255,255,0)) 0 0,
+        linear-gradient(to left,  #ffffff 20%, rgba(255,255,255,0)) 100% 0,
+        radial-gradient(farthest-side at 0% 50%, rgba(0,0,0,.08), transparent) 0 50%,
+        radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.08), transparent) 100% 50%;
+    background-repeat: no-repeat;
+    background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+    background-attachment: local, local, scroll, scroll;
 }
 
 /* ========================================
@@ -1455,58 +1465,34 @@ tr:hover {
         min-height: unset;
     }
 
-    /* Phase 73.2: PR/TR items table — hide on mobile, show stacked cards */
-    .pr-items-table-wrap {
-        display: none;
+    /* Phase 73.2: PR/TR items table — compact + sticky first column on mobile (Option C+B) */
+    .pr-items-table th,
+    .pr-items-table td {
+        padding: 0.25rem 0.3rem !important;
+        font-size: 0.7rem !important;
+        white-space: nowrap;
     }
 
-    .pr-items-cards {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+    /* Sticky Item/Service column — always visible while swiping right */
+    .pr-items-table th:first-child,
+    .pr-items-table td:first-child {
+        position: sticky;
+        left: 0;
+        background: #ffffff;
+        z-index: 2;
+        box-shadow: 2px 0 3px rgba(0, 0, 0, 0.07);
+        max-width: 90px;
+        white-space: normal;
+        word-break: break-word;
     }
-}
 
-.pr-items-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 0.625rem 0.75rem;
-    font-size: 0.875rem;
-}
+    .pr-items-table thead th:first-child {
+        background: #f1f5f9;
+    }
 
-.pr-items-card-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.5rem;
-    padding: 0.125rem 0;
-}
-
-.pr-items-card-label {
-    font-weight: 600;
-    color: #64748b;
-    font-size: 0.75rem;
-    white-space: nowrap;
-}
-
-.pr-items-card-value {
-    color: #1e293b;
-    text-align: right;
-}
-
-.pr-items-card-total {
-    margin-top: 0.375rem;
-    padding-top: 0.375rem;
-    border-top: 1px solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-    color: #059669;
-}
-
-.pr-items-table-total {
-    /* Desktop table total footer row — unchanged */
+    .pr-items-table tfoot td:first-child {
+        background: #ffffff;
+    }
 }
 
 /* ========================================
