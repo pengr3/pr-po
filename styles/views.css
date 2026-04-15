@@ -1867,6 +1867,53 @@
     min-width: 400px;
 }
 
-/* Scorecard grids intentionally retain multi-column layout on mobile.
-   The user has confirmed 2-col and 3-col are readable at 375px.
-   Do NOT add grid-template-columns:1fr override here. */
+/* -------------------------------------------------------
+   Phase 73.2: Scorecard mobile sizing — keeps multi-col
+   grid but tightens gap / padding / font so scorecards
+   fit at 375px without causing horizontal overflow.
+   !important needed because individual cells use inline styles.
+   ------------------------------------------------------- */
+@media (max-width: 480px) {
+    /* Tighten grid gaps */
+    .em-scorecard-2col,
+    .em-scorecard-3col {
+        gap: 0.35rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Tighten cell padding */
+    .em-scorecard-2col > div,
+    .em-scorecard-3col > div {
+        padding: 0.4rem 0.35rem !important;
+    }
+
+    /* Reduce label font size (first child inside each cell) */
+    .em-scorecard-2col > div > div:first-child,
+    .em-scorecard-3col > div > div:first-child {
+        font-size: 0.65rem !important;
+        margin-bottom: 0.2rem !important;
+    }
+
+    /* Reduce value font size (second child: 1.5rem → 0.95rem) */
+    .em-scorecard-2col > div > div:nth-child(2),
+    .em-scorecard-3col > div > div:nth-child(2) {
+        font-size: 0.95rem !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Row 3 values are 2rem — reduce further */
+    .em-scorecard-2col.em-row3 > div > div:nth-child(2) {
+        font-size: 1.1rem !important;
+    }
+
+    /* Sub-label (third child: e.g. "1 POs") */
+    .em-scorecard-3col > div > div:nth-child(3) {
+        font-size: 0.6rem !important;
+        margin-top: 0.1rem !important;
+    }
+
+    /* Prevent modal body from overflowing horizontally */
+    #expenseBreakdownModal .modal-body {
+        overflow-x: hidden;
+    }
+}

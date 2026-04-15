@@ -1277,6 +1277,11 @@ tr:hover {
     border-color: var(--danger);
 }
 
+/* PR/TR items stacked cards — hidden by default (desktop), shown on mobile via media query below */
+.pr-items-cards {
+    display: none;
+}
+
 /* ========================================
    RESPONSIVE
    ======================================== */
@@ -1451,11 +1456,6 @@ tr:hover {
         flex-direction: column;
         gap: 0.5rem;
     }
-}
-
-/* PR/TR items stacked cards — hidden on desktop, shown on mobile via media query above */
-.pr-items-cards {
-    display: none;
 }
 
 .pr-items-card {
