@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Phase complete — ready for verification
-stopped_at: Completed 73.2-02-PLAN.md
-last_updated: "2026-04-15T07:41:40.254Z"
+stopped_at: Completed 73.2-01-PLAN.md
+last_updated: "2026-04-15T07:41:51.444Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 25
@@ -162,6 +162,8 @@ Recent decisions affecting current work:
 - [Phase 73.1]: escapeHTML applied to onclick arguments for apostrophe-safe modal invocation (REVIEWS Suggestion 3): browser HTML-decodes &#39; before JS evaluation
 - [Phase 73.2]: em-scorecard-2col/3col are desktop-first classes; @media (max-width: 768px) collapses both to 1fr — no JS viewport detection
 - [Phase 73.2]: min-width: 400px on #expenseBreakdownModal .category-items table forces horizontal scroll instead of vertical cell wrap (Gemini MEDIUM #1)
+- [Phase 73.2]: TR modal grid uses .modal-details-grid class instead of inline style to enable CSS 1-col mobile collapse without JS
+- [Phase 73.2]: Item tables in PR/TR modals require explicit min-width (500px/450px) to force horizontal scroll — without it browsers collapse vertically
 
 ### Roadmap Evolution
 
@@ -212,7 +214,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-15
-Last session: 2026-04-15T07:41:30.175Z
-Stopped at: Completed 73.2-02-PLAN.md
+Last session: 2026-04-15T07:41:51.437Z
+Stopped at: Completed 73.2-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
