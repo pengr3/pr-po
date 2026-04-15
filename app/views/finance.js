@@ -3466,6 +3466,18 @@ async function viewPRDetails(prId) {
         document.getElementById('prModalTitle').textContent = `Purchase Request - ${pr.pr_id}`;
         document.getElementById('prModalBody').innerHTML = modalContent;
 
+        // JS sticky first column: CSS position:sticky is broken inside overflow-y:auto modal bodies.
+        // translateX on scroll is the reliable fallback.
+        const _prScrollWrap = document.getElementById('prModalBody').querySelector('.pr-items-scroll');
+        if (_prScrollWrap) {
+            _prScrollWrap.addEventListener('scroll', function() {
+                const sx = this.scrollLeft;
+                this.querySelectorAll('.pr-items-table th:first-child, .pr-items-table td:first-child').forEach(function(el) {
+                    el.style.transform = 'translateX(' + sx + 'px)';
+                });
+            }, { passive: true });
+        }
+
         const canEdit = window.canEditTab?.('finance');
         const showEditControls = canEdit !== false;
 
@@ -3626,6 +3638,17 @@ async function viewTRDetails(trId) {
 
         document.getElementById('prModalTitle').textContent = `Transport Request - ${tr.tr_id}`;
         document.getElementById('prModalBody').innerHTML = modalContent;
+
+        // JS sticky first column (same reason as PR modal — CSS sticky broken by modal-body overflow)
+        const _trScrollWrap = document.getElementById('prModalBody').querySelector('.pr-items-scroll');
+        if (_trScrollWrap) {
+            _trScrollWrap.addEventListener('scroll', function() {
+                const sx = this.scrollLeft;
+                this.querySelectorAll('.pr-items-table th:first-child, .pr-items-table td:first-child').forEach(function(el) {
+                    el.style.transform = 'translateX(' + sx + 'px)';
+                });
+            }, { passive: true });
+        }
 
         const canEdit = window.canEditTab?.('finance');
         const showEditControls = canEdit !== false;

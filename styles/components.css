@@ -1477,14 +1477,15 @@ tr:hover {
         white-space: nowrap;
     }
 
-    /* Sticky Item/Service column — always visible while swiping right */
+    /* Sticky Item/Service column — JS translateX simulation
+       (CSS position:sticky is killed by overflow-y:auto on .modal-body ancestor) */
     .pr-items-table th:first-child,
     .pr-items-table td:first-child {
-        position: sticky;
-        left: 0;
+        min-width: 140px;
         background: #ffffff;
         z-index: 2;
         box-shadow: 2px 0 3px rgba(0, 0, 0, 0.07);
+        will-change: transform;
     }
 
     .pr-items-table thead th:first-child {
