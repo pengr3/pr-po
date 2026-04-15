@@ -258,6 +258,7 @@ function attachWindowFunctions() {
     window.filterRFPTable = filterRFPTable;
     window.filterPOSummaryTable = filterPOSummaryTable;
     window.togglePOExpand = togglePOExpand;
+    window.togglePOCardExpand = togglePOCardExpand;
     window.changePOSummaryPage = changePOSummaryPage;
     window.openRecordPaymentModal = openRecordPaymentModal;
     window.voidPaymentRecord = voidPaymentRecord;
@@ -481,6 +482,22 @@ function togglePOExpand(poId) {
     const isOpen = row.style.display === 'table-row';
     row.style.display = isOpen ? 'none' : 'table-row';
     if (chevron) chevron.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+}
+
+/**
+ * Toggle the fc-sub-list for a PO Summary card on mobile (Phase 73.1).
+ * Uses DISTINCT IDs (po-card-expand-*, po-card-chevron-*) to avoid colliding with
+ * desktop togglePOExpand which targets <tr> elements and sets display: table-row.
+ */
+function togglePOCardExpand(safePoId) {
+    const expandEl = document.getElementById('po-card-expand-' + safePoId);
+    const chevron = document.getElementById('po-card-chevron-' + safePoId);
+    const btnLabel = document.getElementById('po-card-btn-label-' + safePoId);
+    if (!expandEl) return;
+    const isOpen = expandEl.style.display === 'block';
+    expandEl.style.display = isOpen ? 'none' : 'block';
+    if (chevron) chevron.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+    if (btnLabel) btnLabel.textContent = isOpen ? 'Show Tranches' : 'Hide Tranches';
 }
 
 /**
@@ -805,6 +822,84 @@ function derivePOSummary(rfpList, poTotalAmount) {
 }
 
 /**
+ * Build a mobile sub-card for a single RFP tranche row inside a PO Summary card (Phase 73.1).
+ * due_date rendered raw (string, not Timestamp) — matches desktop sub-table at renderPOSummaryTable.
+ */
+function buildPOTrancheSubCard(rfp) {
+    const rfpStatus = deriveRFPStatus(rfp);
+    const rfpTotalPaid = (rfp.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (r.amount || 0), 0);
+    const rfpBalance = (rfp.amount_requested || 0) - rfpTotalPaid;
+    const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
+
+    const canEdit = window.canEditTab?.('finance');
+    const showEditControls = canEdit !== false;
+    const subBtn = showEditControls
+        ? (rfpStatus === 'Fully Paid'
+            ? '<button class="btn btn-sm btn-outline" onclick="window.openRecordPaymentModal(\'' + rfp.id + '\')">Manage Payments</button>'
+            : '<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal(\'' + rfp.id + '\')">Record Payment</button>')
+        : '';
+
+    return `
+        <div class="fc-sub-card">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.25rem;">
+                <span style="font-weight:700;color:#1e293b;">${escapeHTML(rfp.rfp_id || '')}</span>
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${rfpBadgeStyle}">${rfpStatus}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;">
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Tranche</span><span>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Amount</span><span>${formatCurrency(rfp.amount_requested || 0)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Paid</span><span>${formatCurrency(rfpTotalPaid)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Balance</span><span>${formatCurrency(rfpBalance)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Due Date</span><span>${rfp.due_date || 'N/A'}</span></div>
+            </div>
+            ${subBtn ? '<div style="margin-top:0.5rem;">' + subBtn + '</div>' : ''}
+        </div>`;
+}
+
+/**
+ * Build a mobile card for a PO Payment Summary row (Phase 73.1).
+ * Includes an expand/collapse sub-list of tranche sub-cards via togglePOCardExpand.
+ * Uses distinct IDs (po-card-expand-*, po-card-chevron-*) to avoid collision with desktop togglePOExpand.
+ */
+function buildPOSummaryCard(po) {
+    const badgeStyle = statusBadgeColors[po.overallStatus] || '';
+    const isOverdue = po.overallStatus === 'Overdue';
+    const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    const refDisplay = po.isTR
+        ? '<span style="font-weight:600;color:#1e293b;">' + escapeHTML(po.poId) + '</span>'
+        : '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + po.poId + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>';
+
+    const subCards = po.sortedRFPs.map(rfp => buildPOTrancheSubCard(rfp)).join('');
+
+    return `
+        <div class="fc-card${isOverdue ? ' fc-overdue' : ''}">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${refDisplay}</span>
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${badgeStyle}">${po.overallStatus}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Supplier</span><span class="fc-value">${escapeHTML(po.supplier || '')}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${po.deptLabel}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Current Active Tranche</span><span class="fc-value">${po.currentTranche}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Total Amount</span><span class="fc-value">${formatCurrency(po.totalAmount)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Total Paid</span><span class="fc-value">${formatCurrency(po.totalPaid)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Remaining</span><span class="fc-value fc-amount">${formatCurrency(po.remaining)}</span></div>
+            </div>
+            <div class="fc-card-actions">
+                <button class="btn btn-sm btn-secondary" id="po-card-btn-${safePoId}" onclick="window.togglePOCardExpand('${safePoId}')">
+                    <span id="po-card-chevron-${safePoId}">&#9654;</span> <span id="po-card-btn-label-${safePoId}">Show Tranches</span>
+                </button>
+            </div>
+            <div class="fc-sub-list" id="po-card-expand-${safePoId}" style="display:none;">
+                ${subCards}
+            </div>
+        </div>`;
+}
+
+/**
  * Render the PO Payment Summary table (Table 2).
  * Groups rfpsData by PO ID and shows aggregated totals with expandable sub-tables.
  * D-07: One row per unique PO ID.
@@ -858,11 +953,12 @@ function renderPOSummaryTable() {
 
     if (poEntries.length === 0) {
         const isFiltered = poSummaryStatusFilter || poSummaryDeptFilter;
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:2rem;color:#64748b;">
-            ${isFiltered
-                ? 'No POs match the selected filters. Clear filters to see all.'
-                : 'No payment requests yet. PO summaries will appear once RFPs are submitted.'}
-        </td></tr>`;
+        const emptyMsg = isFiltered
+            ? 'No POs match the selected filters. Clear filters to see all.'
+            : 'No payment requests yet. PO summaries will appear once RFPs are submitted.';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:#64748b;">' + emptyMsg + '</td></tr>';
+        const poSummaryCardListEmpty = document.getElementById('poSummaryCardList');
+        if (poSummaryCardListEmpty) poSummaryCardListEmpty.innerHTML = '<div class="fc-empty">' + emptyMsg + '</div>';
         const paginationDiv = document.getElementById('poSummaryPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
@@ -951,6 +1047,12 @@ function renderPOSummaryTable() {
     }).join('');
 
     updatePOSummaryPagination(totalPages, startIndex, endIndex, totalFiltered);
+
+    // Mobile card list (Phase 73.1) — populated from same pageEntries (pagination applies to both)
+    const poSummaryCardList = document.getElementById('poSummaryCardList');
+    if (poSummaryCardList) {
+        poSummaryCardList.innerHTML = pageEntries.map(po => buildPOSummaryCard(po)).join('');
+    }
 }
 
 /**
