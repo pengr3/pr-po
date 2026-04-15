@@ -3429,8 +3429,9 @@ async function viewPRDetails(prId) {
             </div>
 
             <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Items Breakdown</h4>
-            <table class="modal-items-table">
-                <thead>
+                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="modal-items-table" style="min-width: 500px;">
+                    <thead>
                     <tr>
                         <th>Item</th>
                         <th>Category</th>
@@ -3458,7 +3459,8 @@ async function viewPRDetails(prId) {
                         <td>₱${formatCurrency(pr.total_amount || 0)}</td>
                     </tr>
                 </tfoot>
-            </table>
+                </table>
+                </div>
         `;
 
         document.getElementById('prModalTitle').textContent = `Purchase Request - ${pr.pr_id}`;
@@ -3537,7 +3539,7 @@ async function viewTRDetails(trId) {
         const colors = urgencyColors[urgencyLevel] || urgencyColors['Low'];
 
         const modalContent = `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="modal-details-grid">
                 <div>
                     <div style="font-size: 0.75rem; font-weight: 600; color: #5f6368;">TR ID:</div>
                     <div><strong>${tr.tr_id}</strong></div>
@@ -3578,7 +3580,8 @@ async function viewTRDetails(trId) {
 
             <div style="margin: 1.5rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
                 <h4 style="margin-bottom: 1rem;">Service Items</h4>
-                <table style="width: 100%; font-size: 0.875rem;">
+                    <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <table style="width: 100%; min-width: 450px; font-size: 0.875rem;">
                     <thead>
                         <tr style="background: white;">
                             <th style="padding: 0.5rem;">Service</th>
@@ -3606,6 +3609,7 @@ async function viewTRDetails(trId) {
                         </tr>
                     </tfoot>
                 </table>
+                </div>
             </div>
 
             ${tr.rejection_reason ? `
