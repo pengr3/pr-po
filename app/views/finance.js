@@ -1638,7 +1638,7 @@ export function render(activeTab = 'approvals') {
                     </div>
 
                     <!-- Sub-tab bar: Projects | Services | Recurring -->
-                    <div style="display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 1rem; padding: 0 1rem;">
+                    <div class="finance-expense-subtab-bar" style="display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 1rem; padding: 0 1rem;">
                         <button class="expense-subtab-btn active" data-tab="projects"
                                 onclick="window.switchExpenseSubTab('projects')"
                                 style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-size: 0.875rem; font-weight: 600; color: #1a73e8; border-bottom: 2px solid #1a73e8; margin-bottom: -2px;">
@@ -1670,7 +1670,7 @@ export function render(activeTab = 'approvals') {
                             </button>
                         </div>
                         <div id="projectExpensesContainer">
-                            <div style="overflow-x: auto;">
+                            <div class="table-scroll-container">
                                 <table class="data-table">
                                     <thead>
                                         <tr>
@@ -1702,7 +1702,7 @@ export function render(activeTab = 'approvals') {
                             </button>
                         </div>
                         <div id="serviceExpensesContainer">
-                            <div style="overflow-x: auto;">
+                            <div class="table-scroll-container">
                                 <table class="data-table">
                                     <thead>
                                         <tr>
@@ -1734,7 +1734,7 @@ export function render(activeTab = 'approvals') {
                             </button>
                         </div>
                         <div id="recurringExpensesContainer">
-                            <div style="overflow-x: auto;">
+                            <div class="table-scroll-container">
                                 <table class="data-table">
                                     <thead>
                                         <tr>
@@ -2055,7 +2055,7 @@ function renderProjectExpensesTable() {
 
     // Build table
     let tableHTML = `
-        <div style="overflow-x: auto;">
+        <div class="table-scroll-container">
             <table class="data-table">
                 <thead>
                     <tr>
@@ -2328,7 +2328,7 @@ function renderServiceExpensesTable() {
         return;
     }
 
-    let tableHTML = `<div style="overflow-x: auto;"><table class="data-table"><thead><tr>
+    let tableHTML = `<div class="table-scroll-container"><table class="data-table"><thead><tr>
         <th onclick="window.sortServiceExpenses('serviceName')" style="cursor: pointer; user-select: none;">Service Name <span class="sort-indicator" data-col="serviceName"></span></th>
         <th onclick="window.sortServiceExpenses('clientCode')" style="cursor: pointer; user-select: none;">Client <span class="sort-indicator" data-col="clientCode"></span></th>
         <th onclick="window.sortServiceExpenses('budget')" style="cursor: pointer; user-select: none; text-align: right;">Budget <span class="sort-indicator" data-col="budget"></span></th>
@@ -2415,7 +2415,7 @@ function renderRecurringExpensesTable() {
         return;
     }
 
-    let tableHTML = `<div style="overflow-x: auto;"><table class="data-table"><thead><tr>
+    let tableHTML = `<div class="table-scroll-container"><table class="data-table"><thead><tr>
         <th onclick="window.sortRecurringExpenses('serviceName')" style="cursor: pointer; user-select: none;">Service Name <span class="sort-indicator" data-col="serviceName"></span></th>
         <th onclick="window.sortRecurringExpenses('clientCode')" style="cursor: pointer; user-select: none;">Client <span class="sort-indicator" data-col="clientCode"></span></th>
         <th onclick="window.sortRecurringExpenses('budget')" style="cursor: pointer; user-select: none; text-align: right;">Budget <span class="sort-indicator" data-col="budget"></span></th>
