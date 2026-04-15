@@ -3459,6 +3459,10 @@ async function viewPRDetails(prId) {
                     <div class="modal-detail-label">Total Amount:</div>
                     <div class="modal-detail-value"><strong style="color: #059669; font-size: 1.5rem;">₱${formatCurrency(pr.total_amount || 0)}</strong></div>
                 </div>
+                <div class="modal-detail-item">
+                    <div class="modal-detail-label">Supplier:</div>
+                    <div class="modal-detail-value">${escapeHTML(pr.supplier_name || 'N/A')}</div>
+                </div>
             </div>
 
             <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Items Breakdown</h4>
