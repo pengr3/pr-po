@@ -1496,7 +1496,7 @@ export function render(activeTab = 'approvals') {
     return `
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 2px solid var(--gray-200);">
-            <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
+            <div class="finance-tab-nav-inner" style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
                     <a href="#/finance/approvals" class="tab-btn ${activeTab === 'approvals' ? 'active' : ''}">
                         Pending Approvals

@@ -1637,6 +1637,11 @@
    ======================================== */
 
 @media (max-width: 768px) {
+    /* Tab nav container: remove side padding so tab bar gets full viewport width */
+    .finance-tab-nav-inner {
+        padding: 0;
+    }
+
     /* Project List sub-tab bar: horizontal scroll on narrow screens (320px safety) */
     .finance-expense-subtab-bar {
         overflow-x: auto;
@@ -1645,5 +1650,13 @@
 
     .finance-expense-subtab-bar button {
         white-space: nowrap;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Compact tab buttons on small phones so more tabs fit before scrolling */
+    .finance-tab-nav-inner .tab-btn {
+        padding: 0.75rem 0.875rem;
+        font-size: 0.875rem;
     }
 }
