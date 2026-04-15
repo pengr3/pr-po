@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: Completed 73.1-04-PLAN.md
-last_updated: "2026-04-15T06:13:19.855Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 73.2-02-PLAN.md
+last_updated: "2026-04-15T07:41:40.254Z"
 last_activity: 2026-04-15
 progress:
-  total_phases: 24
-  completed_phases: 21
-  total_plans: 35
-  completed_plans: 39
+  total_phases: 25
+  completed_phases: 22
+  total_plans: 37
+  completed_plans: 41
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 73.1 — replace-finance-tab-scrollable-tables-with-card-based-mobile-layout
+**Current focus:** Phase 73.2 — mobile-optimize-finance-modals-financial-breakdown-modal-pr-details-modal
 
 ## Current Position
 
-Phase: 73.1
-Plan: Not started
+Phase: 73.2 (mobile-optimize-finance-modals-financial-breakdown-modal-pr-details-modal) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -83,6 +83,8 @@ Plan: Not started
 | Phase 73.1 P02 | 15 | 2 tasks | 1 files |
 | Phase 73.1 P03 | 2 | 2 tasks | 1 files |
 | Phase 73.1 P04 | 15 | 2 tasks | 1 files |
+| Phase 73.2 P02 | 5 | 2 tasks | 2 files |
+| Phase 73.2 P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -158,6 +160,8 @@ Recent decisions affecting current work:
 - [Phase 73.1]: togglePOCardExpand uses distinct IDs (po-card-expand-*, po-card-chevron-*) and sets display:block on div — avoids collision with desktop togglePOExpand which targets tr elements with display:table-row (Pitfall 3)
 - [Phase 73.1]: buildRecurringExpenseCard is a thin alias to buildServiceExpenseCard — recurring and service expense shapes identical, both use window.showServiceExpenseModal
 - [Phase 73.1]: escapeHTML applied to onclick arguments for apostrophe-safe modal invocation (REVIEWS Suggestion 3): browser HTML-decodes &#39; before JS evaluation
+- [Phase 73.2]: em-scorecard-2col/3col are desktop-first classes; @media (max-width: 768px) collapses both to 1fr — no JS viewport detection
+- [Phase 73.2]: min-width: 400px on #expenseBreakdownModal .category-items table forces horizontal scroll instead of vertical cell wrap (Gemini MEDIUM #1)
 
 ### Roadmap Evolution
 
@@ -181,6 +185,7 @@ Recent decisions affecting current work:
 - Phase 72 added: Add paid and remaining payable to project/service financial summary cards with clickable refresh redirecting to financial breakdown modal (covers both Projects and Services tabs)
 - Phase 73 added: Optimize Finance Tab for mobile use
 - Phase 73.1 inserted after Phase 73: Replace Finance tab scrollable tables with card-based mobile layout (URGENT)
+- Phase 73.2 inserted after Phase 73: Mobile-optimize Finance modals (Financial Breakdown Modal + PR Details Modal) (URGENT)
 
 ### Pending Todos
 
@@ -207,7 +212,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-15
-Last session: 2026-04-15T06:08:34.628Z
-Stopped at: Completed 73.1-04-PLAN.md
+Last session: 2026-04-15T07:41:30.175Z
+Stopped at: Completed 73.2-02-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

@@ -514,6 +514,17 @@ Plans:
 - [ ] 73-01-PLAN.md — Add mobile CSS rules: global .card-header stacking with 44px touch targets in components.css + scoped .finance-expense-subtab-bar scroll rule in views.css
 - [ ] 73-02-PLAN.md — Upgrade 5 bare overflow-x:auto wrappers to .table-scroll-container and add finance-expense-subtab-bar class to sub-tab bar container in app/views/finance.js
 
+### Phase 73.2: Mobile-optimize Finance modals (Financial Breakdown Modal + PR Details Modal) (INSERTED)
+
+**Goal:** Make the Finance tab's PR Details modal, TR Details modal, and Financial Breakdown Modal usable on 375-414px phone viewports via CSS-only responsive overrides and template-string scroll wrappers. Outer 2-column detail grids collapse to 1-column, wide multi-column tables become horizontally scrollable inside their cards, and Financial Breakdown scorecard rows (2/3/2) collapse to 1-column at <=768px. Desktop (>=769px) layouts unchanged. No data logic changes.
+**Requirements**: FINMOD-PR-GRID, FINMOD-PR-TABLE, FINMOD-TR-GRID, FINMOD-TR-TABLE, FINMOD-BODY-PADDING, FINMOD-EXP-SCORECARDS, FINMOD-EXP-TABBAR, FINMOD-EXP-CATITEMS
+**Depends on:** Phase 73
+**Plans:** 2/2 plans complete
+
+Plans:
+- [x] 73.2-01-PLAN.md — PR/TR Details Modal mobile (components.css .modal-details-grid + .modal-body overrides, finance.js PR/TR table scroll wrappers, TR grid class swap)
+- [x] 73.2-02-PLAN.md — Financial Breakdown Modal mobile (views.css em-scorecard / em-tab-bar / category-items classes, expense-modal.js inline-style to class replacements)
+
 ### Phase 73.1: Replace Finance tab scrollable tables with card-based mobile layout (INSERTED)
 
 **Goal:** At viewports <=768px, all 5 Finance table groups (Pending Approvals: Material PRs + Transport Requests; Purchase Orders; Payables: RFP Processing + PO Payment Summary; Project List: Projects/Services/Recurring expenses) render as vertical card stacks instead of horizontally-scrolling tables, via a CSS dual-mode pattern (emit both table and card-list; media query hides the unused mode). Desktop behavior (>=769px) is unchanged.
