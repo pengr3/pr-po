@@ -3892,6 +3892,38 @@ function buildProofIndicator(po) {
 }
 
 /**
+ * Build a mobile card HTML string for a single PO (Phase 73.1).
+ * Mirrors the table row columns from renderPOs().
+ *
+ * statusLabel and statusClass BOTH derive from the same fallback 'Pending Procurement'
+ * so null-status POs never show text/class mismatch (REVIEWS Suggestion).
+ */
+function buildPOCard(po) {
+    const proofIndicator = buildProofIndicator(po);
+    const statusValue = po.procurement_status || 'Pending Procurement';
+    const statusLabel = statusValue;
+    const statusClass = getStatusClass(statusValue);
+    return `
+        <div class="fc-card">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${escapeHTML(po.po_id || '')}</span>
+                <span class="status-badge ${statusClass}">${escapeHTML(statusLabel)}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Proof</span><span class="fc-value">${proofIndicator}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Supplier</span><span class="fc-value">${escapeHTML(po.supplier_name || '')}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Project</span><span class="fc-value">${getDeptBadgeHTML(po)} ${escapeHTML(getMRFLabel(po))}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">&#8369;${formatCurrency(po.total_amount || 0)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">PR ID</span><span class="fc-value" style="font-size:0.8125rem;color:#64748b;">${escapeHTML(po.pr_id || '')}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Date Issued</span><span class="fc-value">${formatPODate(po)}</span></div>
+            </div>
+            <div class="fc-card-actions">
+                <button class="btn btn-sm btn-secondary" onclick="promptPODocument('${po.id}')">View PO</button>
+            </div>
+        </div>`;
+}
+
+/**
  * Render POs list
  */
 function renderPOs() {
@@ -3966,6 +3998,9 @@ function renderPOs() {
                 }).join('')}
             </tbody>
         </table>
+        </div>
+        <div class="fc-card-list">
+            ${recentPOs.map(po => buildPOCard(po)).join('')}
         </div>
         ${filteredPOs.length > 20 ? `<p style="text-align: center; margin-top: 1rem; color: #666;">Showing 20 most recent POs</p>` : ''}
     `;
