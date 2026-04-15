@@ -1660,14 +1660,17 @@
         cursor: pointer;
     }
 
-    /* Project List sub-tab bar: horizontal scroll on narrow screens (320px safety) */
+    /* Project List sub-tab bar: distribute tabs evenly, no horizontal scroll */
     .finance-expense-subtab-bar {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+        overflow-x: visible;
     }
 
     .finance-expense-subtab-bar button {
-        white-space: nowrap;
+        flex: 1;
+        text-align: center;
+        white-space: normal;
+        padding: 0.5rem 0.25rem !important;
+        font-size: 0.8rem !important;
     }
 }
 
@@ -1839,16 +1842,17 @@
     margin-bottom: 2rem;
 }
 
-/* Tab bar container: horizontal scroll when tabs would clip */
+/* Tab bar container: flex row, no scrolling — tabs must fit within viewport */
 .em-tab-bar {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    display: flex;
     border-bottom: 2px solid #e5e7eb;
-    white-space: nowrap;
+    overflow-x: visible;
 }
 
 .em-tab-bar .expense-tab {
-    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+    white-space: normal;
 }
 
 /* Category card item tables: horizontal scroll when content is wider than card.
@@ -1863,10 +1867,6 @@
     min-width: 400px;
 }
 
-@media (max-width: 768px) {
-    /* Collapse scorecard grids to a single column on mobile */
-    .em-scorecard-2col,
-    .em-scorecard-3col {
-        grid-template-columns: 1fr;
-    }
-}
+/* Scorecard grids intentionally retain multi-column layout on mobile.
+   The user has confirmed 2-col and 3-col are readable at 375px.
+   Do NOT add grid-template-columns:1fr override here. */
