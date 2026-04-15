@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: "Completed 72-01-PLAN.md — awaiting checkpoint:human-verify"
-last_updated: "2026-04-15T03:56:29.190Z"
+status: Ready to execute
+stopped_at: Completed 73.1-01-PLAN.md
+last_updated: "2026-04-15T05:42:43.744Z"
 last_activity: 2026-04-15
 progress:
-  total_phases: 23
+  total_phases: 24
   completed_phases: 20
-  total_plans: 31
-  completed_plans: 35
+  total_plans: 35
+  completed_plans: 36
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 73 — optimize-finance-tab-for-mobile-use
+**Current focus:** Phase 73.1 — replace-finance-tab-scrollable-tables-with-card-based-mobile-layout
 
 ## Current Position
 
-Phase: 73
-Plan: Not started
+Phase: 73.1 (replace-finance-tab-scrollable-tables-with-card-based-mobile-layout) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -79,6 +79,7 @@ Plan: Not started
 | Phase 71 P02 | 15 | 2 tasks | 1 files |
 | Phase 71 P03 | 5 | 1 tasks | 1 files |
 | Phase 72 P01 | 15 | 2 tasks | 2 files |
+| Phase 73.1 P01 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -145,6 +146,9 @@ Recent decisions affecting current work:
 - [Phase 71]: poTotalForRow = total_amount - delivery_fee so PO row Total Payable excludes delivery fee (which gets its own separate row per D-01)
 - [Phase 71-03]: statusBucket stays 'Partial' in deriveStatusForPO fallback — only statusLabel changes so D-06 sort order is unaffected
 - [Phase 72]: RFP query uses project_code/service_code (not name fields) for consistent Firestore queries; cells hidden when hasRfps===false; Refresh button opens modal after silent data refresh; destroy() resets new state fields to prevent cross-navigation stale data
+- [Phase 73.1-01]: UI-SPEC values used over RESEARCH.md draft values: gap 0.25rem, fc-label weight 700, fc-sub-card font-size 0.75rem (REVIEWS Concern 2)
+- [Phase 73.1-01]: No .fc-overdue on Material PR / TR cards — desktop render functions have zero row-level overdue highlighting (REVIEWS Concern 1 — parity maintained)
+- [Phase 73.1-01]: CSS dual-mode pattern: both .table-scroll-container and .fc-card-list in DOM simultaneously, Finance-scoped @media hides the inactive one — no JS viewport detection
 
 ### Roadmap Evolution
 
@@ -167,6 +171,7 @@ Recent decisions affecting current work:
 - Phase 71 added: Revamp Expense modal into Financials modal — rename to Financial Breakdown, add Payables tab with Particulars/Status/Total Payable/Total Paid columns sorted by status
 - Phase 72 added: Add paid and remaining payable to project/service financial summary cards with clickable refresh redirecting to financial breakdown modal (covers both Projects and Services tabs)
 - Phase 73 added: Optimize Finance Tab for mobile use
+- Phase 73.1 inserted after Phase 73: Replace Finance tab scrollable tables with card-based mobile layout (URGENT)
 
 ### Pending Todos
 
@@ -193,7 +198,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-15
-Last session: 2026-04-11T08:36:03.977Z
-Stopped at: Completed 72-01-PLAN.md — awaiting checkpoint:human-verify
+Last session: 2026-04-15T05:42:43.737Z
+Stopped at: Completed 73.1-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
