@@ -4,13 +4,13 @@ milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Milestone complete
 stopped_at: "Completed 72-01-PLAN.md — awaiting checkpoint:human-verify"
-last_updated: "2026-04-11T12:27:37.095Z"
-last_activity: 2026-04-11
+last_updated: "2026-04-15T03:56:29.190Z"
+last_activity: 2026-04-15
 progress:
-  total_phases: 22
-  completed_phases: 18
-  total_plans: 28
-  completed_plans: 33
+  total_phases: 23
+  completed_phases: 20
+  total_plans: 31
+  completed_plans: 35
 ---
 
 # Project State
@@ -20,11 +20,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 72 — add-paid-and-remaining-payable-to-project-service-financial-summary-cards-with-clickable-refresh
+**Current focus:** Phase 73 — optimize-finance-tab-for-mobile-use
 
 ## Current Position
 
-Phase: 72
+Phase: 73
 Plan: Not started
 
 ## Performance Metrics
@@ -165,6 +165,8 @@ Recent decisions affecting current work:
 - Phase 65.10 inserted after Phase 65: Cancel RFP capability — cancel whole RFP when no existing RFPs filed and cancel unapproved tranche (URGENT)
 - Phase 70 added: Cancel PRs and restore MRF to processing area
 - Phase 71 added: Revamp Expense modal into Financials modal — rename to Financial Breakdown, add Payables tab with Particulars/Status/Total Payable/Total Paid columns sorted by status
+- Phase 72 added: Add paid and remaining payable to project/service financial summary cards with clickable refresh redirecting to financial breakdown modal (covers both Projects and Services tabs)
+- Phase 73 added: Optimize Finance Tab for mobile use
 
 ### Pending Todos
 
@@ -190,7 +192,7 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-04-11
+Last activity: 2026-04-15
 Last session: 2026-04-11T08:36:03.977Z
 Stopped at: Completed 72-01-PLAN.md — awaiting checkpoint:human-verify
 Resume file: None

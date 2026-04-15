@@ -106,6 +106,13 @@
 - [x] **FINSUMCARD-05**: Clicking the Refresh button on Financial Summary card refreshes expense data AND opens the Financial Breakdown modal
 - [x] **FINSUMCARD-06**: Navigating between project/service detail pages does not leak stale Paid or Remaining Payable values from previous page
 
+### Finance Tab Mobile Optimization
+
+- [x] **MOBFIN-01**: At viewport <=768px, Finance tab card-headers (Material PRs, Transport Requests, Purchase Orders) stack vertically — heading above controls — with no clipping and no horizontal page overflow
+- [x] **MOBFIN-02**: At viewport <=768px, select and button controls inside Finance card-headers expand to flex:1 distribution with min-height 44px (touch target)
+- [x] **MOBFIN-03**: Project List expense tables (Projects, Services, Recurring) use the existing .table-scroll-container shadow-scroll pattern instead of bare overflow-x:auto wrappers, matching all other Finance/Procurement tables
+- [x] **MOBFIN-04**: At viewport 320px, the Project List sub-tab bar (Projects | Services | Recurring) scrolls horizontally without clipping button labels
+
 ## Future Requirements
 
 ### Payables Enhancements
@@ -183,12 +190,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FINSUMCARD-04 | Phase 72 | Planned |
 | FINSUMCARD-05 | Phase 72 | Planned |
 | FINSUMCARD-06 | Phase 72 | Planned |
+| MOBFIN-01 | Phase 73 | Planned |
+| MOBFIN-02 | Phase 73 | Planned |
+| MOBFIN-03 | Phase 73 | Planned |
+| MOBFIN-04 | Phase 73 | Planned |
 
 **Coverage:**
-- v3.2 requirements: 49 total
-- Mapped to phases: 49
+- v3.2 requirements: 53 total
+- Mapped to phases: 53
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-04-10 — Phase 72 requirements added (FINSUMCARD-01 through FINSUMCARD-06)*
+*Last updated: 2026-04-15 — Phase 73 requirements added (MOBFIN-01 through MOBFIN-04)*

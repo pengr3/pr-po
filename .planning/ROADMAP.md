@@ -502,3 +502,14 @@ Plans:
 
 Plans:
 - [x] 72-01-PLAN.md — Extend currentExpense/currentServiceExpense state, add RFP query to refresh functions, add Paid/Remaining Payable card cells, wire refresh-and-modal button
+
+### Phase 73: Optimize Finance Tab for mobile use
+
+**Goal:** Finance tab renders without horizontal page overflow or card-header clipping at <=768px viewports; Project List expense tables match the project's Phase 44 .table-scroll-container shadow-scroll pattern; Project List sub-tab bar is reachable at 320px without label clipping — all achieved via CSS-only rules plus targeted template string edits (no JS logic changes).
+**Requirements:** MOBFIN-01, MOBFIN-02, MOBFIN-03, MOBFIN-04
+**Depends on:** Phase 72
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 73-01-PLAN.md — Add mobile CSS rules: global .card-header stacking with 44px touch targets in components.css + scoped .finance-expense-subtab-bar scroll rule in views.css
+- [ ] 73-02-PLAN.md — Upgrade 5 bare overflow-x:auto wrappers to .table-scroll-container and add finance-expense-subtab-bar class to sub-tab bar container in app/views/finance.js
