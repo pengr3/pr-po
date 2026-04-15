@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Ready to execute
-stopped_at: Completed 73.1-01-PLAN.md
-last_updated: "2026-04-15T05:42:43.744Z"
+stopped_at: Completed 73.1-02-PLAN.md
+last_updated: "2026-04-15T05:46:25.703Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 24
   completed_phases: 20
   total_plans: 35
-  completed_plans: 36
+  completed_plans: 37
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 73.1 (replace-finance-tab-scrollable-tables-with-card-based-mobile-layout) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Plan: 2 of 4
 | Phase 71 P03 | 5 | 1 tasks | 1 files |
 | Phase 72 P01 | 15 | 2 tasks | 2 files |
 | Phase 73.1 P01 | 15 | 2 tasks | 2 files |
+| Phase 73.1 P02 | 15 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,8 @@ Recent decisions affecting current work:
 - [Phase 73.1-01]: UI-SPEC values used over RESEARCH.md draft values: gap 0.25rem, fc-label weight 700, fc-sub-card font-size 0.75rem (REVIEWS Concern 2)
 - [Phase 73.1-01]: No .fc-overdue on Material PR / TR cards — desktop render functions have zero row-level overdue highlighting (REVIEWS Concern 1 — parity maintained)
 - [Phase 73.1-01]: CSS dual-mode pattern: both .table-scroll-container and .fc-card-list in DOM simultaneously, Finance-scoped @media hides the inactive one — no JS viewport detection
+- [Phase 73.1]: buildProofIndicator placed immediately before renderPOs with buildPOCard — both helpers co-located with their primary render function
+- [Phase 73.1]: statusValue single-source fallback: po.procurement_status || 'Pending Procurement' used for both statusLabel and statusClass so null-status POs never show mismatched text/class (REVIEWS Suggestion)
 
 ### Roadmap Evolution
 
@@ -198,7 +201,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-15
-Last session: 2026-04-15T05:42:43.737Z
-Stopped at: Completed 73.1-01-PLAN.md
+Last session: 2026-04-15T05:46:25.696Z
+Stopped at: Completed 73.1-02-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
