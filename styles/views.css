@@ -1810,3 +1810,63 @@
         font-size: 0.875rem;
     }
 }
+
+/* ========================================
+   FINANCE MODALS — MOBILE RESPONSIVE (Phase 73.2)
+   Targets Financial Breakdown Modal (#expenseBreakdownModal).
+   Replaces inline grid styles on scorecard rows with classes so
+   media queries can collapse them to 1-column on mobile.
+   ======================================== */
+
+/* Scorecard row: 2-column base (Budget+Remaining / Projected+Remaining Payable) */
+.em-scorecard-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Scorecard row: 3-column base (Material / Transport / Subcon) */
+.em-scorecard-3col {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Row 3 modifier: larger bottom margin before the tab bar */
+.em-scorecard-2col.em-row3 {
+    margin-bottom: 2rem;
+}
+
+/* Tab bar container: horizontal scroll when tabs would clip */
+.em-tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.em-tab-bar .expense-tab {
+    white-space: nowrap;
+}
+
+/* Category card item tables: horizontal scroll when content is wider than card.
+   Per peer review (Gemini MEDIUM #1): inner table needs min-width so that
+   overflow-x actually triggers scroll instead of letting cells wrap vertically. */
+#expenseBreakdownModal .category-items {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#expenseBreakdownModal .category-items table {
+    min-width: 400px;
+}
+
+@media (max-width: 768px) {
+    /* Collapse scorecard grids to a single column on mobile */
+    .em-scorecard-2col,
+    .em-scorecard-3col {
+        grid-template-columns: 1fr;
+    }
+}
