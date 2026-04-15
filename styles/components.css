@@ -1412,6 +1412,17 @@ tr:hover {
     .table-scroll-container tr:hover td:first-child {
         background: var(--gray-50, #f9fafb);
     }
+
+    /* Phase 73.2: Finance modals mobile overrides */
+    .modal-body {
+        padding: 1rem;
+    }
+
+    .modal-details-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+        gap: 1rem;
+    }
 }
 
 /* ========================================
