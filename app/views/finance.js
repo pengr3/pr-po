@@ -2192,6 +2192,34 @@ async function refreshProjectExpenses(forceRefresh = false) {
 }
 
 /**
+ * Build a single project expense card for mobile card layout.
+ * Entire card is clickable (fc-clickable) — mirrors desktop tr onclick pattern (Pitfall 6).
+ * escapeHTML in onclick converts ' to &#39; which browser HTML-decodes back to ' before JS
+ * evaluation — safe for project names containing apostrophes (REVIEWS Suggestion 3).
+ */
+function buildProjectExpenseCard(proj) {
+    const isOverBudget = proj.remainingBudget < 0;
+    const remainingColor = isOverBudget ? '#ef4444' : '#1e293b';
+    const remainingWeight = isOverBudget ? '700' : '400';
+    const statusClass = proj.active ? 'approved' : 'rejected';
+    const statusLabel = proj.active ? 'Active' : 'Inactive';
+    return `
+        <div class="fc-card fc-clickable" onclick="window.showProjectExpenseModal('${escapeHTML(proj.projectName)}')">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${escapeHTML(proj.projectName)}</span>
+                <span class="status-badge ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Code</span><span class="fc-value" style="font-size:0.8125rem;color:#64748b;">${escapeHTML(proj.projectCode)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Client</span><span class="fc-value">${escapeHTML(proj.clientCode)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Budget</span><span class="fc-value">₱${formatCurrency(proj.budget)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Total Expense</span><span class="fc-value">₱${formatCurrency(proj.totalExpense)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Remaining</span><span class="fc-value" style="color:${remainingColor};font-weight:${remainingWeight};">${isOverBudget ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(proj.remainingBudget))}${isOverBudget ? ' over' : ''}</span></div>
+            </div>
+        </div>`;
+}
+
+/**
  * Render project expenses table
  * Uses formatCurrency() imported from utils.js
  */
@@ -2282,6 +2310,9 @@ function renderProjectExpensesTable() {
     tableHTML += `
                 </tbody>
             </table>
+        </div>
+        <div class="fc-card-list">
+            ${filtered.map(proj => buildProjectExpenseCard(proj)).join('')}
         </div>
     `;
 
@@ -2462,6 +2493,34 @@ async function refreshRecurringExpenses(forceRefresh = false) {
 }
 
 /**
+ * Build a single service expense card for mobile card layout.
+ * Entire card is clickable (fc-clickable) — mirrors desktop tr onclick pattern (Pitfall 6).
+ * escapeHTML in onclick is safe for service codes containing apostrophes (REVIEWS Suggestion 3).
+ */
+function buildServiceExpenseCard(svc) {
+    const isOverBudget = svc.remainingBudget < 0;
+    const remainingColor = isOverBudget ? '#ef4444' : '#1e293b';
+    const remainingWeight = isOverBudget ? '700' : '400';
+    const isActive = svc.status === 'active';
+    const badgeClass = isActive ? 'badge-success' : 'badge-secondary';
+    const statusLabel = isActive ? 'Active' : 'Inactive';
+    return `
+        <div class="fc-card fc-clickable" onclick="window.showServiceExpenseModal('${escapeHTML(svc.serviceCode)}', ${svc.budget})">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${escapeHTML(svc.serviceName)}</span>
+                <span class="badge ${badgeClass}">${statusLabel}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Code</span><span class="fc-value" style="font-size:0.8125rem;color:#64748b;">${escapeHTML(svc.serviceCode)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Client</span><span class="fc-value">${escapeHTML(svc.clientCode)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Budget</span><span class="fc-value">₱${formatCurrency(svc.budget)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Total Expense</span><span class="fc-value">₱${formatCurrency(svc.totalExpense)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Remaining</span><span class="fc-value" style="color:${remainingColor};font-weight:${remainingWeight};">${isOverBudget ? '⚠️ ' : ''}₱${formatCurrency(Math.abs(svc.remainingBudget))}${isOverBudget ? ' over' : ''}</span></div>
+            </div>
+        </div>`;
+}
+
+/**
  * Render service expenses table (one-time services).
  * Mirrors renderProjectExpensesTable().
  */
@@ -2532,7 +2591,10 @@ function renderServiceExpensesTable() {
             </tr>`;
     });
 
-    tableHTML += `</tbody></table></div>`;
+    tableHTML += `</tbody></table></div>
+        <div class="fc-card-list">
+            ${sorted.map(svc => buildServiceExpenseCard(svc)).join('')}
+        </div>`;
     container.innerHTML = tableHTML;
 
     // Update sort indicators
@@ -2546,6 +2608,17 @@ function renderServiceExpensesTable() {
             indicator.style.color = '#94a3b8';
         }
     });
+}
+
+/**
+ * Build a single recurring expense card for mobile card layout.
+ * Recurring expenses share the same data shape as one-time services.
+ * Both use window.showServiceExpenseModal per existing tr onclick pattern.
+ * Thin alias to buildServiceExpenseCard — documents architectural intent
+ * and leaves room for future divergence.
+ */
+function buildRecurringExpenseCard(svc) {
+    return buildServiceExpenseCard(svc);
 }
 
 /**
@@ -2619,7 +2692,10 @@ function renderRecurringExpensesTable() {
             </tr>`;
     });
 
-    tableHTML += `</tbody></table></div>`;
+    tableHTML += `</tbody></table></div>
+        <div class="fc-card-list">
+            ${sorted.map(svc => buildRecurringExpenseCard(svc)).join('')}
+        </div>`;
     container.innerHTML = tableHTML;
 
     // Update sort indicators
