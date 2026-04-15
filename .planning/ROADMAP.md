@@ -519,10 +519,10 @@ Plans:
 **Goal:** At viewports <=768px, all 5 Finance table groups (Pending Approvals: Material PRs + Transport Requests; Purchase Orders; Payables: RFP Processing + PO Payment Summary; Project List: Projects/Services/Recurring expenses) render as vertical card stacks instead of horizontally-scrolling tables, via a CSS dual-mode pattern (emit both table and card-list; media query hides the unused mode). Desktop behavior (>=769px) is unchanged.
 **Requirements:** MOBCARD-CSS, MOBCARD-01, MOBCARD-02, MOBCARD-03, MOBCARD-04, MOBCARD-05, MOBCARD-06, MOBCARD-07, MOBCARD-08, MOBCARD-09, MOBCARD-10
 **Depends on:** Phase 73
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 73.1-01-PLAN.md — CSS foundation (fc-* classes + Finance-scoped @media hide rule) + Pending Approvals cards (Material PRs, Transport Requests)
 - [x] 73.1-02-PLAN.md — Purchase Orders cards with buildProofIndicator helper extraction
 - [x] 73.1-03-PLAN.md — Payables cards (RFP Processing with Overdue + PO Payment Summary with Show/Hide Tranches)
-- [ ] 73.1-04-PLAN.md — Project List expense cards (Projects/Services/Recurring) + full Finance regression checkpoint
+- [x] 73.1-04-PLAN.md — Project List expense cards (Projects/Services/Recurring) + full Finance regression checkpoint

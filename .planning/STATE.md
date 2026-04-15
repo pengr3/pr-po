@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Ready to execute
-stopped_at: Completed 73.1-03-PLAN.md
-last_updated: "2026-04-15T05:51:43.630Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 73.1-04-PLAN.md
+last_updated: "2026-04-15T06:08:34.634Z"
 last_activity: 2026-04-15
 progress:
   total_phases: 24
-  completed_phases: 20
+  completed_phases: 21
   total_plans: 35
-  completed_plans: 38
+  completed_plans: 39
 ---
 
 # Project State
@@ -82,6 +82,7 @@ Plan: 4 of 4
 | Phase 73.1 P01 | 15 | 2 tasks | 2 files |
 | Phase 73.1 P02 | 15 | 2 tasks | 1 files |
 | Phase 73.1 P03 | 2 | 2 tasks | 1 files |
+| Phase 73.1 P04 | 15 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -155,6 +156,8 @@ Recent decisions affecting current work:
 - [Phase 73.1]: statusValue single-source fallback: po.procurement_status || 'Pending Procurement' used for both statusLabel and statusClass so null-status POs never show mismatched text/class (REVIEWS Suggestion)
 - [Phase 73.1]: rfp.due_date rendered raw as string in buildRFPCard and buildPOTrancheSubCard — matches desktop renderRFPTable line 647 and renderPOSummaryTable line 849 (REVIEWS Concern 3)
 - [Phase 73.1]: togglePOCardExpand uses distinct IDs (po-card-expand-*, po-card-chevron-*) and sets display:block on div — avoids collision with desktop togglePOExpand which targets tr elements with display:table-row (Pitfall 3)
+- [Phase 73.1]: buildRecurringExpenseCard is a thin alias to buildServiceExpenseCard — recurring and service expense shapes identical, both use window.showServiceExpenseModal
+- [Phase 73.1]: escapeHTML applied to onclick arguments for apostrophe-safe modal invocation (REVIEWS Suggestion 3): browser HTML-decodes &#39; before JS evaluation
 
 ### Roadmap Evolution
 
@@ -204,7 +207,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-15
-Last session: 2026-04-15T05:51:43.623Z
-Stopped at: Completed 73.1-03-PLAN.md
+Last session: 2026-04-15T06:08:34.628Z
+Stopped at: Completed 73.1-04-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
