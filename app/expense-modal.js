@@ -609,7 +609,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 </div>
                 <div class="modal-body">
                     <!-- Budget Row -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="em-scorecard-2col">
                         <div style="background: #f0fdf4; border-left: 4px solid #22c55e; padding: 1rem; border-radius: 8px;">
                             <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Budget</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">&#8369;${formatCurrency(budget)}</div>
@@ -623,7 +623,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     </div>
 
                     <!-- Category Scorecards -->
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="em-scorecard-3col">
                         <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
                             <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Material Purchases</div>
                             <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(materialsDisplay)}</div>
@@ -643,7 +643,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
                     <!-- Row 3: Projected Cost + Remaining Payable (only when POs exist) -->
                     ${totalCost > 0 ? `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+                    <div class="em-scorecard-2col em-row3">
                         <div style="padding: 1.25rem; border-radius: 8px; border: 1px solid #3b82f6; background: #eff6ff;">
                             <div style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600; margin-bottom: 0.5rem;">Projected Cost</div>
                             <div style="font-size: 2rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(totalCost)}</div>
@@ -656,7 +656,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     ` : ''}
 
                     <!-- Tab Navigation -->
-                    <div style="border-bottom: 2px solid #e5e7eb;">
+                    <div class="em-tab-bar">
                         <button class="expense-tab active" onclick="window._switchExpenseBreakdownTab('category')" data-tab="category"
                             style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #1a73e8; border-bottom: 2px solid #1a73e8; margin-bottom: -2px;">
                             By Category
