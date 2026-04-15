@@ -3437,7 +3437,6 @@ async function viewPRDetails(prId) {
                         <th>Category</th>
                         <th>Qty</th>
                         <th>Unit Cost</th>
-                        <th>Supplier</th>
                         <th>Subtotal</th>
                     </tr>
                 </thead>
@@ -3448,14 +3447,13 @@ async function viewPRDetails(prId) {
                             <td>${escapeHTML(item.category || 'N/A')}</td>
                             <td>${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</td>
                             <td>₱${formatCurrency(item.unit_cost || 0)}</td>
-                            <td>${escapeHTML(item.supplier || 'N/A')}</td>
                             <td><strong>₱${formatCurrency(item.subtotal || 0)}</strong></td>
                         </tr>
                     `).join('')}
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5" style="text-align: right; font-weight: 600;">TOTAL:</td>
+                        <td colspan="4" style="text-align: right; font-weight: 600;">TOTAL:</td>
                         <td>₱${formatCurrency(pr.total_amount || 0)}</td>
                     </tr>
                 </tfoot>
