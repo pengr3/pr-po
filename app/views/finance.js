@@ -3429,7 +3429,8 @@ async function viewPRDetails(prId) {
             </div>
 
             <h4 style="margin-bottom: 1rem; font-size: 1rem; font-weight: 600; color: #1e293b;">Items Breakdown</h4>
-                <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <!-- Desktop: scrollable table -->
+                <div class="pr-items-table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                 <table class="modal-items-table" style="min-width: 500px;">
                     <thead>
                     <tr>
@@ -3460,6 +3461,40 @@ async function viewPRDetails(prId) {
                     </tr>
                 </tfoot>
                 </table>
+                </div>
+                <!-- Mobile: stacked cards per item -->
+                <div class="pr-items-cards">
+                    ${items.map(item => `
+                        <div class="pr-items-card">
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Item</span>
+                                <span class="pr-items-card-value">${escapeHTML(item.item || item.item_name)}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Category</span>
+                                <span class="pr-items-card-value">${escapeHTML(item.category || 'N/A')}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Qty</span>
+                                <span class="pr-items-card-value">${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Unit Cost</span>
+                                <span class="pr-items-card-value">₱${formatCurrency(item.unit_cost || 0)}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Supplier</span>
+                                <span class="pr-items-card-value">${escapeHTML(item.supplier || 'N/A')}</span>
+                            </div>
+                            <div class="pr-items-card-total">
+                                <span>Total</span>
+                                <span>₱${formatCurrency(item.subtotal || 0)}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <div style="text-align: right; font-weight: 700; color: #059669; padding: 0.5rem 0; border-top: 2px solid #e2e8f0; margin-top: 0.25rem;">
+                        Grand Total: ₱${formatCurrency(pr.total_amount || 0)}
+                    </div>
                 </div>
         `;
 
@@ -3580,7 +3615,8 @@ async function viewTRDetails(trId) {
 
             <div style="margin: 1.5rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 8px;">
                 <h4 style="margin-bottom: 1rem;">Service Items</h4>
-                    <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <!-- Desktop: scrollable table -->
+                    <div class="pr-items-table-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
                     <table style="width: 100%; min-width: 450px; font-size: 0.875rem;">
                     <thead>
                         <tr style="background: white;">
@@ -3609,6 +3645,36 @@ async function viewTRDetails(trId) {
                         </tr>
                     </tfoot>
                 </table>
+                </div>
+                <!-- Mobile: stacked cards per item -->
+                <div class="pr-items-cards">
+                    ${items.map(item => `
+                        <div class="pr-items-card">
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Service</span>
+                                <span class="pr-items-card-value">${escapeHTML(item.item || item.item_name)}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Category</span>
+                                <span class="pr-items-card-value">${escapeHTML(item.category || 'N/A')}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Qty</span>
+                                <span class="pr-items-card-value">${escapeHTML(String(item.qty || item.quantity || ''))} ${escapeHTML(item.unit || '')}</span>
+                            </div>
+                            <div class="pr-items-card-row">
+                                <span class="pr-items-card-label">Unit Cost</span>
+                                <span class="pr-items-card-value">₱${formatCurrency(item.unit_cost || 0)}</span>
+                            </div>
+                            <div class="pr-items-card-total">
+                                <span>Total</span>
+                                <span>₱${formatCurrency(item.subtotal || 0)}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                    <div style="text-align: right; font-weight: 700; color: #059669; padding: 0.5rem 0; border-top: 2px solid #e2e8f0; margin-top: 0.25rem;">
+                        Grand Total: ₱${formatCurrency(tr.total_amount || 0)}
+                    </div>
                 </div>
             </div>
 

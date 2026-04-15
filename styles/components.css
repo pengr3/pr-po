@@ -1423,6 +1423,81 @@ tr:hover {
         padding: 1rem;
         gap: 1rem;
     }
+
+    /* Phase 73.2: PR/TR modal footer — keep buttons inline and compact on mobile
+       instead of the default full-width stacked layout */
+    #prModalFooter {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+    }
+
+    #prModalFooter .btn {
+        width: auto;
+        font-size: 0.8rem;
+        padding: 0.4rem 0.75rem;
+        min-height: unset;
+    }
+
+    /* Phase 73.2: PR/TR items table — hide on mobile, show stacked cards */
+    .pr-items-table-wrap {
+        display: none;
+    }
+
+    .pr-items-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+/* PR/TR items stacked cards — hidden on desktop, shown on mobile via media query above */
+.pr-items-cards {
+    display: none;
+}
+
+.pr-items-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.pr-items-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.125rem 0;
+}
+
+.pr-items-card-label {
+    font-weight: 600;
+    color: #64748b;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.pr-items-card-value {
+    color: #1e293b;
+    text-align: right;
+}
+
+.pr-items-card-total {
+    margin-top: 0.375rem;
+    padding-top: 0.375rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    color: #059669;
+}
+
+.pr-items-table-total {
+    /* Desktop table total footer row — unchanged */
 }
 
 /* ========================================
