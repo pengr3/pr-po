@@ -562,6 +562,56 @@ function updatePOSummaryPagination(totalPages, startIndex, endIndex, totalItems)
 }
 
 /**
+ * Build a mobile card for a single RFP (Phase 73.1).
+ * Mirrors the desktop tr rendering in renderRFPTable — due_date rendered raw (string, not Timestamp).
+ */
+function buildRFPCard(rfp) {
+    const status = deriveRFPStatus(rfp);
+    const totalPaid = (rfp.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (r.amount || 0), 0);
+    const balance = (rfp.amount_requested || 0) - totalPaid;
+    const isOverdue = status === 'Overdue';
+    const deptLabel = rfp.service_code
+        ? escapeHTML(rfp.service_code)
+        : escapeHTML(rfp.project_code || '');
+    const badgeStyle = statusBadgeColors[status] || '';
+
+    const canEdit = window.canEditTab?.('finance');
+    const showEditControls = canEdit !== false;
+    const actionBtn = showEditControls
+        ? (status === 'Fully Paid'
+            ? '<button class="btn btn-sm btn-outline" onclick="window.openRecordPaymentModal(\'' + rfp.id + '\')">Manage Payments</button>'
+            : '<button class="btn btn-sm btn-primary" onclick="window.openRecordPaymentModal(\'' + rfp.id + '\')">Record Payment</button>')
+        : '';
+
+    const poRefDisplay = rfp.po_id
+        ? '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + (rfp.po_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.po_id) + '</a>'
+        : rfp.tr_id
+        ? '<span style="color:#1e293b;font-weight:600;">' + escapeHTML(rfp.tr_id) + '</span>'
+        : '<span style="color:#999;">-</span>';
+
+    return `
+        <div class="fc-card${isOverdue ? ' fc-overdue' : ''}">
+            <div class="fc-card-header">
+                <span class="fc-card-id">${escapeHTML(rfp.rfp_id || '')}</span>
+                <span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${badgeStyle}">${status}</span>
+            </div>
+            <div class="fc-card-body">
+                <div class="fc-card-row"><span class="fc-label">Supplier</span><span class="fc-value">${escapeHTML(rfp.supplier_name || '')}</span></div>
+                <div class="fc-card-row"><span class="fc-label">PO Ref</span><span class="fc-value">${poRefDisplay}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${deptLabel}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Tranche</span><span class="fc-value">${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</span></div>
+                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">${formatCurrency(rfp.amount_requested || 0)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Paid</span><span class="fc-value">${formatCurrency(totalPaid)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Balance</span><span class="fc-value">${formatCurrency(balance)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Due Date</span><span class="fc-value">${rfp.due_date || 'N/A'}</span></div>
+            </div>
+            ${actionBtn ? '<div class="fc-card-actions">' + actionBtn + '</div>' : ''}
+        </div>`;
+}
+
+/**
  * Render Table 1: flat RFP list into rfpTableBody.
  * No chevron column, no expand/history rows per D-02.
  */
@@ -603,11 +653,12 @@ function renderRFPTable() {
 
     if (displayed.length === 0) {
         const isFiltered = rfpStatusFilter || rfpDeptFilter;
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">
-            ${isFiltered
-                ? 'No RFPs match the selected filters. Clear filters to see all requests.'
-                : 'No outstanding payment requests. Use the status filter to view Fully Paid RFPs, or check the PO Payment Summary below.'}
-        </td></tr>`;
+        const emptyMsg = isFiltered
+            ? 'No RFPs match the selected filters. Clear filters to see all requests.'
+            : 'No outstanding payment requests. Use the status filter to view Fully Paid RFPs, or check the PO Payment Summary below.';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">' + emptyMsg + '</td></tr>';
+        const rfpCardListEmpty = document.getElementById('rfpCardList');
+        if (rfpCardListEmpty) rfpCardListEmpty.innerHTML = '<div class="fc-empty">' + emptyMsg + '</div>';
         return;
     }
 
@@ -649,6 +700,12 @@ function renderRFPTable() {
             <td>${recordPaymentBtn}</td>
         </tr>`;
     }).join('');
+
+    // Mobile card list (Phase 73.1) — populated alongside tbody
+    const rfpCardList = document.getElementById('rfpCardList');
+    if (rfpCardList) {
+        rfpCardList.innerHTML = displayed.map(rfp => buildRFPCard(rfp)).join('');
+    }
 }
 
 /**
@@ -1809,6 +1866,7 @@ export function render(activeTab = 'approvals') {
                                 </tbody>
                             </table>
                         </div>
+                        <div class="fc-card-list" id="rfpCardList"></div>
                     </div>
                 </div>
 
@@ -1852,6 +1910,7 @@ export function render(activeTab = 'approvals') {
                                 </tbody>
                             </table>
                         </div>
+                        <div class="fc-card-list" id="poSummaryCardList"></div>
                         <div id="poSummaryPagination" class="pagination-container"></div>
                     </div>
                 </div>
