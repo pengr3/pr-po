@@ -3858,6 +3858,40 @@ async function loadPOs() {
 }
 
 /**
+ * Build the proof indicator HTML span for a PO (3-state: filled URL / remarks-only / empty).
+ * Extracted from inline renderPOs logic so card layout can reuse (Phase 73.1 / RESEARCH Pitfall 5).
+ * @param {object} po - PO document with optional proof_url and proof_remarks
+ * @returns {string} HTML string for the indicator span
+ */
+function buildProofIndicator(po) {
+    const hasProof = !!po.proof_url;
+    const hasRemarks = !!po.proof_remarks;
+    if (hasProof) {
+        return `<span class="proof-indicator proof-filled"
+                title="Left-click to open proof &middot; Right-click to replace"
+                onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
+                oncontextmenu="event.preventDefault(); window.financeShowProofModal('${po.id}', '${escapeHTML(po.proof_url)}', '${escapeHTML(po.proof_remarks || '')}')"
+                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.financeShowProofModal('${po.id}','${escapeHTML(po.proof_url)}','${escapeHTML(po.proof_remarks || '')}')},600)"
+                ontouchend="clearTimeout(window._proofLongPress)"
+                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
+    } else if (hasRemarks) {
+        return `<span class="proof-indicator proof-remarks"
+                title="Remarks only (no link) &middot; Click to view/edit"
+                onclick="window.financeShowProofModal('${po.id}', '', '${escapeHTML(po.proof_remarks || '')}')"
+                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
+                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
+    } else {
+        return `<span class="proof-indicator proof-empty"
+                title="Click to attach proof"
+                onclick="window.financeShowProofModal('${po.id}', '', '')"
+                onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
+                onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
+                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
+    }
+}
+
+/**
  * Render POs list
  */
 function renderPOs() {
@@ -3913,32 +3947,7 @@ function renderPOs() {
             </thead>
             <tbody>
                 ${recentPOs.map(po => {
-                    const hasProof = !!po.proof_url;
-                    const hasRemarks = !!po.proof_remarks;
-                    let proofIndicator;
-                    if (hasProof) {
-                        proofIndicator = `<span class="proof-indicator proof-filled"
-                                title="Left-click to open proof &middot; Right-click to replace"
-                                onclick="window.open('${escapeHTML(po.proof_url)}', '_blank')"
-                                oncontextmenu="event.preventDefault(); window.financeShowProofModal('${po.id}', '${escapeHTML(po.proof_url)}', '${escapeHTML(po.proof_remarks || '')}')"
-                                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
-                                ontouchstart="window._proofLongPress=setTimeout(()=>{event.preventDefault();window.financeShowProofModal('${po.id}','${escapeHTML(po.proof_url)}','${escapeHTML(po.proof_remarks || '')}')},600)"
-                                ontouchend="clearTimeout(window._proofLongPress)"
-                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#34a853;color:#fff;font-size:12px;cursor:pointer;user-select:none;">&#10003;</span>`;
-                    } else if (hasRemarks) {
-                        proofIndicator = `<span class="proof-indicator proof-remarks"
-                                title="Remarks only (no link) &middot; Click to view/edit"
-                                onclick="window.financeShowProofModal('${po.id}', '', '${escapeHTML(po.proof_remarks || '')}')"
-                                onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'"
-                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#fff;font-size:14px;font-weight:700;cursor:pointer;user-select:none;">&ndash;</span>`;
-                    } else {
-                        proofIndicator = `<span class="proof-indicator proof-empty"
-                                title="Click to attach proof"
-                                onclick="window.financeShowProofModal('${po.id}', '', '')"
-                                onmouseenter="this.style.borderColor='#1a73e8';this.style.background='rgba(26,115,232,0.05)'"
-                                onmouseleave="this.style.borderColor='#bdc1c6';this.style.background='transparent'"
-                                style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;border:1.5px solid #bdc1c6;background:transparent;cursor:pointer;user-select:none;">&nbsp;</span>`;
-                    }
+                    const proofIndicator = buildProofIndicator(po);
                     return `
                     <tr>
                         <td><strong>${po.po_id}</strong></td>
