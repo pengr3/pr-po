@@ -1809,6 +1809,14 @@
         padding: 0.5rem 0.875rem;
         font-size: 0.8125rem;
     }
+
+    /* Stack radio options vertically on mobile (Request Type section).
+       Urgency Level uses an inline style override, but Request Type relies
+       on .radio-group which defaults to flex-row in components.css. */
+    .radio-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
 }
 
 /* ========================================
