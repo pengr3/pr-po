@@ -19,26 +19,36 @@ let cachedServices = [];   // Holds the latest services from the onSnapshot call
 // My Requests sub-tab controller (from mrf-records.js)
 let myRequestsController = null;
 
+// Phase 74-01: Scroll-hide/show handler for sticky MRF sub-nav pill bar
+let _mrfNavScrollHandler = null;
+let _mrfNavLastScrollY = 0;
+
 // ----------------------------------------
 // SUB-TAB NAVIGATION RENDER
 // ----------------------------------------
 
 function renderSubTabNav(activeTab) {
     return `
-        <div style="background: white; border-bottom: 1px solid var(--gray-200);">
-            <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
-                <div class="tabs-nav">
-                    <button class="tab-btn ${activeTab === 'form' ? 'active' : ''}"
+        <nav class="mrf-sub-nav" id="mrfSubNav" role="navigation" aria-label="Material Request sections">
+            <div class="mrf-sub-nav-inner">
+                <div class="mrf-sub-nav-tabs" role="tablist">
+                    <button type="button"
+                        class="mrf-sub-nav-tab ${activeTab === 'form' ? 'mrf-sub-nav-tab--active' : ''}"
+                        role="tab"
+                        aria-selected="${activeTab === 'form' ? 'true' : 'false'}"
                         onclick="window.navigateToTab('form')">
                         Material Request Form
                     </button>
-                    <button class="tab-btn ${activeTab === 'my-requests' ? 'active' : ''}"
+                    <button type="button"
+                        class="mrf-sub-nav-tab ${activeTab === 'my-requests' ? 'mrf-sub-nav-tab--active' : ''}"
+                        role="tab"
+                        aria-selected="${activeTab === 'my-requests' ? 'true' : 'false'}"
                         onclick="window.navigateToTab('my-requests')">
                         My Requests
                     </button>
                 </div>
             </div>
-        </div>
+        </nav>
     `;
 }
 
@@ -359,6 +369,31 @@ export function render(activeTab = 'form') {
  * @param {string} activeTab - 'form' (default) or 'my-requests'
  */
 export async function init(activeTab = 'form') {
+    // Phase 74-01: Attach scroll-hide/show listener for the sticky MRF sub-nav.
+    // Router does NOT call destroy() when switching sub-tabs within MRF view,
+    // so guard against re-attach on repeated init() calls.
+    if (!_mrfNavScrollHandler) {
+        _mrfNavLastScrollY = window.scrollY || 0;
+        _mrfNavScrollHandler = function () {
+            const nav = document.getElementById('mrfSubNav');
+            if (!nav) return;
+            const currentY = window.scrollY || 0;
+            const delta = currentY - _mrfNavLastScrollY;
+            // Ignore tiny jitters and ignore when near top (always show near top).
+            if (Math.abs(delta) < 5) return;
+            if (currentY < 80) {
+                nav.classList.remove('mrf-sub-nav--hidden');
+            } else if (delta > 0) {
+                // Scrolling DOWN -> hide
+                nav.classList.add('mrf-sub-nav--hidden');
+            } else {
+                // Scrolling UP -> show
+                nav.classList.remove('mrf-sub-nav--hidden');
+            }
+            _mrfNavLastScrollY = currentY;
+        };
+        window.addEventListener('scroll', _mrfNavScrollHandler, { passive: true });
+    }
 
     if (activeTab === 'my-requests') {
         // Clean up form listeners from previous sub-tab if switching from form → my-requests
@@ -1335,6 +1370,13 @@ export async function destroy() {
     delete window._myRequestsSort;
     delete window._myRequestsCancelMRF;
     delete window._myRequestsEditMRF;
+
+    // Phase 74-01: Detach scroll-hide/show listener for sticky sub-nav.
+    if (_mrfNavScrollHandler) {
+        window.removeEventListener('scroll', _mrfNavScrollHandler);
+        _mrfNavScrollHandler = null;
+    }
+    _mrfNavLastScrollY = 0;
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');
