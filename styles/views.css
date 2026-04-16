@@ -1637,7 +1637,7 @@
 
 .finance-sub-nav {
     position: sticky;
-    top: 0;
+    top: 64px; /* stick below .top-nav (64px height), not behind it */
     z-index: 90;
     background: #ffffff;
     border-bottom: 1px solid var(--gray-200);
@@ -1734,7 +1734,7 @@
 
 .mrf-sub-nav {
     position: sticky;
-    top: 0;
+    top: 64px; /* stick below .top-nav (64px height), not behind it */
     z-index: 90;
     background: #ffffff;
     border-bottom: 1px solid var(--gray-200);
