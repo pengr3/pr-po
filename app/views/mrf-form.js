@@ -374,21 +374,26 @@ export async function init(activeTab = 'form') {
     // so guard against re-attach on repeated init() calls.
     if (!_mrfNavScrollHandler) {
         _mrfNavLastScrollY = window.scrollY || 0;
+        const SCROLL_THRESHOLD = 80;
         _mrfNavScrollHandler = function () {
             const nav = document.getElementById('mrfSubNav');
             if (!nav) return;
             const currentY = window.scrollY || 0;
             const delta = currentY - _mrfNavLastScrollY;
-            // Ignore tiny jitters and ignore when near top (always show near top).
+            // Ignore tiny jitters.
             if (Math.abs(delta) < 5) return;
-            if (currentY < 80) {
-                nav.classList.remove('mrf-sub-nav--hidden');
-            } else if (delta > 0) {
-                // Scrolling DOWN -> hide
-                nav.classList.add('mrf-sub-nav--hidden');
+            if (currentY < SCROLL_THRESHOLD) {
+                // Always show when near top of page.
+                nav.style.transform = 'translateY(0)';
+                nav.style.opacity = '1';
+            } else if (currentY > _mrfNavLastScrollY) {
+                // Scrolling DOWN past threshold — hide.
+                nav.style.transform = 'translateY(-100%)';
+                nav.style.opacity = '0';
             } else {
-                // Scrolling UP -> show
-                nav.classList.remove('mrf-sub-nav--hidden');
+                // Scrolling UP at any position — show.
+                nav.style.transform = 'translateY(0)';
+                nav.style.opacity = '1';
             }
             _mrfNavLastScrollY = currentY;
         };
