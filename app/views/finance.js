@@ -2099,19 +2099,17 @@ export async function init(activeTab = 'approvals') {
             const nav = document.getElementById('financeSubNav');
             if (!nav) return;
             const currentY = window.scrollY || 0;
-            const delta = currentY - _financeNavLastScrollY;
-            // Ignore tiny jitters and ignore when near top (always show near top).
-            if (Math.abs(delta) < 5) return;
+            const prevY = _financeNavLastScrollY;
+            _financeNavLastScrollY = currentY; // always update first
             if (currentY < 80) {
                 nav.classList.remove('finance-sub-nav--hidden');
-            } else if (delta > 0) {
+            } else if (currentY > prevY) {
                 // Scrolling DOWN -> hide
                 nav.classList.add('finance-sub-nav--hidden');
-            } else {
+            } else if (currentY < prevY) {
                 // Scrolling UP -> show
                 nav.classList.remove('finance-sub-nav--hidden');
             }
-            _financeNavLastScrollY = currentY;
         };
         window.addEventListener('scroll', _financeNavScrollHandler, { passive: true });
     }

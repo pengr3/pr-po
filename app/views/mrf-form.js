@@ -379,23 +379,21 @@ export async function init(activeTab = 'form') {
             const nav = document.getElementById('mrfSubNav');
             if (!nav) return;
             const currentY = window.scrollY || 0;
-            const delta = currentY - _mrfNavLastScrollY;
-            // Ignore tiny jitters.
-            if (Math.abs(delta) < 5) return;
+            const prevY = _mrfNavLastScrollY;
+            _mrfNavLastScrollY = currentY; // always update first
             if (currentY < SCROLL_THRESHOLD) {
                 // Always show when near top of page.
                 nav.style.transform = 'translateY(0)';
                 nav.style.opacity = '1';
-            } else if (currentY > _mrfNavLastScrollY) {
+            } else if (currentY > prevY) {
                 // Scrolling DOWN past threshold — hide.
                 nav.style.transform = 'translateY(-100%)';
                 nav.style.opacity = '0';
-            } else {
+            } else if (currentY < prevY) {
                 // Scrolling UP at any position — show.
                 nav.style.transform = 'translateY(0)';
                 nav.style.opacity = '1';
             }
-            _mrfNavLastScrollY = currentY;
         };
         window.addEventListener('scroll', _mrfNavScrollHandler, { passive: true });
     }
