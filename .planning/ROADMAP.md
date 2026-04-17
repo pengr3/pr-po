@@ -459,6 +459,20 @@ Plans:
 Plans:
 - [x] 69-01-PLAN.md — Add RFP query, payable computation, and 3-card scoreboard row to expense modal
 
+### Phase 69.1: Fix Remaining Payable Calculation to Include Un-RFP'd PO Costs (INSERTED)
+
+**Goal:** Fix the Remaining Payable formula in the shared expense modal so it uses total PO/PR cost minus total paid (non-voided), not RFP-requested minus total paid — ensuring un-RFP'd PO line items count as outstanding obligation
+**Requirements**: EXPPAY-FIX-01, EXPPAY-FIX-02, EXPPAY-FIX-03
+**Depends on:** Phase 69
+**Success Criteria** (what must be TRUE):
+  1. Remaining Payable equals totalCost minus totalPaid (non-voided), not RFP totalRequested minus totalPaid
+  2. Voided payment records are excluded from the totalPaid sum
+  3. Projects/services with POs but zero RFPs show the Remaining Payable card (equal to totalCost) rather than hiding it
+**Plans:** 1 plan
+
+Plans:
+- [ ] 69.1-01-PLAN.md — Fix remainingPayable formula: use totalCost - totalPaid; exclude voided payments; show card when POs exist but zero RFPs
+
 ### Phase 70: Cancel PRs and Restore MRF to Processing Area
 
 **Goal:** Allow users to cancel generated PRs by right-clicking the MRF ID in MRF Records, restoring the MRF to In Progress so items can be revised and re-submitted
@@ -547,3 +561,15 @@ Plans:
 - [x] 73.1-02-PLAN.md — Purchase Orders cards with buildProofIndicator helper extraction
 - [x] 73.1-03-PLAN.md — Payables cards (RFP Processing with Overdue + PO Payment Summary with Show/Hide Tranches)
 - [x] 73.1-04-PLAN.md — Project List expense cards (Projects/Services/Recurring) + full Finance regression checkpoint
+
+### Phase 74: optimize Material Request Tab for mobile use - improve Items table layout and form UX for small screens
+
+**Goal:** Mobile-optimize the Material Request view at <=768px via CSS dual-mode: (1) replace the items table with a card-per-item layout (Description / Qty+Unit / Category stacked, [x] remove top-right, full-width Add button); (2) replace the My Requests 8-column table with MRF summary cards (MRF ID header, Status badge, Date Needed, 3-dot action menu for Edit/Cancel); (3) replace the .tab-btn sub-tab nav with a unified sticky .mrf-sub-nav pill bar with scroll-hide/show behavior. Desktop (>=769px) behavior is fully preserved — all changes CSS media-query gated.
+**Requirements**: MRFNAV-01, MRFNAV-02, MRFNAV-03, MRFITEMS-01, MRFITEMS-02, MRFITEMS-03, MRFITEMS-04, MRFMYREQ-01, MRFMYREQ-02, MRFMYREQ-03, MRFMYREQ-04
+**Depends on:** Phase 73
+**Plans:** 3 plans
+
+Plans:
+- [ ] 74-01-PLAN.md — Replace .tab-btn sub-tab nav with sticky .mrf-sub-nav pill bar + scroll-hide/show behavior (Wave 1)
+- [ ] 74-02-PLAN.md — Items table -> card-per-item mobile layout with paired card/table DOM sync (Wave 2)
+- [ ] 74-03-PLAN.md — My Requests table -> MRF summary cards with 3-dot action menu (Wave 3)

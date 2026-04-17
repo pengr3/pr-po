@@ -29,6 +29,24 @@
 - [x] **RFP-05**: Overdue indicator is displayed when an RFP's due date has passed and it is not fully paid
 - [x] **RFP-06**: Procurement user can see RFP status (Pending / Partially Paid / Fully Paid) on their PO Tracking view
 
+### RFP Filtering
+
+- [x] **RFPFILTER-01**: Table 1 (RFP Processing) default view hides Fully Paid RFPs; user can explicitly select "Fully Paid" from the status filter to view historical paid RFPs
+
+### RFP Cancellation
+
+- [x] **RFPCANCEL-01**: Procurement user can right-click a PO ID and see "Cancel {RFP-ID}" items for each zero-payment RFP filed against that PO
+- [x] **RFPCANCEL-02**: Procurement user can right-click a TR badge and see "Cancel {RFP-ID}" for the TR's zero-payment RFP
+- [x] **RFPCANCEL-03**: Clicking cancel confirms with the user, deletes the rfps document, and the tranche becomes available to re-file; RFPs with any non-voided payments do not show the cancel option
+
+### Cancel PRs / MRF Restoration
+
+- [ ] **PRCANCEL-01**: User can right-click an MRF ID in MRF Records and see a "Cancel PRs" option for MRFs with PR Generated status
+- [ ] **PRCANCEL-02**: Clicking "Cancel PRs" deletes linked Pending/Rejected PRs and restores MRF status to In Progress
+- [ ] **PRCANCEL-03**: If any linked PRs are Finance-Approved with POs at Pending Procurement, a force-recall path voids POs to Cancelled and deletes all PRs
+- [ ] **PRCANCEL-04**: If any linked POs have Procuring/Procured/Delivered status, cancellation is blocked with an error message
+- [ ] **PRCANCEL-05**: MRF Processing left panel is not modified — PR Generated MRFs do not appear there after PR cancellation
+
 ### Payables UX Fixes
 
 - [x] **TRANCHE-01**: PO Payment Summary "Current Active Tranche" column displays payment progress percentage (e.g., "30% Paid") for partially paid POs so users can see how much has been paid at a glance
@@ -83,19 +101,22 @@
 - [x] **EXPMOD-01**: Total Cost scoreboard card in expense breakdown modal displays only the total amount — no document count note (e.g., "N documents") shown below it
 - [x] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows Supplier instead of PO ID
 
-### Payables Tab UI Containment & Pagination
+### Payables Tab UI Containment
 
-- [ ] **PAYCON-01**: Both Payables tables (RFP Processing and PO Payment Summary) are wrapped in `table-scroll-container` providing horizontal scroll containment on narrow viewports
-- [ ] **PAYCON-02**: Payables tables do not break out of their container or cause page-level horizontal overflow on screens narrower than the table content
-- [ ] **PAYPAG-01**: Table 1 (RFP Processing) shows at most 10 rows per page with Previous/Next and page-number navigation controls
-- [ ] **PAYPAG-02**: Table 1 pagination info shows "Showing X-Y of Z RFPs" reflecting the current filtered result count, not the total unfiltered count
-- [ ] **PAYPAG-03**: Changing Table 1 status or department filters resets pagination to page 1 and updates page count to match the filtered set
+- [x] **PAYCON-01**: Both Payables tables (RFP Processing and PO Payment Summary) are wrapped in `table-scroll-container` providing horizontal scroll containment on narrow viewports
+- [x] **PAYCON-02**: Payables tables do not break out of their container or cause page-level horizontal overflow on screens narrower than the table content
 
 ### Expense Modal Payable Tracking
 
 - [x] **EXPPAY-01**: Expense breakdown modal Row 3 shows a 2-column grid — "Projected Cost" (left, blue) and "Remaining Payable" (right) — when RFPs exist for the project or service
 - [x] **EXPPAY-02**: Payable scoreboard row (Row 3) is hidden when no RFPs exist for the project or service (no misleading zero values)
 - [x] **EXPPAY-03**: Remaining Payable card displays red styling when amount is outstanding and green styling when fully paid
+
+### Remaining Payable Formula Fix
+
+- [ ] **EXPPAY-FIX-01**: Remaining Payable equals total cost minus total paid (non-voided payments), not RFP amount requested minus total paid — un-RFP'd PO costs are included in the remaining obligation
+- [ ] **EXPPAY-FIX-02**: Voided payment records are excluded from the total paid sum when computing Remaining Payable
+- [ ] **EXPPAY-FIX-03**: Projects and services with POs but zero RFPs show the Remaining Payable card with value equal to total cost, not hidden
 
 ### Financial Summary Card Payable Fields
 
@@ -133,9 +154,34 @@
 - [x] **FINNAV-02**: Finance sub-tab nav hides (slides up via `transform: translateY(-100%)`) when scrolling down and reappears when scrolling up, following the classic mobile UX pattern; the nav is always visible when scroll position is within the top 80px of the page
 - [x] **FINNAV-03**: Scroll listener is bound once on `init()` (guarded by a module-level `_financeNavScrollHandler` null check) and removed on `destroy()`; switching between Finance sub-tabs (e.g. approvals -> payables) does not bind a second listener because the router does not call `destroy()` on intra-view tab switches
 
+### Finance Modal Mobile Optimization
+
+- [x] **FINMOD-PR-GRID**: PR Details modal outer 2-column detail grid collapses to 1-column at viewport <=768px with no horizontal overflow
+- [x] **FINMOD-PR-TABLE**: PR Details modal line items table becomes horizontally scrollable inside its card at viewport <=768px
+- [x] **FINMOD-TR-GRID**: TR Details modal outer 2-column detail grid collapses to 1-column at viewport <=768px
+- [x] **FINMOD-TR-TABLE**: TR Details modal table becomes horizontally scrollable inside its card at viewport <=768px
+- [x] **FINMOD-BODY-PADDING**: Modal body padding is reduced for narrow viewports so modal content is not edge-clipped on 375px phones
+- [x] **FINMOD-EXP-SCORECARDS**: Financial Breakdown modal scorecard rows (2/3/2 grid layout) collapse to 1-column at viewport <=768px
+- [x] **FINMOD-EXP-TABBAR**: Financial Breakdown modal tab bar scrolls horizontally without clipping tab labels on narrow viewports
+- [x] **FINMOD-EXP-CATITEMS**: Financial Breakdown modal category item tables become horizontally scrollable inside their cards at viewport <=768px
+
 ### PR Details Modal Cleanup
 
 - [x] **PRMOD-SUP-01**: The Supplier column (th + td) is removed from the PR Details modal items table in `viewPRDetails()`; the `<tfoot>` TOTAL row `colspan` is updated from 5 to 4 so the TOTAL label aligns right under Unit Cost and the amount sits under Subtotal. Supplier remains visible in the PR modal header details block (unchanged) since a PR is already scoped to a single supplier.
+
+### Material Request Mobile Optimization
+
+- [x] **MRFNAV-01**: MRF sub-tab navigation renders as a sticky horizontal pill/tab bar at all viewport widths, replacing the prior `.tab-btn` row; no mobile-only dropdown
+- [x] **MRFNAV-02**: MRF sub-tab nav hides (slides up) when scrolling down and reappears when scrolling up; always visible within the top 80px of the page
+- [x] **MRFNAV-03**: Scroll listener is bound/removed correctly — no duplicate listeners created when switching MRF sub-tabs
+- [x] **MRFITEMS-01**: At viewport <=768px, the MRF items input table is replaced with a vertical stack of item cards, each showing Description / Qty+Unit / Category stacked with a remove button top-right
+- [x] **MRFITEMS-02**: Item cards and the underlying table rows remain in sync — adding/removing a card also updates the table data used for form submission
+- [x] **MRFITEMS-03**: A full-width "Add Item" button renders below the card stack on mobile (<=768px)
+- [x] **MRFITEMS-04**: Desktop items table (>=769px) is unchanged — card layout is CSS-media-query gated only
+- [ ] **MRFMYREQ-01**: At viewport <=640px, the My Requests 8-column table is replaced with a vertical stack of MRF summary cards, each showing MRF ID as header and Status badge
+- [ ] **MRFMYREQ-02**: MRF summary cards show Date Needed and other key fields at a glance
+- [ ] **MRFMYREQ-03**: MRF summary cards have a 3-dot action menu for Edit and Cancel actions
+- [ ] **MRFMYREQ-04**: Desktop My Requests table (>=640px) is unchanged — card layout is CSS-media-query gated only
 
 ## Future Requirements
 
@@ -158,6 +204,7 @@
 | Automated payment reminders / email notifications | Out of scope per PROJECT.md — no email notifications in system |
 | RFP approval second sign-off | Not required in v3.2 — Finance records payment directly |
 | Per-supplier payables aggregation | Deferred to future milestone |
+| RFP Processing table pagination (PAYPAG-01/02/03) | Finance workflow requires all outstanding RFPs visible at once; explicitly descoped in Phase 65.8 per user decision |
 
 ## Traceability
 
@@ -179,66 +226,94 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RFP-04 | Phase 65 | Complete |
 | RFP-05 | Phase 65 | Complete |
 | RFP-06 | Phase 65 | Complete |
-| TRANCHE-01 | Phase 65.3 | Planned |
-| RFPID-01 | Phase 65.4 | Planned |
-| POBAR-01 | Phase 66 | Planned |
-| POBAR-02 | Phase 66 | Planned |
-| POBAR-03 | Phase 66 | Planned |
-| POREF-01 | Phase 65.5 | Planned |
-| TRPROOF-01 | Phase 67 | Planned |
-| TRPROOF-02 | Phase 67 | Planned |
-| TRBAR-01 | Phase 67 | Planned |
-| TRBAR-02 | Phase 67 | Planned |
-| TRRFP-01 | Phase 67 | Planned |
-| TRRFP-02 | Phase 67 | Planned |
-| TRRFP-03 | Phase 67 | Planned |
-| TRPROOFCOL-01 | Phase 66.1 | Planned |
-| RFPBANK-01 | Phase 65.6 | Planned |
-| RFPBANK-02 | Phase 65.6 | Planned |
-| POSUMPAG-01 | Phase 65.7 | Planned |
-| POSUMPAG-02 | Phase 65.7 | Planned |
-| POSUMPAG-03 | Phase 65.7 | Planned |
-| EXPMOD-01 | Phase 68 | Planned |
-| EXPMOD-02 | Phase 68 | Planned |
-| PAYCON-01 | Phase 65.8 | Planned |
-| PAYCON-02 | Phase 65.8 | Planned |
-| PAYPAG-01 | Phase 65.8 | Planned |
-| PAYPAG-02 | Phase 65.8 | Planned |
-| PAYPAG-03 | Phase 65.8 | Planned |
-| EXPPAY-01 | Phase 69 | Planned |
-| EXPPAY-02 | Phase 69 | Planned |
-| EXPPAY-03 | Phase 69 | Planned |
-| FINSUMCARD-01 | Phase 72 | Planned |
-| FINSUMCARD-02 | Phase 72 | Planned |
-| FINSUMCARD-03 | Phase 72 | Planned |
-| FINSUMCARD-04 | Phase 72 | Planned |
-| FINSUMCARD-05 | Phase 72 | Planned |
-| FINSUMCARD-06 | Phase 72 | Planned |
-| MOBFIN-01 | Phase 73 | Planned |
-| MOBFIN-02 | Phase 73 | Planned |
-| MOBFIN-03 | Phase 73 | Planned |
-| MOBFIN-04 | Phase 73 | Planned |
-| MOBCARD-CSS | Phase 73.1 | Planned |
-| MOBCARD-01 | Phase 73.1 | Planned |
-| MOBCARD-02 | Phase 73.1 | Planned |
-| MOBCARD-03 | Phase 73.1 | Planned |
-| MOBCARD-04 | Phase 73.1 | Planned |
-| MOBCARD-05 | Phase 73.1 | Planned |
-| MOBCARD-06 | Phase 73.1 | Planned |
-| MOBCARD-07 | Phase 73.1 | Planned |
-| MOBCARD-08 | Phase 73.1 | Planned |
-| MOBCARD-09 | Phase 73.1 | Planned |
-| MOBCARD-10 | Phase 73.1 | Planned |
-| FINNAV-01 | Phase 73.3 | Planned |
-| FINNAV-02 | Phase 73.3 | Planned |
-| FINNAV-03 | Phase 73.3 | Planned |
-| PRMOD-SUP-01 | Phase 73.3 | Planned |
+| RFPFILTER-01 | Phase 65.2 | Complete |
+| RFPCANCEL-01 | Phase 65.10 | Complete |
+| RFPCANCEL-02 | Phase 65.10 | Complete |
+| RFPCANCEL-03 | Phase 65.10 | Complete |
+| TRANCHE-01 | Phase 65.3 | Complete |
+| RFPID-01 | Phase 65.4 | Complete |
+| POBAR-01 | Phase 66 | Complete |
+| POBAR-02 | Phase 66 | Complete |
+| POBAR-03 | Phase 66 | Complete |
+| POREF-01 | Phase 65.5 | Complete |
+| TRPROOF-01 | Phase 67 | Complete |
+| TRPROOF-02 | Phase 67 | Complete |
+| TRBAR-01 | Phase 67 | Complete |
+| TRBAR-02 | Phase 67 | Complete |
+| TRRFP-01 | Phase 67 | Complete |
+| TRRFP-02 | Phase 67 | Complete |
+| TRRFP-03 | Phase 67 | Complete |
+| TRPROOFCOL-01 | Phase 66.1 | Complete |
+| RFPBANK-01 | Phase 65.6 | Complete |
+| RFPBANK-02 | Phase 65.6 | Complete |
+| POSUMPAG-01 | Phase 65.7 | Complete |
+| POSUMPAG-02 | Phase 65.7 | Complete |
+| POSUMPAG-03 | Phase 65.7 | Complete |
+| EXPMOD-01 | Phase 68 | Complete |
+| EXPMOD-02 | Phase 68 | Complete |
+| PAYCON-01 | Phase 65.8 | Complete |
+| PAYCON-02 | Phase 65.8 | Complete |
+| EXPPAY-01 | Phase 69 | Complete |
+| EXPPAY-02 | Phase 69 | Complete |
+| EXPPAY-03 | Phase 69 | Complete |
+| EXPPAY-FIX-01 | Phase 69.1 | Pending |
+| EXPPAY-FIX-02 | Phase 69.1 | Pending |
+| EXPPAY-FIX-03 | Phase 69.1 | Pending |
+| PRCANCEL-01 | Phase 70 | Pending |
+| PRCANCEL-02 | Phase 70 | Pending |
+| PRCANCEL-03 | Phase 70 | Pending |
+| PRCANCEL-04 | Phase 70 | Pending |
+| PRCANCEL-05 | Phase 70 | Pending |
+| FINSUMCARD-01 | Phase 72 | Complete |
+| FINSUMCARD-02 | Phase 72 | Complete |
+| FINSUMCARD-03 | Phase 72 | Complete |
+| FINSUMCARD-04 | Phase 72 | Complete |
+| FINSUMCARD-05 | Phase 72 | Complete |
+| FINSUMCARD-06 | Phase 72 | Complete |
+| MOBFIN-01 | Phase 73 | Complete |
+| MOBFIN-02 | Phase 73 | Complete |
+| MOBFIN-03 | Phase 73 | Complete |
+| MOBFIN-04 | Phase 73 | Complete |
+| MOBCARD-CSS | Phase 73.1 | Complete |
+| MOBCARD-01 | Phase 73.1 | Complete |
+| MOBCARD-02 | Phase 73.1 | Complete |
+| MOBCARD-03 | Phase 73.1 | Complete |
+| MOBCARD-04 | Phase 73.1 | Complete |
+| MOBCARD-05 | Phase 73.1 | Complete |
+| MOBCARD-06 | Phase 73.1 | Complete |
+| MOBCARD-07 | Phase 73.1 | Complete |
+| MOBCARD-08 | Phase 73.1 | Complete |
+| MOBCARD-09 | Phase 73.1 | Complete |
+| MOBCARD-10 | Phase 73.1 | Complete |
+| FINMOD-PR-GRID | Phase 73.2 | Complete |
+| FINMOD-PR-TABLE | Phase 73.2 | Complete |
+| FINMOD-TR-GRID | Phase 73.2 | Complete |
+| FINMOD-TR-TABLE | Phase 73.2 | Complete |
+| FINMOD-BODY-PADDING | Phase 73.2 | Complete |
+| FINMOD-EXP-SCORECARDS | Phase 73.2 | Complete |
+| FINMOD-EXP-TABBAR | Phase 73.2 | Complete |
+| FINMOD-EXP-CATITEMS | Phase 73.2 | Complete |
+| FINNAV-01 | Phase 73.3 | Complete |
+| FINNAV-02 | Phase 73.3 | Complete |
+| FINNAV-03 | Phase 73.3 | Complete |
+| PRMOD-SUP-01 | Phase 73.3 | Complete |
+| MRFNAV-01 | Phase 74 | Complete |
+| MRFNAV-02 | Phase 74 | Complete |
+| MRFNAV-03 | Phase 74 | Complete |
+| MRFITEMS-01 | Phase 74 | Complete |
+| MRFITEMS-02 | Phase 74 | Complete |
+| MRFITEMS-03 | Phase 74 | Complete |
+| MRFITEMS-04 | Phase 74 | Complete |
+| MRFMYREQ-01 | Phase 74 | In Progress |
+| MRFMYREQ-02 | Phase 74 | In Progress |
+| MRFMYREQ-03 | Phase 74 | In Progress |
+| MRFMYREQ-04 | Phase 74 | In Progress |
 
 **Coverage:**
-- v3.2 requirements: 68 total
-- Mapped to phases: 68
+- v3.2 requirements: 96 total
+- Mapped to phases: 96
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-04-15 — Phase 73.3 requirements added (FINNAV-01, FINNAV-02, FINNAV-03, PRMOD-SUP-01)*
+*Last updated: 2026-04-17 — Descoped PAYPAG-01/02/03 (user decision); added RFPFILTER-01, RFPCANCEL-01/02/03, PRCANCEL-01/02/03/04/05, EXPPAY-FIX-01/02/03, FINMOD-*, MRFNAV-01/02/03, MRFITEMS-01/02/03/04, MRFMYREQ-01/02/03/04; fixed PAYCON-01/02 checkboxes; updated 17 traceability rows from Planned to Complete*
