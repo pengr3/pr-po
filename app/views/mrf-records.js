@@ -1091,7 +1091,8 @@ export function createMRFRecordsController(options) {
         statusFilter = null,
         filterFn = null,
         itemsPerPage = 10,
-        onContextMenu = null
+        onContextMenu = null,
+        onMobileAction = null
     } = options;
 
     // Instance-scoped state (not module-level — prevents cross-instance leakage)
@@ -1266,6 +1267,87 @@ export function createMRFRecordsController(options) {
     }
 
     // ------------------------------------------------
+    // SHARED MRF DISPLAY DATA (Phase 74-03)
+    // REVIEWS [MEDIUM]: Compute display strings ONCE per MRF — consumed by BOTH
+    // the desktop row builder and buildMRFRequestCard so the two views can never
+    // diverge. If status formatting ever changes, only this function needs updating.
+    // ------------------------------------------------
+
+    /**
+     * Compute the display-ready strings for one MRF.
+     * @param {Object} mrf - MRF document
+     * @returns {{type: string, displayId: string, dateNeeded: string, mrfStatusHtml: string}}
+     */
+    function mapMRFToDisplayData(mrf) {
+        const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
+        const displayId = mrf.mrf_id;
+        const dateNeeded = mrf.date_needed
+            ? formatDate(mrf.date_needed)
+            : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A');
+
+        let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">\u2014</span>';
+        if (mrf.status === 'Rejected') {
+            mrfStatusHtml = `<span class="status-badge ${getStatusClass('Rejected')}">Rejected</span>`;
+        } else if (type === 'Transport') {
+            const financeStatus = (_subDataCache.get(mrf.id)?.trFinanceStatus) || 'Pending';
+            mrfStatusHtml = `<span class="status-badge ${getStatusClass(financeStatus)}">${escapeHTML(financeStatus)}</span>`;
+        } else {
+            const cached = _subDataCache.get(mrf.id);
+            const prArr = cached?.prDataArray || [];
+            const poArr = cached?.poDataArray || [];
+            const statusObj = calculateMRFStatus(prArr, poArr);
+            mrfStatusHtml = renderMRFStatusBadge(statusObj);
+        }
+
+        return { type, displayId, dateNeeded, mrfStatusHtml };
+    }
+
+    // ------------------------------------------------
+    // MOBILE CARD BUILDER (Phase 74-03)
+    // Per D-10: card HTML lives here, not in mrf-form.js.
+    // REVIEWS [MEDIUM]: Accepts pre-computed display data from mapMRFToDisplayData —
+    // does NOT recompute displayId/dateNeeded/mrfStatusHtml.
+    // ------------------------------------------------
+
+    /**
+     * Build a compact MRF summary card for mobile My Requests view.
+     * Shows only the 3 most scannable fields + 3-dot action menu per D-07.
+     * Uses shared window functions installed by the controller for menu click.
+     *
+     * @param {Object} mrf - MRF document
+     * @param {{displayId: string, dateNeeded: string, mrfStatusHtml: string}} displayData - from mapMRFToDisplayData
+     * @returns {string} card HTML
+     */
+    function buildMRFRequestCard(mrf, displayData) {
+        const { displayId, dateNeeded, mrfStatusHtml } = displayData;
+        const safeStatus = escapeHTML(mrf.status || '');
+        const hasAction = !!onMobileAction;
+        const menuBtn = hasAction
+            ? `<button type="button" class="mrf-req-card-menu-btn"
+                       aria-label="Open actions menu"
+                       onclick="event.stopPropagation(); window['_mrfRecordsMobileAction_${containerId}'](event, '${mrf.id}', '${safeStatus}')">&#8942;</button>`
+            : '';
+        return `
+            <div class="mrf-req-card" data-mrf-id="${escapeHTML(mrf.mrf_id || '')}">
+                <div class="mrf-req-card-header">
+                    <span class="mrf-req-card-id">${escapeHTML(displayId)}</span>
+                    ${menuBtn}
+                </div>
+                <div class="mrf-req-card-body">
+                    <div class="mrf-req-card-row">
+                        <span class="mrf-req-card-label">Status</span>
+                        <span class="mrf-req-card-value">${mrfStatusHtml}</span>
+                    </div>
+                    <div class="mrf-req-card-row">
+                        <span class="mrf-req-card-label">Date Needed</span>
+                        <span class="mrf-req-card-value">${dateNeeded}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ------------------------------------------------
     // RENDER (async — fetches PR/PO data per page)
     // ------------------------------------------------
 
@@ -1299,8 +1381,12 @@ export function createMRFRecordsController(options) {
             container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #999;">Loading document references...</div>';
         }
 
-        // Fetch PR and PO data for current page items only (parallel per row)
-        const rows = await Promise.all(pageItems.map(async (mrf) => {
+        // REVIEWS [MEDIUM]: Single-pass computation — build both row and card from the
+        // same mapMRFToDisplayData result so they can never diverge.
+        // Note: mapMRFToDisplayData is called AFTER cache population so mrfStatusHtml
+        // is computed from the fully-fetched sub-data (prDataArray, poDataArray).
+        const rowCardPairs = await Promise.all(pageItems.map(async (mrf) => {
+            // type is needed upfront to branch fetch logic; displayData is computed after cache is set
             const type = mrf.request_type === 'service' ? 'Transport' : 'Material';
 
             // PRs | POs | Procurement Status columns (aligned sub-rows per PR/PO pair)
@@ -1410,6 +1496,11 @@ export function createMRFRecordsController(options) {
                 // Store in cache for subsequent sort/filter/page-change renders
                 _subDataCache.set(mrf.id, { prDataArray, poDataArray, trFinanceStatus, trDataArray });
             }
+
+            // REVIEWS [MEDIUM]: Compute shared display data ONCE after cache is fully populated —
+            // both the desktop row and the mobile card consume the same computed object.
+            const displayData = mapMRFToDisplayData(mrf);
+            const { displayId, dateNeeded, mrfStatusHtml } = displayData;
 
             // Build HTML for PRs | POs | Proof | Procurement Status columns (runs for both cache hit and miss)
             let proofHtml = '<span style="color: #999; font-size: 0.875rem;">-</span>';
@@ -1545,27 +1636,10 @@ export function createMRFRecordsController(options) {
                 prHtml = hasPrs ? prHtml + trBadges : trBadges;
             }
 
-            // MRF Status column — computed badge for Material; finance_status badge for Transport
-            let mrfStatusHtml = '<span style="color: #64748b; font-size: 0.75rem;">\u2014</span>';
-            if (mrf.status === 'Rejected') {
-                mrfStatusHtml = `<span class="status-badge ${getStatusClass('Rejected')}">Rejected</span>`;
-            } else if (type === 'Material') {
-                const statusObj = calculateMRFStatus(prDataArray, poDataArray);
-                mrfStatusHtml = renderMRFStatusBadge(statusObj);
-            } else if (type === 'Transport') {
-                const financeStatus = trFinanceStatus || 'Pending';
-                mrfStatusHtml = `<span class="status-badge ${getStatusClass(financeStatus)}">${escapeHTML(financeStatus)}</span>`;
-            }
+            // MRF Status column and displayId/dateNeeded now come from mapMRFToDisplayData (REVIEWS [MEDIUM])
+            // The cache was populated by the fetch above, so mapMRFToDisplayData can read it for status
 
-            // Display ID: always use the true MRF ID (TR codes appear in the PRs column as badges)
-            const displayId = mrf.mrf_id;
-
-            // Date Needed: prefer date_needed; fallback to formatted timestamp
-            const dateNeeded = mrf.date_needed
-                ? formatDate(mrf.date_needed)
-                : (formatTimestamp(mrf.date_submitted || mrf.created_at) || 'N/A');
-
-            return `
+            const rowHtml = `
                 <tr>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: center; vertical-align: middle;${onContextMenu ? ' cursor: context-menu;' : ''}"${onContextMenu ? ` oncontextmenu="event.preventDefault(); window['_mrfRecordsContextMenu_${containerId}'](event, '${mrf.id}', '${escapeHTML(mrf.status)}'); return false;"` : ''}><strong>${escapeHTML(displayId)}</strong></td>
                     <td style="padding: 0.75rem 1rem; border-bottom: 1px solid #e5e7eb; font-size: 0.85rem; text-align: left; vertical-align: middle;">${escapeHTML(getMRFLabel(mrf))}</td>
@@ -1584,7 +1658,14 @@ export function createMRFRecordsController(options) {
                     </td>
                 </tr>
             `;
+
+            const cardHtml = buildMRFRequestCard(mrf, displayData);
+
+            return { rowHtml, cardHtml };
         }));
+
+        const rows = rowCardPairs.map(p => p.rowHtml);
+        const cards = rowCardPairs.map(p => p.cardHtml);
 
         container.innerHTML = `
             <div class="table-scroll-container">
@@ -1606,6 +1687,9 @@ export function createMRFRecordsController(options) {
                     ${rows.join('')}
                 </tbody>
             </table>
+            </div>
+            <div class="mrf-req-card-list">
+                ${cards.join('')}
             </div>
         `;
 
@@ -1717,6 +1801,12 @@ export function createMRFRecordsController(options) {
         };
     }
 
+    if (onMobileAction) {
+        window[`_mrfRecordsMobileAction_${containerId}`] = (event, mrfDocId, mrfStatus) => {
+            try { onMobileAction(event, mrfDocId, mrfStatus); } catch (e) { console.error('[MRFRecords] onMobileAction failed:', e); }
+        };
+    }
+
     // Register viewTRDetails on window if not already provided by procurement.js.
     // procurement.js overwrites this with its full implementation when loaded.
     if (!window.viewTRDetails) {
@@ -1741,6 +1831,7 @@ export function createMRFRecordsController(options) {
         delete window[`_mrfRecordsViewPO_${containerId}`];
         delete window[`_mrfRecordsTimeline_${containerId}`];
         delete window[`_mrfRecordsContextMenu_${containerId}`];
+        delete window[`_mrfRecordsMobileAction_${containerId}`];
         delete window.generatePRDocumentLocal;
         delete window.generatePODocumentLocal;
         if (window.viewTRDetails === viewTRDetailsLocal) {
