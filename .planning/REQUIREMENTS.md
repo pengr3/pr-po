@@ -41,11 +41,11 @@
 
 ### Cancel PRs / MRF Restoration
 
-- [ ] **PRCANCEL-01**: User can right-click an MRF ID in MRF Records and see a "Cancel PRs" option for MRFs with PR Generated status
-- [ ] **PRCANCEL-02**: Clicking "Cancel PRs" deletes linked Pending/Rejected PRs and restores MRF status to In Progress
-- [ ] **PRCANCEL-03**: If any linked PRs are Finance-Approved with POs at Pending Procurement, a force-recall path voids POs to Cancelled and deletes all PRs
-- [ ] **PRCANCEL-04**: If any linked POs have Procuring/Procured/Delivered status, cancellation is blocked with an error message
-- [ ] **PRCANCEL-05**: MRF Processing left panel is not modified — PR Generated MRFs do not appear there after PR cancellation
+- [x] **PRCANCEL-01**: User can right-click an MRF ID in MRF Records and see a "Cancel PRs" option for MRFs with PR Generated status
+- [x] **PRCANCEL-02**: Clicking "Cancel PRs" deletes linked Pending/Rejected PRs and restores MRF status to In Progress
+- [x] **PRCANCEL-03**: If any linked PRs are Finance-Approved with POs at Pending Procurement, a force-recall path voids POs to Cancelled and deletes all PRs
+- [x] **PRCANCEL-04**: If any linked POs have Procuring/Procured/Delivered status, cancellation is blocked with an error message
+- [x] **PRCANCEL-05**: MRF Processing left panel is not modified — PR Generated MRFs do not appear there after PR cancellation
 
 ### Payables UX Fixes
 
@@ -114,9 +114,9 @@
 
 ### Remaining Payable Formula Fix
 
-- [ ] **EXPPAY-FIX-01**: Remaining Payable equals total cost minus total paid (non-voided payments), not RFP amount requested minus total paid — un-RFP'd PO costs are included in the remaining obligation
-- [ ] **EXPPAY-FIX-02**: Voided payment records are excluded from the total paid sum when computing Remaining Payable
-- [ ] **EXPPAY-FIX-03**: Projects and services with POs but zero RFPs show the Remaining Payable card with value equal to total cost, not hidden
+- [x] **EXPPAY-FIX-01**: Remaining Payable equals total cost minus total paid (non-voided payments), not RFP amount requested minus total paid — un-RFP'd PO costs are included in the remaining obligation
+- [x] **EXPPAY-FIX-02**: Voided payment records are excluded from the total paid sum when computing Remaining Payable
+- [x] **EXPPAY-FIX-03**: Projects and services with POs but zero RFPs show the Remaining Payable card with value equal to total cost, not hidden
 
 ### Financial Summary Card Payable Fields
 
@@ -178,10 +178,10 @@
 - [x] **MRFITEMS-02**: Item cards and the underlying table rows remain in sync — adding/removing a card also updates the table data used for form submission
 - [x] **MRFITEMS-03**: A full-width "Add Item" button renders below the card stack on mobile (<=768px)
 - [x] **MRFITEMS-04**: Desktop items table (>=769px) is unchanged — card layout is CSS-media-query gated only
-- [ ] **MRFMYREQ-01**: At viewport <=640px, the My Requests 8-column table is replaced with a vertical stack of MRF summary cards, each showing MRF ID as header and Status badge
-- [ ] **MRFMYREQ-02**: MRF summary cards show Date Needed and other key fields at a glance
-- [ ] **MRFMYREQ-03**: MRF summary cards have a 3-dot action menu for Edit and Cancel actions
-- [ ] **MRFMYREQ-04**: Desktop My Requests table (>=640px) is unchanged — card layout is CSS-media-query gated only
+- [x] **MRFMYREQ-01**: At viewport <=640px, the My Requests 8-column table is replaced with a vertical stack of MRF summary cards, each showing MRF ID as header and Status badge
+- [x] **MRFMYREQ-02**: MRF summary cards show Date Needed and other key fields at a glance
+- [x] **MRFMYREQ-03**: MRF summary cards have a 3-dot action menu for Edit and Cancel actions
+- [x] **MRFMYREQ-04**: Desktop My Requests table (>=640px) is unchanged — card layout is CSS-media-query gated only
 
 ## Future Requirements
 
@@ -256,14 +256,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXPPAY-01 | Phase 69 | Complete |
 | EXPPAY-02 | Phase 69 | Complete |
 | EXPPAY-03 | Phase 69 | Complete |
-| EXPPAY-FIX-01 | Phase 69.1 | Pending |
-| EXPPAY-FIX-02 | Phase 69.1 | Pending |
-| EXPPAY-FIX-03 | Phase 69.1 | Pending |
-| PRCANCEL-01 | Phase 70 | Pending |
-| PRCANCEL-02 | Phase 70 | Pending |
-| PRCANCEL-03 | Phase 70 | Pending |
-| PRCANCEL-04 | Phase 70 | Pending |
-| PRCANCEL-05 | Phase 70 | Pending |
+| EXPPAY-FIX-01 | Phase 69.1 | Complete |
+| EXPPAY-FIX-02 | Phase 69.1 | Complete |
+| EXPPAY-FIX-03 | Phase 69.1 | Complete |
+| PRCANCEL-01 | Phase 70 | Complete |
+| PRCANCEL-02 | Phase 70 | Complete |
+| PRCANCEL-03 | Phase 70 | Complete |
+| PRCANCEL-04 | Phase 70 | Complete |
+| PRCANCEL-05 | Phase 70 | Complete |
 | FINSUMCARD-01 | Phase 72 | Complete |
 | FINSUMCARD-02 | Phase 72 | Complete |
 | FINSUMCARD-03 | Phase 72 | Complete |
@@ -304,10 +304,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRFITEMS-02 | Phase 74 | Complete |
 | MRFITEMS-03 | Phase 74 | Complete |
 | MRFITEMS-04 | Phase 74 | Complete |
-| MRFMYREQ-01 | Phase 74 | In Progress |
-| MRFMYREQ-02 | Phase 74 | In Progress |
-| MRFMYREQ-03 | Phase 74 | In Progress |
-| MRFMYREQ-04 | Phase 74 | In Progress |
+| MRFMYREQ-01 | Phase 74 | Complete |
+| MRFMYREQ-02 | Phase 74 | Complete |
+| MRFMYREQ-03 | Phase 74 | Complete |
+| MRFMYREQ-04 | Phase 74 | Complete |
 
 **Coverage:**
 - v3.2 requirements: 96 total
