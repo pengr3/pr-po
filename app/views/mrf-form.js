@@ -76,7 +76,7 @@ function renderMyRequestsView(tabNav) {
                         </div>
                     </div>
                     <div style="padding: 0 1.5rem 1.5rem 1.5rem;">
-                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem;">
                             <div class="filter-group">
                                 <label>MRF Status</label>
                                 <select id="myRequestsStatusFilter" onchange="window._myRequestsFilter()">
@@ -616,13 +616,13 @@ function buildUnitSelect(selectedVal) {
     const opts = UNIT_OPTIONS.map(u =>
         `<option value="${u}"${selectedVal === u ? ' selected' : ''}>${u}</option>`
     ).join('');
-    return `<select class="edit-item-unit" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+    return `<select class="edit-item-unit" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
         <option value="">Unit</option>
         ${opts}
         <option value="others"${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? ' selected' : ''}>Others (specify)</option>
     </select>
     <input type="text" class="edit-item-unit-custom" placeholder="Specify unit"
-        style="display:${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? 'block' : 'none'};width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;margin-top:0.3rem;"
+        style="display:${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? 'block' : 'none'};width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;margin-top:0.3rem;"
         value="${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? selectedVal.replace(/"/g, '&quot;') : ''}">`;
 }
 
@@ -633,7 +633,7 @@ function buildCategorySelect(selectedVal) {
     const opts = CATEGORY_OPTIONS.map(c =>
         `<option value="${c}"${selectedVal === c ? ' selected' : ''}>${c}</option>`
     ).join('');
-    return `<select class="edit-item-category" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+    return `<select class="edit-item-category" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
         <option value="">Category</option>
         ${opts}
     </select>`;
@@ -650,11 +650,11 @@ function buildEditItemRow(item) {
     return `<tr>
         <td style="padding:0.4rem;">
             <input type="text" class="edit-item-name" value="${nameVal}"
-                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
         </td>
         <td style="padding:0.4rem;">
             <input type="number" class="edit-item-qty" value="${qtyVal}" min="0.01" step="any"
-                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:0.8rem;">
+                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
         </td>
         <td style="padding:0.4rem;">${buildUnitSelect(unitVal)}</td>
         <td style="padding:0.4rem;">${buildCategorySelect(catVal)}</td>
@@ -713,7 +713,7 @@ async function editRequestorMRF(mrfDocId) {
                 <button id="editMRFCloseBtn" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:#64748b;">&times;</button>
             </div>
 
-            <div style="padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;">
                 <!-- Project / Service (read-only display) -->
                 <div style="grid-column:1/-1;">
                     <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.3rem;">Project / Service</label>
