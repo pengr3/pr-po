@@ -23,6 +23,12 @@ let myRequestsController = null;
 let _mrfNavScrollHandler = null;
 let _mrfNavLastScrollY = 0;
 
+// Phase 74-02: Module-level refs for scoped sync handlers on .mrf-items-section.
+// REVIEWS [HIGH]: Stored as module-level vars (not window globals) so
+// destroy() can call removeEventListener and avoid zombie handlers.
+let _mrfItemSyncHandler = null;        // for 'input' events
+let _mrfItemSyncChangeHandler = null;  // for 'change' events
+
 // ----------------------------------------
 // SUB-TAB NAVIGATION RENDER
 // ----------------------------------------
@@ -268,7 +274,7 @@ export function render(activeTab = 'form') {
                         </div>
 
                         <!-- Items Requested -->
-                        <div style="margin-bottom: 2rem;">
+                        <div class="mrf-items-section" style="margin-bottom: 2rem;">
                             <h2 style="font-size: 1.25rem; font-weight: 600; color: var(--gray-800); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--gray-200);">Items Requested</h2>
                             <div class="table-scroll-container" style="margin: 1rem 0;">
                                 <table style="font-size: 0.875rem;">
@@ -336,7 +342,10 @@ export function render(activeTab = 'form') {
                                     </tbody>
                                 </table>
                             </div>
-                            <button type="button" class="btn btn-secondary" onclick="addItem()">Add Another Item</button>
+                            <div class="mrf-item-card-list" id="mrfItemCardList">
+                                ${buildItemCardHTML(0)}
+                            </div>
+                            <button type="button" class="btn btn-secondary mrf-add-item-btn" onclick="addItem()">Add Another Item</button>
                         </div>
 
                         <!-- Justification -->
@@ -486,6 +495,10 @@ export async function init(activeTab = 'form') {
         if (form) {
             form.addEventListener('submit', handleFormSubmit);
         }
+
+        // Phase 74-02: Install item sync handlers (scoped to .mrf-items-section) and index initial row/card
+        installItemSyncHandlers();
+        reindexItemRows();
     } catch (error) {
         console.error('[MRFForm] Error initializing form tab:', error);
     }
@@ -546,6 +559,55 @@ const CATEGORY_OPTIONS = [
     'SAFETY','SUBCON','TRANSPORTATION','HAULING & DELIVERY',
     'DELIVERY BY SUPPLIER','OTHERS'
 ];
+
+// ----------------------------------------
+// MOBILE ITEM CARD BUILDER (Phase 74-02)
+// Uses module-level UNIT_OPTIONS and CATEGORY_OPTIONS (single source of truth).
+// REVIEWS [MEDIUM]: Do NOT duplicate these arrays inline — reference the consts.
+// ----------------------------------------
+
+/**
+ * Build HTML for one .mrf-item-card matching the item at `index` in the desktop table.
+ * Cards have paired inputs that sync back to the desktop table via data-item-index.
+ * @param {number} index - 0-based item index (must match tbody row index)
+ */
+function buildItemCardHTML(index) {
+    // REVIEWS [MEDIUM]: Reference module-level constants — do NOT duplicate arrays.
+    const unitOpts = UNIT_OPTIONS.map(u => `<option value="${u}">${u}</option>`).join('');
+    const catOpts = CATEGORY_OPTIONS.map(c => `<option value="${c}">${c}</option>`).join('');
+
+    return `
+        <div class="mrf-item-card" data-item-index="${index}">
+            <button type="button" class="mrf-item-card-remove" onclick="removeItem(this)" aria-label="Remove item">&times;</button>
+            <div class="mrf-item-card-field">
+                <label class="mrf-item-card-field-label">Item Description *</label>
+                <input type="text" class="mrf-card-item-name" data-item-index="${index}">
+            </div>
+            <div class="mrf-item-card-row-qty-unit">
+                <div class="mrf-item-card-field">
+                    <label class="mrf-item-card-field-label">Qty *</label>
+                    <input type="number" class="mrf-card-item-qty" data-item-index="${index}" min="0.01" step="any">
+                </div>
+                <div class="mrf-item-card-field">
+                    <label class="mrf-item-card-field-label">Unit *</label>
+                    <select class="mrf-card-item-unit" data-item-index="${index}">
+                        <option value="">Select Unit</option>
+                        ${unitOpts}
+                        <option value="others">Others (specify)</option>
+                    </select>
+                    <input type="text" class="mrf-card-custom-unit-input" data-item-index="${index}" placeholder="Specify unit" style="display: none; margin-top: 0.5rem;">
+                </div>
+            </div>
+            <div class="mrf-item-card-field">
+                <label class="mrf-item-card-field-label">Category *</label>
+                <select class="mrf-card-item-category" data-item-index="${index}">
+                    <option value="">Select Category</option>
+                    ${catOpts}
+                </select>
+            </div>
+        </div>
+    `;
+}
 
 /**
  * Build a unit <select> HTML string, pre-selecting the given value.
@@ -1075,12 +1137,139 @@ async function generateMRFId() {
 }
 
 /**
- * Toggle custom unit input
+ * Assign data-item-index to existing desktop table rows so paired card sync works
+ * even on the initial render (which emits 1 row + 1 card before any addItem call).
+ * Called lazily from addItem / installItemSyncHandlers.
+ */
+function reindexItemRows() {
+    const tbody = document.getElementById('itemsTableBody');
+    const cardList = document.getElementById('mrfItemCardList');
+    if (!tbody || !cardList) return;
+    Array.from(tbody.rows).forEach((row, i) => { row.dataset.itemIndex = String(i); });
+    Array.from(cardList.children).forEach((card, i) => {
+        card.dataset.itemIndex = String(i);
+        card.querySelectorAll('[data-item-index]').forEach(el => { el.dataset.itemIndex = String(i); });
+    });
+}
+
+/**
+ * REVIEWS [LOW]: Loop-safe paired write.
+ * Set newValue on dst ONLY if it differs from dst's current value.
+ * Prevents: (a) redundant DOM writes, (b) cursor-jumping in text inputs,
+ * (c) any theoretical loop risk (browsers don't fire 'input' on programmatic
+ * `.value =` assignment, so a guard is belt-and-braces but also prevents
+ * unnecessary layout work).
+ */
+function syncValue(dst, newValue) {
+    if (!dst) return;
+    if (dst.value === newValue) return;
+    dst.value = newValue;
+}
+
+/**
+ * Install scoped input/change event delegation on the .mrf-items-section container
+ * (NOT document.body — REVIEWS [HIGH] Zombie handlers fix).
+ * Handler refs are stored in module-level _mrfItemSyncHandler / _mrfItemSyncChangeHandler
+ * so destroy() can remove them.
+ * Safe to call multiple times — guarded by null-check on module-level refs.
+ */
+function installItemSyncHandlers() {
+    // REVIEWS [HIGH]: Scope to container, not document.body. Guard via module-level var.
+    if (_mrfItemSyncHandler) return;
+
+    const section = document.querySelector('.mrf-items-section');
+    if (!section) return;
+
+    _mrfItemSyncHandler = function(e) {
+        const t = e.target;
+        if (!t || !t.classList) return;
+        // Card -> Table
+        if (t.classList.contains('mrf-card-item-name')) {
+            const idx = t.dataset.itemIndex;
+            const row = document.querySelector(`#itemsTableBody tr[data-item-index="${idx}"]`);
+            if (row) syncValue(row.querySelector('.item-name'), t.value);
+        } else if (t.classList.contains('mrf-card-item-qty')) {
+            const idx = t.dataset.itemIndex;
+            const row = document.querySelector(`#itemsTableBody tr[data-item-index="${idx}"]`);
+            if (row) syncValue(row.querySelector('.item-qty'), t.value);
+        } else if (t.classList.contains('mrf-card-custom-unit-input')) {
+            const idx = t.dataset.itemIndex;
+            const row = document.querySelector(`#itemsTableBody tr[data-item-index="${idx}"]`);
+            if (row) syncValue(row.querySelector('.custom-unit-input'), t.value);
+        }
+        // Table -> Card (desktop users typing in the table)
+        else if (t.classList.contains('item-name')) {
+            const row = t.closest('tr');
+            const idx = row?.dataset.itemIndex;
+            const card = document.querySelector(`.mrf-item-card[data-item-index="${idx}"]`);
+            if (card) syncValue(card.querySelector('.mrf-card-item-name'), t.value);
+        } else if (t.classList.contains('item-qty')) {
+            const row = t.closest('tr');
+            const idx = row?.dataset.itemIndex;
+            const card = document.querySelector(`.mrf-item-card[data-item-index="${idx}"]`);
+            if (card) syncValue(card.querySelector('.mrf-card-item-qty'), t.value);
+        } else if (t.classList.contains('custom-unit-input')) {
+            const row = t.closest('tr');
+            const idx = row?.dataset.itemIndex;
+            const card = document.querySelector(`.mrf-item-card[data-item-index="${idx}"]`);
+            if (card) syncValue(card.querySelector('.mrf-card-custom-unit-input'), t.value);
+        }
+    };
+
+    _mrfItemSyncChangeHandler = function(e) {
+        const t = e.target;
+        if (!t || !t.classList) return;
+        // Card select -> Table select
+        if (t.classList.contains('mrf-card-item-unit')) {
+            const idx = t.dataset.itemIndex;
+            const row = document.querySelector(`#itemsTableBody tr[data-item-index="${idx}"]`);
+            if (row) {
+                const rowUnit = row.querySelector('.item-unit');
+                syncValue(rowUnit, t.value);
+                const rowCustom = row.querySelector('.custom-unit-input');
+                if (t.value === 'others') { rowCustom.style.display = 'block'; rowCustom.required = true; }
+                else { rowCustom.style.display = 'none'; rowCustom.required = false; if (rowCustom.value !== '') rowCustom.value = ''; }
+            }
+            const card = t.closest('.mrf-item-card');
+            const cardCustom = card?.querySelector('.mrf-card-custom-unit-input');
+            if (cardCustom) {
+                cardCustom.style.display = t.value === 'others' ? 'block' : 'none';
+                if (t.value !== 'others' && cardCustom.value !== '') cardCustom.value = '';
+            }
+        } else if (t.classList.contains('mrf-card-item-category')) {
+            const idx = t.dataset.itemIndex;
+            const row = document.querySelector(`#itemsTableBody tr[data-item-index="${idx}"]`);
+            if (row) syncValue(row.querySelector('.item-category'), t.value);
+        }
+        // Table select -> Card select
+        else if (t.classList.contains('item-unit')) {
+            const row = t.closest('tr');
+            const idx = row?.dataset.itemIndex;
+            const card = document.querySelector(`.mrf-item-card[data-item-index="${idx}"]`);
+            if (card) {
+                syncValue(card.querySelector('.mrf-card-item-unit'), t.value);
+                const cardCustom = card.querySelector('.mrf-card-custom-unit-input');
+                cardCustom.style.display = t.value === 'others' ? 'block' : 'none';
+                if (t.value !== 'others' && cardCustom.value !== '') cardCustom.value = '';
+            }
+        } else if (t.classList.contains('item-category')) {
+            const row = t.closest('tr');
+            const idx = row?.dataset.itemIndex;
+            const card = document.querySelector(`.mrf-item-card[data-item-index="${idx}"]`);
+            if (card) syncValue(card.querySelector('.mrf-card-item-category'), t.value);
+        }
+    };
+
+    section.addEventListener('input', _mrfItemSyncHandler);
+    section.addEventListener('change', _mrfItemSyncChangeHandler);
+}
+
+/**
+ * Toggle custom unit input visibility on desktop table row (unchanged behavior).
  */
 window.toggleCustomUnit = function(selectElement) {
     const row = selectElement.closest('tr');
     const customInput = row.querySelector('.custom-unit-input');
-
     if (selectElement.value === 'others') {
         customInput.style.display = 'block';
         customInput.required = true;
@@ -1092,13 +1281,18 @@ window.toggleCustomUnit = function(selectElement) {
 };
 
 /**
- * Add new item row
+ * Add a new item row: appends to BOTH the desktop table AND the mobile card list.
+ * Rows and cards share the same data-item-index for pair sync.
  */
 window.addItem = function() {
-    const tbody = document.getElementById('itemsTableBody');
-    const newRow = tbody.rows[0].cloneNode(true);
+    installItemSyncHandlers();
+    reindexItemRows();
 
-    // Clear values
+    const tbody = document.getElementById('itemsTableBody');
+    const cardList = document.getElementById('mrfItemCardList');
+
+    // Append new table row (cloned from first row)
+    const newRow = tbody.rows[0].cloneNode(true);
     newRow.querySelectorAll('input').forEach(input => {
         input.value = '';
         if (input.classList.contains('custom-unit-input')) {
@@ -1107,20 +1301,55 @@ window.addItem = function() {
         }
     });
     newRow.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
-
     tbody.appendChild(newRow);
+
+    // Append paired card
+    if (cardList) {
+        const newIndex = tbody.rows.length - 1;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = buildItemCardHTML(newIndex).trim();
+        cardList.appendChild(tempDiv.firstElementChild);
+    }
+
+    reindexItemRows();
 };
 
 /**
- * Remove item row
+ * Remove an item: removes the row from the table AND the paired card from the list.
+ * Works whether called from the desktop button (inside <tr>) or the card [×] button
+ * (inside .mrf-item-card). At least one item must remain.
  */
 window.removeItem = function(button) {
+    installItemSyncHandlers();
+    reindexItemRows();
+
     const tbody = document.getElementById('itemsTableBody');
-    if (tbody.rows.length > 1) {
-        button.closest('tr').remove();
-    } else {
+    const cardList = document.getElementById('mrfItemCardList');
+
+    if (tbody.rows.length <= 1) {
         showAlert('warning', 'You must have at least one item in the request.');
+        return;
     }
+
+    // Determine which index to remove based on button origin
+    let idx;
+    const card = button.closest('.mrf-item-card');
+    const row = button.closest('tr');
+    if (card) {
+        idx = card.dataset.itemIndex;
+    } else if (row) {
+        idx = row.dataset.itemIndex;
+    } else {
+        return;
+    }
+
+    // Remove BOTH
+    const targetRow = document.querySelector(`#itemsTableBody tr[data-item-index="${idx}"]`);
+    const targetCard = document.querySelector(`.mrf-item-card[data-item-index="${idx}"]`);
+    if (targetRow) targetRow.remove();
+    if (targetCard) targetCard.remove();
+
+    reindexItemRows();
 };
 
 /**
@@ -1212,6 +1441,26 @@ window.resetForm = function() {
         while (tbody.rows.length > 1) {
             tbody.deleteRow(1);
         }
+
+        // Keep only one item card (mirror desktop table reset)
+        const cardList = document.getElementById('mrfItemCardList');
+        if (cardList) {
+            while (cardList.children.length > 1) {
+                cardList.removeChild(cardList.lastElementChild);
+            }
+            // Reset first card's values
+            const firstCard = cardList.firstElementChild;
+            if (firstCard) {
+                firstCard.querySelectorAll('input').forEach(input => {
+                    input.value = '';
+                    if (input.classList.contains('mrf-card-custom-unit-input')) {
+                        input.style.display = 'none';
+                    }
+                });
+                firstCard.querySelectorAll('select').forEach(sel => sel.selectedIndex = 0);
+            }
+        }
+        reindexItemRows();
 
         // Hide custom unit inputs
         document.querySelectorAll('.custom-unit-input').forEach(input => {
@@ -1315,6 +1564,27 @@ async function handleFormSubmit(e) {
             while (tbody.rows.length > 1) {
                 tbody.deleteRow(1);
             }
+
+            // Keep only one item card (mirror desktop table reset)
+            const cardList = document.getElementById('mrfItemCardList');
+            if (cardList) {
+                while (cardList.children.length > 1) {
+                    cardList.removeChild(cardList.lastElementChild);
+                }
+                // Reset first card's values
+                const firstCard = cardList.firstElementChild;
+                if (firstCard) {
+                    firstCard.querySelectorAll('input').forEach(input => {
+                        input.value = '';
+                        if (input.classList.contains('mrf-card-custom-unit-input')) {
+                            input.style.display = 'none';
+                        }
+                    });
+                    firstCard.querySelectorAll('select').forEach(sel => sel.selectedIndex = 0);
+                }
+            }
+            reindexItemRows();
+
             document.querySelectorAll('.custom-unit-input').forEach(input => {
                 input.style.display = 'none';
                 input.required = false;
@@ -1380,6 +1650,18 @@ export async function destroy() {
         _mrfNavScrollHandler = null;
     }
     _mrfNavLastScrollY = 0;
+
+    // Phase 74-02: REVIEWS [HIGH] — detach scoped item sync handlers to prevent zombies.
+    // Section may already be gone from DOM; handlers still need to be null'd.
+    if (_mrfItemSyncHandler || _mrfItemSyncChangeHandler) {
+        const section = document.querySelector('.mrf-items-section');
+        if (section) {
+            if (_mrfItemSyncHandler) section.removeEventListener('input', _mrfItemSyncHandler);
+            if (_mrfItemSyncChangeHandler) section.removeEventListener('change', _mrfItemSyncChangeHandler);
+        }
+        _mrfItemSyncHandler = null;
+        _mrfItemSyncChangeHandler = null;
+    }
 
     // Remove form event listener
     const form = document.getElementById('mrfForm');
