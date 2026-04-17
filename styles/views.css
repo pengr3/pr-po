@@ -1820,6 +1820,103 @@
 }
 
 /* ========================================
+   MRF ITEMS — CARD LAYOUT (Phase 74-02)
+   Mobile: replaces horizontal-scroll items table with vertical card stack at <=768px.
+   Desktop: card list hidden, table visible.
+   Scoped to .mrf-item-card* — does NOT affect other views.
+   ======================================== */
+
+/* Desktop defaults: hide card list, table visible */
+.mrf-item-card-list { display: none; }
+
+@media (max-width: 768px) {
+    /* Hide the items table wrapper on mobile (scoped to items-requested section via direct sibling of .mrf-item-card-list) */
+    .mrf-items-section .table-scroll-container { display: none; }
+
+    /* Show the card list as a vertical stack */
+    .mrf-item-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin: 1rem 0;
+    }
+
+    .mrf-item-card {
+        position: relative;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 1rem 1rem 1rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .mrf-item-card-remove {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 28px;
+        height: 28px;
+        min-height: 28px;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: #fee2e2;
+        color: #dc2626;
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s ease;
+    }
+    .mrf-item-card-remove:hover {
+        background: #fecaca;
+    }
+
+    .mrf-item-card-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .mrf-item-card-field-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .mrf-item-card-field input,
+    .mrf-item-card-field select {
+        width: 100%;
+        padding: 0.625rem 0.75rem;
+        min-height: 44px;
+        font-size: 0.95rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        box-sizing: border-box;
+        background: #ffffff;
+    }
+
+    /* Qty + Unit row: two columns side-by-side (Qty narrower, Unit wider) */
+    .mrf-item-card-row-qty-unit {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 0.75rem;
+    }
+
+    /* "Add Another Item" button full-width on mobile */
+    .mrf-add-item-btn {
+        width: 100%;
+        min-height: 44px;
+    }
+}
+
+/* ========================================
    FINANCE TAB — CARD LAYOUT (Phase 73.1)
    Mobile: replaces scrollable tables with readable card stacks at <=768px.
    Scoped to Finance section IDs — does NOT affect Procurement/Suppliers/MRF Records tables.
