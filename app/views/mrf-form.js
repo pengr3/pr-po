@@ -707,6 +707,21 @@ async function editRequestorMRF(mrfDocId) {
     overlay.id = 'requestorEditMRFModal';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;z-index:10000;overflow-y:auto;padding:2rem 1rem;';
     overlay.innerHTML = `
+        <style>
+        @media (max-width: 640px) {
+            #editMRFItemsTable thead { display: none; }
+            #editMRFItemsTable tbody tr {
+                display: flex; flex-direction: column; gap: 0.5rem;
+                padding: 0.75rem; margin-bottom: 0.75rem;
+                border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;
+            }
+            #editMRFItemsTable td { display: block; padding: 0; }
+            #editMRFItemsTable td input,
+            #editMRFItemsTable td select { min-height: 44px; font-size: 1rem !important; }
+            #editMRFItemsTable td:last-child { text-align: right; }
+            #editMRFItemsTable td:last-child button { width: 100%; padding: 0.5rem; min-height: 44px; font-size: 0.9rem; }
+        }
+        </style>
         <div style="background:white;border-radius:10px;max-width:900px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
             <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">Edit MRF &mdash; ${mrfData.mrf_id}</h3>
@@ -768,7 +783,7 @@ async function editRequestorMRF(mrfDocId) {
                     </button>
                 </div>
                 <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                    <table id="editMRFItemsTable" style="width:100%;border-collapse:collapse;font-size:0.8rem;">
                         <thead>
                             <tr style="background:#f8f9fa;">
                                 <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;">Item Description</th>
