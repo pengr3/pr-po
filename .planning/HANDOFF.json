@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-17T10:47:30.138Z",
+  "phase": "74",
+  "phase_name": "optimize-material-request-tab-for-mobile-use-improve-items-table-layout-and-form-ux-for-small-screens",
+  "phase_dir": ".planning/phases/74-optimize-material-request-tab-for-mobile-use-improve-items-table-layout-and-form-ux-for-small-screens",
+  "plan": 3,
+  "task": 4,
+  "total_tasks": 4,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": "74-01", "name": "MRF Sub-Nav Pill Bar — sticky scroll-hide/show", "status": "done", "commit": "bbe7203"},
+    {"id": "74-02", "name": "MRF Items Table Mobile Card Layout — dual-mode CSS + sync handlers", "status": "done", "commit": "ca17c60"},
+    {"id": "74-03-T1", "name": "Add .mrf-req-card* CSS + dual-mode hide/show rules to views.css", "status": "done", "commit": "376d177"},
+    {"id": "74-03-T2", "name": "Add onMobileAction + mapMRFToDisplayData + buildMRFRequestCard in mrf-records.js", "status": "done", "commit": "356b2e9"},
+    {"id": "74-03-T3", "name": "Wire onMobileAction in mrf-form.js with 3-dot dropdown + scroll-close handler", "status": "done", "commit": "cd049b0"},
+    {"id": "74-03-fix1", "name": "Fix search bar overflow and edit modal zoom on mobile", "status": "done", "commit": "f9f1aa4"},
+    {"id": "74-03-fix2", "name": "Stack edit modal item rows as cards on mobile <=640px", "status": "done", "commit": "557c29e"}
+  ],
+  "remaining_tasks": [
+    {
+      "id": "74-03-uncommitted",
+      "name": "Commit mrf-form.js edit item card refactor (buildEditItemRow div-based rewrite)",
+      "status": "in_progress",
+      "progress": "Changes are unstaged in working tree — refactors buildEditItemRow from <tr> to <div class='edit-item-card'>, removes inline <style> block from modal HTML, updates querySelector selectors (closest('td') → parentElement), changes Add Item button to create div wrapper"
+    },
+    {
+      "id": "74-03-T4",
+      "name": "Task 4: Human-verify UAT — mobile cards, 3-dot menu, scroll-close, desktop parity",
+      "status": "not_started"
+    },
+    {
+      "id": "74-03-summary",
+      "name": "Create 74-03-SUMMARY.md",
+      "status": "not_started"
+    },
+    {
+      "id": "74-state",
+      "name": "Update STATE.md and mark Phase 74 complete",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {
+      "action": "Perform UAT for Phase 74-03 per the checklist in 74-03-PLAN.md Task 4 <how-to-verify>",
+      "context": "All 3 code tasks are committed. Test on mobile (375px): cards visible, 3-dot opens Edit/Cancel, scroll closes dropdown, desktop table + right-click unchanged. Full checklist in plan file.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "buildEditItemRow now emits <div class='edit-item-card'> (full card layout) instead of <tr>",
+      "rationale": "The Phase 74-03 fix commit (557c29e) used an inline @media block to stack table rows as cards — this uncommitted refactor removes that hack and makes the card layout native (div-based)",
+      "phase": "74"
+    }
+  ],
+  "uncommitted_files": [
+    "app/views/mrf-form.js",
+    ".planning/STATE.md",
+    ".planning/debug/knowledge-base.md"
+  ],
+  "next_action": "1. Commit the uncommitted mrf-form.js edit item card refactor. 2. Present the UAT checklist (Task 4 from 74-03-PLAN.md) to the user. 3. After 'approved', write 74-03-SUMMARY.md. 4. Run /gsd:complete-milestone.",
+  "context_notes": "Phase 74 is the LAST phase of v3.2 milestone. After 74-03 UAT passes, the next step is /gsd:complete-milestone to close out v3.2. The uncommitted mrf-form.js changes are a clean refactor of the edit modal item rows from a table-row (<tr>) approach to a native card-div approach — needed because the previous @media inline style block was a hack that depended on table row structure. The refactor also fixes the 'closest(\"td\")' selector bug that would have broken unit 'others' toggle on mobile."
+}
