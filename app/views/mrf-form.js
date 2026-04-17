@@ -931,6 +931,75 @@ async function initMyRequests() {
                         document.removeEventListener('click', handler);
                     }, { once: true });
                 }, 10);
+            },
+            onMobileAction: (event, mrfDocId, mrfStatus) => {
+                // Remove any stale dropdown + any stale scroll handler
+                const staleMenu = document.getElementById('myRequestsMobileMenu');
+                if (staleMenu) staleMenu.remove();
+                if (window._mrfMobileMenuScrollHandler) {
+                    window.removeEventListener('scroll', window._mrfMobileMenuScrollHandler);
+                    window._mrfMobileMenuScrollHandler = null;
+                }
+
+                const actionableStatuses = ['Pending', 'In Progress'];
+                const btn = event.currentTarget;
+                const rect = btn.getBoundingClientRect();
+
+                const menu = document.createElement('div');
+                menu.id = 'myRequestsMobileMenu';
+                menu.className = 'mrf-req-card-menu';
+                // Position below the 3-dot button, right-aligned; clamp to viewport
+                const menuWidth = 180;
+                const leftPx = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8));
+                const topPx = rect.bottom + 4;
+                menu.style.left = leftPx + 'px';
+                menu.style.top = topPx + 'px';
+
+                if (actionableStatuses.includes(mrfStatus)) {
+                    menu.innerHTML = `
+                        <div class="mrf-req-card-menu-item mrf-req-card-menu-item--edit"
+                             onclick="closeMyRequestsMobileMenu(); window._myRequestsEditMRF('${mrfDocId}')">
+                            Edit MRF
+                        </div>
+                        <div class="mrf-req-card-menu-item mrf-req-card-menu-item--cancel"
+                             onclick="closeMyRequestsMobileMenu(); window._myRequestsCancelMRF('${mrfDocId}')">
+                            Cancel MRF
+                        </div>
+                    `;
+                } else {
+                    menu.innerHTML = `
+                        <div class="mrf-req-card-menu-item mrf-req-card-menu-item--disabled">
+                            No actions available
+                        </div>
+                    `;
+                }
+
+                document.body.appendChild(menu);
+
+                // REVIEWS [LOW]: Close the menu when the user scrolls — position:fixed dropdowns
+                // otherwise float detached from their card. Handler removes itself on first fire.
+                window._mrfMobileMenuScrollHandler = () => {
+                    const m = document.getElementById('myRequestsMobileMenu');
+                    if (m) m.remove();
+                    if (window._mrfMobileMenuScrollHandler) {
+                        window.removeEventListener('scroll', window._mrfMobileMenuScrollHandler);
+                        window._mrfMobileMenuScrollHandler = null;
+                    }
+                };
+                window.addEventListener('scroll', window._mrfMobileMenuScrollHandler, { passive: true });
+
+                // Close on outside click/tap (delayed by 10ms so the opening click doesn't immediately close)
+                setTimeout(() => {
+                    const closeHandler = (ev) => {
+                        if (!menu.contains(ev.target)) {
+                            closeMyRequestsMobileMenu();
+                            document.removeEventListener('click', closeHandler);
+                            document.removeEventListener('touchstart', closeHandler);
+                        }
+                    };
+                    document.addEventListener('click', closeHandler);
+                    document.addEventListener('touchstart', closeHandler);
+                }, 10);
             }
         });
 
@@ -940,6 +1009,16 @@ async function initMyRequests() {
         };
         window._myRequestsEditMRF = async (mrfDocId) => {
             try { await editRequestorMRF(mrfDocId); } catch (e) { console.error('[MRFForm] editRequestorMRF failed:', e); }
+        };
+
+        // Phase 74-03: centralized close so menu-item onclicks and scroll handler share logic
+        window.closeMyRequestsMobileMenu = () => {
+            const m = document.getElementById('myRequestsMobileMenu');
+            if (m) m.remove();
+            if (window._mrfMobileMenuScrollHandler) {
+                window.removeEventListener('scroll', window._mrfMobileMenuScrollHandler);
+                window._mrfMobileMenuScrollHandler = null;
+            }
         };
 
         // Expose filter and reload for inline event handlers
@@ -1643,6 +1722,15 @@ export async function destroy() {
     delete window._myRequestsSort;
     delete window._myRequestsCancelMRF;
     delete window._myRequestsEditMRF;
+
+    // Phase 74-03: cleanup mobile menu helper + any active scroll handler
+    delete window.closeMyRequestsMobileMenu;
+    if (window._mrfMobileMenuScrollHandler) {
+        window.removeEventListener('scroll', window._mrfMobileMenuScrollHandler);
+        window._mrfMobileMenuScrollHandler = null;
+    }
+    const staleMobileMenu = document.getElementById('myRequestsMobileMenu');
+    if (staleMobileMenu) staleMobileMenu.remove();
 
     // Phase 74-01: Detach scroll-hide/show listener for sticky sub-nav.
     if (_mrfNavScrollHandler) {
