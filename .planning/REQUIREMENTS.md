@@ -122,7 +122,7 @@
 
 - [x] **FINSUMCARD-01**: Project detail Financial Summary card shows "Paid" cell with total non-voided payments from RFPs when RFPs exist for the project
 - [x] **FINSUMCARD-02**: Project detail Financial Summary card shows "Remaining Payable" cell (rfpTotalRequested - rfpTotalPaid) with red styling when > 0 and green when fully paid
-- [ ] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code — *audit found service-detail.js:875 uses `(poTotal + prTotal) - rfpTotalPaid`, double-counting; fix in Phase 75*
+- [x] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code — *audit found service-detail.js:875 uses `(poTotal + prTotal) - rfpTotalPaid`, double-counting; fix in Phase 75*
 - [x] **FINSUMCARD-04**: Paid and Remaining Payable cells **always render** on Financial Summary card; show formatted 0 / full unpaid amount when no RFPs exist (zero-state visibility chosen over hiding) — *amended in Phase 75 to match shipped behavior from Phase 72.1*
 - [x] **FINSUMCARD-05**: Clicking the Refresh button on Financial Summary card refreshes expense data AND opens the Financial Breakdown modal
 - [x] **FINSUMCARD-06**: Navigating between project/service detail pages does not leak stale Paid or Remaining Payable values from previous page
@@ -185,7 +185,7 @@
 
 ### Procurement View Lifecycle Cleanup (Phase 75 — gap closure)
 
-- [ ] **TRCLEANUP-01**: `procurement.js` `destroy()` resets `rfpsByTR = {}` and removes `window.showTRRFPContextMenu`, `window.openTRRFPModal`, and `window.submitTRRFP` registrations to prevent stale TR-RFP state and orphan global handlers across view re-entries
+- [x] **TRCLEANUP-01**: `procurement.js` `destroy()` resets `rfpsByTR = {}` and removes `window.showTRRFPContextMenu`, `window.openTRRFPModal`, and `window.submitTRRFP` registrations to prevent stale TR-RFP state and orphan global handlers across view re-entries
 
 ## Future Requirements
 
@@ -312,7 +312,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRFMYREQ-02 | Phase 74 | Complete |
 | MRFMYREQ-03 | Phase 74 | Complete |
 | MRFMYREQ-04 | Phase 74 | Complete |
-| TRCLEANUP-01 | Phase 75 | Pending |
+| TRCLEANUP-01 | Phase 75 | Complete |
 
 **Coverage:**
 - v3.2 requirements: 97 total (96 original + TRCLEANUP-01 gap closure)

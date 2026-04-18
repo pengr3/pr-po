@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: Completed 73.3-01-PLAN.md
-last_updated: "2026-04-15T10:02:28.152Z"
-last_activity: 2026-04-15
+status: Ready to execute
+stopped_at: Completed 75-01-PLAN.md
+last_updated: "2026-04-18T12:25:20.040Z"
+last_activity: 2026-04-18
 progress:
-  total_phases: 26
-  completed_phases: 23
-  total_plans: 38
+  total_phases: 28
+  completed_phases: 19
+  total_plans: 30
   completed_plans: 42
 ---
 
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 73.3 — improve-finance-tab-navigation-bar-and-remove-redundant-supplier-column-from-pr-modal
+**Current focus:** Phase 75 — v3.2-gap-closure-code-fixes-spec-reconciliation-and-cleanup
 
 ## Current Position
 
-Phase: 73.3
-Plan: Not started
+Phase: 75 (v3.2-gap-closure-code-fixes-spec-reconciliation-and-cleanup) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Plan: Not started
 | Phase 73.2 P02 | 5 | 2 tasks | 2 files |
 | Phase 73.2 P01 | 3 | 2 tasks | 2 files |
 | Phase 73.3-improve-finance-tab-navigation-bar-and-remove-redundant-supplier-column-from-pr-modal P01 | 20 | 2 tasks | 2 files |
+| Phase 75 P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,9 @@ Recent decisions affecting current work:
 - [Phase 73.3]: New .finance-sub-nav-tab class prefix (not .tab-btn) keeps Finance pill style scoped — Procurement .tab-btn rules untouched
 - [Phase 73.3]: Init guard if (!_financeNavScrollHandler) prevents duplicate scroll listener binding on repeated init() calls during intra-Finance sub-tab switches (router does not call destroy() on tab switch)
 - [Phase 73.3]: Supplier column removed from PR Details modal items table only — supplier display preserved in modal header .modal-details-grid (canonical location per PRMOD-SUP-01)
+- [Phase 75]: [Phase 75-01]: TR aggregate alias names (totalAmount/trCount) mirror project-detail.js for behavioral parity, while local variable name (trsAgg vs trsAggregate) follows service-detail conventions for naming consistency
+- [Phase 75]: [Phase 75-01]: Service-side TRs filtered by service_code (not service_name) per finance.js:2472,2537 convention — service-side TRs use service_code throughout the codebase
+- [Phase 75]: [Phase 75-01]: prTotal/prCount fields preserved on currentServiceExpense literal for backward compatibility — bug was only in formula, not in field exposure
 
 ### Roadmap Evolution
 
@@ -218,8 +222,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-04-15
-Last session: 2026-04-15T09:58:54.830Z
-Stopped at: Completed 73.3-01-PLAN.md
+Last activity: 2026-04-18
+Last session: 2026-04-18T12:25:20.031Z
+Stopped at: Completed 75-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

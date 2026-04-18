@@ -573,3 +573,26 @@ Plans:
 - [ ] 74-01-PLAN.md — Replace .tab-btn sub-tab nav with sticky .mrf-sub-nav pill bar + scroll-hide/show behavior (Wave 1)
 - [ ] 74-02-PLAN.md — Items table -> card-per-item mobile layout with paired card/table DOM sync (Wave 2)
 - [ ] 74-03-PLAN.md — My Requests table -> MRF summary cards with 3-dot action menu (Wave 3)
+
+### Phase 75: v3.2 Gap Closure — Code Bug Fix, Spec Reconciliation, Cleanup (INSERTED)
+
+**Goal:** Close non-rework gaps identified by `/gsd:audit-milestone` for v3.2 — fix the service-detail Remaining Payable formula bug, reconcile POSUMPAG-01 and FINSUMCARD-04 spec/code drifts, and clean up the procurement.js `destroy()` lifecycle for TR-RFP state.
+**Requirements**: FINSUMCARD-03, POSUMPAG-01, FINSUMCARD-04, TRCLEANUP-01
+**Depends on:** Phase 74
+**Success Criteria** (what must be TRUE):
+  1. `service-detail.js` Remaining Payable equals `(poTotal + trTotal) - rfpTotalPaid` (mirroring `project-detail.js:709`); no PR+PO double-count
+  2. POSUMPAG-01 reconciled — either `finance.js` `poSummaryItemsPerPage` reverts to 10 OR REQUIREMENTS.md updated to match shipped value (decided in plan)
+  3. FINSUMCARD-04 description in REQUIREMENTS.md matches the always-visible behavior shipped in Phase 72.1
+  4. `procurement.js` `destroy()` resets `rfpsByTR = {}` and deletes `window.showTRRFPContextMenu`, `window.openTRRFPModal`, `window.submitTRRFP`
+  5. No regression in Phase 67 TR-RFP, Phase 72 Financial Summary, or Phase 65.7 Payables pagination flows
+**Notes:**
+- Phase 70 (Cancel PRs) rework is **deferred to a future milestone** — see BACKLOG.md "Recall Process with Finance Approval"
+- Phase 68.1 (subcon cost fix) remains TBD — needs `/gsd:discuss-phase 68.1` to scope, not gap closure
+- 11 phases lacking VERIFICATION.md and 3 phases pending Human UAT will be addressed via `/gsd:verify-work {N}` per phase, not bundled here
+- 0/19 Nyquist coverage is a separate concern — run `/gsd:validate-phase {N}` if/when prioritized
+
+**Plans:** 1/2 plans executed
+
+Plans:
+- [x] 75-01-PLAN.md — Code fixes: service-detail.js Remaining Payable formula (FINSUMCARD-03) + procurement.js destroy() TR-RFP cleanup (TRCLEANUP-01)
+- [ ] 75-02-PLAN.md — Spec reconciliation: REQUIREMENTS.md POSUMPAG-01 (15 rows) + FINSUMCARD-04 traceability flip + finance.js inline rationale comment
