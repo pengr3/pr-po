@@ -2099,6 +2099,7 @@ export async function destroy() {
     poData = [];
     rfpsData = [];
     rfpsByPO = {};
+    rfpsByTR = {};
     allPRPORecords = [];
     filteredPRPORecords = [];
     _prpoSubDataCache = new Map();
@@ -2160,6 +2161,9 @@ export async function destroy() {
     delete window.submitRFP;
     delete window.openDeliveryFeeRFPModal;
     delete window.submitDeliveryFeeRFP;
+    delete window.showTRRFPContextMenu;
+    delete window.openTRRFPModal;
+    delete window.submitTRRFP;
     delete window.showAltBank;
     delete window.removeAltBank;
     delete window.showMRFContextMenu;
