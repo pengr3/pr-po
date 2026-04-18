@@ -92,7 +92,7 @@
 
 ### PO Payment Summary Pagination
 
-- [x] **POSUMPAG-01**: PO Payment Summary table displays at most 10 PO rows per page with Previous/Next and page number navigation controls
+- [x] **POSUMPAG-01**: PO Payment Summary table displays at most 15 PO rows per page with Previous/Next and page number navigation controls — *Phase 75 reconciliation: spec amended from 10 to 15 to match shipped value in finance.js:99; user usage pattern drifted upward post-verification, accepted as preferred*
 - [x] **POSUMPAG-02**: Pagination info shows "Showing X-Y of Z POs" reflecting the current filtered result count, not the total unfiltered count
 - [x] **POSUMPAG-03**: Changing status or department filters resets pagination to page 1 and updates page count to match the filtered set
 
@@ -122,8 +122,8 @@
 
 - [x] **FINSUMCARD-01**: Project detail Financial Summary card shows "Paid" cell with total non-voided payments from RFPs when RFPs exist for the project
 - [x] **FINSUMCARD-02**: Project detail Financial Summary card shows "Remaining Payable" cell (rfpTotalRequested - rfpTotalPaid) with red styling when > 0 and green when fully paid
-- [x] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code
-- [x] **FINSUMCARD-04**: Paid and Remaining Payable cells are hidden when no RFPs exist for the project or service (no misleading zero values)
+- [ ] **FINSUMCARD-03**: Service detail Financial Summary card shows "Paid" and "Remaining Payable" cells matching project behavior, queried by service_code — *audit found service-detail.js:875 uses `(poTotal + prTotal) - rfpTotalPaid`, double-counting; fix in Phase 75*
+- [x] **FINSUMCARD-04**: Paid and Remaining Payable cells **always render** on Financial Summary card; show formatted 0 / full unpaid amount when no RFPs exist (zero-state visibility chosen over hiding) — *amended in Phase 75 to match shipped behavior from Phase 72.1*
 - [x] **FINSUMCARD-05**: Clicking the Refresh button on Financial Summary card refreshes expense data AND opens the Financial Breakdown modal
 - [x] **FINSUMCARD-06**: Navigating between project/service detail pages does not leak stale Paid or Remaining Payable values from previous page
 
@@ -182,6 +182,10 @@
 - [x] **MRFMYREQ-02**: MRF summary cards show Date Needed and other key fields at a glance
 - [x] **MRFMYREQ-03**: MRF summary cards have a 3-dot action menu for Edit and Cancel actions
 - [x] **MRFMYREQ-04**: Desktop My Requests table (>=640px) is unchanged — card layout is CSS-media-query gated only
+
+### Procurement View Lifecycle Cleanup (Phase 75 — gap closure)
+
+- [ ] **TRCLEANUP-01**: `procurement.js` `destroy()` resets `rfpsByTR = {}` and removes `window.showTRRFPContextMenu`, `window.openTRRFPModal`, and `window.submitTRRFP` registrations to prevent stale TR-RFP state and orphan global handlers across view re-entries
 
 ## Future Requirements
 
@@ -246,7 +250,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRPROOFCOL-01 | Phase 66.1 | Complete |
 | RFPBANK-01 | Phase 65.6 | Complete |
 | RFPBANK-02 | Phase 65.6 | Complete |
-| POSUMPAG-01 | Phase 65.7 | Complete |
+| POSUMPAG-01 | Phase 65.7 → Phase 75 | Complete |
 | POSUMPAG-02 | Phase 65.7 | Complete |
 | POSUMPAG-03 | Phase 65.7 | Complete |
 | EXPMOD-01 | Phase 68 | Complete |
@@ -266,8 +270,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRCANCEL-05 | Phase 70 | Complete |
 | FINSUMCARD-01 | Phase 72 | Complete |
 | FINSUMCARD-02 | Phase 72 | Complete |
-| FINSUMCARD-03 | Phase 72 | Complete |
-| FINSUMCARD-04 | Phase 72 | Complete |
+| FINSUMCARD-03 | Phase 72 → Phase 75 | Pending (formula fix) |
+| FINSUMCARD-04 | Phase 72 → Phase 75 | Pending (spec amendment) |
 | FINSUMCARD-05 | Phase 72 | Complete |
 | FINSUMCARD-06 | Phase 72 | Complete |
 | MOBFIN-01 | Phase 73 | Complete |
@@ -308,12 +312,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRFMYREQ-02 | Phase 74 | Complete |
 | MRFMYREQ-03 | Phase 74 | Complete |
 | MRFMYREQ-04 | Phase 74 | Complete |
+| TRCLEANUP-01 | Phase 75 | Pending |
 
 **Coverage:**
-- v3.2 requirements: 96 total
-- Mapped to phases: 96
+- v3.2 requirements: 97 total (96 original + TRCLEANUP-01 gap closure)
+- Mapped to phases: 97
 - Unmapped: 0
+- Pending re-verification: 3 (FINSUMCARD-03, FINSUMCARD-04, POSUMPAG-01) plus 1 new (TRCLEANUP-01) → all addressed in Phase 75
 
 ---
 *Requirements defined: 2026-03-13*
+*Last updated: 2026-04-18 — Phase 75 closeout: POSUMPAG-01 spec amended to "≤15 rows per page" matching shipped value in finance.js:99 (status flipped to Complete); FINSUMCARD-04 traceability flipped to Complete (bullet text was already amended on prior pass — no further edit). FINSUMCARD-03 closeout owned by Plan 75-01 (formula fix in service-detail.js).*
+*Last updated: 2026-04-18 — `/gsd:plan-milestone-gaps` added Phase 75 gap closure: reset FINSUMCARD-03 (formula bug), FINSUMCARD-04 (spec amendment to always-render), POSUMPAG-01 (page size reconciliation); added TRCLEANUP-01 (procurement.js destroy lifecycle). Phase 70 rework (PRCANCEL-01..05) deferred to next milestone — see BACKLOG.md "Recall Process with Finance Approval".*
 *Last updated: 2026-04-17 — Descoped PAYPAG-01/02/03 (user decision); added RFPFILTER-01, RFPCANCEL-01/02/03, PRCANCEL-01/02/03/04/05, EXPPAY-FIX-01/02/03, FINMOD-*, MRFNAV-01/02/03, MRFITEMS-01/02/03/04, MRFMYREQ-01/02/03/04; fixed PAYCON-01/02 checkboxes; updated 17 traceability rows from Planned to Complete*
