@@ -96,6 +96,7 @@ let poSummaryDeptFilter = '';
 let poSummarySearchQuery = '';
 // Table 2 (PO Payment Summary) pagination state
 let poSummaryCurrentPage = 1;
+// POSUMPAG-01 (Phase 75 reconciliation): spec amended from 10 to 15 to match user-preferred page size — see REQUIREMENTS.md
 const poSummaryItemsPerPage = 15;
 
 // Sort state for Project List
