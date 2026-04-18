@@ -591,8 +591,8 @@ Plans:
 - 11 phases lacking VERIFICATION.md and 3 phases pending Human UAT will be addressed via `/gsd:verify-work {N}` per phase, not bundled here
 - 0/19 Nyquist coverage is a separate concern — run `/gsd:validate-phase {N}` if/when prioritized
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 75-01-PLAN.md — Code fixes: service-detail.js Remaining Payable formula (FINSUMCARD-03) + procurement.js destroy() TR-RFP cleanup (TRCLEANUP-01)
-- [ ] 75-02-PLAN.md — Spec reconciliation: REQUIREMENTS.md POSUMPAG-01 (15 rows) + FINSUMCARD-04 traceability flip + finance.js inline rationale comment
+- [x] 75-02-PLAN.md — Spec reconciliation: REQUIREMENTS.md POSUMPAG-01 (15 rows) + FINSUMCARD-04 traceability flip + finance.js inline rationale comment
