@@ -852,8 +852,8 @@ async function openRFPModal(poDocId) {
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Invoice Number <span style="color:#ea4335;">*</span></label>
-                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Enter invoice number" style="width:100%;" required>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
@@ -986,8 +986,8 @@ async function openDeliveryFeeRFPModal(poDocId) {
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Invoice Number <span style="color:#ea4335;">*</span></label>
-                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Enter invoice number" style="width:100%;" required>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
@@ -1122,8 +1122,8 @@ async function openTRRFPModal(trDocId) {
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Invoice Number <span style="color:#ea4335;">*</span></label>
-                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Enter invoice number" style="width:100%;" required>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
+                        <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
                     </div>
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
@@ -1273,7 +1273,7 @@ async function submitRFP(poDocId) {
     const errorEl = document.getElementById('rfpErrorAlert');
 
     if (!invoiceNumber || !dueDate || !paymentMode) {
-        if (errorEl) { errorEl.textContent = 'Invoice number, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
+        if (errorEl) { errorEl.textContent = 'Proof, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
         return;
     }
     if (paymentMode === 'Bank Transfer' && (!bankName || !bankAccountName || !bankDetails)) {
@@ -1321,7 +1321,9 @@ async function submitRFP(poDocId) {
             po_doc_id: poDocId,
             mrf_id: po.mrf_id || '',
             project_code: po.project_code || '',
+            project_name: po.project_name || '',
             service_code: po.service_code || '',
+            service_name: po.service_name || '',
             supplier_name: po.supplier_name,
             tranche_index: idx,
             tranche_label: tranche.label,
@@ -1390,7 +1392,7 @@ async function submitTRRFP(trDocId) {
     const errorEl = document.getElementById('rfpErrorAlert');
 
     if (!invoiceNumber || !dueDate || !paymentMode) {
-        if (errorEl) { errorEl.textContent = 'Invoice number, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
+        if (errorEl) { errorEl.textContent = 'Proof, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
         return;
     }
     if (paymentMode === 'Bank Transfer' && (!bankName || !bankAccountName || !bankDetails)) {
@@ -1415,7 +1417,9 @@ async function submitTRRFP(trDocId) {
             po_doc_id: '',
             mrf_id: tr.mrf_id || '',
             project_code: tr.project_code || '',
+            project_name: tr.project_name || '',
             service_code: tr.service_code || '',
+            service_name: tr.service_name || '',
             supplier_name: tr.supplier_name || '',
             tranche_label: 'Full Payment',
             tranche_percentage: 100,
@@ -1467,7 +1471,7 @@ async function submitDeliveryFeeRFP(poDocId) {
     const errorEl = document.getElementById('rfpErrorAlert');
 
     if (!invoiceNumber || !dueDate || !paymentMode) {
-        if (errorEl) { errorEl.textContent = 'Invoice number, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
+        if (errorEl) { errorEl.textContent = 'Proof, due date, and mode of payment are required.'; errorEl.style.display = 'block'; }
         return;
     }
     if (paymentMode === 'Bank Transfer' && (!bankName || !bankAccountName || !bankDetails)) {
@@ -1490,7 +1494,9 @@ async function submitDeliveryFeeRFP(poDocId) {
             po_doc_id: poDocId,
             mrf_id: po.mrf_id || '',
             project_code: po.project_code || '',
+            project_name: po.project_name || '',
             service_code: po.service_code || '',
+            service_name: po.service_name || '',
             supplier_name: po.supplier_name,
             tranche_label: 'Delivery Fee',
             tranche_percentage: 0,
