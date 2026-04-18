@@ -271,7 +271,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FINSUMCARD-01 | Phase 72 | Complete |
 | FINSUMCARD-02 | Phase 72 | Complete |
 | FINSUMCARD-03 | Phase 72 → Phase 75 | Pending (formula fix) |
-| FINSUMCARD-04 | Phase 72 → Phase 75 | Pending (spec amendment) |
+| FINSUMCARD-04 | Phase 72 → Phase 75 | Complete |
 | FINSUMCARD-05 | Phase 72 | Complete |
 | FINSUMCARD-06 | Phase 72 | Complete |
 | MOBFIN-01 | Phase 73 | Complete |
