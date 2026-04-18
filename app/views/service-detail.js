@@ -846,6 +846,17 @@ async function refreshServiceExpense(silent = false) {
             poCount: count()
         });
 
+        // TRs: sum total_amount + count (mirrors project-detail.js:672-680)
+        // Filter by service_code per finance.js:2472, 2537 convention
+        const trsQuery = query(
+            collection(db, 'transport_requests'),
+            where('service_code', '==', code)
+        );
+        const trsAgg = await getAggregateFromServer(trsQuery, {
+            totalAmount: sum('total_amount'),
+            trCount: count()
+        });
+
         // RFP payables query
         let rfpTotalRequested = 0;
         let rfpTotalPaid = 0;
@@ -871,8 +882,10 @@ async function refreshServiceExpense(silent = false) {
             prCount: prsAgg.data().prCount || 0,
             poTotal: posAgg.data().poTotal || 0,
             poCount: posAgg.data().poCount || 0,
+            trTotal: trsAgg.data().totalAmount || 0,
+            trCount: trsAgg.data().trCount || 0,
             totalPaid: rfpTotalPaid,
-            remainingPayable: (posAgg.data().poTotal || 0) + (prsAgg.data().prTotal || 0) - rfpTotalPaid,
+            remainingPayable: (posAgg.data().poTotal || 0) + (trsAgg.data().totalAmount || 0) - rfpTotalPaid,
             hasRfps
         };
 
