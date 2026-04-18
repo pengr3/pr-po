@@ -85,12 +85,15 @@ let currentApprovalTarget = null;
 // Payables tab state
 let rfpsData = [];                // all RFP documents from onSnapshot
 let posAmountMap = new Map();     // po_id -> total_amount from PO document
+let posNameMap = new Map();       // po_id -> { project_name, service_name } from PO document
 // Table 1 (RFP Processing) filter state
 let rfpStatusFilter = '';
 let rfpDeptFilter = '';
+let rfpSearchQuery = '';
 // Table 2 (PO Payment Summary) filter state
 let poSummaryStatusFilter = '';
 let poSummaryDeptFilter = '';
+let poSummarySearchQuery = '';
 // Table 2 (PO Payment Summary) pagination state
 let poSummaryCurrentPage = 1;
 const poSummaryItemsPerPage = 15;
@@ -376,6 +379,12 @@ function openRecordPaymentModal(rfpDocId) {
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.mode_of_payment || 'Not specified')}</div>
                         ${bankInfo}
                     </div>
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Proof</div>
+                        <div style="font-weight:600;color:#1e293b;">${rfp.invoice_number && rfp.invoice_number.startsWith('http')
+                            ? `<a href="${escapeHTML(rfp.invoice_number)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:underline;">${escapeHTML(rfp.invoice_number)}</a>`
+                            : escapeHTML(rfp.invoice_number || 'Not provided')}</div>
+                    </div>
                 </div>
                 ${existingPaymentsHtml}
                 ${newPaymentFormHtml}
@@ -463,6 +472,7 @@ async function voidPaymentRecord(rfpDocId, paymentId) {
 function filterRFPTable() {
     rfpStatusFilter = document.getElementById('rfpStatusFilter')?.value || '';
     rfpDeptFilter = document.getElementById('rfpDeptFilter')?.value || '';
+    rfpSearchQuery = document.getElementById('rfpSearchInput')?.value?.trim()?.toLowerCase() || '';
     renderRFPTable();
 }
 
@@ -472,6 +482,7 @@ function filterRFPTable() {
 function filterPOSummaryTable() {
     poSummaryStatusFilter = document.getElementById('poSummaryStatusFilter')?.value || '';
     poSummaryDeptFilter = document.getElementById('poSummaryDeptFilter')?.value || '';
+    poSummarySearchQuery = document.getElementById('poSummarySearchInput')?.value?.trim()?.toLowerCase() || '';
     poSummaryCurrentPage = 1;
     renderPOSummaryTable();
 }
@@ -660,6 +671,16 @@ function renderRFPTable() {
             return dept === rfpDeptFilter;
         });
     }
+    if (rfpSearchQuery) {
+        displayed = displayed.filter(r => {
+            const code = (r.service_code || r.project_code || '').toLowerCase();
+            const pn = posNameMap.get(r.po_id) || {};
+            const name = (r.service_name || r.project_name || pn.service_name || pn.project_name || '').toLowerCase();
+            const poId = (r.po_id || '').toLowerCase();
+            const rfpId = (r.rfp_id || '').toLowerCase();
+            return code.includes(rfpSearchQuery) || name.includes(rfpSearchQuery) || poId.includes(rfpSearchQuery) || rfpId.includes(rfpSearchQuery);
+        });
+    }
 
     // D-20: Sort by status priority asc (unpaid first globally), then PO Ref asc, tranche_percentage asc
     const statusPriority = { 'Pending': 1, 'Overdue': 2, 'Partially Paid': 3, 'Fully Paid': 4 };
@@ -673,11 +694,11 @@ function renderRFPTable() {
     });
 
     if (displayed.length === 0) {
-        const isFiltered = rfpStatusFilter || rfpDeptFilter;
+        const isFiltered = rfpStatusFilter || rfpDeptFilter || rfpSearchQuery;
         const emptyMsg = isFiltered
             ? 'No RFPs match the selected filters. Clear filters to see all requests.'
             : 'No outstanding payment requests. Use the status filter to view Fully Paid RFPs, or check the PO Payment Summary below.';
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">' + emptyMsg + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#64748b;">' + emptyMsg + '</td></tr>';
         const rfpCardListEmpty = document.getElementById('rfpCardList');
         if (rfpCardListEmpty) rfpCardListEmpty.innerHTML = '<div class="fc-empty">' + emptyMsg + '</div>';
         return;
@@ -690,9 +711,12 @@ function renderRFPTable() {
             .reduce((s, r) => s + (r.amount || 0), 0);
         const balance = (rfp.amount_requested || 0) - totalPaid;
         const isOverdue = status === 'Overdue';
-        const deptLabel = rfp.service_code
-            ? escapeHTML(rfp.service_code)
-            : escapeHTML(rfp.project_code || '');
+        const deptCode = rfp.service_code || rfp.project_code || '';
+        const poNames = posNameMap.get(rfp.po_id) || {};
+        const deptName = rfp.service_name || rfp.project_name || poNames.service_name || poNames.project_name || '';
+        const deptLabel = deptName
+            ? `${escapeHTML(deptCode)}<br><span style="font-size:0.75rem;color:#64748b;">${escapeHTML(deptName)}</span>`
+            : escapeHTML(deptCode);
         const badgeStyle = statusBadgeColors[status] || '';
 
         const recordPaymentBtn = showEditControls
@@ -712,6 +736,9 @@ function renderRFPTable() {
                 : '<span style="color:#999;">-</span>'
             }</td>
             <td>${deptLabel}</td>
+            <td>${rfp.invoice_number && rfp.invoice_number.startsWith('http')
+                ? `<a href="${escapeHTML(rfp.invoice_number)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">View</a>`
+                : escapeHTML(rfp.invoice_number || '-')}</td>
             <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
             <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
             <td style="text-align:right;">${formatCurrency(totalPaid)}</td>
@@ -739,12 +766,18 @@ function buildPOMap(rfps) {
     rfps.forEach(rfp => {
         const groupKey = rfp.po_id || rfp.tr_id || '';
         if (!poMap.has(groupKey)) {
+            const dCode = rfp.service_code || rfp.project_code || '';
+            const poNames = posNameMap.get(groupKey) || {};
+            const dName = rfp.service_name || rfp.project_name || poNames.service_name || poNames.project_name || '';
+            const label = dName
+                ? `${escapeHTML(dCode)}<br><span style="font-size:0.75rem;color:#64748b;">${escapeHTML(dName)}</span>`
+                : escapeHTML(dCode);
             poMap.set(groupKey, {
                 poId: groupKey,
                 supplier: rfp.supplier_name || '',
-                deptLabel: rfp.service_code
-                    ? escapeHTML(rfp.service_code)
-                    : escapeHTML(rfp.project_code || ''),
+                deptLabel: label,
+                deptCode: dCode,
+                deptName: dName,
                 isService: !!rfp.service_code,
                 isTR: !rfp.po_id && !!rfp.tr_id,
                 rfps: []
@@ -929,8 +962,11 @@ function renderPOSummaryTable() {
             poId: entry.poId,
             supplier: entry.supplier,
             deptLabel: entry.deptLabel,
+            deptCode: entry.deptCode || '',
+            deptName: entry.deptName || '',
             isService: entry.isService,
             isTR: entry.isTR || false,
+            rfps: entry.rfps,
             ...summary
         });
     });
@@ -943,6 +979,15 @@ function renderPOSummaryTable() {
         poEntries = poEntries.filter(po => {
             const dept = po.isService ? 'services' : 'projects';
             return dept === poSummaryDeptFilter;
+        });
+    }
+    if (poSummarySearchQuery) {
+        poEntries = poEntries.filter(po => {
+            const code = (po.deptCode || '').toLowerCase();
+            const name = (po.deptName || '').toLowerCase();
+            const poId = (po.poId || '').toLowerCase();
+            const rfpIds = po.rfps ? po.rfps.map(r => (r.rfp_id || '').toLowerCase()).join(' ') : '';
+            return code.includes(poSummarySearchQuery) || name.includes(poSummarySearchQuery) || poId.includes(poSummarySearchQuery) || rfpIds.includes(poSummarySearchQuery);
         });
     }
 
@@ -1075,13 +1120,21 @@ async function initPayablesTab() {
 
     const posUnsub = onSnapshot(collection(db, 'pos'), (snapshot) => {
         posAmountMap = new Map();
+        posNameMap = new Map();
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
-            if (data.po_id && data.total_amount != null) {
-                posAmountMap.set(data.po_id, data.total_amount);
+            if (data.po_id) {
+                if (data.total_amount != null) {
+                    posAmountMap.set(data.po_id, data.total_amount);
+                }
+                posNameMap.set(data.po_id, {
+                    project_name: data.project_name || '',
+                    service_name: data.service_name || ''
+                });
             }
         });
-        // Re-render Table 2 with updated PO totals
+        // Re-render both tables with updated PO data
+        renderRFPTable();
         renderPOSummaryTable();
     });
     listeners.push(posUnsub);
@@ -1945,6 +1998,7 @@ export function render(activeTab = 'approvals') {
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
                             </select>
+                            <input type="text" id="rfpSearchInput" class="form-control" placeholder="Search project, PO ID, or RFP ID..." style="width:auto;min-width:240px;font-size:0.875rem;" oninput="window.filterRFPTable()">
                         </div>
                         <div class="table-scroll-container">
                             <table class="data-table">
@@ -1954,6 +2008,7 @@ export function render(activeTab = 'approvals') {
                                         <th>Supplier</th>
                                         <th>PO Ref</th>
                                         <th>Project / Service</th>
+                                        <th>Proof</th>
                                         <th>Tranche</th>
                                         <th style="text-align:right;">Amount</th>
                                         <th style="text-align:right;">Paid</th>
@@ -1964,7 +2019,7 @@ export function render(activeTab = 'approvals') {
                                     </tr>
                                 </thead>
                                 <tbody id="rfpTableBody">
-                                    <tr><td colspan="11" style="text-align:center;padding:2rem;color:#64748b;">Loading RFPs...</td></tr>
+                                    <tr><td colspan="12" style="text-align:center;padding:2rem;color:#64748b;">Loading RFPs...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1991,6 +2046,7 @@ export function render(activeTab = 'approvals') {
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
                             </select>
+                            <input type="text" id="poSummarySearchInput" class="form-control" placeholder="Search project, PO ID, or RFP ID..." style="width:auto;min-width:240px;font-size:0.875rem;" oninput="window.filterPOSummaryTable()">
                         </div>
                         <div class="table-scroll-container">
                             <table class="data-table">
