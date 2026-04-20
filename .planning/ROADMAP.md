@@ -441,13 +441,13 @@ Plans:
 
 ### Phase 68.1: fix subcon cost scorecard showing zero when subcon items are categorized as subcon in items_json but po is_subcon flag is not set (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Fix subcon cost scorecard calculation to check items_json category field instead of relying solely on po is_subcon flag
+**Requirements**: TBD — deferred to next milestone; scope via `/gsd:discuss-phase 68.1`
 **Depends on:** Phase 68
-**Plans:** 1/1 plans complete
+**Plans:** 0 plans (deferred)
 
 Plans:
-- [x] TBD (run /gsd:plan-phase 68.1 to break down) (completed 2026-04-20)
+- (deferred — no plans created; pre-existing implementation marked complete without formal phase execution)
 
 ### Phase 69: Revise expense-modal scoreboards to add remaining payable tracking
 
@@ -616,4 +616,4 @@ Plans:
 **Plans:** 0/1 plans complete
 
 Plans:
-- [ ] 76-01-PLAN.md — All gap closure tasks: spec amendments, doc fixes, VERIFICATION.md writeups
+- [ ] 76-01-PLAN.md — REQUIREMENTS.md updates (RFPBANK/FINSUMCARD-03/PAY65/FINBREAK), ROADMAP.md fixes, 10 VERIFICATION.md writeups

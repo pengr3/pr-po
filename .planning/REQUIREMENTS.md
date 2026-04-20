@@ -87,8 +87,8 @@
 
 ### RFP Bank Transfer Saved Accounts
 
-- [ ] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, an "Add Alternative Bank" button appears that lets the user manually enter a second bank account (Bank Name, Account Name, Account Number) — *spec amended in Phase 76: original saved-bank dropdown was removed (commit b613ca4); alt-bank manual entry is the shipped UX*
-- [ ] **RFPBANK-02**: The alternative bank entry fields in both PO RFP and TR RFP modals can be shown or hidden via the Alt Bank toggle button; removing alt bank clears all three fields — *spec amended in Phase 76: auto-fill from saved account removed with the selector*
+- [x] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, an "Add Alternative Bank" button appears that lets the user manually enter a second bank account (Bank Name, Account Name, Account Number) — *spec amended in Phase 76: original saved-bank dropdown was removed (commit b613ca4); alt-bank manual entry is the shipped UX*
+- [x] **RFPBANK-02**: The alternative bank entry fields in both PO RFP and TR RFP modals can be shown or hidden via the Alt Bank toggle button; removing alt bank clears all three fields — *spec amended in Phase 76: auto-fill from saved account removed with the selector*
 
 ### PO Payment Summary Pagination
 
@@ -183,6 +183,22 @@
 - [x] **MRFMYREQ-03**: MRF summary cards have a 3-dot action menu for Edit and Cancel actions
 - [x] **MRFMYREQ-04**: Desktop My Requests table (>=769px) is unchanged — card layout is CSS-media-query gated only
 
+### Finance Payables Dual-Table (Phase 65.1)
+
+- [x] **PAY65-01**: Finance Payables tab displays two separate tables — "RFP Processing" (one row per RFP tranche, rendered by `renderRFPTable()`) and "PO Payment Summary" (one collapsed row per PO with expandable tranche sub-rows, rendered by `renderPOSummaryTable()`) — each independently rendered and filtered
+- [x] **PAY65-02**: Each Payables table has independent status and department filter dropdowns — changing a filter on Table 1 does not affect Table 2 filter state, and vice versa (4 separate state variables: `rfpStatusFilter`, `rfpDeptFilter`, `poSummaryStatusFilter`, `poSummaryDeptFilter`)
+- [x] **PAY65-03**: RFP Processing table (Table 1) rows are sorted by status priority (Pending first, then Overdue, Partially Paid, Fully Paid), then by PO Ref ascending, then by tranche_percentage ascending — unpaid/overdue items surface to the top
+- [x] **PAY65-04**: RFP payment status (Pending / Partially Paid / Fully Paid / Overdue) is always auto-derived from the `payment_records` array arithmetic via `deriveRFPStatus()` — Finance users never manually set status
+- [x] **PAY65-05**: Changing a status or department filter on Table 1 (RFP Processing) or Table 2 (PO Payment Summary) filters independently — each filter operates on its own displayed data slice via separate `filterRFPTable()` and `filterPOSummaryTable()` functions
+
+### Financial Breakdown Modal Revamp (Phase 71)
+
+- [x] **FINBREAK-01**: The expense breakdown modal title reads "Financial Breakdown: {name}" instead of "Expense Breakdown: {name}" — all internal symbols (`showExpenseBreakdownModal`, `#expenseBreakdownModal`, `.expense-tab`, `window._*` functions) remain unchanged (user-visible rename only)
+- [x] **FINBREAK-02**: The Financial Breakdown modal contains a "Payables" tab (third tab after "By Category" and "Transport Fees") showing a read-only 4-column worklist table with columns PARTICULARS / STATUS / TOTAL PAYABLE / TOTAL PAID
+- [x] **FINBREAK-03**: The Payables tab displays one row per PO (Total Payable = `total_amount - delivery_fee`), one row per Delivery Fee (where `delivery_fee > 0` on the PO), and one row per Finance-Approved TR — delivery fees are not bundled into the PO row
+- [x] **FINBREAK-04**: Payables tab rows are sorted action-needed first: Not Requested (0) then Requested (1) then Partial (2) then Fully Paid (3), with secondary sort by Total Payable descending within each bucket
+- [x] **FINBREAK-05**: PO status derivation in the Payables tab uses the same active-tranche logic as finance.js `derivePOSummary` (Phase 65.3), ported inline as `deriveStatusForPO()` to avoid circular imports; fallback label for partial-payment edge cases formats as "NN% Paid" (not the literal word "Partial")
+
 ### Procurement View Lifecycle Cleanup (Phase 75 — gap closure)
 
 - [x] **TRCLEANUP-01**: `procurement.js` `destroy()` resets `rfpsByTR = {}` and removes `window.showTRRFPContextMenu`, `window.openTRRFPModal`, and `window.submitTRRFP` registrations to prevent stale TR-RFP state and orphan global handlers across view re-entries
@@ -270,7 +286,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRCANCEL-05 | Phase 70 | Complete |
 | FINSUMCARD-01 | Phase 72 | Complete |
 | FINSUMCARD-02 | Phase 72 | Complete |
-| FINSUMCARD-03 | Phase 72 → Phase 75 → Phase 76 | Pending |
+| FINSUMCARD-03 | Phase 72 → Phase 75 | Complete |
 | FINSUMCARD-04 | Phase 72 → Phase 75 | Complete |
 | FINSUMCARD-05 | Phase 72 | Complete |
 | FINSUMCARD-06 | Phase 72 | Complete |
@@ -313,15 +329,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MRFMYREQ-03 | Phase 74 | Complete |
 | MRFMYREQ-04 | Phase 74 | Complete |
 | TRCLEANUP-01 | Phase 75 | Complete |
+| PAY65-01 | Phase 65.1 | Complete |
+| PAY65-02 | Phase 65.1 | Complete |
+| PAY65-03 | Phase 65.1 | Complete |
+| PAY65-04 | Phase 65.1 | Complete |
+| PAY65-05 | Phase 65.1 | Complete |
+| FINBREAK-01 | Phase 71 | Complete |
+| FINBREAK-02 | Phase 71 | Complete |
+| FINBREAK-03 | Phase 71 | Complete |
+| FINBREAK-04 | Phase 71 | Complete |
+| FINBREAK-05 | Phase 71 | Complete |
 
 **Coverage:**
-- v3.2 requirements: 97 total (96 original + TRCLEANUP-01 gap closure)
-- Mapped to phases: 97
+- v3.2 requirements: 107 total (96 original + TRCLEANUP-01 gap closure + PAY65-01..05 + FINBREAK-01..05)
+- Mapped to phases: 107
 - Unmapped: 0
-- Pending Phase 76 closure: RFPBANK-01, RFPBANK-02 (spec amendment + re-verification), FINSUMCARD-03 (traceability flip to Complete)
+- All requirements verified and traced to Complete
 
 ---
 *Requirements defined: 2026-03-13*
+*Last updated: 2026-04-20 — Phase 76 closure: ticked RFPBANK-01/02 [x] (spec already amended); flipped FINSUMCARD-03 traceability to Complete; added PAY65-01..05 (Phase 65.1 dual-table) and FINBREAK-01..05 (Phase 71 Financial Breakdown) as formal requirements with traceability rows.*
 *Last updated: 2026-04-20 — Phase 76 setup: RFPBANK-01/02 spec amended to describe alt-bank UX (saved-bank dropdown removed commit b613ca4), reset to Pending; POBAR-01/02/03 spec amended to gradient-inside-badge design (commit cd47790); EXPMOD-02 spec amended to PO ID column (commit 32a18f9); FINSUMCARD-03 traceability moved to Phase 76 (formula fix landed Phase 75, traceability flip pending Phase 76 verification). Phase 76 also owns VERIFICATION.md for 10 unverified phases and PAY65-01..05 formal traceability.*
 *Last updated: 2026-04-18 — Phase 75 closeout: POSUMPAG-01 spec amended to "≤15 rows per page" matching shipped value in finance.js:99 (status flipped to Complete); FINSUMCARD-04 traceability flipped to Complete (bullet text was already amended on prior pass — no further edit). FINSUMCARD-03 closeout owned by Plan 75-01 (formula fix in service-detail.js).*
 *Last updated: 2026-04-18 — `/gsd:plan-milestone-gaps` added Phase 75 gap closure: reset FINSUMCARD-03 (formula bug), FINSUMCARD-04 (spec amendment to always-render), POSUMPAG-01 (page size reconciliation); added TRCLEANUP-01 (procurement.js destroy lifecycle). Phase 70 rework (PRCANCEL-01..05) deferred to next milestone — see BACKLOG.md "Recall Process with Finance Approval".*
