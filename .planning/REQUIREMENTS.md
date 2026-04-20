@@ -264,8 +264,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRRFP-02 | Phase 67 | Complete |
 | TRRFP-03 | Phase 67 | Complete |
 | TRPROOFCOL-01 | Phase 66.1 | Complete |
-| RFPBANK-01 | Phase 65.6 → Phase 76 | Pending |
-| RFPBANK-02 | Phase 65.6 → Phase 76 | Pending |
+| RFPBANK-01 | Phase 65.6 → Phase 76 | Complete |
+| RFPBANK-02 | Phase 65.6 → Phase 76 | Complete |
 | POSUMPAG-01 | Phase 65.7 → Phase 75 | Complete |
 | POSUMPAG-02 | Phase 65.7 | Complete |
 | POSUMPAG-03 | Phase 65.7 | Complete |
