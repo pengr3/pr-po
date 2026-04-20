@@ -57,9 +57,9 @@
 
 ### PO Payment Progress Bar
 
-- [x] **POBAR-01**: MRF Records PO badges display clean status-badge coloring without fill overlay — a separate flush progress bar below each badge shows payment percentage
-- [x] **POBAR-02**: POs with no RFPs show an empty progress bar (0% fill) instead of a full red bar, correctly representing zero payment progress
-- [x] **POBAR-03**: PO badge font color is exclusively controlled by the status-badge CSS class with no overlay interference, ensuring readability
+- [x] **POBAR-01**: MRF Records PO badges use a gradient fill inside the badge chip itself to show payment progress percentage — `background: linear-gradient(to right, {color} {pct}%, ...)` — *spec amended in Phase 76: original separate flush bar below badge was replaced by gradient-inside-badge design (commit cd47790)*
+- [x] **POBAR-02**: POs with no RFPs show a fully-unsaturated/grey gradient (0% fill color) inside the badge chip, correctly representing zero payment progress — *spec amended in Phase 76*
+- [x] **POBAR-03**: PO badge text color is set by the status-badge CSS class; gradient fill does not override font color, ensuring readability at all payment percentages — *spec amended in Phase 76*
 
 ### PO Ref Clickability
 
@@ -87,8 +87,8 @@
 
 ### RFP Bank Transfer Saved Accounts
 
-- [x] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, a "Select Saved Bank Account" button appears that shows a dropdown of unique bank accounts derived from previously submitted RFPs
-- [x] **RFPBANK-02**: Selecting a saved bank account from the dropdown auto-fills the Bank Name, Account Name, and Account Number fields in both PO RFP and TR RFP modals
+- [ ] **RFPBANK-01**: When Bank Transfer is selected as payment mode in the RFP modal, an "Add Alternative Bank" button appears that lets the user manually enter a second bank account (Bank Name, Account Name, Account Number) — *spec amended in Phase 76: original saved-bank dropdown was removed (commit b613ca4); alt-bank manual entry is the shipped UX*
+- [ ] **RFPBANK-02**: The alternative bank entry fields in both PO RFP and TR RFP modals can be shown or hidden via the Alt Bank toggle button; removing alt bank clears all three fields — *spec amended in Phase 76: auto-fill from saved account removed with the selector*
 
 ### PO Payment Summary Pagination
 
@@ -99,7 +99,7 @@
 ### Expense Breakdown Modal Cleanup
 
 - [x] **EXPMOD-01**: Total Cost scoreboard card in expense breakdown modal displays only the total amount — no document count note (e.g., "N documents") shown below it
-- [x] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows Supplier instead of PO ID
+- [x] **EXPMOD-02**: Expense breakdown item tables show line item details (Item Name, Qty, Unit, Unit Cost, Subtotal) instead of PO ID as the first column; Delivery Fees table shows PO ID | Amount — *spec amended in Phase 76: Supplier column was reverted to PO ID (commit 32a18f9); supplier data is available at item.supplier if the column is ever needed*
 
 ### Payables Tab UI Containment
 
@@ -248,8 +248,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRRFP-02 | Phase 67 | Complete |
 | TRRFP-03 | Phase 67 | Complete |
 | TRPROOFCOL-01 | Phase 66.1 | Complete |
-| RFPBANK-01 | Phase 65.6 | Complete |
-| RFPBANK-02 | Phase 65.6 | Complete |
+| RFPBANK-01 | Phase 65.6 → Phase 76 | Pending |
+| RFPBANK-02 | Phase 65.6 → Phase 76 | Pending |
 | POSUMPAG-01 | Phase 65.7 → Phase 75 | Complete |
 | POSUMPAG-02 | Phase 65.7 | Complete |
 | POSUMPAG-03 | Phase 65.7 | Complete |
@@ -270,7 +270,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PRCANCEL-05 | Phase 70 | Complete |
 | FINSUMCARD-01 | Phase 72 | Complete |
 | FINSUMCARD-02 | Phase 72 | Complete |
-| FINSUMCARD-03 | Phase 72 → Phase 75 | Pending (formula fix) |
+| FINSUMCARD-03 | Phase 72 → Phase 75 → Phase 76 | Pending |
 | FINSUMCARD-04 | Phase 72 → Phase 75 | Complete |
 | FINSUMCARD-05 | Phase 72 | Complete |
 | FINSUMCARD-06 | Phase 72 | Complete |
@@ -318,10 +318,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 - v3.2 requirements: 97 total (96 original + TRCLEANUP-01 gap closure)
 - Mapped to phases: 97
 - Unmapped: 0
-- Pending re-verification: 3 (FINSUMCARD-03, FINSUMCARD-04, POSUMPAG-01) plus 1 new (TRCLEANUP-01) → all addressed in Phase 75
+- Pending Phase 76 closure: RFPBANK-01, RFPBANK-02 (spec amendment + re-verification), FINSUMCARD-03 (traceability flip to Complete)
 
 ---
 *Requirements defined: 2026-03-13*
+*Last updated: 2026-04-20 — Phase 76 setup: RFPBANK-01/02 spec amended to describe alt-bank UX (saved-bank dropdown removed commit b613ca4), reset to Pending; POBAR-01/02/03 spec amended to gradient-inside-badge design (commit cd47790); EXPMOD-02 spec amended to PO ID column (commit 32a18f9); FINSUMCARD-03 traceability moved to Phase 76 (formula fix landed Phase 75, traceability flip pending Phase 76 verification). Phase 76 also owns VERIFICATION.md for 10 unverified phases and PAY65-01..05 formal traceability.*
 *Last updated: 2026-04-18 — Phase 75 closeout: POSUMPAG-01 spec amended to "≤15 rows per page" matching shipped value in finance.js:99 (status flipped to Complete); FINSUMCARD-04 traceability flipped to Complete (bullet text was already amended on prior pass — no further edit). FINSUMCARD-03 closeout owned by Plan 75-01 (formula fix in service-detail.js).*
 *Last updated: 2026-04-18 — `/gsd:plan-milestone-gaps` added Phase 75 gap closure: reset FINSUMCARD-03 (formula bug), FINSUMCARD-04 (spec amendment to always-render), POSUMPAG-01 (page size reconciliation); added TRCLEANUP-01 (procurement.js destroy lifecycle). Phase 70 rework (PRCANCEL-01..05) deferred to next milestone — see BACKLOG.md "Recall Process with Finance Approval".*
 *Last updated: 2026-04-17 — Descoped PAYPAG-01/02/03 (user decision); added RFPFILTER-01, RFPCANCEL-01/02/03, PRCANCEL-01/02/03/04/05, EXPPAY-FIX-01/02/03, FINMOD-*, MRFNAV-01/02/03, MRFITEMS-01/02/03/04, MRFMYREQ-01/02/03/04; fixed PAYCON-01/02 checkboxes; updated 17 traceability rows from Planned to Complete*

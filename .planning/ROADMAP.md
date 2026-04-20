@@ -142,7 +142,7 @@
 - [x] Phase 62: Sort dropdowns, soft-reject, TR modal, Finance fix (4/4 plans) — completed 2026-03-09
 - [x] Phase 62.1: Add line item to rejected TRs (1/1 plan) — completed 2026-03-10
 - [x] Phase 62.2: MRF rejection timeline event (1/1 plan) — completed 2026-03-10
-- [ ] Phase 62.3: Client search bar + dropdown sort by code [inserted] (1/1 plan)
+- [x] Phase 62.3: Client search bar + dropdown sort by code [inserted] (1/1 plan)
 
 </details>
 
@@ -596,3 +596,24 @@ Plans:
 Plans:
 - [x] 75-01-PLAN.md — Code fixes: service-detail.js Remaining Payable formula (FINSUMCARD-03) + procurement.js destroy() TR-RFP cleanup (TRCLEANUP-01)
 - [x] 75-02-PLAN.md — Spec reconciliation: REQUIREMENTS.md POSUMPAG-01 (15 rows) + FINSUMCARD-04 traceability flip + finance.js inline rationale comment
+
+### Phase 76: v3.2 Final Audit Closure — Spec Amendments, Stale Doc Fixes & Verification Writeups (INSERTED)
+
+**Goal:** Close all remaining v3.2 audit gaps in one sweep: amend 3 stale specs (RFPBANK-01/02 alt-bank UX, POBAR-01/02/03 gradient badge, EXPMOD-02 PO ID column) to match shipped design; flip FINSUMCARD-03 traceability to Complete; add PAY65-01..05 and Phase 71 requirements to REQUIREMENTS.md; document Phase 68.1 as formally deferred; create VERIFICATION.md for all 10 phases that shipped without one (62.3, 65, 65.1, 65.2, 65.3, 65.10, 69.1, 70, 71, 75). Milestone can then pass `/gsd:audit-milestone` clean.
+**Requirements**: RFPBANK-01, RFPBANK-02, FINSUMCARD-03 (traceability flip), PAY65-01..05 (formal entry), Phase 71 requirements (new)
+**Depends on:** Phase 75
+**Success Criteria** (what must be TRUE):
+  1. RFPBANK-01/02 spec text describes the shipped alt-bank UX (showAltBank/removeAltBank), not the removed saved-bank dropdown; both `[x]` in REQUIREMENTS.md
+  2. POBAR-01/02/03 spec text describes gradient-fill-inside-badge design (commit cd47790), not a separate flush bar below the badge
+  3. EXPMOD-02 spec text reads "Delivery Fees table shows PO ID | Amount" matching current code (commit 32a18f9)
+  4. FINSUMCARD-03 traceability row Status reads "Complete" (formula fix was applied in Phase 75-01, service-detail.js:888)
+  5. PAY65-01..05 have formal entries in REQUIREMENTS.md (Finance Payables dual-table, dual-filter, status-priority sort)
+  6. Phase 71 (Financial Breakdown revamp) has requirements documented in REQUIREMENTS.md
+  7. Phase 68.1 ROADMAP entry notes "deferred to next milestone — scope via /gsd:discuss-phase 68.1" (replacing TBD)
+  8. VERIFICATION.md exists and passes for Phases 62.3, 65, 65.1, 65.2, 65.3, 65.10, 69.1, 70, 71, 75
+  9. Re-audit (`/gsd:audit-milestone`) returns `status: passed`
+
+**Plans:** 0/1 plans complete
+
+Plans:
+- [ ] 76-01-PLAN.md — All gap closure tasks: spec amendments, doc fixes, VERIFICATION.md writeups
