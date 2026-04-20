@@ -216,7 +216,7 @@ Plans:
   3. Clicking cancel confirms with the user, deletes the rfps document, and the tranche becomes available to re-file
   4. RFPs with any recorded non-voided payments do not show cancel option
   5. Firestore rules allow procurement role to delete rfps documents
-**Plans:** 2/0 plans complete
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 65.10-01-PLAN.md — Add isRFPCancellable guard, cancelRFPDocument, extend PO and TR context menus, update firestore.rules
