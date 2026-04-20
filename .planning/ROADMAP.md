@@ -216,7 +216,7 @@ Plans:
   3. Clicking cancel confirms with the user, deletes the rfps document, and the tranche becomes available to re-file
   4. RFPs with any recorded non-voided payments do not show cancel option
   5. Firestore rules allow procurement role to delete rfps documents
-**Plans:** 1/1 plans complete
+**Plans:** 2/0 plans complete
 
 Plans:
 - [x] 65.10-01-PLAN.md — Add isRFPCancellable guard, cancelRFPDocument, extend PO and TR context menus, update firestore.rules
@@ -444,10 +444,10 @@ Plans:
 **Goal:** [Urgent work - to be planned]
 **Requirements**: TBD
 **Depends on:** Phase 68
-**Plans:** 0 plans
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 68.1 to break down)
+- [x] TBD (run /gsd:plan-phase 68.1 to break down) (completed 2026-04-20)
 
 ### Phase 69: Revise expense-modal scoreboards to add remaining payable tracking
 
@@ -468,7 +468,7 @@ Plans:
   1. Remaining Payable equals totalCost minus totalPaid (non-voided), not RFP totalRequested minus totalPaid
   2. Voided payment records are excluded from the totalPaid sum
   3. Projects/services with POs but zero RFPs show the Remaining Payable card (equal to totalCost) rather than hiding it
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 69.1-01-PLAN.md — Fix remainingPayable formula: use totalCost - totalPaid; exclude voided payments; show card when POs exist but zero RFPs
@@ -484,7 +484,7 @@ Plans:
   3. If any linked PRs are Finance-Approved with POs at Pending Procurement, a force-recall path voids POs to Cancelled and deletes all PRs
   4. If any linked POs have procurement progress (Procuring/Procured/Delivered), cancellation is blocked with an error message
   5. The MRF Processing panel is NOT modified — PR Generated MRFs do NOT appear in the left panel
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 70-01-PLAN.md — Add MRF ID right-click context menu with Cancel PRs flow (simple cancel, force-recall, block)
