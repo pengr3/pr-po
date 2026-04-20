@@ -616,13 +616,13 @@ function buildUnitSelect(selectedVal) {
     const opts = UNIT_OPTIONS.map(u =>
         `<option value="${u}"${selectedVal === u ? ' selected' : ''}>${u}</option>`
     ).join('');
-    return `<select class="edit-item-unit" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
-        <option value="">Unit</option>
+    return `<select class="edit-item-unit" style="width:100%;padding:0.625rem 0.75rem;min-height:44px;font-size:0.95rem;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;background:#ffffff;">
+        <option value="">Select Unit</option>
         ${opts}
         <option value="others"${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? ' selected' : ''}>Others (specify)</option>
     </select>
     <input type="text" class="edit-item-unit-custom" placeholder="Specify unit"
-        style="display:${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? 'block' : 'none'};width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;margin-top:0.3rem;"
+        style="display:${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? 'block' : 'none'};width:100%;padding:0.625rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.95rem;box-sizing:border-box;margin-top:0.5rem;"
         value="${selectedVal && !UNIT_OPTIONS.includes(selectedVal) ? selectedVal.replace(/"/g, '&quot;') : ''}">`;
 }
 
@@ -633,8 +633,8 @@ function buildCategorySelect(selectedVal) {
     const opts = CATEGORY_OPTIONS.map(c =>
         `<option value="${c}"${selectedVal === c ? ' selected' : ''}>${c}</option>`
     ).join('');
-    return `<select class="edit-item-category" style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
-        <option value="">Category</option>
+    return `<select class="edit-item-category" style="width:100%;padding:0.625rem 0.75rem;min-height:44px;font-size:0.95rem;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;background:#ffffff;">
+        <option value="">Select Category</option>
         ${opts}
     </select>`;
 }
@@ -647,24 +647,33 @@ function buildEditItemRow(item) {
     const qtyVal = item.qty || item.quantity || '';
     const unitVal = item.unit || '';
     const catVal = item.category || '';
-    return `<tr>
-        <td style="padding:0.4rem;">
-            <input type="text" class="edit-item-name" value="${nameVal}"
-                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
-        </td>
-        <td style="padding:0.4rem;">
-            <input type="number" class="edit-item-qty" value="${qtyVal}" min="0.01" step="any"
-                style="width:100%;padding:0.3rem 0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:1rem;">
-        </td>
-        <td style="padding:0.4rem;">${buildUnitSelect(unitVal)}</td>
-        <td style="padding:0.4rem;">${buildCategorySelect(catVal)}</td>
-        <td style="padding:0.4rem;text-align:center;">
-            <button type="button" onclick="this.closest('tr').remove()"
-                style="background:#ef4444;color:white;border:none;border-radius:4px;padding:0.25rem 0.5rem;cursor:pointer;font-size:0.75rem;">
-                Remove
-            </button>
-        </td>
-    </tr>`;
+    const fieldStyle = 'display:flex;flex-direction:column;gap:0.25rem;';
+    const labelStyle = 'font-size:0.75rem;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.03em;';
+    const inputStyle = 'width:100%;padding:0.625rem 0.75rem;min-height:44px;font-size:0.95rem;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;background:#ffffff;';
+    return `<div class="edit-item-card" style="position:relative;border:1px solid #e2e8f0;border-radius:8px;background:#ffffff;padding:1rem;display:flex;flex-direction:column;gap:0.75rem;">
+        <button type="button" onclick="this.closest('.edit-item-card').remove()"
+            style="position:absolute;top:0.5rem;right:0.5rem;width:28px;height:28px;min-height:28px;padding:0;border:none;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:1rem;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            &times;
+        </button>
+        <div style="${fieldStyle}">
+            <label style="${labelStyle}">Item Description</label>
+            <input type="text" class="edit-item-name" value="${nameVal}" style="${inputStyle}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:0.75rem;">
+            <div style="${fieldStyle}">
+                <label style="${labelStyle}">Qty</label>
+                <input type="number" class="edit-item-qty" value="${qtyVal}" min="0.01" step="any" style="${inputStyle}">
+            </div>
+            <div style="${fieldStyle}">
+                <label style="${labelStyle}">Unit</label>
+                ${buildUnitSelect(unitVal)}
+            </div>
+        </div>
+        <div style="${fieldStyle}">
+            <label style="${labelStyle}">Category</label>
+            ${buildCategorySelect(catVal)}
+        </div>
+    </div>`;
 }
 
 /**
@@ -707,21 +716,6 @@ async function editRequestorMRF(mrfDocId) {
     overlay.id = 'requestorEditMRFModal';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;z-index:10000;overflow-y:auto;padding:2rem 1rem;';
     overlay.innerHTML = `
-        <style>
-        @media (max-width: 640px) {
-            #editMRFItemsTable thead { display: none; }
-            #editMRFItemsTable tbody tr {
-                display: flex; flex-direction: column; gap: 0.5rem;
-                padding: 0.75rem; margin-bottom: 0.75rem;
-                border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;
-            }
-            #editMRFItemsTable td { display: block; padding: 0; }
-            #editMRFItemsTable td input,
-            #editMRFItemsTable td select { min-height: 44px; font-size: 1rem !important; }
-            #editMRFItemsTable td:last-child { text-align: right; }
-            #editMRFItemsTable td:last-child button { width: 100%; padding: 0.5rem; min-height: 44px; font-size: 0.9rem; }
-        }
-        </style>
         <div style="background:white;border-radius:10px;max-width:900px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
             <div style="padding:1.25rem 1.5rem;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
                 <h3 style="margin:0;color:#1e293b;font-size:1.1rem;">Edit MRF &mdash; ${mrfData.mrf_id}</h3>
@@ -782,21 +776,8 @@ async function editRequestorMRF(mrfDocId) {
                         + Add Item
                     </button>
                 </div>
-                <div style="overflow-x:auto;">
-                    <table id="editMRFItemsTable" style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                        <thead>
-                            <tr style="background:#f8f9fa;">
-                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;">Item Description</th>
-                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;width:80px;">Qty</th>
-                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;width:140px;">Unit</th>
-                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;text-align:left;font-size:0.75rem;width:180px;">Category</th>
-                                <th style="padding:0.4rem 0.5rem;border-bottom:2px solid #e5e7eb;width:60px;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="editMRFItemsBody">
-                            ${initialRows}
-                        </tbody>
-                    </table>
+                <div id="editMRFItemsBody" style="display:flex;flex-direction:column;gap:0.75rem;">
+                    ${initialRows}
                 </div>
             </div>
 
@@ -821,7 +802,7 @@ async function editRequestorMRF(mrfDocId) {
     // Unit "others" toggle handler
     overlay.addEventListener('change', (e) => {
         if (e.target.classList.contains('edit-item-unit')) {
-            const customInput = e.target.closest('td').querySelector('.edit-item-unit-custom');
+            const customInput = e.target.parentElement.querySelector('.edit-item-unit-custom');
             if (customInput) {
                 customInput.style.display = e.target.value === 'others' ? 'block' : 'none';
                 if (e.target.value !== 'others') customInput.value = '';
@@ -829,13 +810,12 @@ async function editRequestorMRF(mrfDocId) {
         }
     });
 
-    // Add item row
+    // Add item card
     overlay.querySelector('#editMRFAddItemBtn').addEventListener('click', () => {
-        const tbody = overlay.querySelector('#editMRFItemsBody');
-        // Use a <tbody> as the temp container — browsers strip <tr> when injected into a <div>
-        const tempTbody = document.createElement('tbody');
-        tempTbody.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' });
-        tbody.appendChild(tempTbody.firstElementChild);
+        const container = overlay.querySelector('#editMRFItemsBody');
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = buildEditItemRow({ item: '', qty: '', unit: '', category: '' });
+        container.appendChild(wrapper.firstElementChild);
     });
 
     // Save handler
@@ -849,8 +829,8 @@ async function editRequestorMRF(mrfDocId) {
         if (!requestorName) { alert('Requestor name is required'); return; }
         if (!dateNeeded) { alert('Date needed is required'); return; }
 
-        // Collect items from table
-        const itemRows = overlay.querySelectorAll('#editMRFItemsBody tr');
+        // Collect items from cards
+        const itemRows = overlay.querySelectorAll('#editMRFItemsBody .edit-item-card');
         const newItems = [];
         for (const row of itemRows) {
             const name = row.querySelector('.edit-item-name')?.value.trim() || '';

@@ -20,3 +20,19 @@ Resolved debug sessions. Used by `gsd-debugger` to surface known-pattern hypothe
 - **Files changed:** app/views/procurement.js
 ---
 
+## edit-mrf-modal-add-item-missing-cols — Add Item in Edit MRF modal silently inserts no row
+- **Date:** 2026-04-08
+- **Error patterns:** add item, edit MRF, modal, missing columns, qty, unit, category, remove button, tr, div, innerHTML, firstElementChild, tbody, foster parenting
+- **Root cause:** The Add Item click handler used `document.createElement('div')` as a temporary container to parse the `<tr>` HTML string. Browsers apply foster-parenting rules and strip `<tr>` when injected into a `<div>` via innerHTML, leaving `tempDiv.firstElementChild` as null. The subsequent `tbody.appendChild(null)` was a silent no-op — no row was ever added.
+- **Fix:** Changed the temp container from `document.createElement('div')` to `document.createElement('tbody')`. A `<tbody>` is a valid parent for `<tr>`, so innerHTML parsing correctly produces a `<tr>` as firstElementChild that can be appended.
+- **Files changed:** app/views/mrf-form.js
+---
+
+## 73-3-pr-modal-supplier-missing-from-card — Supplier field missing from PR Details modal header card
+- **Date:** 2026-04-15
+- **Error patterns:** supplier, PR Details, modal, modal-details-grid, header card, missing field, visual omission, items table, column removed
+- **Root cause:** The modal-details-grid in viewPRDetails() was never updated after Phase 73.3 removed Supplier from the items table — no Supplier detail-item was added to the header card, leaving supplier invisible in the modal.
+- **Fix:** Added a modal-detail-item for Supplier (using pr.supplier_name with escapeHTML fallback to 'N/A') after the Total Amount entry in the modal-details-grid block inside viewPRDetails().
+- **Files changed:** app/views/finance.js
+---
+
