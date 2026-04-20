@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Phase complete — ready for verification
-stopped_at: Completed 75-02-PLAN.md
-last_updated: "2026-04-18T12:25:57.991Z"
-last_activity: 2026-04-18
+status: Ready to execute
+stopped_at: Completed 74-03-PLAN.md
+last_updated: "2026-04-20T02:40:49.973Z"
+last_activity: 2026-04-20
 progress:
   total_phases: 28
-  completed_phases: 19
-  total_plans: 30
-  completed_plans: 42
+  completed_phases: 24
+  total_plans: 42
+  completed_plans: 45
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 75 — v3.2-gap-closure-code-fixes-spec-reconciliation-and-cleanup
+**Current focus:** Phase 74 — optimize-material-request-tab-for-mobile-use-improve-items-table-layout-and-form-ux-for-small-screens
 
 ## Current Position
 
-Phase: 75 (v3.2-gap-closure-code-fixes-spec-reconciliation-and-cleanup) — EXECUTING
-Plan: 2 of 2
+Phase: 74 (optimize-material-request-tab-for-mobile-use-improve-items-table-layout-and-form-ux-for-small-screens) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -88,6 +88,7 @@ Plan: 2 of 2
 | Phase 73.3-improve-finance-tab-navigation-bar-and-remove-redundant-supplier-column-from-pr-modal P01 | 20 | 2 tasks | 2 files |
 | Phase 75 P01 | 2 | 2 tasks | 2 files |
 | Phase 75 P02 | 2 | 3 tasks | 2 files |
+| Phase 74-optimize-material-request-tab-for-mobile-use P03 | multi-session | 4 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,8 @@ Recent decisions affecting current work:
 - [Phase 75]: [Phase 75-01]: prTotal/prCount fields preserved on currentServiceExpense literal for backward compatibility — bug was only in formula, not in field exposure
 - [Phase 75]: [Phase 75-02]: Spec amended (10 to 15) over reverting code — accepts user's drifted-upward usage pattern as preferred for POSUMPAG-01
 - [Phase 75]: [Phase 75-02]: hasRfps state field intentionally retained in project-detail.js + service-detail.js — only render-side wrapper removed by Phase 72.1; field still populated for backwards-compat with downstream readers (FINSUMCARD-04 verification)
+- [Phase 74-03]: mapMRFToDisplayData declared inside createMRFRecordsController scope (closes over _subDataCache); single-pass Promise.all returns {rowHtml, cardHtml} pairs — REVIEWS [MEDIUM] fix; scroll-close handler on window._mrfMobileMenuScrollHandler — REVIEWS [LOW] fix
+- [Phase 74-03]: 3-dot dropdown reuses window._myRequestsEditMRF / window._myRequestsCancelMRF — no new Edit/Cancel logic; closeMyRequestsMobileMenu centralized as window function for shared teardown
 
 ### Roadmap Evolution
 
@@ -225,8 +228,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-04-18
-Last session: 2026-04-18T12:25:57.984Z
-Stopped at: Completed 75-02-PLAN.md
+Last activity: 2026-04-20
+Last session: 2026-04-20T02:40:49.965Z
+Stopped at: Completed 74-03-PLAN.md
 Resume file: None
 Next action: Run `/gsd:plan-phase 63` to plan Supplier Search

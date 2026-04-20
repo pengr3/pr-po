@@ -567,12 +567,12 @@ Plans:
 **Goal:** Mobile-optimize the Material Request view at <=768px via CSS dual-mode: (1) replace the items table with a card-per-item layout (Description / Qty+Unit / Category stacked, [x] remove top-right, full-width Add button); (2) replace the My Requests 8-column table with MRF summary cards (MRF ID header, Status badge, Date Needed, 3-dot action menu for Edit/Cancel); (3) replace the .tab-btn sub-tab nav with a unified sticky .mrf-sub-nav pill bar with scroll-hide/show behavior. Desktop (>=769px) behavior is fully preserved — all changes CSS media-query gated.
 **Requirements**: MRFNAV-01, MRFNAV-02, MRFNAV-03, MRFITEMS-01, MRFITEMS-02, MRFITEMS-03, MRFITEMS-04, MRFMYREQ-01, MRFMYREQ-02, MRFMYREQ-03, MRFMYREQ-04
 **Depends on:** Phase 73
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 74-01-PLAN.md — Replace .tab-btn sub-tab nav with sticky .mrf-sub-nav pill bar + scroll-hide/show behavior (Wave 1)
-- [ ] 74-02-PLAN.md — Items table -> card-per-item mobile layout with paired card/table DOM sync (Wave 2)
-- [ ] 74-03-PLAN.md — My Requests table -> MRF summary cards with 3-dot action menu (Wave 3)
+- [x] 74-01-PLAN.md — Replace .tab-btn sub-tab nav with sticky .mrf-sub-nav pill bar + scroll-hide/show behavior (Wave 1)
+- [x] 74-02-PLAN.md — Items table -> card-per-item mobile layout with paired card/table DOM sync (Wave 2)
+- [x] 74-03-PLAN.md — My Requests table -> MRF summary cards with 3-dot action menu (Wave 3)
 
 ### Phase 75: v3.2 Gap Closure — Code Bug Fix, Spec Reconciliation, Cleanup (INSERTED)
 
