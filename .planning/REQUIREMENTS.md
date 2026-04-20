@@ -178,10 +178,10 @@
 - [x] **MRFITEMS-02**: Item cards and the underlying table rows remain in sync — adding/removing a card also updates the table data used for form submission
 - [x] **MRFITEMS-03**: A full-width "Add Item" button renders below the card stack on mobile (<=768px)
 - [x] **MRFITEMS-04**: Desktop items table (>=769px) is unchanged — card layout is CSS-media-query gated only
-- [x] **MRFMYREQ-01**: At viewport <=640px, the My Requests 8-column table is replaced with a vertical stack of MRF summary cards, each showing MRF ID as header and Status badge
+- [x] **MRFMYREQ-01**: At viewport <=768px, the My Requests 8-column table is replaced with a vertical stack of MRF summary cards, each showing MRF ID as header and Status badge
 - [x] **MRFMYREQ-02**: MRF summary cards show Date Needed and other key fields at a glance
 - [x] **MRFMYREQ-03**: MRF summary cards have a 3-dot action menu for Edit and Cancel actions
-- [x] **MRFMYREQ-04**: Desktop My Requests table (>=640px) is unchanged — card layout is CSS-media-query gated only
+- [x] **MRFMYREQ-04**: Desktop My Requests table (>=769px) is unchanged — card layout is CSS-media-query gated only
 
 ### Procurement View Lifecycle Cleanup (Phase 75 — gap closure)
 
