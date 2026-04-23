@@ -85,16 +85,15 @@
 
 /* Quick Stats */
 .quick-stats {
-    display: flex;
-    justify-content: center;
-    gap: 3rem;
-    flex-wrap: wrap;
-    max-width: 1200px;   /* was 900px — widened for both-mode 5-stat layout */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    max-width: 1200px;
     width: 100%;
-    padding: 2rem;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 .stat-item {
@@ -192,6 +191,97 @@
 }
 
 /* ========================================
+   HOME STATS CARDS (Phase 77) — .hs-* namespace
+   Per D-04: match .nav-card white/shadow style; per D-01/D-02/D-03 content structure.
+   ======================================== */
+
+.hs-stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    cursor: default;
+    border: 2px solid transparent;
+}
+
+.hs-stat-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin-bottom: 1rem;
+    line-height: 1.2;
+}
+
+.hs-section-group {
+    margin-bottom: 1rem;
+}
+
+.hs-section-group:last-child {
+    margin-bottom: 0;
+}
+
+.hs-section-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.hs-type-section {
+    margin-bottom: 0;
+}
+
+.hs-type-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-600);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.hs-divider {
+    border: none;
+    border-top: 1px solid var(--gray-100);
+    margin: 1rem 0;
+}
+
+.hs-status-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.hs-status-label {
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--gray-700);
+    line-height: 1.5;
+}
+
+.hs-status-count {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    line-height: 1.5;
+}
+
+.hs-procurement-stats {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ========================================
    RESPONSIVE - HERO PAGE
    ======================================== */
 
@@ -251,9 +341,9 @@
     }
 
     .quick-stats {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         gap: 1.5rem;
-        padding: 1.5rem;
+        padding: 0;
     }
 
     .stat-item {
