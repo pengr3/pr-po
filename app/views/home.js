@@ -68,13 +68,13 @@ function buildStatusBreakdownContainer(containerId, countsMap, rowCount) {
         const rows = Object.entries(countsMap).map(([status, count]) =>
             `<div class="hs-status-row"><span class="hs-status-label">${status}</span><span class="hs-status-count">${count}</span></div>`
         ).join('');
-        return `<div id="${containerId}">${rows}</div>`;
+        return `<div id="${containerId}" class="hs-status-grid">${rows}</div>`;
     }
     // No cached data — skeleton rows
     const skeletons = Array(rowCount).fill(
         `<span class="skeleton skeleton-stat" style="width:100%;height:16px;margin-bottom:4px;display:block;"></span>`
     ).join('');
-    return `<div id="${containerId}">${skeletons}</div>`;
+    return `<div id="${containerId}" class="hs-status-grid">${skeletons}</div>`;
 }
 
 /**
