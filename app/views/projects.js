@@ -113,9 +113,9 @@ export function render(activeTab = null) {
                     <h3 id="formTitle" style="margin-bottom: 1rem;">Add New Project</h3>
 
                     <div class="form-group">
-                        <label>Client *</label>
-                        <select id="projectClient" required>
-                            <option value="">-- Select Client --</option>
+                        <label>Client <span style="color:#64748b;font-size:0.85em;">(optional — assign later to issue project code)</span></label>
+                        <select id="projectClient">
+                            <option value="">-- Select Client (optional) --</option>
                         </select>
                     </div>
 
