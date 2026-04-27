@@ -650,7 +650,7 @@ Plans:
   4. Assigning a client to a clientless project triggers a confirmation modal showing the about-to-be-generated code and the count of linked procurement records; confirming runs a batched write of `project_code` and `client_code` to all linked MRFs / PRs / POs / TRs / RFPs
   5. After code issuance, `client_id`, `client_code`, and `project_code` are locked on the project (no re-assignment)
   6. Deep links to clientless projects resolve using Firestore doc ID (`#/projects/detail/{doc_id}`) and continue to work after code issuance
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 78-01-PLAN.md — Relax addProject() and firestore.rules to allow clientless project creation
