@@ -1321,6 +1321,7 @@ async function submitRFP(poDocId) {
             po_doc_id: poDocId,
             mrf_id: po.mrf_id || '',
             project_code: po.project_code || '',
+            project_id: po.project_id || '',  // Phase 78 D-04: propagate project doc ID
             project_name: po.project_name || '',
             service_code: po.service_code || '',
             service_name: po.service_name || '',
@@ -1417,6 +1418,7 @@ async function submitTRRFP(trDocId) {
             po_doc_id: '',
             mrf_id: tr.mrf_id || '',
             project_code: tr.project_code || '',
+            project_id: tr.project_id || '',  // Phase 78 D-04: propagate project doc ID
             project_name: tr.project_name || '',
             service_code: tr.service_code || '',
             service_name: tr.service_name || '',
@@ -1494,6 +1496,7 @@ async function submitDeliveryFeeRFP(poDocId) {
             po_doc_id: poDocId,
             mrf_id: po.mrf_id || '',
             project_code: po.project_code || '',
+            project_id: po.project_id || '',  // Phase 78 D-04: propagate project doc ID
             project_name: po.project_name || '',
             service_code: po.service_code || '',
             service_name: po.service_name || '',
@@ -2995,10 +2998,12 @@ function renderMRFDetails(mrf, isNew = false) {
     const requestTypeLabel = mrf.request_type === 'service' ?
         'Delivery/Hauling/Transportation' : 'Material Request';
 
-    // Build project options for unified dropdown
-    const projectOptions = projectsData.map(p =>
-        `<option value="${escapeHTML(p.project_code)}" data-type="project" data-name="${escapeHTML(p.project_name)}">${p.project_code ? escapeHTML(p.project_code) + ' - ' : ''}${escapeHTML(p.project_name)}</option>`
-    ).join('');
+    // Phase 78 D-02/D-04: clientless projects use Firestore doc ID as option value and show "(No code yet)" label
+    const projectOptions = projectsData.map(p => {
+        const isClientless = !p.project_code;
+        const optValue = isClientless ? p.id : p.project_code;
+        return `<option value="${escapeHTML(optValue)}" data-type="project" data-name="${escapeHTML(p.project_name)}" data-project-doc-id="${escapeHTML(p.id)}" data-clientless="${isClientless ? 'true' : 'false'}">${isClientless ? escapeHTML(p.project_name) + ' (No code yet)' : escapeHTML(p.project_code) + ' - ' + escapeHTML(p.project_name)}</option>`;
+    }).join('');
 
     // Build service options for unified dropdown
     const serviceOptions = cachedServicesForNewMRF.map(s =>
@@ -3527,6 +3532,9 @@ async function saveNewMRF() {
     const selectedType = selectedOption?.dataset?.type || '';
     const selectedCode = selectEl?.value?.trim() || '';
     const selectedName = selectedOption?.dataset?.name || '';
+    // Phase 78 D-04: clientless projects use Firestore doc ID as option value, not project_code
+    const selectedProjectDocId = selectedOption?.dataset?.projectDocId || '';
+    const isClientlessProject = selectedOption?.dataset?.clientless === 'true';
 
     const hasProject = selectedType === 'project' && !!selectedCode;
     const hasService = selectedType === 'service' && !!selectedCode;
@@ -3543,7 +3551,10 @@ async function saveNewMRF() {
     // Find the selected project to get both code and name (only needed when project selected)
     let selectedProject = null;
     if (hasProject) {
-        selectedProject = projectsData.find(p => p.project_code === selectedCode);
+        // Phase 78 D-04: for clientless projects, look up by doc ID; for coded projects, look up by project_code
+        selectedProject = isClientlessProject
+            ? projectsData.find(p => p.id === selectedProjectDocId)
+            : projectsData.find(p => p.project_code === selectedCode);
         if (!selectedProject) {
             showToast('Selected project not found', 'error');
             return;
@@ -3641,8 +3652,11 @@ async function saveNewMRF() {
             request_type: requestType,
             urgency_level: urgencyLevel,
             department: department,
-            project_code: hasProject ? selectedProject.project_code : '',
+            // Phase 78 D-04: project_code is empty string for clientless projects (backfilled when client is assigned)
+            project_code: hasProject ? (selectedProject.project_code || '') : '',
             project_name: hasProject ? selectedProject.project_name : '',
+            // Phase 78 D-04: project_id is the stable Firestore doc ID — used by issuance backfill to find linked MRFs
+            project_id: hasProject ? selectedProject.id : '',
             service_code: hasService ? serviceCode : '',
             service_name: hasService ? serviceName : '',
             requestor_name: requestorName,
@@ -5528,6 +5542,7 @@ async function submitTransportRequest() {
             mrf_id: mrfData.mrf_id,
             mrf_doc_id: mrfData.id,
             project_code: mrfData.project_code || '',
+            project_id: mrfData.project_id || '',  // Phase 78 D-04: propagate project doc ID for backfill
             project_name: mrfData.project_name,
             service_code: mrfData.service_code || '',
             service_name: mrfData.service_name || '',
@@ -5791,6 +5806,7 @@ async function generatePR() {
                     mrf_doc_id: mrfData.id,
                     supplier_name: supplier,
                     project_code: mrfData.project_code || '',
+                    project_id: mrfData.project_id || '',  // Phase 78 D-04: propagate project doc ID for backfill
                     project_name: mrfData.project_name,
                     service_code: mrfData.service_code || '',
                     service_name: mrfData.service_name || '',
@@ -6077,6 +6093,7 @@ async function generatePRandTR() {
                     mrf_doc_id: mrfData.id,
                     supplier_name: supplier,
                     project_code: mrfData.project_code || '',
+                    project_id: mrfData.project_id || '',  // Phase 78 D-04: propagate project doc ID for backfill
                     project_name: mrfData.project_name,
                     service_code: mrfData.service_code || '',
                     service_name: mrfData.service_name || '',
@@ -6140,6 +6157,7 @@ async function generatePRandTR() {
             mrf_id: mrfData.mrf_id,
             mrf_doc_id: mrfData.id,
             project_code: mrfData.project_code || '',
+            project_id: mrfData.project_id || '',  // Phase 78 D-04: propagate project doc ID for backfill
             project_name: mrfData.project_name,
             service_code: mrfData.service_code || '',
             service_name: mrfData.service_name || '',
