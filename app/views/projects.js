@@ -25,17 +25,13 @@ let sortColumn = 'created_at';  // Default sort column
 let sortDirection = 'desc';     // Most recent first (PROJ-15)
 
 // Status options
-const INTERNAL_STATUS_OPTIONS = [
+const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
-    'For Internal Approval',
-    'Ready to Submit'
-];
-
-const PROJECT_STATUS_OPTIONS = [
-    'Pending Client Review',
-    'Under Client Review',
-    'Approved by Client',
+    'Proposal for Internal Approval',
+    'Proposal Under Client Review',
+    'For Revision',
+    'Client Approved',
     'For Mobilization',
     'On-going',
     'Completed',
@@ -130,22 +126,10 @@ export function render(activeTab = null) {
                     </div>
 
                     <div class="form-group">
-                        <label>Internal Status *</label>
-                        <select id="internalStatus" required>
-                            <option value="">-- Select Internal Status --</option>
-                            ${INTERNAL_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Project Status *</label>
+                        <label>Status *</label>
                         <select id="projectStatus" required>
-                            <option value="">-- Select Project Status --</option>
-                            ${PROJECT_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
+                            <option value="">-- Select Status --</option>
+                            ${UNIFIED_STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('')}
                         </select>
                     </div>
 
@@ -186,22 +170,10 @@ export function render(activeTab = null) {
                 <!-- Filter Bar -->
                 <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
                     <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Internal Status</label>
-                        <select id="internalStatusFilter" onchange="window.applyFilters()" style="width: 100%;">
-                            <option value="">All Internal Statuses</option>
-                            ${INTERNAL_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-
-                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Project Status</label>
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Status</label>
                         <select id="projectStatusFilter" onchange="window.applyFilters()" style="width: 100%;">
-                            <option value="">All Project Statuses</option>
-                            ${PROJECT_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
+                            <option value="">All Statuses</option>
+                            ${UNIFIED_STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('')}
                         </select>
                     </div>
 
@@ -236,11 +208,8 @@ export function render(activeTab = null) {
                             <th onclick="window.sortProjects('client_code')" style="cursor: pointer; user-select: none;">
                                 Client <span class="sort-indicator" data-col="client_code"></span>
                             </th>
-                            <th onclick="window.sortProjects('internal_status')" style="cursor: pointer; user-select: none;">
-                                Internal Status <span class="sort-indicator" data-col="internal_status"></span>
-                            </th>
                             <th onclick="window.sortProjects('project_status')" style="cursor: pointer; user-select: none;">
-                                Project Status <span class="sort-indicator" data-col="project_status"></span>
+                                Status <span class="sort-indicator" data-col="project_status"></span>
                             </th>
                             <th onclick="window.sortProjects('active')" style="cursor: pointer; user-select: none;">
                                 Active <span class="sort-indicator" data-col="active"></span>
@@ -249,7 +218,7 @@ export function render(activeTab = null) {
                         </tr>
                     </thead>
                     <tbody id="projectsTableBody">
-                        ${skeletonTableRows(7, 5)}
+                        ${skeletonTableRows(6, 5)}
                     </tbody>
                 </table>
                 </div>
@@ -306,7 +275,7 @@ function exportProjectsCSV() {
         showToast('No projects to export', 'info');
         return;
     }
-    const headers = ['Code', 'Name', 'Client', 'Internal Status', 'Project Status', 'Active'];
+    const headers = ['Code', 'Name', 'Client', 'Status', 'Active'];
     const rows = filteredProjects.map(project => {
         const client = clientsData.find(c => c.id === project.client_id);
         const clientName = client ? client.company_name : (project.client_code || '');
@@ -314,7 +283,6 @@ function exportProjectsCSV() {
             project.project_code || '',
             project.project_name || '',
             clientName,
-            project.internal_status || '',
             project.project_status || '',
             project.active ? 'Yes' : 'No'
         ];
@@ -588,7 +556,6 @@ function toggleAddProjectForm() {
         document.getElementById('projectClient').value = '';
         document.getElementById('projectName').value = '';
         document.getElementById('projectLocation').value = '';
-        document.getElementById('internalStatus').value = '';
         document.getElementById('projectStatus').value = '';
         document.getElementById('projectBudget').value = '';
         document.getElementById('contractCost').value = '';
@@ -625,14 +592,13 @@ async function addProject() {
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
     const project_name = document.getElementById('projectName').value.trim();
     const location = document.getElementById('projectLocation').value.trim();
-    const internal_status = document.getElementById('internalStatus').value;
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
 
     // Validate required fields
     // Phase 78 D-01/D-03: client is now optional (clientless projects allowed for lead-stage TR support)
-    if (!project_name || !internal_status || !project_status) {
+    if (!project_name || !project_status) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
@@ -658,12 +624,7 @@ async function addProject() {
     }
 
     // Validate status values
-    if (!INTERNAL_STATUS_OPTIONS.includes(internal_status)) {
-        showToast('Invalid internal status', 'error');
-        return;
-    }
-
-    if (!PROJECT_STATUS_OPTIONS.includes(project_status)) {
+    if (!UNIFIED_STATUS_OPTIONS.includes(project_status)) {
         showToast('Invalid project status', 'error');
         return;
     }
@@ -680,7 +641,6 @@ async function addProject() {
             project_name,
             client_id: clientId || null,
             client_code: clientCode || null,
-            internal_status,
             project_status,
             budget,
             contract_cost,
@@ -699,7 +659,6 @@ async function addProject() {
             { field: 'project_name', old_value: null, new_value: project_name },
             { field: 'client', old_value: null, new_value: clientCode || null },
             ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
-            { field: 'internal_status', old_value: null, new_value: internal_status },
             { field: 'project_status', old_value: null, new_value: project_status },
             ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
             ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
@@ -727,7 +686,6 @@ async function addProject() {
 // Apply filters
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const internalStatusFilter = document.getElementById('internalStatusFilter')?.value || '';
     const projectStatusFilter = document.getElementById('projectStatusFilter')?.value || '';
     const clientFilter = document.getElementById('clientFilter')?.value || '';
 
@@ -751,9 +709,7 @@ function applyFilters() {
             (project.project_code && project.project_code.toLowerCase().includes(searchTerm)) ||
             (project.project_name && project.project_name.toLowerCase().includes(searchTerm));
 
-        // Status filters (exact match)
-        const matchesInternalStatus = !internalStatusFilter ||
-            project.internal_status === internalStatusFilter;
+        // Status filter (exact match)
         const matchesProjectStatus = !projectStatusFilter ||
             project.project_status === projectStatusFilter;
 
@@ -762,8 +718,7 @@ function applyFilters() {
             project.client_id === clientFilter;
 
         // AND logic - all conditions must be true
-        return matchesSearch && matchesInternalStatus &&
-               matchesProjectStatus && matchesClient;
+        return matchesSearch && matchesProjectStatus && matchesClient;
     });
 
     // Reset pagination when filters change
@@ -773,6 +728,32 @@ function applyFilters() {
     sortFilteredProjects();
 
     renderProjectsTable();
+}
+
+// Rebuild status filter dropdown — injects legacy values not in UNIFIED_STATUS_OPTIONS
+// under an "Other (legacy)" optgroup so users can filter to find and update them.
+function rebuildStatusFilterOptions() {
+    const select = document.getElementById('projectStatusFilter');
+    if (!select) return;
+    const previousValue = select.value;
+    const legacyValues = new Set();
+    for (const project of allProjects) {
+        const v = project.project_status;
+        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
+            legacyValues.add(v);
+        }
+    }
+    const unifiedHtml = UNIFIED_STATUS_OPTIONS
+        .map(s => `<option value="${s}">${s}</option>`)
+        .join('');
+    const legacyHtml = legacyValues.size > 0
+        ? `<optgroup label="Other (legacy)">${[...legacyValues].sort().map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)} (legacy)</option>`).join('')}</optgroup>`
+        : '';
+    select.innerHTML = `<option value="">All Statuses</option>${unifiedHtml}${legacyHtml}`;
+    // Restore previous selection if it still exists (either unified or legacy)
+    if (previousValue && [...select.options].some(o => o.value === previousValue)) {
+        select.value = previousValue;
+    }
 }
 
 // Sort filtered projects
@@ -869,11 +850,12 @@ async function loadProjects() {
 
 // Render projects table
 function renderProjectsTable() {
+    rebuildStatusFilterOptions();
     const tbody = document.getElementById('projectsTableBody');
     if (!tbody) return;
 
     if (filteredProjects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No projects found matching filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">No projects found matching filters.</td></tr>';
         const paginationDiv = document.getElementById('projectsPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
@@ -906,8 +888,13 @@ function renderProjectsTable() {
                 <td><strong>${escapeHTML(codeDisplay)}</strong></td>
                 <td>${escapeHTML(project.project_name)}</td>
                 <td>${escapeHTML(clientName)}</td>
-                <td>${escapeHTML(project.internal_status)}</td>
-                <td>${escapeHTML(project.project_status)}</td>
+                <td>${(() => {
+                    const v = project.project_status || '';
+                    if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
+                        return `<span style="color: #94a3b8; font-style: italic;">${escapeHTML(v)} (legacy)</span>`;
+                    }
+                    return escapeHTML(v);
+                })()}</td>
                 <td>
                     <span class="status-badge clickable-badge ${project.active ? 'approved' : 'rejected'}"
                           ${showEditControls ? `onclick="event.stopPropagation(); toggleProjectActive('${escapeHTML(project.id)}', ${project.active})" title="Click to ${project.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
@@ -958,7 +945,6 @@ function editProject(projectId) {
     document.getElementById('projectClient').value = project.client_id;
     document.getElementById('projectName').value = project.project_name;
     document.getElementById('projectLocation').value = project.location || '';
-    document.getElementById('internalStatus').value = project.internal_status;
     document.getElementById('projectStatus').value = project.project_status;
     document.getElementById('projectBudget').value = project.budget || '';
     document.getElementById('contractCost').value = project.contract_cost || '';
@@ -995,7 +981,6 @@ async function saveEdit() {
     const clientCode = clientSelect.selectedOptions[0]?.getAttribute('data-code');
     const project_name = document.getElementById('projectName').value.trim();
     const location = document.getElementById('projectLocation').value.trim();
-    const internal_status = document.getElementById('internalStatus').value;
     const project_status = document.getElementById('projectStatus').value;
     const budgetVal = document.getElementById('projectBudget').value;
     const contractVal = document.getElementById('contractCost').value;
@@ -1010,7 +995,7 @@ async function saveEdit() {
     };
 
     // Validate required fields
-    if (!clientId || !project_name || !internal_status || !project_status) {
+    if (!clientId || !project_name || !project_status) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
@@ -1030,12 +1015,7 @@ async function saveEdit() {
     }
 
     // Validate status values
-    if (!INTERNAL_STATUS_OPTIONS.includes(internal_status)) {
-        showToast('Invalid internal status', 'error');
-        return;
-    }
-
-    if (!PROJECT_STATUS_OPTIONS.includes(project_status)) {
+    if (!UNIFIED_STATUS_OPTIONS.includes(project_status)) {
         showToast('Invalid project status', 'error');
         return;
     }
@@ -1054,7 +1034,6 @@ async function saveEdit() {
             location: location || null,
             client_id: clientId,
             client_code: clientCode,
-            internal_status,
             project_status,
             budget,
             contract_cost,
@@ -1073,9 +1052,6 @@ async function saveEdit() {
         const oldLocation = existingProject.location || '';
         if (oldLocation !== (location || '')) {
             editChanges.push({ field: 'location', old_value: oldLocation || null, new_value: location || null });
-        }
-        if (existingProject.internal_status !== internal_status) {
-            editChanges.push({ field: 'internal_status', old_value: existingProject.internal_status, new_value: internal_status });
         }
         if (existingProject.project_status !== project_status) {
             editChanges.push({ field: 'project_status', old_value: existingProject.project_status, new_value: project_status });
