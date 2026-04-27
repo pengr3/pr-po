@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: "Completed 77.1-01-PLAN.md: Chart.js 100% stacked bar charts on home status cards"
-last_updated: "2026-04-27T06:05:10.663Z"
+status: Ready to execute
+stopped_at: "Completed 80-01-PLAN.md: MRF Processing layout overflow CSS fix verified"
+last_updated: "2026-04-27T07:46:10.123Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 28
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 78 — allow-creating-projects-without-a-client-defer-project-code-issuance-until-client-is-assigned
+**Current focus:** Phase 80 — fix-mrf-processing-layout-overflow-and-navbar-distortion-at-1366x768
 
 ## Current Position
 
-Phase: 78
-Plan: Not started
+Phase: 80 (fix-mrf-processing-layout-overflow-and-navbar-distortion-at-1366x768) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -228,6 +228,7 @@ Recent decisions affecting current work:
 - Phase 78 added: Allow creating projects without a client; defer project code issuance until client is assigned
 - Phase 77.1 inserted after Phase 77: Replace home dashboard scorecards with visualized graphs and charts (URGENT)
 - Phase 79 added: Fix MRF Details missing justification and submission datetime, fix QTY field truncation, add searchable project/service dropdown in MRF form
+- Phase 80 added: Fix MRF Processing layout overflow and navbar distortion at 1366x768 — MRF Details panel overflows viewport when MRF selected; main navbar wraps/distorts when viewport squeezed
 
 ### Pending Todos
 
@@ -254,7 +255,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-27
-Last session: 2026-04-27T05:39:33.464Z
-Stopped at: Completed 77.1-01-PLAN.md: Chart.js 100% stacked bar charts on home status cards
+Last session: 2026-04-27T07:46:10.115Z
+Stopped at: Completed 80-01-PLAN.md: MRF Processing layout overflow CSS fix verified
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79
