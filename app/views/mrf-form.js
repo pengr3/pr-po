@@ -1252,22 +1252,36 @@ function renderPSDropdown(filter) {
     if (!dd) return;
 
     const q = (filter || '').toLowerCase().trim();
-    const matches = q
-        ? psOptions.filter(o => o.label.toLowerCase().includes(q))
-        : psOptions;
+    const projectMatches = psOptions.filter(o => o.type === 'project' && (!q || o.label.toLowerCase().includes(q)));
+    const serviceMatches = psOptions.filter(o => o.type === 'service' && (!q || o.label.toLowerCase().includes(q)));
 
-    if (matches.length === 0) {
+    if (projectMatches.length === 0 && serviceMatches.length === 0) {
         dd.innerHTML = '<div style="padding: 0.5rem 0.75rem; color: #9ca3af; font-size: 0.875rem;">No results</div>';
-    } else {
-        dd.innerHTML = matches.map(o =>
-            // Phase 78 D-04: pass docId and clientless flag so selectPSOption can populate hidden inputs
-            `<div class="ps-option" data-value="${escapeForAttr(o.value)}" data-type="${o.type}" data-name="${escapeForAttr(o.name)}"
-                  style="padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                  onmousedown="window._selectPSOption('${escapeForAttr(o.value)}', '${escapeForAttr(o.label)}', '${o.type}', '${escapeForAttr(o.name)}', '${escapeForAttr(o.docId || '')}', '${o.clientless ? 'true' : 'false'}')"
-                  onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">${window.escapeHTML ? window.escapeHTML(o.label) : o.label}</div>`
-        ).join('');
+        dd.style.display = 'block';
+        return;
     }
 
+    const groupHeader = (label) =>
+        `<div style="padding: 0.3rem 0.75rem; font-size: 0.72rem; font-weight: 700; color: #475569; background: #f8fafc; border-bottom: 1px solid #e5e7eb; text-transform: uppercase; letter-spacing: 0.05em; pointer-events: none; user-select: none;">${label}</div>`;
+
+    const buildOption = (o) =>
+        `<div class="ps-option" data-value="${escapeForAttr(o.value)}" data-type="${o.type}" data-name="${escapeForAttr(o.name)}"
+              style="padding: 0.45rem 0.75rem 0.45rem 1.1rem; cursor: pointer; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+              onmousedown="window._selectPSOption('${escapeForAttr(o.value)}', '${escapeForAttr(o.label)}', '${o.type}', '${escapeForAttr(o.name)}', '${escapeForAttr(o.docId || '')}', '${o.clientless ? 'true' : 'false'}')"
+              onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">${window.escapeHTML ? window.escapeHTML(o.label) : o.label}</div>`;
+
+    let html = '';
+    if (projectMatches.length > 0) {
+        html += groupHeader('Projects');
+        html += projectMatches.map(buildOption).join('');
+    }
+    if (serviceMatches.length > 0) {
+        if (projectMatches.length > 0) html += '<div style="border-top: 1px solid #e5e7eb;"></div>';
+        html += groupHeader('Services');
+        html += serviceMatches.map(buildOption).join('');
+    }
+
+    dd.innerHTML = html;
     dd.style.display = 'block';
 }
 

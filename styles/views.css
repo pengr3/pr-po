@@ -177,7 +177,7 @@
 .items-table th:nth-child(2),
 .items-table td:nth-child(2) { width: 14%; min-width: 130px; } /* Category */
 .items-table th:nth-child(3),
-.items-table td:nth-child(3) { width: 8%; min-width: 70px; }   /* Qty */
+.items-table td:nth-child(3) { width: 8%; min-width: 90px; }   /* Qty */
 .items-table th:nth-child(4),
 .items-table td:nth-child(4) { width: 10%; min-width: 90px; }  /* Unit */
 .items-table th:nth-child(5),
@@ -277,7 +277,9 @@
 /* Specific input widths */
 .items-table .table-input-sm {
     text-align: center;
-    min-width: 60px;
+    min-width: 80px;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
 }
 
 .items-table .table-input-cost {

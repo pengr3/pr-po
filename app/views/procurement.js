@@ -3070,8 +3070,21 @@ function renderMRFDetails(mrf, isNew = false) {
             </div>
             ${!isNew ? `
             <div>
-                <div style="font-size: 0.75rem; color: #5f6368;">Date Submitted</div>
-                <div style="font-weight: 600;">${escapeHTML(mrf.date_submitted || '—')}</div>
+                <div style="font-size: 0.75rem; color: #5f6368;">Date and Time Submitted</div>
+                <div style="font-weight: 600;">${(() => {
+                    const ts = mrf.date_submitted;
+                    if (!ts) return '—';
+                    let d;
+                    if (ts && ts.toDate) d = ts.toDate();
+                    else if (ts && ts.seconds != null) d = new Date(ts.seconds * 1000);
+                    else d = new Date(ts);
+                    if (isNaN(d.getTime())) return escapeHTML(String(ts));
+                    return d.toLocaleString('en-PH', {
+                        timeZone: 'Asia/Manila',
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: 'numeric', minute: '2-digit', hour12: true
+                    }).replace(',', '');
+                })()}</div>
             </div>
             <div style="grid-column: 1 / -1;">
                 <div style="font-size: 0.75rem; color: #5f6368;">Justification</div>
