@@ -265,6 +265,8 @@ export function render(activeTab = 'form') {
                                         <input type="hidden" id="projectServiceValue">
                                         <input type="hidden" id="projectServiceType">
                                         <input type="hidden" id="projectServiceName">
+                                        <input type="hidden" id="projectServiceDocId">
+                                        <input type="hidden" id="projectServiceClientless">
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -1204,14 +1206,22 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedProjectCodes?.();
         let projects = cachedProjects;
         if (assignedCodes !== null) {
+            // Phase 78 D-02: clientless projects (no project_code) are not in assigned_project_codes;
+            // assignment filter applies to coded projects only.
             projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
         }
         projects.forEach(p => {
+            // Phase 78 D-04: clientless projects use Firestore doc ID as the stable option value
+            const isClientless = !p.project_code;
             psOptions.push({
-                value: p.project_code,
-                label: `${p.project_code} - ${p.project_name}`,
+                value: isClientless ? p.id : p.project_code,
+                label: isClientless
+                    ? `${p.project_name} (No code yet)`
+                    : `${p.project_code} - ${p.project_name}`,
                 type: 'project',
-                name: p.project_name
+                name: p.project_name,
+                docId: p.id,
+                clientless: isClientless
             });
         });
     }
@@ -1250,9 +1260,10 @@ function renderPSDropdown(filter) {
         dd.innerHTML = '<div style="padding: 0.5rem 0.75rem; color: #9ca3af; font-size: 0.875rem;">No results</div>';
     } else {
         dd.innerHTML = matches.map(o =>
+            // Phase 78 D-04: pass docId and clientless flag so selectPSOption can populate hidden inputs
             `<div class="ps-option" data-value="${escapeForAttr(o.value)}" data-type="${o.type}" data-name="${escapeForAttr(o.name)}"
                   style="padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                  onmousedown="window._selectPSOption('${escapeForAttr(o.value)}', '${escapeForAttr(o.label)}', '${o.type}', '${escapeForAttr(o.name)}')"
+                  onmousedown="window._selectPSOption('${escapeForAttr(o.value)}', '${escapeForAttr(o.label)}', '${o.type}', '${escapeForAttr(o.name)}', '${escapeForAttr(o.docId || '')}', '${o.clientless ? 'true' : 'false'}')"
                   onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">${window.escapeHTML ? window.escapeHTML(o.label) : o.label}</div>`
         ).join('');
     }
@@ -1262,8 +1273,9 @@ function renderPSDropdown(filter) {
 
 /**
  * Select an option: populate display input + hidden inputs, close dropdown.
+ * Phase 78 D-04: docId and clientless params added for project_id denormalization.
  */
-function selectPSOption(value, label, type, name) {
+function selectPSOption(value, label, type, name, docId, clientless) {
     const display = document.getElementById('projectServiceDisplay');
     if (display) display.value = label;
     const valInput = document.getElementById('projectServiceValue');
@@ -1272,6 +1284,11 @@ function selectPSOption(value, label, type, name) {
     if (typeInput) typeInput.value = type;
     const nameInput = document.getElementById('projectServiceName');
     if (nameInput) nameInput.value = name;
+    // Phase 78 D-04: store Firestore doc ID and clientless flag for submit-time denormalization
+    const docIdInput = document.getElementById('projectServiceDocId');
+    if (docIdInput) docIdInput.value = docId || '';
+    const clientlessInput = document.getElementById('projectServiceClientless');
+    if (clientlessInput) clientlessInput.value = clientless || 'false';
 
     const dd = document.getElementById('projectServiceDropdown');
     if (dd) dd.style.display = 'none';
@@ -1621,6 +1638,11 @@ window.resetForm = function() {
         if (psVal) psVal.value = '';
         if (psType) psType.value = '';
         if (psName) psName.value = '';
+        // Phase 78 D-04: also clear project doc ID and clientless flag
+        const psDocId = document.getElementById('projectServiceDocId');
+        const psClientless = document.getElementById('projectServiceClientless');
+        if (psDocId) psDocId.value = '';
+        if (psClientless) psClientless.value = '';
         const psDisp = document.getElementById('projectServiceDisplay');
         if (psDisp) psDisp.value = '';
 
@@ -1682,14 +1704,20 @@ async function handleFormSubmit(e) {
     const selectedType = document.getElementById('projectServiceType')?.value || '';
     const selectedCode = document.getElementById('projectServiceValue')?.value?.trim() || '';
     const selectedName = document.getElementById('projectServiceName')?.value || '';
+    // Phase 78 D-04: read project doc ID and clientless flag from hidden inputs
+    const selectedProjectDocId = document.getElementById('projectServiceDocId')?.value || '';
+    const isClientlessProject = document.getElementById('projectServiceClientless')?.value === 'true';
 
-    const projectCode = selectedType === 'project' ? selectedCode : '';
-    const projectName = selectedType === 'project' ? selectedName : '';
-    const serviceCode = selectedType === 'service' ? selectedCode : '';
-    const serviceName = selectedType === 'service' ? selectedName : '';
+    // Phase 78 D-04: hasProject is true when type=project regardless of whether project_code is set
+    // (clientless projects have no project_code but still have a valid doc ID)
+    const hasProject = selectedType === 'project' && !!selectedCode;
+    const hasService = selectedType === 'service' && !!selectedCode;
 
-    const hasProject = !!projectCode;
-    const hasService = !!serviceCode;
+    // For coded projects, selectedCode IS the project_code. For clientless, selectedCode is the doc ID.
+    const projectCode = hasProject && !isClientlessProject ? selectedCode : '';
+    const projectName = hasProject ? selectedName : '';
+    const serviceCode = hasService ? selectedCode : '';
+    const serviceName = hasService ? selectedName : '';
 
     if (!hasProject && !hasService) {
         showAlert('error', 'Please select a project or service for this request.');
@@ -1723,7 +1751,8 @@ async function handleFormSubmit(e) {
             request_type: requestType,
             urgency_level: urgencyLevel,
             department: department,                              // MRF-08: 'projects' or 'services'
-            project_code: hasProject ? projectCode : '',        // empty string for services MRFs
+            project_code: isClientlessProject ? '' : (hasProject ? projectCode : ''),  // empty for services and clientless projects
+            project_id: hasProject ? selectedProjectDocId : '',  // Phase 78 D-04: stable Firestore doc ID for backfill on code issuance
             project_name: hasProject ? projectName : '',        // empty string for services MRFs
             service_code: hasService ? serviceCode : '',        // MRF-07: denormalized
             service_name: hasService ? serviceName : '',        // MRF-07: denormalized
@@ -1756,6 +1785,11 @@ async function handleFormSubmit(e) {
             if (psVal) psVal.value = '';
             if (psType) psType.value = '';
             if (psName) psName.value = '';
+            // Phase 78 D-04: also clear project doc ID and clientless flag
+            const psDocId = document.getElementById('projectServiceDocId');
+            const psClientless = document.getElementById('projectServiceClientless');
+            if (psDocId) psDocId.value = '';
+            if (psClientless) psClientless.value = '';
             const psDisp = document.getElementById('projectServiceDisplay');
             if (psDisp) psDisp.value = '';
 
