@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: Completed 81-01-PLAN.md
-last_updated: "2026-04-27T09:41:54.422Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 77.2-01-PLAN.md (home chart proportions + legend tuning)
+last_updated: "2026-04-27T15:13:05.146Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 28
-  completed_phases: 28
-  total_plans: 45
-  completed_plans: 48
+  completed_phases: 22
+  total_plans: 33
+  completed_plans: 46
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 81 — unified-project-and-service-status-overhaul
+**Current focus:** Phase 77.2 — polish-home-graph-proportions-and-legend
 
 ## Current Position
 
-Phase: 81
-Plan: Not started
+Phase: 77.2 (polish-home-graph-proportions-and-legend) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -99,6 +99,7 @@ Plan: Not started
 | Phase 81-unified-project-and-service-status-overhaul P03 | 15 | 2 tasks | 3 files |
 | Phase 81-unified-project-and-service-status-overhaul P02 | 4 | 2 tasks | 2 files |
 | Phase 81-unified-project-and-service-status-overhaul P01 | 25 | 2 tasks | 2 files |
+| Phase 77.2 P01 | 30 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -207,6 +208,9 @@ Recent decisions affecting current work:
 - [Phase 81-01]: D-03 legacy display: grey italic (legacy) suffix in both table cells and filter dropdown — dynamically injected via rebuildStatusFilterOptions() using allProjects array
 - [Phase 81-01]: rebuildStatusFilterOptions() uses allProjects (live snapshot) not projectsData (stale/unused var) — plan snippet had a bug; fixed inline
 - [Phase 81-01]: Verify script false positive: 'Under Client Review' substring of 'Proposal Under Client Review' — implementation correct, verify script has substring-match limitation
+- [Phase 77.2-01]: 180px desktop / 220px mobile chart card height derived from 28px bar + ~78px (3-row legend) + ~24px breathing room, rounded up to absorb 4-row legend wrapping in narrow cards
+- [Phase 77.2-01]: Bumped barThickness 22 to 28 in lockstep with shrinking the card so the bar grows proportionally; without it the bar would still look small inside 180px
+- [Phase 77.2-01]: Single .hs-chart-status CSS class change applies uniformly to all 3 chart wrappers (Projects, Services One-time, Services Recurring) — no per-card divergence required, leveraging Phase 81 unified architecture
 
 ### Roadmap Evolution
 
@@ -269,7 +273,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-27
-Last session: 2026-04-27T09:30:32.660Z
-Stopped at: Completed 81-01-PLAN.md
+Last session: 2026-04-27T15:12:55.454Z
+Stopped at: Completed 77.2-01-PLAN.md (home chart proportions + legend tuning)
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79

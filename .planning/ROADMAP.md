@@ -643,10 +643,10 @@ Plans:
 **Goal:** Tighten the Projects and Services chart cards on the home page so the bar graph fills the card proportionally — reduce card height, enlarge the canvas, bump legend font size by 2px, and adjust the legend color-square size to match.
 **Requirements**: Card height reduced so bar chart is proportionally large; legend font-size increased by 2px; legend square dimensions updated to match; Projects and Services cards both updated consistently.
 **Depends on:** Phase 77.1
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 77.2-01-PLAN.md — Reduce .hs-chart-canvas.hs-chart-status height (320→180px desktop, 360→220px mobile); bump Chart.js legend font/box from 10→12px and barThickness 22→28px; visual checkpoint
+- [x] 77.2-01-PLAN.md — Reduce .hs-chart-canvas.hs-chart-status height (320→180px desktop, 360→220px mobile); bump Chart.js legend font/box from 10→12px and barThickness 22→28px; visual checkpoint
 
 ### Phase 78: Allow Creating Projects Without a Client — Defer Project Code Issuance Until Client is Assigned
 
