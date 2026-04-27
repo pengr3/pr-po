@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: "Completed 80-02-PLAN.md: Navbar nowrap fix at 1366x768 verified"
-last_updated: "2026-04-27T07:49:42.196Z"
+status: Ready to execute
+stopped_at: Completed 81-03-PLAN.md
+last_updated: "2026-04-27T09:28:27.739Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 28
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 80 — fix-mrf-processing-layout-overflow-and-navbar-distortion-at-1366x768
+**Current focus:** Phase 81 — unified-project-and-service-status-overhaul
 
 ## Current Position
 
-Phase: 80
-Plan: Not started
+Phase: 81 (unified-project-and-service-status-overhaul) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -96,6 +96,7 @@ Plan: Not started
 | Phase 78 P03 | 15 | 3 tasks | 2 files |
 | Phase 78 P02 | 6 | 2 tasks | 2 files |
 | Phase 80 P02 | 5 | 2 tasks | 1 files |
+| Phase 81-unified-project-and-service-status-overhaul P03 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -196,6 +197,9 @@ Recent decisions affecting current work:
 - [Phase 78]: writes[] array: children pushed first; project doc pushed last — guarantees project_code stays null on disk if any batch fails, enabling safe retry (is_issued: true is the atomicity marker)
 - [Phase 78]: Phase 79-02 replaced populateProjectDropdown() with rebuildPSOptions() combobox; Task 1 adapted to modify psOptions objects instead of DOM option elements — two new hidden inputs thread doc ID from combobox to Firestore write
 - [Phase 78]: project_id denormalized on all new MRF/PR/TR/RFP docs: 7 total sites updated — 4 MRF-to-child (PR/TR) + 3 RFP creation from PO/TR
+- [Phase 81]: Chart size class .hs-chart-status added to views.css per plan spec; hero.css legacy rules left as orphaned dead CSS
+- [Phase 81]: internal_status fieldLabel in edit-history.js renamed to 'Internal Status (Legacy)' instead of removed — per REVIEWS Suggestion 3 for auditor-friendly historical records
+- [Phase 81]: getChartSizeClass always returns hs-chart-status — single class for all 10-bar unified status charts regardless of entity type
 
 ### Roadmap Evolution
 
@@ -230,6 +234,7 @@ Recent decisions affecting current work:
 - Phase 77.1 inserted after Phase 77: Replace home dashboard scorecards with visualized graphs and charts (URGENT)
 - Phase 79 added: Fix MRF Details missing justification and submission datetime, fix QTY field truncation, add searchable project/service dropdown in MRF form
 - Phase 80 added: Fix MRF Processing layout overflow and navbar distortion at 1366x768 — MRF Details panel overflows viewport when MRF selected; main navbar wraps/distorts when viewport squeezed
+- Phase 81 added: Unified project and service status overhaul — replace dual internal/project status dropdowns with single unified status dropdown (For Inspection, For Proposal, Proposal for Internal Approval, Proposal Under Client Review, For Revision, Client Approved, For Mobilization, On-going, Completed, Loss)
 
 ### Pending Todos
 
@@ -256,7 +261,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-27
-Last session: 2026-04-27T07:46:41.987Z
-Stopped at: Completed 80-02-PLAN.md: Navbar nowrap fix at 1366x768 verified
+Last session: 2026-04-27T09:28:27.710Z
+Stopped at: Completed 81-03-PLAN.md
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79

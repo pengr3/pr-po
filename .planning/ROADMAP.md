@@ -679,3 +679,16 @@ Plans:
 Plans:
 - [x] 80-01-PLAN.md — Fix MRF Processing split-panel overflow with min-width:0 on .dashboard-grid > * + max-width:100% on .items-table-container/.items-table-wrapper
 - [x] 80-02-PLAN.md — Fix navbar wrap/distortion with flex-wrap:nowrap + white-space:nowrap + new compression @media (769-1400px) tightening nav-link padding, gap, font-size, and top-nav-content padding
+
+### Phase 81: unified project and service status overhaul
+
+**Goal:** Replace the dual internal_status + project_status fields on Projects and Services with a single unified `project_status` field using 10 new option values; update all forms, filters, table columns, CSV exports, validation, edit-history labels, and home dashboard charts.
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06 (decisions in 81-CONTEXT.md)
+**Depends on:** Phase 80
+**Plans:** 1/4 plans executed
+
+Plans:
+- [ ] 81-01-PLAN.md — Migrate projects.js + project-detail.js (form/filter/table/CSV/validation + legacy fallback)
+- [ ] 81-02-PLAN.md — Migrate services.js + service-detail.js (mirror of 81-01 for Services)
+- [x] 81-03-PLAN.md — Collapse home.js charts to single per entity + update edit-history.js field labels
+- [ ] 81-04-PLAN.md — Manual UAT checkpoint (11-check walkthrough across all 5 surfaces)
