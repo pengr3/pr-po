@@ -191,11 +191,19 @@ service cloud.firestore {
       // All active users can read
       allow read: if isActiveUser();
 
+      // Phase 78 D-01: clientless projects allowed (client_id and project_code may be null on create — code issued later when client is assigned)
       // Create: super_admin, operations_admin
       allow create: if hasRole(['super_admin', 'operations_admin']);
 
       // Update: super_admin, operations_admin, finance
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+      // Phase 78 D-12: once project_code is issued (non-null), client_id/client_code/project_code are PERMANENTLY LOCKED at the DB level.
+      // Pre-issuance (project_code == null): all updates allowed (lets runCodeIssuance set the codes).
+      // Post-issuance: updates allowed ONLY if the request preserves project_code, client_id, and client_code unchanged.
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']) &&
+        (resource.data.project_code == null ||
+          (request.resource.data.project_code == resource.data.project_code &&
+           request.resource.data.client_id == resource.data.client_id &&
+           request.resource.data.client_code == resource.data.client_code));
 
       // Delete: super_admin, operations_admin
       allow delete: if hasRole(['super_admin', 'operations_admin']);
@@ -384,15 +392,19 @@ service cloud.firestore {
     // services collection
     // =============================================
     match /services/{serviceId} {
-      // Get (single document): super_admin, services roles, finance, procurement
-      // services_user can get individual docs — more permissive than list
-      allow get: if hasRole(['super_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
+      // Get (single document): super_admin, services roles, finance, procurement, operations_admin
+      // operations_admin needs get access to support generateProjectCode() which queries
+      // both projects and services to avoid sequence number collisions (CODE-01).
+      // services_user can get individual docs — more permissive than list.
+      allow get: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
 
       // List (collection query): scoped by assignment for services_user
+      // operations_admin included so generateProjectCode() / generateServiceCode() can
+      // query the services collection when creating a new project (collision check).
       // CRITICAL: isAssignedToService() is ONLY called when isRole('services_user') is true
       // (short-circuit || prevents accessing assigned_service_codes on non-services_user docs)
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'services_admin', 'finance', 'procurement']) ||
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
         (isRole('services_user') && isAssignedToService(resource.data.service_code))
       );
 
