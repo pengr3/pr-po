@@ -205,7 +205,7 @@ function renderStatusBreakdown(containerId, countsMap) {
         data: [toPercent(countsMap[label])],
         backgroundColor: getBarColor(label),
         borderWidth: 0,
-        barThickness: 22,
+        barThickness: 28,
     }));
 
     const chart = new window.Chart(canvas, {
@@ -223,10 +223,12 @@ function renderStatusBreakdown(containerId, countsMap) {
                 legend: {
                     display: true,
                     position: 'bottom',
+                    // Phase 77.2 — bumped legend font + box from 10px to 12px to match the
+                    // tightened card height (180px desktop / 220px mobile in views.css).
                     labels: {
-                        boxWidth: 10,
-                        boxHeight: 10,
-                        font: { size: 10 },
+                        boxWidth: 12,
+                        boxHeight: 12,
+                        font: { size: 12 },
                         padding: 4,
                         color: '#64748b'
                     }
