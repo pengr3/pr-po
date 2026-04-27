@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: Phase 78 context gathered
-last_updated: "2026-04-25T09:17:16.922Z"
-last_activity: 2026-04-20
+status: Ready to execute
+stopped_at: Completed 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown-01-PLAN.md
+last_updated: "2026-04-27T03:57:00.578Z"
+last_activity: 2026-04-27
 progress:
   total_phases: 28
-  completed_phases: 22
-  total_plans: 33
-  completed_plans: 46
+  completed_phases: 28
+  total_plans: 45
+  completed_plans: 48
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 77 — revise-home-stats-cards
+**Current focus:** Phase 78 — allow-creating-projects-without-a-client-defer-project-code-issuance-until-client-is-assigned
 
 ## Current Position
 
-Phase: 77 (revise-home-stats-cards) — EXECUTING
-Plan: 1 of 1
+Phase: 78 (allow-creating-projects-without-a-client-defer-project-code-issuance-until-client-is-assigned) — EXECUTING
+Plan: 2 of 4
 
 ## Performance Metrics
 
@@ -89,6 +89,7 @@ Plan: 1 of 1
 | Phase 75 P01 | 2 | 2 tasks | 2 files |
 | Phase 75 P02 | 2 | 3 tasks | 2 files |
 | Phase 74-optimize-material-request-tab-for-mobile-use P03 | multi-session | 4 tasks | 3 files |
+| Phase 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown P01 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -178,6 +179,7 @@ Recent decisions affecting current work:
 - [Phase 75]: [Phase 75-02]: hasRfps state field intentionally retained in project-detail.js + service-detail.js — only render-side wrapper removed by Phase 72.1; field still populated for backwards-compat with downstream readers (FINSUMCARD-04 verification)
 - [Phase 74-03]: mapMRFToDisplayData declared inside createMRFRecordsController scope (closes over _subDataCache); single-pass Promise.all returns {rowHtml, cardHtml} pairs — REVIEWS [MEDIUM] fix; scroll-close handler on window._mrfMobileMenuScrollHandler — REVIEWS [LOW] fix
 - [Phase 74-03]: 3-dot dropdown reuses window._myRequestsEditMRF / window._myRequestsCancelMRF — no new Edit/Cancel logic; closeMyRequestsMobileMenu centralized as window function for shared teardown
+- [Phase 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown]: Added Date Submitted and Justification to MRF Details info grid using !isNew guard; grid-column: 1/-1 for Justification span
 
 ### Roadmap Evolution
 
@@ -210,6 +212,7 @@ Recent decisions affecting current work:
 - Phase 77 backfilled (2026-04-25): Home Dashboard 3-Card Redesign — SUMMARY + VERIFICATION reconstructed retroactively from commits 2a8c5a6, 5854a42, 05a4710, ace2ef5; no PLAN/UI-SPEC artifacts exist
 - Phase 78 added: Allow creating projects without a client; defer project code issuance until client is assigned
 - Phase 77.1 inserted after Phase 77: Replace home dashboard scorecards with visualized graphs and charts (URGENT)
+- Phase 79 added: Fix MRF Details missing justification and submission datetime, fix QTY field truncation, add searchable project/service dropdown in MRF form
 
 ### Pending Todos
 
@@ -235,8 +238,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-04-20
-Last session: 2026-04-25T09:17:16.914Z
-Stopped at: Phase 78 context gathered
-Resume file: .planning/phases/78-allow-creating-projects-without-a-client-defer-project-code-issuance-until-client-is-assigned/78-CONTEXT.md
-Next action: Run `/gsd:plan-phase 63` to plan Supplier Search
+Last activity: 2026-04-27
+Last session: 2026-04-27T03:57:00.545Z
+Stopped at: Completed 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown-01-PLAN.md
+Resume file: None
+Next action: Run `/gsd:execute-phase 79` to execute Phase 79

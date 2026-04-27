@@ -627,3 +627,44 @@ Plans:
 
 Plans:
 - [ ] 77-01-PLAN.md — Add .hs-* card CSS classes + rewrite home.js with 3-card render, role gating, status breakdown listeners + UAT checkpoint
+
+### Phase 77.1: Revise Home Stats Cards to Use Visualized Charts and Graphs (INSERTED)
+
+**Goal:** Replace the text-row status breakdowns inside the Projects and Services cards on the home page with Chart.js horizontal bar charts. Procurement card stays untouched (3 scorecard numbers). Highlighted statuses (For Inspection, For Proposal, Under Client Review, On-going) get muted brand-palette colors; all other statuses get a monochromatic gray scale. Chart.js loaded via CDN (zero-build static site constraint).
+**Requirements**: D-01 (Procurement untouched), D-02 (Projects horizontal bars), D-03 (Services horizontal bars 4 sections), D-04 (muted brand colors + monochromatic gray), D-05 (Chart.js CDN pinned)
+**Depends on:** Phase 77
+**Plans:** 1 plan
+
+Plans:
+- [ ] 77.1-01-PLAN.md — Add Chart.js CDN + canvas wrapper CSS, rewrite home.js status helpers to render Chart.js horizontal bar charts with chartInstances Map for safe update/teardown
+
+### Phase 78: Allow Creating Projects Without a Client — Defer Project Code Issuance Until Client is Assigned
+
+**Goal:** Loosen the project-create constraint so a project can be saved without a client. Defer `project_code` generation (which depends on `client_code`) until a client is later assigned, with a confirmation-modal-gated one-pass batched backfill of all linked MRFs / PRs / POs / TRs / RFPs when the code is issued.
+**Requirements**: TBD
+**Depends on:** Phase 77
+**Success Criteria** (what must be TRUE):
+  1. User can create a project without selecting a client — form submits successfully with `client_id: null`
+  2. Clientless projects appear in the Projects list with em-dash (`—`) in the Code and Client columns (no other visual distinction)
+  3. Clientless projects appear in the MRF project dropdown with "(No code yet)" appended to the project name
+  4. Assigning a client to a clientless project triggers a confirmation modal showing the about-to-be-generated code and the count of linked procurement records; confirming runs a batched write of `project_code` and `client_code` to all linked MRFs / PRs / POs / TRs / RFPs
+  5. After code issuance, `client_id`, `client_code`, and `project_code` are locked on the project (no re-assignment)
+  6. Deep links to clientless projects resolve using Firestore doc ID (`#/projects/detail/{doc_id}`) and continue to work after code issuance
+**Plans:** 4 plans
+
+Plans:
+- [ ] 78-01-PLAN.md — Relax addProject() and firestore.rules to allow clientless project creation
+- [ ] 78-02-PLAN.md — Wire MRF dropdowns (mrf-form.js + procurement.js) for clientless projects + project_id denormalization on MRF/PR/PO/TR/RFP writes
+- [ ] 78-03-PLAN.md — Em-dash list rendering, doc-ID URL fallback, client picker on detail page, batched code-issuance backfill across 5 collections
+- [ ] 78-04-PLAN.md — Manual UAT checkpoint (deploy rules + 12-step lifecycle test)
+
+### Phase 79: Fix MRF Details Missing Justification and Submission Datetime, Fix QTY Field Truncation, Add Searchable Project/Service Dropdown in MRF Form
+
+**Goal:** Patch three UX/data-integrity issues: (1) show justification + submission datetime in MRF Details panel so processors have full context; (2) widen QTY input so 5-digit quantities (e.g. 5000) display and persist correctly; (3) replace the native project/service `<select>` in the MRF line-item form with a searchable combobox so large lists are navigable by typing.
+**Requirements**: TBD
+**Depends on:** Phase 78
+**Plans:** 1/2 plans executed
+
+Plans:
+- [x] 79-01-PLAN.md — Add justification + date_submitted display to MRF Details panel; fix QTY input min-width
+- [ ] 79-02-PLAN.md — Replace native project/service select with vanilla JS searchable combobox in mrf-form.js
