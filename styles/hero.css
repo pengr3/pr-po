@@ -402,3 +402,34 @@
         display: none;
     }
 }
+
+/* ========================================
+   HOME STATS CHARTS (Phase 77.1) — Chart.js canvas wrappers
+   Per D-02/D-03: horizontal bar charts replace .hs-status-grid text rows
+   in Projects and Services cards. Procurement card unchanged (D-01).
+   ======================================== */
+
+/* Generic chart wrapper — sets explicit height for Chart.js maintainAspectRatio:false.
+   Width is 100% of parent .hs-section-group. */
+.hs-chart-canvas {
+    position: relative;
+    width: 100%;
+    margin-top: 0.25rem;
+}
+
+/* Internal Status charts: 4 bars × ~20px row + ~20px padding ≈ 100px */
+.hs-chart-canvas.hs-chart-internal {
+    height: 110px;
+}
+
+/* Project Status charts: 7 bars × ~18px row + ~24px padding ≈ 150px */
+.hs-chart-canvas.hs-chart-project {
+    height: 160px;
+}
+
+/* The <canvas> itself fills its wrapper — Chart.js sizes via getBoundingClientRect. */
+.hs-chart-canvas canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
