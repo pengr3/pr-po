@@ -277,6 +277,7 @@
 /* Specific input widths */
 .items-table .table-input-sm {
     text-align: center;
+    min-width: 60px;
 }
 
 .items-table .table-input-cost {

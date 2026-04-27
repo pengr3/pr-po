@@ -3063,6 +3063,16 @@ function renderMRFDetails(mrf, isNew = false) {
                     };">${mrf.urgency_level || 'Low'}</div>
                 `}
             </div>
+            ${!isNew ? `
+            <div>
+                <div style="font-size: 0.75rem; color: #5f6368;">Date Submitted</div>
+                <div style="font-weight: 600;">${escapeHTML(mrf.date_submitted || '—')}</div>
+            </div>
+            <div style="grid-column: 1 / -1;">
+                <div style="font-size: 0.75rem; color: #5f6368;">Justification</div>
+                <div style="white-space: pre-wrap; line-height: 1.5;">${escapeHTML(mrf.justification || '—')}</div>
+            </div>
+` : ''}
         </div>
 
         <div style="margin-bottom: 1rem;">
@@ -5535,10 +5545,11 @@ async function submitTransportRequest() {
             created_at: new Date().toISOString()
         });
 
-        // Update MRF with TR link — do NOT change MRF status (TR actions are scoped to transport_requests)
+        // Update MRF with TR link and advance status so it leaves the pending list
         const mrfRef = doc(db, 'mrfs', mrfData.id);
         await updateDoc(mrfRef, {
             tr_id: trId,
+            status: 'TR Submitted',
             items_json: JSON.stringify(trItems),
             updated_at: new Date().toISOString()
         });
