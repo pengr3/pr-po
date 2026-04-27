@@ -3,8 +3,8 @@
    Full-page project detail with inline editing
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML } from '../utils.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count } from '../firebase.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 
@@ -16,6 +16,9 @@ let usersListenerUnsub = null;
 let currentExpense = { total: 0, poCount: 0, trCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 let detailSelectedPersonnel = []; // Array of { id: string, name: string } for pill state
 let personnelClickOutsideHandler = null;
+// Phase 78 D-04: clients cache for the issuance client-select control (lazy-loaded when needed)
+let clientsCacheForIssuance = [];
+let clientsCacheLoaded = false;
 
 const INTERNAL_STATUS_OPTIONS = [
     'For Inspection',
@@ -115,10 +118,47 @@ export async function init(activeTab = null, param = null) {
         usersData.sort((a, b) => a.full_name.localeCompare(b.full_name));
     });
 
-    // Find project by project_code field (not document ID)
+    // Phase 78 D-06: Try project_code lookup first (existing behavior). If no match, fall back to Firestore doc ID lookup
+    // for clientless projects whose URL param is the doc ID rather than a project_code.
     const q = query(collection(db, 'projects'), where('project_code', '==', projectCode));
     listener = onSnapshot(q, async (snapshot) => {
         if (snapshot.empty) {
+            // Phase 78 D-06: fallback — projectCode might actually be a Firestore doc ID for a clientless project
+            try {
+                const docRef = doc(db, 'projects', projectCode);
+                const docSnap2 = await getDoc(docRef);
+                if (docSnap2.exists()) {
+                    // Tear down the project_code listener and rebind a per-doc listener for live updates
+                    if (typeof listener === 'function') listener();
+                    listener = onSnapshot(docRef, async (snap) => {
+                        if (!snap.exists()) {
+                            document.getElementById('projectDetailContainer').innerHTML = `
+                                <div class="container" style="margin-top: 2rem;">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <p>Project not found.</p>
+                                            <a href="#/projects" class="btn btn-primary">Back to Projects</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            return;
+                        }
+                        currentProject = { id: snap.id, ...snap.data() };
+                        await refreshExpense(true);
+                        // Phase 78 D-04: load clients once when the user views a clientless project
+                        if (!currentProject.client_code) {
+                            await loadClientsCache();
+                        }
+                        if (checkProjectAccess()) {
+                            renderProjectDetail();
+                        }
+                    });
+                    return;
+                }
+            } catch (err) {
+                console.error('[ProjectDetail] Doc-ID fallback lookup failed:', err);
+            }
             document.getElementById('projectDetailContainer').innerHTML = `
                 <div class="container" style="margin-top: 2rem;">
                     <div class="card">
@@ -137,6 +177,11 @@ export async function init(activeTab = null, param = null) {
 
         // Calculate initial expense (silent — no toast on page load)
         await refreshExpense(true);
+
+        // Phase 78 D-04: load clients once when the user views a clientless project (rare for the project_code-found branch but possible if a user navigates to #/projects/detail/{code} where code is empty — defensive)
+        if (!currentProject.client_code) {
+            await loadClientsCache();
+        }
 
         // Phase 7: Check project assignment access for operations_user
         if (checkProjectAccess()) {
@@ -301,7 +346,21 @@ function renderProjectDetail() {
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
-                            <div style="color: #64748b; font-size: 1rem;">${escapeHTML(currentProject.client_code || 'N/A')}</div>
+                            ${(!currentProject.client_code && showEditControls) ? `
+                                <!-- Phase 78 D-04: clientless project — editable client picker that triggers code issuance on confirm -->
+                                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                    <select id="clientAssignSelect" style="flex: 1; min-width: 200px; padding: 0.5rem; border: 2px solid #dadce0; border-radius: 4px; background-color: #ffffff;">
+                                        <option value="">— Select a client to issue code —</option>
+                                        ${clientsCacheForIssuance.map(c => `<option value="${escapeHTML(c.id)}" data-code="${escapeHTML(c.client_code || '')}">${escapeHTML(c.company_name)}</option>`).join('')}
+                                    </select>
+                                    <button class="btn btn-sm btn-primary" onclick="window.startCodeIssuance()" style="white-space: nowrap;">Assign &amp; Issue Code</button>
+                                </div>
+                                <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                                    No code yet — assigning a client will generate the project code and apply it to all linked records.
+                                </div>
+                            ` : `
+                                <div style="color: #64748b; font-size: 1rem;">${escapeHTML(currentProject.client_code || 'N/A')}</div>
+                            `}
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.25rem;">Location</label>
@@ -862,6 +921,25 @@ async function exportProjectExpenseCSV() {
     } catch (error) {
         console.error('[ProjectDetail] Export failed:', error);
         showToast('Export failed', 'error');
+    }
+}
+
+// Phase 78 D-04: lazy-load clients for the issuance picker (fetched once per session)
+async function loadClientsCache() {
+    if (clientsCacheLoaded) return;
+    try {
+        const snap = await getDocs(collection(db, 'clients'));
+        clientsCacheForIssuance = [];
+        snap.forEach(d => {
+            const data = d.data();
+            if (data.client_code) {  // only clients with a client_code can be used to generate project codes
+                clientsCacheForIssuance.push({ id: d.id, company_name: data.company_name || '(unnamed)', client_code: data.client_code });
+            }
+        });
+        clientsCacheForIssuance.sort((a, b) => a.company_name.localeCompare(b.company_name));
+        clientsCacheLoaded = true;
+    } catch (err) {
+        console.error('[ProjectDetail] Failed to load clients for issuance:', err);
     }
 }
 
