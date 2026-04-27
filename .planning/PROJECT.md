@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC_CLIENT_YYYY###), dual-status tracking, and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. Mobile-responsive with CSV data export, sortable tables, skeleton loading screens, and offline-first performance via Firebase IndexedDB persistence. Built with vanilla JavaScript and Firebase.
+A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC_CLIENT_YYYY###), unified 10-option status tracking (Phase 81), and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. Mobile-responsive with CSV data export, sortable tables, skeleton loading screens, and offline-first performance via Firebase IndexedDB persistence. Built with vanilla JavaScript and Firebase.
 
 ## Core Value
 
@@ -19,7 +19,7 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Latest shipped:** Phase 80 complete — MRF Processing layout overflow + navbar distortion fixed at 1366x768 (2026-04-27)
+**Latest shipped:** Phase 81 complete — unified project/service Status dropdown (10 options), legacy filter optgroup, home dashboard collapsed to 3 charts, edit-history labels corrected (2026-04-27)
 **Active milestone:** v3.2 — all phases complete, milestone ready for `/gsd:complete-milestone`
 
 See `.planning/MILESTONES.md` for full milestone history.
