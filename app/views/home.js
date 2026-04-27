@@ -195,12 +195,11 @@ function servicesCardHtml() {
 }
 
 /**
- * Render or update a Chart.js horizontal bar chart for a status breakdown.
- * Phase 77.1: replaces text-row injection with Chart.js create-or-update.
- * - First call (no chart instance): creates new Chart, stores in chartInstances.
- * - Subsequent calls (chart exists): mutates chart.data and calls chart.update().
- * Guards against missing canvas element (DOM may not exist on first snapshot).
- * Guards against missing window.Chart (CDN failure / network blocked).
+ * Render or update a 100% stacked horizontal bar chart for a status breakdown.
+ * Each status is one segment; all segments together fill 100% width.
+ * - First call: creates Chart instance (one dataset per status), stores in chartInstances.
+ * - Subsequent calls: updates each dataset's percentage value in place via chart.update().
+ * chart._rawCounts stores the original counts for tooltip display.
  * @param {string} containerId - ID of the <canvas> element
  * @param {Object} countsMap - { statusName: count, ... }
  */
@@ -213,31 +212,36 @@ function renderStatusBreakdown(containerId, countsMap) {
     }
 
     const labels = Object.keys(countsMap);
-    const data = Object.values(countsMap);
-    const backgroundColor = labels.map(getBarColor);
+    const total = Object.values(countsMap).reduce((s, v) => s + v, 0);
+    const toPercent = (count) => total > 0 ? parseFloat(((count / total) * 100).toFixed(1)) : 0;
 
     const existing = chartInstances.get(containerId);
     if (existing) {
-        // Update in place — preserves canvas, no flicker
-        existing.data.labels = labels;
-        existing.data.datasets[0].data = data;
-        existing.data.datasets[0].backgroundColor = backgroundColor;
+        // Update in place — update each dataset's percentage and refresh raw counts for tooltip
+        existing._rawCounts = { ...countsMap };
+        labels.forEach((label, i) => {
+            if (existing.data.datasets[i]) {
+                existing.data.datasets[i].data = [toPercent(countsMap[label])];
+            }
+        });
         existing.update();
         return;
     }
 
-    // First render — create new Chart instance
+    // First render — one dataset per status, stacked to 100%
+    const datasets = labels.map(label => ({
+        label,
+        data: [toPercent(countsMap[label])],
+        backgroundColor: getBarColor(label),
+        borderWidth: 0,
+        barThickness: 22,
+    }));
+
     const chart = new window.Chart(canvas, {
         type: 'bar',
         data: {
-            labels,
-            datasets: [{
-                data,
-                backgroundColor,
-                borderWidth: 0,
-                barPercentage: 0.85,
-                categoryPercentage: 0.85
-            }]
+            labels: [''],
+            datasets
         },
         options: {
             indexAxis: 'y',
@@ -245,28 +249,37 @@ function renderStatusBreakdown(containerId, countsMap) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10,
+                        boxHeight: 10,
+                        font: { size: 10 },
+                        padding: 4,
+                        color: '#64748b'
+                    }
+                },
                 tooltip: {
                     enabled: true,
                     callbacks: {
-                        // Show only "{count}" in tooltip body (label already on y-axis)
-                        label: (ctx) => ` ${ctx.parsed.x}`
+                        label: (ctx) => {
+                            const rawCounts = ctx.chart._rawCounts || {};
+                            const lbl = ctx.dataset.label;
+                            const count = rawCounts[lbl] ?? 0;
+                            const pct = ctx.parsed.x.toFixed(1);
+                            return ` ${lbl}: ${count} (${pct}%)`;
+                        }
                     }
                 }
             },
             scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: { precision: 0, font: { size: 10 } },
-                    grid: { color: 'rgba(0, 0, 0, 0.04)' }
-                },
-                y: {
-                    ticks: { font: { size: 10 } },
-                    grid: { display: false }
-                }
+                x: { stacked: true, max: 100, display: false, grid: { display: false } },
+                y: { stacked: true, display: false, grid: { display: false } }
             }
         }
     });
+    chart._rawCounts = { ...countsMap };
     chartInstances.set(containerId, chart);
 }
 

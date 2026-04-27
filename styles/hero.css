@@ -417,14 +417,14 @@
     margin-top: 0.25rem;
 }
 
-/* Internal Status charts: 4 bars × ~20px row + ~20px padding ≈ 100px */
+/* Internal Status charts: 1 stacked bar (~22px) + 2-row legend (~40px) + spacing */
 .hs-chart-canvas.hs-chart-internal {
-    height: 110px;
+    height: 72px;
 }
 
-/* Project Status charts: 7 bars × ~18px row + ~24px padding ≈ 150px */
+/* Project Status charts: 1 stacked bar (~22px) + 3-row legend (~56px) + spacing */
 .hs-chart-canvas.hs-chart-project {
-    height: 160px;
+    height: 96px;
 }
 
 /* The <canvas> itself fills its wrapper — Chart.js sizes via getBoundingClientRect. */
