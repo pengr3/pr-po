@@ -674,8 +674,8 @@ Plans:
 **Goal:** Fix two CSS layout regressions visible at 1366x768 (typical laptop monitor): (1) Procurement > MRF Processing right-panel MRF Details card overflows the viewport because grid items default to min-width:auto and the inner items-table min-width:1000px blows out the 1fr track — fix with min-width:0 on .dashboard-grid children + max-width:100% on the items-table container/wrapper; (2) top navbar wraps to a second line and stacks the brand vertically between 769-1400px because the only mobile breakpoint is at 768px — fix with flex-wrap:nowrap + white-space:nowrap on nav elements plus a new compression @media (min-width:769px) and (max-width:1400px) that tightens nav-link padding/gap/font-size.
 **Requirements**: LAYOUT80-MRF-01, LAYOUT80-NAV-01
 **Depends on:** Phase 79
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 80-01-PLAN.md — Fix MRF Processing split-panel overflow with min-width:0 on .dashboard-grid > * + max-width:100% on .items-table-container/.items-table-wrapper
-- [ ] 80-02-PLAN.md — Fix navbar wrap/distortion with flex-wrap:nowrap + white-space:nowrap + new compression @media (769-1400px) tightening nav-link padding, gap, font-size, and top-nav-content padding
+- [x] 80-02-PLAN.md — Fix navbar wrap/distortion with flex-wrap:nowrap + white-space:nowrap + new compression @media (769-1400px) tightening nav-link padding, gap, font-size, and top-nav-content padding
