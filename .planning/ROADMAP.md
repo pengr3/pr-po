@@ -617,3 +617,13 @@ Plans:
 
 Plans:
 - [ ] 76-01-PLAN.md — REQUIREMENTS.md updates (RFPBANK/FINSUMCARD-03/PAY65/FINBREAK), ROADMAP.md fixes, 10 VERIFICATION.md writeups
+
+### Phase 77: Revise Home Page Stats Cards — Procurement MRF Stats, Projects Stats, Services Stats
+
+**Goal:** Replace the current flat `.quick-stats` row on the Home page with three purpose-built, role-gated stat cards: (1) **Procurement Card** (always shown) with live Pending MRFs / Pending PRs / Active POs pipeline counts, (2) **Projects Card** (operations/super_admin/finance/procurement_staff) with Internal Status (4 rows) and Project Status (7 rows) breakdowns from the `projects` collection, (3) **Services Card** (services/super_admin/finance/procurement_staff) split into One-time and Recurring sub-sections, each with Internal Status + Project Status breakdowns from the `services` collection. All counts pull live data via `onSnapshot`; cards styled to match the existing `.nav-card` white/shadow aesthetic.
+**Requirements**: D-01 (Procurement pipeline stats), D-02 (Projects status breakdown), D-03 (Services status breakdown split by type), D-04 (visual style matches nav-card), D-05 (role-aware card visibility) — tracked as decisions in 77-CONTEXT.md (no formal requirement IDs)
+**Depends on:** Phase 76
+**Plans:** 1 plan
+
+Plans:
+- [ ] 77-01-PLAN.md — Add .hs-* card CSS classes + rewrite home.js with 3-card render, role gating, status breakdown listeners + UAT checkpoint

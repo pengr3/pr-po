@@ -92,7 +92,8 @@ function parseArgs(argv) {
         clients: null,
         projects: null,
         services: null,
-        dryRun: false
+        dryRun: false,
+        skipDuplicates: false
     };
 
     if (argv.includes('--help')) {
@@ -110,6 +111,8 @@ function parseArgs(argv) {
             args.services = argv[++i];
         } else if (arg === '--dry-run') {
             args.dryRun = true;
+        } else if (arg === '--skip-duplicates') {
+            args.skipDuplicates = true;
         }
     }
 
@@ -142,11 +145,12 @@ USAGE:
   node scripts/import.js --projects projects.csv        # Import only projects (clients must exist in Firestore)
 
 OPTIONS:
-  --clients <file>    CSV file for clients collection
-  --projects <file>   CSV file for projects collection
-  --services <file>   CSV file for services collection
-  --dry-run           Validate and preview without writing to Firestore
-  --help              Show this help message
+  --clients <file>      CSV file for clients collection
+  --projects <file>     CSV file for projects collection
+  --services <file>     CSV file for services collection
+  --dry-run             Validate and preview without writing to Firestore
+  --skip-duplicates     Warn and skip records already in Firestore (default: abort)
+  --help                Show this help message
 `);
 }
 
@@ -469,8 +473,8 @@ function validateServices(rows, validClientCodes) {
                 date_of_proposal_sent: row.date_of_proposal_sent ? row.date_of_proposal_sent.trim() : '',
                 project_status: row.project_status ? row.project_status.trim() : 'Ongoing',
                 budget: parseNumber(row.budget),
-                expense: parseNumber(row.total_expense),
-                location: row.project_location ? row.project_location.trim() || null : null,
+                expense: parseNumber(row.expense),
+                location: row.location ? row.location.trim() || null : null,
                 remarks: row.remarks ? row.remarks.trim() : '',
                 date_started: row.date_started ? row.date_started.trim() : '',
                 date_completed: row.date_completed ? row.date_completed.trim() : '',
@@ -770,10 +774,15 @@ async function main() {
         const codes = clientRecords.map(r => r.client_code);
         const dupes = await checkFirestoreDuplicates(db, 'clients', 'client_code', codes);
         if (dupes.length > 0) {
-            const key = args.clients ? path.basename(args.clients) : 'clients';
-            allErrors[key] = allErrors[key] || [];
-            allErrors[key].push(`Firestore already contains clients with client_code: ${dupes.join(', ')}`);
-            console.log(`[Import]   clients: ${dupes.length} duplicate(s) found in Firestore`);
+            if (args.skipDuplicates) {
+                console.log(`[Import]   clients: ${dupes.length} duplicate(s) SKIPPED: ${dupes.join(', ')}`);
+                clientRecords = clientRecords.filter(r => !dupes.includes(r.client_code));
+            } else {
+                const key = args.clients ? path.basename(args.clients) : 'clients';
+                allErrors[key] = allErrors[key] || [];
+                allErrors[key].push(`Firestore already contains clients with client_code: ${dupes.join(', ')}`);
+                console.log(`[Import]   clients: ${dupes.length} duplicate(s) found in Firestore`);
+            }
         } else {
             console.log(`[Import]   clients: no duplicates`);
         }
@@ -783,10 +792,15 @@ async function main() {
         const codes = projectRecords.map(r => r.project_code);
         const dupes = await checkFirestoreDuplicates(db, 'projects', 'project_code', codes);
         if (dupes.length > 0) {
-            const key = args.projects ? path.basename(args.projects) : 'projects';
-            allErrors[key] = allErrors[key] || [];
-            allErrors[key].push(`Firestore already contains projects with project_code: ${dupes.join(', ')}`);
-            console.log(`[Import]   projects: ${dupes.length} duplicate(s) found in Firestore`);
+            if (args.skipDuplicates) {
+                console.log(`[Import]   projects: ${dupes.length} duplicate(s) SKIPPED: ${dupes.join(', ')}`);
+                projectRecords = projectRecords.filter(r => !dupes.includes(r.project_code));
+            } else {
+                const key = args.projects ? path.basename(args.projects) : 'projects';
+                allErrors[key] = allErrors[key] || [];
+                allErrors[key].push(`Firestore already contains projects with project_code: ${dupes.join(', ')}`);
+                console.log(`[Import]   projects: ${dupes.length} duplicate(s) found in Firestore`);
+            }
         } else {
             console.log(`[Import]   projects: no duplicates`);
         }
@@ -796,10 +810,15 @@ async function main() {
         const codes = serviceRecords.map(r => r.service_code);
         const dupes = await checkFirestoreDuplicates(db, 'services', 'service_code', codes);
         if (dupes.length > 0) {
-            const key = args.services ? path.basename(args.services) : 'services';
-            allErrors[key] = allErrors[key] || [];
-            allErrors[key].push(`Firestore already contains services with service_code: ${dupes.join(', ')}`);
-            console.log(`[Import]   services: ${dupes.length} duplicate(s) found in Firestore`);
+            if (args.skipDuplicates) {
+                console.log(`[Import]   services: ${dupes.length} duplicate(s) SKIPPED: ${dupes.join(', ')}`);
+                serviceRecords = serviceRecords.filter(r => !dupes.includes(r.service_code));
+            } else {
+                const key = args.services ? path.basename(args.services) : 'services';
+                allErrors[key] = allErrors[key] || [];
+                allErrors[key].push(`Firestore already contains services with service_code: ${dupes.join(', ')}`);
+                console.log(`[Import]   services: ${dupes.length} duplicate(s) found in Firestore`);
+            }
         } else {
             console.log(`[Import]   services: no duplicates`);
         }

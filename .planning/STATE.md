@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 76 — v3.2-final-audit-closure
+**Current focus:** Phase 77 — revise-home-stats-cards
 
 ## Current Position
 
-Phase: 76
-Plan: Not started
+Phase: 77 (revise-home-stats-cards) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -203,6 +203,10 @@ Recent decisions affecting current work:
 - Phase 73.1 inserted after Phase 73: Replace Finance tab scrollable tables with card-based mobile layout (URGENT)
 - Phase 73.2 inserted after Phase 73: Mobile-optimize Finance modals (Financial Breakdown Modal + PR Details Modal) (URGENT)
 - Phase 73.3 inserted after Phase 73: Improve finance tab navigation bar and remove redundant supplier column from PR modal (URGENT)
+- Phase 74 added: Optimize Material Request Tab for mobile use
+- Phase 75 added: v3.2 Gap Closure — Code Bug Fix, Spec Reconciliation, Cleanup
+- Phase 76 added: v3.2 Final Audit Closure — Spec Amendments, Stale Doc Fixes & Verification Writeups
+- Phase 77 added: Revise Home Page Stats Cards — Procurement MRF Stats, Projects Stats, Services Stats
 - Phase 77 backfilled (2026-04-25): Home Dashboard 3-Card Redesign — SUMMARY + VERIFICATION reconstructed retroactively from commits 2a8c5a6, 5854a42, 05a4710, ace2ef5; no PLAN/UI-SPEC artifacts exist
 - Phase 78 added: Allow creating projects without a client; defer project code issuance until client is assigned
 - Phase 77.1 inserted after Phase 77: Replace home dashboard scorecards with visualized graphs and charts (URGENT)
