@@ -242,6 +242,7 @@ Recent decisions affecting current work:
 - Phase 79 added: Fix MRF Details missing justification and submission datetime, fix QTY field truncation, add searchable project/service dropdown in MRF form
 - Phase 80 added: Fix MRF Processing layout overflow and navbar distortion at 1366x768 — MRF Details panel overflows viewport when MRF selected; main navbar wraps/distorts when viewport squeezed
 - Phase 81 added: Unified project and service status overhaul — replace dual internal/project status dropdowns with single unified status dropdown (For Inspection, For Proposal, Proposal for Internal Approval, Proposal Under Client Review, For Revision, Client Approved, For Mobilization, On-going, Completed, Loss)
+- Phase 77.2 inserted after Phase 77.1: Polish home graph proportions and legend sizing — reduce card height, enlarge canvas so bar fills proportionally, bump legend font 2px, adjust legend square size (URGENT)
 
 ### Pending Todos
 
