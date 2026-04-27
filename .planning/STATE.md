@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Phase complete — ready for verification
-stopped_at: "Completed 78-03-PLAN.md: user-facing code issuance flow"
-last_updated: "2026-04-27T04:06:39.295Z"
+stopped_at: "Completed 78-02-PLAN.md: MRF form layer clientless project support and project_id propagation"
+last_updated: "2026-04-27T04:10:21.093Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 28
@@ -94,6 +94,7 @@ Plan: 4 of 4
 | Phase 77.1-revise-home-stats-to-charts-and-graphs P01 | 3 | 2 tasks | 3 files |
 | Phase 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown P02 | 15m | 2 tasks | 1 files |
 | Phase 78 P03 | 15 | 3 tasks | 2 files |
+| Phase 78 P02 | 6 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -192,6 +193,8 @@ Recent decisions affecting current work:
 - [Phase 79-02]: Use three hidden inputs to decouple combobox display from form submission — no changes to Firestore write path
 - [Phase 78]: Project list row uses detailParam = project_code || project.id so clientless and coded rows both deep-link correctly
 - [Phase 78]: writes[] array: children pushed first; project doc pushed last — guarantees project_code stays null on disk if any batch fails, enabling safe retry (is_issued: true is the atomicity marker)
+- [Phase 78]: Phase 79-02 replaced populateProjectDropdown() with rebuildPSOptions() combobox; Task 1 adapted to modify psOptions objects instead of DOM option elements — two new hidden inputs thread doc ID from combobox to Firestore write
+- [Phase 78]: project_id denormalized on all new MRF/PR/TR/RFP docs: 7 total sites updated — 4 MRF-to-child (PR/TR) + 3 RFP creation from PO/TR
 
 ### Roadmap Evolution
 
@@ -251,7 +254,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-27
-Last session: 2026-04-27T04:06:39.284Z
-Stopped at: Completed 78-03-PLAN.md: user-facing code issuance flow
+Last session: 2026-04-27T04:10:21.086Z
+Stopped at: Completed 78-02-PLAN.md: MRF form layer clientless project support and project_id propagation
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79
