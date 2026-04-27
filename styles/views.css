@@ -2345,3 +2345,22 @@
         overflow-x: hidden;
     }
 }
+
+/* ========================================
+   HOME DASHBOARD — UNIFIED STATUS CHART
+   Phase 81: single chart per entity using the 10 unified status options (D-05).
+   ======================================== */
+
+/* Phase 81 — unified status chart wrapper sized for 10 bars + full-length labels.
+   10 horizontal bars need ~28-32px each + ~16px legend padding => ~310-330px.
+   Mobile gets +30px to absorb wrapped labels and finger-friendly tooltips. */
+.hs-chart-canvas.hs-chart-status {
+    height: 320px;
+    min-height: 320px;
+}
+@media (max-width: 768px) {
+    .hs-chart-canvas.hs-chart-status {
+        height: 360px;
+        min-height: 360px;
+    }
+}

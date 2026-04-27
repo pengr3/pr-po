@@ -5,19 +5,14 @@
 
 import { db, collection, query, where, onSnapshot } from '../firebase.js';
 
-// Status option arrays — canonical source: app/views/projects.js:28-43
-// Inlined per RESEARCH Open Question 1 recommendation (zero-build static site; no bundler)
-const INTERNAL_STATUS_OPTIONS = [
+// Unified status list — canonical source: app/views/projects.js (Phase 81 D-02)
+const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
-    'For Internal Approval',
-    'Ready to Submit'
-];
-
-const PROJECT_STATUS_OPTIONS = [
-    'Pending Client Review',
-    'Under Client Review',
-    'Approved by Client',
+    'Proposal for Internal Approval',
+    'Proposal Under Client Review',
+    'For Revision',
+    'Client Approved',
     'For Mobilization',
     'On-going',
     'Completed',
@@ -26,21 +21,16 @@ const PROJECT_STATUS_OPTIONS = [
 
 // View state
 let statsListeners = [];
+// Phase 81 D-05 — fresh object literal; old 8-key shape is fully replaced (REVIEWS Concern 4).
 let cachedStats = {
     // Procurement pipeline (D-01)
     activeMRFs: null,
     pendingPRs: null,
     activePOs: null,
-    // Legacy keys kept for backward compatibility (no longer rendered)
-    activeServices: null,
-    servicesMRFs: null,
-    // Phase 77 — status breakdown maps (D-02, D-03)
-    projectsByInternalStatus: null,
-    projectsByProjectStatus: null,
-    servicesByInternalStatusOneTime: null,
-    servicesByProjectStatusOneTime: null,
-    servicesByInternalStatusRecurring: null,
-    servicesByProjectStatusRecurring: null
+    // Phase 81 D-05 — unified status breakdown (one map per entity type)
+    projectsByStatus: null,
+    servicesByStatusOneTime: null,
+    servicesByStatusRecurring: null
 };
 
 // Phase 77.1 — Chart.js instance registry: containerId → Chart instance
@@ -48,27 +38,21 @@ let cachedStats = {
 // and destroy() can tear them all down on view exit.
 const chartInstances = new Map();
 
-// Phase 77.1 — color palette per D-04 (CONTEXT.md):
-// 4 highlighted statuses get muted brand colors; all others get graduated slate shades
-// (neighboring hues within the same cool gray family, not a single flat color).
+// Phase 81 — color palette for the 10 unified statuses.
+// Highlighted = active workflow stages (brand-color muted); non-highlighted = transitional/terminal (slate gradient).
 const HIGHLIGHTED_STATUS_COLORS = {
-    'For Inspection': 'rgba(26, 115, 232, 0.55)',     // muted --primary
-    'For Proposal': 'rgba(52, 168, 83, 0.55)',        // muted --success
-    'Under Client Review': 'rgba(251, 188, 4, 0.65)', // muted --warning
-    'On-going': 'rgba(26, 115, 232, 0.55)'            // muted --primary (shared brand hue)
+    'For Inspection':              'rgba(26, 115, 232, 0.55)',  // muted --primary
+    'For Proposal':                'rgba(52, 168, 83, 0.55)',   // muted --success
+    'Proposal Under Client Review':'rgba(251, 188, 4, 0.65)',   // muted --warning
+    'On-going':                    'rgba(26, 115, 232, 0.55)'   // shared brand hue
 };
-// Non-highlighted statuses — graduated slate shades (same cool-gray family, different depths).
-// Lighter shades = "earlier" / less active; slightly darker = "terminal" / completed states.
 const MONOCHROMATIC_STATUS_COLORS = {
-    // Internal Status — 2 non-highlighted
-    'For Internal Approval': 'rgba(148, 163, 184, 0.38)',
-    'Ready to Submit':       'rgba(148, 163, 184, 0.60)',
-    // Project Status — 5 non-highlighted
-    'Pending Client Review': 'rgba(203, 213, 225, 0.85)', // slate-300 family — lightest
-    'Approved by Client':    'rgba(148, 163, 184, 0.40)',
-    'For Mobilization':      'rgba(148, 163, 184, 0.55)',
-    'Completed':             'rgba(148, 163, 184, 0.68)',
-    'Loss':                  'rgba(100, 116, 139, 0.55)'  // slate-500 family — deepest
+    'Proposal for Internal Approval': 'rgba(148, 163, 184, 0.38)',
+    'For Revision':                   'rgba(148, 163, 184, 0.50)',
+    'Client Approved':                'rgba(148, 163, 184, 0.60)',
+    'For Mobilization':               'rgba(148, 163, 184, 0.55)',
+    'Completed':                      'rgba(148, 163, 184, 0.68)',
+    'Loss':                           'rgba(100, 116, 139, 0.55)'
 };
 const MONOCHROMATIC_FALLBACK = 'rgba(148, 163, 184, 0.55)'; // fallback for unknown statuses
 
@@ -78,10 +62,9 @@ function getBarColor(statusLabel) {
         || MONOCHROMATIC_FALLBACK;
 }
 
-// Map containerId → wrapper class so buildStatusBreakdownContainer can emit correct sizing.
-// Internal sections have 4 bars; Project sections have 7 bars (matches enum lengths).
+// Phase 81 — single chart class for unified status (10 bars).
 function getChartSizeClass(containerId) {
-    return containerId.endsWith('-internal') ? 'hs-chart-internal' : 'hs-chart-project';
+    return 'hs-chart-status';
 }
 
 /**
@@ -147,12 +130,8 @@ function projectsCardHtml() {
         <div class="hs-stat-card">
             <h4 class="hs-stat-card-title">Projects</h4>
             <div class="hs-section-group">
-                <div class="hs-section-heading">Internal Status</div>
-                ${buildStatusBreakdownContainer('stat-projects-internal', cachedStats.projectsByInternalStatus, 4)}
-            </div>
-            <div class="hs-section-group">
-                <div class="hs-section-heading">Project Status</div>
-                ${buildStatusBreakdownContainer('stat-projects-project', cachedStats.projectsByProjectStatus, 7)}
+                <div class="hs-section-heading">Status</div>
+                ${buildStatusBreakdownContainer('stat-projects-status', cachedStats.projectsByStatus, 10)}
             </div>
         </div>
     `;
@@ -170,24 +149,16 @@ function servicesCardHtml() {
             <div class="hs-type-section">
                 <span class="hs-type-label">One-time</span>
                 <div class="hs-section-group">
-                    <div class="hs-section-heading">Internal Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-ot-internal', cachedStats.servicesByInternalStatusOneTime, 4)}
-                </div>
-                <div class="hs-section-group">
-                    <div class="hs-section-heading">Project Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-ot-project', cachedStats.servicesByProjectStatusOneTime, 7)}
+                    <div class="hs-section-heading">Status</div>
+                    ${buildStatusBreakdownContainer('stat-services-ot-status', cachedStats.servicesByStatusOneTime, 10)}
                 </div>
             </div>
             <hr class="hs-divider">
             <div class="hs-type-section">
                 <span class="hs-type-label">Recurring</span>
                 <div class="hs-section-group">
-                    <div class="hs-section-heading">Internal Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-rec-internal', cachedStats.servicesByInternalStatusRecurring, 4)}
-                </div>
-                <div class="hs-section-group">
-                    <div class="hs-section-heading">Project Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-rec-project', cachedStats.servicesByProjectStatusRecurring, 7)}
+                    <div class="hs-section-heading">Status</div>
+                    ${buildStatusBreakdownContainer('stat-services-rec-status', cachedStats.servicesByStatusRecurring, 10)}
                 </div>
             </div>
         </div>
@@ -348,7 +319,7 @@ export async function init() {
 
         // If we have stale cached data showing, add refreshing indicator
         // until fresh data arrives from Firestore (removed by updateStatDisplay)
-        if (cachedStats.activeMRFs !== null || cachedStats.activeServices !== null) {
+        if (cachedStats.activeMRFs !== null) {
             document.querySelectorAll('.stat-value').forEach(el => el.classList.add('stat-refreshing'));
         }
     } catch (error) {
@@ -415,23 +386,16 @@ function loadStats(mode) {
         const projectsListener = onSnapshot(
             collection(db, 'projects'),
             (snapshot) => {
-                const byInternal = {};
-                const byProject = {};
-                INTERNAL_STATUS_OPTIONS.forEach(s => { byInternal[s] = 0; });
-                PROJECT_STATUS_OPTIONS.forEach(s => { byProject[s] = 0; });
+                const byStatus = {};
+                UNIFIED_STATUS_OPTIONS.forEach(s => { byStatus[s] = 0; });
                 snapshot.forEach(doc => {
                     const d = doc.data();
-                    if (d.internal_status && byInternal[d.internal_status] !== undefined) {
-                        byInternal[d.internal_status]++;
-                    }
-                    if (d.project_status && byProject[d.project_status] !== undefined) {
-                        byProject[d.project_status]++;
+                    if (d.project_status && byStatus[d.project_status] !== undefined) {
+                        byStatus[d.project_status]++;
                     }
                 });
-                cachedStats.projectsByInternalStatus = byInternal;
-                cachedStats.projectsByProjectStatus = byProject;
-                renderStatusBreakdown('stat-projects-internal', byInternal);
-                renderStatusBreakdown('stat-projects-project', byProject);
+                cachedStats.projectsByStatus = byStatus;
+                renderStatusBreakdown('stat-projects-status', byStatus);
             },
             (error) => { console.error('[Home] Error loading projects stats:', error); }
         );
@@ -443,38 +407,26 @@ function loadStats(mode) {
         const servicesListener = onSnapshot(
             collection(db, 'services'),
             (snapshot) => {
-                const otInternal = {};
-                const otProject = {};
-                const recInternal = {};
-                const recProject = {};
-                INTERNAL_STATUS_OPTIONS.forEach(s => {
-                    otInternal[s] = 0;
-                    recInternal[s] = 0;
-                });
-                PROJECT_STATUS_OPTIONS.forEach(s => {
-                    otProject[s] = 0;
-                    recProject[s] = 0;
+                const otStatus = {};
+                const recStatus = {};
+                UNIFIED_STATUS_OPTIONS.forEach(s => {
+                    otStatus[s] = 0;
+                    recStatus[s] = 0;
                 });
                 snapshot.forEach(doc => {
                     const d = doc.data();
                     const isOneTime = d.service_type === 'one-time';
                     const isRecurring = d.service_type === 'recurring';
-                    if (isOneTime) {
-                        if (d.internal_status && otInternal[d.internal_status] !== undefined) otInternal[d.internal_status]++;
-                        if (d.project_status && otProject[d.project_status] !== undefined) otProject[d.project_status]++;
-                    } else if (isRecurring) {
-                        if (d.internal_status && recInternal[d.internal_status] !== undefined) recInternal[d.internal_status]++;
-                        if (d.project_status && recProject[d.project_status] !== undefined) recProject[d.project_status]++;
+                    if (isOneTime && d.project_status && otStatus[d.project_status] !== undefined) {
+                        otStatus[d.project_status]++;
+                    } else if (isRecurring && d.project_status && recStatus[d.project_status] !== undefined) {
+                        recStatus[d.project_status]++;
                     }
                 });
-                cachedStats.servicesByInternalStatusOneTime = otInternal;
-                cachedStats.servicesByProjectStatusOneTime = otProject;
-                cachedStats.servicesByInternalStatusRecurring = recInternal;
-                cachedStats.servicesByProjectStatusRecurring = recProject;
-                renderStatusBreakdown('stat-services-ot-internal', otInternal);
-                renderStatusBreakdown('stat-services-ot-project', otProject);
-                renderStatusBreakdown('stat-services-rec-internal', recInternal);
-                renderStatusBreakdown('stat-services-rec-project', recProject);
+                cachedStats.servicesByStatusOneTime = otStatus;
+                cachedStats.servicesByStatusRecurring = recStatus;
+                renderStatusBreakdown('stat-services-ot-status', otStatus);
+                renderStatusBreakdown('stat-services-rec-status', recStatus);
             },
             (error) => { console.error('[Home] Error loading services stats:', error); }
         );
