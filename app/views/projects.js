@@ -631,7 +631,8 @@ async function addProject() {
     const contractVal = document.getElementById('contractCost').value;
 
     // Validate required fields
-    if (!clientId || !project_name || !internal_status || !project_status) {
+    // Phase 78 D-01/D-03: client is now optional (clientless projects allowed for lead-stage TR support)
+    if (!project_name || !internal_status || !project_status) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
@@ -671,13 +672,14 @@ async function addProject() {
 
     try {
         // Generate project code
-        const project_code = await generateProjectCode(clientCode);
+        // Phase 78 D-04: defer project_code generation until a client is later assigned
+        const project_code = clientCode ? await generateProjectCode(clientCode) : null;
 
         const docRef = await addDoc(collection(db, 'projects'), {
-            project_code,
+            project_code: project_code || null,
             project_name,
-            client_id: clientId,
-            client_code: clientCode,
+            client_id: clientId || null,
+            client_code: clientCode || null,
             internal_status,
             project_status,
             budget,
@@ -695,7 +697,7 @@ async function addProject() {
         // Record creation in edit history (fire-and-forget)
         recordEditHistory(docRef.id, 'create', [
             { field: 'project_name', old_value: null, new_value: project_name },
-            { field: 'client', old_value: null, new_value: clientCode },
+            { field: 'client', old_value: null, new_value: clientCode || null },
             ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
             { field: 'internal_status', old_value: null, new_value: internal_status },
             { field: 'project_status', old_value: null, new_value: project_status },
@@ -706,10 +708,13 @@ async function addProject() {
 
         // Sync personnel to user assignments (fire-and-forget)
         const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-        syncPersonnelToAssignments(project_code, [], newUserIds)
-            .catch(err => console.error('[Projects] Assignment sync failed:', err));
+        // Phase 78 D-04: skip personnel-to-assignments sync when project_code is null (clientless project) — sync runs on code issuance instead
+        if (project_code) {
+            syncPersonnelToAssignments(project_code, [], newUserIds)
+                .catch(err => console.error('[Projects] Assignment sync failed:', err));
+        }
 
-        showToast(`Project "${project_name}" created successfully!`, 'success');
+        showToast(`Project "${project_name}" created successfully${project_code ? '' : ' (no code yet — assign a client to issue code)'}!`, 'success');
         toggleAddProjectForm();
     } catch (error) {
         console.error('[Projects] Error adding project:', error);
