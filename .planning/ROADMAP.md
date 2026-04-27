@@ -633,10 +633,10 @@ Plans:
 **Goal:** Replace the text-row status breakdowns inside the Projects and Services cards on the home page with Chart.js horizontal bar charts. Procurement card stays untouched (3 scorecard numbers). Highlighted statuses (For Inspection, For Proposal, Under Client Review, On-going) get muted brand-palette colors; all other statuses get a monochromatic gray scale. Chart.js loaded via CDN (zero-build static site constraint).
 **Requirements**: D-01 (Procurement untouched), D-02 (Projects horizontal bars), D-03 (Services horizontal bars 4 sections), D-04 (muted brand colors + monochromatic gray), D-05 (Chart.js CDN pinned)
 **Depends on:** Phase 77
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 77.1-01-PLAN.md — Add Chart.js CDN + canvas wrapper CSS, rewrite home.js status helpers to render Chart.js horizontal bar charts with chartInstances Map for safe update/teardown
+- [x] 77.1-01-PLAN.md — Add Chart.js CDN + canvas wrapper CSS, rewrite home.js status helpers to render Chart.js horizontal bar charts with chartInstances Map for safe update/teardown
 
 ### Phase 78: Allow Creating Projects Without a Client — Defer Project Code Issuance Until Client is Assigned
 

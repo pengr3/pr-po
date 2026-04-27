@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Ready to execute
-stopped_at: Completed 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown-01-PLAN.md
-last_updated: "2026-04-27T03:57:00.578Z"
+stopped_at: Completed 78-01-PLAN.md
+last_updated: "2026-04-27T04:00:02.494Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 28
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 78 (allow-creating-projects-without-a-client-defer-project-code-issuance-until-client-is-assigned) — EXECUTING
-Plan: 2 of 4
+Plan: 4 of 4
 
 ## Performance Metrics
 
@@ -90,6 +90,8 @@ Plan: 2 of 4
 | Phase 75 P02 | 2 | 3 tasks | 2 files |
 | Phase 74-optimize-material-request-tab-for-mobile-use P03 | multi-session | 4 tasks | 3 files |
 | Phase 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown P01 | 5 | 2 tasks | 2 files |
+| Phase 78 P01 | 2 | 2 tasks | 2 files |
+| Phase 77.1-revise-home-stats-to-charts-and-graphs P01 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -180,6 +182,11 @@ Recent decisions affecting current work:
 - [Phase 74-03]: mapMRFToDisplayData declared inside createMRFRecordsController scope (closes over _subDataCache); single-pass Promise.all returns {rowHtml, cardHtml} pairs — REVIEWS [MEDIUM] fix; scroll-close handler on window._mrfMobileMenuScrollHandler — REVIEWS [LOW] fix
 - [Phase 74-03]: 3-dot dropdown reuses window._myRequestsEditMRF / window._myRequestsCancelMRF — no new Edit/Cancel logic; closeMyRequestsMobileMenu centralized as window function for shared teardown
 - [Phase 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown]: Added Date Submitted and Justification to MRF Details info grid using !isNew guard; grid-column: 1/-1 for Justification span
+- [Phase 77.1-01]: Chart.js v4.4.7 CDN UMD (window.Chart global) for zero-build SPA; chartInstances Map for create-or-update-or-destroy chart lifecycle on home view
+- [Phase 77.1-01]: Home status charts: 4 highlighted statuses use muted brand-palette colors (0.55-0.65 alpha); all other statuses use graduated slate shades — visual hierarchy signals attention vs context
+- [Phase 78]: D-01/D-03: client is now optional in addProject() — only project_name, internal_status, project_status remain required; clientless projects write null client_id/client_code/project_code
+- [Phase 78]: D-04: generateProjectCode() skipped when clientCode is absent (null); syncPersonnelToAssignments also gated behind non-null project_code
+- [Phase 78]: D-12 DB-level lock: firestore.rules update rule requires project_code == null OR all three locked fields unchanged in request — server-side guard supplements UI lock
 
 ### Roadmap Evolution
 
@@ -239,7 +246,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-27
-Last session: 2026-04-27T03:57:00.545Z
-Stopped at: Completed 79-fix-mrf-details-justification-datetime-qty-truncation-searchable-dropdown-01-PLAN.md
+Last session: 2026-04-27T04:00:02.480Z
+Stopped at: Completed 78-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79
