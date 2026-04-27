@@ -19,8 +19,8 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Latest shipped:** v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (2026-03-10)
-**Active milestone:** v3.2 in progress
+**Latest shipped:** Phase 78 complete — clientless project creation + deferred code issuance (2026-04-27)
+**Active milestone:** v3.2 in progress (Phase 78 is the last planned phase — milestone ready for completion)
 
 See `.planning/MILESTONES.md` for full milestone history.
 
