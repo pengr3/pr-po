@@ -16,6 +16,11 @@ let cachedProjects = [];   // Holds the latest projects from the onSnapshot call
 let servicesListener = null;
 let cachedServices = [];   // Holds the latest services from the onSnapshot callback
 
+// Phase 79-02: Combobox state for project/service searchable dropdown
+let psOptions = [];          // {value, label, type, name} — combined options for combobox
+let psShowProjects = true;   // mirrors role-based visibility from init()
+let psShowServices = true;
+
 // My Requests sub-tab controller (from mrf-records.js)
 let myRequestsController = null;
 
@@ -245,12 +250,21 @@ export function render(activeTab = 'form') {
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
                                 <div id="projectServiceGroup" style="grid-column: 1 / -1;">
                                     <div class="form-group">
-                                        <label id="projectServiceLabel" for="projectServiceSelect">Project / Service *</label>
-                                        <select id="projectServiceSelect">
-                                            <option value="">Loading...</option>
-                                            <optgroup id="projectsOptgroup" label="Projects"></optgroup>
-                                            <optgroup id="servicesOptgroup" label="Services"></optgroup>
-                                        </select>
+                                        <label id="projectServiceLabel" for="projectServiceDisplay">Project / Service *</label>
+                                        <div class="ps-combobox-wrapper" style="position: relative;">
+                                            <input type="text" id="projectServiceDisplay" autocomplete="off"
+                                                   placeholder="Type to search projects / services..."
+                                                   style="width: 100%; box-sizing: border-box;">
+                                            <div id="projectServiceDropdown" class="ps-dropdown" style="display: none;
+                                                 position: absolute; top: 100%; left: 0; right: 0; z-index: 9999;
+                                                 background: #fff; border: 1px solid #dadce0; border-top: none;
+                                                 border-radius: 0 0 4px 4px; max-height: 220px; overflow-y: auto;
+                                                 box-shadow: 0 4px 8px rgba(0,0,0,0.12);">
+                                            </div>
+                                        </div>
+                                        <input type="hidden" id="projectServiceValue">
+                                        <input type="hidden" id="projectServiceType">
+                                        <input type="hidden" id="projectServiceName">
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -450,33 +464,64 @@ export async function init(activeTab = 'form') {
             }
         }
 
-        // Load projects
-        loadProjects();
-
         // Role-based dropdown visibility (MRF-01, MRF-02, MRF-03)
         const role = user?.role || '';
         const showProjects = ['super_admin', 'finance', 'procurement', 'operations_admin', 'operations_user'].includes(role);
         const showServices = ['super_admin', 'finance', 'procurement', 'services_admin', 'services_user'].includes(role);
 
-        // Update combined dropdown label and placeholder for single-dept roles
+        // Phase 79-02: Store role flags BEFORE loading data so rebuildPSOptions() applies the correct filter
+        psShowProjects = showProjects;
+        psShowServices = showServices;
+
+        // Load projects
+        loadProjects();
+
+        // Update combined dropdown label for single-dept roles
         const psl = document.getElementById('projectServiceLabel');
-        const pss = document.getElementById('projectServiceSelect');
-        if (psl && pss) {
+        if (psl) {
             if (!showServices) {
                 psl.textContent = 'Project *';
-                pss.options[0].textContent = '-- Select a project --';
             } else if (!showProjects) {
                 psl.textContent = 'Service *';
-                pss.options[0].textContent = '-- Select a service --';
-            } else {
-                pss.options[0].textContent = '-- Select a project or service --';
             }
+            // else: default "Project / Service *" from the label HTML
         }
 
-        const projectsOptgroup = document.getElementById('projectsOptgroup');
-        const servicesOptgroup = document.getElementById('servicesOptgroup');
-        if (projectsOptgroup) projectsOptgroup.hidden = !showProjects;
-        if (servicesOptgroup) servicesOptgroup.hidden = !showServices;
+        // Wire combobox display input events
+        const psDisplay = document.getElementById('projectServiceDisplay');
+        if (psDisplay) {
+            if (!showServices) {
+                psDisplay.placeholder = 'Type to search projects...';
+            } else if (!showProjects) {
+                psDisplay.placeholder = 'Type to search services...';
+            } else {
+                psDisplay.placeholder = 'Type to search projects / services...';
+            }
+
+            psDisplay.addEventListener('input', () => {
+                renderPSDropdown(psDisplay.value);
+            });
+
+            psDisplay.addEventListener('focus', () => {
+                renderPSDropdown(psDisplay.value);
+            });
+
+            psDisplay.addEventListener('blur', () => {
+                // Delay hiding so onmousedown on options fires first
+                setTimeout(() => {
+                    const dd = document.getElementById('projectServiceDropdown');
+                    if (dd) dd.style.display = 'none';
+                }, 150);
+            });
+
+            psDisplay.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const dd = document.getElementById('projectServiceDropdown');
+                    if (dd) dd.style.display = 'none';
+                    psDisplay.blur();
+                }
+            });
+        }
 
         if (showServices) {
             loadServices();
@@ -1057,8 +1102,6 @@ async function initMyRequests() {
  * Load projects from Firebase
  */
 function loadProjects() {
-    if (!document.getElementById('projectsOptgroup')) return;
-
     try {
         const projectsRef = collection(db, 'projects');
         const q = query(projectsRef, where('active', '==', true));
@@ -1088,34 +1131,15 @@ function loadProjects() {
  * assignmentsChanged event handler.
  */
 function populateProjectDropdown() {
-    const optgroup = document.getElementById('projectsOptgroup');
-    if (!optgroup) return;
-
-    // Phase 7: Filter to assigned projects for operations_user
-    const assignedCodes = window.getAssignedProjectCodes?.();
-    let projects = cachedProjects;
-    if (assignedCodes !== null) {
-        projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
-    }
-
-    optgroup.innerHTML = '';
-
-    projects.forEach(project => {
-        const option = document.createElement('option');
-        option.value = project.project_code;
-        option.textContent = `${project.project_code} - ${project.project_name}`;
-        option.dataset.type = 'project';
-        option.dataset.projectName = project.project_name;
-        optgroup.appendChild(option);
-    });
+    // Phase 79-02: No longer populates a <optgroup> DOM element — data is held in
+    // cachedProjects and rebuilt into the psOptions array for the combobox.
+    rebuildPSOptions();
 }
 
 /**
  * Load services from Firebase with real-time updates
  */
 function loadServices() {
-    if (!document.getElementById('servicesOptgroup')) return;
-
     try {
         const servicesRef = collection(db, 'services');
 
@@ -1159,29 +1183,109 @@ function loadServices() {
  * assignmentsChanged event handler.
  */
 function populateServiceDropdown() {
-    const optgroup = document.getElementById('servicesOptgroup');
-    if (!optgroup) return;
+    // Phase 79-02: No longer populates a <optgroup> DOM element — data is held in
+    // cachedServices and rebuilt into the psOptions array for the combobox.
+    rebuildPSOptions();
+}
 
-    // Filter to assigned services for services_user; services_admin gets null (no filter)
-    // Also enforce active=true for services_user (their query doesn't include that filter)
-    const assignedCodes = window.getAssignedServiceCodes?.();
-    let services = cachedServices;
-    if (assignedCodes !== null) {
-        services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
+// ----------------------------------------
+// PHASE 79-02: COMBOBOX HELPERS
+// ----------------------------------------
+
+/**
+ * Rebuild the flat psOptions array from cachedProjects + cachedServices,
+ * applying the same role-based visibility used by the old optgroup hidden flags.
+ * Called at the end of populateProjectDropdown() and populateServiceDropdown().
+ */
+function rebuildPSOptions() {
+    psOptions = [];
+
+    if (psShowProjects) {
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        let projects = cachedProjects;
+        if (assignedCodes !== null) {
+            projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
+        }
+        projects.forEach(p => {
+            psOptions.push({
+                value: p.project_code,
+                label: `${p.project_code} - ${p.project_name}`,
+                type: 'project',
+                name: p.project_name
+            });
+        });
     }
 
-    optgroup.innerHTML = '';
-
-    services.forEach(service => {
-        const option = document.createElement('option');
-        option.value = service.service_code;
-        // MRF-04: format "CLMC_CODE_YYYY### - Service Name"
-        option.textContent = `${service.service_code} - ${service.service_name}`;
-        option.dataset.type = 'service';
-        option.dataset.serviceName = service.service_name;
-        optgroup.appendChild(option);
-    });
+    if (psShowServices) {
+        const assignedCodes = window.getAssignedServiceCodes?.();
+        let services = cachedServices;
+        if (assignedCodes !== null) {
+            services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
+        }
+        services.forEach(s => {
+            psOptions.push({
+                value: s.service_code,
+                label: `${s.service_code} - ${s.service_name}`,
+                type: 'service',
+                name: s.service_name
+            });
+        });
+    }
 }
+
+/**
+ * Render filtered options into the dropdown div.
+ * @param {string} filter - current text in the display input
+ */
+function renderPSDropdown(filter) {
+    const dd = document.getElementById('projectServiceDropdown');
+    if (!dd) return;
+
+    const q = (filter || '').toLowerCase().trim();
+    const matches = q
+        ? psOptions.filter(o => o.label.toLowerCase().includes(q))
+        : psOptions;
+
+    if (matches.length === 0) {
+        dd.innerHTML = '<div style="padding: 0.5rem 0.75rem; color: #9ca3af; font-size: 0.875rem;">No results</div>';
+    } else {
+        dd.innerHTML = matches.map(o =>
+            `<div class="ps-option" data-value="${escapeForAttr(o.value)}" data-type="${o.type}" data-name="${escapeForAttr(o.name)}"
+                  style="padding: 0.5rem 0.75rem; cursor: pointer; font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                  onmousedown="window._selectPSOption('${escapeForAttr(o.value)}', '${escapeForAttr(o.label)}', '${o.type}', '${escapeForAttr(o.name)}')"
+                  onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">${window.escapeHTML ? window.escapeHTML(o.label) : o.label}</div>`
+        ).join('');
+    }
+
+    dd.style.display = 'block';
+}
+
+/**
+ * Select an option: populate display input + hidden inputs, close dropdown.
+ */
+function selectPSOption(value, label, type, name) {
+    const display = document.getElementById('projectServiceDisplay');
+    if (display) display.value = label;
+    const valInput = document.getElementById('projectServiceValue');
+    if (valInput) valInput.value = value;
+    const typeInput = document.getElementById('projectServiceType');
+    if (typeInput) typeInput.value = type;
+    const nameInput = document.getElementById('projectServiceName');
+    if (nameInput) nameInput.value = name;
+
+    const dd = document.getElementById('projectServiceDropdown');
+    if (dd) dd.style.display = 'none';
+}
+
+/**
+ * Escape a string for use inside an HTML attribute value (single-quote delimited).
+ */
+function escapeForAttr(str) {
+    return String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// Expose selectPSOption on window so the onmousedown attribute can call it
+window._selectPSOption = selectPSOption;
 
 /**
  * Generate sequential MRF ID
@@ -1510,6 +1614,16 @@ window.resetForm = function() {
     if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
         document.getElementById('mrfForm').reset();
 
+        // Phase 79-02: Clear combobox hidden state
+        const psVal = document.getElementById('projectServiceValue');
+        const psType = document.getElementById('projectServiceType');
+        const psName = document.getElementById('projectServiceName');
+        if (psVal) psVal.value = '';
+        if (psType) psType.value = '';
+        if (psName) psName.value = '';
+        const psDisp = document.getElementById('projectServiceDisplay');
+        if (psDisp) psDisp.value = '';
+
         // Keep only one item row
         const tbody = document.getElementById('itemsTableBody');
         while (tbody.rows.length > 1) {
@@ -1564,15 +1678,15 @@ async function handleFormSubmit(e) {
     // Collect form data
     const requestType = document.querySelector('input[name="requestType"]:checked').value;
     const urgencyLevel = document.querySelector('input[name="urgencyLevel"]:checked').value;
-    const pss = document.getElementById('projectServiceSelect');
-    const selectedOption = pss?.options[pss?.selectedIndex];
-    const selectedType = selectedOption?.dataset?.type || '';
-    const selectedCode = pss?.value?.trim() || '';
+    // Phase 79-02: Read from hidden inputs populated by the combobox
+    const selectedType = document.getElementById('projectServiceType')?.value || '';
+    const selectedCode = document.getElementById('projectServiceValue')?.value?.trim() || '';
+    const selectedName = document.getElementById('projectServiceName')?.value || '';
 
     const projectCode = selectedType === 'project' ? selectedCode : '';
-    const projectName = selectedType === 'project' ? (selectedOption?.dataset?.projectName || '') : '';
+    const projectName = selectedType === 'project' ? selectedName : '';
     const serviceCode = selectedType === 'service' ? selectedCode : '';
-    const serviceName = selectedType === 'service' ? (selectedOption?.dataset?.serviceName || '') : '';
+    const serviceName = selectedType === 'service' ? selectedName : '';
 
     const hasProject = !!projectCode;
     const hasService = !!serviceCode;
@@ -1634,6 +1748,17 @@ async function handleFormSubmit(e) {
         // Reset form after 2 seconds
         setTimeout(() => {
             document.getElementById('mrfForm').reset();
+
+            // Phase 79-02: Clear combobox hidden state (form.reset() clears the display input automatically)
+            const psVal = document.getElementById('projectServiceValue');
+            const psType = document.getElementById('projectServiceType');
+            const psName = document.getElementById('projectServiceName');
+            if (psVal) psVal.value = '';
+            if (psType) psType.value = '';
+            if (psName) psName.value = '';
+            const psDisp = document.getElementById('projectServiceDisplay');
+            if (psDisp) psDisp.value = '';
+
             const tbody = document.getElementById('itemsTableBody');
             while (tbody.rows.length > 1) {
                 tbody.deleteRow(1);
