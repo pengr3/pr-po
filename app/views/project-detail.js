@@ -239,6 +239,9 @@ export async function destroy() {
     delete window.showDetailPersonnelDropdown;
     delete window.showEditHistory;
     delete window.exportProjectExpenseCSV;
+    delete window.startCodeIssuance;
+    delete window.runCodeIssuance;
+    document.getElementById('issueCodeOverlay')?.remove();
 }
 
 /**
@@ -943,6 +946,179 @@ async function loadClientsCache() {
     }
 }
 
+// Phase 78 D-07: Open confirmation modal for code issuance
+async function startCodeIssuance() {
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+    if (!currentProject || currentProject.client_code) {
+        showToast('Project already has a code', 'error');
+        return;
+    }
+
+    const select = document.getElementById('clientAssignSelect');
+    if (!select || !select.value) {
+        showToast('Select a client first', 'error');
+        return;
+    }
+    const clientId = select.value;
+    const clientCode = select.selectedOptions[0]?.dataset?.code || '';
+    if (!clientCode) {
+        showToast('Selected client has no client_code — cannot issue project code', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        // Pre-compute the new project_code so the modal can show it
+        const newProjectCode = await generateProjectCode(clientCode);
+
+        // Count linked records by project_id (the stable backbone from Plan 02)
+        const projectId = currentProject.id;
+        const [mrfsCount, prsCount, posCount, trsCount, rfpsCount] = await Promise.all([
+            getDocs(query(collection(db, 'mrfs'), where('project_id', '==', projectId))).then(s => s.size),
+            getDocs(query(collection(db, 'prs'), where('project_id', '==', projectId))).then(s => s.size),
+            getDocs(query(collection(db, 'pos'), where('project_id', '==', projectId))).then(s => s.size),
+            getDocs(query(collection(db, 'transport_requests'), where('project_id', '==', projectId))).then(s => s.size),
+            getDocs(query(collection(db, 'rfps'), where('project_id', '==', projectId))).then(s => s.size)
+        ]);
+        const totalChildren = mrfsCount + prsCount + posCount + trsCount + rfpsCount;
+
+        // Build confirmation overlay (Phase 78 D-07: clear text showing both new code AND total children backfilled)
+        const overlayHtml = `
+            <div id="issueCodeOverlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem;">
+                <div class="card" style="max-width: 520px; width: 100%; background: #fff;">
+                    <div class="card-body" style="padding: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">Issue Project Code</h3>
+                        <p style="margin: 0 0 0.75rem 0; color: #1e293b;">
+                            This will generate <strong>${escapeHTML(newProjectCode)}</strong> and apply it to all linked records:
+                        </p>
+                        <ul style="margin: 0 0 1rem 1.25rem; color: #475569; font-size: 0.9rem; line-height: 1.7;">
+                            <li>${mrfsCount} Material Request${mrfsCount === 1 ? '' : 's'}</li>
+                            <li>${prsCount} Purchase Request${prsCount === 1 ? '' : 's'}</li>
+                            <li>${posCount} Purchase Order${posCount === 1 ? '' : 's'}</li>
+                            <li>${trsCount} Transport Request${trsCount === 1 ? '' : 's'}</li>
+                            <li>${rfpsCount} Request for Payment${rfpsCount === 1 ? '' : 's'}</li>
+                        </ul>
+                        <p style="margin: 0 0 1.5rem 0; color: #64748b; font-size: 0.875rem;">
+                            <strong>${totalChildren}</strong> total record${totalChildren === 1 ? '' : 's'} will be updated. After issuance, the client and project code are locked.
+                        </p>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('issueCodeOverlay').remove()">Cancel</button>
+                            <button class="btn btn-primary" onclick="window.runCodeIssuance('${escapeHTML(clientId)}', '${escapeHTML(clientCode)}', '${escapeHTML(newProjectCode)}')">Confirm &amp; Issue</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        // Remove any prior overlay before appending (defensive de-dup)
+        document.getElementById('issueCodeOverlay')?.remove();
+        document.body.insertAdjacentHTML('beforeend', overlayHtml);
+    } catch (err) {
+        console.error('[ProjectDetail] startCodeIssuance failed:', err);
+        showToast('Failed to prepare code issuance: ' + (err.message || err), 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Phase 78 D-04, D-05, D-08, D-12: Execute the batched backfill across all 5 collections + project doc.
+// CRITICAL ORDERING (REVIEWS.md MEDIUM concern fix):
+//   The project doc is pushed LAST into the writes[] array, AFTER every child collection forEach loop.
+//   When chunk-committing in batches of 500, the project doc lives in the FINAL chunk and commits LAST.
+//   If any prior batch fails (network, browser close, rule rejection), the project doc still has
+//   project_code: null on disk → the user can safely re-run runCodeIssuance. Children that already
+//   received the code on the failed run get re-written with the same code on the retry (idempotent).
+async function runCodeIssuance(clientId, clientCode, newProjectCode) {
+    if (window.canEditTab?.('projects') === false) {
+        showToast('You do not have permission to edit projects', 'error');
+        return;
+    }
+    if (!currentProject || currentProject.client_code) {
+        showToast('Project already has a code', 'error');
+        return;
+    }
+
+    // Tear down the modal immediately so the user sees progress feedback
+    document.getElementById('issueCodeOverlay')?.remove();
+    showLoading(true);
+
+    try {
+        const projectId = currentProject.id;
+
+        // 1. Query all child records by project_id
+        const [mrfsSnap, prsSnap, posSnap, trsSnap, rfpsSnap] = await Promise.all([
+            getDocs(query(collection(db, 'mrfs'), where('project_id', '==', projectId))),
+            getDocs(query(collection(db, 'prs'), where('project_id', '==', projectId))),
+            getDocs(query(collection(db, 'pos'), where('project_id', '==', projectId))),
+            getDocs(query(collection(db, 'transport_requests'), where('project_id', '==', projectId))),
+            getDocs(query(collection(db, 'rfps'), where('project_id', '==', projectId)))
+        ]);
+
+        // 2. Build the list of writes. Children FIRST, project doc LAST (atomicity marker — see comment above).
+        //    Firestore writeBatch caps at 500 writes per batch — we chunk if total writes exceed 500.
+        const writes = [];
+
+        // Children — write project_code + client_code on each. These are pushed FIRST.
+        const childUpdate = { project_code: newProjectCode, client_code: clientCode };
+        mrfsSnap.forEach(d => writes.push({ ref: doc(db, 'mrfs', d.id), data: childUpdate }));
+        prsSnap.forEach(d => writes.push({ ref: doc(db, 'prs', d.id), data: childUpdate }));
+        posSnap.forEach(d => writes.push({ ref: doc(db, 'pos', d.id), data: childUpdate }));
+        trsSnap.forEach(d => writes.push({ ref: doc(db, 'transport_requests', d.id), data: childUpdate }));
+        rfpsSnap.forEach(d => writes.push({ ref: doc(db, 'rfps', d.id), data: childUpdate }));
+
+        // Project doc LAST — commits in the FINAL chunk so a partial-batch failure leaves the project
+        // un-marked-issued (project_code stays null on disk) and the user can safely retry.
+        // is_issued: true is the explicit flag for future security rules / UI heuristics (REVIEWS suggestion).
+        writes.push({
+            ref: doc(db, 'projects', projectId),
+            data: {
+                client_id: clientId,
+                client_code: clientCode,
+                project_code: newProjectCode,
+                is_issued: true,  // Phase 78 D-12: explicit issued marker for future security rules / UI checks
+                updated_at: new Date().toISOString()
+            }
+        });
+
+        // 3. Commit in chunks of 500 (Firestore writeBatch hard limit)
+        const CHUNK = 500;
+        for (let i = 0; i < writes.length; i += CHUNK) {
+            const batch = writeBatch(db);
+            const chunk = writes.slice(i, i + CHUNK);
+            chunk.forEach(w => batch.update(w.ref, w.data));
+            await batch.commit();
+        }
+
+        const totalChildren = mrfsSnap.size + prsSnap.size + posSnap.size + trsSnap.size + rfpsSnap.size;
+
+        // 4. Edit-history event — Phase 78 D-08: single combined event
+        recordEditHistory(projectId, 'update', [
+            { field: 'client_code', old_value: null, new_value: clientCode },
+            { field: 'project_code', old_value: null, new_value: newProjectCode },
+            { field: 'code_issued_backfill_count', old_value: null, new_value: totalChildren }
+        ]).catch(err => console.error('[EditHistory] code_issued failed:', err));
+
+        // 5. Sync personnel-to-assignments now that we have a project_code (skipped at create-time per Plan 01)
+        const newUserIds = (currentProject.personnel_user_ids || []).filter(Boolean);
+        if (newUserIds.length > 0) {
+            syncPersonnelToAssignments(newProjectCode, [], newUserIds)
+                .catch(err => console.error('[ProjectDetail] Post-issuance assignment sync failed:', err));
+        }
+
+        showToast(`Code ${newProjectCode} issued and applied to ${totalChildren} record${totalChildren === 1 ? '' : 's'}`, 'success');
+
+        // 6. Redirect to the new code-based URL so the user lands on the canonical detail page
+        window.location.hash = `#/projects/detail/${encodeURIComponent(newProjectCode)}`;
+    } catch (err) {
+        console.error('[ProjectDetail] runCodeIssuance failed:', err);
+        showToast('Failed to issue code: ' + (err.message || err), 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveField = saveField;
@@ -961,4 +1137,6 @@ function attachWindowFunctions() {
     window.showDetailPersonnelDropdown = showDetailPersonnelDropdown;
     window.showEditHistory = () => currentProject && showEditHistoryModal(currentProject.id, currentProject.project_code);
     window.exportProjectExpenseCSV = exportProjectExpenseCSV;
+    window.startCodeIssuance = startCodeIssuance;
+    window.runCodeIssuance = runCodeIssuance;
 }
