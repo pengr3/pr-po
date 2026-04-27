@@ -650,12 +650,12 @@ Plans:
   4. Assigning a client to a clientless project triggers a confirmation modal showing the about-to-be-generated code and the count of linked procurement records; confirming runs a batched write of `project_code` and `client_code` to all linked MRFs / PRs / POs / TRs / RFPs
   5. After code issuance, `client_id`, `client_code`, and `project_code` are locked on the project (no re-assignment)
   6. Deep links to clientless projects resolve using Firestore doc ID (`#/projects/detail/{doc_id}`) and continue to work after code issuance
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [x] 78-01-PLAN.md — Relax addProject() and firestore.rules to allow clientless project creation
 - [ ] 78-02-PLAN.md — Wire MRF dropdowns (mrf-form.js + procurement.js) for clientless projects + project_id denormalization on MRF/PR/PO/TR/RFP writes
-- [ ] 78-03-PLAN.md — Em-dash list rendering, doc-ID URL fallback, client picker on detail page, batched code-issuance backfill across 5 collections
+- [x] 78-03-PLAN.md — Em-dash list rendering, doc-ID URL fallback, client picker on detail page, batched code-issuance backfill across 5 collections
 - [ ] 78-04-PLAN.md — Manual UAT checkpoint (deploy rules + 12-step lifecycle test)
 
 ### Phase 79: Fix MRF Details Missing Justification and Submission Datetime, Fix QTY Field Truncation, Add Searchable Project/Service Dropdown in MRF Form
