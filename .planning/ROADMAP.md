@@ -663,8 +663,8 @@ Plans:
 **Goal:** Patch three UX/data-integrity issues: (1) show justification + submission datetime in MRF Details panel so processors have full context; (2) widen QTY input so 5-digit quantities (e.g. 5000) display and persist correctly; (3) replace the native project/service `<select>` in the MRF line-item form with a searchable combobox so large lists are navigable by typing.
 **Requirements**: TBD
 **Depends on:** Phase 78
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 79-01-PLAN.md — Add justification + date_submitted display to MRF Details panel; fix QTY input min-width
-- [ ] 79-02-PLAN.md — Replace native project/service select with vanilla JS searchable combobox in mrf-form.js
+- [x] 79-02-PLAN.md — Replace native project/service select with vanilla JS searchable combobox in mrf-form.js
