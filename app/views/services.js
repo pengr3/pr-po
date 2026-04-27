@@ -29,18 +29,14 @@ let sortDirection = 'desc';     // Most recent first
 // Module-level active tab - persists across re-renders
 let currentActiveTab = 'services';
 
-// Status options (mirroring projects)
-const INTERNAL_STATUS_OPTIONS = [
+// Unified status options (10 values — replaces separate internal + project status)
+const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
-    'For Internal Approval',
-    'Ready to Submit'
-];
-
-const PROJECT_STATUS_OPTIONS = [
-    'Pending Client Review',
-    'Under Client Review',
-    'Approved by Client',
+    'Proposal for Internal Approval',
+    'Proposal Under Client Review',
+    'For Revision',
+    'Client Approved',
     'For Mobilization',
     'On-going',
     'Completed',
@@ -159,20 +155,10 @@ export function render(activeTab = null) {
                     </div>
 
                     <div class="form-group">
-                        <label>Internal Status *</label>
-                        <select id="serviceInternalStatus" required>
-                            <option value="">-- Select Internal Status --</option>
-                            ${INTERNAL_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Project Status *</label>
+                        <label>Status *</label>
                         <select id="serviceProjectStatus" required>
-                            <option value="">-- Select Project Status --</option>
-                            ${PROJECT_STATUS_OPTIONS.map(s =>
+                            <option value="">-- Select Status --</option>
+                            ${UNIFIED_STATUS_OPTIONS.map(s =>
                                 `<option value="${s}">${s}</option>`
                             ).join('')}
                         </select>
@@ -215,20 +201,10 @@ export function render(activeTab = null) {
                 <!-- Filter Bar -->
                 <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
                     <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Internal Status</label>
-                        <select id="serviceInternalStatusFilter" onchange="window.applyServiceFilters()" style="width: 100%;">
-                            <option value="">All Internal Statuses</option>
-                            ${INTERNAL_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-
-                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Project Status</label>
+                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Status</label>
                         <select id="serviceProjectStatusFilter" onchange="window.applyServiceFilters()" style="width: 100%;">
-                            <option value="">All Project Statuses</option>
-                            ${PROJECT_STATUS_OPTIONS.map(s =>
+                            <option value="">All Statuses</option>
+                            ${UNIFIED_STATUS_OPTIONS.map(s =>
                                 `<option value="${s}">${s}</option>`
                             ).join('')}
                         </select>
@@ -265,11 +241,8 @@ export function render(activeTab = null) {
                             <th onclick="window.sortServices('client_code')" style="cursor: pointer; user-select: none;">
                                 Client <span class="sort-indicator" data-col="client_code"></span>
                             </th>
-                            <th onclick="window.sortServices('internal_status')" style="cursor: pointer; user-select: none;">
-                                Internal Status <span class="sort-indicator" data-col="internal_status"></span>
-                            </th>
                             <th onclick="window.sortServices('project_status')" style="cursor: pointer; user-select: none;">
-                                Project Status <span class="sort-indicator" data-col="project_status"></span>
+                                Status <span class="sort-indicator" data-col="project_status"></span>
                             </th>
                             <th onclick="window.sortServices('active')" style="cursor: pointer; user-select: none;">
                                 Active <span class="sort-indicator" data-col="active"></span>
@@ -337,7 +310,7 @@ function exportServicesCSV() {
         showToast('No services to export', 'info');
         return;
     }
-    const headers = ['Code', 'Name', 'Client', 'Internal Status', 'Project Status', 'Active'];
+    const headers = ['Code', 'Name', 'Client', 'Status', 'Active'];
     const rows = filteredServices.map(service => {
         const client = clientsData.find(c => c.id === service.client_id);
         const clientName = client ? client.company_name : (service.client_code || '');
@@ -345,7 +318,6 @@ function exportServicesCSV() {
             service.service_code || '',
             service.service_name || '',
             clientName,
-            service.internal_status || '',
             service.project_status || '',
             service.active ? 'Yes' : 'No'
         ];
@@ -622,7 +594,6 @@ function toggleAddServiceForm() {
         document.getElementById('serviceName').value = '';
         document.getElementById('serviceLocation').value = '';
         document.getElementById('serviceType').value = currentActiveTab === 'recurring' ? 'recurring' : 'one-time';
-        document.getElementById('serviceInternalStatus').value = '';
         document.getElementById('serviceProjectStatus').value = '';
         document.getElementById('serviceBudget').value = '';
         document.getElementById('serviceContractCost').value = '';
@@ -660,13 +631,12 @@ async function addService() {
     const service_name = document.getElementById('serviceName').value.trim();
     const service_type = document.getElementById('serviceType').value;
     const location = document.getElementById('serviceLocation').value.trim();
-    const internal_status = document.getElementById('serviceInternalStatus').value;
     const project_status = document.getElementById('serviceProjectStatus').value;
     const budgetVal = document.getElementById('serviceBudget').value;
     const contractVal = document.getElementById('serviceContractCost').value;
 
     // Validate required fields
-    if (!clientId || !service_name || !service_type || !internal_status || !project_status) {
+    if (!clientId || !service_name || !service_type || !project_status) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
@@ -692,13 +662,8 @@ async function addService() {
     }
 
     // Validate status values
-    if (!INTERNAL_STATUS_OPTIONS.includes(internal_status)) {
-        showToast('Invalid internal status', 'error');
-        return;
-    }
-
-    if (!PROJECT_STATUS_OPTIONS.includes(project_status)) {
-        showToast('Invalid project status', 'error');
+    if (!UNIFIED_STATUS_OPTIONS.includes(project_status)) {
+        showToast('Invalid status', 'error');
         return;
     }
 
@@ -723,7 +688,6 @@ async function addService() {
             service_type,        // 'one-time' | 'recurring'
             client_id: clientId,
             client_code: clientCode,  // REQUIRED: for generateServiceCode range query
-            internal_status,
             project_status,
             budget,
             contract_cost,
@@ -743,7 +707,6 @@ async function addService() {
             { field: 'service_type', old_value: null, new_value: service_type },
             { field: 'client', old_value: null, new_value: clientCode },
             ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
-            { field: 'internal_status', old_value: null, new_value: internal_status },
             { field: 'project_status', old_value: null, new_value: project_status },
             ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
             ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
@@ -767,7 +730,6 @@ async function addService() {
 // Apply filters (includes sub-tab type filter and services_user scope)
 function applyServiceFilters() {
     const searchTerm = document.getElementById('serviceSearchInput')?.value.toLowerCase() || '';
-    const internalStatusFilter = document.getElementById('serviceInternalStatusFilter')?.value || '';
     const projectStatusFilter = document.getElementById('serviceProjectStatusFilter')?.value || '';
     const clientFilter = document.getElementById('serviceClientFilter')?.value || '';
 
@@ -788,9 +750,7 @@ function applyServiceFilters() {
             (service.service_code && service.service_code.toLowerCase().includes(searchTerm)) ||
             (service.service_name && service.service_name.toLowerCase().includes(searchTerm));
 
-        // Status filters (exact match)
-        const matchesInternalStatus = !internalStatusFilter ||
-            service.internal_status === internalStatusFilter;
+        // Status filter (exact match)
         const matchesProjectStatus = !projectStatusFilter ||
             service.project_status === projectStatusFilter;
 
@@ -804,8 +764,7 @@ function applyServiceFilters() {
         }
 
         // AND logic - all conditions must be true
-        return matchesType && matchesSearch && matchesInternalStatus &&
-               matchesProjectStatus && matchesClient;
+        return matchesType && matchesSearch && matchesProjectStatus && matchesClient;
     });
 
     // Reset pagination when filters change
@@ -851,6 +810,31 @@ function sortFilteredServices() {
         // Numeric/date comparison
         return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
     });
+}
+
+// Rebuild status filter dropdown — injects legacy values discovered in servicesData
+// under an "Other (legacy)" optgroup so users can find and update them.
+function rebuildServiceStatusFilterOptions() {
+    const select = document.getElementById('serviceProjectStatusFilter');
+    if (!select) return;
+    const previousValue = select.value;
+    const legacyValues = new Set();
+    for (const service of allServices) {
+        const v = service.project_status;
+        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
+            legacyValues.add(v);
+        }
+    }
+    const unifiedHtml = UNIFIED_STATUS_OPTIONS
+        .map(s => `<option value="${s}">${s}</option>`)
+        .join('');
+    const legacyHtml = legacyValues.size > 0
+        ? `<optgroup label="Other (legacy)">${[...legacyValues].sort().map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)} (legacy)</option>`).join('')}</optgroup>`
+        : '';
+    select.innerHTML = `<option value="">All Statuses</option>${unifiedHtml}${legacyHtml}`;
+    if (previousValue && [...select.options].some(o => o.value === previousValue)) {
+        select.value = previousValue;
+    }
 }
 
 // Create debounced filter
@@ -930,6 +914,7 @@ async function loadServices() {
 
 // Render services table
 function renderServicesTable() {
+    rebuildServiceStatusFilterOptions();
     const tbody = document.getElementById('servicesTableBody');
     if (!tbody) return;
 
@@ -966,8 +951,13 @@ function renderServicesTable() {
                 <td><strong>${escapeHTML(service.service_code || '')}</strong></td>
                 <td>${escapeHTML(service.service_name || '')}</td>
                 <td>${escapeHTML(clientName || '')}</td>
-                <td>${escapeHTML(service.internal_status || '')}</td>
-                <td>${escapeHTML(service.project_status || '')}</td>
+                <td>${(() => {
+                        const v = service.project_status || '';
+                        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
+                            return `<span style="color: #94a3b8; font-style: italic;">${escapeHTML(v)} (legacy)</span>`;
+                        }
+                        return escapeHTML(v);
+                    })()}</td>
                 <td>
                     <span class="status-badge clickable-badge ${service.active ? 'approved' : 'rejected'}"
                           ${showEditControls ? `onclick="event.stopPropagation(); window.toggleServiceActive('${escapeHTML(service.id)}', ${service.active})" title="Click to ${service.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
@@ -1019,7 +1009,6 @@ function editService(serviceId) {
     document.getElementById('serviceName').value = service.service_name;
     document.getElementById('serviceLocation').value = service.location || '';
     document.getElementById('serviceType').value = service.service_type || 'one-time';
-    document.getElementById('serviceInternalStatus').value = service.internal_status;
     document.getElementById('serviceProjectStatus').value = service.project_status;
     document.getElementById('serviceBudget').value = service.budget || '';
     document.getElementById('serviceContractCost').value = service.contract_cost || '';
@@ -1057,7 +1046,6 @@ async function saveServiceEdit() {
     const service_name = document.getElementById('serviceName').value.trim();
     const service_type = document.getElementById('serviceType').value;
     const location = document.getElementById('serviceLocation').value.trim();
-    const internal_status = document.getElementById('serviceInternalStatus').value;
     const project_status = document.getElementById('serviceProjectStatus').value;
     const budgetVal = document.getElementById('serviceBudget').value;
     const contractVal = document.getElementById('serviceContractCost').value;
@@ -1072,7 +1060,7 @@ async function saveServiceEdit() {
     };
 
     // Validate required fields
-    if (!clientId || !service_name || !service_type || !internal_status || !project_status) {
+    if (!clientId || !service_name || !service_type || !project_status) {
         showToast('Please fill in all required fields', 'error');
         return;
     }
@@ -1092,13 +1080,8 @@ async function saveServiceEdit() {
     }
 
     // Validate status values
-    if (!INTERNAL_STATUS_OPTIONS.includes(internal_status)) {
-        showToast('Invalid internal status', 'error');
-        return;
-    }
-
-    if (!PROJECT_STATUS_OPTIONS.includes(project_status)) {
-        showToast('Invalid project status', 'error');
+    if (!UNIFIED_STATUS_OPTIONS.includes(project_status)) {
+        showToast('Invalid status', 'error');
         return;
     }
 
@@ -1122,7 +1105,6 @@ async function saveServiceEdit() {
             client_id: clientId,
             client_code: clientCode,
             service_type,
-            internal_status,
             project_status,
             budget,
             contract_cost,
@@ -1144,9 +1126,6 @@ async function saveServiceEdit() {
         }
         if (existingService.service_type !== service_type) {
             editChanges.push({ field: 'service_type', old_value: existingService.service_type, new_value: service_type });
-        }
-        if (existingService.internal_status !== internal_status) {
-            editChanges.push({ field: 'internal_status', old_value: existingService.internal_status, new_value: internal_status });
         }
         if (existingService.project_status !== project_status) {
             editChanges.push({ field: 'project_status', old_value: existingService.project_status, new_value: project_status });
