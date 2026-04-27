@@ -19,8 +19,8 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Latest shipped:** Phase 78 complete — clientless project creation + deferred code issuance (2026-04-27)
-**Active milestone:** v3.2 in progress (Phase 78 is the last planned phase — milestone ready for completion)
+**Latest shipped:** Phase 80 complete — MRF Processing layout overflow + navbar distortion fixed at 1366x768 (2026-04-27)
+**Active milestone:** v3.2 — all phases complete, milestone ready for `/gsd:complete-milestone`
 
 See `.planning/MILESTONES.md` for full milestone history.
 
