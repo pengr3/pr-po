@@ -43,6 +43,47 @@ let cachedStats = {
     servicesByProjectStatusRecurring: null
 };
 
+// Phase 77.1 — Chart.js instance registry: containerId → Chart instance
+// Used so onSnapshot callbacks can call .update() on existing charts (vs recreating)
+// and destroy() can tear them all down on view exit.
+const chartInstances = new Map();
+
+// Phase 77.1 — color palette per D-04 (CONTEXT.md):
+// 4 highlighted statuses get muted brand colors; all others get graduated slate shades
+// (neighboring hues within the same cool gray family, not a single flat color).
+const HIGHLIGHTED_STATUS_COLORS = {
+    'For Inspection': 'rgba(26, 115, 232, 0.55)',     // muted --primary
+    'For Proposal': 'rgba(52, 168, 83, 0.55)',        // muted --success
+    'Under Client Review': 'rgba(251, 188, 4, 0.65)', // muted --warning
+    'On-going': 'rgba(26, 115, 232, 0.55)'            // muted --primary (shared brand hue)
+};
+// Non-highlighted statuses — graduated slate shades (same cool-gray family, different depths).
+// Lighter shades = "earlier" / less active; slightly darker = "terminal" / completed states.
+const MONOCHROMATIC_STATUS_COLORS = {
+    // Internal Status — 2 non-highlighted
+    'For Internal Approval': 'rgba(148, 163, 184, 0.38)',
+    'Ready to Submit':       'rgba(148, 163, 184, 0.60)',
+    // Project Status — 5 non-highlighted
+    'Pending Client Review': 'rgba(203, 213, 225, 0.85)', // slate-300 family — lightest
+    'Approved by Client':    'rgba(148, 163, 184, 0.40)',
+    'For Mobilization':      'rgba(148, 163, 184, 0.55)',
+    'Completed':             'rgba(148, 163, 184, 0.68)',
+    'Loss':                  'rgba(100, 116, 139, 0.55)'  // slate-500 family — deepest
+};
+const MONOCHROMATIC_FALLBACK = 'rgba(148, 163, 184, 0.55)'; // fallback for unknown statuses
+
+function getBarColor(statusLabel) {
+    return HIGHLIGHTED_STATUS_COLORS[statusLabel]
+        || MONOCHROMATIC_STATUS_COLORS[statusLabel]
+        || MONOCHROMATIC_FALLBACK;
+}
+
+// Map containerId → wrapper class so buildStatusBreakdownContainer can emit correct sizing.
+// Internal sections have 4 bars; Project sections have 7 bars (matches enum lengths).
+function getChartSizeClass(containerId) {
+    return containerId.endsWith('-internal') ? 'hs-chart-internal' : 'hs-chart-project';
+}
+
 /**
  * Determine dashboard mode based on current user role
  * @returns {'projects'|'services'|'both'}
@@ -55,26 +96,19 @@ function getDashboardMode() {
 }
 
 /**
- * Build HTML for a status breakdown section — skeleton rows if no data, else blank container
- * renderStatusBreakdown() fills in the real rows after onSnapshot fires.
- * @param {string} containerId
- * @param {Object|null} countsMap
- * @param {number} rowCount - how many skeleton rows to show while loading (4 or 7)
+ * Build HTML wrapper for a status breakdown chart.
+ * Phase 77.1: emits a <canvas> inside a sized wrapper instead of a text-row grid.
+ * Chart.js initialization happens later in renderStatusBreakdown(), called from
+ * the onSnapshot callbacks in loadStats(). Skeleton loading state is just an
+ * empty wrapper — the chart fills in on first snapshot fire (typically <500ms).
+ * @param {string} containerId - ID assigned to the <canvas> element
+ * @param {Object|null} countsMap - cached counts (unused here; kept for signature parity with Phase 77)
+ * @param {number} rowCount - bar count, used to pick chart size class (unused param kept for signature parity)
  * @returns {string}
  */
 function buildStatusBreakdownContainer(containerId, countsMap, rowCount) {
-    if (countsMap) {
-        // Cached data available — render rows immediately
-        const rows = Object.entries(countsMap).map(([status, count]) =>
-            `<div class="hs-status-row"><span class="hs-status-label">${status}</span><span class="hs-status-count">${count}</span></div>`
-        ).join('');
-        return `<div id="${containerId}" class="hs-status-grid">${rows}</div>`;
-    }
-    // No cached data — skeleton rows
-    const skeletons = Array(rowCount).fill(
-        `<span class="skeleton skeleton-stat" style="width:100%;height:16px;margin-bottom:4px;display:block;"></span>`
-    ).join('');
-    return `<div id="${containerId}" class="hs-status-grid">${skeletons}</div>`;
+    const sizeClass = getChartSizeClass(containerId);
+    return `<div class="hs-chart-canvas ${sizeClass}"><canvas id="${containerId}"></canvas></div>`;
 }
 
 /**
@@ -161,17 +195,79 @@ function servicesCardHtml() {
 }
 
 /**
- * Write status count map into a DOM container — called from onSnapshot callbacks.
- * Guards against missing element (DOM may not exist yet on first snapshot).
- * @param {string} containerId
+ * Render or update a Chart.js horizontal bar chart for a status breakdown.
+ * Phase 77.1: replaces text-row injection with Chart.js create-or-update.
+ * - First call (no chart instance): creates new Chart, stores in chartInstances.
+ * - Subsequent calls (chart exists): mutates chart.data and calls chart.update().
+ * Guards against missing canvas element (DOM may not exist on first snapshot).
+ * Guards against missing window.Chart (CDN failure / network blocked).
+ * @param {string} containerId - ID of the <canvas> element
  * @param {Object} countsMap - { statusName: count, ... }
  */
 function renderStatusBreakdown(containerId, countsMap) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    el.innerHTML = Object.entries(countsMap).map(([status, count]) =>
-        `<div class="hs-status-row"><span class="hs-status-label">${status}</span><span class="hs-status-count">${count}</span></div>`
-    ).join('');
+    const canvas = document.getElementById(containerId);
+    if (!canvas) return;
+    if (typeof window.Chart !== 'function') {
+        console.error('[Home] Chart.js not loaded — verify CDN script tag in index.html');
+        return;
+    }
+
+    const labels = Object.keys(countsMap);
+    const data = Object.values(countsMap);
+    const backgroundColor = labels.map(getBarColor);
+
+    const existing = chartInstances.get(containerId);
+    if (existing) {
+        // Update in place — preserves canvas, no flicker
+        existing.data.labels = labels;
+        existing.data.datasets[0].data = data;
+        existing.data.datasets[0].backgroundColor = backgroundColor;
+        existing.update();
+        return;
+    }
+
+    // First render — create new Chart instance
+    const chart = new window.Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data,
+                backgroundColor,
+                borderWidth: 0,
+                barPercentage: 0.85,
+                categoryPercentage: 0.85
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        // Show only "{count}" in tooltip body (label already on y-axis)
+                        label: (ctx) => ` ${ctx.parsed.x}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, font: { size: 10 } },
+                    grid: { color: 'rgba(0, 0, 0, 0.04)' }
+                },
+                y: {
+                    ticks: { font: { size: 10 } },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+    chartInstances.set(containerId, chart);
 }
 
 /**
@@ -389,15 +485,26 @@ function updateStatDisplay(elementId, value) {
 
 /**
  * Cleanup when leaving the view
+ * Phase 77.1: also tears down Chart.js instances so canvases can be garbage-collected
+ * and re-creating the view doesn't leave orphaned charts bound to detached DOM nodes.
  */
 export async function destroy() {
-    // Unsubscribe from all listeners
+    // Unsubscribe from all Firestore listeners
     statsListeners.forEach(unsubscribe => {
         if (typeof unsubscribe === 'function') {
             unsubscribe();
         }
     });
     statsListeners = [];
+
+    // Phase 77.1 — destroy Chart.js instances and clear the registry
+    chartInstances.forEach(chart => {
+        if (chart && typeof chart.destroy === 'function') {
+            chart.destroy();
+        }
+    });
+    chartInstances.clear();
+
     // cachedStats intentionally NOT reset — stale-while-revalidate pattern:
     // preserved values shown immediately on next visit while fresh data loads
 }
