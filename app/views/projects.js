@@ -892,13 +892,18 @@ function renderProjectsTable() {
     tbody.innerHTML = pageItems.map(project => {
         // Find client name
         const client = clientsData.find(c => c.id === project.client_id);
-        const clientName = client ? client.company_name : project.client_code;
+        // Phase 78 D-09: clientless projects render em-dash in Client column
+        const clientName = client ? client.company_name : (project.client_code || '—');
+        // Phase 78 D-09: clientless projects render em-dash in Code column
+        const codeDisplay = project.project_code || '—';
+        // Phase 78 D-06: deep link uses project_code if available, otherwise Firestore doc ID
+        const detailParam = project.project_code || project.id;
 
         return `
-            <tr onclick="window.location.hash = '#/projects/detail/${escapeHTML(project.project_code)}'"
+            <tr onclick="window.location.hash = '#/projects/detail/${escapeHTML(detailParam)}'"
                 style="cursor: pointer;"
                 class="clickable-row">
-                <td><strong>${escapeHTML(project.project_code)}</strong></td>
+                <td><strong>${escapeHTML(codeDisplay)}</strong></td>
                 <td>${escapeHTML(project.project_name)}</td>
                 <td>${escapeHTML(clientName)}</td>
                 <td>${escapeHTML(project.internal_status)}</td>
