@@ -53,6 +53,15 @@
     overflow-x: hidden;
 }
 
+/* Phase 80-01: prevent the items-table's intrinsic min-width: 1000px from
+   blowing out the 1fr grid track at 1366x768. Default grid item min-width
+   is `auto`, which expands tracks to fit content; explicit `min-width: 0`
+   lets the inner .items-table-wrapper overflow-x: auto contain the scroll
+   inside the card instead of pushing the page sideways. */
+.dashboard-grid > * {
+    min-width: 0;
+}
+
 .mrf-item {
     padding: 1rem;
     border: 1px solid var(--gray-200);
@@ -107,6 +116,7 @@
     overflow: hidden;
     margin-top: 1.5rem;
     border: 1px solid #e5e7eb;
+    max-width: 100%;
 }
 
 .items-table-header {
@@ -140,6 +150,7 @@
     -webkit-overflow-scrolling: touch;
     padding: 0.75rem;
     background: #fafbfc;
+    max-width: 100%;
 }
 
 .items-table {
@@ -177,9 +188,9 @@
 .items-table th:nth-child(2),
 .items-table td:nth-child(2) { width: 14%; min-width: 130px; } /* Category */
 .items-table th:nth-child(3),
-.items-table td:nth-child(3) { width: 8%; min-width: 90px; }   /* Qty */
+.items-table td:nth-child(3) { width: 6%; min-width: 72px; }   /* Qty */
 .items-table th:nth-child(4),
-.items-table td:nth-child(4) { width: 10%; min-width: 90px; }  /* Unit */
+.items-table td:nth-child(4) { width: 8%; min-width: 75px; }   /* Unit */
 .items-table th:nth-child(5),
 .items-table td:nth-child(5) { width: 12%; min-width: 100px; } /* Unit Cost */
 .items-table th:nth-child(6),
@@ -223,6 +234,13 @@
 
 .items-table td:first-child {
     padding-left: 1.25rem;
+}
+
+/* Tighter horizontal padding for compact QTY + Unit columns */
+.items-table td:nth-child(3),
+.items-table td:nth-child(4) {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
 }
 
 .items-table td:last-child {
@@ -274,12 +292,33 @@
     background: #ffffff;
 }
 
-/* Specific input widths */
+/* Remove spinners from QTY number input */
+.items-table input[type="number"]::-webkit-inner-spin-button,
+.items-table input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.items-table input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Unit select — no arrow, centered text, matches QTY visual weight */
+.items-table .item-unit {
+    background-image: none;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+    text-align: center;
+    text-align-last: center;
+    -moz-text-align-last: center;
+}
+
+/* QTY input — compact, centered */
 .items-table .table-input-sm {
     text-align: center;
-    min-width: 80px;
-    padding-left: 0.3rem;
-    padding-right: 0.3rem;
+    min-width: 58px;
+    max-width: 72px;
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
 }
 
 .items-table .table-input-cost {
