@@ -20,17 +20,13 @@ let personnelClickOutsideHandler = null;
 let clientsCacheForIssuance = [];
 let clientsCacheLoaded = false;
 
-const INTERNAL_STATUS_OPTIONS = [
+const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
-    'For Internal Approval',
-    'Ready to Submit'
-];
-
-const PROJECT_STATUS_OPTIONS = [
-    'Pending Client Review',
-    'Under Client Review',
-    'Approved by Client',
+    'Proposal for Internal Approval',
+    'Proposal Under Client Review',
+    'For Revision',
+    'Client Approved',
     'For Mobilization',
     'On-going',
     'Completed',
@@ -440,19 +436,20 @@ function renderProjectDetail() {
                 <div class="card-body" style="padding: 1.5rem;">
                     <h3 style="margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">Status & Assignment</h3>
 
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Internal Status</label>
-                            <select data-field="internal_status" onchange="window.saveField('internal_status', this.value)" ${!showEditControls ? 'disabled' : ''}>
-                                ${INTERNAL_STATUS_OPTIONS.map(s => `<option value="${s}" ${currentProject.internal_status === s ? 'selected' : ''}>${s}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Project Status</label>
-                            <select data-field="project_status" onchange="window.saveField('project_status', this.value)" ${!showEditControls ? 'disabled' : ''}>
-                                ${PROJECT_STATUS_OPTIONS.map(s => `<option value="${s}" ${currentProject.project_status === s ? 'selected' : ''}>${s}</option>`).join('')}
-                            </select>
-                        </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="margin-bottom: 0.25rem;">Status</label>
+                        <select data-field="project_status" onchange="window.saveField('project_status', this.value)" ${!showEditControls ? 'disabled' : ''}>
+                            ${(() => {
+                                const current = currentProject.project_status || '';
+                                const isLegacy = current && !UNIFIED_STATUS_OPTIONS.includes(current);
+                                const legacyOption = isLegacy
+                                    ? `<option value="${escapeHTML(current)}" selected style="color: #94a3b8; font-style: italic;">${escapeHTML(current)} (legacy)</option>`
+                                    : '';
+                                return legacyOption + UNIFIED_STATUS_OPTIONS.map(s =>
+                                    `<option value="${s}" ${current === s ? 'selected' : ''}>${s}</option>`
+                                ).join('');
+                            })()}
+                        </select>
                     </div>
                 </div>
             </div>
