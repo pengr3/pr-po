@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
 status: Ready to execute
-stopped_at: Completed 81-03-PLAN.md
-last_updated: "2026-04-27T09:28:27.739Z"
+stopped_at: Completed 81-02-PLAN.md
+last_updated: "2026-04-27T09:29:16.617Z"
 last_activity: 2026-04-27
 progress:
   total_phases: 28
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 81 (unified-project-and-service-status-overhaul) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Plan: 2 of 4
 | Phase 78 P02 | 6 | 2 tasks | 2 files |
 | Phase 80 P02 | 5 | 2 tasks | 1 files |
 | Phase 81-unified-project-and-service-status-overhaul P03 | 15 | 2 tasks | 3 files |
+| Phase 81-unified-project-and-service-status-overhaul P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -200,6 +201,8 @@ Recent decisions affecting current work:
 - [Phase 81]: Chart size class .hs-chart-status added to views.css per plan spec; hero.css legacy rules left as orphaned dead CSS
 - [Phase 81]: internal_status fieldLabel in edit-history.js renamed to 'Internal Status (Legacy)' instead of removed — per REVIEWS Suggestion 3 for auditor-friendly historical records
 - [Phase 81]: getChartSizeClass always returns hs-chart-status — single class for all 10-bar unified status charts regardless of entity type
+- [Phase 81-02]: Per D-01/D-04: reuse project_status field, drop internal_status from all UI writes; orphaned Firestore field left in place without deleteField()
+- [Phase 81-02]: rebuildServiceStatusFilterOptions() scans allServices (live data) not servicesData (empty stub) — corrected from plan template
 
 ### Roadmap Evolution
 
@@ -261,7 +264,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-27
-Last session: 2026-04-27T09:28:27.710Z
-Stopped at: Completed 81-03-PLAN.md
+Last session: 2026-04-27T09:29:16.594Z
+Stopped at: Completed 81-02-PLAN.md
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79

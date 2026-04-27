@@ -685,10 +685,10 @@ Plans:
 **Goal:** Replace the dual internal_status + project_status fields on Projects and Services with a single unified `project_status` field using 10 new option values; update all forms, filters, table columns, CSV exports, validation, edit-history labels, and home dashboard charts.
 **Requirements**: D-01, D-02, D-03, D-04, D-05, D-06 (decisions in 81-CONTEXT.md)
 **Depends on:** Phase 80
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 81-01-PLAN.md — Migrate projects.js + project-detail.js (form/filter/table/CSV/validation + legacy fallback)
-- [ ] 81-02-PLAN.md — Migrate services.js + service-detail.js (mirror of 81-01 for Services)
+- [x] 81-02-PLAN.md — Migrate services.js + service-detail.js (mirror of 81-01 for Services)
 - [x] 81-03-PLAN.md — Collapse home.js charts to single per entity + update edit-history.js field labels
 - [ ] 81-04-PLAN.md — Manual UAT checkpoint (11-check walkthrough across all 5 surfaces)
