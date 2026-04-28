@@ -1614,6 +1614,9 @@ function attachWindowFunctions() {
     window.saveRejectedTRChanges = saveRejectedTRChanges;
     window.deleteRejectedTR = deleteRejectedTR;
 
+    // Phase 82 — Rejected MRF Cleanup
+    window.deleteRejectedMRF = deleteRejectedMRF;
+
     // RFP Functions
     window.showRFPContextMenu = showRFPContextMenu;
     window.openRFPModal = openRFPModal;
@@ -2157,6 +2160,7 @@ export async function destroy() {
     delete window.resubmitRejectedTR;
     delete window.saveRejectedTRChanges;
     delete window.deleteRejectedTR;
+    delete window.deleteRejectedMRF; // Phase 82
     delete window._proofOnSaved;
     delete window.showRFPContextMenu;
     delete window.openRFPModal;
