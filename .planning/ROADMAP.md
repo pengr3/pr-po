@@ -702,3 +702,13 @@ Plans:
 - [x] 81-02-PLAN.md — Migrate services.js + service-detail.js (mirror of 81-01 for Services)
 - [x] 81-03-PLAN.md — Collapse home.js charts to single per entity + update edit-history.js field labels
 - [ ] 81-04-PLAN.md — Manual UAT checkpoint (11-check walkthrough across all 5 surfaces)
+
+### Phase 82: Add delete button for rejected MRFs to enable cleanup like rejected TRs
+
+**Goal:** Add a lightweight Delete MRF cleanup button to the rejected-MRF details panel in MRF Processing (eligibility: status === 'Rejected' only). Mirrors the existing Delete TR pattern: single confirm with cascade counts -> permanent deleteDoc -> toast. Cascades to linked PRs / POs / TRs by mrf_id. NO reason prompt, NO deleted_mrfs audit row. Legacy deleteMRF() at line 3790 remains untouched.
+**Requirements**: D-01 (lightweight delete semantics), D-02 (location: MRF Processing details panel only), D-03 (eligibility: literal status === 'Rejected'), D-04 (canEditTab procurement gate), D-05 (children-first cascade with counted confirm) - tracked as decisions in 82-CONTEXT.md (no formal requirement IDs)
+**Depends on:** Phase 81
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 82-01-PLAN.md - Implement deleteRejectedMRF() with cascade + counted confirm; render Delete MRF button in renderMRFDetails when status === 'Rejected'; register/cleanup window function

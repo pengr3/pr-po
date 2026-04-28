@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: Milestone complete
-stopped_at: Completed 77.2-01-PLAN.md (home chart proportions + legend tuning)
-last_updated: "2026-04-28T01:03:36.944Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 82-01-PLAN.md
+last_updated: "2026-04-28T03:44:56.267Z"
 last_activity: 2026-04-28
 progress:
   total_phases: 28
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 77.2 — polish-home-graph-proportions-and-legend
+**Current focus:** Phase 82 — add-delete-button-for-rejected-mrfs-to-enable-cleanup-like-rejected-trs
 
 ## Current Position
 
-Phase: 77.2
-Plan: Not started
+Phase: 82 (add-delete-button-for-rejected-mrfs-to-enable-cleanup-like-rejected-trs) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -100,6 +100,7 @@ Plan: Not started
 | Phase 81-unified-project-and-service-status-overhaul P02 | 4 | 2 tasks | 2 files |
 | Phase 81-unified-project-and-service-status-overhaul P01 | 25 | 2 tasks | 2 files |
 | Phase 77.2 P01 | 30 | 3 tasks | 2 files |
+| Phase 82 P01 | 3 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -211,6 +212,9 @@ Recent decisions affecting current work:
 - [Phase 77.2-01]: 180px desktop / 220px mobile chart card height derived from 28px bar + ~78px (3-row legend) + ~24px breathing room, rounded up to absorb 4-row legend wrapping in narrow cards
 - [Phase 77.2-01]: Bumped barThickness 22 to 28 in lockstep with shrinking the card so the bar grows proportionally; without it the bar would still look small inside 180px
 - [Phase 77.2-01]: Single .hs-chart-status CSS class change applies uniformly to all 3 chart wrappers (Projects, Services One-time, Services Recurring) — no per-card divergence required, leveraging Phase 81 unified architecture
+- [Phase 82-01]: Phase 82 honors all 5 CONTEXT decisions verbatim: D-01 lightweight (no reason prompt, no deleted_mrfs row), D-02 single location (MRF Processing only), D-03 strict 'Rejected' eligibility, D-04 canEditTab gate, D-05 children-first cascade
+- [Phase 82-01]: Dual-site button render pattern: any data-driven button whose container is rewritten by a re-render path (e.g. updateActionButtons) MUST be appended at BOTH the initial-render site and the re-render site, gated by the same eligibility expression evaluated against the appropriate scope (mrf parameter at site #1, currentMRF module-state at site #2)
+- [Phase 82-01]: Legacy deleteMRF() at procurement.js:3913 (was 3790; shifted +123 by insertions only) is byte-for-byte unchanged — left as dead-but-correct code; future cleanup phase may dedupe along with its window registration
 
 ### Roadmap Evolution
 
@@ -247,6 +251,7 @@ Recent decisions affecting current work:
 - Phase 80 added: Fix MRF Processing layout overflow and navbar distortion at 1366x768 — MRF Details panel overflows viewport when MRF selected; main navbar wraps/distorts when viewport squeezed
 - Phase 81 added: Unified project and service status overhaul — replace dual internal/project status dropdowns with single unified status dropdown (For Inspection, For Proposal, Proposal for Internal Approval, Proposal Under Client Review, For Revision, Client Approved, For Mobilization, On-going, Completed, Loss)
 - Phase 77.2 inserted after Phase 77.1: Polish home graph proportions and legend sizing — reduce card height, enlarge canvas so bar fills proportionally, bump legend font 2px, adjust legend square size (URGENT)
+- Phase 82 added: Add delete button for rejected MRFs to enable cleanup like rejected TRs
 
 ### Pending Todos
 
@@ -273,7 +278,7 @@ None.
 ## Session Continuity
 
 Last activity: 2026-04-28
-Last session: 2026-04-27T15:12:55.454Z
-Stopped at: Completed 77.2-01-PLAN.md (home chart proportions + legend tuning)
+Last session: 2026-04-28T03:44:42.361Z
+Stopped at: Completed 82-01-PLAN.md
 Resume file: None
 Next action: Run `/gsd:execute-phase 79` to execute Phase 79
