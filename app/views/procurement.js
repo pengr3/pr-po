@@ -3091,6 +3091,16 @@ function renderMRFDetails(mrf, isNew = false) {
             }
             // Add reject button for procurement to soft-reject unnecessary requests
             buttons += ' <button class="btn btn-danger" onclick="window.rejectMRF()" style="margin-left: 0.5rem;">&#10005; Reject MRF</button>';
+
+            // Phase 82 D-02/D-03: Delete MRF cleanup button — only for terminal soft-rejected state ('Rejected'),
+            // NOT for 'PR Rejected' / 'TR Rejected' / 'Finance Rejected' (in-flight rejection states).
+            // Mirrors the lightweight 'Delete TR' button on rejected-TR details panel (procurement.js:2742).
+            // NOTE: This site is the INITIAL render only. Site #2 in updateActionButtons() (~line 3331)
+            // MUST also append this button or it will be wiped on the next interaction.
+            if (mrf.status === 'Rejected') {
+                buttons += ` <button class="btn btn-danger" onclick="window.deleteRejectedMRF('${mrf.id}')" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>`;
+            }
+
             mrfActionsEl.innerHTML = buttons;
         }
     }
@@ -3429,6 +3439,15 @@ function updateActionButtons() {
 
     // Add reject button for procurement to soft-reject unnecessary requests
     buttons += ' <button class="btn btn-danger" onclick="window.rejectMRF()" style="margin-left: 0.5rem;">&#10005; Reject MRF</button>';
+
+    // Phase 82 D-02/D-03: Delete MRF cleanup button — re-render path mirror of site #1
+    // (renderMRFDetails ~line 2993). Required because mrfActionsEl.innerHTML = buttons (below) wipes
+    // any prior content on every call to updateActionButtons() — triggered by category changes (line 3131),
+    // line-item adds (line 3361), and saves (lines 3449, 3512). Uses currentMRF.* (module-scoped),
+    // NOT mrf.* — this function takes no `mrf` parameter.
+    if (currentMRF.status === 'Rejected') {
+        buttons += ` <button class="btn btn-danger" onclick="window.deleteRejectedMRF('${currentMRF.id}')" style="margin-left: 0.5rem;">🗑️ Delete MRF</button>`;
+    }
 
     // Only update if container exists (hidden for view-only users)
     const mrfActionsEl = document.getElementById('mrfActions');
