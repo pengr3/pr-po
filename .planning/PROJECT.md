@@ -19,7 +19,7 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Latest shipped:** Phase 77.2 complete — home chart cards tightened (320→180px desktop, 360→220px mobile), bar thickness 22→28, legend font/box 10→12, applied consistently across Projects + both Services charts via shared `hs-chart-status` class (2026-04-28)
+**Latest shipped:** Phase 82 complete — Delete MRF cleanup button on rejected-MRF details panel (status === 'Rejected' only) with cascading delete of linked PRs/POs/TRs by mrf_id; lightweight UX mirroring Delete TR (single confirm with cascade counts, no reason prompt, no `deleted_mrfs` audit row); rendered at both `renderMRFDetails` and `updateActionButtons` to survive line-item re-renders; legacy `deleteMRF()` left untouched (2026-04-28)
 **Active milestone:** v3.2 — all phases complete, milestone ready for `/gsd:complete-milestone`
 
 See `.planning/MILESTONES.md` for full milestone history.
@@ -462,4 +462,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 56: Finance tab as reference alignment (do not modify) | All other tabs normalize to Finance's two-level sub-nav pattern and 1600px width | ✓ Good - clear single source of truth for layout |
 
 ---
-*Last updated: 2026-04-28 — Phase 77.2 complete: home dashboard chart proportions polished (180/220px cards, 28px bar, 12px legend) across Projects + Services cards consistently via shared CSS class.*
+*Last updated: 2026-04-28 — Phase 82 complete: Delete MRF cleanup button on rejected-MRF details panel with cascading PR/PO/TR delete; lightweight UX (single confirm, no reason prompt, no audit row) mirroring Delete TR.*
