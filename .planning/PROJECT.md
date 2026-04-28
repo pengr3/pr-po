@@ -19,7 +19,7 @@ Projects tab must work - it's the foundation where project name and code origina
 
 ## Current State
 
-**Latest shipped:** Phase 81 complete — unified project/service Status dropdown (10 options), legacy filter optgroup, home dashboard collapsed to 3 charts, edit-history labels corrected (2026-04-27)
+**Latest shipped:** Phase 77.2 complete — home chart cards tightened (320→180px desktop, 360→220px mobile), bar thickness 22→28, legend font/box 10→12, applied consistently across Projects + both Services charts via shared `hs-chart-status` class (2026-04-28)
 **Active milestone:** v3.2 — all phases complete, milestone ready for `/gsd:complete-milestone`
 
 See `.planning/MILESTONES.md` for full milestone history.
@@ -462,4 +462,4 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 56: Finance tab as reference alignment (do not modify) | All other tabs normalize to Finance's two-level sub-nav pattern and 1600px width | ✓ Good - clear single source of truth for layout |
 
 ---
-*Last updated: 2026-04-20 — Phase 76 complete (v3.2 final audit closure): REQUIREMENTS.md at 107 requirements all traced to Complete, 10 VERIFICATION.md files created, Phase 68.1 formally deferred. v3.2 milestone ready for /gsd:audit-milestone.*
+*Last updated: 2026-04-28 — Phase 77.2 complete: home dashboard chart proportions polished (180/220px cards, 28px bar, 12px legend) across Projects + Services cards consistently via shared CSS class.*
