@@ -2892,6 +2892,106 @@ async function deleteRejectedTR(trDocId) {
 }
 
 /**
+ * Phase 82 — Permanently delete a soft-rejected MRF (status === 'Rejected') and cascade-delete
+ * all linked PRs / POs / TRs by mrf_id.
+ *
+ * Lightweight pattern (per D-01): single confirm() with cascade counts → deleteDoc loops → toast.
+ * Distinct from legacy deleteMRF() at line 3790: NO reason prompt, NO deleted_mrfs audit row.
+ * Eligibility (per D-03): caller must verify currentMRF.status === 'Rejected' before invoking.
+ */
+async function deleteRejectedMRF(mrfDocId) {
+    // D-04 permission gate — verbatim copy of saveRejectedTRChanges pattern (procurement.js:2756-2759)
+    if (window.canEditTab?.('procurement') === false) {
+        showToast('You do not have permission to edit procurement data', 'error');
+        return;
+    }
+
+    if (!currentMRF || currentMRF.id !== mrfDocId) {
+        showToast('No MRF selected', 'error');
+        return;
+    }
+
+    // D-03 defense-in-depth: refuse to delete anything other than soft-rejected MRFs
+    if (currentMRF.status !== 'Rejected') {
+        showToast('Only rejected MRFs can be deleted with this action', 'error');
+        return;
+    }
+
+    const mrfId = currentMRF.mrf_id; // human ID like "MRF-2026-014"
+
+    // D-05 cascade prep — count children BEFORE the confirm so dialog can surface counts
+    let prCount = 0;
+    let poCount = 0;
+    let trCount = 0;
+    let prSnapshot, poSnapshot, trSnapshot;
+    try {
+        const prsRef = collection(db, 'prs');
+        const poQueryRef = collection(db, 'pos');
+        const trsRef = collection(db, 'transport_requests');
+        prSnapshot = await getDocs(query(prsRef, where('mrf_id', '==', mrfId)));
+        poSnapshot = await getDocs(query(poQueryRef, where('mrf_id', '==', mrfId)));
+        trSnapshot = await getDocs(query(trsRef, where('mrf_id', '==', mrfId)));
+        prCount = prSnapshot.size;
+        poCount = poSnapshot.size;
+        trCount = trSnapshot.size;
+    } catch (err) {
+        console.error('[Procurement] deleteRejectedMRF count error:', err);
+        showToast('Failed to read linked records: ' + err.message, 'error');
+        return;
+    }
+
+    // D-01 single confirm with cascade counts — exact dialog string template (per phase_specifics)
+    const confirmMessage =
+        `Delete rejected MRF ${mrfId}?\n\n` +
+        `This will permanently delete the MRF and ` +
+        `${prCount} linked PR(s), ${poCount} PO(s), ${trCount} TR(s). ` +
+        `This cannot be undone.`;
+    if (!confirm(confirmMessage)) return;
+
+    showLoading(true);
+    try {
+        // D-05 children-first cascade ordering: if any child delete fails, the MRF stays in place
+        // so the user can retry rather than ending up with an orphaned mid-state.
+        for (const prDoc of prSnapshot.docs) {
+            await deleteDoc(doc(db, 'prs', prDoc.id));
+        }
+        for (const poDoc of poSnapshot.docs) {
+            await deleteDoc(doc(db, 'pos', poDoc.id));
+        }
+        for (const trDoc of trSnapshot.docs) {
+            await deleteDoc(doc(db, 'transport_requests', trDoc.id));
+        }
+
+        // Delete the MRF doc LAST (per D-05 ordering)
+        await deleteDoc(doc(db, 'mrfs', mrfDocId));
+
+        // Post-delete UI reset — same shape as legacy deleteMRF (procurement.js:3964-3984)
+        currentMRF = null;
+        const mrfDetails = document.getElementById('mrfDetails');
+        if (mrfDetails) {
+            mrfDetails.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #999;">
+                    Select an MRF to view details
+                </div>
+            `;
+        }
+        const mrfActionsEl = document.getElementById('mrfActions');
+        if (mrfActionsEl) {
+            mrfActionsEl.innerHTML = `
+                <button class="btn btn-primary" onclick="window.saveProgress()">Save Progress</button>
+            `;
+        }
+
+        showToast(`MRF ${mrfId} deleted (${prCount} PR / ${poCount} PO / ${trCount} TR cascaded).`, 'success');
+    } catch (err) {
+        console.error('[Procurement] deleteRejectedMRF cascade error:', err);
+        showToast('Failed to delete MRF: ' + err.message, 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Create new MRF
  */
 function createNewMRF() {
