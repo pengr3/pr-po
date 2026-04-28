@@ -1,5 +1,46 @@
 # Project Milestones: CLMC Procurement System
 
+## v3.2 Supplier Search, Proof of Procurement & Payables Tracking (Shipped: 2026-04-28)
+
+**Delivered:** Supplier search, proof-of-procurement document links, full Request-for-Payment / Payables Tracking workflow with cancel + delivery-fee support, Financial Breakdown modal with Payables tab, MRF/Finance mobile card layouts, clientless project creation with deferred code issuance, home dashboard Chart.js visualizations, unified 10-option project/service status, layout fixes for 1366×768 laptops, and a delete cleanup button for rejected MRFs.
+
+**Phases completed:** 63-82 (28 phases, 55 plans)
+
+**Key accomplishments:**
+
+- Supplier search bar (name + contact person) with filtered pagination
+- Proof-of-procurement: paste any `https://` URL onto a PO at any status; three-state indicators across MRF Records, My Requests, Finance PO Tracking; same indicators for Transport Requests including Material+TR mixed rows
+- Request for Payment workflow: per-tranche RFPs with PO-scoped IDs (`RFP-{PO-ID}-{n}`), auto-derived payment status (Pending / Partially Paid / Fully Paid / Overdue), delivery-fee RFPs, RFP cancellation with re-file, alt-bank entry on Bank Transfer mode, full TR parity
+- Finance Payables tab dual-table layout: RFP Processing (flat, action-priority sort) and PO Payment Summary (grouped per PO with expandable tranche sub-rows, paginated 15/page)
+- Cancel PRs / restore MRF to In Progress via right-click on MRF ID — with force-recall path and procurement-progress block
+- Financial Breakdown modal (renamed from Expense Breakdown) with Payables tab worklist (POs / Delivery Fees / TRs sorted action-needed first)
+- Project & Service detail Financial Summary cards: Paid + Remaining Payable cells, refresh-and-modal button, formula correctness across services
+- Finance tab fully mobile-optimized: card-per-row layouts on 5 table groups, sticky pill sub-nav with scroll-hide UX, modal grids that collapse to 1-column at ≤768px
+- Material Request tab mobile: card-per-item layout in MRF form, MRF summary cards in My Requests with 3-dot Edit/Cancel menu, sticky pill sub-nav
+- Clientless project creation with deferred code issuance and confirmation-modal-gated batched backfill across 5 collections
+- Home dashboard charts using Chart.js (horizontal bar) with tuned proportions and brand-palette highlighted statuses
+- Unified `project_status` field replacing dual internal/project status with 10 new options + legacy-value graceful display
+- Layout fixes: MRF Processing right-panel overflow at 1366×768, navbar wrap between 769–1400px, Payables tab UI containment
+- Delete Rejected MRFs cleanup button mirroring the Delete TR pattern (cascades to PRs/POs/TRs, no audit row)
+
+**Stats:**
+
+- 28 phases, 55 plans (across phases 63 through 82)
+- 49 days from milestone start to ship (2026-03-13 → 2026-04-28)
+- 107/107 formal requirements satisfied (100% coverage)
+- Audit verdict: `tech_debt` — no blockers; deferred items: Phase 68.1 (subcon scorecard fix), Phase 70 rework, dead CSS housekeeping
+
+**Known carry-overs (tracked for v3.3):**
+
+- Phase 68.1 — Subcon cost scorecard $0 bug
+- Phase 70 — Cancel-PR rework needs approval workflow + audit trail + soft-delete + role-based access (BACKLOG: "Recall Process with Finance Approval")
+- Phases 73.2 and 79 — missing `VERIFICATION.md` (process gap; reqs satisfied)
+- Dead CSS in `styles/hero.css` and `styles/views.css:1748`
+
+**What's next:** No active milestone. Run `/gsd:new-milestone` to plan v3.3.
+
+---
+
 ## v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (Shipped: 2026-03-10)
 
 **Delivered:** DELIVERY BY SUPPLIER category routing, TR rejection independence with dedicated editing panel, MRF soft-reject replacing hard delete, TR details modal, alphabetical dropdowns, project code dash format, responsive workspace optimizations, and multiple bug fixes.
@@ -44,6 +85,7 @@
 - All sub-tab nav bars (Material Request, Procurement, Admin) standardized to 1600px width matching Finance tab; MRF Processing content expanded from `max-width: 1400px` (.container) to `max-width: 1600px` inline style
 
 **Stats:**
+
 - Timeline: 2026-03-04 (single day)
 - Files changed: 5 view files (mrf-records.js, procurement.js, finance.js, admin.js, mrf-form.js)
 - Changes: 361 insertions, 157 deletions
@@ -115,7 +157,6 @@
 
 ---
 
-
 ## v2.3 Services Department Support (Shipped: 2026-02-26)
 
 **Delivered:** Parallel Services department workflow with complete role-based isolation, shared procurement pipeline, and 7 new UI modules.
@@ -148,6 +189,7 @@
 - 3 audit cycles before milestone passed
 
 **New files:**
+
 - app/views/services.js — Services list view with sub-tabs, CRUD, filtering
 - app/views/service-detail.js — Service detail page with inline editing and expense breakdown
 - app/views/mrf-records.js — Reusable MRF records table controller (createMRFRecordsController factory)
@@ -293,10 +335,10 @@
 - All sub-tab nav bars (Material Request, Procurement, Admin) standardized to 1600px width matching Finance tab; MRF Processing content expanded from `max-width: 1400px` (.container) to `max-width: 1600px` inline style
 
 **Stats:**
+
 - Timeline: 2026-03-04 (single day)
 - Files changed: 5 view files (mrf-records.js, procurement.js, finance.js, admin.js, mrf-form.js)
 - Changes: 361 insertions, 157 deletions
 - Requirements: 12/12 satisfied
 
 ---
-

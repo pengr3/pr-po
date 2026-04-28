@@ -1,28 +1,20 @@
-# CLMC Procurement System - Projects & Auth Enhancement
+# CLMC Procurement System
 
 ## What This Is
 
-A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs) with comprehensive project lifecycle tracking and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC_CLIENT_YYYY###), unified 10-option status tracking (Phase 81), and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. Mobile-responsive with CSV data export, sortable tables, skeleton loading screens, and offline-first performance via Firebase IndexedDB persistence. Built with vanilla JavaScript and Firebase.
+A zero-build static SPA for managing engineering procurement workflows (MRFs, PRs, POs, TRs, RFPs) with comprehensive project lifecycle tracking, payables tracking, and role-based access control. All procurement activities are anchored to either projects (large-scale fit-outs) or services (repair/maintenance work) with auto-generated codes (CLMC-CLIENT-YYYY###; clientless projects supported with deferred code issuance), a unified 10-option project/service status, and complete client management. Multi-user system with 7 roles supporting two operational departments (Projects and Services), invitation-only registration, granular permissions, and assignment-based access for department users. End-to-end document-backed payment workflow: Request for Payment (per-tranche, PO-scoped IDs), Finance Payables tab with auto-derived status, partial-payment recording with void/audit, and proof-of-procurement document linking. Fully mobile-optimized — Finance and MRF tabs render card-per-row layouts under 768px while desktop layouts (≥769px) are unchanged. Built with vanilla JavaScript and Firebase (Firestore + Auth + Storage + Chart.js v4 via CDN).
 
 ## Core Value
 
-Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-
-## Current Milestone: v3.2 Supplier Search, Proof of Procurement & Payables Tracking
-
-**Goal:** Add supplier search in Procurement, document-backed proof of procurement via external storage, and a payables tracking system with Request for Payment workflow.
-
-**Target features:**
-- Supplier search bar in Procurement > Supplier Management (search by name and/or contact person)
-- Proof of procurement — Procurement uploads supporting documents to Google Drive (or equivalent), link stored in Firestore
-- Request for Payment — Procurement/Finance submits RFP with payment terms; system tracks outstanding payables per PO
+Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it. Money out (PRs/POs/payables) and money in (project contract) must both reconcile against the project record.
 
 ## Current State
 
-**Latest shipped:** Phase 82 complete — Delete MRF cleanup button on rejected-MRF details panel (status === 'Rejected' only) with cascading delete of linked PRs/POs/TRs by mrf_id; lightweight UX mirroring Delete TR (single confirm with cascade counts, no reason prompt, no `deleted_mrfs` audit row); rendered at both `renderMRFDetails` and `updateActionButtons` to survive line-item re-renders; legacy `deleteMRF()` left untouched (2026-04-28)
-**Active milestone:** v3.2 — all phases complete, milestone ready for `/gsd:complete-milestone`
+**Latest shipped:** v3.2 Supplier Search, Proof of Procurement & Payables Tracking (2026-04-28) — 28 phases, 55 plans, 107/107 requirements satisfied. Major additions: full RFP / Payables Tracking workflow, proof-of-procurement document links, Financial Breakdown modal with Payables tab, Finance + MRF mobile card layouts, clientless project creation, home dashboard Chart.js visualizations, unified 10-option project/service status, and Delete-Rejected-MRFs cleanup.
 
-See `.planning/MILESTONES.md` for full milestone history.
+**Active milestone:** None — planning v3.3.
+
+See `.planning/MILESTONES.md` for full milestone history and `.planning/changelogs/v3.2.md` for the user-facing release notes.
 
 ## Requirements
 
@@ -241,11 +233,6 @@ See `.planning/MILESTONES.md` for full milestone history.
 - ✓ Sub-tab nav alignment: Material Request, Procurement, Admin bars all at 1600px matching Finance — v3.0 (Phase 56)
 - ✓ Finance Approved This Month scoreboard: dynamically counts POs by date_issued in current calendar month plus approved TRs — v3.0 (Phase 55)
 
-## Current State
-
-**Latest shipped:** v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (2026-03-10)
-**Active milestone:** None — planning next milestone
-
 ### Validated (Shipped in v3.1)
 
 - Item category "DELIVERY BY SUPPLIER" routes to PR/PO path (not TR) — v3.1 (Phase 57)
@@ -256,6 +243,92 @@ See `.planning/MILESTONES.md` for full milestone history.
 - MRF rejection event shown on Procurement Timeline — v3.1 (Phase 62.2)
 - Project/service dropdowns sort alphabetically, codes use dash format — v3.1 (Phases 61, 62)
 - Responsive workspace for 1366px laptops, sortable My Requests, real-time MRF Records — v3.1 (Phases 59, 59.1)
+
+### Validated (Shipped in v3.2)
+
+**Supplier Search & Proof of Procurement:**
+- ✓ Supplier search bar filtering by name and contact person with filter-aware pagination — v3.2 (Phase 63)
+- ✓ Proof-of-procurement: paste any `https://` URL onto a PO at any procurement status (including post-Delivered) — v3.2 (Phase 64)
+- ✓ Three-state proof indicators (URL / remarks / none) on MRF Records, My Requests, Finance PO Tracking — v3.2 (Phase 64)
+- ✓ Proof attachment timeline event in procurement timeline — v3.2 (Phase 64)
+- ✓ Transport Request proof indicators with `transport_requests` collection targeting; same indicators on Material+TR mixed MRF rows — v3.2 (Phases 66.1, 67)
+
+**RFP / Payables Tracking:**
+- ✓ Request for Payment workflow with per-tranche RFPs, PO-scoped IDs (`RFP-{PO-ID}-{n}`), invoice/amount/terms/due date — v3.2 (Phases 65, 65.4)
+- ✓ Finance Payables tab dual-table layout: RFP Processing (flat, action-priority sort) + PO Payment Summary (grouped per PO with expandable tranche sub-rows, paginated 15/page) — v3.2 (Phases 65.1, 65.7)
+- ✓ Auto-derived RFP payment status (Pending / Partially Paid / Fully Paid / Overdue) — Finance never manually sets — v3.2 (Phase 65)
+- ✓ Record / void payment with audit-preserved void records (read-modify-write pattern) — v3.2 (Phase 65)
+- ✓ RFP cancellation for zero-payment RFPs via right-click on PO IDs and TR badges; cancelled RFPs free up tranche for re-filing with pre-filled data — v3.2 (Phase 65.10)
+- ✓ Delivery fee RFPs as standalone payment requests with red/green PO ID dot indicator — v3.2 (Phase 65.9)
+- ✓ Bank Transfer mode with Add Alternative Bank toggle (manual second bank entry; saved-bank dropdown removed in Phase 76 in favor of simpler manual UX) — v3.2 (Phases 65.6, 76)
+- ✓ Default Fully-Paid RFP exclusion from RFP Processing table; historical RFPs available via PO Payment Summary — v3.2 (Phase 65.2)
+- ✓ Active Tranche column shows payment progress percentage (e.g., "Tranche 2 (50%) — 30% Paid") — v3.2 (Phase 65.3)
+- ✓ Clickable PO IDs in Finance RFP Processing open a PO detail modal — v3.2 (Phase 65.5)
+- ✓ Transport Request RFP parity: right-click TR badges to file RFPs, `RFP-{TR-ID}-{n}` format, Finance Payables guard for TR-linked RFPs — v3.2 (Phase 67)
+
+**Cancel PRs / MRF Restoration:**
+- ✓ Right-click MRF ID in MRF Records to cancel PRs and restore MRF to In Progress; force-recall path for Finance-Approved PRs at Pending Procurement; block path for in-progress POs — v3.2 (Phase 70) *[basic flow shipped; rework for proper approval/audit/soft-delete deferred to v3.3]*
+- ✓ Delete Rejected MRFs cleanup button on MRF Details panel with cascade to linked PRs/POs/TRs — v3.2 (Phase 82)
+
+**Expense / Financial Breakdown Modal:**
+- ✓ Renamed Expense Breakdown → Financial Breakdown modal — v3.2 (Phase 71)
+- ✓ Payables tab in Financial Breakdown showing read-only worklist (POs / Delivery Fees / TRs sorted action-needed first) — v3.2 (Phase 71)
+- ✓ Item-detail tables (Item / Qty / Unit / Unit Cost / Subtotal) replacing PO ID columns — v3.2 (Phase 68)
+- ✓ Total Cost scoreboard cleanup (no document-count subtitle) — v3.2 (Phase 68)
+- ✓ Payable scoreboard row (Total Requested / Paid / Remaining Payable) with formula correctness (totalCost − totalPaid non-voided) — v3.2 (Phases 69, 69.1)
+
+**Project / Service Financial Summary:**
+- ✓ Paid + Remaining Payable cells on Project and Service detail Financial Summary cards (always rendered for zero-state visibility) — v3.2 (Phases 72, 72.1, 75)
+- ✓ Refresh button refreshes data AND opens Financial Breakdown modal in one click — v3.2 (Phase 72)
+- ✓ Service Remaining Payable formula correctness: `(poTotal + trTotal) − rfpTotalPaid` (no PR+PO double-count) — v3.2 (Phase 75)
+
+**Mobile Optimization:**
+- ✓ Finance tab card-header stacking with 44px touch targets at ≤768px — v3.2 (Phase 73)
+- ✓ All 5 Finance table groups (Material PRs, Transport Requests, Purchase Orders, RFP Processing, PO Payment Summary, Project List × 3) render as vertical card stacks at ≤768px via CSS dual-mode pattern — v3.2 (Phase 73.1)
+- ✓ PR / TR Details modals collapse to 1-column grid + horizontally scrollable item tables on mobile — v3.2 (Phase 73.2)
+- ✓ Financial Breakdown modal scorecard rows collapse to 1-column at ≤768px — v3.2 (Phase 73.2)
+- ✓ Finance sub-tab navigation rebuilt as unified sticky pill bar with scroll-hide/show UX (replaces desktop tabs + mobile dropdown) — v3.2 (Phase 73.3)
+- ✓ MRF items table → card-per-item layout on mobile with paired card/table sync — v3.2 (Phase 74)
+- ✓ My Requests table → MRF summary cards with 3-dot Edit/Cancel action menu — v3.2 (Phase 74)
+- ✓ MRF sub-tab navigation as sticky pill bar matching Finance pattern — v3.2 (Phase 74)
+
+**MRF Form & Details Polish:**
+- ✓ MRF Details panel shows Date Submitted and Justification for existing MRFs — v3.2 (Phase 79)
+- ✓ Quantity input column widened to prevent 5-digit truncation — v3.2 (Phase 79)
+- ✓ Searchable combobox replacing native project/service `<select>` in MRF form — v3.2 (Phase 79)
+
+**Layout Fixes:**
+- ✓ MRF Processing right-panel no longer overflows viewport at 1366×768 (`min-width: 0` on grid children + `max-width: 100%` on items-table wrapper) — v3.2 (Phase 80)
+- ✓ Top navbar no longer wraps or vertically stacks brand between 769–1400px (compression `@media` + `flex-wrap: nowrap`) — v3.2 (Phase 80)
+- ✓ Supplier column removed from PR Details modal items table (already shown in modal header) — v3.2 (Phase 73.3)
+
+**Project / Service Status Unification:**
+- ✓ Single unified `project_status` field replaces dual internal/project status with 10 options (For Inspection, For Proposal, Proposal for Internal Approval, Proposal Under Client Review, For Revision, Client Approved, For Mobilization, On-going, Completed, Loss) — v3.2 (Phase 81)
+- ✓ All forms, filters, table columns, CSV exports, validation, edit-history labels, and home dashboard charts updated — v3.2 (Phase 81)
+- ✓ Legacy status values display with `(legacy)` suffix in tables and filter dropdowns — v3.2 (Phase 81)
+- ✓ Edit history field renamed to "Internal Status (Legacy)" for auditor-friendly historical records — v3.2 (Phase 81)
+
+**Clientless Projects:**
+- ✓ Projects can be created without a client (`client_id: null`); project code deferred until client assigned — v3.2 (Phase 78)
+- ✓ MRF dropdowns show "(No code yet)" for clientless projects with `data-type/data-name` dataset attributes — v3.2 (Phase 78)
+- ✓ Confirmation-modal-gated batched backfill of `project_code` and `client_code` across linked MRFs / PRs / POs / TRs / RFPs — v3.2 (Phase 78)
+- ✓ DB-level lock via Firestore Security Rules: locked fields immutable once issued — v3.2 (Phase 78)
+- ✓ Deep-link resolution by Firestore doc ID for clientless projects, surviving code issuance — v3.2 (Phase 78)
+- ✓ `project_id` denormalized on all MRF / PR / TR / PO / RFP writes for backfill traceability — v3.2 (Phase 78)
+
+**Home Dashboard Visualizations:**
+- ✓ Project and Service status breakdowns rendered as Chart.js (v4.4.7 CDN) horizontal bar charts with brand-palette highlighted statuses — v3.2 (Phase 77.1)
+- ✓ Card height + canvas + legend proportions tuned so bars fill the card visibly (180px desktop / 220px mobile, 28px barThickness) — v3.2 (Phase 77.2)
+
+**Procurement View Lifecycle Cleanup:**
+- ✓ `procurement.js` `destroy()` resets `rfpsByTR` state and removes `window.showTRRFPContextMenu` / `window.openTRRFPModal` / `window.submitTRRFP` registrations to prevent stale state across view re-entries — v3.2 (Phase 75)
+
+### Future (v3.3+)
+
+- Phase 68.1 — Subcon cost scorecard fix (subcon items in `items_json` not summed when PO `is_subcon` flag unset)
+- Phase 70 rework — Cancel PR flow needs proper approval workflow, audit trail, soft-delete, role-based access (BACKLOG: "Recall Process with Finance Approval")
+- VERIFICATION.md backfill for Phases 73.2 and 79 (process gap; reqs satisfied)
+- Dead CSS housekeeping (`styles/hero.css` orphan classes; `views.css:1748` `.mrf-sub-nav--hidden`)
 
 ### Future (v4.0+)
 
@@ -365,6 +438,15 @@ See `.planning/MILESTONES.md` for full milestone history.
 - 6 days from first commit to ship (2026-03-05 → 2026-03-10)
 - 18/18 requirements satisfied (100% coverage)
 
+**Shipped v3.2 (2026-04-28):**
+- 28 phases, 55 plans (Phases 63 through 82)
+- 49 days from milestone start to ship (2026-03-13 → 2026-04-28)
+- 107/107 formal requirements satisfied (100% coverage)
+- New collection: `rfps` (Request-for-Payment documents with `payment_records` array, tranche metadata, void support)
+- New shared module: `app/proof-modal.js` (reusable proof URL modal accepting collection parameter)
+- Chart.js v4.4.7 added via CDN (UMD `window.Chart` global) for home dashboard visualizations
+- Audit verdict: `tech_debt` (no blockers, deferred items tracked for v3.3)
+
 **Current Codebase State:**
 - Auth System: app/auth.js, app/permissions.js
 - Auth Views: register.js, login.js, pending.js
@@ -460,6 +542,28 @@ See `.planning/MILESTONES.md` for full milestone history.
 | Phase 55: approvedTRsThisMonthCount loaded once at init() | TR approval count stable within session; recalculates on view reload | ✓ Good - by design; minor UX staleness accepted |
 | Phase 56: Remove .container class from procurement.js content wrapper | .container resolves to 1400px via main.css; replaced with inline max-width: 1600px to match Finance reference | ✓ Good - root cause fix rather than override |
 | Phase 56: Finance tab as reference alignment (do not modify) | All other tabs normalize to Finance's two-level sub-nav pattern and 1600px width | ✓ Good - clear single source of truth for layout |
+| v3.2 scoping: Supplier search pure client-side on in-memory `suppliersData` array | No Firestore changes; `filteredSuppliersData` drives pagination exclusively | ✓ Good - simple, fast, no schema impact |
+| v3.2 scoping: Proof URL stored as optional `proof_url` string on `pos` documents | No new collection; updateable at any procurement status including post-Delivered | ✓ Good - lowest-friction implementation |
+| v3.2 scoping: RFP/payment data in dedicated `rfps` collection (not embedded on PO) | Mandatory for partial payment tracking and Finance-independent filtering | ✓ Good - clean separation, supports future analytics |
+| v3.2 scoping: Payment status auto-derived from `total_paid` vs `amount_requested` arithmetic | Finance never manually sets status — eliminates a source of human error | ✓ Good - data integrity by construction |
+| v3.2 scoping: Firebase Storage rejected for proof documents (paste-a-link instead) | User decision — storage cost; any `https://` URL accepted | ✓ Good - zero ongoing cost, works with existing user habits |
+| v3.2 scoping: RFP IDs use PO-scoped format `RFP-{PO-ID}-{n}` (Phase 65.4 amended initial project-code-scoped format) | Initial project-code-scoped format collided when multiple POs shared a project code | ✓ Good - guaranteed uniqueness, explicit lineage |
+| Phase 65.1: Dual-table Payables layout (RFP Processing flat + PO Payment Summary grouped) with 4 separate filter state variables | Each table has independent status + dept filters — no shared state surprises | ✓ Good - clean filter independence |
+| Phase 65.10: Cancel RFP via right-click on PO IDs and TR badges; payments-array guard via `isRFPCancellable` | Consistent with `cancelMRFPRs` pattern; client-side payment guard mirrors server intent | ✓ Good - simple guard, no race risk at current scale |
+| Phase 67: `proof-modal.js` `collectionName` defaults to `'pos'` for backward compatibility | Existing PO callers unaffected; TR callers pass `'transport_requests'` explicitly | ✓ Good - no caller-site churn |
+| Phase 67: TR RFP fetch on-demand from Firestore (not pre-loaded into memory) | TRs are not in the in-memory `poData` array; on-demand fetch avoids holding all TRs in RAM | ✓ Good - acceptable latency, lower memory pressure |
+| Phase 71: Rename Expense Breakdown → Financial Breakdown is user-visible only; internal symbols frozen | Per D-09: zero-risk one-line diff; downstream tests / `window._*` handlers untouched | ✓ Good - no regressions, fast change |
+| Phase 73.1: CSS dual-mode pattern (table + card list both in DOM, media query hides inactive) | No JS viewport detection; works on first render at any width; testable in DevTools without reload | ✓ Good - reused for all 5 Finance table groups and MRF tab |
+| Phase 73.3: New `.finance-sub-nav-tab` class prefix (not `.tab-btn`) for Finance pill style | Keeps Finance scope independent — Procurement `.tab-btn` rules untouched | ✓ Good - prevents cross-tab style collisions |
+| Phase 75: Spec amendment over code revert for POSUMPAG-01 (page size 10 → 15) | User usage pattern drifted upward post-verification; accepted as preferred | ✓ Good - keeps user happy, doc reflects reality |
+| Phase 76: Comprehensive audit closure pass (10 retroactive VERIFICATION.md, REQUIREMENTS.md sweep) | Better to flatten audit debt periodically than carry forever; surfaces undocumented decisions | ✓ Good - milestone passable, no permanent backfill load |
+| Phase 78: Allow clientless project creation with deferred `project_code` issuance | `project_code` requires `client_code`; deferring lets users capture leads before legal/contract paperwork | ✓ Good - real workflow accommodated, no fake-client workaround |
+| Phase 78: Confirmation-modal-gated batched backfill across 5 collections on client assignment | Visible cascade count + atomic write; children pushed first / project doc last for safe retry | ✓ Good - explicit user consent, atomicity marker (`is_issued: true`) |
+| Phase 78: DB-level lock on `project_code` / `client_code` / `client_id` once issued (Firestore Security Rules) | Server-side guard supplements UI lock — defense in depth | ✓ Good - prevents reassignment regardless of client-side bugs |
+| Phase 81: Single unified `project_status` field replacing dual internal/project status | Two status fields confused users; collapsed to 10 explicit options that span the full lifecycle | ✓ Good - simpler mental model, single source of truth |
+| Phase 81: Legacy values display with `(legacy)` suffix instead of being purged | Auditor-friendly for historical records; clean migration without data loss | ✓ Good - preserves history, signals stale entries |
+| Phase 82: Delete Rejected MRFs without `deleted_mrfs` audit row (lightweight cleanup) | Soft-deleted MRFs already have rejection audit trail (reason, actor, timestamp); double-audit overkill for pure cleanup | ✓ Good - low-friction UX, mirrors Delete TR pattern |
+| Phase 82: Dual-site button render (initial render + re-render path) gated by same eligibility expression | Any data-driven button whose container is rewritten by re-render must be appended at both sites | ✓ Good - generalizable pattern for future buttons |
 
 ---
-*Last updated: 2026-04-28 — Phase 82 complete: Delete MRF cleanup button on rejected-MRF details panel with cascading PR/PO/TR delete; lightweight UX (single confirm, no reason prompt, no audit row) mirroring Delete TR.*
+*Last updated: 2026-04-28 — v3.2 Supplier Search, Proof of Procurement & Payables Tracking shipped (28 phases, 107 requirements). Core additions: RFP / Payables Tracking workflow, Financial Breakdown modal, Finance + MRF mobile card layouts, clientless project creation, unified project/service status, home dashboard Chart.js visualizations, layout fixes for 1366×768 laptops.*

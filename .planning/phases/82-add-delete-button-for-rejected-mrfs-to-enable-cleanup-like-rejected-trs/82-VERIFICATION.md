@@ -1,14 +1,16 @@
 ---
 phase: 82-add-delete-button-for-rejected-mrfs-to-enable-cleanup-like-rejected-trs
 verified: 2026-04-28T00:00:00Z
-status: human_needed
-score: 11/11 must-haves structurally verified; 3/11 require browser smoke-test
+status: passed
+score: 11/11 must-haves structurally verified; 5/5 smoke tests user-approved 2026-04-28
 re_verification:
-  previous_status: none
-  previous_score: n/a
-  gaps_closed: []
+  previous_status: human_needed
+  previous_score: 11/11 structural; 5 smoke tests pending
+  gaps_closed:
+    - "All 5 HUMAN-UAT smoke tests user-approved 2026-04-28: button visibility/dialog text, re-render persistence, end-to-end Firebase cascade, negative eligibility across PR/TR/Finance Rejected, permission gate runtime."
   gaps_remaining: []
   regressions: []
+human_verification_outcome: "All 5 smoke tests approved by user 2026-04-28. No regressions reported."
 human_verification:
   - test: "Click a soft-rejected MRF (status === 'Rejected') in MRF Processing left panel and confirm the 🗑️ Delete MRF button renders red (btn-danger) at the right end of the action-button row, after the Reject MRF button"
     expected: "Button renders alongside 💾 Save and ✕ Reject MRF; clicking it opens a native confirm() dialog whose first line reads 'Delete rejected MRF MRF-YYYY-NNN?' and whose second line reads 'This will permanently delete the MRF and N linked PR(s), N PO(s), N TR(s). This cannot be undone.' with the actual cascade counts substituted"
@@ -30,9 +32,9 @@ human_verification:
 # Phase 82: Add Delete Button for Rejected MRFs Verification Report
 
 **Phase Goal:** Add a "Delete MRF" cleanup button to the rejected-MRF details view in MRF Processing (`app/views/procurement.js`), eligible only when `currentMRF.status === 'Rejected'`. The button mirrors the existing "Delete TR" lightweight UX (single confirm() → permanent delete → toast) but cascades to linked PRs, POs, and TRs by `mrf_id`. No reason prompt. No `deleted_mrfs` audit row.
-**Verified:** 2026-04-28
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-04-28 (re-verified after UAT sign-off)
+**Status:** passed
+**Re-verification:** Yes — all 5 HUMAN-UAT smoke tests approved by user 2026-04-28
 
 ## Goal Achievement
 
