@@ -229,14 +229,14 @@ service cloud.firestore {
       // All active users can read
       allow read: if isActiveUser();
 
-      // Create: super_admin, operations_admin
-      allow create: if hasRole(['super_admin', 'operations_admin']);
+      // Create: super_admin, operations_admin, services_admin
+      allow create: if hasRole(['super_admin', 'operations_admin', 'services_admin']);
 
-      // Update: super_admin, operations_admin
-      allow update: if hasRole(['super_admin', 'operations_admin']);
+      // Update: super_admin, operations_admin, services_admin
+      allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin']);
 
-      // Delete: super_admin, operations_admin
-      allow delete: if hasRole(['super_admin', 'operations_admin']);
+      // Delete: super_admin, operations_admin, services_admin
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'services_admin']);
     }
 
     // =============================================
