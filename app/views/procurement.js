@@ -8,6 +8,7 @@ import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, que
 import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 import { showProofModal, saveProofUrl } from '../proof-modal.js';
+import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ========================================
 // GLOBAL STATE
@@ -3796,8 +3797,9 @@ async function saveNewMRF() {
             service_code: hasService ? serviceCode : '',
             service_name: hasService ? serviceName : '',
             requestor_name: requestorName,
+            requestor_user_id: window.getCurrentUser?.()?.uid ?? null,   // Phase 84 D-01
             date_needed: dateNeeded,
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             delivery_address: deliveryAddress,
             items_json: JSON.stringify(items),
             status: 'Pending',
@@ -5692,7 +5694,7 @@ async function submitTransportRequest() {
             cost: totalCost,
             total_amount: totalCost,
             finance_status: 'Pending',
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             created_at: new Date().toISOString()
         });
 
@@ -6307,7 +6309,7 @@ async function generatePRandTR() {
             cost: trTotalCost,
             total_amount: trTotalCost,
             finance_status: 'Pending',
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             created_at: new Date().toISOString()
         });
 

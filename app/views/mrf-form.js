@@ -6,7 +6,7 @@
      - 'my-requests' → My Requests: user's submitted MRFs
    ======================================== */
 
-import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc } from '../firebase.js';
+import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from '../firebase.js';
 import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
 
@@ -1771,8 +1771,9 @@ async function handleFormSubmit(e) {
             service_code: hasService ? serviceCode : '',        // MRF-07: denormalized
             service_name: hasService ? serviceName : '',        // MRF-07: denormalized
             requestor_name: requestorName,
+            requestor_user_id: window.getCurrentUser?.()?.uid ?? null,   // Phase 84 D-01
             date_needed: dateNeeded,
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             delivery_address: deliveryAddress,
             justification: justification,
             items_json: JSON.stringify(items),
