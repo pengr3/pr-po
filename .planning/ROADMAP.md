@@ -217,7 +217,7 @@
 
 **Active phases:**
 
-- [ ] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules
+- [x] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules — completed 2026-04-30 (5 plans)
 - [ ] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2)
 - [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
 - [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
@@ -241,8 +241,8 @@
   - [x] 83-01-PLAN.md — Security Rules + composite indexes + test infra investigation (NOTIF-13)
   - [x] 83-02-PLAN.md — Shared notifications module (helpers, enum, dev test writer); startAfter re-export (NOTIF-04, NOTIF-05, NOTIF-13)
   - [x] 83-03-PLAN.md — Bell markup + CSS + auth.js lifecycle hooks (NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05)
-  - [ ] 83-04-PLAN.md — History page view + router registration (NOTIF-06, NOTIF-03)
-  - [ ] 83-05-PLAN.md — UAT + production deploy + STATE/ROADMAP updates
+  - [x] 83-04-PLAN.md — History page view + router registration (NOTIF-06, NOTIF-03)
+  - [x] 83-05-PLAN.md — UAT + production deploy + STATE/ROADMAP updates
 **UI hint**: yes
 
 ### Phase 84: Notification Triggers — Existing Events
@@ -336,7 +336,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
 | 57-62.3 | v3.1 | 23/23 | Complete | 2026-03-10 |
 | 63-82 | v3.2 | 55/55 | Complete | 2026-04-28 |
-| 83 | v4.0 | 5/5 | In Progress | - |
+| 83 | v4.0 | 5/5 | Complete | 2026-04-30 |
 | 84 | v4.0 | 0/TBD | Not started | - |
 | 85 | v4.0 | 0/TBD | Not started | - |
 | 86 | v4.0 | 0/TBD | Not started | - |
