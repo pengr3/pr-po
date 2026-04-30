@@ -1206,9 +1206,14 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedProjectCodes?.();
         let projects = cachedProjects;
         if (assignedCodes !== null) {
-            // Phase 78 D-02: clientless projects (no project_code) are not in assigned_project_codes;
-            // assignment filter applies to coded projects only.
-            projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
+            const uid = window.getCurrentUser?.()?.uid;
+            // Coded projects: include if in assignedCodes.
+            // Codeless projects: include if user is in personnel_user_ids
+            // (syncPersonnelToAssignments is skipped for codeless projects — no code to sync).
+            projects = cachedProjects.filter(p =>
+                assignedCodes.includes(p.project_code) ||
+                (!p.project_code && uid && (p.personnel_user_ids || []).includes(uid))
+            );
         }
         projects.forEach(p => {
             // Phase 78 D-04: clientless projects use Firestore doc ID as the stable option value
@@ -1230,7 +1235,11 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedServiceCodes?.();
         let services = cachedServices;
         if (assignedCodes !== null) {
-            services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
+            const uid = window.getCurrentUser?.()?.uid;
+            services = cachedServices.filter(s =>
+                (assignedCodes.includes(s.service_code) && s.active === true) ||
+                (!s.service_code && uid && (s.personnel_user_ids || []).includes(uid) && s.active === true)
+            );
         }
         services.forEach(s => {
             psOptions.push({
