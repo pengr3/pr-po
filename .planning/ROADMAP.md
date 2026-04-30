@@ -218,7 +218,7 @@
 **Active phases:**
 
 - [x] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules — completed 2026-04-30 (5 plans)
-- [ ] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2)
+- [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
 - [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
 - [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
@@ -254,7 +254,7 @@
   2. Finance users receive a notification when a PR, TR, or RFP requires their review
   3. Personnel assigned to a project receive a notification when that project's status changes (e.g., to Client Approved, On-going, Completed)
   4. Super Admin users receive a notification when a new account registration is pending approval
-**Plans progress**: 3/4 complete (Plans 01–03 done; Plan 04 NOTIF-12 register.js remaining)
+**Plans progress**: 4/4 complete (Plans 01–04 done; all NOTIF triggers wired — Phase 84 complete)
 
 ### Phase 85: Collectibles Tracking
 **Goal**: Operations Admin and Finance can manually track money owed by clients on a project — create, edit, delete, record payments, and view auto-derived status — independent of any PM auto-trigger.

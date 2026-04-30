@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84 Plan 03 complete — NOTIF-11 triggers wired in project-detail.js saveField() and service-detail.js saveServiceField() — PROJECT_STATUS_CHANGED fan-out to personnel_user_ids on D-07 whitelist status changes
-last_updated: "2026-04-30T08:47:00.000Z"
+stopped_at: Phase 84 Plan 04 complete — NOTIF-12 REGISTRATION_PENDING trigger wired in register.js handleRegister() — fan-out to super_admins before signOut with excludeActor:false (D-13/D-14)
+last_updated: "2026-04-30T09:00:00.000Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 84
-Plan: 04
+Plan: 04 (complete)
 
 ## Performance Metrics
 
@@ -109,6 +109,7 @@ Plan: 04
 | Phase 84 P01 | 2 | 4 tasks | 7 files |
 | Phase 84 P02 | 4 | 3 tasks | 1 files |
 | Phase 84 P03 | 2 | 2 tasks | 2 files |
+| Phase 84 P04 | 4 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,8 @@ Recent decisions affecting current work:
 - [Phase 84-02]: resolveRequestorUid checks requestor_user_id first (Plan 01 field), falls back to users collection full_name query for legacy MRFs (D-02 legacy fallback)
 - [Phase 84-02]: rejectedMrfSnap captures currentMRF fields before nullification so rejectMRF() notification has mrf_id and requestor_user_id after currentMRF = null
 - [Phase 84-02]: All 8 notification trigger calls wrapped in isolated try/catch — zero primary action blocking (D-03 fire-and-forget)
+- [Phase 84-04]: excludeActor: false explicit on NOTIF-12 (D-13) — new user IS the actor, self-exclusion silences their own registration notification to other super_admins
+- [Phase 84-04]: NOTIF-12 fires before signOut (D-11/D-14) — Phase 83 Security Rule requires actor_id == request.auth.uid; satisfied since user is still authenticated at notification fire time
 - [Phase 84-01]: createNotificationForUsers uses writeBatch fan-out over direct UID array (D-08) — thin helper added to notifications.js to keep trigger sites clean rather than inlining loops
 - [Phase 84-01]: requestor_user_id field uses window.getCurrentUser?.()?.uid ?? null — optional chaining null fallback so unauthenticated edge cases write null without throwing (D-01)
 - [Phase 84-01]: firestore.rules allow read scoped to resource.data.role == 'super_admin' — minimal relaxation for createNotificationForRoles({roles:['super_admin']}) in register.js (D-12)
@@ -303,7 +306,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T08:47:00Z
-Stopped at: Phase 84 Plan 03 complete — NOTIF-11 triggers wired in project-detail.js saveField() and service-detail.js saveServiceField() (PROJECT_STATUS_CHANGED fan-out to personnel_user_ids on D-07 whitelist: Client Approved, For Mobilization, On-going, Completed, Loss)
+Last session: 2026-04-30T09:00:00Z
+Stopped at: Phase 84 Plan 04 complete — NOTIF-12 REGISTRATION_PENDING trigger wired in register.js handleRegister() (fan-out to super_admins before signOut, excludeActor:false per D-13/D-14)
 Resume file: None
-Next action: Execute Phase 84 Plan 04 — register.js NOTIF-12 trigger (REGISTRATION_PENDING fan-out to super_admins)
+Next action: Phase 84 complete — all 4 NOTIF triggers wired (NOTIF-07, NOTIF-08, NOTIF-11, NOTIF-12). Run /gsd:complete-milestone or proceed to Phase 87 (proposal-event notifications)
