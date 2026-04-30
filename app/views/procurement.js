@@ -1346,6 +1346,20 @@ async function submitRFP(poDocId) {
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
 
+        // Phase 84 NOTIF-08: notify Finance of new RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} submitted successfully`, 'success');
     } catch (error) {
@@ -1442,6 +1456,20 @@ async function submitTRRFP(trDocId) {
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
 
+        // Phase 84 NOTIF-08: notify Finance of new TR RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New TR RFP pending Finance review: ${rfpId} for TR ${tr.tr_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitTRRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} submitted successfully`, 'success');
     } catch (error) {
@@ -1519,6 +1547,21 @@ async function submitDeliveryFeeRFP(poDocId) {
         };
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        // Phase 84 NOTIF-08: notify Finance of new Delivery Fee RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New Delivery Fee RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitDeliveryFeeRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} (Delivery Fee) submitted successfully`, 'success');
     } catch (error) {
@@ -5750,6 +5793,20 @@ async function submitTransportRequest() {
             updated_at: new Date().toISOString()
         });
 
+        // Phase 84 NOTIF-08: notify Finance of new TR needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.TR_REVIEW_NEEDED,
+                message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
+                link: '#/finance/pending',
+                source_collection: 'transport_requests',
+                source_id: trId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitTransportRequest notification failed:', notifErr);
+        }
+
         showToast(`Transport Request submitted successfully! TR ID: ${trId}`, 'success');
 
         // Clear MRF details
@@ -6401,6 +6458,51 @@ async function generatePRandTR() {
             rejected_pr_id: null,
             is_rejected: false
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF approval (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(mrfData);
+            if (requestorUid) {
+                const firstPrId = generatedPRIds[0] || '';
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_APPROVED,
+                    message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} + TR ${trId} created` : ''}`,
+                    link: '#/procurement/records',
+                    source_collection: 'mrfs',
+                    source_id: mrfData.mrf_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 generatePRandTR notification failed:', notifErr);
+        }
+
+        // Phase 84 NOTIF-08: notify Finance of new PR(s) and TR needing review (D-03: fire-and-forget)
+        try {
+            const prListStr = generatedPRIds.join(', ') || 'PR';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.PR_REVIEW_NEEDED,
+                message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
+                link: '#/finance/pending',
+                source_collection: 'prs',
+                source_id: generatedPRIds[0] || ''
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePRandTR PR notification failed:', notifErr);
+        }
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.TR_REVIEW_NEEDED,
+                message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
+                link: '#/finance/pending',
+                source_collection: 'transport_requests',
+                source_id: trId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePRandTR TR notification failed:', notifErr);
+        }
 
         // Build success message
         const prMsg = generatedPRIds.length === 1
