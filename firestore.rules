@@ -123,6 +123,11 @@ service cloud.firestore {
       // Note: operations_admin and services_admin list access must be filtered client-side to their respective user roles
       allow list: if isRole('super_admin') || isRole('operations_admin') || isRole('services_admin');
 
+      // Phase 84 D-12: allow any signed-in user to read super_admin user docs
+      // Required for createNotificationForRoles({roles:['super_admin']}) called from register.js
+      // This exposes only name/email to other internal users — super_admin docs are not sensitive to authenticated staff
+      allow read: if isSignedIn() && resource.data.role == 'super_admin';
+
       // Create: signed-in user creating own doc AND status is 'pending'
       allow create: if isSignedIn() &&
                        request.auth.uid == userId &&
