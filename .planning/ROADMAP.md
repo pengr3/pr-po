@@ -238,9 +238,9 @@
   4. User can mark a single notification read or mark-all-as-read in one click, and unread count updates immediately
   5. User can open a full notification history page that paginates 20 per page including read items
 **Plans**: 5 plans
-  - [ ] 83-01-PLAN.md — Security Rules + composite indexes + test infra investigation (NOTIF-13)
-  - [ ] 83-02-PLAN.md — Shared notifications module (helpers, enum, dev test writer); startAfter re-export (NOTIF-04, NOTIF-05, NOTIF-13)
-  - [ ] 83-03-PLAN.md — Bell markup + CSS + auth.js lifecycle hooks (NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05)
+  - [x] 83-01-PLAN.md — Security Rules + composite indexes + test infra investigation (NOTIF-13)
+  - [x] 83-02-PLAN.md — Shared notifications module (helpers, enum, dev test writer); startAfter re-export (NOTIF-04, NOTIF-05, NOTIF-13)
+  - [x] 83-03-PLAN.md — Bell markup + CSS + auth.js lifecycle hooks (NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05)
   - [ ] 83-04-PLAN.md — History page view + router registration (NOTIF-06, NOTIF-03)
   - [ ] 83-05-PLAN.md — UAT + production deploy + STATE/ROADMAP updates
 **UI hint**: yes

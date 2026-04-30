@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.0
-milestone_name: Notification System Foundation
+milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Completed 83-02-PLAN.md
-last_updated: "2026-04-30T04:05:00Z"
+stopped_at: Completed 83-03-PLAN.md
+last_updated: "2026-04-30T05:00:00Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 83
-Plan: 02 complete
+Plan: 03 complete
 
 ## Performance Metrics
 
@@ -104,6 +104,7 @@ Plan: 02 complete
 | Phase 82 P01 | 3 | 3 tasks | 1 files |
 | Phase 83 P01 | 2 | 3 tasks | 3 files |
 | Phase 83 P02 | 4 | 2 tasks | 2 files |
+| Phase 83 P03 | 3 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,9 @@ Plan: 02 complete
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 83-03]: Bell placed as sibling of .nav-links (not child) so it survives mobile display:none on .nav-links (Pitfall 1 mitigation); CSS order:2 positions bell visually between Admin dropdown and Log Out on desktop
+- [Phase 83-03]: All 4 auth.js hooks are window-guarded (if window.initNotifications) to keep auth.js decoupled from notifications.js; static import in bootstrap guarantees window.* registrations exist before first onclick fires
+- [Phase 83-03]: Mobile flex tweak (.top-nav-content gap:0.5rem) consolidated in components.css (not views.css) — single source of truth for .top-nav-content
 - [Phase 83-02]: renderDropdownRows() exported (not just internal) for Plan 03 unit-testability; formatRelativeTime() inlined in notifications.js (not added to utils.js) — only caller at this phase; utils.js upgrade deferred to Plan 04 if history page also wants it
 - [Phase 83-02]: recentDocs kept as module-scope array — loadRecentForDropdown() called only on dropdown open to minimize Firestore reads; optimistic cache update in markNotificationRead() for immediate UI feedback before listener fires
 - [Phase 83-01]: Notification rule unit tests DEFERRED — test suite last updated Phase 49; rfps collection (Phase 65) also untested; hygiene fix should add both collections together in v4.1 to avoid piecemeal coverage gaps
@@ -284,7 +288,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T04:05:00Z
-Stopped at: Completed 83-02-PLAN.md
+Last session: 2026-04-30T05:00:00Z
+Stopped at: Completed 83-03-PLAN.md
 Resume file: None
-Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 03 (bell UI, dropdown markup, auth.js hooks)
+Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 04 (notifications history page + router registration)
