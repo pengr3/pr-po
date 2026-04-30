@@ -590,34 +590,52 @@ export async function createNotificationForRoles({ roles, type, message, link, s
  * @param {string} [params.source_id=''] - Source record ID
  * @returns {Promise<number>} Count of notification docs written (0 on empty array or failure)
  */
-export async function createNotificationForUsers({ user_ids, type, message, link, source_collection = '', source_id = '' }) {
+export async function createNotificationForUsers({ user_ids, type, message, link, source_collection = '', source_id = '', excludeActor = false }) {
     if (!Array.isArray(user_ids) || user_ids.length === 0) return 0;
     if (!type || !message || !link) {
         throw new Error('createNotificationForUsers: type, message, link are required');
     }
     try {
         const actor = window.getCurrentUser?.();
-        const batch = writeBatch(db);
-        let count = 0;
-        for (const uid of user_ids) {
-            if (!uid) continue;
-            const newRef = doc(collection(db, 'notifications'));
-            batch.set(newRef, {
-                user_id: uid,
-                type,
-                message,
-                link,
-                source_collection,
-                source_id,
-                actor_id: actor?.uid ?? null,
-                read: false,
-                read_at: null,
-                created_at: serverTimestamp()
-            });
-            count++;
+        // CR-01: guard against null actor UID — a null actor_id would violate the
+        // notifications create rule (actor_id == request.auth.uid), causing the
+        // entire batch to be rejected with permission-denied.
+        const actorUid = actor?.uid;
+        if (!actorUid) {
+            console.warn('[Notifications] createNotificationForUsers: no actor UID — skipping (auth state gap)');
+            return 0;
         }
-        if (count > 0) await batch.commit();
-        return count;
+
+        // CR-03: Firestore hard limit is 500 writes per batch — chunk accordingly.
+        // WR-02: excludeActor support — filter out the actor from recipients.
+        const CHUNK = 500;
+        const dedupedUids = [...new Set(user_ids.filter(Boolean))];
+        const recipientUids = excludeActor ? dedupedUids.filter(uid => uid !== actorUid) : dedupedUids;
+
+        let total = 0;
+        for (let i = 0; i < recipientUids.length; i += CHUNK) {
+            const batch = writeBatch(db);
+            let count = 0;
+            for (const uid of recipientUids.slice(i, i + CHUNK)) {
+                const newRef = doc(collection(db, 'notifications'));
+                batch.set(newRef, {
+                    user_id: uid,
+                    type,
+                    message,
+                    link,
+                    source_collection,
+                    source_id,
+                    actor_id: actorUid,
+                    read: false,
+                    read_at: null,
+                    created_at: serverTimestamp()
+                });
+                count++;
+            }
+            if (count > 0) await batch.commit();
+            total += count;
+        }
+        return total;
     } catch (err) {
         console.error('[Notifications] createNotificationForUsers failed:', err);
         return 0;
