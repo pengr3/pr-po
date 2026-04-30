@@ -126,7 +126,9 @@ service cloud.firestore {
       // Phase 84 D-12: allow any signed-in user to read super_admin user docs
       // Required for createNotificationForRoles({roles:['super_admin']}) called from register.js
       // This exposes only name/email to other internal users — super_admin docs are not sensitive to authenticated staff
-      allow read: if isSignedIn() && resource.data.role == 'super_admin';
+      // WR-01: use allow get (single-document) not allow read — resource.data is unavailable
+      //        during collection-level list queries so the role check would not restrict list results.
+      allow get: if isSignedIn() && resource.data.role == 'super_admin';
 
       // Create: signed-in user creating own doc AND status is 'pending'
       allow create: if isSignedIn() &&
@@ -465,7 +467,10 @@ service cloud.firestore {
 
       allow list: if isActiveUser() && resource.data.user_id == request.auth.uid;
 
-      allow create: if isActiveUser()
+      // CR-04 / Phase 84: relaxed to isSignedIn() (was isActiveUser()) so that
+      // NOTIF-12 can fire from register.js while the new user's status is 'pending'.
+      // Impersonation is still prevented by actor_id == request.auth.uid.
+      allow create: if isSignedIn()
         && request.resource.data.user_id is string
         && request.resource.data.type is string
         && request.resource.data.message is string
