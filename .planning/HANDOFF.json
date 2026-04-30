@@ -1,60 +1,40 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-30T00:04:54.060Z",
-  "phase": "83",
-  "phase_name": "notification-system-foundation",
-  "phase_dir": ".planning/phases/83-notification-system-foundation",
-  "plan": null,
-  "task": null,
-  "total_tasks": 15,
+  "timestamp": "2026-04-30T09:30:00Z",
+  "phase": "84",
+  "phase_name": "notification-triggers-existing-events",
+  "phase_dir": ".planning/phases/84-notification-triggers-existing-events",
+  "plan": 4,
+  "task": 4,
+  "total_tasks": 4,
   "status": "paused",
-  "stage": "planning_complete",
   "completed_tasks": [
-    {"id": "phase-83-context", "name": "CONTEXT.md gathered (D-01..D-20 locked)", "status": "done"},
-    {"id": "phase-83-research", "name": "RESEARCH.md (HIGH confidence; 9 pitfalls; Validation Architecture section)", "status": "done"},
-    {"id": "phase-83-validation", "name": "VALIDATION.md materialized from RESEARCH §Validation Architecture", "status": "done"},
-    {"id": "phase-83-plans", "name": "5 PLAN.md files (01-05) across 3 waves", "status": "done"},
-    {"id": "phase-83-verification", "name": "gsd-plan-checker passed on iteration 2/3 (3 BLOCKERs + 6 MAJORs + 4 MINORs all resolved)", "status": "done"}
+    {"id": 1, "name": "Plan 01 — notifications.js foundation + NOTIF-07/08 MRF rejection/approval triggers", "status": "done", "commit": "cf41432"},
+    {"id": 2, "name": "Plan 02 — resolveRequestorUid + NOTIF-07/08 wired in procurement.js + finance.js", "status": "done", "commit": "0f94062"},
+    {"id": 3, "name": "Plan 03 — NOTIF-11 project/service status change triggers in project-detail.js + service-detail.js", "status": "done", "commit": "963be3f"},
+    {"id": 4, "name": "Plan 04 — NOTIF-12 new user registration trigger in register.js (fan-out to super_admins)", "status": "done", "commit": "ceb6b38"},
+    {"id": 5, "name": "Code review (84-REVIEW.md) + review fixes (84-REVIEW-FIX.md) — CR-01 to CR-04, WR-01 to WR-05", "status": "done", "commit": "5cc7553"}
   ],
   "remaining_tasks": [
-    {"id": "execute-wave-1", "name": "Execute Wave 1: Plan 01 (Security Rules + indexes + test infra audit) + Plan 02 (notifications.js module + startAfter re-export)", "status": "not_started"},
-    {"id": "execute-wave-2", "name": "Execute Wave 2: Plan 03 (bell markup + CSS + auth.js hooks + index.html bootstrap import) + Plan 04 (history page view + router registration)", "status": "not_started"},
-    {"id": "execute-wave-3", "name": "Execute Wave 3: Plan 05 (UAT + production deploy of rules+indexes + STATE/ROADMAP updates) — has 2 human-verify checkpoints", "status": "not_started"}
+    {"id": 6, "name": "Commit uncommitted changes: CLAUDE.md cleanup + role-config.js batch.update fix + untracked planning/debug files", "status": "not_started"},
+    {"id": 7, "name": "UAT — 8 notification trigger tests in 84-UAT.md (requires browser + 2 accounts for some tests)", "status": "not_started"},
+    {"id": 8, "name": "After UAT passes: /gsd:complete-milestone or advance to Phase 87 (proposal-event notifications)", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Production deploy of firestore.rules + firestore.indexes.json", "context": "Plan 05 Task 4 — must happen in same commit window as first addDoc to notifications collection (CLAUDE.md 'Add Security Rules first' rule)", "blocking": false},
-    {"action": "Manual UAT for NOTIF-01..06, NOTIF-13", "context": "Plan 05 Task 2 — zero-build SPA has no DOM test framework; UAT script lives in 83-VALIDATION.md (~10 min walk-through)", "blocking": false}
+    {"action": "Browser UAT — run all 8 tests in .planning/phases/84-notification-triggers-existing-events/84-UAT.md", "context": "Tests 1–6 require two roles active (e.g. procurement + requestor). Test 7 needs project personnel assigned. Test 8 needs a new user registration attempt.", "blocking": true}
   ],
   "decisions": [
-    {"decision": "Run research before planning despite research_enabled: false in config", "rationale": "User explicitly chose 'Research first' at the gate; HIGH-confidence RESEARCH.md surfaced 3 critical pitfalls (mobile bell layout, missing startAfter re-export, listener-cleanup-on-logout vs view-destroy)", "phase": "83"},
-    {"decision": "Skip UI-SPEC generation, plan from CONTEXT.md alone", "rationale": "User chose 'Continue without UI-SPEC' — CONTEXT.md already locks bell placement (D-01/D-02), dropdown behavior (D-03/D-04), route (D-09), mobile rules. Bell+dropdown closely mirrors existing Admin nav-dropdown pattern.", "phase": "83"},
-    {"decision": "Static-import app/notifications.js in index.html bootstrap (not deferred load)", "rationale": "BLOCKER-3 from plan-checker iteration 1: window.* registrations happen on module load. Without explicit import, every bell onclick would throw ReferenceError and auth.js if-guard would silently no-op.", "phase": "83"},
-    {"decision": "Bell wrapper as sibling of .nav-links (not child)", "rationale": "Pitfall 1 from RESEARCH.md: at ≤768px .nav-links { display: none }. D-02 requires bell visible on mobile. Sibling placement survives mobile breakpoint.", "phase": "83"},
-    {"decision": "Extract verify scripts to .cjs files (not inline node -e)", "rationale": "MAJOR-7 from plan-checker iteration 1: multi-layer shell escaping fragile on Windows bash. Project package.json has type: module so .cjs extension is required for require() in Node scripts.", "phase": "83"},
-    {"decision": "destroyNotifications() hooked at 3 sites in app/auth.js (NOT in any view destroy)", "rationale": "D-13: bell persists across all views. Cleanup must tie to logout/auth-clear, not view navigation, otherwise listener leaks and stale state on re-login.", "phase": "83"},
-    {"decision": "Mobile flex tweak consolidated in styles/components.css", "rationale": "MINOR-10: investigation confirmed .top-nav-content rule lives in components.css (4 occurrences). Splitting across components.css and views.css would create duplicate @media blocks.", "phase": "83"},
-    {"decision": "NOTIFICATION_TYPES enum ships 9 keys including PROPOSAL_SUBMITTED + PROPOSAL_DECIDED", "rationale": "D-06: avoids constants-module churn in Phase 87 when proposal triggers wire up.", "phase": "83"}
+    {"decision": "batch.update() instead of batch.set(merge:true) for role_config partial nested Firestore writes", "rationale": "batch.set(merge:true) does NOT expand dot-notation keys — treats 'permissions.tabs.dashboard.edit' as a literal top-level field name (silent no-op). batch.update() correctly interprets dot-notation as nested field paths.", "phase": "84 (uncommitted fix in role-config.js)"},
+    {"decision": "resolveRequestorUid checks requestor_user_id first, falls back to full_name query for legacy MRFs", "rationale": "D-02 legacy fallback — older MRFs predate requestor_user_id field; Phase 84 adds the field going forward but legacy MRFs need the name-based lookup.", "phase": "84-02"},
+    {"decision": "NOTIF-12 fires before signOut in register.js", "rationale": "D-11/D-14 — Phase 83 Security Rule requires actor_id == request.auth.uid; must fire while user is still authenticated.", "phase": "84-04"},
+    {"decision": "excludeActor: false explicit on NOTIF-12", "rationale": "D-13 — new user IS the actor; self-exclusion would silence their notification to super_admins. Explicit false overrides default.", "phase": "84-04"},
+    {"decision": "codeless projects/services show in MRF for operations_user/services_user when uid is in personnel_user_ids", "rationale": "syncPersonnelToAssignments is skipped for codeless projects (no code to sync); MRF dropdown checks personnel_user_ids directly as fallback.", "phase": "quick-260430-a4b"}
   ],
   "uncommitted_files": [
-    ".claude/settings.local.json (modified)",
-    ".planning/PROJECT.md (modified — milestone status)",
-    ".planning/ROADMAP.md (modified — Phase 83 plan list TBD → 5 plans + progress row 0/5)",
-    ".planning/STATE.md (modified)",
-    ".planning/REQUIREMENTS.md (untracked — new file)",
-    ".planning/phases/83-notification-system-foundation/83-CONTEXT.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-DISCUSSION-LOG.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-RESEARCH.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-VALIDATION.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-01-PLAN.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-02-PLAN.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-03-PLAN.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-04-PLAN.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/83-05-PLAN.md (untracked)",
-    ".planning/phases/83-notification-system-foundation/verify-02-2.cjs (untracked)",
-    ".planning/phases/83-notification-system-foundation/verify-03-1.cjs (untracked)",
-    ".planning/phases/83-notification-system-foundation/verify-04-1.cjs (untracked)"
+    "CLAUDE.md (stale docs removed — cleanup only, safe to commit)",
+    "app/views/role-config.js (batch.set→batch.update fix — IMPORTANT: role permission saves were silently failing)"
   ],
-  "next_action": "Run /clear, then /gsd:execute-phase 83 to start Wave 1 (Plans 01 + 02 in parallel).",
-  "context_notes": "Phase 83 planning is fully complete and verified — 5 plans / 15 tasks / 3 waves / 7 NOTIF requirements covered. Wave 1 starts Plans 01 (firestore rules + indexes + test/firestore.test.js audit) and 02 (app/notifications.js shared module + app/firebase.js startAfter re-export) in parallel; both have no dependencies. Plans are sized realistically — Plan 02 Task 2 is the largest single task (~250 line floor for app/notifications.js with 9 exports + 6 window regs + dev test writer + JSDoc). Three blocking issues from the first verification pass were all surgically addressed by the planner: notifications.js is now statically imported by the index.html bootstrap module (was the biggest miss — bell would have been dead-on-arrival without this), bell placement is unambiguously BEFORE .nav-links, and the brittle [\\s\\S]{0,800} regex was replaced with .cjs verify scripts that are Windows-bash safe. Per project config commit_docs: false, all 17 new/modified files are uncommitted — this WIP commit will package them. v3.3 is the active milestone branch."
+  "next_action": "1. Commit CLAUDE.md + app/views/role-config.js + untracked planning files (debug sessions, UAT, quick task plans, v3.2-MILESTONE-AUDIT.md). 2. Do NOT commit serviceAccountKey.json or scripts/preprocess.js. 3. Run UAT from 84-UAT.md. 4. /gsd:complete-milestone.",
+  "context_notes": "Phase 84 is fully implemented and code-reviewed. The role-config.js batch.set→batch.update fix is the only substantive uncommitted code change — role permission saves through the Role Configuration UI were silently failing (no error shown, but Firestore was writing literal dot-notation keys as top-level fields instead of navigating the nested permissions.tabs structure). The quick task 260430-a4b (codeless projects MRF filter) was completed this session and is committed."
 }
