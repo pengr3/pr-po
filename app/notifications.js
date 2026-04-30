@@ -573,6 +573,57 @@ export async function createNotificationForRoles({ roles, type, message, link, s
     }
 }
 
+/**
+ * Write one notification per UID in the given array.
+ * Per D-08 (Phase 84 CONTEXT): fan-out to personnel_user_ids array for NOTIF-11.
+ * Uses writeBatch for atomic delivery.
+ *
+ * IMPORTANT FOR CALLERS: Wrap in try/catch — never let a notification failure
+ * block the original action.
+ *
+ * @param {object} params
+ * @param {string[]} params.user_ids - Array of Firebase UIDs to notify (required, non-empty)
+ * @param {string} params.type - One of NOTIFICATION_TYPES values (required)
+ * @param {string} params.message - Human-readable summary (required)
+ * @param {string} params.link - Full hash route (required)
+ * @param {string} [params.source_collection=''] - Firestore collection name
+ * @param {string} [params.source_id=''] - Source record ID
+ * @returns {Promise<number>} Count of notification docs written (0 on empty array or failure)
+ */
+export async function createNotificationForUsers({ user_ids, type, message, link, source_collection = '', source_id = '' }) {
+    if (!Array.isArray(user_ids) || user_ids.length === 0) return 0;
+    if (!type || !message || !link) {
+        throw new Error('createNotificationForUsers: type, message, link are required');
+    }
+    try {
+        const actor = window.getCurrentUser?.();
+        const batch = writeBatch(db);
+        let count = 0;
+        for (const uid of user_ids) {
+            if (!uid) continue;
+            const newRef = doc(collection(db, 'notifications'));
+            batch.set(newRef, {
+                user_id: uid,
+                type,
+                message,
+                link,
+                source_collection,
+                source_id,
+                actor_id: actor?.uid ?? null,
+                read: false,
+                read_at: null,
+                created_at: serverTimestamp()
+            });
+            count++;
+        }
+        if (count > 0) await batch.commit();
+        return count;
+    } catch (err) {
+        console.error('[Notifications] createNotificationForUsers failed:', err);
+        return 0;
+    }
+}
+
 /* ========================================
    WINDOW REGISTRATIONS (D-13)
    Registered immediately on module load — NOT lazily — because they are
