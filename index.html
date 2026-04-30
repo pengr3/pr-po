@@ -243,6 +243,13 @@
         // Import components to make them available globally
         import './app/components.js';
 
+        // Phase 83: Import notifications module so its window.* registrations
+        // (toggleNotificationsDropdown, handleNotificationClick, initNotifications,
+        //  destroyNotifications, markAllNotificationsRead, markNotificationRead,
+        //  __createTestNotification on localhost) exist before the first bell
+        //  onclick fires and before app/auth.js calls window.initNotifications.
+        import './app/notifications.js';
+
         // Initialize auth and router when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {

@@ -239,6 +239,12 @@ export function initAuthObserver() {
                             // Update navigation for authenticated user
                             updateNavForAuth(currentUser);
 
+                            // Phase 83: Attach bell-listener for active users. Window-guarded so notifications
+                            // module is optional (defensive — auth.js works even if notifications.js fails to load).
+                            if (userData.status === 'active' && window.initNotifications) {
+                                window.initNotifications(currentUser);
+                            }
+
                             // Status-based routing (AUTH-08)
                             const currentHash = window.location.hash;
 
@@ -260,6 +266,7 @@ export function initAuthObserver() {
                                 }
                             } else if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
+                                if (window.destroyNotifications) window.destroyNotifications();
                                 await signOut(auth);
                                 window.location.hash = '#/login';
                                 return;
@@ -295,6 +302,7 @@ export function initAuthObserver() {
 
                             if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
+                                if (window.destroyNotifications) window.destroyNotifications();
                                 signOut(auth).then(() => {
                                     window.location.hash = '#/login';
                                     alert('Your account has been deactivated. Please contact an administrator.');
@@ -344,6 +352,9 @@ export function initAuthObserver() {
         } else {
             // Clean up permissions observer
             destroyPermissionsObserver();
+
+            // Phase 83: Detach bell-listener and reset module state
+            if (window.destroyNotifications) window.destroyNotifications();
 
             // Clear current user
             currentUser = null;
