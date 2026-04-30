@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Completed 83-03-PLAN.md
-last_updated: "2026-04-30T05:00:00Z"
+stopped_at: Completed 83-04-PLAN.md
+last_updated: "2026-04-30T03:46:51.384Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 83
-Plan: 03 complete
+Plan: 04 complete
 
 ## Performance Metrics
 
@@ -105,6 +105,7 @@ Plan: 03 complete
 | Phase 83 P01 | 2 | 3 tasks | 3 files |
 | Phase 83 P02 | 4 | 2 tasks | 2 files |
 | Phase 83 P03 | 3 | 3 tasks | 3 files |
+| Phase 83 P04 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,9 @@ Plan: 03 complete
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 83-04]: Newer navigation uses O(N) re-walk from page 1 (not a backwards cursor) — Firestore startAfter in desc order cannot go backward; cost bounded by user pagination depth, documented verbatim in loadNewerPage() per D-10
+- [Phase 83-04]: /notifications maps to 'dashboard' permission key — all active users can reach history page without a separate RBAC key; same gate as home route (/)
+- [Phase 83-04]: History view uses one-shot getDocs (not onSnapshot) — content doesn't need live updates; listeners[] kept empty for destroy() compatibility
 - [Phase 83-03]: Bell placed as sibling of .nav-links (not child) so it survives mobile display:none on .nav-links (Pitfall 1 mitigation); CSS order:2 positions bell visually between Admin dropdown and Log Out on desktop
 - [Phase 83-03]: All 4 auth.js hooks are window-guarded (if window.initNotifications) to keep auth.js decoupled from notifications.js; static import in bootstrap guarantees window.* registrations exist before first onclick fires
 - [Phase 83-03]: Mobile flex tweak (.top-nav-content gap:0.5rem) consolidated in components.css (not views.css) — single source of truth for .top-nav-content
@@ -288,7 +292,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T05:00:00Z
-Stopped at: Completed 83-03-PLAN.md
+Last session: 2026-04-30T03:44:30Z
+Stopped at: Completed 83-04-PLAN.md (Phase 83 complete — all 5 plans done)
 Resume file: None
-Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 04 (notifications history page + router registration)
+Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 05 (UAT verification)
