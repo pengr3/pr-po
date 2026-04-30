@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 83 complete; UAT 11/11 passed; ready for Phase 84
-last_updated: "2026-04-30T04:00:00.000Z"
+stopped_at: Phase 84 Plan 01 complete — foundation prep: createNotificationForUsers added, requestor_user_id stamped, imports wired, Firestore rules updated
+last_updated: "2026-04-30T06:36:02.248Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
-  percent: 14
+  completed_phases: 0
+  total_plans: 9
+  completed_plans: 6
+  percent: 67
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84 — notification-triggers-existing-events
+**Current focus:** Phase 84 — notification-triggers-existing-events (Plan 01 complete, Plan 02+ wave 2 triggers next)
 
 ## Current Position
 
 Phase: 84
-Plan: ready to plan
+Plan: 02
 
 ## Performance Metrics
 
@@ -106,6 +106,7 @@ Plan: ready to plan
 | Phase 83 P02 | 4 | 2 tasks | 2 files |
 | Phase 83 P03 | 3 | 3 tasks | 3 files |
 | Phase 83 P04 | 2 | 2 tasks | 2 files |
+| Phase 84 P01 | 2 | 4 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Plan: ready to plan
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 84-01]: createNotificationForUsers uses writeBatch fan-out over direct UID array (D-08) — thin helper added to notifications.js to keep trigger sites clean rather than inlining loops
+- [Phase 84-01]: requestor_user_id field uses window.getCurrentUser?.()?.uid ?? null — optional chaining null fallback so unauthenticated edge cases write null without throwing (D-01)
+- [Phase 84-01]: firestore.rules allow read scoped to resource.data.role == 'super_admin' — minimal relaxation for createNotificationForRoles({roles:['super_admin']}) in register.js (D-12)
 - [Phase 83-04]: Newer navigation uses O(N) re-walk from page 1 (not a backwards cursor) — Firestore startAfter in desc order cannot go backward; cost bounded by user pagination depth, documented verbatim in loadNewerPage() per D-10
 - [Phase 83-04]: /notifications maps to 'dashboard' permission key — all active users can reach history page without a separate RBAC key; same gate as home route (/)
 - [Phase 83-04]: History view uses one-shot getDocs (not onSnapshot) — content doesn't need live updates; listeners[] kept empty for destroy() compatibility
@@ -292,7 +296,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T04:00:00Z
-Stopped at: Phase 83 complete — UAT 11/11 passed; bell + dropdown + history page + per-user Security Rules all verified; nav logo-only fix shipped
+Last session: 2026-04-30T06:36:02Z
+Stopped at: Phase 84 Plan 01 complete — foundation prep done (createNotificationForUsers added, requestor_user_id stamped on both MRF paths, imports wired to all 4 trigger-site files, Firestore rules updated for D-12)
 Resume file: None
-Next action: Run `/gsd:plan-phase 84` to plan notification triggers for existing events
+Next action: Execute Phase 84 Plan 02 — Wave 2 trigger implementations (NOTIF-07/08/11/12 calls)
