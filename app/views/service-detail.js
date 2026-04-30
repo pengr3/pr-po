@@ -730,6 +730,24 @@ async function saveServiceField(fieldName, newValue) {
         ], 'services').catch(err => console.error('[EditHistory] saveServiceField failed:', err));
 
         currentService = { ...currentService, [fieldName]: valueToSave };
+        // Phase 84 NOTIF-11: notify personnel of meaningful service status change (D-03: fire-and-forget)
+        const NOTIF11_STATUS_WHITELIST = ['Client Approved', 'For Mobilization', 'On-going', 'Completed', 'Loss'];
+        if (fieldName === 'project_status' && NOTIF11_STATUS_WHITELIST.includes(valueToSave)) {
+            const recipients = (currentService.personnel_user_ids || []).filter(Boolean);
+            if (recipients.length > 0) {
+                const serviceLink = currentService.service_code
+                    ? `#/services/detail/${currentService.service_code}`
+                    : '#/services';
+                createNotificationForUsers({
+                    user_ids: recipients,
+                    type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                    message: `Service "${currentService.service_name}" status changed to: ${valueToSave}`,
+                    link: serviceLink,
+                    source_collection: 'services',
+                    source_id: currentService.service_code || currentServiceDocId
+                }).catch(err => console.error('[ServiceDetail] NOTIF-11 notification failed:', err));
+            }
+        }
         return true;
     } catch (error) {
         console.error('[ServiceDetail] Save failed:', error);
