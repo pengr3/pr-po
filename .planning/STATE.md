@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84 Plan 02 complete — NOTIF-07/08 trigger wiring in procurement.js (resolveRequestorUid, rejectMRF, generatePR, generatePRandTR, submitTransportRequest, submitRFP, submitTRRFP, submitDeliveryFeeRFP)
-last_updated: "2026-04-30T07:05:00.000Z"
+stopped_at: Phase 84 Plan 03 complete — NOTIF-11 triggers wired in project-detail.js saveField() and service-detail.js saveServiceField() — PROJECT_STATUS_CHANGED fan-out to personnel_user_ids on D-07 whitelist status changes
+last_updated: "2026-04-30T08:47:00.000Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 7
-  percent: 78
+  completed_plans: 8
+  percent: 89
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 84
-Plan: 03
+Plan: 04
 
 ## Performance Metrics
 
@@ -108,6 +108,7 @@ Plan: 03
 | Phase 83 P04 | 2 | 2 tasks | 2 files |
 | Phase 84 P01 | 2 | 4 tasks | 7 files |
 | Phase 84 P02 | 4 | 3 tasks | 1 files |
+| Phase 84 P03 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,8 @@ Plan: 03
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 84-03]: NOTIF11_STATUS_WHITELIST declared inline at each trigger site — short self-documenting list, each file is independent; placed after currentService update so fan-out uses updated service_name
+- [Phase 84-03]: Empty personnel_user_ids skips silently (D-09) — .filter(Boolean) handles sparse/null entries in the array
 - [Phase 84-02]: resolveRequestorUid checks requestor_user_id first (Plan 01 field), falls back to users collection full_name query for legacy MRFs (D-02 legacy fallback)
 - [Phase 84-02]: rejectedMrfSnap captures currentMRF fields before nullification so rejectMRF() notification has mrf_id and requestor_user_id after currentMRF = null
 - [Phase 84-02]: All 8 notification trigger calls wrapped in isolated try/catch — zero primary action blocking (D-03 fire-and-forget)
@@ -300,7 +303,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T07:05:00Z
-Stopped at: Phase 84 Plan 02 complete — NOTIF-07/08 triggers wired in procurement.js (resolveRequestorUid helper, rejectMRF MRF_REJECTED, generatePR MRF_APPROVED+PR_REVIEW_NEEDED, generatePRandTR MRF_APPROVED+PR_REVIEW_NEEDED+TR_REVIEW_NEEDED, submitTransportRequest TR_REVIEW_NEEDED, all 3 RFP functions RFP_REVIEW_NEEDED)
+Last session: 2026-04-30T08:47:00Z
+Stopped at: Phase 84 Plan 03 complete — NOTIF-11 triggers wired in project-detail.js saveField() and service-detail.js saveServiceField() (PROJECT_STATUS_CHANGED fan-out to personnel_user_ids on D-07 whitelist: Client Approved, For Mobilization, On-going, Completed, Loss)
 Resume file: None
-Next action: Execute Phase 84 Plan 03 — remaining notification triggers (finance.js, project-detail.js, service-detail.js, register.js)
+Next action: Execute Phase 84 Plan 04 — register.js NOTIF-12 trigger (REGISTRATION_PENDING fan-out to super_admins)

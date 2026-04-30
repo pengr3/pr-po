@@ -254,6 +254,7 @@
   2. Finance users receive a notification when a PR, TR, or RFP requires their review
   3. Personnel assigned to a project receive a notification when that project's status changes (e.g., to Client Approved, On-going, Completed)
   4. Super Admin users receive a notification when a new account registration is pending approval
+**Plans progress**: 3/4 complete (Plans 01–03 done; Plan 04 NOTIF-12 register.js remaining)
 
 ### Phase 85: Collectibles Tracking
 **Goal**: Operations Admin and Finance can manually track money owed by clients on a project — create, edit, delete, record payments, and view auto-derived status — independent of any PM auto-trigger.
