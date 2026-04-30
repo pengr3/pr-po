@@ -302,10 +302,11 @@ Recent decisions affecting current work:
 | 260408-g2n | Investigate and restore missing Void button in Finance Payables Record Payment modal | 2026-04-08 | 21a682c, 3e64cc0 | Verified | [260408-g2n-investigate-and-restore-missing-void-but](.planning/quick/260408-g2n-investigate-and-restore-missing-void-but/) |
 | 260408-ikv | Lock PO Document Details when active RFP exists | 2026-04-08 | f67d545 | Awaiting UAT | [260408-ikv-lock-po-document-details-when-active-rfp](.planning/quick/260408-ikv-lock-po-document-details-when-active-rfp/) |
 | 260408-j0d | Add MRF cancellation for requestors only (item-level, PR-linked items protected) | 2026-04-08 | da509aa, 1b99410 | Awaiting UAT | [260408-j0d-add-mrf-cancellation-for-requestors-only](.planning/quick/260408-j0d-add-mrf-cancellation-for-requestors-only/) |
+| 260430-a4b | Codeless projects/services with assigned personnel_user_ids should appear in MRF for operations_user and services_user | 2026-04-30 | 551125d | Verified | [260430-a4b-codeless-projects-mrf-personnel-filter](.planning/quick/260430-a4b-codeless-projects-mrf-personnel-filter/) |
 
 ## Session Continuity
 
-Last activity: 2026-04-30
+Last activity: 2026-04-30 - Completed quick task 260430-a4b: codeless projects/services personnel_user_ids MRF filter
 Last session: 2026-04-30T09:00:00Z
 Stopped at: Phase 84 Plan 04 complete — NOTIF-12 REGISTRATION_PENDING trigger wired in register.js handleRegister() (fan-out to super_admins before signOut, excludeActor:false per D-13/D-14)
 Resume file: None
