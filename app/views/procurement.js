@@ -4118,6 +4118,29 @@ async function deleteMRF() {
 };
 
 /**
+ * Resolve the requestor UID for notification delivery (Phase 84 D-02).
+ * Checks mrf.requestor_user_id first (set on new MRFs by Plan 01).
+ * Falls back to a one-shot users query by full_name for legacy MRFs.
+ * Returns null if no match — caller skips notification silently.
+ * @param {object} mrf - MRF document data with requestor_name and optional requestor_user_id
+ * @returns {Promise<string|null>}
+ */
+async function resolveRequestorUid(mrf) {
+    if (mrf.requestor_user_id) return mrf.requestor_user_id;
+    if (!mrf.requestor_name) return null;
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'users'),
+            where('full_name', '==', mrf.requestor_name)
+        ));
+        if (snap.empty) return null;
+        return snap.docs[0].id;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Reject MRF - soft-reject by setting status='Rejected' with a reason.
  * Preserves the MRF and all linked PRs/TRs in Firestore for audit trail.
  */
@@ -4146,6 +4169,9 @@ async function rejectMRF() {
 
     showLoading(true);
     try {
+        // Capture MRF fields BEFORE nullification (Phase 84 — NOTIF-07 needs these)
+        const rejectedMrfSnap = { ...currentMRF };
+
         const mrfRef = doc(db, 'mrfs', currentMRF.id);
         await updateDoc(mrfRef, {
             status: 'Rejected',
@@ -4153,6 +4179,23 @@ async function rejectMRF() {
             rejected_by: 'Procurement',
             rejected_at: new Date().toISOString()
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF rejection (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(rejectedMrfSnap);
+            if (requestorUid) {
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_REJECTED,
+                    message: `Your MRF ${rejectedMrfSnap.mrf_id} has been rejected by Procurement`,
+                    link: '#/procurement/mrfs',
+                    source_collection: 'mrfs',
+                    source_id: rejectedMrfSnap.mrf_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 rejectMRF notification failed:', notifErr);
+        }
 
         currentMRF = null;
 
