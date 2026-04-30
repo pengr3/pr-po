@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Supplier Search, Proof of Procurement & Payables Tracking
-status: v3.2 milestone complete
-stopped_at: Completed 82-01-PLAN.md
-last_updated: "2026-04-28T06:10:21.802Z"
-last_activity: 2026-04-28
+milestone: v4.0
+milestone_name: Notification System Foundation
+status: in-progress
+stopped_at: Completed 83-01-PLAN.md
+last_updated: "2026-04-30T03:22:00Z"
+last_activity: 2026-04-30
 progress:
   total_phases: 28
   completed_phases: 22
   total_plans: 33
-  completed_plans: 46
+  completed_plans: 47
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 82 — add-delete-button-for-rejected-mrfs-to-enable-cleanup-like-rejected-trs
+**Current focus:** Phase 83 — notification-system-foundation
 
 ## Current Position
 
-Phase: 82
-Plan: Not started
+Phase: 83
+Plan: 01 complete
 
 ## Performance Metrics
 
@@ -101,6 +101,7 @@ Plan: Not started
 | Phase 81-unified-project-and-service-status-overhaul P01 | 25 | 2 tasks | 2 files |
 | Phase 77.2 P01 | 30 | 3 tasks | 2 files |
 | Phase 82 P01 | 3 | 3 tasks | 1 files |
+| Phase 83 P01 | 2 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,7 @@ Plan: Not started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 83-01]: Notification rule unit tests DEFERRED — test suite last updated Phase 49; rfps collection (Phase 65) also untested; hygiene fix should add both collections together in v4.1 to avoid piecemeal coverage gaps
 - v3.2 scoping: Supplier search is pure client-side — no Firestore changes, filter on in-memory suppliersData array, maintain separate filteredSuppliersData for pagination
 - v3.2 scoping: Proof URL stored as optional `proof_url` string on `pos` documents (no new collection); updateable at any procurement status including post-Delivered
 - v3.2 scoping: RFP/payment data in dedicated `rfps` collection — not embedded on PO documents; mandatory for partial payment tracking and Finance-independent filtering
@@ -255,7 +257,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None.
+- [Phase 83-01 DEFER] Add Firestore rule unit tests for `notifications` collection to `test/firestore.test.js`. Evidence: test harness uses v2+ API (initializeTestEnvironment) but last update was Phase 49 (services collection). `rfps` collection (Phase 65) was never added to tests. Recommended approach: add `rfps` + `notifications` tests together in a single hygiene phase (v4.1 candidate). See 83-01-SUMMARY.md for D-17/D-18/D-19 predicates to test. Verification: `grep "rfps\|notifications" test/firestore.test.js` should return 0 until this todo is resolved.
 
 ### Blockers/Concerns
 
@@ -277,8 +279,8 @@ None.
 
 ## Session Continuity
 
-Last activity: 2026-04-28
-Last session: 2026-04-28T03:44:42.361Z
-Stopped at: Completed 82-01-PLAN.md
+Last activity: 2026-04-30
+Last session: 2026-04-30T03:22:00Z
+Stopped at: Completed 83-01-PLAN.md
 Resume file: None
-Next action: Run `/gsd:execute-phase 79` to execute Phase 79
+Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 02 (bell badge listener + notifications module)
