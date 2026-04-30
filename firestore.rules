@@ -443,5 +443,41 @@ service cloud.firestore {
       // Delete: super_admin or procurement (cancel mis-filed RFPs with zero payments; client-side payment guard enforced)
       allow delete: if hasRole(['super_admin', 'procurement']);
     }
+
+    // =============================================
+    // notifications collection (Phase 83 — NOTIF-13)
+    // =============================================
+    // Per-user in-app notifications. Each user only touches their own.
+    // Schema (D-05): user_id, type, message, link, source_collection, source_id,
+    //                actor_id, read (bool), read_at, created_at.
+    // Create rule (D-18): any active user can write to ANY user's feed (the actor
+    //                     writes the recipient's notification — needed because we
+    //                     have no Cloud Functions). actor_id pinned to request.auth.uid
+    //                     prevents impersonation.
+    // Update rule (D-19): only `read` and `read_at` are mutable post-create.
+    match /notifications/{docId} {
+      allow read: if isActiveUser() && resource.data.user_id == request.auth.uid;
+
+      allow list: if isActiveUser() && resource.data.user_id == request.auth.uid;
+
+      allow create: if isActiveUser()
+        && request.resource.data.user_id is string
+        && request.resource.data.type is string
+        && request.resource.data.message is string
+        && request.resource.data.link is string
+        && request.resource.data.read == false
+        && request.resource.data.actor_id == request.auth.uid;
+
+      allow update: if isActiveUser()
+        && resource.data.user_id == request.auth.uid
+        && request.resource.data.user_id == resource.data.user_id
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.message == resource.data.message
+        && request.resource.data.link == resource.data.link
+        && request.resource.data.created_at == resource.data.created_at
+        && request.resource.data.actor_id == resource.data.actor_id;
+
+      allow delete: if isActiveUser() && resource.data.user_id == request.auth.uid;
+    }
   }
 }
