@@ -717,6 +717,19 @@ async function saveServiceField(fieldName, newValue) {
         return true;
     }
 
+    // WR-03: capture recipients BEFORE the await updateDoc call — the onSnapshot
+    // listener can update currentService asynchronously between the write and the
+    // notification dispatch, potentially returning a stale personnel_user_ids array.
+    const NOTIF11_STATUS_WHITELIST = ['Client Approved', 'For Mobilization', 'On-going', 'Completed', 'Loss'];
+    const notifRecipients = (fieldName === 'project_status' && NOTIF11_STATUS_WHITELIST.includes(valueToSave))
+        ? (currentService.personnel_user_ids || []).filter(Boolean)
+        : [];
+    const notifServiceLink = currentService.service_code
+        ? `#/services/detail/${currentService.service_code}`
+        : '#/services';
+    const notifServiceName = currentService.service_name;
+    const notifSourceId = currentService.service_code || currentServiceDocId;
+
     try {
         const serviceRef = doc(db, 'services', currentServiceDocId);
         await updateDoc(serviceRef, {
@@ -731,22 +744,15 @@ async function saveServiceField(fieldName, newValue) {
 
         currentService = { ...currentService, [fieldName]: valueToSave };
         // Phase 84 NOTIF-11: notify personnel of meaningful service status change (D-03: fire-and-forget)
-        const NOTIF11_STATUS_WHITELIST = ['Client Approved', 'For Mobilization', 'On-going', 'Completed', 'Loss'];
-        if (fieldName === 'project_status' && NOTIF11_STATUS_WHITELIST.includes(valueToSave)) {
-            const recipients = (currentService.personnel_user_ids || []).filter(Boolean);
-            if (recipients.length > 0) {
-                const serviceLink = currentService.service_code
-                    ? `#/services/detail/${currentService.service_code}`
-                    : '#/services';
-                createNotificationForUsers({
-                    user_ids: recipients,
-                    type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
-                    message: `Service "${currentService.service_name}" status changed to: ${valueToSave}`,
-                    link: serviceLink,
-                    source_collection: 'services',
-                    source_id: currentService.service_code || currentServiceDocId
-                }).catch(err => console.error('[ServiceDetail] NOTIF-11 notification failed:', err));
-            }
+        if (notifRecipients.length > 0) {
+            createNotificationForUsers({
+                user_ids: notifRecipients,
+                type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                message: `Service "${notifServiceName}" status changed to: ${valueToSave}`,
+                link: notifServiceLink,
+                source_collection: 'services',
+                source_id: notifSourceId
+            }).catch(err => console.error('[ServiceDetail] NOTIF-11 notification failed:', err));
         }
         return true;
     } catch (error) {
