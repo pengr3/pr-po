@@ -12,6 +12,7 @@
 - ✅ **v3.0 Fixes** — Phases 54-56 (shipped 2026-03-04)
 - ✅ **v3.1 PR/TR Routing Fix & Procurement Workflow Improvements** — Phases 57-62.2 (shipped 2026-03-10)
 - ✅ **v3.2 Supplier Search, Proof of Procurement & Payables Tracking** — Phases 63-82 (shipped 2026-04-28)
+- 🚧 **v4.0 Procurement → Full Management Portal** — Phases 83-89 (in progress, started 2026-04-28)
 
 > Full details for each shipped milestone live in `.planning/milestones/v[X.Y]-ROADMAP.md`. User-facing changelogs live in `.planning/changelogs/v[X.Y].md`.
 
@@ -210,9 +211,118 @@
 
 </details>
 
+### 🚧 v4.0 Procurement → Full Management Portal (In Progress)
+
+**Milestone Goal:** Transform CLMC from a procurement-focused tool into a full management portal — adding native Gantt-based project management, in-app notifications, manual collectibles tracking, end-to-end proposal lifecycle (with internal approval + document versioning + dashboard + client log), and a Super-Admin-only Management Tab acting as the central decision-making hub.
+
+**Active phases:**
+
+- [ ] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules
+- [ ] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2)
+- [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
+- [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
+- [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
+- [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
+- [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
+
+## Phase Details
+
+### Phase 83: Notification System Foundation
+**Goal**: Users can see and manage in-app notifications via a bell icon with dropdown and full history page — the plumbing exists even before any specific notification triggers are wired.
+**Depends on**: Nothing (independent foundation; sits alongside existing v3.2 codebase)
+**Requirements**: NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05, NOTIF-06, NOTIF-13
+**Success Criteria** (what must be TRUE):
+  1. User sees a bell icon in the top navigation with an unread count badge that updates in real time as notifications are created
+  2. User can click the bell to open a dropdown listing the last 10 notifications with type, message, source link, and time
+  3. User can click any notification (in dropdown or history page) and is navigated to its source record via deep link
+  4. User can mark a single notification read or mark-all-as-read in one click, and unread count updates immediately
+  5. User can open a full notification history page that paginates 20 per page including read items
+**Plans**: 5 plans
+  - [ ] 83-01-PLAN.md — Security Rules + composite indexes + test infra investigation (NOTIF-13)
+  - [ ] 83-02-PLAN.md — Shared notifications module (helpers, enum, dev test writer); startAfter re-export (NOTIF-04, NOTIF-05, NOTIF-13)
+  - [ ] 83-03-PLAN.md — Bell markup + CSS + auth.js lifecycle hooks (NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05)
+  - [ ] 83-04-PLAN.md — History page view + router registration (NOTIF-06, NOTIF-03)
+  - [ ] 83-05-PLAN.md — UAT + production deploy + STATE/ROADMAP updates
+**UI hint**: yes
+
+### Phase 84: Notification Triggers — Existing Events
+**Goal**: The notification plumbing from Phase 83 fires automatically on the approval, status, and registration events that already exist in the v3.2 system — no proposal events yet.
+**Depends on**: Phase 83
+**Requirements**: NOTIF-07, NOTIF-08, NOTIF-11, NOTIF-12
+**Success Criteria** (what must be TRUE):
+  1. MRF requestor receives a notification when their MRF is approved or rejected
+  2. Finance users receive a notification when a PR, TR, or RFP requires their review
+  3. Personnel assigned to a project receive a notification when that project's status changes (e.g., to Client Approved, On-going, Completed)
+  4. Super Admin users receive a notification when a new account registration is pending approval
+
+### Phase 85: Collectibles Tracking
+**Goal**: Operations Admin and Finance can manually track money owed by clients on a project — create, edit, delete, record payments, and view auto-derived status — independent of any PM auto-trigger.
+**Depends on**: Nothing (fully independent slice; can run in parallel with Phases 83–84 and 86)
+**Requirements**: COLL-01, COLL-02, COLL-03, COLL-04, COLL-05, COLL-06, COLL-07, COLL-08, COLL-09
+**Success Criteria** (what must be TRUE):
+  1. Operations Admin / Finance user can create, edit, and delete a collectible against a project with amount, due date, description
+  2. User can record one or more payments (partial or full) against a collectible with amount, date, method, and reference
+  3. System auto-derives the collectible status (Pending / Partially Paid / Fully Paid / Overdue) from recorded payments and due date — user never sets it manually
+  4. User can view all collectibles in a Finance sub-tab filtered by project / status / due-date range, AND view per-project collectibles on the project detail surface
+  5. User can export the collectibles list to CSV
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 86: Native Project Management & Gantt
+**Goal**: Users can plan and run a project's work natively in CLMC — task hierarchy, dependencies, milestones, weighted progress rollup, and an interactive drag-editable Gantt view anchored to existing project records.
+**Depends on**: Nothing (fully independent slice; touches `projects` for anchoring only)
+**Requirements**: PM-01, PM-02, PM-03, PM-04, PM-05, PM-06, PM-07, PM-08, PM-09, PM-10, PM-11
+**Success Criteria** (what must be TRUE):
+  1. User can create tasks (with name, description, dates, assignees) and parent/child subtasks; parent task progress rolls up from subtasks
+  2. User can set Finish-to-Start dependencies between tasks and mark any task as a milestone (rendered with a distinct diamond marker on the Gantt)
+  3. User can view the project's tasks as an interactive Gantt chart with timeline bars, and edit dates inline by dragging bar edges (resize) or the bar body (reschedule)
+  4. User can update task progress (0–100%) from both the task list and the Gantt view, and the project detail page shows overall project progress weighted by task duration
+  5. User can filter the Gantt view by date range and assigned personnel; tasks persist in `project_tasks` with role-based read/write enforced by Firebase Security Rules
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 87: Proposal Lifecycle (with proposal-event notifications)
+**Goal**: Users can run a proposal end-to-end inside CLMC — create, route through internal approval with audit trail, upload and version documents, log client communications, and have project status auto-advance through the proposal stages — with notifications firing to approvers and submitters as state changes.
+**Depends on**: Phase 83 (notification plumbing must exist for proposal-event notifications to fire)
+**Requirements**: PROP-01, PROP-02, PROP-03, PROP-04, PROP-05, PROP-06, PROP-07, PROP-08, PROP-09, PROP-10, PROP-11, NOTIF-09, NOTIF-10
+**Success Criteria** (what must be TRUE):
+  1. User can create a proposal linked to a project (title, description, amount, target client, version) and submit it for internal approval — project status auto-advances to "Proposal for Internal Approval"
+  2. Designated approvers (Operations Admin / Super Admin) can approve or reject with mandatory comments — approval advances project to "Proposal Under Client Review", rejection moves it to "For Revision" — and a per-proposal audit trail records every decision (actor, timestamp, action, comment)
+  3. User can upload proposal documents (PDF/docx) to Firebase Storage, upload new versions with auto-incrementing version numbers, and access prior versions
+  4. User can mark a proposal as sent to client (with date), log client communications (date, type, description, optional attachment), and mark Client Approved (advances project to "Client Approved" / "For Mobilization") or Loss (advances project to "Loss")
+  5. Designated approvers receive a notification when a proposal is submitted for internal approval; the proposal submitter receives a notification when the approval status changes (approved/rejected)
+  6. User can view all proposals grouped by stage in a dedicated dashboard inside the Management Tab, with age-in-stage indicators highlighting items that need attention
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 88: Management Tab Shell + Create Engagement
+**Goal**: Super Admin gets a dedicated Management tab in navigation, with a "Create Engagement" form that auto-routes the new record to the right collection (projects vs services, one-time vs recurring) — the shell and the create-engagement slice can ship before the proposal queue.
+**Depends on**: Nothing on the v4.0 critical path (Mgmt Tab shell + Create Engagement are independent of Phase 87; Phase 89 wires the proposal queue into this same shell)
+**Requirements**: MGMT-01, MGMT-02, MGMT-05, MGMT-06, MGMT-07
+**Success Criteria** (what must be TRUE):
+  1. Super Admin sees a "Management" tab in the main navigation; non-Super-Admin users do not see the tab and are blocked at both the router level and by Firebase Security Rules attempting direct access
+  2. Super Admin can open a "Create Engagement" form that captures engagement type (project / one-time service / recurring service), client (optional, supports clientless creation), name, budget, contract cost, and initial assigned personnel
+  3. Submitting the form writes the new record to the correct collection — `projects` for project type, `services` for one-time/recurring service types — following existing schema and code-generation conventions
+  4. Firebase Security Rules deny all Management Tab back-end operations (create-engagement writes) for non-super_admin users — verified by direct Firestore call from a non-admin session
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 89: Management Tab — Proposal Approval Queue
+**Goal**: Inside the Management tab shell from Phase 88, surface a proposal approval queue that lets Super Admin take approve/reject actions directly on proposals built in Phase 87 — without duplicating proposal infrastructure.
+**Depends on**: Phase 87 (consumes proposal infra), Phase 88 (lives inside the Mgmt Tab shell)
+**Requirements**: MGMT-03, MGMT-04
+**Success Criteria** (what must be TRUE):
+  1. Management tab shows a "Proposal Approval Queue" section listing all proposals currently awaiting internal approval, sorted oldest-first
+  2. Super Admin can approve or reject proposals (with mandatory comments) directly from the queue, with the same audit-trail and project-status-advancement behavior as in Phase 87 — no duplicated approval logic
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
-**Total shipped: 92 phases, 200+ plans, 11 milestones**
+**Total shipped: 92 phases, 200+ plans, 11 milestones. Active milestone: v4.0 (7 phases planned).**
+
+**Execution Order (v4.0):**
+Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs Phase 83. Phase 89 needs Phase 87 + Phase 88. Phases 85, 86, and 88 are all independent of each other and of the notification track.
 
 | Phases | Milestone | Plans | Status | Completed |
 |--------|-----------|-------|--------|-----------|
@@ -226,12 +336,17 @@
 | 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
 | 57-62.3 | v3.1 | 23/23 | Complete | 2026-03-10 |
 | 63-82 | v3.2 | 55/55 | Complete | 2026-04-28 |
+| 83 | v4.0 | 0/5 | Planning | - |
+| 84 | v4.0 | 0/TBD | Not started | - |
+| 85 | v4.0 | 0/TBD | Not started | - |
+| 86 | v4.0 | 0/TBD | Not started | - |
+| 87 | v4.0 | 0/TBD | Not started | - |
+| 88 | v4.0 | 0/TBD | Not started | - |
+| 89 | v4.0 | 0/TBD | Not started | - |
 
-### Next Milestone
+### Carry-overs (deferred to v4.1+)
 
-**v3.3** — not yet defined. Run `/gsd:new-milestone` to plan.
-
-Carry-overs to weigh in v3.3 scoping:
+These are tracked but explicitly out of scope for v4.0 per the milestone definition:
 
 - **Phase 68.1** — Subcon cost scorecard $0 bug (deferred from v3.2; needs `/gsd:discuss-phase 68.1`)
 - **Phase 70 rework** — Cancel-PR flow needs proper approval workflow, audit trail, soft-delete, role-based access (tracked in `BACKLOG.md` as "Recall Process with Finance Approval")
