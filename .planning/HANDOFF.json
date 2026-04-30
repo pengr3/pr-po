@@ -1,34 +1,60 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-27T10:15:30.500Z",
-  "phase": "77.2",
-  "phase_name": "polish-home-graph-proportions-and-legend",
-  "phase_dir": ".planning/phases/77.2-polish-home-graph-proportions-and-legend",
-  "plan": 1,
-  "task": 0,
-  "total_tasks": 3,
+  "timestamp": "2026-04-30T00:04:54.060Z",
+  "phase": "83",
+  "phase_name": "notification-system-foundation",
+  "phase_dir": ".planning/phases/83-notification-system-foundation",
+  "plan": null,
+  "task": null,
+  "total_tasks": 15,
   "status": "paused",
-  "completed_tasks": [],
+  "stage": "planning_complete",
+  "completed_tasks": [
+    {"id": "phase-83-context", "name": "CONTEXT.md gathered (D-01..D-20 locked)", "status": "done"},
+    {"id": "phase-83-research", "name": "RESEARCH.md (HIGH confidence; 9 pitfalls; Validation Architecture section)", "status": "done"},
+    {"id": "phase-83-validation", "name": "VALIDATION.md materialized from RESEARCH §Validation Architecture", "status": "done"},
+    {"id": "phase-83-plans", "name": "5 PLAN.md files (01-05) across 3 waves", "status": "done"},
+    {"id": "phase-83-verification", "name": "gsd-plan-checker passed on iteration 2/3 (3 BLOCKERs + 6 MAJORs + 4 MINORs all resolved)", "status": "done"}
+  ],
   "remaining_tasks": [
-    {"id": 1, "name": "Reduce .hs-chart-canvas.hs-chart-status height in views.css (320px→180px desktop, 360px→220px mobile)", "status": "not_started"},
-    {"id": 2, "name": "Bump Chart.js legend font + box size +2px and barThickness 22→28 in home.js", "status": "not_started"},
-    {"id": 3, "name": "Visual verify Projects + Services chart proportions and legend size (human checkpoint)", "status": "not_started"}
+    {"id": "execute-wave-1", "name": "Execute Wave 1: Plan 01 (Security Rules + indexes + test infra audit) + Plan 02 (notifications.js module + startAfter re-export)", "status": "not_started"},
+    {"id": "execute-wave-2", "name": "Execute Wave 2: Plan 03 (bell markup + CSS + auth.js hooks + index.html bootstrap import) + Plan 04 (history page view + router registration)", "status": "not_started"},
+    {"id": "execute-wave-3", "name": "Execute Wave 3: Plan 05 (UAT + production deploy of rules+indexes + STATE/ROADMAP updates) — has 2 human-verify checkpoints", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Visual UAT on local server after execution — approve or report tuning needed", "context": "Task 3 is a blocking human-verify checkpoint; user must open http://localhost:8000 and confirm bar dominates card, legend is +2px", "blocking": false}
+    {"action": "Production deploy of firestore.rules + firestore.indexes.json", "context": "Plan 05 Task 4 — must happen in same commit window as first addDoc to notifications collection (CLAUDE.md 'Add Security Rules first' rule)", "blocking": false},
+    {"action": "Manual UAT for NOTIF-01..06, NOTIF-13", "context": "Plan 05 Task 2 — zero-build SPA has no DOM test framework; UAT script lives in 83-VALIDATION.md (~10 min walk-through)", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Desktop card height: 320px → 180px; mobile: 360px → 220px", "rationale": "Single stacked bar only 28px tall — old 320px left huge empty space; 180px absorbs bar + legend rows + breathing room", "phase": "77.2"},
-    {"decision": "barThickness: 22 → 28", "rationale": "Bar must grow proportionally with the smaller card or it still looks tiny in the 180px container", "phase": "77.2"},
-    {"decision": "legend boxWidth/boxHeight/font.size: 10 → 12 (+2px across the board)", "rationale": "User's explicit request — bump legend font 2px and adjust square accordingly", "phase": "77.2"},
-    {"decision": "Single CSS rule change covers all 3 chart cards (Projects, Services OT, Services Recurring)", "rationale": "All three use the same .hs-chart-status class via getChartSizeClass() — no per-card divergence needed", "phase": "77.2"}
+    {"decision": "Run research before planning despite research_enabled: false in config", "rationale": "User explicitly chose 'Research first' at the gate; HIGH-confidence RESEARCH.md surfaced 3 critical pitfalls (mobile bell layout, missing startAfter re-export, listener-cleanup-on-logout vs view-destroy)", "phase": "83"},
+    {"decision": "Skip UI-SPEC generation, plan from CONTEXT.md alone", "rationale": "User chose 'Continue without UI-SPEC' — CONTEXT.md already locks bell placement (D-01/D-02), dropdown behavior (D-03/D-04), route (D-09), mobile rules. Bell+dropdown closely mirrors existing Admin nav-dropdown pattern.", "phase": "83"},
+    {"decision": "Static-import app/notifications.js in index.html bootstrap (not deferred load)", "rationale": "BLOCKER-3 from plan-checker iteration 1: window.* registrations happen on module load. Without explicit import, every bell onclick would throw ReferenceError and auth.js if-guard would silently no-op.", "phase": "83"},
+    {"decision": "Bell wrapper as sibling of .nav-links (not child)", "rationale": "Pitfall 1 from RESEARCH.md: at ≤768px .nav-links { display: none }. D-02 requires bell visible on mobile. Sibling placement survives mobile breakpoint.", "phase": "83"},
+    {"decision": "Extract verify scripts to .cjs files (not inline node -e)", "rationale": "MAJOR-7 from plan-checker iteration 1: multi-layer shell escaping fragile on Windows bash. Project package.json has type: module so .cjs extension is required for require() in Node scripts.", "phase": "83"},
+    {"decision": "destroyNotifications() hooked at 3 sites in app/auth.js (NOT in any view destroy)", "rationale": "D-13: bell persists across all views. Cleanup must tie to logout/auth-clear, not view navigation, otherwise listener leaks and stale state on re-login.", "phase": "83"},
+    {"decision": "Mobile flex tweak consolidated in styles/components.css", "rationale": "MINOR-10: investigation confirmed .top-nav-content rule lives in components.css (4 occurrences). Splitting across components.css and views.css would create duplicate @media blocks.", "phase": "83"},
+    {"decision": "NOTIFICATION_TYPES enum ships 9 keys including PROPOSAL_SUBMITTED + PROPOSAL_DECIDED", "rationale": "D-06: avoids constants-module churn in Phase 87 when proposal triggers wire up.", "phase": "83"}
   ],
   "uncommitted_files": [
-    ".planning/ROADMAP.md",
-    ".planning/STATE.md",
-    ".planning/phases/77.2-polish-home-graph-proportions-and-legend/77.2-01-PLAN.md"
+    ".claude/settings.local.json (modified)",
+    ".planning/PROJECT.md (modified — milestone status)",
+    ".planning/ROADMAP.md (modified — Phase 83 plan list TBD → 5 plans + progress row 0/5)",
+    ".planning/STATE.md (modified)",
+    ".planning/REQUIREMENTS.md (untracked — new file)",
+    ".planning/phases/83-notification-system-foundation/83-CONTEXT.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-DISCUSSION-LOG.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-RESEARCH.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-VALIDATION.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-01-PLAN.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-02-PLAN.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-03-PLAN.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-04-PLAN.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/83-05-PLAN.md (untracked)",
+    ".planning/phases/83-notification-system-foundation/verify-02-2.cjs (untracked)",
+    ".planning/phases/83-notification-system-foundation/verify-03-1.cjs (untracked)",
+    ".planning/phases/83-notification-system-foundation/verify-04-1.cjs (untracked)"
   ],
-  "next_action": "Run /gsd:execute-phase 77.2 — all 3 tasks in 1 wave, Tasks 1+2 are auto, Task 3 is a human visual checkpoint",
-  "context_notes": "This session: inserted Phase 77.2 after 77.1, planned it (1 plan, verified passing). Execution not yet started. The fix is purely numeric — 5 literal changes across 2 files (views.css + home.js). Plan values confirmed to match actual code exactly by plan-checker."
+  "next_action": "Run /clear, then /gsd:execute-phase 83 to start Wave 1 (Plans 01 + 02 in parallel).",
+  "context_notes": "Phase 83 planning is fully complete and verified — 5 plans / 15 tasks / 3 waves / 7 NOTIF requirements covered. Wave 1 starts Plans 01 (firestore rules + indexes + test/firestore.test.js audit) and 02 (app/notifications.js shared module + app/firebase.js startAfter re-export) in parallel; both have no dependencies. Plans are sized realistically — Plan 02 Task 2 is the largest single task (~250 line floor for app/notifications.js with 9 exports + 6 window regs + dev test writer + JSDoc). Three blocking issues from the first verification pass were all surgically addressed by the planner: notifications.js is now statically imported by the index.html bootstrap module (was the biggest miss — bell would have been dead-on-arrival without this), bell placement is unambiguously BEFORE .nav-links, and the brittle [\\s\\S]{0,800} regex was replaced with .cjs verify scripts that are Windows-bash safe. Per project config commit_docs: false, all 17 new/modified files are uncommitted — this WIP commit will package them. v3.3 is the active milestone branch."
 }
