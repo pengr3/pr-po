@@ -3,14 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Notification System Foundation
 status: in-progress
-stopped_at: Completed 83-01-PLAN.md
-last_updated: "2026-04-30T03:22:00Z"
+stopped_at: Completed 83-02-PLAN.md
+last_updated: "2026-04-30T04:05:00Z"
 last_activity: 2026-04-30
 progress:
-  total_phases: 28
-  completed_phases: 22
-  total_plans: 33
-  completed_plans: 47
+  total_phases: 7
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -25,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 ## Current Position
 
 Phase: 83
-Plan: 01 complete
+Plan: 02 complete
 
 ## Performance Metrics
 
@@ -102,6 +103,7 @@ Plan: 01 complete
 | Phase 77.2 P01 | 30 | 3 tasks | 2 files |
 | Phase 82 P01 | 3 | 3 tasks | 1 files |
 | Phase 83 P01 | 2 | 3 tasks | 3 files |
+| Phase 83 P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -110,6 +112,8 @@ Plan: 01 complete
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 83-02]: renderDropdownRows() exported (not just internal) for Plan 03 unit-testability; formatRelativeTime() inlined in notifications.js (not added to utils.js) — only caller at this phase; utils.js upgrade deferred to Plan 04 if history page also wants it
+- [Phase 83-02]: recentDocs kept as module-scope array — loadRecentForDropdown() called only on dropdown open to minimize Firestore reads; optimistic cache update in markNotificationRead() for immediate UI feedback before listener fires
 - [Phase 83-01]: Notification rule unit tests DEFERRED — test suite last updated Phase 49; rfps collection (Phase 65) also untested; hygiene fix should add both collections together in v4.1 to avoid piecemeal coverage gaps
 - v3.2 scoping: Supplier search is pure client-side — no Firestore changes, filter on in-memory suppliersData array, maintain separate filteredSuppliersData for pagination
 - v3.2 scoping: Proof URL stored as optional `proof_url` string on `pos` documents (no new collection); updateable at any procurement status including post-Delivered
@@ -280,7 +284,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T03:22:00Z
-Stopped at: Completed 83-01-PLAN.md
+Last session: 2026-04-30T04:05:00Z
+Stopped at: Completed 83-02-PLAN.md
 Resume file: None
-Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 02 (bell badge listener + notifications module)
+Next action: Run `/gsd:execute-phase 83` to execute Phase 83 Plan 03 (bell UI, dropdown markup, auth.js hooks)
