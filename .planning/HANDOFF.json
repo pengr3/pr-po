@@ -1,22 +1,22 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-30T09:30:00Z",
+  "timestamp": "2026-04-30T10:00:00Z",
   "phase": "84",
   "phase_name": "notification-triggers-existing-events",
   "phase_dir": ".planning/phases/84-notification-triggers-existing-events",
   "plan": 4,
-  "task": 4,
-  "total_tasks": 4,
+  "task": 6,
+  "total_tasks": 8,
   "status": "paused",
   "completed_tasks": [
     {"id": 1, "name": "Plan 01 — notifications.js foundation + NOTIF-07/08 MRF rejection/approval triggers", "status": "done", "commit": "cf41432"},
     {"id": 2, "name": "Plan 02 — resolveRequestorUid + NOTIF-07/08 wired in procurement.js + finance.js", "status": "done", "commit": "0f94062"},
     {"id": 3, "name": "Plan 03 — NOTIF-11 project/service status change triggers in project-detail.js + service-detail.js", "status": "done", "commit": "963be3f"},
     {"id": 4, "name": "Plan 04 — NOTIF-12 new user registration trigger in register.js (fan-out to super_admins)", "status": "done", "commit": "ceb6b38"},
-    {"id": 5, "name": "Code review (84-REVIEW.md) + review fixes (84-REVIEW-FIX.md) — CR-01 to CR-04, WR-01 to WR-05", "status": "done", "commit": "5cc7553"}
+    {"id": 5, "name": "Code review (84-REVIEW.md) + review fixes (84-REVIEW-FIX.md) — CR-01 to CR-04, WR-01 to WR-05", "status": "done", "commit": "5cc7553"},
+    {"id": 6, "name": "Commit batch.update fix (role-config.js) + CLAUDE.md cleanup", "status": "done", "commit": "4481569"}
   ],
   "remaining_tasks": [
-    {"id": 6, "name": "Commit uncommitted changes: CLAUDE.md cleanup + role-config.js batch.update fix + untracked planning/debug files", "status": "not_started"},
     {"id": 7, "name": "UAT — 8 notification trigger tests in 84-UAT.md (requires browser + 2 accounts for some tests)", "status": "not_started"},
     {"id": 8, "name": "After UAT passes: /gsd:complete-milestone or advance to Phase 87 (proposal-event notifications)", "status": "not_started"}
   ],
@@ -25,16 +25,13 @@
     {"action": "Browser UAT — run all 8 tests in .planning/phases/84-notification-triggers-existing-events/84-UAT.md", "context": "Tests 1–6 require two roles active (e.g. procurement + requestor). Test 7 needs project personnel assigned. Test 8 needs a new user registration attempt.", "blocking": true}
   ],
   "decisions": [
-    {"decision": "batch.update() instead of batch.set(merge:true) for role_config partial nested Firestore writes", "rationale": "batch.set(merge:true) does NOT expand dot-notation keys — treats 'permissions.tabs.dashboard.edit' as a literal top-level field name (silent no-op). batch.update() correctly interprets dot-notation as nested field paths.", "phase": "84 (uncommitted fix in role-config.js)"},
+    {"decision": "batch.update() instead of batch.set(merge:true) for role_config partial nested Firestore writes", "rationale": "batch.set(merge:true) does NOT expand dot-notation keys — treats 'permissions.tabs.dashboard.edit' as a literal top-level field name (silent no-op). batch.update() correctly interprets dot-notation as nested field paths. Fixed and committed in 4481569.", "phase": "84"},
     {"decision": "resolveRequestorUid checks requestor_user_id first, falls back to full_name query for legacy MRFs", "rationale": "D-02 legacy fallback — older MRFs predate requestor_user_id field; Phase 84 adds the field going forward but legacy MRFs need the name-based lookup.", "phase": "84-02"},
     {"decision": "NOTIF-12 fires before signOut in register.js", "rationale": "D-11/D-14 — Phase 83 Security Rule requires actor_id == request.auth.uid; must fire while user is still authenticated.", "phase": "84-04"},
     {"decision": "excludeActor: false explicit on NOTIF-12", "rationale": "D-13 — new user IS the actor; self-exclusion would silence their notification to super_admins. Explicit false overrides default.", "phase": "84-04"},
     {"decision": "codeless projects/services show in MRF for operations_user/services_user when uid is in personnel_user_ids", "rationale": "syncPersonnelToAssignments is skipped for codeless projects (no code to sync); MRF dropdown checks personnel_user_ids directly as fallback.", "phase": "quick-260430-a4b"}
   ],
-  "uncommitted_files": [
-    "CLAUDE.md (stale docs removed — cleanup only, safe to commit)",
-    "app/views/role-config.js (batch.set→batch.update fix — IMPORTANT: role permission saves were silently failing)"
-  ],
-  "next_action": "1. Commit CLAUDE.md + app/views/role-config.js + untracked planning files (debug sessions, UAT, quick task plans, v3.2-MILESTONE-AUDIT.md). 2. Do NOT commit serviceAccountKey.json or scripts/preprocess.js. 3. Run UAT from 84-UAT.md. 4. /gsd:complete-milestone.",
-  "context_notes": "Phase 84 is fully implemented and code-reviewed. The role-config.js batch.set→batch.update fix is the only substantive uncommitted code change — role permission saves through the Role Configuration UI were silently failing (no error shown, but Firestore was writing literal dot-notation keys as top-level fields instead of navigating the nested permissions.tabs structure). The quick task 260430-a4b (codeless projects MRF filter) was completed this session and is committed."
+  "uncommitted_files": [],
+  "next_action": "Pull v3.3 branch. Open browser at localhost:8000. Run all 8 UAT tests from .planning/phases/84-notification-triggers-existing-events/84-UAT.md. After UAT passes: /gsd:complete-milestone.",
+  "context_notes": "Phase 84 is fully implemented, code-reviewed, and all fixes committed (working tree clean). The batch.set→batch.update fix for role permission saves is in 4481569. Only remaining work is browser UAT (8 tests) then milestone completion. serviceAccountKey.json and scripts/preprocess.js remain untracked intentionally — do not commit them."
 }
