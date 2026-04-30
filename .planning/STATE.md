@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84 Plan 01 complete — foundation prep: createNotificationForUsers added, requestor_user_id stamped, imports wired, Firestore rules updated
-last_updated: "2026-04-30T06:36:02.248Z"
+stopped_at: Phase 84 Plan 02 complete — NOTIF-07/08 trigger wiring in procurement.js (resolveRequestorUid, rejectMRF, generatePR, generatePRandTR, submitTransportRequest, submitRFP, submitTRRFP, submitDeliveryFeeRFP)
+last_updated: "2026-04-30T07:05:00.000Z"
 last_activity: 2026-04-30
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 9
-  completed_plans: 6
-  percent: 67
+  completed_plans: 7
+  percent: 78
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-13 after v3.2 milestone start)
 
 **Core value:** Projects tab must work - it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84 — notification-triggers-existing-events (Plan 01 complete, Plan 02+ wave 2 triggers next)
+**Current focus:** Phase 84 — notification-triggers-existing-events (Plan 02 complete, Plan 03+ remaining triggers next)
 
 ## Current Position
 
 Phase: 84
-Plan: 02
+Plan: 03
 
 ## Performance Metrics
 
@@ -107,6 +107,7 @@ Plan: 02
 | Phase 83 P03 | 3 | 3 tasks | 3 files |
 | Phase 83 P04 | 2 | 2 tasks | 2 files |
 | Phase 84 P01 | 2 | 4 tasks | 7 files |
+| Phase 84 P02 | 4 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,9 @@ Plan: 02
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 84-02]: resolveRequestorUid checks requestor_user_id first (Plan 01 field), falls back to users collection full_name query for legacy MRFs (D-02 legacy fallback)
+- [Phase 84-02]: rejectedMrfSnap captures currentMRF fields before nullification so rejectMRF() notification has mrf_id and requestor_user_id after currentMRF = null
+- [Phase 84-02]: All 8 notification trigger calls wrapped in isolated try/catch — zero primary action blocking (D-03 fire-and-forget)
 - [Phase 84-01]: createNotificationForUsers uses writeBatch fan-out over direct UID array (D-08) — thin helper added to notifications.js to keep trigger sites clean rather than inlining loops
 - [Phase 84-01]: requestor_user_id field uses window.getCurrentUser?.()?.uid ?? null — optional chaining null fallback so unauthenticated edge cases write null without throwing (D-01)
 - [Phase 84-01]: firestore.rules allow read scoped to resource.data.role == 'super_admin' — minimal relaxation for createNotificationForRoles({roles:['super_admin']}) in register.js (D-12)
@@ -296,7 +300,7 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last activity: 2026-04-30
-Last session: 2026-04-30T06:36:02Z
-Stopped at: Phase 84 Plan 01 complete — foundation prep done (createNotificationForUsers added, requestor_user_id stamped on both MRF paths, imports wired to all 4 trigger-site files, Firestore rules updated for D-12)
+Last session: 2026-04-30T07:05:00Z
+Stopped at: Phase 84 Plan 02 complete — NOTIF-07/08 triggers wired in procurement.js (resolveRequestorUid helper, rejectMRF MRF_REJECTED, generatePR MRF_APPROVED+PR_REVIEW_NEEDED, generatePRandTR MRF_APPROVED+PR_REVIEW_NEEDED+TR_REVIEW_NEEDED, submitTransportRequest TR_REVIEW_NEEDED, all 3 RFP functions RFP_REVIEW_NEEDED)
 Resume file: None
-Next action: Execute Phase 84 Plan 02 — Wave 2 trigger implementations (NOTIF-07/08/11/12 calls)
+Next action: Execute Phase 84 Plan 03 — remaining notification triggers (finance.js, project-detail.js, service-detail.js, register.js)
