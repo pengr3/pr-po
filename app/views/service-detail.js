@@ -8,6 +8,7 @@ import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, w
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
+import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 
 let currentService = null;
 let currentServiceDocId = null;

@@ -7,6 +7,7 @@ import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, w
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
+import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 
 let currentProject = null;
 let projectCode = null;

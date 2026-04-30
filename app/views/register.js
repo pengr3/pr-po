@@ -7,6 +7,7 @@ import { db } from '../firebase.js';
 import { createUserWithEmailAndPassword, signOut } from '../firebase.js';
 import { auth } from '../firebase.js';
 import { validateInvitationCode, markInvitationCodeUsed, createUserDocument } from '../auth.js';
+import { createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 /**
  * Parse URL for invitation code parameter
