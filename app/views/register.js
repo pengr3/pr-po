@@ -227,6 +227,9 @@ async function handleRegister(e) {
     registerBtn.disabled = true;
     registerBtn.textContent = 'Creating Account...';
 
+    // WR-05: hoist userId so the catch block can clean up an orphan Auth account
+    // if createUserDocument or subsequent steps fail after Auth user creation.
+    let userId = null;
     try {
         // Validate invitation code
         const codeValidation = await validateInvitationCode(invitationCode);
@@ -240,7 +243,7 @@ async function handleRegister(e) {
 
         // Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const userId = userCredential.user.uid;
+        userId = userCredential.user.uid;
 
         // Create user document in Firestore
         await createUserDocument(userId, {
@@ -282,6 +285,12 @@ async function handleRegister(e) {
 
     } catch (error) {
         console.error('[Register] Error during registration:', error);
+
+        // WR-05: if Auth account was created but Firestore setup failed, delete the
+        // orphan Auth account so the user can re-register with the same email.
+        if (userId) {
+            try { await auth.currentUser?.delete(); } catch (_) {}
+        }
 
         // Show error based on type
         if (error.code) {
