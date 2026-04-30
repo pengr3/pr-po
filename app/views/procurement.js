@@ -4162,25 +4162,21 @@ async function deleteMRF() {
 
 /**
  * Resolve the requestor UID for notification delivery (Phase 84 D-02).
- * Checks mrf.requestor_user_id first (set on new MRFs by Plan 01).
- * Falls back to a one-shot users query by full_name for legacy MRFs.
- * Returns null if no match — caller skips notification silently.
- * @param {object} mrf - MRF document data with requestor_name and optional requestor_user_id
+ * Returns mrf.requestor_user_id if present (stamped on new MRFs by Plan 01).
+ * Returns null for legacy MRFs that lack the field — name-based lookup is
+ * intentionally omitted because full_name is non-unique (CR-02).
+ * @param {object} mrf - MRF document data with optional requestor_user_id
  * @returns {Promise<string|null>}
  */
 async function resolveRequestorUid(mrf) {
     if (mrf.requestor_user_id) return mrf.requestor_user_id;
-    if (!mrf.requestor_name) return null;
-    try {
-        const snap = await getDocs(query(
-            collection(db, 'users'),
-            where('full_name', '==', mrf.requestor_name)
-        ));
-        if (snap.empty) return null;
-        return snap.docs[0].id;
-    } catch {
-        return null;
-    }
+    // CR-02: Do NOT fall back to full_name lookup — full_name is non-unique and
+    // returning snap.docs[0] could deliver a notification to the wrong user.
+    // Legacy MRFs (pre-Phase 84) that lack requestor_user_id will silently skip
+    // the notification. This is preferable to a privacy mis-delivery.
+    console.warn('[Procurement] resolveRequestorUid: no requestor_user_id on MRF', mrf.mrf_id,
+        '— notification suppressed. This MRF predates Phase 84 D-01 stamping.');
+    return null;
 }
 
 /**
