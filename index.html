@@ -34,6 +34,43 @@
                     <span></span>
                 </span>
             </button>
+            <!-- Notifications bell (Phase 83 — D-01 desktop, D-02 mobile)
+                 Sibling of .nav-links so it remains visible at ≤768px where
+                 .nav-links { display: none; }. Visibility starts hidden and
+                 is revealed by window.initNotifications() after auth state
+                 is known and user is active. -->
+            <div class="notif-bell-wrap" id="notifBellWrap" style="display: none;">
+                <button class="notif-bell" id="notifBell"
+                        type="button"
+                        onclick="toggleNotificationsDropdown(event)"
+                        aria-label="Notifications"
+                        aria-haspopup="menu"
+                        aria-expanded="false">
+                    <!-- Inline bell SVG icon — 24x24, currentColor stroke -->
+                    <svg class="notif-bell-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+                        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                    </svg>
+                    <span class="notif-badge" id="notifBadge" style="display: none;" aria-live="polite" aria-atomic="true">0</span>
+                </button>
+                <div class="notif-dropdown-menu" id="notifDropdownMenu" role="menu">
+                    <div class="notif-dropdown-header">
+                        <span class="notif-dropdown-title">Notifications</span>
+                        <button type="button"
+                                class="notif-mark-all-btn"
+                                id="notifMarkAllBtn"
+                                onclick="markAllNotificationsRead()"
+                                disabled>Mark all as read</button>
+                    </div>
+                    <div class="notif-dropdown-rows" id="notifDropdownRows">
+                        <!-- Rows rendered by app/notifications.js renderDropdownRows() -->
+                        <div class="notif-empty-state">You're all caught up!</div>
+                    </div>
+                    <div class="notif-dropdown-footer">
+                        <a href="#/notifications" class="notif-view-all">View all notifications</a>
+                    </div>
+                </div>
+            </div>
             <div class="nav-links">
                 <a href="#/" class="nav-link" data-route="dashboard">Home</a>
                 <a href="#/clients" class="nav-link" data-route="clients">Clients</a>
