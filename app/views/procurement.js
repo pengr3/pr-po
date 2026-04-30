@@ -6032,6 +6032,39 @@ async function generatePR() {
             is_rejected: false
         });
 
+        // Phase 84 NOTIF-07: notify requestor of MRF approval (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(mrfData);
+            if (requestorUid) {
+                const firstPrId = generatedPRIds[0] || '';
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_APPROVED,
+                    message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} created` : ''}`,
+                    link: '#/procurement/records',
+                    source_collection: 'mrfs',
+                    source_id: mrfData.mrf_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 generatePR notification failed:', notifErr);
+        }
+
+        // Phase 84 NOTIF-08: notify Finance of new PR(s) needing review (D-03: fire-and-forget)
+        try {
+            const prListStr = generatedPRIds.join(', ') || 'PR';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.PR_REVIEW_NEEDED,
+                message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
+                link: '#/finance/pending',
+                source_collection: 'prs',
+                source_id: generatedPRIds[0] || ''
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePR notification failed:', notifErr);
+        }
+
         // Build success message
         const msgParts = [];
         if (updatedPRIds.length > 0) {
