@@ -9,6 +9,7 @@ import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
 import { createNotification, NOTIFICATION_TYPES, createNotificationForRoles } from '../notifications.js';
+import { generateCollectibleId } from '../coll-id.js';
 
 // ========================================
 // UTILITY: Debounce helper for search inputs
@@ -310,23 +311,16 @@ function attachWindowFunctions() {
     // Collectibles tab window functions (Phase 85, Plan 05 — read-side)
     window.filterCollectiblesTable = filterCollectiblesTable;
     window.changeCollectiblesPage = changeCollectiblesPage;
-    // Plan 06 stubs — overwritten when Plan 06 ships. Prevents ReferenceError if
-    // a user clicks a write-action button between Plan 05 and Plan 06 deploys.
-    if (!window.openCreateCollectibleModal) {
-        window.openCreateCollectibleModal = () => showToast('Create-collectible feature shipping in Plan 06.', 'info');
-    }
-    if (!window.exportCollectiblesCSV) {
-        window.exportCollectiblesCSV = () => showToast('CSV export shipping in Plan 06.', 'info');
-    }
-    if (!window.openRecordCollectiblePaymentModal) {
-        window.openRecordCollectiblePaymentModal = () => showToast('Payment recording shipping in Plan 06.', 'info');
-    }
-    if (!window.toggleCollPaymentHistory) {
-        window.toggleCollPaymentHistory = () => showToast('Payment history shipping in Plan 06.', 'info');
-    }
-    if (!window.showCollectibleContextMenu) {
-        window.showCollectibleContextMenu = (event) => { event.preventDefault(); /* no-op until Plan 06 */ };
-    }
+
+    // Collectibles tab — write-side (Plan 06): direct assignments override any
+    // pre-existing Plan 05 defensive stubs. Unconditional per Plan 06 contract.
+    // Task 1: create + edit
+    window.openCreateCollectibleModal = openCreateCollectibleModal;
+    window.submitCollectible = submitCollectible;
+    window.openEditCollectibleModal = openEditCollectibleModal;
+    window.submitEditCollectible = submitEditCollectible;
+    window._refreshCreateCollProjectDropdown = _refreshCreateCollProjectDropdown;
+    window._refreshCreateCollTrancheDropdown = _refreshCreateCollTrancheDropdown;
 }
 
 // ========================================
@@ -1510,6 +1504,433 @@ async function initCollectiblesTab() {
         console.error('[Finance/Collectibles] services snapshot error:', err);
     });
     listeners.push(svcUnsub);
+}
+
+// ========================================
+// COLLECTIBLES TAB — WRITE-SIDE (Plan 06)
+// CRUD modals + payment recording + voiding + cancel + CSV export.
+// All write paths wrapped in try/catch with showToast on failure (Phase 65 D-50).
+// All new window.* functions deleted in destroy() (CLAUDE.md SPA pattern).
+// ========================================
+
+/**
+ * Authority guard: only Operations Admin / Finance / Super Admin may write collectibles.
+ * D-24 + Phase 85 Security Rules (Plan 01) enforce server-side; this is a UX shortcut.
+ */
+function hasCollectibleWriteAuthority() {
+    const role = window.getCurrentUser?.()?.role;
+    return ['finance', 'operations_admin', 'super_admin'].includes(role);
+}
+
+/**
+ * Open the Create-Collectible modal.
+ * @param {string|null} preselectKey - Optional 'projects:CODE' or 'services:CODE' string
+ *        used by future project-detail-page launches. Ignored when null.
+ *
+ * Modal flow:
+ *   Step 1: pick department + project/service
+ *   Step 2: render tranche dropdown OR D-11 / D-20 block message
+ *   Step 3: description (optional) + due date (required)
+ *   Submit -> window.submitCollectible
+ */
+async function openCreateCollectibleModal(preselectKey = null) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to create collectibles.', 'error');
+        return;
+    }
+
+    // Parse preselect key if provided (shape: 'projects:CLMC-ACME-001' | 'services:SVC-CLMC-001')
+    let selectedDept = '';
+    let selectedCode = '';
+    if (preselectKey && typeof preselectKey === 'string') {
+        const [d, c] = preselectKey.split(':');
+        selectedDept = d || '';
+        selectedCode = c || '';
+    }
+
+    const existing = document.getElementById('createCollectibleModal');
+    if (existing) existing.remove();
+
+    const modalHtml = `
+    <div id="createCollectibleModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:520px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Create Collectible</h2>
+                <button class="modal-close" onclick="document.getElementById('createCollectibleModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Department <span style="color:#ea4335;">*</span></label>
+                    <select id="createCollDept" class="form-control" style="width:100%;" onchange="window._refreshCreateCollProjectDropdown()">
+                        <option value="">-- Select Department --</option>
+                        <option value="projects" ${selectedDept === 'projects' ? 'selected' : ''}>Projects</option>
+                        <option value="services" ${selectedDept === 'services' ? 'selected' : ''}>Services</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Project / Service <span style="color:#ea4335;">*</span></label>
+                    <select id="createCollProject" class="form-control" style="width:100%;" onchange="window._refreshCreateCollTrancheDropdown()">
+                        <option value="">-- Select Project/Service --</option>
+                    </select>
+                </div>
+                <div id="createCollTrancheArea" style="margin-bottom:1rem;"></div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Description (Optional)</label>
+                    <textarea id="createCollDescription" class="form-control" rows="2" style="width:100%;" placeholder="Optional context, e.g. 'Mobilization milestone billed 2026-05-15'"></textarea>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="createCollDueDate" class="form-control" style="width:100%;" required>
+                </div>
+                <div id="createCollErrorAlert" style="display:none;margin-top:0.75rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('createCollectibleModal').remove()">Cancel</button>
+                <button class="btn btn-primary" id="createCollSubmitBtn" onclick="window.submitCollectible()" disabled style="opacity:0.5;cursor:not-allowed;">Create Collectible</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // If preselect provided, force dropdowns to value and trigger refresh
+    if (selectedDept) {
+        const deptSel = document.getElementById('createCollDept');
+        if (deptSel) deptSel.value = selectedDept;
+        _refreshCreateCollProjectDropdown();
+        if (selectedCode) {
+            const projSel = document.getElementById('createCollProject');
+            if (projSel) projSel.value = selectedCode;
+            _refreshCreateCollTrancheDropdown();
+        }
+    }
+}
+
+/**
+ * Rebuild the Project/Service dropdown when Department changes.
+ * Source map alternates between projectsForCollMap and servicesForCollMap.
+ */
+function _refreshCreateCollProjectDropdown() {
+    const deptEl = document.getElementById('createCollDept');
+    const projectSel = document.getElementById('createCollProject');
+    if (!deptEl || !projectSel) return;
+    const dept = deptEl.value;
+    const source = (dept === 'projects' ? projectsForCollMap : (dept === 'services' ? servicesForCollMap : null));
+    const opts = ['<option value="">-- Select Project/Service --</option>'];
+    if (source) {
+        const entries = Array.from(source.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        for (const [code, meta] of entries) {
+            opts.push(`<option value="${escapeHTML(code)}">${escapeHTML(code)} — ${escapeHTML(meta.name || '')}</option>`);
+        }
+    }
+    projectSel.innerHTML = opts.join('');
+    projectSel.value = '';
+    // Reset the tranche area whenever the project source changes
+    _refreshCreateCollTrancheDropdown();
+}
+
+/**
+ * Rebuild the Tranche dropdown for the selected project/service.
+ * Applies D-11 (no-tranches block), D-20 (clientless project block),
+ * and D-12 strict 1:1 dedup using tranche_index (Risk #4 in PATTERNS.md).
+ */
+function _refreshCreateCollTrancheDropdown() {
+    const deptEl = document.getElementById('createCollDept');
+    const projEl = document.getElementById('createCollProject');
+    const area = document.getElementById('createCollTrancheArea');
+    const submitBtn = document.getElementById('createCollSubmitBtn');
+    if (!deptEl || !projEl || !area || !submitBtn) return;
+    const dept = deptEl.value;
+    const code = projEl.value;
+    const setBlocked = () => {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+    };
+    const setEnabled = () => {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+    };
+
+    // No selection yet
+    if (!dept || !code) {
+        area.innerHTML = '';
+        setBlocked();
+        return;
+    }
+
+    const source = dept === 'projects' ? projectsForCollMap : servicesForCollMap;
+    const meta = source.get(code);
+    if (!meta) {
+        area.innerHTML = '';
+        setBlocked();
+        return;
+    }
+
+    // D-20 clientless project block — code present is impossible here (we keyed by code),
+    // but defensive: if meta.code is missing/empty, render the block anyway.
+    // The code-vs-empty case happens before this point (project not in map). Keep
+    // the block message for the documented edge: a project IN the map but with no
+    // project_code (shouldn't occur because the snapshot filters for project_code).
+    if (!code || code === '') {
+        area.innerHTML = `<div style="padding:12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">This project doesn't have a project code yet. Assign a client to issue the code, then return to create collectibles.</div>`;
+        setBlocked();
+        return;
+    }
+
+    // D-11 no-tranches block
+    if (!Array.isArray(meta.collection_tranches) || meta.collection_tranches.length === 0) {
+        const detailRoute = dept === 'projects' ? `#/projects/detail/${escapeHTML(code)}` : `#/services/detail/${escapeHTML(code)}`;
+        const subjectWord = dept === 'projects' ? 'project' : 'service';
+        area.innerHTML = `<div style="padding:12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">Set up collection tranches on this ${subjectWord} before creating a collectible. <a href="${detailRoute}" style="color:#1a73e8;text-decoration:underline;">Click here to edit.</a></div>`;
+        setBlocked();
+        return;
+    }
+
+    // D-12 strict 1:1 dedup using tranche_index (position-based — survives label rename per Risk #4)
+    const usedIndexes = new Set(
+        collectiblesData
+            .filter(c => c.department === dept && (dept === 'projects' ? c.project_code : c.service_code) === code)
+            .map(c => c.tranche_index)
+            .filter(i => i != null)
+    );
+    const tranches = meta.collection_tranches;
+    const trancheOptions = tranches.map((t, i) => {
+        const used = usedIndexes.has(i);
+        const pctStr = (parseFloat(t.percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+        return `<option value="${i}" ${used ? 'disabled' : ''}>${escapeHTML(t.label || '')} (${pctStr}%)${used ? ' — collectible exists' : ''}</option>`;
+    }).join('');
+    const firstAvailable = tranches.findIndex((t, i) => !usedIndexes.has(i));
+    const allUsed = firstAvailable < 0;
+    area.innerHTML = `
+        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche <span style="color:#ea4335;">*</span></label>
+        <select id="createCollTranche" class="form-control" style="width:100%;" ${allUsed ? 'disabled' : ''}>
+            <option value="">-- Select Tranche --</option>
+            ${trancheOptions}
+        </select>
+        ${allUsed ? '<small style="color:#ef4444;font-size:0.75rem;">All tranches already have collectibles.</small>' : ''}
+    `;
+    if (allUsed) setBlocked(); else setEnabled();
+}
+
+/**
+ * Validate the Create-Collectible form and write a new collectible doc.
+ *
+ * Doc shape: PATTERNS.md Pattern 21 — denormalized tranche_label,
+ * tranche_percentage, amount_requested are FROZEN at creation per D-13.
+ * After successful addDoc, fires COLLECTIBLE_CREATED notification fan-out
+ * to Finance role wrapped in try/catch (D-21 / Phase 84.1 D-03).
+ */
+async function submitCollectible() {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to create collectibles.', 'error');
+        return;
+    }
+
+    const errorEl = document.getElementById('createCollErrorAlert');
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+    };
+
+    const dept = document.getElementById('createCollDept')?.value;
+    const code = document.getElementById('createCollProject')?.value;
+    const trancheIndexStr = document.getElementById('createCollTranche')?.value;
+    const dueDate = document.getElementById('createCollDueDate')?.value;
+    const description = document.getElementById('createCollDescription')?.value?.trim() || '';
+
+    if (!dept || !code) { showError('Select a department and project/service.'); return; }
+    if (trancheIndexStr === '' || trancheIndexStr == null) { showError('Select a tranche.'); return; }
+    if (!dueDate) { showError('Due Date is required.'); return; }
+
+    const trancheIndex = parseInt(trancheIndexStr, 10);
+    if (isNaN(trancheIndex)) { showError('Invalid tranche index.'); return; }
+
+    const meta = (dept === 'projects' ? projectsForCollMap : servicesForCollMap).get(code);
+    if (!meta) { showError('Project/service not found. Refresh and try again.'); return; }
+
+    const tranche = Array.isArray(meta.collection_tranches) ? meta.collection_tranches[trancheIndex] : null;
+    if (!tranche) { showError('Tranche not found. Refresh and try again.'); return; }
+
+    const contractCost = parseFloat(meta.contract_cost) || 0;
+    if (contractCost <= 0) {
+        showError(`This ${dept === 'projects' ? 'project' : 'service'} has no contract cost set. Edit it to set contract cost first.`);
+        return;
+    }
+
+    const tranchePct = parseFloat(tranche.percentage) || 0;
+    const amountRequested = (tranchePct / 100) * contractCost;
+
+    // Disable submit to prevent double-click
+    const submitBtn = document.getElementById('createCollSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+    }
+
+    try {
+        const collId = await generateCollectibleId(code, dept);
+
+        const collDoc = {
+            coll_id: collId,
+            department: dept,
+            project_id: dept === 'projects' ? (meta.id || '') : '',
+            project_code: dept === 'projects' ? code : '',
+            project_name: dept === 'projects' ? (meta.name || '') : '',
+            service_id: dept === 'services' ? (meta.id || '') : '',
+            service_code: dept === 'services' ? code : '',
+            service_name: dept === 'services' ? (meta.name || '') : '',
+            tranche_index: trancheIndex,
+            tranche_label: tranche.label,             // FROZEN at creation per D-13
+            tranche_percentage: tranchePct,           // FROZEN at creation per D-13
+            amount_requested: amountRequested,        // FROZEN at creation per D-13
+            contract_cost_at_creation: contractCost,  // audit snapshot
+            description,
+            due_date: dueDate,
+            payment_records: [],
+            created_by_user_id: window.getCurrentUser?.()?.uid ?? null,
+            created_by_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
+            date_created: serverTimestamp()
+        };
+
+        await addDoc(collection(db, 'collectibles'), collDoc);
+
+        // D-21 / Phase 84.1 D-03 fire-and-forget: notification fan-out to Finance role.
+        // Failure must NOT block the primary action (the collectible is already created).
+        try {
+            const targetName = collDoc.department === 'projects' ? collDoc.project_name : collDoc.service_name;
+            const labelType = collDoc.department === 'projects' ? 'Project' : 'Service';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.COLLECTIBLE_CREATED,
+                message: `New collectible filed: ${collId} (${tranche.label}, PHP ${formatCurrency(amountRequested)}) on ${labelType} ${targetName}`,
+                link: '#/finance/collectibles',
+                source_collection: 'collectibles',
+                source_id: collId
+            });
+        } catch (notifErr) {
+            console.error('[Collectibles] COLLECTIBLE_CREATED notification failed:', notifErr);
+        }
+
+        document.getElementById('createCollectibleModal')?.remove();
+        showToast(`Collectible ${collId} created.`, 'success');
+        // onSnapshot will refresh the table automatically; no explicit re-render needed
+    } catch (err) {
+        console.error('[Collectibles] submitCollectible error:', err);
+        showError('Failed to create collectible. Check your connection and try again.');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+    }
+}
+
+/**
+ * Open the Edit-Collectible modal. Per D-13, only Description and Due Date
+ * are editable. tranche_label / tranche_percentage / amount_requested are
+ * displayed as read-only rows (frozen at creation).
+ */
+async function openEditCollectibleModal(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to edit collectibles.', 'error');
+        return;
+    }
+    let coll;
+    try {
+        const snap = await getDoc(doc(db, 'collectibles', collDocId));
+        if (!snap.exists()) { showToast('Collectible not found.', 'error'); return; }
+        coll = { id: snap.id, ...snap.data() };
+    } catch (err) {
+        console.error('[Collectibles] openEditCollectibleModal getDoc error:', err);
+        showToast('Failed to load collectible. Try again.', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('editCollModal');
+    if (existing) existing.remove();
+
+    const projOrSvcName = coll.department === 'projects'
+        ? (coll.project_name || coll.project_code || '')
+        : (coll.service_name || coll.service_code || '');
+
+    const html = `
+    <div id="editCollModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Edit Collectible &mdash; ${escapeHTML(coll.coll_id || '')}</h2>
+                <button class="modal-close" onclick="document.getElementById('editCollModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;padding:0.75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;">
+                    <div>
+                        <div style="font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;">Project/Service</div>
+                        <div style="font-size:0.8125rem;color:#1e293b;font-weight:600;">${escapeHTML(projOrSvcName)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;">Tranche</div>
+                        <div style="font-size:0.8125rem;color:#1e293b;font-weight:600;">${escapeHTML(coll.tranche_label || '')}</div>
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;">Amount Requested (frozen)</div>
+                        <div style="font-size:0.8125rem;color:#1e293b;font-weight:600;">${formatCurrency(coll.amount_requested || 0)}</div>
+                    </div>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="editCollDueDate" class="form-control" style="width:100%;" value="${escapeHTML(coll.due_date || '')}" required>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Description</label>
+                    <textarea id="editCollDescription" class="form-control" rows="3" style="width:100%;">${escapeHTML(coll.description || '')}</textarea>
+                </div>
+                <div id="editCollErrorAlert" style="display:none;margin-top:0.75rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('editCollModal').remove()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.submitEditCollectible('${escapeHTML(coll.id)}')">Save Changes</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * Submit edits to a collectible. D-13 frozen invariant: payload contains ONLY
+ * description, due_date, and updated_at — NO tranche_label / tranche_percentage /
+ * amount_requested / project_code / service_code.
+ */
+async function submitEditCollectible(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to edit collectibles.', 'error');
+        return;
+    }
+    const errorEl = document.getElementById('editCollErrorAlert');
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+    };
+    try {
+        const description = document.getElementById('editCollDescription')?.value?.trim() || '';
+        const due_date = document.getElementById('editCollDueDate')?.value || '';
+        if (!due_date) { showError('Due Date is required.'); return; }
+
+        await updateDoc(doc(db, 'collectibles', collDocId), {
+            description,
+            due_date,
+            updated_at: new Date().toISOString()
+        });
+        document.getElementById('editCollModal')?.remove();
+        showToast('Collectible updated.', 'success');
+    } catch (err) {
+        console.error('[Collectibles] submitEditCollectible error:', err);
+        showError('Failed to update collectible. Try again.');
+    }
 }
 
 /**
@@ -3380,13 +3801,18 @@ export async function destroy() {
     // Clean up Collectibles tab window functions (Phase 85)
     delete window.filterCollectiblesTable;
     delete window.changeCollectiblesPage;
+    // Plan 06 Task 1 — create + edit
     delete window.openCreateCollectibleModal;
+    delete window.submitCollectible;
+    delete window.openEditCollectibleModal;
+    delete window.submitEditCollectible;
+    delete window._refreshCreateCollProjectDropdown;
+    delete window._refreshCreateCollTrancheDropdown;
+    // Plan 06 Task 2 + 3 cleanups appended below by their tasks
     delete window.exportCollectiblesCSV;
     delete window.openRecordCollectiblePaymentModal;
     delete window.toggleCollPaymentHistory;
     delete window.showCollectibleContextMenu;
-    // Plan 06 will append: window.submitCollectible, voidCollectiblePayment,
-    // submitCollectiblePayment, cancelCollectible, toggleCollPaymentOtherField, etc.
 
     // Reset Collectibles tab state
     collectiblesData = [];
