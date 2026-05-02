@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 85 Plan 05 complete — Wave 3 Finance Collectibles sub-tab read-side shipped (Plans 01–04 + 07–08 prior; Plan 06 next)
-last_updated: "2026-05-02T16:30:00Z"
-last_activity: "2026-05-02 - Phase 85 Plan 05 complete: Wave 3 — 5th Finance sub-tab #/finance/collectibles wired with onSnapshot-driven flat collectibles table, 5 independent filters (Project/Status/Dept/Due-from/Due-to), status-priority sort (Pending > Overdue > Partial > Fully), 15-per-page filter-aware pagination, deriveCollectibleStatus helper at module scope (D-19 never persisted), and 5 stub window functions for Plan 06 write actions (idempotent toast no-ops). 3 atomic commits (3399ea8, 2799a68, 1ab7b46), 1 file modified (app/views/finance.js +448 lines), 0 deviations. COLL-04 / COLL-06 / COLL-09 closed at read layer."
+stopped_at: Phase 85 Plan 06 complete — Wave 4 Finance Collectibles full CRUD shipped (Plans 01–05, 07, 08 prior; Phase 85 now 100% complete)
+last_updated: "2026-05-02T17:30:00Z"
+last_activity: "2026-05-02 - Phase 85 Plan 06 complete: Wave 4 — 16 new functions added to app/views/finance.js layering full CRUD onto Plan 05 read-side. Create modal with D-11/D-20 blocks + D-12 strict 1:1 tranche dedup, submitCollectible writes Pattern 21 doc shape with FROZEN tranche fields per D-13, COLLECTIBLE_CREATED notification fan-out to Finance role wrapped in fire-and-forget try/catch (D-21). Edit modal restricts to Description + Due Date only (D-13 frozen invariant). Payment recording with D-15 partial-pay support, D-14 method dropdown + Other reveal, arrayUnion append. voidCollectiblePayment uses D-16 read-modify-write with full audit fields (voided_by, voided_at, void_reason). Expandable history row D-17 shows ALL records (active + voided strike-through). Right-click context menu (Phase 65.10 mirror) wires Edit + Cancel; Cancel only allowed when zero non-voided payments. Filter-aware CSV export with 13 columns per D-27 and HIGH-severity T-85.6-01 CSV-injection mitigation (safe() wrapper neutralises =/+/-/@/tab/CR leading chars). 3 atomic commits (5fad81d, 4650665, cb935a2), 1 file modified (app/views/finance.js +932 lines, total 5916), 1 deviation (Rule 2 defense-in-depth: authority guard added to submit/void/cancel functions on top of plan's modal-open-only guard, defends console-call bypass). All 6 listed COLL requirements (COLL-01, COLL-02, COLL-03, COLL-05, COLL-06, COLL-08) closed by Plan 06."
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 20
-  completed_plans: 13
-  percent: 65
+  completed_plans: 14
+  percent: 70
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 85 (Wave 3 complete; Wave 4 ready)
-Plan: Plan 06 (Wave 4 — collectible CRUD modals + payment recording + CSV export) blocked on prior waves; all dependencies (01, 02, 03, 04, 05) now satisfied. Plan 06 ready to execute.
+Phase: 85 (COMPLETE — all 8 plans shipped, all 9 COLL-* requirements closed)
+Plan: Phase 85 fully complete after Plan 06 close-out (2026-05-02). Next: another v4.0 phase (84.1 follow-ups pending: prod rules deploy + PR_DECIDED/TR_DECIDED icon-split polish per memory-flagged items; or proceed to Phase 86 PM/Gantt / Phase 87 Proposal lifecycle / Phase 88 Mgmt Tab shell — all independent per v4.0 dependency map).
 
 ## Performance Metrics
 
@@ -116,6 +116,7 @@ Plan: Plan 06 (Wave 4 — collectible CRUD modals + payment recording + CSV expo
 | Phase 84.1 P03 | 3 | 1 task + 1 UAT scaffold (UAT execution pending) | 2 files |
 | Phase 85 P08 | 9 | 1 task | 1 files |
 | Phase 85 P05 | 8 | 3 tasks | 1 files |
+| Phase 85 P06 | 50 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,11 @@ Plan: Plan 06 (Wave 4 — collectible CRUD modals + payment recording + CSV expo
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 85-06]: Refactored authority check into hasCollectibleWriteAuthority() shared helper used by 6 entrypoints — reduces duplication vs inlining per-function role checks; defense-in-depth at submit/cancel layer catches console-call bypass attempts
+- [Phase 85-06]: T-85.6-01 CSV-injection mitigation extended trigger char set beyond plan spec (added \\t and \\r per OWASP guidance) — strict superset is safer; safe(v) wrapper neutralises 8 user-input string cells in exportCollectiblesCSV before passing to downloadCSV (which only escapes CSV grammar, not formula injection)
+- [Phase 85-06]: T-85.6-05 race accepted — voidCollectiblePayment read-modify-write can overwrite a concurrent submitCollectiblePayment arrayUnion within the same getDoc/updateDoc window. Same disposition as Phase 65 D-60+ for ~16 months in production with no reports. Revisit if real-world incident surfaces
+- [Phase 85-06]: D-13 frozen invariant verified at code level — submitEditCollectible updateDoc payload contains ONLY description, due_date, updated_at (zero tranche/amount/code references in function body, confirmed by grep)
+- [Phase 85-06]: Re-fetch on collision-retry deferred (Phase 65.4 lesson) — generateCollectibleId runs once before addDoc; T-85.6-04 simultaneous-addDoc race accepted same as Plan 02 disposition
 - v4.0 milestone shape: 7 phases — 2 notification phases (foundation + triggers-on-existing-events), 1 collectibles phase, 1 PM/Gantt phase, 1 proposal-lifecycle phase that also owns proposal-event notifications (NOTIF-09/10), and 2 Mgmt Tab phases (shell+create-engagement first, proposal queue last)
 - v4.0 dependencies: Phase 84 needs Phase 83; Phase 87 needs Phase 83; Phase 89 needs Phase 87 + Phase 88. Phases 85, 86, 88 are independent of each other and of the notification track — eligible for parallel execution
 - v4.0 scope guard: NOTIF email/push, ProjectLibre import, per-task billing, collectibles auto-trigger from PM, and role-configurable Mgmt Tab access are deferred to v4.1+ (already enumerated in REQUIREMENTS.md "Future" and "Out of Scope")

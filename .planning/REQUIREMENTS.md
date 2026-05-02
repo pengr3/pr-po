@@ -47,15 +47,15 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 
 ### Collectibles Tracking — Manual Entry (COLL)
 
-- [ ] **COLL-01**: User (Operations Admin / Finance) can manually create a collectible against a project with amount, due date, description, and initial status
-- [ ] **COLL-02**: User can edit existing collectible entries (amount, due date, description)
-- [ ] **COLL-03**: User can delete collectible entries (Operations Admin / Finance)
-- [ ] **COLL-04**: User can view all collectibles in a dedicated Finance sub-tab — filterable by project, status, due date range
-- [ ] **COLL-05**: User can record a payment received against a collectible (partial or full) including amount, date, method, reference
-- [ ] **COLL-06**: System auto-derives collectible status from recorded payments and due date (Pending / Partially Paid / Fully Paid / Overdue) — user never manually sets status, mirroring the RFP pattern
-- [ ] **COLL-07**: User can view collectibles for a specific project on the project detail page (Financial Summary card and/or Financial Breakdown modal)
-- [ ] **COLL-08**: User can export the collectibles list to CSV (mirrors existing `downloadCSV` pattern)
-- [ ] **COLL-09**: System persists collectibles in Firestore (`collectibles` collection) with project_id, project_code, amount, due_date, description, status, payment_records array; Security Rules restrict create/edit/delete to Operations Admin and Finance roles
+- [x] **COLL-01**: User (Operations Admin / Finance) can manually create a collectible against a project with amount, due date, description, and initial status — completed Phase 85 Plan 06 (2026-05-02)
+- [x] **COLL-02**: User can edit existing collectible entries (amount, due date, description) — completed Phase 85 Plan 06 (2026-05-02); D-13 freezes amount + tranche fields, only description and due_date editable
+- [x] **COLL-03**: User can delete collectible entries (Operations Admin / Finance) — completed Phase 85 Plan 06 (2026-05-02); right-click cancel only when zero non-voided payments
+- [x] **COLL-04**: User can view all collectibles in a dedicated Finance sub-tab — filterable by project, status, due date range — completed Phase 85 Plan 05 (2026-05-02)
+- [x] **COLL-05**: User can record a payment received against a collectible (partial or full) including amount, date, method, reference — completed Phase 85 Plan 06 (2026-05-02); D-15 partial-pay supported
+- [x] **COLL-06**: System auto-derives collectible status from recorded payments and due date (Pending / Partially Paid / Fully Paid / Overdue) — user never manually sets status, mirroring the RFP pattern — completed Phase 85 Plan 05 (read-side) + Plan 06 (write-side, payment recording closes the loop) (2026-05-02)
+- [x] **COLL-07**: User can view collectibles for a specific project on the project detail page (Financial Summary card and/or Financial Breakdown modal) — completed Phase 85 Plans 07 + 08 (2026-05-02)
+- [x] **COLL-08**: User can export the collectibles list to CSV (mirrors existing `downloadCSV` pattern) — completed Phase 85 Plan 06 (2026-05-02); filter-aware 13-column export with T-85.6-01 CSV-injection mitigation
+- [x] **COLL-09**: System persists collectibles in Firestore (`collectibles` collection) with project_id, project_code, amount, due_date, description, status, payment_records array; Security Rules restrict create/edit/delete to Operations Admin and Finance roles — completed Phase 85 Plan 01 (firestore.rules) + Plan 06 (denormalized doc shape per Pattern 21) (2026-05-02)
 
 ### Proposal Tracking — Full Lifecycle (PROP)
 
@@ -161,15 +161,15 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | NOTIF-18 | Phase 84.1 | Validated (Plan 01, 2026-05-02) |
 | NOTIF-19 | Phase 84.1 | Validated (Plan 02, 2026-05-02) |
 | NOTIF-20 | Phase 84.1 | Validated (Plan 03, 2026-05-02) |
-| COLL-01 | Phase 85 | Pending |
-| COLL-02 | Phase 85 | Pending |
-| COLL-03 | Phase 85 | Pending |
-| COLL-04 | Phase 85 | Read-side validated (Plan 05, 2026-05-02 — sub-tab + filters + pagination shipped; CRUD in Plan 06) |
-| COLL-05 | Phase 85 | Pending |
-| COLL-06 | Phase 85 | Read-side validated (Plan 05, 2026-05-02 — deriveCollectibleStatus + render-time auto-derivation D-19 shipped; payment-recording side in Plan 06) |
-| COLL-07 | Phase 85 | Validated (Plan 08, 2026-05-02) |
-| COLL-08 | Phase 85 | Pending |
-| COLL-09 | Phase 85 | Persistence + Security Rules validated (Plan 01, 2026-05-02; consumed by Plan 05 read path 2026-05-02) |
+| COLL-01 | Phase 85 | Validated (Plan 06, 2026-05-02 — Create modal + submitCollectible writes Pattern 21 doc shape with COLLECTIBLE_CREATED notification fan-out) |
+| COLL-02 | Phase 85 | Validated (Plan 06, 2026-05-02 — Edit modal restricts to Description + Due Date per D-13 frozen invariant) |
+| COLL-03 | Phase 85 | Validated (Plan 06, 2026-05-02 — right-click Cancel only when zero non-voided payments; deleteDoc with confirm) |
+| COLL-04 | Phase 85 | Validated (Plan 05, 2026-05-02 — sub-tab + filters + pagination + status badges) |
+| COLL-05 | Phase 85 | Validated (Plan 06, 2026-05-02 — Record-Payment modal supports partial pay per D-15, method dropdown D-14, void with audit fields D-16, expandable history D-17) |
+| COLL-06 | Phase 85 | Validated (Plan 05 read-side + Plan 06 write-side, 2026-05-02 — deriveCollectibleStatus auto-derivation never persisted per D-19) |
+| COLL-07 | Phase 85 | Validated (Plans 07 + 08, 2026-05-02) |
+| COLL-08 | Phase 85 | Validated (Plan 06, 2026-05-02 — filter-aware 13-column CSV export with T-85.6-01 CSV-injection mitigation) |
+| COLL-09 | Phase 85 | Validated (Plan 01 firestore.rules + Plan 06 denormalized doc shape Pattern 21, 2026-05-02) |
 | PROP-01 | Phase 87 | Pending |
 | PROP-02 | Phase 87 | Pending |
 | PROP-03 | Phase 87 | Pending |

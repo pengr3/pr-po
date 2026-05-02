@@ -220,7 +220,7 @@
 - [x] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules — completed 2026-04-30 (5 plans)
 - [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
 - [x] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [3/3 plans complete; 15/15 UAT pass] — completed 2026-05-02 — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
-- [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
+- [x] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export — completed 2026-05-02 (8 plans)
 - [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
@@ -289,20 +289,22 @@
 **Plans**: 8 plans (planned 2026-05-02)
 
 **Wave 1** *(no dependencies)*
-- [ ] 85-01-PLAN.md — firestore.rules `collectibles` block + `NOTIFICATION_TYPES.COLLECTIBLE_CREATED` enum (D-21, D-24)
-- [ ] 85-02-PLAN.md — shared `app/tranche-builder.js` + `app/coll-id.js` modules (D-09, D-20 — project-scoped IDs, NOT generateSequentialId per Phase 65.4 lesson)
+- [x] 85-01-PLAN.md — firestore.rules `collectibles` block + `NOTIFICATION_TYPES.COLLECTIBLE_CREATED` enum (D-21, D-24) — completed 2026-05-02
+- [x] 85-02-PLAN.md — shared `app/tranche-builder.js` + `app/coll-id.js` modules (D-09, D-20 — project-scoped IDs, NOT generateSequentialId per Phase 65.4 lesson) — completed 2026-05-02
 
 **Wave 2** *(blocked on Wave 1)*
-- [ ] 85-03-PLAN.md — `app/views/projects.js` `collection_tranches` editor + sum=100 validation + D-25 confirmation
-- [ ] 85-04-PLAN.md — `app/views/services.js` `collection_tranches` editor (D-01 parity)
-- [ ] 85-07-PLAN.md — `app/views/project-detail.js` + `service-detail.js` Financial Summary cells (D-06, always-render zero-state)
+- [x] 85-03-PLAN.md — `app/views/projects.js` `collection_tranches` editor + sum=100 validation + D-25 confirmation — completed 2026-05-02
+- [x] 85-04-PLAN.md — `app/views/services.js` `collection_tranches` editor (D-01 parity) — completed 2026-05-02
+- [x] 85-07-PLAN.md — `app/views/project-detail.js` + `service-detail.js` Financial Summary cells (D-06, always-render zero-state) — completed 2026-05-02
 - [x] 85-08-PLAN.md — `app/expense-modal.js` 4th "Collectibles" tab on Financial Breakdown modal (D-07) — completed 2026-05-02
 
 **Wave 3** *(blocked on Waves 1+2)*
 - [x] 85-05-PLAN.md — `app/views/finance.js` Collectibles sub-tab read path: 5th pill nav + flat table + 4 independent filters + 15/page pagination + status badges (D-02..D-05, D-18, D-19) — completed 2026-05-02
 
 **Wave 4** *(blocked on Waves 1+2+3)*
-- [ ] 85-06-PLAN.md — `app/views/finance.js` write path: Create/Edit/Submit + Record-Payment (partial-pay) + void + right-click cancel + CSV export with T-85.6-01 injection mitigation + COLLECTIBLE_CREATED notification fan-out (D-11..D-17, D-20..D-23, D-26, D-27)
+- [x] 85-06-PLAN.md — `app/views/finance.js` write path: Create/Edit/Submit + Record-Payment (partial-pay) + void + right-click cancel + CSV export with T-85.6-01 injection mitigation + COLLECTIBLE_CREATED notification fan-out (D-11..D-17, D-20..D-23, D-26, D-27) — completed 2026-05-02
+
+**Plans progress**: 8/8 complete — Phase 85 fully shipped 2026-05-02. All 9 COLL-* requirements closed.
 
 **Cross-cutting constraints:**
 - Status strings exact-match `'Pending'`/`'Partially Paid'`/`'Fully Paid'`/`'Overdue'` (D-18, CLAUDE.md case-sensitive)
