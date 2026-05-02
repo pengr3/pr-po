@@ -219,6 +219,7 @@
 
 - [x] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules — completed 2026-04-30 (5 plans)
 - [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
+- [ ] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [inserted] — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
 - [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
 - [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
@@ -255,6 +256,21 @@
   3. Personnel assigned to a project receive a notification when that project's status changes (e.g., to Client Approved, On-going, Completed)
   4. Super Admin users receive a notification when a new account registration is pending approval
 **Plans progress**: 4/4 complete (Plans 01–04 done; all NOTIF triggers wired — Phase 84 complete)
+
+### Phase 84.1: Procurement Notifications & Trigger Enhancements
+**Goal**: Close the procurement-facing notification gap surfaced during Phase 84 UAT — procurement-role users get notified when work flows in (new MRF) and when downstream actors decide on documents they own (PR/TR/RFP/PO), and existing notification triggers are sharpened with reason text and project cost-change coverage.
+**Depends on**: Phase 83 (notifications plumbing), Phase 84 (existing trigger sites already wired)
+**Requirements**: NOTIF-14, NOTIF-15, NOTIF-16, NOTIF-17, NOTIF-18, NOTIF-19, NOTIF-20
+**Success Criteria** (what must be TRUE):
+  1. When an MRF is submitted, every active procurement-role user receives a notification ("New MRF MRF-YYYY-### needs processing") deep-linking to the MRF
+  2. When Finance approves or rejects a PR or TR, the procurement user who created that PR/TR receives a notification stating the decision (and rejection reason if present)
+  3. When an RFP is marked Paid, the procurement user who created that RFP receives a notification referencing the RFP and PO IDs
+  4. When a PO's `procurement_status` advances to `Delivered`, both the MRF requestor and the procurement user who created the PO receive a notification
+  5. When a project's or service's Projected Cost or Contract Cost changes by a non-zero delta, all assigned personnel receive a notification naming the field, old value, and new value
+  6. The MRF-rejected notification body includes the rejection reason text entered by the rejecter, when one was provided
+  7. New triggers do not double-fire on existing Phase 84 events; existing NOTIF-07 / NOTIF-08 / NOTIF-11 behavior remains unchanged in audience and content (other than NOTIF-07 body augmentation per criterion 6)
+**Plans**: TBD
+**UI hint**: no (backend-only triggers reusing the existing bell/dropdown UI)
 
 ### Phase 85: Collectibles Tracking
 **Goal**: Operations Admin and Finance can manually track money owed by clients on a project — create, edit, delete, record payments, and view auto-derived status — independent of any PM auto-trigger.
@@ -338,7 +354,8 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 57-62.3 | v3.1 | 23/23 | Complete | 2026-03-10 |
 | 63-82 | v3.2 | 55/55 | Complete | 2026-04-28 |
 | 83 | v4.0 | 5/5 | Complete | 2026-04-30 |
-| 84 | v4.0 | 2/TBD | In progress | - |
+| 84 | v4.0 | 4/4 | Complete | 2026-04-30 |
+| 84.1 | v4.0 | 0/TBD | Not started | - |
 | 85 | v4.0 | 0/TBD | Not started | - |
 | 86 | v4.0 | 0/TBD | Not started | - |
 | 87 | v4.0 | 0/TBD | Not started | - |

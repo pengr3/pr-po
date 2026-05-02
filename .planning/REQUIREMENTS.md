@@ -37,6 +37,13 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 - [ ] **NOTIF-11**: System creates notifications for assigned personnel when a project's status changes (e.g. → Client Approved, → On-going, → Completed)
 - [ ] **NOTIF-12**: System creates a notification for Super Admin users when a new account registration is pending approval
 - [ ] **NOTIF-13**: System persists notifications in Firestore (`notifications` collection) with user_id (recipient), type, message, link, read flag, created_at; Security Rules ensure each user only reads/writes their own notifications
+- [ ] **NOTIF-14**: System creates a notification for all active procurement-role users when a new MRF is submitted (broadcast — message references MRF ID and project)
+- [ ] **NOTIF-15**: System creates a notification for the procurement user who created a PR when Finance approves or rejects that PR (recipient = PR `created_by`; message references PR ID and decision)
+- [ ] **NOTIF-16**: System creates a notification for the procurement user who created an RFP when that RFP is marked Paid (recipient = RFP `created_by`; message references RFP ID and PO ID)
+- [ ] **NOTIF-17**: System creates a notification for the procurement user who created a TR when Finance approves or rejects that TR (recipient = TR `created_by`; message references TR ID and decision)
+- [ ] **NOTIF-18**: System creates notifications for the MRF requestor and the procurement user who created the PO when a PO's `procurement_status` advances to `Delivered` (closes the procurement loop)
+- [ ] **NOTIF-19**: System creates notifications for assigned personnel when a project/service's Projected Cost or Contract Cost is meaningfully changed (numeric delta non-zero); message references the field changed, old value, new value
+- [ ] **NOTIF-20**: MRF rejection notification body (NOTIF-07 path) includes the rejection reason text entered by the rejecter, when present
 
 ### Collectibles Tracking — Manual Entry (COLL)
 
@@ -147,6 +154,13 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | NOTIF-11 | Phase 84 | Pending |
 | NOTIF-12 | Phase 84 | Pending |
 | NOTIF-13 | Phase 83 | Pending |
+| NOTIF-14 | Phase 84.1 | Pending |
+| NOTIF-15 | Phase 84.1 | Pending |
+| NOTIF-16 | Phase 84.1 | Pending |
+| NOTIF-17 | Phase 84.1 | Pending |
+| NOTIF-18 | Phase 84.1 | Pending |
+| NOTIF-19 | Phase 84.1 | Pending |
+| NOTIF-20 | Phase 84.1 | Pending |
 | COLL-01 | Phase 85 | Pending |
 | COLL-02 | Phase 85 | Pending |
 | COLL-03 | Phase 85 | Pending |
@@ -181,9 +195,10 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 |-------|--------------|-------|
 | Phase 83 — Notification System Foundation | NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05, NOTIF-06, NOTIF-13 | 7 |
 | Phase 84 — Notification Triggers (Existing Events) | NOTIF-07, NOTIF-08, NOTIF-11, NOTIF-12 | 4 |
+| Phase 84.1 — Procurement Notifications & Trigger Enhancements | NOTIF-14, NOTIF-15, NOTIF-16, NOTIF-17, NOTIF-18, NOTIF-19, NOTIF-20 | 7 |
 | Phase 85 — Collectibles Tracking | COLL-01, COLL-02, COLL-03, COLL-04, COLL-05, COLL-06, COLL-07, COLL-08, COLL-09 | 9 |
 | Phase 86 — Native Project Management & Gantt | PM-01, PM-02, PM-03, PM-04, PM-05, PM-06, PM-07, PM-08, PM-09, PM-10, PM-11 | 11 |
 | Phase 87 — Proposal Lifecycle (incl. proposal-event notifications) | PROP-01..11, NOTIF-09, NOTIF-10 | 13 |
 | Phase 88 — Management Tab Shell + Create Engagement | MGMT-01, MGMT-02, MGMT-05, MGMT-06, MGMT-07 | 5 |
 | Phase 89 — Management Tab Proposal Approval Queue | MGMT-03, MGMT-04 | 2 |
-| **Total** | | **51** |
+| **Total** | | **58** |
