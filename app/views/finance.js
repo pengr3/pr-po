@@ -1199,6 +1199,234 @@ async function initPayablesTab() {
     listeners.push(posUnsub);
 }
 
+// ========================================
+// COLLECTIBLES TAB (Phase 85)
+// Read-only render pipeline: filter -> sort -> paginate.
+// Status auto-derived via deriveCollectibleStatus (D-19, never persisted).
+// Plan 06 layers CRUD modals + payment recording on top of these primitives.
+// ========================================
+
+/**
+ * Read all 5 collectibles filter inputs into module state, reset page,
+ * and trigger a re-render (D-04: filter change resets to page 1).
+ */
+function filterCollectiblesTable() {
+    collProjectFilter = document.getElementById('collProjectFilter')?.value || '';
+    collStatusFilter = document.getElementById('collStatusFilter')?.value || '';
+    collDeptFilter = document.getElementById('collDeptFilter')?.value || '';
+    collDueFromFilter = document.getElementById('collDueFromFilter')?.value || '';
+    collDueToFilter = document.getElementById('collDueToFilter')?.value || '';
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+
+/**
+ * Pure helper: apply all 5 filters and the status-priority sort to
+ * collectiblesData, returning the displayed slice (pre-pagination).
+ * Extracted so Plan 06's CSV export can reuse it.
+ *
+ * Sort: Pending (1) > Overdue (2) > Partially Paid (3) > Fully Paid (4),
+ * secondary by due_date ascending. Unpaid surfaces first per D-18.
+ */
+function getDisplayedCollectibles() {
+    let displayed = [...collectiblesData];
+
+    // Department filter
+    if (collDeptFilter) {
+        displayed = displayed.filter(c => c.department === collDeptFilter);
+    }
+
+    // Project/service code filter
+    if (collProjectFilter) {
+        displayed = displayed.filter(c => {
+            const code = c.department === 'projects' ? c.project_code : c.service_code;
+            return code === collProjectFilter;
+        });
+    }
+
+    // Status filter (status is derived, not stored)
+    if (collStatusFilter) {
+        displayed = displayed.filter(c => deriveCollectibleStatus(c) === collStatusFilter);
+    }
+
+    // Due-date range filter — string YYYY-MM-DD lexicographic compare
+    if (collDueFromFilter) {
+        displayed = displayed.filter(c => c.due_date && c.due_date >= collDueFromFilter);
+    }
+    if (collDueToFilter) {
+        displayed = displayed.filter(c => c.due_date && c.due_date <= collDueToFilter);
+    }
+
+    // Status priority sort — Pending=1, Overdue=2, Partial=3, Fully=4 (unpaid first)
+    const statusPriority = {
+        'Pending': 1,
+        'Overdue': 2,
+        'Partially Paid': 3,
+        'Fully Paid': 4
+    };
+    displayed.sort((a, b) => {
+        const pa = statusPriority[deriveCollectibleStatus(a)] || 5;
+        const pb = statusPriority[deriveCollectibleStatus(b)] || 5;
+        if (pa !== pb) return pa - pb;
+        // Secondary sort: due_date ascending (earlier overdue first)
+        return (a.due_date || '').localeCompare(b.due_date || '');
+    });
+
+    return displayed;
+}
+
+/**
+ * Render the Collectibles table body. Empty-state copy is filter-aware
+ * (mirrors renderRFPTable lines 721-730 pattern).
+ * Hooked buttons (Record Payment / History / context menu / + Create) call
+ * window functions that ship as stubs in Task 3 and are overwritten by Plan 06.
+ */
+function renderCollectiblesTable() {
+    const tbody = document.getElementById('collectiblesTableBody');
+    if (!tbody) return;
+
+    const displayed = getDisplayedCollectibles();
+    const totalItems = displayed.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / collItemsPerPage));
+    if (collCurrentPage > totalPages) collCurrentPage = totalPages;
+
+    // Empty state — filter-aware copy
+    if (totalItems === 0) {
+        const hasFilters = collProjectFilter || collStatusFilter || collDeptFilter || collDueFromFilter || collDueToFilter;
+        const message = hasFilters
+            ? 'No collectibles match your filters.'
+            : (collectiblesData.length === 0
+                ? 'No collectibles yet. Click "+ Create Collectible" to file the first one.'
+                : 'No collectibles to show.');
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#64748b;">${message}</td></tr>`;
+        renderCollectiblesPagination(totalItems, totalPages);
+        return;
+    }
+
+    // Pagination slice
+    const startIndex = (collCurrentPage - 1) * collItemsPerPage;
+    const endIndex = Math.min(startIndex + collItemsPerPage, totalItems);
+    const pageItems = displayed.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageItems.map(coll => {
+        const totalPaid = (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        const balance = (parseFloat(coll.amount_requested) || 0) - totalPaid;
+        const status = deriveCollectibleStatus(coll);
+        const badgeStyle = statusBadgeColors[status] || '';
+        const projOrSvcName = coll.department === 'projects'
+            ? (coll.project_name || coll.project_code || '')
+            : (coll.service_name || coll.service_code || '');
+        const projOrSvcCode = coll.department === 'projects'
+            ? (coll.project_code || '')
+            : (coll.service_code || '');
+        return `
+            <tr>
+                <td oncontextmenu="event.preventDefault(); window.showCollectibleContextMenu(event, '${coll.id}'); return false;"
+                    style="font-family:monospace;font-size:0.8125rem;">
+                    <strong>${escapeHTML(coll.coll_id || '')}</strong>
+                </td>
+                <td>
+                    <div style="font-weight:600;">${escapeHTML(projOrSvcName)}</div>
+                    <div style="font-size:0.75rem;color:#94a3b8;">${escapeHTML(projOrSvcCode)}</div>
+                </td>
+                <td>${getDeptBadgeHTML({ department: coll.department })}</td>
+                <td>${escapeHTML(coll.tranche_label || '')} (${(parseFloat(coll.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '')}%)</td>
+                <td style="text-align:right;">${formatCurrency(coll.amount_requested || 0)}</td>
+                <td style="text-align:right;">${formatCurrency(totalPaid)}</td>
+                <td style="text-align:right;color:${balance > 0 ? '#ef4444' : '#059669'};">${formatCurrency(balance)}</td>
+                <td>${escapeHTML(coll.due_date || '')}</td>
+                <td><span class="status-badge" style="${badgeStyle};padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">${status}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')"
+                            style="font-size:0.75rem;padding:0.2rem 0.6rem;">Record Payment</button>
+                    <button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')"
+                            style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">History</button>
+                </td>
+            </tr>
+            <tr id="coll-history-${escapeHTML(coll.id)}" style="display:none;background:#f8fafc;">
+                <td colspan="10" style="padding:0.5rem 1rem;font-size:0.8125rem;">
+                    <em>Payment history loads here when expanded (Plan 06 — toggleCollPaymentHistory).</em>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    renderCollectiblesPagination(totalItems, totalPages);
+}
+
+/**
+ * Render pagination control for Collectibles table.
+ * Mirrors Phase 65.7 pattern at finance.js renderPOSummaryPagination.
+ */
+function renderCollectiblesPagination(totalItems, totalPages) {
+    const div = document.getElementById('collectiblesPagination');
+    if (!div) return;
+    if (totalPages <= 1) { div.style.display = 'none'; return; }
+    div.style.display = '';
+
+    const startIndex = (collCurrentPage - 1) * collItemsPerPage;
+    const endIndex = Math.min(startIndex + collItemsPerPage, totalItems);
+
+    let html = `
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> Collectibles
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="window.changeCollectiblesPage('prev')" ${collCurrentPage === 1 ? 'disabled' : ''}>&larr; Previous</button>
+    `;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= collCurrentPage - 1 && i <= collCurrentPage + 1)) {
+            html += `<button class="pagination-btn ${i === collCurrentPage ? 'active' : ''}" onclick="window.changeCollectiblesPage(${i})">${i}</button>`;
+        } else if (i === collCurrentPage - 2 || i === collCurrentPage + 2) {
+            html += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+    html += `<button class="pagination-btn" onclick="window.changeCollectiblesPage('next')" ${collCurrentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button></div>`;
+    div.innerHTML = html;
+}
+
+/**
+ * Pagination handler — accepts 'prev' | 'next' | numeric page.
+ * Reads the current displayed (filtered+sorted) length to bound page index.
+ */
+function changeCollectiblesPage(page) {
+    const total = getDisplayedCollectibles().length;
+    const totalPages = Math.max(1, Math.ceil(total / collItemsPerPage));
+    if (page === 'prev') collCurrentPage = Math.max(1, collCurrentPage - 1);
+    else if (page === 'next') collCurrentPage = Math.min(totalPages, collCurrentPage + 1);
+    else if (typeof page === 'number') collCurrentPage = Math.max(1, Math.min(totalPages, page));
+    renderCollectiblesTable();
+}
+
+/**
+ * Populate the Project/Service filter dropdown from collectiblesData distinct
+ * codes. Preserves current selection if still valid after the data update.
+ */
+function populateCollProjectFilter() {
+    const sel = document.getElementById('collProjectFilter');
+    if (!sel) return;
+    const previousValue = sel.value;
+    // Build distinct (code, name, dept) options
+    const seen = new Map(); // key=code, value={name,dept}
+    collectiblesData.forEach(c => {
+        const code = c.department === 'projects' ? c.project_code : c.service_code;
+        const name = c.department === 'projects' ? (c.project_name || code) : (c.service_name || code);
+        if (code && !seen.has(code)) seen.set(code, { name, dept: c.department });
+    });
+    const sortedEntries = Array.from(seen.entries()).sort((a, b) => a[1].name.localeCompare(b[1].name));
+    const optionsHTML = `
+        <option value="">All Projects/Services</option>
+        ${sortedEntries.map(([code, meta]) => `<option value="${escapeHTML(code)}">${escapeHTML(meta.name)} (${meta.dept === 'projects' ? 'P' : 'S'})</option>`).join('')}
+    `;
+    sel.innerHTML = optionsHTML;
+    // Restore selection if still valid
+    if (previousValue && Array.from(sel.options).some(o => o.value === previousValue)) {
+        sel.value = previousValue;
+    }
+}
+
 /**
  * Setup modal keyboard event listeners
  * Uses AbortController for clean one-call cleanup
