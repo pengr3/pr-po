@@ -3,12 +3,12 @@
    PR/TR Approval, PO Generation, Project Expenses
    ======================================== */
 
-import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp, arrayUnion, arrayRemove } from '../firebase.js';
+import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc, getAggregateFromServer, sum, count, serverTimestamp, arrayUnion, arrayRemove } from '../firebase.js';
 import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
-import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
+import { createNotification, NOTIFICATION_TYPES, createNotificationForRoles } from '../notifications.js';
 
 // ========================================
 // UTILITY: Debounce helper for search inputs
@@ -36,6 +36,26 @@ function deriveRFPStatus(rfp) {
         .reduce((s, r) => s + (r.amount || 0), 0);
     const isOverdue = rfp.due_date && new Date(rfp.due_date) < new Date();
     if (totalPaid >= rfp.amount_requested && rfp.amount_requested > 0) return 'Fully Paid';
+    if (isOverdue) return 'Overdue';
+    if (totalPaid > 0) return 'Partially Paid';
+    return 'Pending';
+}
+
+/**
+ * Derive collectible payment status from payment_records arithmetic.
+ * Status is NEVER stored in Firestore — always computed at render time (D-19).
+ * Priority: Fully Paid > Overdue > Partially Paid > Pending (D-18)
+ *
+ * NOTE: This logic is also inlined inside app/expense-modal.js (Plan 85-08
+ * Collectibles tab). If you change the priority order or formula here, mirror
+ * the change there too — captured for v4.1 hygiene phase as a duplication.
+ */
+function deriveCollectibleStatus(coll) {
+    const totalPaid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const isOverdue = coll.due_date && new Date(coll.due_date) < new Date();
+    if (totalPaid >= coll.amount_requested && coll.amount_requested > 0) return 'Fully Paid';
     if (isOverdue) return 'Overdue';
     if (totalPaid > 0) return 'Partially Paid';
     return 'Pending';
@@ -99,6 +119,20 @@ let poSummarySearchQuery = '';
 let poSummaryCurrentPage = 1;
 // POSUMPAG-01 (Phase 75 reconciliation): spec amended from 10 to 15 to match user-preferred page size — see REQUIREMENTS.md
 const poSummaryItemsPerPage = 15;
+
+// Collectibles tab state (Phase 85)
+let collectiblesData = [];               // all collectible documents from onSnapshot
+let projectsForCollMap = new Map();      // project_code -> { name, contract_cost, collection_tranches }
+let servicesForCollMap = new Map();      // service_code -> { name, contract_cost, collection_tranches }
+// Filter state (D-03 — independence pattern from Phase 65.1)
+let collProjectFilter = '';              // selected project_code or service_code (used in conjunction with collDeptFilter)
+let collStatusFilter = '';
+let collDeptFilter = '';                 // 'projects' | 'services' | ''
+let collDueFromFilter = '';              // 'YYYY-MM-DD' or ''
+let collDueToFilter = '';
+// Pagination state (D-04, mirrors Phase 65.7)
+let collCurrentPage = 1;
+const collItemsPerPage = 15;
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
@@ -1755,6 +1789,10 @@ export function render(activeTab = 'approvals') {
                        class="finance-sub-nav-tab ${activeTab === 'payables' ? 'finance-sub-nav-tab--active' : ''}"
                        role="tab"
                        aria-selected="${activeTab === 'payables' ? 'true' : 'false'}">Payables</a>
+                    <a href="#/finance/collectibles"
+                       class="finance-sub-nav-tab ${activeTab === 'collectibles' ? 'finance-sub-nav-tab--active' : ''}"
+                       role="tab"
+                       aria-selected="${activeTab === 'collectibles' ? 'true' : 'false'}">Collectibles</a>
                 </div>
             </div>
         </nav>
@@ -2095,6 +2133,76 @@ export function render(activeTab = 'approvals') {
                         </div>
                         <div class="fc-card-list" id="poSummaryCardList"></div>
                         <div id="poSummaryPagination" class="pagination-container"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 5: Collectibles (Phase 85) -->
+            <section id="collectibles-section" class="section ${activeTab === 'collectibles' ? 'active' : ''}">
+                <div class="card">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                        <h2>Collectibles</h2>
+                        <button class="btn btn-primary" onclick="window.openCreateCollectibleModal()" id="createCollectibleBtn"
+                                style="font-size:0.875rem;">+ Create Collectible</button>
+                    </div>
+                    <div style="padding:1rem;">
+                        <div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;align-items:center;flex-wrap:wrap;">
+                            <select id="collProjectFilter" class="form-control"
+                                    style="width:auto;min-width:200px;font-size:0.875rem;"
+                                    onchange="window.filterCollectiblesTable()">
+                                <option value="">All Projects/Services</option>
+                            </select>
+                            <select id="collStatusFilter" class="form-control"
+                                    style="width:auto;min-width:160px;font-size:0.875rem;"
+                                    onchange="window.filterCollectiblesTable()">
+                                <option value="">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Partially Paid">Partially Paid</option>
+                                <option value="Fully Paid">Fully Paid</option>
+                                <option value="Overdue">Overdue</option>
+                            </select>
+                            <select id="collDeptFilter" class="form-control"
+                                    style="width:auto;min-width:160px;font-size:0.875rem;"
+                                    onchange="window.filterCollectiblesTable()">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <label style="font-size:0.8125rem;color:#64748b;">Due from:
+                                <input type="date" id="collDueFromFilter" class="form-control"
+                                       style="width:auto;font-size:0.875rem;"
+                                       onchange="window.filterCollectiblesTable()">
+                            </label>
+                            <label style="font-size:0.8125rem;color:#64748b;">Due to:
+                                <input type="date" id="collDueToFilter" class="form-control"
+                                       style="width:auto;font-size:0.875rem;"
+                                       onchange="window.filterCollectiblesTable()">
+                            </label>
+                            <button class="btn btn-outline btn-sm" onclick="window.exportCollectiblesCSV()"
+                                    id="exportCollectiblesBtn" style="font-size:0.8125rem;">Export CSV</button>
+                        </div>
+                        <div class="table-scroll-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Project / Service</th>
+                                        <th>Dept</th>
+                                        <th>Tranche</th>
+                                        <th style="text-align:right;">Amount</th>
+                                        <th style="text-align:right;">Paid</th>
+                                        <th style="text-align:right;">Balance</th>
+                                        <th>Due Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="collectiblesTableBody">
+                                    <tr><td colspan="10" style="text-align:center;padding:2rem;color:#64748b;">Loading collectibles...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="collectiblesPagination" class="pagination-container"></div>
                     </div>
                 </div>
             </section>
