@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84.1 Plan 01 complete — NOTIF-14 (MRF submitted broadcast to procurement role) + NOTIF-18 (PO Delivered fan-out to MRF requestor + PO creator) wired; tr_creator_user_id / rfp_creator_user_id / po_creator_user_id schema fields stamped on 6 write sites; firestore.rules users.list relaxed to isActiveUser() (T-84.1-01 accepted)
-last_updated: "2026-05-02T05:31:21.000Z"
+stopped_at: Phase 84.1 Plan 02 complete — NOTIF-19 (project/service cost-change notifications) wired in project-detail.js + service-detail.js for budget + contract_cost; new PROJECT_COST_CHANGED enum + TYPE_META added in app/notifications.js + app/views/notifications.js; Projected Cost out of scope per locked decision B4
+last_updated: "2026-05-02T05:39:36.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 12
-  completed_plans: 10
-  percent: 83
+  completed_plans: 11
+  percent: 92
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84.1 — procurement-notifications-trigger-enhancements (Plan 01 complete; NOTIF-14/18 wired + creator-UID schema fields stamped; Plans 02–03 pending)
+**Current focus:** Phase 84.1 — procurement-notifications-trigger-enhancements (Plans 01–02 complete; NOTIF-14/18/19 wired + creator-UID schema fields stamped + PROJECT_COST_CHANGED type added; Plan 03 pending)
 
 ## Current Position
 
 Phase: 84.1
-Plan: 01 (complete)
+Plan: 02 (complete)
 
 ## Performance Metrics
 
@@ -112,6 +112,7 @@ Plan: 01 (complete)
 | Phase 84 P03 | 2 | 2 tasks | 2 files |
 | Phase 84 P04 | 4 | 1 tasks | 1 files |
 | Phase 84.1 P01 | 5 | 2 tasks | 6 files |
+| Phase 84.1 P02 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -255,6 +256,12 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 84.1-01]: firestore.rules users.list relaxed to isActiveUser() per Option B — aligns with every other operational collection's read pattern; bonus retroactively unblocks Phase 84 NOTIF-08 silent fan-out failure when triggered by procurement / operations_user / services_user actors; threat T-84.1-01 accepted
 - [Phase 84.1-01]: Local var poDataFresh (NOT poData) inside NOTIF-18 try-block — avoids shadowing module-scope poData[] array used by sibling currentPO lookup in same updatePOStatus function; defensive rename per Rule 1
 - [Phase 84.1-01]: Used window.getCurrentUser?.()? pattern in submitTransportRequest TR creator stamp because that function does NOT declare a local currentUser (plan stated otherwise — Rule 3 blocking auto-fix)
+- [Phase 84.1-02]: PROJECT_COST_CHANGED placed adjacent to PROJECT_STATUS_CHANGED in TYPE_META (both files) — keeps project-domain badges grouped visually; '$' icon + brand blue #1a73e8 to signal "project field changed" without conflating with money-received green of RFP_PAID
+- [Phase 84.1-02]: NOTIF-19 reuses the same audience as NOTIF-11 (personnel_user_ids only) — cost changes are an operational concern for the project's personnel; future audience expansion to procurement/Finance can be done by appending a separate createNotificationForRoles call without disturbing this trigger
+- [Phase 84.1-02]: WR-03 pre-capture pattern preserved in service-detail.js for NOTIF-19 — capture lines (NOTIF19_COST_FIELDS, isCostChange, notifCostRecipients, notifCostFieldLabel, notifCostOldDisplay, notifCostNewDisplay) added in same scope as existing notif* captures, before the await updateDoc; avoids stale onSnapshot data
+- [Phase 84.1-02]: Display convention `PHP <formatted>` for present values, `(not set)` for null transitions — matches existing input-field placeholder text "(Not set)" on project-detail.js lines 389/393; clarifies null↔value transitions per must_have truth #5
+- [Phase 84.1-02]: Projected Cost is OUT OF SCOPE per locked decision B4 — derived from project expenses, not a saveField target; NOTIF19_COST_FIELDS contains exactly ['budget', 'contract_cost'] in both detail views; regression-checked via grep -c projected_cost (count = 0 in new code)
+- [Phase 84.1-02]: Plan executed exactly as written (zero deviations) — anchor strings matched, formatCurrency already imported in both detail views, createNotificationForUsers + NOTIFICATION_TYPES already imported by Phase 84-03; only addition was a one-line documentation comment on the service-detail.js capture block
 
 ### Pending Todos
 
@@ -286,8 +293,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Completed Phase 84.1 Plan 01: NOTIF-14/18 + creator-UID schema fields + firestore.rules users.list relaxation
-Last session: 2026-05-02T05:31:21Z
-Stopped at: Phase 84.1 Plan 01 complete — NOTIF-14 (MRF submitted broadcast) + NOTIF-18 (PO Delivered fan-out) wired; tr/rfp/po creator-UID schema fields stamped on 6 write sites; firestore.rules users.list relaxed to isActiveUser() (T-84.1-01 accepted)
+Last activity: 2026-05-02 - Completed Phase 84.1 Plan 02: NOTIF-19 cost-change notifications + PROJECT_COST_CHANGED enum/TYPE_META
+Last session: 2026-05-02T05:39:36Z
+Stopped at: Phase 84.1 Plan 02 complete — NOTIF-19 (project/service cost-change notifications) wired in project-detail.js + service-detail.js for budget + contract_cost; new PROJECT_COST_CHANGED enum + TYPE_META added in app/notifications.js + app/views/notifications.js; Projected Cost out of scope per locked decision B4
 Resume file: None
-Next action: Execute Phase 84.1 Plan 02 (finance.js NOTIF-15/16/17 trigger wiring) — depends on creator-UID schema fields stamped by Plan 01
+Next action: Execute Phase 84.1 Plan 03 (NOTIF-20 — MRF rejection reason in notification body + end-of-phase UAT)

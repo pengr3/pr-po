@@ -219,7 +219,7 @@
 
 - [x] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules — completed 2026-04-30 (5 plans)
 - [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
-- [ ] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [inserted, 1/3 plans complete] — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
+- [ ] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [inserted, 2/3 plans complete] — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
 - [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
 - [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
@@ -269,11 +269,11 @@
   5. When a project's or service's Budget or Contract Cost changes by a non-zero delta, all assigned personnel receive a notification naming the field, old value, and new value (Projected Cost is derived from expenses, not user-editable, and is intentionally excluded)
   6. The MRF-rejected notification body includes the rejection reason text entered by the rejecter, when one was provided
   7. New triggers do not double-fire on existing Phase 84 events; existing NOTIF-07 / NOTIF-08 / NOTIF-11 behavior remains unchanged in audience and content (other than NOTIF-07 body augmentation per criterion 6)
-**Plans**: 3 plans (1/3 complete)
+**Plans**: 3 plans (2/3 complete)
   - [x] 84.1-01-PLAN.md — Procurement-side notifications (NOTIF-14/15/16/17/18) + creator-UID schema fields + firestore.rules relaxation — completed 2026-05-02
-  - [ ] 84.1-02-PLAN.md — Project/service cost-change notifications (NOTIF-19) + new PROJECT_COST_CHANGED type
+  - [x] 84.1-02-PLAN.md — Project/service cost-change notifications (NOTIF-19) + new PROJECT_COST_CHANGED type — completed 2026-05-02
   - [ ] 84.1-03-PLAN.md — MRF rejection reason in notification body (NOTIF-20) + end-of-phase UAT
-**Plans progress**: 1/3 complete (Plan 01 done — NOTIF-14/18 wired, creator-UID schema fields stamped, firestore.rules users.list relaxed; Plans 02–03 pending)
+**Plans progress**: 2/3 complete (Plans 01–02 done — NOTIF-14/18 + creator-UID stamps + rules relaxation in Plan 01; NOTIF-19 cost-change + PROJECT_COST_CHANGED type in Plan 02; Plan 03 pending)
 **UI hint**: no (backend-only triggers reusing the existing bell/dropdown UI)
 
 ### Phase 85: Collectibles Tracking
@@ -359,7 +359,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 63-82 | v3.2 | 55/55 | Complete | 2026-04-28 |
 | 83 | v4.0 | 5/5 | Complete | 2026-04-30 |
 | 84 | v4.0 | 4/4 | Complete | 2026-04-30 |
-| 84.1 | v4.0 | 0/3 | Not started | - |
+| 84.1 | v4.0 | 2/3 | In progress | - |
 | 85 | v4.0 | 0/TBD | Not started | - |
 | 86 | v4.0 | 0/TBD | Not started | - |
 | 87 | v4.0 | 0/TBD | Not started | - |
