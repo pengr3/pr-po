@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84 Plan 04 complete — NOTIF-12 REGISTRATION_PENDING trigger wired in register.js handleRegister() — fan-out to super_admins before signOut with excludeActor:false (D-13/D-14)
-last_updated: "2026-04-30T09:00:00.000Z"
-last_activity: 2026-04-30
+stopped_at: Phase 84.1 Plan 01 complete — NOTIF-14 (MRF submitted broadcast to procurement role) + NOTIF-18 (PO Delivered fan-out to MRF requestor + PO creator) wired; tr_creator_user_id / rfp_creator_user_id / po_creator_user_id schema fields stamped on 6 write sites; firestore.rules users.list relaxed to isActiveUser() (T-84.1-01 accepted)
+last_updated: "2026-05-02T05:31:21.000Z"
+last_activity: 2026-05-02
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 0
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_plans: 12
+  completed_plans: 10
+  percent: 83
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84 — notification-triggers-existing-events (Plan 04 complete; all NOTIF-07/08/11/12 triggers wired)
+**Current focus:** Phase 84.1 — procurement-notifications-trigger-enhancements (Plan 01 complete; NOTIF-14/18 wired + creator-UID schema fields stamped; Plans 02–03 pending)
 
 ## Current Position
 
-Phase: 84
-Plan: 04 (complete)
+Phase: 84.1
+Plan: 01 (complete)
 
 ## Performance Metrics
 
@@ -111,6 +111,7 @@ Plan: 04 (complete)
 | Phase 84 P02 | 4 | 3 tasks | 1 files |
 | Phase 84 P03 | 2 | 2 tasks | 2 files |
 | Phase 84 P04 | 4 | 1 tasks | 1 files |
+| Phase 84.1 P01 | 5 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -249,6 +250,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 82-01]: Phase 82 honors all 5 CONTEXT decisions verbatim: D-01 lightweight (no reason prompt, no deleted_mrfs row), D-02 single location (MRF Processing only), D-03 strict 'Rejected' eligibility, D-04 canEditTab gate, D-05 children-first cascade
 - [Phase 82-01]: Dual-site button render pattern: any data-driven button whose container is rewritten by a re-render path (e.g. updateActionButtons) MUST be appended at BOTH the initial-render site and the re-render site, gated by the same eligibility expression evaluated against the appropriate scope (mrf parameter at site #1, currentMRF module-state at site #2)
 - [Phase 82-01]: Legacy deleteMRF() at procurement.js:3913 (was 3790; shifted +123 by insertions only) is byte-for-byte unchanged — left as dead-but-correct code; future cleanup phase may dedupe along with its window registration
+- [Phase 84.1-01]: PO creator inherits from PR creator (pr.pr_creator_user_id), NOT currentUser (Finance approver) — NOTIF-18 routes to procurement actor who owns the work; Finance approver is captured separately in finance_approver_user_id
+- [Phase 84.1-01]: All 5 new schema fields (tr/rfp/po creator-UID stamps) use the window.getCurrentUser?.()?.uid ?? null optional-chain pattern from Phase 84-01 D-01 — matches existing canonical accessor; uniform across all 6 write sites in procurement.js + finance.js
+- [Phase 84.1-01]: firestore.rules users.list relaxed to isActiveUser() per Option B — aligns with every other operational collection's read pattern; bonus retroactively unblocks Phase 84 NOTIF-08 silent fan-out failure when triggered by procurement / operations_user / services_user actors; threat T-84.1-01 accepted
+- [Phase 84.1-01]: Local var poDataFresh (NOT poData) inside NOTIF-18 try-block — avoids shadowing module-scope poData[] array used by sibling currentPO lookup in same updatePOStatus function; defensive rename per Rule 1
+- [Phase 84.1-01]: Used window.getCurrentUser?.()? pattern in submitTransportRequest TR creator stamp because that function does NOT declare a local currentUser (plan stated otherwise — Rule 3 blocking auto-fix)
 
 ### Pending Todos
 
@@ -280,8 +286,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-04-30 - Completed quick task 260430-a4b: codeless projects/services personnel_user_ids MRF filter
-Last session: 2026-04-30T09:00:00Z
-Stopped at: Phase 84 Plan 04 complete — NOTIF-12 REGISTRATION_PENDING trigger wired in register.js handleRegister() (fan-out to super_admins before signOut, excludeActor:false per D-13/D-14)
+Last activity: 2026-05-02 - Completed Phase 84.1 Plan 01: NOTIF-14/18 + creator-UID schema fields + firestore.rules users.list relaxation
+Last session: 2026-05-02T05:31:21Z
+Stopped at: Phase 84.1 Plan 01 complete — NOTIF-14 (MRF submitted broadcast) + NOTIF-18 (PO Delivered fan-out) wired; tr/rfp/po creator-UID schema fields stamped on 6 write sites; firestore.rules users.list relaxed to isActiveUser() (T-84.1-01 accepted)
 Resume file: None
-Next action: Phase 84 complete — all 4 NOTIF triggers wired (NOTIF-07, NOTIF-08, NOTIF-11, NOTIF-12). Run /gsd:complete-milestone or proceed to Phase 87 (proposal-event notifications)
+Next action: Execute Phase 84.1 Plan 02 (finance.js NOTIF-15/16/17 trigger wiring) — depends on creator-UID schema fields stamped by Plan 01
