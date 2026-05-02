@@ -296,7 +296,7 @@
 - [ ] 85-03-PLAN.md — `app/views/projects.js` `collection_tranches` editor + sum=100 validation + D-25 confirmation
 - [ ] 85-04-PLAN.md — `app/views/services.js` `collection_tranches` editor (D-01 parity)
 - [ ] 85-07-PLAN.md — `app/views/project-detail.js` + `service-detail.js` Financial Summary cells (D-06, always-render zero-state)
-- [ ] 85-08-PLAN.md — `app/expense-modal.js` 4th "Collectibles" tab on Financial Breakdown modal (D-07)
+- [x] 85-08-PLAN.md — `app/expense-modal.js` 4th "Collectibles" tab on Financial Breakdown modal (D-07) — completed 2026-05-02
 
 **Wave 3** *(blocked on Waves 1+2)*
 - [ ] 85-05-PLAN.md — `app/views/finance.js` Collectibles sub-tab read path: 5th pill nav + flat table + 4 independent filters + 15/page pagination + status badges (D-02..D-05, D-18, D-19)
