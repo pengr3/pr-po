@@ -321,6 +321,12 @@ function attachWindowFunctions() {
     window.submitEditCollectible = submitEditCollectible;
     window._refreshCreateCollProjectDropdown = _refreshCreateCollProjectDropdown;
     window._refreshCreateCollTrancheDropdown = _refreshCreateCollTrancheDropdown;
+    // Task 2: payment recording + voiding + history
+    window.openRecordCollectiblePaymentModal = openRecordCollectiblePaymentModal;
+    window.submitCollectiblePayment = submitCollectiblePayment;
+    window.voidCollectiblePayment = voidCollectiblePayment;
+    window.toggleCollPaymentHistory = toggleCollPaymentHistory;
+    window.toggleCollPaymentOtherField = toggleCollPaymentOtherField;
 }
 
 // ========================================
@@ -1931,6 +1937,313 @@ async function submitEditCollectible(collDocId) {
         console.error('[Collectibles] submitEditCollectible error:', err);
         showError('Failed to update collectible. Try again.');
     }
+}
+
+// ----- Plan 06 Task 2: Payment recording + voiding + history UI -----
+
+/**
+ * Open the Record-Payment modal for a collectible.
+ * Mirrors openRecordPaymentModal (RFP) with three deviations:
+ *   - D-15: amount input is EDITABLE and defaults to remaining balance (partial pay)
+ *   - D-14: method dropdown with 5 options + Other freetext reveal
+ *   - D-23: NO Fully-Paid notification this phase (omitted from submit)
+ * History list shows ACTIVE records only; voided records appear in toggleCollPaymentHistory.
+ */
+function openRecordCollectiblePaymentModal(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to record payments.', 'error');
+        return;
+    }
+
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) { showToast('Collectible not found', 'error'); return; }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Header info
+    const projOrSvcName = coll.department === 'projects'
+        ? (coll.project_name || coll.project_code || '')
+        : (coll.service_name || coll.service_code || '');
+    const trancheLabel = coll.tranche_label || '';
+    const amountRequested = parseFloat(coll.amount_requested) || 0;
+
+    // Existing payments — split into active + voided for the modal display
+    const records = coll.payment_records || [];
+    const activeRecords = records.filter(r => r.status !== 'voided');
+    const totalActivePaid = activeRecords.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const remainingBalance = amountRequested - totalActivePaid;
+
+    let existingPaymentsHtml = '';
+    if (activeRecords.length > 0) {
+        const rowsHtml = activeRecords.map(r => `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:0.8125rem;font-weight:600;color:#1e293b;">${formatCurrency(r.amount)}</span>
+                    <span style="font-size:0.75rem;color:#64748b;">${escapeHTML(r.date || '')} via ${escapeHTML(r.method || '')}${r.reference ? ' &mdash; ' + escapeHTML(r.reference) : ''}</span>
+                </div>
+                <button class="btn btn-sm" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:0.75rem;border-radius:4px;cursor:pointer;"
+                    onclick="document.getElementById('recordCollectiblePaymentModal').remove(); window.voidCollectiblePayment('${escapeHTML(collDocId)}', '${escapeHTML(r.payment_id)}');">Void</button>
+            </div>`).join('');
+        existingPaymentsHtml = `
+            <div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #e5e7eb;">
+                <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Existing Payments (${activeRecords.length})</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">${rowsHtml}</div>
+            </div>`;
+    }
+
+    // Conditional new-payment form — hidden when fully paid
+    const isFullyPaid = remainingBalance <= 0.005 && amountRequested > 0;
+
+    const newPaymentFormHtml = isFullyPaid
+        ? `<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#065f46;font-size:0.875rem;">
+               This collectible is fully paid. You can void existing payments above to record a correction.
+           </div>`
+        : `<div style="display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount (PHP) <span style="color:#ea4335;">*</span></label>
+                    <input type="number" id="paymentAmount" class="form-control"
+                           min="0.01" step="0.01" max="${remainingBalance.toFixed(2)}"
+                           value="${remainingBalance.toFixed(2)}" placeholder="Amount in PHP"
+                           style="width:100%;" required>
+                    <small style="color:#64748b;font-size:0.75rem;">Remaining balance: ${formatCurrency(remainingBalance)}. Partial payments allowed.</small>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="paymentDate" class="form-control" value="${today}" style="width:100%;" required>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Method <span style="color:#ea4335;">*</span></label>
+                    <select id="paymentMode" class="form-control" onchange="window.toggleCollPaymentOtherField()" style="width:100%;" required>
+                        <option value="">Select method...</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Check">Check</option>
+                        <option value="Cash">Cash</option>
+                        <option value="GCash/E-Wallet">GCash/E-Wallet</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="paymentModeOther" class="form-control" placeholder="Specify other method"
+                           style="display:none;margin-top:0.5rem;width:100%;" />
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Reference Number</label>
+                    <input type="text" id="paymentReference" class="form-control" placeholder="Check number, transfer ref, etc." style="width:100%;">
+                </div>
+            </div>
+            <div id="paymentErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>`;
+
+    const footerHtml = isFullyPaid
+        ? `<button class="btn btn-outline" onclick="document.getElementById('recordCollectiblePaymentModal').remove()">Close</button>`
+        : `<button class="btn btn-outline" onclick="document.getElementById('recordCollectiblePaymentModal').remove()">Discard</button>
+           <button class="btn btn-primary" style="background:#059669;border-color:#059669;" onclick="window.submitCollectiblePayment('${escapeHTML(collDocId)}')">Record Payment</button>`;
+
+    const modalHtml = `
+    <div id="recordCollectiblePaymentModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Record Payment &mdash; ${escapeHTML(coll.coll_id || '')}</h2>
+                <button class="modal-close" onclick="document.getElementById('recordCollectiblePaymentModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">${coll.department === 'projects' ? 'Project' : 'Service'}</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(projOrSvcName)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Tranche</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(trancheLabel)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Amount Requested</div>
+                        <div style="font-weight:600;color:#1e293b;">${formatCurrency(amountRequested)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Total Paid So Far</div>
+                        <div style="font-weight:600;color:#059669;">${formatCurrency(totalActivePaid)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Remaining Balance</div>
+                        <div style="font-weight:600;color:${remainingBalance > 0 ? '#ef4444' : '#059669'};">${formatCurrency(remainingBalance)}</div>
+                    </div>
+                </div>
+                ${existingPaymentsHtml}
+                ${newPaymentFormHtml}
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                ${footerHtml}
+            </div>
+        </div>
+    </div>`;
+
+    const existing = document.getElementById('recordCollectiblePaymentModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Toggle the Other-method freetext input visibility based on paymentMode select.
+ * D-14 — only the Other option reveals the freetext input.
+ */
+function toggleCollPaymentOtherField() {
+    const select = document.getElementById('paymentMode');
+    const otherInput = document.getElementById('paymentModeOther');
+    if (!select || !otherInput) return;
+    if (select.value === 'Other') {
+        otherInput.style.display = '';
+        otherInput.required = true;
+    } else {
+        otherInput.style.display = 'none';
+        otherInput.required = false;
+        otherInput.value = '';
+    }
+}
+
+/**
+ * Validate and append a payment record to a collectible doc via arrayUnion.
+ * D-15: partial payments allowed; reject amount > remaining balance (with 0.01 float tolerance).
+ * D-23: NO Fully-Paid notification this phase (deferred polish — see CONTEXT.md).
+ */
+async function submitCollectiblePayment(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to record payments.', 'error');
+        return;
+    }
+    const errorEl = document.getElementById('paymentErrorAlert');
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+    };
+
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) { showError('Collectible not found. Refresh and try again.'); return; }
+
+    const amountStr = document.getElementById('paymentAmount')?.value;
+    const date = document.getElementById('paymentDate')?.value;
+    const methodSel = document.getElementById('paymentMode')?.value;
+    const methodOther = document.getElementById('paymentModeOther')?.value?.trim() || '';
+    const reference = document.getElementById('paymentReference')?.value?.trim() || '';
+
+    if (!date) { showError('Payment Date is required.'); return; }
+    if (!methodSel) { showError('Payment Method is required.'); return; }
+    if (methodSel === 'Other' && !methodOther) { showError('Specify the "Other" payment method.'); return; }
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) { showError('Amount must be greater than zero.'); return; }
+
+    const totalPaidExisting = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const remainingBalance = (parseFloat(coll.amount_requested) || 0) - totalPaidExisting;
+    // Allow tiny floating-point overshoot (within 0.01)
+    if (amount > remainingBalance + 0.01) {
+        showError(`Amount exceeds remaining balance (${formatCurrency(remainingBalance)}).`);
+        return;
+    }
+
+    const paymentRecord = {
+        payment_id: `PAY-${Date.now()}`,
+        amount,
+        date,
+        method: methodSel === 'Other' ? methodOther : methodSel,
+        reference,
+        status: 'active',
+        recorded_at: new Date().toISOString()
+    };
+
+    try {
+        await updateDoc(doc(db, 'collectibles', collDocId), {
+            payment_records: arrayUnion(paymentRecord)
+        });
+        document.getElementById('recordCollectiblePaymentModal')?.remove();
+        showToast(`Payment recorded for ${coll.coll_id}.`, 'success');
+        // D-23: No Fully-Paid notification this phase. Deferred polish.
+    } catch (err) {
+        console.error('[Collectibles] submitCollectiblePayment error:', err);
+        showError('Failed to record payment. Check your connection and try again.');
+    }
+}
+
+/**
+ * Void a payment record on a collectible (D-16).
+ * Read-modify-write: getDoc → tag matching record with status:'voided' + audit
+ * fields → updateDoc full new array. Voided records persist in the array for
+ * audit trail (D-17) and are excluded from total_paid in deriveCollectibleStatus.
+ */
+async function voidCollectiblePayment(collDocId, paymentId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to void payments.', 'error');
+        return;
+    }
+    const reason = (prompt('Reason for voiding this payment? (optional)') ?? '').trim();
+    if (!confirm('Void this payment record? Voided records remain in the audit trail and cannot be unvoided.')) return;
+
+    try {
+        const ref = doc(db, 'collectibles', collDocId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) { showToast('Collectible not found.', 'error'); return; }
+
+        const records = snap.data().payment_records || [];
+        const updated = records.map(r =>
+            r.payment_id === paymentId
+                ? {
+                    ...r,
+                    status: 'voided',
+                    voided: true,
+                    voided_by: window.getCurrentUser?.()?.uid ?? null,
+                    voided_at: new Date().toISOString(),
+                    void_reason: reason
+                }
+                : r
+        );
+        await updateDoc(ref, { payment_records: updated });
+        showToast('Payment voided.', 'success');
+    } catch (err) {
+        console.error('[Collectibles] voidCollectiblePayment error:', err);
+        showToast('Failed to void payment. Check your connection and try again.', 'error');
+    }
+}
+
+/**
+ * Toggle the expandable payment-history sub-row for a collectible.
+ * Plan 05 renderCollectiblesTable emits a hidden <tr id="coll-history-${id}">
+ * sibling per row. Expand: render chronological list of ALL records (active +
+ * voided per D-17) with strike-through and "(voided)" indicator. Collapse: hide.
+ */
+function toggleCollPaymentHistory(collDocId) {
+    const row = document.getElementById(`coll-history-${collDocId}`);
+    if (!row) return;
+    if (row.style.display !== 'none') {
+        row.style.display = 'none';
+        return;
+    }
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) return;
+
+    const records = (coll.payment_records || [])
+        .slice()
+        .sort((a, b) => (a.recorded_at || '').localeCompare(b.recorded_at || ''));
+
+    const cell = row.querySelector('td');
+    if (!cell) return;
+    if (records.length === 0) {
+        cell.innerHTML = '<em style="color:#64748b;">No payments recorded yet.</em>';
+    } else {
+        cell.innerHTML = `
+            <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Payment History (${records.length})</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                ${records.map(r => {
+                    const isVoided = r.status === 'voided';
+                    const lineStyle = isVoided ? 'text-decoration:line-through;color:#94a3b8;' : 'color:#1e293b;';
+                    const voidLabel = isVoided ? ' <span style="font-style:italic;color:#991b1b;">(voided)</span>' : '';
+                    const reason = isVoided && r.void_reason ? ` &mdash; reason: ${escapeHTML(r.void_reason)}` : '';
+                    return `<div style="${lineStyle}font-size:0.8125rem;">${formatCurrency(r.amount)} on ${escapeHTML(r.date || '')} via ${escapeHTML(r.method || '')}${r.reference ? ' &mdash; ref ' + escapeHTML(r.reference) : ''}${voidLabel}${reason}</div>`;
+                }).join('')}
+            </div>
+        `;
+    }
+    row.style.display = 'table-row';
 }
 
 /**
@@ -3808,10 +4121,14 @@ export async function destroy() {
     delete window.submitEditCollectible;
     delete window._refreshCreateCollProjectDropdown;
     delete window._refreshCreateCollTrancheDropdown;
-    // Plan 06 Task 2 + 3 cleanups appended below by their tasks
-    delete window.exportCollectiblesCSV;
+    // Plan 06 Task 2 — payment recording + voiding + history
     delete window.openRecordCollectiblePaymentModal;
+    delete window.submitCollectiblePayment;
+    delete window.voidCollectiblePayment;
     delete window.toggleCollPaymentHistory;
+    delete window.toggleCollPaymentOtherField;
+    // Plan 06 Task 3 cleanups appended below by Task 3
+    delete window.exportCollectiblesCSV;
     delete window.showCollectibleContextMenu;
 
     // Reset Collectibles tab state
