@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 85 Plan 08 complete — Collectibles tab on Financial Breakdown modal shipped (parallel with Plans 85-03/85-04/85-07 in flight)
-last_updated: "2026-05-02T16:09:31Z"
-last_activity: "2026-05-02 - Phase 85 Plan 08 complete: 4th Collectibles tab on app/expense-modal.js Financial Breakdown modal — fetch + render + tab switcher + expandable history (D-07, D-17, D-18). Inline deriveCollectibleStatus avoids circular import from finance.js (Phase 71 pattern). 1 commit (ef000b5), 1 file modified, 156 lines added, 0 deviations. COLL-07 closed at code layer."
+stopped_at: Phase 85 Plan 05 complete — Wave 3 Finance Collectibles sub-tab read-side shipped (Plans 01–04 + 07–08 prior; Plan 06 next)
+last_updated: "2026-05-02T16:30:00Z"
+last_activity: "2026-05-02 - Phase 85 Plan 05 complete: Wave 3 — 5th Finance sub-tab #/finance/collectibles wired with onSnapshot-driven flat collectibles table, 5 independent filters (Project/Status/Dept/Due-from/Due-to), status-priority sort (Pending > Overdue > Partial > Fully), 15-per-page filter-aware pagination, deriveCollectibleStatus helper at module scope (D-19 never persisted), and 5 stub window functions for Plan 06 write actions (idempotent toast no-ops). 3 atomic commits (3399ea8, 2799a68, 1ab7b46), 1 file modified (app/views/finance.js +448 lines), 0 deviations. COLL-04 / COLL-06 / COLL-09 closed at read layer."
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 20
-  completed_plans: 12
-  percent: 60
+  completed_plans: 13
+  percent: 65
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 85 (planned, ready to execute)
-Plan: Wave 1 (Plans 85-01, 85-02) — independent, can run in parallel
+Phase: 85 (Wave 3 complete; Wave 4 ready)
+Plan: Plan 06 (Wave 4 — collectible CRUD modals + payment recording + CSV export) blocked on prior waves; all dependencies (01, 02, 03, 04, 05) now satisfied. Plan 06 ready to execute.
 
 ## Performance Metrics
 
@@ -115,6 +115,7 @@ Plan: Wave 1 (Plans 85-01, 85-02) — independent, can run in parallel
 | Phase 84.1 P02 | 2 | 2 tasks | 4 files |
 | Phase 84.1 P03 | 3 | 1 task + 1 UAT scaffold (UAT execution pending) | 2 files |
 | Phase 85 P08 | 9 | 1 task | 1 files |
+| Phase 85 P05 | 8 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -273,6 +274,13 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 85-08]: Inline deriveCollectibleStatus inside showExpenseBreakdownModal — duplicate (not import) of Plan 05's helper to avoid circular dependency between expense-modal.js (the shared module) and finance.js (a consumer view). Same anti-circular-import pattern as Phase 71's inline derive*ForPO/TR/DeliveryFee. If/when a 3rd consumer of this exact derivation appears, lift to app/coll-status.js.
 - [Phase 85-08]: Project mode collectibles fetch does an extra projects-by-name lookup (3rd lookup of the project doc inside one modal-open) to extract project_code — mirrors the existing RFP-fetch pattern at lines 47-74 rather than refactoring the call sites to share one lookup. Acceptable cost for user-action-driven modal; flagged in SUMMARY for a future caching pass if latency becomes an issue.
 - [Phase 85-08]: Inner-loop variable renamed from totalPaid to totalPaidColl to avoid shadowing the outer-scope let totalPaid (used for RFP-payable accumulation at line 70). Pure cosmetic, no behavior change; the only sub-line refinement applied vs. the plan's reference snippet.
+- [Phase 85-05]: deriveCollectibleStatus is intentionally inlined in TWO files (app/views/finance.js + app/expense-modal.js Plan 85-08) — extraction to a shared app/coll-status.js was considered but skipped to keep Plan 05 single-file scope; both copies are byte-equivalent (parseFloat amount accumulator, same Fully > Overdue > Partial > Pending priority order). JSDoc on finance.js copy explicitly references the duplication for the v4.1 hygiene phase
+- [Phase 85-05]: Plan-N stub bridge pattern — Plan 05 ships idempotent toast no-op stubs for the 5 Plan 06 write-action window functions (openCreateCollectibleModal, exportCollectiblesCSV, openRecordCollectiblePaymentModal, toggleCollPaymentHistory, showCollectibleContextMenu) guarded by `if (!window.X)` so Plan 06's real implementations survive subsequent re-init re-attaches. Plan 06 must use unconditional assignments to overwrite the stubs on first attach
+- [Phase 85-05]: initCollectiblesTab subscribes to THREE collections (collectibles + projects + services) even though Plan 05 only renders the first — projects/services maps drive Plan 06's create-modal tranche dropdown, so Plan 05 pre-populates them. Plan 06 needs zero listener-wiring changes
+- [Phase 85-05]: Status priority sort hard-coded inline as Pending=1, Overdue=2, Partial=3, Fully=4 with secondary due_date asc — surfaces unpaid-and-due-soon collectibles to the top per D-18; matches Phase 65 RFP sort order
+- [Phase 85-05]: Due-date range filter uses lexicographic string compare (>= / <=) on YYYY-MM-DD instead of Date parsing — same shape as Phase 65 RFP filter; safe because Firestore stores due_date as ISO string per D-09
+- [Phase 85-05]: All user-controlled string interpolations in renderCollectiblesTable wrapped in escapeHTML (T-85.5-01 mitigation) — coll.id (Firestore auto-id, alphanumeric) interpolated bare in JS-string-literal contexts to match existing finance.js parity (rfp.id same treatment, no new attack surface)
+- [Phase 85-05]: getDisplayedCollectibles extracted as pure helper so Plan 06's CSV export reuses the filter+sort pipeline without duplication; orchestrator note for Plan 06 executor — call getDisplayedCollectibles() instead of re-implementing
 
 ### Pending Todos
 
@@ -304,8 +312,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Phase 85 Plan 08 (Collectibles tab on Financial Breakdown modal) executed and committed: ef000b5. 4th tab + fetch + status-priority sort + expandable history + voided strike-through + empty state. Inline deriveCollectibleStatus to avoid finance.js circular import. 1 task, 1 commit, 0 deviations. Plans 85-03, 85-04, 85-07 still in flight in parallel (disjoint files — no conflicts).
-Last session: 2026-05-02T16:09:31Z
-Stopped at: Phase 85 Plan 08 complete; remaining Wave 2 plans (03, 04, 07) still in flight
+Last activity: 2026-05-02 - Phase 85 Plan 05 (Wave 3 — Finance Collectibles sub-tab read-side) executed and committed: 3399ea8 / 2799a68 / 1ab7b46. 5th finance-sub-nav-tab pill + section markup with 5-filter bar + 10-column flat table + 15-per-page filter-aware pagination + onSnapshot x3 (collectibles/projects/services) wired in initCollectiblesTab pushed to listeners[] + destroy() unsubscribe + 7 window function deletes + 9 state resets + 5 idempotent Plan 06 stub toasts. 3 tasks, 3 commits, 0 deviations, +448 lines on app/views/finance.js.
+Last session: 2026-05-02T16:30:00Z
+Stopped at: Phase 85 Plan 05 complete; ready to execute Plan 06 (Wave 4 — CRUD + payment + CSV)
 Resume file: .planning/phases/85-collectibles-tracking/ (parent orchestrator continues)
-Next action: Wave 2 sibling plans (85-03 projects.js tranche editor, 85-04 services.js tranche editor, 85-07 project-detail.js + service-detail.js cells) continue in parallel; Wave 3 (Plan 85-05 Finance Collectibles sub-tab) blocks until all of Wave 1+2 done; Wave 4 (Plan 85-06 CRUD + payment + CSV) blocks until Wave 3 done.
+Next action: Execute Plan 85-06 — collectible create modal (tranche dropdown sourced from already-populated projectsForCollMap/servicesForCollMap), record-payment modal with method dropdown (Bank/Check/Cash/GCash/Other), void-payment read-modify-write, cancel-collectible right-click, CSV export reusing getDisplayedCollectibles, and unconditional overwrite of the 5 Plan 05 stub window functions.

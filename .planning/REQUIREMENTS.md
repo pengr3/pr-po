@@ -164,12 +164,12 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | COLL-01 | Phase 85 | Pending |
 | COLL-02 | Phase 85 | Pending |
 | COLL-03 | Phase 85 | Pending |
-| COLL-04 | Phase 85 | Pending |
+| COLL-04 | Phase 85 | Read-side validated (Plan 05, 2026-05-02 — sub-tab + filters + pagination shipped; CRUD in Plan 06) |
 | COLL-05 | Phase 85 | Pending |
-| COLL-06 | Phase 85 | Pending |
-| COLL-07 | Phase 85 | Pending |
+| COLL-06 | Phase 85 | Read-side validated (Plan 05, 2026-05-02 — deriveCollectibleStatus + render-time auto-derivation D-19 shipped; payment-recording side in Plan 06) |
+| COLL-07 | Phase 85 | Validated (Plan 08, 2026-05-02) |
 | COLL-08 | Phase 85 | Pending |
-| COLL-09 | Phase 85 | Pending |
+| COLL-09 | Phase 85 | Persistence + Security Rules validated (Plan 01, 2026-05-02; consumed by Plan 05 read path 2026-05-02) |
 | PROP-01 | Phase 87 | Pending |
 | PROP-02 | Phase 87 | Pending |
 | PROP-03 | Phase 87 | Pending |

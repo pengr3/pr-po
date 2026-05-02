@@ -299,7 +299,7 @@
 - [x] 85-08-PLAN.md — `app/expense-modal.js` 4th "Collectibles" tab on Financial Breakdown modal (D-07) — completed 2026-05-02
 
 **Wave 3** *(blocked on Waves 1+2)*
-- [ ] 85-05-PLAN.md — `app/views/finance.js` Collectibles sub-tab read path: 5th pill nav + flat table + 4 independent filters + 15/page pagination + status badges (D-02..D-05, D-18, D-19)
+- [x] 85-05-PLAN.md — `app/views/finance.js` Collectibles sub-tab read path: 5th pill nav + flat table + 4 independent filters + 15/page pagination + status badges (D-02..D-05, D-18, D-19) — completed 2026-05-02
 
 **Wave 4** *(blocked on Waves 1+2+3)*
 - [ ] 85-06-PLAN.md — `app/views/finance.js` write path: Create/Edit/Submit + Record-Payment (partial-pay) + void + right-click cancel + CSV export with T-85.6-01 injection mitigation + COLLECTIBLE_CREATED notification fan-out (D-11..D-17, D-20..D-23, D-26, D-27)
@@ -387,7 +387,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 83 | v4.0 | 5/5 | Complete | 2026-04-30 |
 | 84 | v4.0 | 4/4 | Complete | 2026-04-30 |
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
-| 85 | v4.0 | 0/8 | Planned | - |
+| 85 | v4.0 | 7/8 | In progress | - |
 | 86 | v4.0 | 0/TBD | Not started | - |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
