@@ -721,6 +721,27 @@ async function saveField(fieldName, newValue) {
                 }).catch(err => console.error('[ProjectDetail] NOTIF-11 notification failed:', err));
             }
         }
+        // Phase 84.1 NOTIF-19: notify personnel of meaningful project cost change (D-03: fire-and-forget)
+        const NOTIF19_COST_FIELDS = ['budget', 'contract_cost'];
+        if (NOTIF19_COST_FIELDS.includes(fieldName) && normalizedOld !== valueToSave) {
+            const recipients = (currentProject.personnel_user_ids || []).filter(Boolean);
+            if (recipients.length > 0) {
+                const projectLink = currentProject.project_code
+                    ? `#/projects/detail/${currentProject.project_code}`
+                    : '#/projects';
+                const fieldLabel = fieldName === 'contract_cost' ? 'Contract Cost' : 'Budget';
+                const oldDisplay = (normalizedOld != null) ? `PHP ${formatCurrency(normalizedOld)}` : '(not set)';
+                const newDisplay = (valueToSave != null) ? `PHP ${formatCurrency(valueToSave)}` : '(not set)';
+                createNotificationForUsers({
+                    user_ids: recipients,
+                    type: NOTIFICATION_TYPES.PROJECT_COST_CHANGED,
+                    message: `Project "${currentProject.project_name}" ${fieldLabel} changed: ${oldDisplay} → ${newDisplay}`,
+                    link: projectLink,
+                    source_collection: 'projects',
+                    source_id: currentProject.project_code || currentProject.id
+                }).catch(err => console.error('[ProjectDetail] NOTIF-19 cost-change notification failed:', err));
+            }
+        }
         return true;
     } catch (error) {
         console.error('[ProjectDetail] Save failed:', error);

@@ -729,6 +729,15 @@ async function saveServiceField(fieldName, newValue) {
         : '#/services';
     const notifServiceName = currentService.service_name;
     const notifSourceId = currentService.service_code || currentServiceDocId;
+    // Phase 84.1 NOTIF-19: pre-capture cost-change recipients + display strings (same WR-03 rationale)
+    const NOTIF19_COST_FIELDS = ['budget', 'contract_cost'];
+    const isCostChange = NOTIF19_COST_FIELDS.includes(fieldName) && normalizedOld !== valueToSave;
+    const notifCostRecipients = isCostChange
+        ? (currentService.personnel_user_ids || []).filter(Boolean)
+        : [];
+    const notifCostFieldLabel = fieldName === 'contract_cost' ? 'Contract Cost' : 'Budget';
+    const notifCostOldDisplay = (normalizedOld != null) ? `PHP ${formatCurrency(normalizedOld)}` : '(not set)';
+    const notifCostNewDisplay = (valueToSave != null) ? `PHP ${formatCurrency(valueToSave)}` : '(not set)';
 
     try {
         const serviceRef = doc(db, 'services', currentServiceDocId);
@@ -753,6 +762,17 @@ async function saveServiceField(fieldName, newValue) {
                 source_collection: 'services',
                 source_id: notifSourceId
             }).catch(err => console.error('[ServiceDetail] NOTIF-11 notification failed:', err));
+        }
+        // Phase 84.1 NOTIF-19: notify personnel of meaningful service cost change (D-03: fire-and-forget)
+        if (notifCostRecipients.length > 0) {
+            createNotificationForUsers({
+                user_ids: notifCostRecipients,
+                type: NOTIFICATION_TYPES.PROJECT_COST_CHANGED,
+                message: `Service "${notifServiceName}" ${notifCostFieldLabel} changed: ${notifCostOldDisplay} → ${notifCostNewDisplay}`,
+                link: notifServiceLink,
+                source_collection: 'services',
+                source_id: notifSourceId
+            }).catch(err => console.error('[ServiceDetail] NOTIF-19 cost-change notification failed:', err));
         }
         return true;
     } catch (error) {
