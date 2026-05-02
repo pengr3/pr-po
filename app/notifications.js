@@ -36,7 +36,13 @@ export const NOTIFICATION_TYPES = Object.freeze({
     PROJECT_STATUS_CHANGED: 'PROJECT_STATUS_CHANGED',
     REGISTRATION_PENDING: 'REGISTRATION_PENDING',
     PROPOSAL_SUBMITTED: 'PROPOSAL_SUBMITTED',
-    PROPOSAL_DECIDED: 'PROPOSAL_DECIDED'
+    PROPOSAL_DECIDED: 'PROPOSAL_DECIDED',
+    // Phase 84.1 — procurement-side audience triggers
+    MRF_SUBMITTED: 'MRF_SUBMITTED',
+    PR_DECIDED: 'PR_DECIDED',
+    TR_DECIDED: 'TR_DECIDED',
+    RFP_PAID: 'RFP_PAID',
+    PO_DELIVERED: 'PO_DELIVERED'
 });
 
 /* ========================================
@@ -66,7 +72,13 @@ const TYPE_META = {
     PROJECT_STATUS_CHANGED:{ label: 'Project Status',        icon: '↻', color: '#1a73e8' },
     REGISTRATION_PENDING:  { label: 'Registration Pending',  icon: '⏳', color: '#64748b' },
     PROPOSAL_SUBMITTED:    { label: 'Proposal Submitted',    icon: '→', color: '#1a73e8' },
-    PROPOSAL_DECIDED:      { label: 'Proposal Decided',      icon: '★', color: '#059669' }
+    PROPOSAL_DECIDED:      { label: 'Proposal Decided',      icon: '★', color: '#059669' },
+    // Phase 84.1 — procurement-side audience triggers
+    MRF_SUBMITTED:         { label: 'New MRF',               icon: '+', color: '#1a73e8' },
+    PR_DECIDED:            { label: 'PR Decision',           icon: '✓', color: '#059669' },
+    TR_DECIDED:            { label: 'TR Decision',           icon: '✓', color: '#059669' },
+    RFP_PAID:              { label: 'RFP Paid',              icon: '$', color: '#059669' },
+    PO_DELIVERED:          { label: 'PO Delivered',          icon: '📦', color: '#2563eb' }
 };
 
 /* ========================================

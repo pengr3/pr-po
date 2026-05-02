@@ -3916,6 +3916,10 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
             delivery_address: pr.delivery_address || '',
             items_json: JSON.stringify(supplierItems),
             total_amount: supplierTotal,
+            // Phase 84.1: PO creator inherits from PR creator (procurement actor who owns this work),
+            // NOT the Finance approver (currentUser). Used by NOTIF-18 (PO Delivered) routing.
+            po_creator_user_id: pr.pr_creator_user_id ?? null,
+            po_creator_name: pr.pr_creator_name ?? '',
             procurement_status: 'Pending Procurement',
             is_subcon: false,
             finance_approver_user_id: currentUser.uid,

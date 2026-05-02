@@ -1341,6 +1341,9 @@ async function submitRFP(poDocId) {
             alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
             alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
+            // Phase 84.1: track RFP creator (procurement actor) for NOTIF-16 routing
+            rfp_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            rfp_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             date_submitted: serverTimestamp()
         };
 
@@ -1451,6 +1454,9 @@ async function submitTRRFP(trDocId) {
             alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
             alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
+            // Phase 84.1: track RFP creator (procurement actor) for NOTIF-16 routing
+            rfp_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            rfp_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             date_submitted: serverTimestamp()
         };
 
@@ -1543,6 +1549,9 @@ async function submitDeliveryFeeRFP(poDocId) {
             alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
             alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
+            // Phase 84.1: track RFP creator (procurement actor) for NOTIF-16 routing
+            rfp_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            rfp_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             date_submitted: serverTimestamp()
         };
 
@@ -5768,6 +5777,9 @@ async function submitTransportRequest() {
             service_name: mrfData.service_name || '',
             department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
+            // Phase 84.1: track TR creator (procurement actor) for NOTIF-17 routing
+            tr_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            tr_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
             delivery_address: deliveryAddress,
@@ -6430,6 +6442,9 @@ async function generatePRandTR() {
             service_name: mrfData.service_name || '',
             department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
+            // Phase 84.1: track TR creator (procurement actor) for NOTIF-17 routing
+            tr_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            tr_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
             delivery_address: deliveryAddress,
