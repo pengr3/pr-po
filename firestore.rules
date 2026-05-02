@@ -455,6 +455,29 @@ service cloud.firestore {
     }
 
     // =============================================
+    // collectibles collection (Phase 85 — COLL-09)
+    // =============================================
+    // Manual money-in tracking against projects + services. Mirrors rfps schema:
+    // payment_records array with void semantics, denormalized tranche fields.
+    // Schema (Phase 85 D-13): coll_id, department, project_id/service_id,
+    //                         project_code/service_code, project_name/service_name,
+    //                         tranche_index, tranche_label, tranche_percentage,
+    //                         amount_requested, due_date, description,
+    //                         payment_records[], created_by_user_id, date_created.
+    match /collectibles/{collId} {
+      // All active users can read (Financial Summary cells on project-detail / service-detail need read)
+      allow read: if isActiveUser();
+
+      // Create / Update: operations_admin, finance, super_admin
+      // (Operations Admin or Finance files collectibles; Finance records payments via array updateDoc)
+      allow create: if hasRole(['super_admin', 'operations_admin', 'finance']);
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+
+      // Delete: zero-payment cancellation (client-side guard) — same roles
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'finance']);
+    }
+
+    // =============================================
     // notifications collection (Phase 83 — NOTIF-13)
     // =============================================
     // Per-user in-app notifications. Each user only touches their own.

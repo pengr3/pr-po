@@ -44,7 +44,9 @@ export const NOTIFICATION_TYPES = Object.freeze({
     RFP_PAID: 'RFP_PAID',
     PO_DELIVERED: 'PO_DELIVERED',
     // Phase 84.1 NOTIF-19 — project/service cost change
-    PROJECT_COST_CHANGED: 'PROJECT_COST_CHANGED'
+    PROJECT_COST_CHANGED: 'PROJECT_COST_CHANGED',
+    // Phase 85 D-21 — manual money-in trigger (Finance fan-out on collectible creation)
+    COLLECTIBLE_CREATED: 'COLLECTIBLE_CREATED'
 });
 
 /* ========================================
@@ -81,7 +83,9 @@ const TYPE_META = {
     PR_DECIDED:            { label: 'PR Decision',           icon: '✓', color: '#059669' },
     TR_DECIDED:            { label: 'TR Decision',           icon: '✓', color: '#059669' },
     RFP_PAID:              { label: 'RFP Paid',              icon: '$', color: '#059669' },
-    PO_DELIVERED:          { label: 'PO Delivered',          icon: '📦', color: '#2563eb' }
+    PO_DELIVERED:          { label: 'PO Delivered',          icon: '📦', color: '#2563eb' },
+    // Phase 85 D-21 — green money-in semantics, parallels RFP_PAID
+    COLLECTIBLE_CREATED:   { label: 'New Collectible',       icon: '$', color: '#059669' }
 };
 
 /* ========================================
