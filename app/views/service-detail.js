@@ -20,6 +20,8 @@ let listener = null;
 let usersListenerUnsub = null;
 let personnelClickOutsideHandler = null;
 let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
+// Phase 85 D-06 / D-01: collectibles aggregation alongside currentServiceExpense (mirror of project-detail.js currentCollectibles)
+let currentServiceCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -201,6 +203,8 @@ export async function destroy() {
     }
     selectedDetailPersonnel = [];
     currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
+    // Phase 85 D-06: reset collectibles state alongside currentServiceExpense
+    currentServiceCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
     currentService = null;
     currentServiceDocId = null;
@@ -434,6 +438,18 @@ function renderServiceDetail() {
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Payable</label>
                             <div style="font-weight: 600; color: ${currentServiceExpense.remainingPayable > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
                                 ${formatCurrency(currentServiceExpense.remainingPayable)}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Collected</label>
+                            <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
+                                ${formatCurrency(currentServiceCollectibles.totalCollected)}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Collectible</label>
+                            <div style="font-weight: 600; color: ${currentServiceCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
+                                ${formatCurrency(currentServiceCollectibles.remainingCollectible)}
                             </div>
                         </div>
                     </div>
@@ -927,6 +943,27 @@ async function refreshServiceExpense(silent = false) {
             totalPaid: rfpTotalPaid,
             remainingPayable: (posAgg.data().poTotal || 0) + (trsAgg.data().totalAmount || 0) - rfpTotalPaid,
             hasRfps
+        };
+
+        // Phase 85 D-06 / D-01: aggregate collectibles for this service — parallels RFP aggregation
+        let collTotalRequested = 0;
+        let collTotalCollected = 0;
+        if (serviceCode) {
+            const collSnap = await getDocs(
+                query(collection(db, 'collectibles'), where('service_code', '==', serviceCode))
+            );
+            collSnap.forEach(d => {
+                const coll = d.data();
+                collTotalRequested += parseFloat(coll.amount_requested || 0);
+                collTotalCollected += (coll.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+            });
+        }
+        currentServiceCollectibles = {
+            totalRequested: collTotalRequested,
+            totalCollected: collTotalCollected,
+            remainingCollectible: collTotalRequested - collTotalCollected
         };
 
         // Re-render to show updated expense (does NOT call refreshServiceExpense — no loop)
