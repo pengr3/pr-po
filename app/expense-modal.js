@@ -19,6 +19,19 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     const existingModal = document.getElementById('expenseBreakdownModal');
     if (existingModal) existingModal.remove();
 
+    // Phase 85 D-18: derive collectible status (Pending > Overdue > Partially Paid > Fully Paid priority).
+    // Defined inline here to avoid circular import from finance.js (Phase 71 pattern).
+    const deriveCollectibleStatus = (coll) => {
+        const totalPaid = (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        const isOverdue = coll.due_date && new Date(coll.due_date) < new Date();
+        if (totalPaid >= coll.amount_requested && coll.amount_requested > 0) return 'Fully Paid';
+        if (isOverdue) return 'Overdue';
+        if (totalPaid > 0) return 'Partially Paid';
+        return 'Pending';
+    };
+
     // -----------------------------------------------------------------------
     // Query branching — only this section differs between modes
     // -----------------------------------------------------------------------
@@ -72,6 +85,31 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         totalRequested += parseFloat(rfp.amount_requested || 0);
         totalPaid += (rfp.payment_records || []).filter(r => r.status !== 'voided').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
     });
+
+    // -----------------------------------------------------------------------
+    // Phase 85 D-07: fetch collectibles for this project/service
+    // -----------------------------------------------------------------------
+    let collectiblesForTab = [];
+    if (mode === 'service') {
+        const collSnap = await getDocs(
+            query(collection(db, 'collectibles'), where('service_code', '==', identifier))
+        );
+        collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
+    } else {
+        // project mode — need project_code (we already fetched the project doc above for budget;
+        // re-use the same lookup to extract project_code)
+        const projectSnapshot3 = await getDocs(
+            query(collection(db, 'projects'), where('project_name', '==', identifier))
+        );
+        const projectForColl = projectSnapshot3.docs[0]?.data() || {};
+        const projectCodeForColl = projectForColl.project_code || '';
+        if (projectCodeForColl) {
+            const collSnap = await getDocs(
+                query(collection(db, 'collectibles'), where('project_code', '==', projectCodeForColl))
+            );
+            collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
+        }
+    }
     // -----------------------------------------------------------------------
     // All downstream logic is identical for both modes
     // -----------------------------------------------------------------------
@@ -473,6 +511,105 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         </div>
     ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No payables recorded.</p>';
 
+    // -----------------------------------------------------------------------
+    // Phase 85 D-07: Collectibles tab markup (parallel to Payables — D-17 history UI, D-18 status priority)
+    // -----------------------------------------------------------------------
+    const collStatusColors = {
+        'Pending': '#856404',           // amber
+        'Partially Paid': '#1d4ed8',    // blue
+        'Fully Paid': '#166534',        // green
+        'Overdue': '#991b1b'            // red
+    };
+    const collStatusPriority = {
+        'Pending': 1, 'Overdue': 2, 'Partially Paid': 3, 'Fully Paid': 4
+    };
+
+    // Sort: status priority asc, then due_date asc (earlier overdue first)
+    collectiblesForTab.sort((a, b) => {
+        const pa = collStatusPriority[deriveCollectibleStatus(a)] || 5;
+        const pb = collStatusPriority[deriveCollectibleStatus(b)] || 5;
+        if (pa !== pb) return pa - pb;
+        return (a.due_date || '').localeCompare(b.due_date || '');
+    });
+
+    const collTotalRequested = collectiblesForTab.reduce((s, c) => s + (parseFloat(c.amount_requested) || 0), 0);
+    const collTotalCollected = collectiblesForTab.reduce((s, c) => {
+        return s + (c.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0);
+    }, 0);
+    const collRemaining = collTotalRequested - collTotalCollected;
+
+    const collectiblesHTML = collectiblesForTab.length > 0 ? `
+        <div class="category-card collapsible">
+            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="category-toggle">&#9654;</span>
+                    <span class="category-name">COLLECTIBLES</span>
+                </div>
+                <span class="category-amount" style="color:${collRemaining > 0 ? '#ef4444' : '#059669'};">
+                    Remaining: ${formatCurrency(collRemaining)} of ${formatCurrency(collTotalRequested)}
+                </span>
+            </div>
+            <div class="category-items" style="display: none;">
+                <table class="modal-items-table" style="min-width:600px;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>TRANCHE</th>
+                            <th>STATUS</th>
+                            <th>DUE DATE</th>
+                            <th style="text-align:right;">AMOUNT</th>
+                            <th style="text-align:right;">PAID</th>
+                            <th style="text-align:right;">BALANCE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${collectiblesForTab.map(c => {
+                            const totalPaidColl = (c.payment_records || [])
+                                .filter(r => r.status !== 'voided')
+                                .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+                            const balance = (parseFloat(c.amount_requested) || 0) - totalPaidColl;
+                            const status = deriveCollectibleStatus(c);
+                            const color = collStatusColors[status] || '#64748b';
+                            // Build payment history sub-row content
+                            const records = (c.payment_records || [])
+                                .slice()
+                                .sort((a, b) => (a.recorded_at || '').localeCompare(b.recorded_at || ''));
+                            const historyHtml = records.length === 0
+                                ? '<em style="color:#94a3b8;">No payments recorded.</em>'
+                                : `
+                                    <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Payment History (${records.length})</div>
+                                    <div style="display:flex;flex-direction:column;gap:2px;">
+                                        ${records.map(r => {
+                                            const isVoided = r.status === 'voided';
+                                            const styleStr = isVoided ? 'text-decoration:line-through;color:#94a3b8;' : 'color:#1e293b;';
+                                            const voidLabel = isVoided ? ' <span style="font-style:italic;color:#991b1b;">(voided)</span>' : '';
+                                            return `<div style="${styleStr};font-size:0.8125rem;">${formatCurrency(r.amount)} on ${escapeHTML(r.date || '')} via ${escapeHTML(r.method || '')}${r.reference ? ' &mdash; ref ' + escapeHTML(r.reference) : ''}${voidLabel}</div>`;
+                                        }).join('')}
+                                    </div>
+                                `;
+                            return `
+                                <tr style="cursor:pointer;" onclick="window._toggleEMCollHistory('${escapeHTML(c.id)}')">
+                                    <td style="font-family:monospace;font-size:0.8125rem;"><strong>${escapeHTML(c.coll_id || '')}</strong></td>
+                                    <td>${escapeHTML(c.tranche_label || '')} (${(parseFloat(c.tranche_percentage)||0).toFixed(2).replace(/\.?0+$/, '')}%)</td>
+                                    <td style="color:${color};font-weight:600;">${status}</td>
+                                    <td>${escapeHTML(c.due_date || '')}</td>
+                                    <td style="text-align:right;">${formatCurrency(c.amount_requested || 0)}</td>
+                                    <td style="text-align:right;">${formatCurrency(totalPaidColl)}</td>
+                                    <td style="text-align:right;color:${balance > 0 ? '#ef4444' : '#059669'};">${formatCurrency(balance)}</td>
+                                </tr>
+                                <tr id="em-coll-history-${escapeHTML(c.id)}" style="display:none;background:#f8fafc;">
+                                    <td colspan="7" style="padding:0.5rem 0.75rem;">${historyHtml}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No collectibles recorded.</p>';
+
     // Calculate totals
     const transportCategoryTotal = transportCategoryItems.reduce((s, item) => s + item.subtotal, 0);
     const materialsDisplay = materialTotal - transportCategoryTotal;
@@ -669,6 +806,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                             style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
                             Payables
                         </button>
+                        <button class="expense-tab" onclick="window._switchExpenseBreakdownTab('collectibles')" data-tab="collectibles"
+                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
+                            Collectibles
+                        </button>
                     </div>
 
                     <!-- By Category Tab -->
@@ -684,6 +825,11 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     <!-- Payables Tab -->
                     <div id="expBreakdownPayablesTab" style="display: none; margin-top: 1.5rem;">
                         ${payablesHTML}
+                    </div>
+
+                    <!-- Collectibles Tab -->
+                    <div id="expBreakdownCollectiblesTab" style="display: none; margin-top: 1.5rem;">
+                        ${collectiblesHTML}
                     </div>
                 </div>
             </div>
@@ -705,7 +851,8 @@ window._switchExpenseBreakdownTab = function(tab) {
     const categoryTab = document.getElementById('expBreakdownCategoryTab');
     const transportTab = document.getElementById('expBreakdownTransportTab');
     const payablesTab = document.getElementById('expBreakdownPayablesTab');
-    if (!categoryTab || !transportTab || !payablesTab) return;
+    const collectiblesTab = document.getElementById('expBreakdownCollectiblesTab');
+    if (!categoryTab || !transportTab || !payablesTab || !collectiblesTab) return;
 
     const buttons = document.querySelectorAll('#expenseBreakdownModal .expense-tab');
     buttons.forEach(btn => {
@@ -723,6 +870,7 @@ window._switchExpenseBreakdownTab = function(tab) {
     categoryTab.style.display = tab === 'category' ? 'block' : 'none';
     transportTab.style.display = tab === 'transport' ? 'block' : 'none';
     payablesTab.style.display = tab === 'payables' ? 'block' : 'none';
+    collectiblesTab.style.display = tab === 'collectibles' ? 'block' : 'none';
 };
 
 window._toggleExpenseCategory = function(headerEl) {
@@ -736,5 +884,12 @@ window._toggleExpenseCategory = function(headerEl) {
         items.style.display = 'none';
         toggle.innerHTML = '&#9654;';
     }
+};
+
+// Phase 85 D-07/D-17: toggle expandable payment-history sub-row for a collectible row
+window._toggleEMCollHistory = function(collId) {
+    const row = document.getElementById(`em-coll-history-${collId}`);
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
 };
 
