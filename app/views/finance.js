@@ -306,6 +306,27 @@ function attachWindowFunctions() {
     window.openRecordPaymentModal = openRecordPaymentModal;
     window.voidPaymentRecord = voidPaymentRecord;
     window.submitPaymentRecord = submitPaymentRecord;
+
+    // Collectibles tab window functions (Phase 85, Plan 05 — read-side)
+    window.filterCollectiblesTable = filterCollectiblesTable;
+    window.changeCollectiblesPage = changeCollectiblesPage;
+    // Plan 06 stubs — overwritten when Plan 06 ships. Prevents ReferenceError if
+    // a user clicks a write-action button between Plan 05 and Plan 06 deploys.
+    if (!window.openCreateCollectibleModal) {
+        window.openCreateCollectibleModal = () => showToast('Create-collectible feature shipping in Plan 06.', 'info');
+    }
+    if (!window.exportCollectiblesCSV) {
+        window.exportCollectiblesCSV = () => showToast('CSV export shipping in Plan 06.', 'info');
+    }
+    if (!window.openRecordCollectiblePaymentModal) {
+        window.openRecordCollectiblePaymentModal = () => showToast('Payment recording shipping in Plan 06.', 'info');
+    }
+    if (!window.toggleCollPaymentHistory) {
+        window.toggleCollPaymentHistory = () => showToast('Payment history shipping in Plan 06.', 'info');
+    }
+    if (!window.showCollectibleContextMenu) {
+        window.showCollectibleContextMenu = (event) => { event.preventDefault(); /* no-op until Plan 06 */ };
+    }
 }
 
 // ========================================
@@ -1425,6 +1446,70 @@ function populateCollProjectFilter() {
     if (previousValue && Array.from(sel.options).some(o => o.value === previousValue)) {
         sel.value = previousValue;
     }
+}
+
+/**
+ * Initialize the Collectibles sub-tab. Subscribes to:
+ *   - collectibles (drives table render + project-filter dropdown population)
+ *   - projects     (used by Plan 06 create-modal tranche dropdown source)
+ *   - services     (same role for service-side)
+ * All three onSnapshot unsubscribes are pushed to the shared listeners[]
+ * array so destroy() tears them down. CLAUDE.md tab-switch contract: this
+ * runs ONCE per Finance view mount; switching to a peer sub-tab does not
+ * call destroy() so listeners persist (no duplicate-attach risk on repeat
+ * tab-switch in-view).
+ */
+async function initCollectiblesTab() {
+    const collUnsub = onSnapshot(collection(db, 'collectibles'), (snapshot) => {
+        collectiblesData = [];
+        snapshot.forEach(docSnap => {
+            collectiblesData.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        populateCollProjectFilter();
+        renderCollectiblesTable();
+    }, (err) => {
+        console.error('[Finance/Collectibles] collectibles snapshot error:', err);
+        showToast('Failed to load collectibles. Refresh to retry.', 'error');
+    });
+    listeners.push(collUnsub);
+
+    // Projects map — used by Plan 06 create-modal (tranche dropdown source)
+    const projUnsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
+        projectsForCollMap = new Map();
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.project_code) {
+                projectsForCollMap.set(data.project_code, {
+                    id: docSnap.id,
+                    name: data.project_name || '',
+                    contract_cost: parseFloat(data.contract_cost) || 0,
+                    collection_tranches: Array.isArray(data.collection_tranches) ? data.collection_tranches : []
+                });
+            }
+        });
+    }, (err) => {
+        console.error('[Finance/Collectibles] projects snapshot error:', err);
+    });
+    listeners.push(projUnsub);
+
+    // Services map — same role for service-side
+    const svcUnsub = onSnapshot(collection(db, 'services'), (snapshot) => {
+        servicesForCollMap = new Map();
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.service_code) {
+                servicesForCollMap.set(data.service_code, {
+                    id: docSnap.id,
+                    name: data.service_name || '',
+                    contract_cost: parseFloat(data.contract_cost) || 0,
+                    collection_tranches: Array.isArray(data.collection_tranches) ? data.collection_tranches : []
+                });
+            }
+        });
+    }, (err) => {
+        console.error('[Finance/Collectibles] services snapshot error:', err);
+    });
+    listeners.push(svcUnsub);
 }
 
 /**
@@ -2552,6 +2637,11 @@ export async function init(activeTab = 'approvals') {
             await initPayablesTab();
         }
 
+        // Load collectibles if on collectibles tab (Phase 85)
+        if (activeTab === 'collectibles') {
+            await initCollectiblesTab();
+        }
+
     } catch (error) {
         console.error('Error initializing finance view:', error);
         showToast('Error loading finance data', 'error');
@@ -3286,6 +3376,28 @@ export async function destroy() {
     poSummaryStatusFilter = '';
     poSummaryDeptFilter = '';
     poSummaryCurrentPage = 1;
+
+    // Clean up Collectibles tab window functions (Phase 85)
+    delete window.filterCollectiblesTable;
+    delete window.changeCollectiblesPage;
+    delete window.openCreateCollectibleModal;
+    delete window.exportCollectiblesCSV;
+    delete window.openRecordCollectiblePaymentModal;
+    delete window.toggleCollPaymentHistory;
+    delete window.showCollectibleContextMenu;
+    // Plan 06 will append: window.submitCollectible, voidCollectiblePayment,
+    // submitCollectiblePayment, cancelCollectible, toggleCollPaymentOtherField, etc.
+
+    // Reset Collectibles tab state
+    collectiblesData = [];
+    projectsForCollMap = new Map();
+    servicesForCollMap = new Map();
+    collProjectFilter = '';
+    collStatusFilter = '';
+    collDeptFilter = '';
+    collDueFromFilter = '';
+    collDueToFilter = '';
+    collCurrentPage = 1;
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
