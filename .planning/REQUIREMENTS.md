@@ -43,7 +43,7 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 - [ ] **NOTIF-17**: System creates a notification for the procurement user who created a TR when Finance approves or rejects that TR (recipient = TR `created_by`; message references TR ID and decision)
 - [x] **NOTIF-18**: System creates notifications for the MRF requestor and the procurement user who created the PO when a PO's `procurement_status` advances to `Delivered` (closes the procurement loop) — completed Phase 84.1 Plan 01 (2026-05-02)
 - [x] **NOTIF-19**: System creates notifications for assigned personnel when a project/service's Budget or Contract Cost is meaningfully changed (numeric delta non-zero); message references the field changed, old value, new value. (Projected Cost is excluded — it is a derived total of project expenses, not a user-editable field.) — completed Phase 84.1 Plan 02 (2026-05-02)
-- [ ] **NOTIF-20**: MRF rejection notification body (NOTIF-07 path) includes the rejection reason text entered by the rejecter, when present
+- [x] **NOTIF-20**: MRF rejection notification body (NOTIF-07 path) includes the rejection reason text entered by the rejecter, when present — implementation complete Phase 84.1 Plan 03 (2026-05-02); UAT pending against dev Firebase
 
 ### Collectibles Tracking — Manual Entry (COLL)
 
@@ -160,7 +160,7 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | NOTIF-17 | Phase 84.1 | Pending |
 | NOTIF-18 | Phase 84.1 | Validated (Plan 01, 2026-05-02) |
 | NOTIF-19 | Phase 84.1 | Validated (Plan 02, 2026-05-02) |
-| NOTIF-20 | Phase 84.1 | Pending |
+| NOTIF-20 | Phase 84.1 | Implementation complete (Plan 03, 2026-05-02); UAT pending |
 | COLL-01 | Phase 85 | Pending |
 | COLL-02 | Phase 85 | Pending |
 | COLL-03 | Phase 85 | Pending |

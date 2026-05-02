@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84.1 Plan 02 complete — NOTIF-19 (project/service cost-change notifications) wired in project-detail.js + service-detail.js for budget + contract_cost; new PROJECT_COST_CHANGED enum + TYPE_META added in app/notifications.js + app/views/notifications.js; Projected Cost out of scope per locked decision B4
-last_updated: "2026-05-02T05:39:36.000Z"
+stopped_at: Phase 84.1 Plan 03 implementation complete — NOTIF-20 MRF rejection reason augmentation in app/views/procurement.js rejectMRF (one-line template-literal change); 84.1-UAT.md scaffold created with 7 new-requirement tests + 8 regression tests; awaiting human UAT execution against dev Firebase environment per checkpoint:human-verify protocol
+last_updated: "2026-05-02T05:47:27.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 100
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84.1 — procurement-notifications-trigger-enhancements (Plans 01–02 complete; NOTIF-14/18/19 wired + creator-UID schema fields stamped + PROJECT_COST_CHANGED type added; Plan 03 pending)
+**Current focus:** Phase 84.1 — procurement-notifications-trigger-enhancements (Plans 01–03 implementation complete; NOTIF-14/18/19/20 wired + creator-UID schema fields stamped + PROJECT_COST_CHANGED type added + rejection-reason text in MRF rejection notification; UAT execution checkpoint pending against dev Firebase)
 
 ## Current Position
 
 Phase: 84.1
-Plan: 02 (complete)
+Plan: 03 (implementation complete; UAT pending)
 
 ## Performance Metrics
 
@@ -113,6 +113,7 @@ Plan: 02 (complete)
 | Phase 84 P04 | 4 | 1 tasks | 1 files |
 | Phase 84.1 P01 | 5 | 2 tasks | 6 files |
 | Phase 84.1 P02 | 2 | 2 tasks | 4 files |
+| Phase 84.1 P03 | 3 | 1 task + 1 UAT scaffold (UAT execution pending) | 2 files |
 
 ## Accumulated Context
 
@@ -262,6 +263,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 84.1-02]: Display convention `PHP <formatted>` for present values, `(not set)` for null transitions — matches existing input-field placeholder text "(Not set)" on project-detail.js lines 389/393; clarifies null↔value transitions per must_have truth #5
 - [Phase 84.1-02]: Projected Cost is OUT OF SCOPE per locked decision B4 — derived from project expenses, not a saveField target; NOTIF19_COST_FIELDS contains exactly ['budget', 'contract_cost'] in both detail views; regression-checked via grep -c projected_cost (count = 0 in new code)
 - [Phase 84.1-02]: Plan executed exactly as written (zero deviations) — anchor strings matched, formatCurrency already imported in both detail views, createNotificationForUsers + NOTIFICATION_TYPES already imported by Phase 84-03; only addition was a one-line documentation comment on the service-detail.js capture block
+- [Phase 84.1-03]: NOTIF-20 augmentation uses in-scope `reason` local variable (declared at procurement.js:4222 from prompt) for the colon-suffix append rather than re-reading `rejectedMrfSnap.rejection_reason` post-updateDoc — both are equivalent but `reason` is the canonical user-typed source and the snapshot was captured before updateDoc anyway
+- [Phase 84.1-03]: Defensive conditional `${reason && reason.trim() ? `: ${reason.trim()}` : ''}` (not just `${reason ? ... : ''}`) — checks both truthiness AND non-empty trimmed content; in practice rejectMRF() pre-validates `reason.trim()` is non-empty (lines 4226-4229) and returns early otherwise, so this is belt-and-suspenders defense for theoretical bypass paths
+- [Phase 84.1-03]: Plan executed exactly as written (zero deviations) — plan-supplied edit anchor matched the source verbatim, replacement string applied with zero modification, both verification grep counts (`has been rejected by Procurement` == 1, `reason && reason.trim()` == 1) matched plan expectations on first run
+- [Phase 84.1-03]: UAT scaffold (.planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md) committed separately as `test(84.1)` per parent's suggested commit pattern — pre-populated with 15 tests (7 new-requirement + 8 regression) all marked `[pending]`; frontmatter records `environment: dev Firebase project` (NOT production clmc-procurement) per Phase 53.1 dev-environment introduction
+- [Phase 84.1-03]: Phase closure gated on human UAT execution per autonomous=false plan contract — checkpoint:human-verify task in 84.1-03-PLAN.md awaits user-driven verification of all 7 new triggers + 8 regression tests against the dev Firebase environment before Phase 84.1 can be marked complete
 
 ### Pending Todos
 
@@ -293,8 +299,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Completed Phase 84.1 Plan 02: NOTIF-19 cost-change notifications + PROJECT_COST_CHANGED enum/TYPE_META
-Last session: 2026-05-02T05:39:36Z
-Stopped at: Phase 84.1 Plan 02 complete — NOTIF-19 (project/service cost-change notifications) wired in project-detail.js + service-detail.js for budget + contract_cost; new PROJECT_COST_CHANGED enum + TYPE_META added in app/notifications.js + app/views/notifications.js; Projected Cost out of scope per locked decision B4
-Resume file: None
-Next action: Execute Phase 84.1 Plan 03 (NOTIF-20 — MRF rejection reason in notification body + end-of-phase UAT)
+Last activity: 2026-05-02 - Completed Phase 84.1 Plan 03 implementation: NOTIF-20 MRF rejection reason augmentation in procurement.js rejectMRF + 84.1-UAT.md scaffold
+Last session: 2026-05-02T05:47:27Z
+Stopped at: Phase 84.1 Plan 03 implementation complete — NOTIF-20 MRF rejection reason augmentation in app/views/procurement.js rejectMRF (one-line template-literal change at line 4254); 84.1-UAT.md scaffold created with 7 new-requirement tests + 8 regression tests; awaiting human UAT execution against dev Firebase environment per checkpoint:human-verify protocol
+Resume file: .planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md
+Next action: Human UAT execution against dev Firebase project — fill in [pending] results in 84.1-UAT.md per the per-test verification steps in 84.1-03-PLAN.md Task 2; then mark Phase 84.1 complete and move to Phase 85 (Collectibles Tracking) or another v4.0 phase
