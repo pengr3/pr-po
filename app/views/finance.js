@@ -8,6 +8,7 @@ import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, ge
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
+import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ========================================
 // UTILITY: Debounce helper for search inputs
@@ -432,6 +433,29 @@ async function submitPaymentRecord(rfpDocId) {
         await updateDoc(doc(db, 'rfps', rfpDocId), {
             payment_records: arrayUnion(paymentRecord)
         });
+
+        // Phase 84.1 NOTIF-16: notify RFP creator that the RFP is now Fully Paid (fire-and-forget).
+        // Trigger condition: this payment record causes the RFP's total_paid to reach amount_requested.
+        try {
+            const priorPaid = (rfp.payment_records || [])
+                .filter(r => r.status !== 'voided')
+                .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+            const newTotal = priorPaid + (parseFloat(paymentRecord.amount) || 0);
+            const becomesFullyPaid = newTotal >= (rfp.amount_requested || 0) && (rfp.amount_requested || 0) > 0;
+            if (becomesFullyPaid && rfp.rfp_creator_user_id) {
+                await createNotification({
+                    user_id: rfp.rfp_creator_user_id,
+                    type: NOTIFICATION_TYPES.RFP_PAID,
+                    message: `RFP ${rfp.rfp_id} for PO ${rfp.po_id || rfp.tr_id || ''} has been marked Paid`,
+                    link: '#/finance/payables',
+                    source_collection: 'rfps',
+                    source_id: rfp.rfp_id || ''
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Finance] NOTIF-16 RFP Paid notification failed:', notifErr);
+        }
+
         document.getElementById('recordPaymentModal')?.remove();
         showToast(`Payment recorded for ${rfp.rfp_id}`, 'success');
     } catch (error) {
@@ -3817,6 +3841,22 @@ async function approvePRWithSignature(prId) {
             approved_by_uid: currentUser.uid
         });
 
+        // Phase 84.1 NOTIF-15: notify PR creator that Finance approved the PR (fire-and-forget)
+        try {
+            if (pr.pr_creator_user_id) {
+                await createNotification({
+                    user_id: pr.pr_creator_user_id,
+                    type: NOTIFICATION_TYPES.PR_DECIDED,
+                    message: `PR ${pr.pr_id} has been Approved by Finance`,
+                    link: '#/procurement/records',
+                    source_collection: 'prs',
+                    source_id: pr.pr_id || ''
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Finance] NOTIF-15 PR Approved notification failed:', notifErr);
+        }
+
         // Update MRF status
         const mrfsRef = collection(db, 'mrfs');
         const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
@@ -3978,6 +4018,22 @@ async function approveTR(trId) {
             approved_by_uid: currentUser.uid
         });
 
+        // Phase 84.1 NOTIF-17: notify TR creator that Finance approved the TR (fire-and-forget)
+        try {
+            if (tr.tr_creator_user_id) {
+                await createNotification({
+                    user_id: tr.tr_creator_user_id,
+                    type: NOTIFICATION_TYPES.TR_DECIDED,
+                    message: `TR ${tr.tr_id} has been Approved by Finance`,
+                    link: '#/procurement/records',
+                    source_collection: 'transport_requests',
+                    source_id: tr.tr_id || ''
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Finance] NOTIF-17 TR Approved notification failed:', notifErr);
+        }
+
         // Close modal only after successful approval
         window.closePRModal();
 
@@ -4129,6 +4185,22 @@ async function submitRejection() {
                 approved_by_uid: currentUser?.uid
             });
 
+            // Phase 84.1 NOTIF-17: notify TR creator that Finance rejected the TR (fire-and-forget)
+            try {
+                if (request.tr_creator_user_id) {
+                    await createNotification({
+                        user_id: request.tr_creator_user_id,
+                        type: NOTIFICATION_TYPES.TR_DECIDED,
+                        message: `TR ${request.tr_id} has been Rejected${reason ? `: ${reason}` : ''}`,
+                        link: '#/procurement/records',
+                        source_collection: 'transport_requests',
+                        source_id: request.tr_id || ''
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Finance] NOTIF-17 TR Rejected notification failed:', notifErr);
+            }
+
             showToast('Transport Request rejected', 'success');
         } else {
             // Reject PR
@@ -4160,6 +4232,24 @@ async function submitRejection() {
                     rejected_by_user_id: currentUser?.uid,
                     updated_at: new Date().toISOString()
                 });
+            }
+
+            // Phase 84.1 NOTIF-15: notify PR creator that Finance rejected the PR (fire-and-forget).
+            // Placed after BOTH the PR updateDoc AND the MRF updateDoc resolve — both writes must
+            // succeed before notifying so a partial-failure does not produce a misleading rejection notification.
+            try {
+                if (request.pr_creator_user_id) {
+                    await createNotification({
+                        user_id: request.pr_creator_user_id,
+                        type: NOTIFICATION_TYPES.PR_DECIDED,
+                        message: `PR ${request.pr_id} has been Rejected${reason ? `: ${reason}` : ''}`,
+                        link: '#/procurement/records',
+                        source_collection: 'prs',
+                        source_id: request.pr_id || ''
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Finance] NOTIF-15 PR Rejected notification failed:', notifErr);
             }
 
             showToast('Purchase Request rejected', 'success');
