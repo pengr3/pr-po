@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84.1 Plan 01 Task 3 RETROACTIVELY EXECUTED (commit f5d9940) — NOTIF-15/16/17 finance.js triggers wired (PR Approved + Rejected, TR Approved + Rejected, RFP Fully Paid); previous executor incorrectly skipped Task 3 claiming "belongs to plan 02" which was wrong per 84.1-01-PLAN.md lines 398–535. All five blocks added with isolated try/catch + creator-UID null-guard per D-03; node --check passes; verification grep counts all met. 84.1-UAT.md scaffold (Plan 03) still awaits human UAT execution against dev Firebase environment.
-last_updated: "2026-05-02T07:30:00.000Z"
+stopped_at: Phase 84.1 COMPLETE — all 3 plans landed, all 15 UAT tests pass (7 new triggers NOTIF-14 through NOTIF-20 + 8 Phase-84 regressions). firestore.rules deployed to clmc-procurement-dev (production deploy still pending operator). One enhancement captured for future polish: PR_DECIDED + TR_DECIDED single-type-per-decision-pair shares ✓ icon for approve+reject branches; differentiation lives only in message body. Suggested split into _APPROVED/_REJECTED variants estimated at ~30 lines.
+last_updated: "2026-05-02T08:05:00.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 12
   completed_plans: 12
   percent: 100
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84.1 — procurement-notifications-trigger-enhancements (Plans 01–03 implementation complete; NOTIF-14/18/19/20 wired + creator-UID schema fields stamped + PROJECT_COST_CHANGED type added + rejection-reason text in MRF rejection notification; UAT execution checkpoint pending against dev Firebase)
+**Current focus:** Phase 84.1 COMPLETE (2026-05-02) — all 7 new procurement-side notifications + creator-UID schema fields shipped, UAT 15/15 pass. Next phase: 85 (Collectibles Tracking) once user is ready to start.
 
 ## Current Position
 
-Phase: 84.1
-Plan: 03 (implementation complete; UAT pending)
+Phase: 84.1 (complete) → next active phase: 85
+Plan: n/a
 
 ## Performance Metrics
 

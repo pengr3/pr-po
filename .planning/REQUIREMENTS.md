@@ -38,12 +38,12 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 - [ ] **NOTIF-12**: System creates a notification for Super Admin users when a new account registration is pending approval
 - [ ] **NOTIF-13**: System persists notifications in Firestore (`notifications` collection) with user_id (recipient), type, message, link, read flag, created_at; Security Rules ensure each user only reads/writes their own notifications
 - [x] **NOTIF-14**: System creates a notification for all active procurement-role users when a new MRF is submitted (broadcast — message references MRF ID and project) — completed Phase 84.1 Plan 01 (2026-05-02)
-- [ ] **NOTIF-15**: System creates a notification for the procurement user who created a PR when Finance approves or rejects that PR (recipient = PR `created_by`; message references PR ID and decision)
-- [ ] **NOTIF-16**: System creates a notification for the procurement user who created an RFP when that RFP is marked Paid (recipient = RFP `created_by`; message references RFP ID and PO ID)
-- [ ] **NOTIF-17**: System creates a notification for the procurement user who created a TR when Finance approves or rejects that TR (recipient = TR `created_by`; message references TR ID and decision)
-- [x] **NOTIF-18**: System creates notifications for the MRF requestor and the procurement user who created the PO when a PO's `procurement_status` advances to `Delivered` (closes the procurement loop) — completed Phase 84.1 Plan 01 (2026-05-02)
-- [x] **NOTIF-19**: System creates notifications for assigned personnel when a project/service's Budget or Contract Cost is meaningfully changed (numeric delta non-zero); message references the field changed, old value, new value. (Projected Cost is excluded — it is a derived total of project expenses, not a user-editable field.) — completed Phase 84.1 Plan 02 (2026-05-02)
-- [x] **NOTIF-20**: MRF rejection notification body (NOTIF-07 path) includes the rejection reason text entered by the rejecter, when present — implementation complete Phase 84.1 Plan 03 (2026-05-02); UAT pending against dev Firebase
+- [x] **NOTIF-15**: System creates a notification for the procurement user who created a PR when Finance approves or rejects that PR (recipient = PR `created_by`; message references PR ID and decision) — completed Phase 84.1 Plan 01 retroactive Task 3 (commit f5d9940, 2026-05-02); UAT-validated
+- [x] **NOTIF-16**: System creates a notification for the procurement user who created an RFP when that RFP is marked Paid (recipient = RFP `created_by`; message references RFP ID and PO ID) — completed Phase 84.1 Plan 01 retroactive Task 3 (commit f5d9940, 2026-05-02); UAT-validated
+- [x] **NOTIF-17**: System creates a notification for the procurement user who created a TR when Finance approves or rejects that TR (recipient = TR `created_by`; message references TR ID and decision) — completed Phase 84.1 Plan 01 retroactive Task 3 (commit f5d9940, 2026-05-02); UAT-validated
+- [x] **NOTIF-18**: System creates notifications for the MRF requestor and the procurement user who created the PO when a PO's `procurement_status` advances to `Delivered` (closes the procurement loop) — completed Phase 84.1 Plan 01 (2026-05-02); UAT-validated
+- [x] **NOTIF-19**: System creates notifications for assigned personnel when a project/service's Budget or Contract Cost is meaningfully changed (numeric delta non-zero); message references the field changed, old value, new value. (Projected Cost is excluded — it is a derived total of project expenses, not a user-editable field.) — completed Phase 84.1 Plan 02 (2026-05-02); UAT-validated
+- [x] **NOTIF-20**: MRF rejection notification body (NOTIF-07 path) includes the rejection reason text entered by the rejecter, when present — completed Phase 84.1 Plan 03 (2026-05-02); UAT-validated
 
 ### Collectibles Tracking — Manual Entry (COLL)
 
@@ -155,12 +155,12 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | NOTIF-12 | Phase 84 | Pending |
 | NOTIF-13 | Phase 83 | Pending |
 | NOTIF-14 | Phase 84.1 | Validated (Plan 01, 2026-05-02) |
-| NOTIF-15 | Phase 84.1 | Pending |
-| NOTIF-16 | Phase 84.1 | Pending |
-| NOTIF-17 | Phase 84.1 | Pending |
+| NOTIF-15 | Phase 84.1 | Validated (Plan 01 retroactive Task 3, 2026-05-02) |
+| NOTIF-16 | Phase 84.1 | Validated (Plan 01 retroactive Task 3, 2026-05-02) |
+| NOTIF-17 | Phase 84.1 | Validated (Plan 01 retroactive Task 3, 2026-05-02) |
 | NOTIF-18 | Phase 84.1 | Validated (Plan 01, 2026-05-02) |
 | NOTIF-19 | Phase 84.1 | Validated (Plan 02, 2026-05-02) |
-| NOTIF-20 | Phase 84.1 | Implementation complete (Plan 03, 2026-05-02); UAT pending |
+| NOTIF-20 | Phase 84.1 | Validated (Plan 03, 2026-05-02) |
 | COLL-01 | Phase 85 | Pending |
 | COLL-02 | Phase 85 | Pending |
 | COLL-03 | Phase 85 | Pending |
