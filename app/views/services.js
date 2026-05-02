@@ -692,6 +692,23 @@ async function addService() {
         return;
     }
 
+    // Phase 85 D-09: read + validate collection_tranches from service form
+    const collectionTranches = readTranchesFromDOM('serviceForm');
+    const tranchesProvided = collectionTranches.length > 0
+        && collectionTranches.some(t => t.label.trim() !== '' || t.percentage > 0);
+    if (tranchesProvided) {
+        const total = collectionTranches.reduce((s, t) => s + (parseFloat(t.percentage) || 0), 0);
+        if (Math.abs(total - 100) > 0.01) {
+            showToast(`Collection tranches must sum to 100% (currently ${total.toFixed(2)}%)`, 'error');
+            return;
+        }
+        if (collectionTranches.some(t => !t.label.trim())) {
+            showToast('All tranche labels must be filled in', 'error');
+            return;
+        }
+    }
+    const finalTranches = tranchesProvided ? collectionTranches : [];
+
     showLoading(true);
 
     try {
@@ -717,7 +734,8 @@ async function addService() {
             personnel_name: null,
             personnel: null,
             active: true,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            collection_tranches: finalTranches  // Phase 85 D-09: always-written, [] if user provided no tranche data
         });
 
         // Record creation in edit history (fire-and-forget)
@@ -729,7 +747,8 @@ async function addService() {
             { field: 'project_status', old_value: null, new_value: project_status },
             ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
             ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
-            ...(newUserNames.length > 0 ? [{ field: 'personnel', old_value: null, new_value: newUserNames.join(', ') }] : [])
+            ...(newUserNames.length > 0 ? [{ field: 'personnel', old_value: null, new_value: newUserNames.join(', ') }] : []),
+            ...(tranchesProvided ? [{ field: 'collection_tranches', old_value: null, new_value: JSON.stringify(finalTranches) }] : [])
         ], 'services').catch(err => console.error('[EditHistory] addService failed:', err));
 
         // Sync personnel to service assignments (fire-and-forget)
@@ -1032,6 +1051,13 @@ function editService(serviceId) {
     document.getElementById('serviceBudget').value = service.budget || '';
     document.getElementById('serviceContractCost').value = service.contract_cost || '';
 
+    // Phase 85 D-01: rebuild tranche editor with existing service tranches
+    editingServiceTranches = Array.isArray(service.collection_tranches) ? service.collection_tranches : [];
+    const trancheWrapper = document.getElementById('collTrancheBuilderWrapperService');
+    if (trancheWrapper) {
+        trancheWrapper.innerHTML = renderTrancheBuilder(editingServiceTranches, 'serviceForm');
+    }
+
     // Populate pills from existing personnel data (handles all legacy formats)
     const normalized = normalizePersonnel(service);
     selectedPersonnel = [];
@@ -1114,6 +1140,46 @@ async function saveServiceEdit() {
     const oldNormalized = normalizePersonnel(existingService);
     const oldUserIds = oldNormalized.userIds;
 
+    // Phase 85 D-09: read + validate collection_tranches
+    const collectionTranches = readTranchesFromDOM('serviceForm');
+    const tranchesProvided = collectionTranches.length > 0
+        && collectionTranches.some(t => t.label.trim() !== '' || t.percentage > 0);
+    if (tranchesProvided) {
+        const total = collectionTranches.reduce((s, t) => s + (parseFloat(t.percentage) || 0), 0);
+        if (Math.abs(total - 100) > 0.01) {
+            showToast(`Collection tranches must sum to 100% (currently ${total.toFixed(2)}%)`, 'error');
+            return;
+        }
+        if (collectionTranches.some(t => !t.label.trim())) {
+            showToast('All tranche labels must be filled in', 'error');
+            return;
+        }
+    }
+    const finalTranches = tranchesProvided ? collectionTranches : [];
+
+    // Phase 85 D-25: warn if existing collectibles exist when tranches are being changed
+    const oldTranchesJson = JSON.stringify(existingService.collection_tranches || []);
+    const newTranchesJson = JSON.stringify(finalTranches);
+    if (oldTranchesJson !== newTranchesJson && existingService.service_code) {
+        try {
+            const existingColl = await getDocs(
+                query(collection(db, 'collectibles'), where('service_code', '==', existingService.service_code))
+            );
+            if (existingColl.size > 0) {
+                const ok = confirm(
+                    `This service has ${existingColl.size} existing collectible(s). ` +
+                    `Existing collectibles keep their original tranche label and amount — only future collectibles will use the new tranches. Continue?`
+                );
+                if (!ok) {
+                    return;
+                }
+            }
+        } catch (queryErr) {
+            console.error('[Services] Existing-collectibles check failed:', queryErr);
+            // Non-blocking — proceed without the warning if Firestore query fails
+        }
+    }
+
     showLoading(true);
 
     try {
@@ -1128,6 +1194,7 @@ async function saveServiceEdit() {
             budget,
             contract_cost,
             ...personnelUpdate,
+            collection_tranches: finalTranches,  // Phase 85 D-09: always-written, [] if user cleared
             updated_at: new Date().toISOString()
         });
 
@@ -1156,6 +1223,10 @@ async function saveServiceEdit() {
         const oldContract = existingService.contract_cost != null ? parseFloat(existingService.contract_cost) : null;
         if (oldContract !== contract_cost) {
             editChanges.push({ field: 'contract_cost', old_value: oldContract, new_value: contract_cost });
+        }
+        // Phase 85 D-09: record collection_tranches change in edit history
+        if (oldTranchesJson !== newTranchesJson) {
+            editChanges.push({ field: 'collection_tranches', old_value: oldTranchesJson, new_value: newTranchesJson });
         }
         // Check personnel changes
         const oldPersonnelNames = (existingService.personnel_names || []).sort().join(',');
