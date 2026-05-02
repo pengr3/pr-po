@@ -327,6 +327,10 @@ function attachWindowFunctions() {
     window.voidCollectiblePayment = voidCollectiblePayment;
     window.toggleCollPaymentHistory = toggleCollPaymentHistory;
     window.toggleCollPaymentOtherField = toggleCollPaymentOtherField;
+    // Task 3: cancel + context menu + CSV export
+    window.cancelCollectible = cancelCollectible;
+    window.showCollectibleContextMenu = showCollectibleContextMenu;
+    window.exportCollectiblesCSV = exportCollectiblesCSV;
 }
 
 // ========================================
@@ -2246,6 +2250,190 @@ function toggleCollPaymentHistory(collDocId) {
     row.style.display = 'table-row';
 }
 
+// ----- Plan 06 Task 3: Cancel-collectible (right-click) + CSV export -----
+
+/**
+ * Pure helper: a collectible is cancellable iff it has zero non-voided
+ * payment_records. Voided records do NOT block cancellation (they exist for
+ * audit only). Mirrors Phase 65.10 isRFPCancellable semantics.
+ */
+function isCollectibleCancellable(coll) {
+    const totalPaid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    return totalPaid === 0;
+}
+
+/**
+ * Show the right-click context menu for a collectible row.
+ * Edit visible to write-authorized roles; Cancel only when isCollectibleCancellable.
+ * Mirrors Phase 65.10 showRFPContextMenu pattern.
+ */
+function showCollectibleContextMenu(event, collDocId) {
+    const existing = document.getElementById('collContextMenu');
+    if (existing) existing.remove();
+
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) return;
+
+    const cancellable = isCollectibleCancellable(coll);
+    const canEdit = hasCollectibleWriteAuthority();
+
+    const menu = document.createElement('div');
+    menu.id = 'collContextMenu';
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
+
+    let html = `<div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(coll.coll_id || '')}</div>`;
+    if (canEdit) {
+        html += `
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#f1f5f9'"
+                 onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('collContextMenu')?.remove(); window.openEditCollectibleModal('${escapeHTML(coll.id)}')">
+                Edit Description / Due Date
+            </div>
+        `;
+        if (cancellable) {
+            html += `
+                <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+                <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                     onmouseenter="this.style.background='#fef2f2'"
+                     onmouseleave="this.style.background='transparent'"
+                     onclick="document.getElementById('collContextMenu')?.remove(); window.cancelCollectible('${escapeHTML(coll.id)}')">
+                    Cancel ${escapeHTML(coll.coll_id || '')}
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+                <div style="padding:8px 16px;font-size:0.875rem;color:#94a3b8;cursor:not-allowed;">
+                    Cancel — not allowed (payments recorded)
+                </div>
+            `;
+        }
+    } else {
+        html += `<div style="padding:8px 16px;font-size:0.875rem;color:#94a3b8;">No actions available for your role.</div>`;
+    }
+
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+    // Dismiss on next outside click
+    setTimeout(() => {
+        document.addEventListener('click', function handler() {
+            menu.remove();
+            document.removeEventListener('click', handler);
+        }, { once: true });
+    }, 10);
+}
+
+/**
+ * Cancel a collectible: deleteDoc when zero non-voided payments.
+ * Frees the tranche slot to be re-billed (D-12 strict 1:1 dedup releases the
+ * tranche_index back to the dropdown). Cannot be undone — confirm dialog used.
+ */
+async function cancelCollectible(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to cancel collectibles.', 'error');
+        return;
+    }
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) { showToast('Collectible not found.', 'error'); return; }
+    if (!isCollectibleCancellable(coll)) {
+        showToast('Cannot cancel a collectible with recorded payments. Void payments first.', 'error');
+        return;
+    }
+    if (!confirm(`Cancel collectible ${coll.coll_id}? This frees the tranche slot to be re-billed. Cannot be undone.`)) return;
+
+    try {
+        await deleteDoc(doc(db, 'collectibles', collDocId));
+        showToast(`Collectible ${coll.coll_id} cancelled.`, 'success');
+    } catch (err) {
+        console.error('[Collectibles] cancelCollectible error:', err);
+        showToast('Failed to cancel collectible. Check your connection and try again.', 'error');
+    }
+}
+
+/**
+ * Export currently-displayed (filter-aware) collectibles to a CSV file.
+ * D-26: Reuses getDisplayedCollectibles (filter pipeline shared with table).
+ * D-27: 13 columns — ID, Project/Service Code, Project/Service Name, Department,
+ *       Tranche Label, Tranche %, Amount Requested, Total Paid, Balance,
+ *       Due Date, Status, Created Date, Description.
+ * Filename: collectibles-{YYYY-MM-DD}.csv
+ *
+ * SECURITY (T-85.6-01): CSV-injection mitigation — every string cell that may
+ * carry user input gets prefixed with a single quote (') if it begins with =,
+ * +, -, @, tab (\t), or carriage-return (\r). This neutralises the value so
+ * Excel / Sheets / Numbers treat it as a literal string instead of evaluating
+ * it as a formula. The existing downloadCSV utility only escapes commas /
+ * quotes / newlines — it does not mitigate formula injection — so we apply
+ * the safe() wrapper here before passing rows in.
+ */
+function exportCollectiblesCSV() {
+    const displayed = getDisplayedCollectibles();
+    if (displayed.length === 0) {
+        showToast('No collectibles to export.', 'info');
+        return;
+    }
+
+    // T-85.6-01 mitigation. Trigger chars per OWASP CSV-injection guidance:
+    // = + - @ tab \r — any of these as the leading character can start a
+    // formula in a spreadsheet. Prefix with ' to disarm.
+    const safe = v => (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) ? "'" + v : v;
+
+    const headers = [
+        'ID',
+        'Project/Service Code',
+        'Project/Service Name',
+        'Department',
+        'Tranche Label',
+        'Tranche %',
+        'Amount Requested',
+        'Total Paid',
+        'Balance',
+        'Due Date',
+        'Status',
+        'Created Date',
+        'Description'
+    ];
+
+    const rows = displayed.map(c => {
+        const totalPaid = (c.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        const balance = (parseFloat(c.amount_requested) || 0) - totalPaid;
+        const status = deriveCollectibleStatus(c);
+        const code = c.department === 'projects' ? (c.project_code || '') : (c.service_code || '');
+        const name = c.department === 'projects' ? (c.project_name || '') : (c.service_name || '');
+        // date_created is a Firestore Timestamp — handle gracefully
+        let createdDate = '';
+        try {
+            if (c.date_created?.toDate) createdDate = c.date_created.toDate().toISOString().slice(0, 10);
+            else if (c.date_created?.seconds) createdDate = new Date(c.date_created.seconds * 1000).toISOString().slice(0, 10);
+            else if (typeof c.date_created === 'string') createdDate = c.date_created.slice(0, 10);
+        } catch (e) { /* leave empty */ }
+
+        return [
+            safe(c.coll_id || ''),
+            safe(code),
+            safe(name),
+            c.department === 'projects' ? 'Projects' : 'Services',
+            safe(c.tranche_label || ''),
+            (parseFloat(c.tranche_percentage) || 0).toFixed(2),
+            (parseFloat(c.amount_requested) || 0).toFixed(2),
+            totalPaid.toFixed(2),
+            balance.toFixed(2),
+            safe(c.due_date || ''),
+            safe(status),
+            safe(createdDate),
+            safe(c.description || '')
+        ];
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `collectibles-${date}.csv`);
+}
+
 /**
  * Setup modal keyboard event listeners
  * Uses AbortController for clean one-call cleanup
@@ -4127,9 +4315,10 @@ export async function destroy() {
     delete window.voidCollectiblePayment;
     delete window.toggleCollPaymentHistory;
     delete window.toggleCollPaymentOtherField;
-    // Plan 06 Task 3 cleanups appended below by Task 3
-    delete window.exportCollectiblesCSV;
+    // Plan 06 Task 3 — cancel + context menu + CSV export
+    delete window.cancelCollectible;
     delete window.showCollectibleContextMenu;
+    delete window.exportCollectiblesCSV;
 
     // Reset Collectibles tab state
     collectiblesData = [];
