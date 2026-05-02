@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84.1 COMPLETE — all 3 plans landed, all 15 UAT tests pass (7 new triggers NOTIF-14 through NOTIF-20 + 8 Phase-84 regressions). firestore.rules deployed to clmc-procurement-dev (production deploy still pending operator). One enhancement captured for future polish: PR_DECIDED + TR_DECIDED single-type-per-decision-pair shares ✓ icon for approve+reject branches; differentiation lives only in message body. Suggested split into _APPROVED/_REJECTED variants estimated at ~30 lines.
-last_updated: "2026-05-02T08:05:00.000Z"
-last_activity: 2026-05-02
+stopped_at: Phase 85 planned (8 plans, 4 waves) — ready to execute
+last_updated: "2026-05-02T10:00:00.000Z"
+last_activity: "2026-05-02 - Phase 85 (Collectibles Tracking) planned: 8 PLAN.md files across 4 waves covering COLL-01..COLL-09, all 27 D-* decisions referenced. Plan-checker found 1 BLOCKER (CSV injection mitigation) + 5 warnings; all addressed via targeted edits to 85-06-PLAN.md (safe() helper inlined, edit-modal D-13 invariant criteria, _refreshCreateCollProjectDropdown skeleton, stub-cleanup tightened) plus wave label fix on 85-07/85-08."
 progress:
   total_phases: 8
-  completed_phases: 1
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
+  completed_phases: 2
+  total_plans: 20
+  completed_plans: 11
+  percent: 55
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 84.1 COMPLETE (2026-05-02) — all 7 new procurement-side notifications + creator-UID schema fields shipped, UAT 15/15 pass. Next phase: 85 (Collectibles Tracking) once user is ready to start.
+**Current focus:** Phase 85 (Collectibles Tracking) PLANNED (2026-05-02) — 8 PLAN.md files in 4 waves; Wave 1 = firestore-rules + shared modules (Plans 01, 02); Wave 2 = projects/services tranche editors + project-detail cells + modal Collectibles tab (Plans 03, 04, 07, 08); Wave 3 = Finance Collectibles sub-tab + table/filters/pagination (Plan 05); Wave 4 = Collectible CRUD modals + payment recording + CSV export (Plan 06). All 9 COLL-* requirements covered, all 27 D-* decisions referenced. Ready to execute.
 
 ## Current Position
 
-Phase: 84.1 (complete) → next active phase: 85
-Plan: n/a
+Phase: 85 (planned, ready to execute)
+Plan: Wave 1 (Plans 85-01, 85-02) — independent, can run in parallel
 
 ## Performance Metrics
 
@@ -300,8 +300,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Retroactively executed Phase 84.1 Plan 01 Task 3 (commit f5d9940): wired NOTIF-15/16/17 finance.js triggers that the original Plan 01 executor incorrectly skipped; appended Retroactive Fix section to 84.1-01-SUMMARY.md
-Last session: 2026-05-02T07:30:00Z
-Stopped at: Phase 84.1 Plan 01 Task 3 retroactive fix complete (f5d9940) — NOTIF-15/16/17 finance.js triggers now wired; node --check passes; all verification grep counts met. Phase 84.1 implementation surface (Plans 01+02+03 + retroactive Task 3 fix) is now actually complete at the code layer. UAT execution against dev Firebase environment per Plan 03's checkpoint:human-verify gate still pending before Phase 84.1 can be marked complete.
-Resume file: .planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md
-Next action: Human UAT execution against dev Firebase project — fill in [pending] results in 84.1-UAT.md per the per-test verification steps in 84.1-03-PLAN.md Task 2. Note: NOTIF-15 (PR decision) and NOTIF-17 (TR decision) and NOTIF-16 (RFP fully paid) UAT tests will now actually fire in the dev environment because the trigger sites are present in finance.js as of f5d9940; previously these UAT tests would have all returned a confusing "no notification fired" result. Then mark Phase 84.1 complete and move to Phase 85 (Collectibles Tracking) or another v4.0 phase.
+Last activity: 2026-05-02 - Phase 85 (Collectibles Tracking) planned via /gsd-plan-phase 85 --skip-ui. 8 PLAN.md files written to .planning/phases/85-collectibles-tracking/ across 4 waves; gsd-pattern-mapper produced PATTERNS.md (1226 lines, 9 files mapped to Phase 65 analogs); gsd-plan-checker found 1 BLOCKER + 5 warnings, all resolved via targeted edits.
+Last session: 2026-05-02T10:00:00.000Z
+Stopped at: Phase 85 planned, ready to execute
+Resume file: .planning/phases/85-collectibles-tracking/85-01-PLAN.md (Wave 1 entry point)
+Next action: Run `/gsd-execute-phase 85` to execute the 8 plans. Wave 1 (Plans 01, 02) ships firestore.rules + NOTIFICATION_TYPES enum + shared tranche-builder.js + coll-id.js modules. Wave 2 (Plans 03, 04, 07, 08) ships tranche editors on projects/services + Financial Summary cells + modal Collectibles tab. Wave 3 (Plan 05) ships Finance Collectibles sub-tab. Wave 4 (Plan 06) ships full CRUD + payment recording + CSV export with T-85.6-01 CSV-injection mitigation.

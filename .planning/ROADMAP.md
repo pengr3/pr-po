@@ -286,7 +286,34 @@
   3. System auto-derives the collectible status (Pending / Partially Paid / Fully Paid / Overdue) from recorded payments and due date — user never sets it manually
   4. User can view all collectibles in a Finance sub-tab filtered by project / status / due-date range, AND view per-project collectibles on the project detail surface
   5. User can export the collectibles list to CSV
-**Plans**: TBD
+**Plans**: 8 plans (planned 2026-05-02)
+
+**Wave 1** *(no dependencies)*
+- [ ] 85-01-PLAN.md — firestore.rules `collectibles` block + `NOTIFICATION_TYPES.COLLECTIBLE_CREATED` enum (D-21, D-24)
+- [ ] 85-02-PLAN.md — shared `app/tranche-builder.js` + `app/coll-id.js` modules (D-09, D-20 — project-scoped IDs, NOT generateSequentialId per Phase 65.4 lesson)
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 85-03-PLAN.md — `app/views/projects.js` `collection_tranches` editor + sum=100 validation + D-25 confirmation
+- [ ] 85-04-PLAN.md — `app/views/services.js` `collection_tranches` editor (D-01 parity)
+- [ ] 85-07-PLAN.md — `app/views/project-detail.js` + `service-detail.js` Financial Summary cells (D-06, always-render zero-state)
+- [ ] 85-08-PLAN.md — `app/expense-modal.js` 4th "Collectibles" tab on Financial Breakdown modal (D-07)
+
+**Wave 3** *(blocked on Waves 1+2)*
+- [ ] 85-05-PLAN.md — `app/views/finance.js` Collectibles sub-tab read path: 5th pill nav + flat table + 4 independent filters + 15/page pagination + status badges (D-02..D-05, D-18, D-19)
+
+**Wave 4** *(blocked on Waves 1+2+3)*
+- [ ] 85-06-PLAN.md — `app/views/finance.js` write path: Create/Edit/Submit + Record-Payment (partial-pay) + void + right-click cancel + CSV export with T-85.6-01 injection mitigation + COLLECTIBLE_CREATED notification fan-out (D-11..D-17, D-20..D-23, D-26, D-27)
+
+**Cross-cutting constraints:**
+- Status strings exact-match `'Pending'`/`'Partially Paid'`/`'Fully Paid'`/`'Overdue'` (D-18, CLAUDE.md case-sensitive)
+- Status field NEVER persisted — derived on read only (D-19, mirrors Phase 65 D-44)
+- Tranche fields denormalized + frozen at creation: `tranche_label`, `tranche_percentage`, `amount_requested` (D-13)
+- One collectible per tranche strict (D-12)
+- ID format `COLL-{PROJECT-CODE}-{n}` / `COLL-{SERVICE-CODE}-{n}` — custom inline generator only (D-20)
+- Security rules ship in SAME COMMIT as first JS write (D-24, CLAUDE.md "ADDING NEW COLLECTIONS")
+- All notification calls wrapped in try/catch (D-21, Phase 83 D-03 fire-and-forget)
+- Window functions attached in init(), deleted in destroy() (CLAUDE.md SPA pattern)
+
 **UI hint**: yes
 
 ### Phase 86: Native Project Management & Gantt
@@ -360,7 +387,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 83 | v4.0 | 5/5 | Complete | 2026-04-30 |
 | 84 | v4.0 | 4/4 | Complete | 2026-04-30 |
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
-| 85 | v4.0 | 0/TBD | Not started | - |
+| 85 | v4.0 | 0/8 | Planned | - |
 | 86 | v4.0 | 0/TBD | Not started | - |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
