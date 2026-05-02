@@ -8,6 +8,7 @@ import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, w
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
+import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 
 let currentService = null;
 let currentServiceDocId = null;
@@ -716,6 +717,19 @@ async function saveServiceField(fieldName, newValue) {
         return true;
     }
 
+    // WR-03: capture recipients BEFORE the await updateDoc call — the onSnapshot
+    // listener can update currentService asynchronously between the write and the
+    // notification dispatch, potentially returning a stale personnel_user_ids array.
+    const NOTIF11_STATUS_WHITELIST = ['Client Approved', 'For Mobilization', 'On-going', 'Completed', 'Loss'];
+    const notifRecipients = (fieldName === 'project_status' && NOTIF11_STATUS_WHITELIST.includes(valueToSave))
+        ? (currentService.personnel_user_ids || []).filter(Boolean)
+        : [];
+    const notifServiceLink = currentService.service_code
+        ? `#/services/detail/${currentService.service_code}`
+        : '#/services';
+    const notifServiceName = currentService.service_name;
+    const notifSourceId = currentService.service_code || currentServiceDocId;
+
     try {
         const serviceRef = doc(db, 'services', currentServiceDocId);
         await updateDoc(serviceRef, {
@@ -729,6 +743,17 @@ async function saveServiceField(fieldName, newValue) {
         ], 'services').catch(err => console.error('[EditHistory] saveServiceField failed:', err));
 
         currentService = { ...currentService, [fieldName]: valueToSave };
+        // Phase 84 NOTIF-11: notify personnel of meaningful service status change (D-03: fire-and-forget)
+        if (notifRecipients.length > 0) {
+            createNotificationForUsers({
+                user_ids: notifRecipients,
+                type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                message: `Service "${notifServiceName}" status changed to: ${valueToSave}`,
+                link: notifServiceLink,
+                source_collection: 'services',
+                source_id: notifSourceId
+            }).catch(err => console.error('[ServiceDetail] NOTIF-11 notification failed:', err));
+        }
         return true;
     } catch (error) {
         console.error('[ServiceDetail] Save failed:', error);

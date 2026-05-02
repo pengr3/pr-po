@@ -7,6 +7,7 @@ import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, w
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
+import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 
 let currentProject = null;
 let projectCode = null;
@@ -702,6 +703,24 @@ async function saveField(fieldName, newValue) {
         recordEditHistory(currentProject.id, 'update', [
             { field: fieldName, old_value: oldValue ?? null, new_value: valueToSave }
         ]).catch(err => console.error('[EditHistory] saveField failed:', err));
+        // Phase 84 NOTIF-11: notify personnel of meaningful project status change (D-03: fire-and-forget)
+        const NOTIF11_STATUS_WHITELIST = ['Client Approved', 'For Mobilization', 'On-going', 'Completed', 'Loss'];
+        if (fieldName === 'project_status' && NOTIF11_STATUS_WHITELIST.includes(valueToSave)) {
+            const recipients = (currentProject.personnel_user_ids || []).filter(Boolean);
+            if (recipients.length > 0) {
+                const projectLink = currentProject.project_code
+                    ? `#/projects/detail/${currentProject.project_code}`
+                    : '#/projects';
+                createNotificationForUsers({
+                    user_ids: recipients,
+                    type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                    message: `Project "${currentProject.project_name}" status changed to: ${valueToSave}`,
+                    link: projectLink,
+                    source_collection: 'projects',
+                    source_id: currentProject.project_code || currentProject.id
+                }).catch(err => console.error('[ProjectDetail] NOTIF-11 notification failed:', err));
+            }
+        }
         return true;
     } catch (error) {
         console.error('[ProjectDetail] Save failed:', error);

@@ -217,8 +217,8 @@
 
 **Active phases:**
 
-- [ ] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules
-- [ ] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2)
+- [x] **Phase 83: Notification System Foundation** — Bell icon, dropdown, mark-read flow, notification history page, `notifications` Firestore collection + Security Rules — completed 2026-04-30 (5 plans)
+- [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
 - [ ] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export
 - [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
@@ -238,11 +238,11 @@
   4. User can mark a single notification read or mark-all-as-read in one click, and unread count updates immediately
   5. User can open a full notification history page that paginates 20 per page including read items
 **Plans**: 5 plans
-  - [ ] 83-01-PLAN.md — Security Rules + composite indexes + test infra investigation (NOTIF-13)
-  - [ ] 83-02-PLAN.md — Shared notifications module (helpers, enum, dev test writer); startAfter re-export (NOTIF-04, NOTIF-05, NOTIF-13)
-  - [ ] 83-03-PLAN.md — Bell markup + CSS + auth.js lifecycle hooks (NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05)
-  - [ ] 83-04-PLAN.md — History page view + router registration (NOTIF-06, NOTIF-03)
-  - [ ] 83-05-PLAN.md — UAT + production deploy + STATE/ROADMAP updates
+  - [x] 83-01-PLAN.md — Security Rules + composite indexes + test infra investigation (NOTIF-13)
+  - [x] 83-02-PLAN.md — Shared notifications module (helpers, enum, dev test writer); startAfter re-export (NOTIF-04, NOTIF-05, NOTIF-13)
+  - [x] 83-03-PLAN.md — Bell markup + CSS + auth.js lifecycle hooks (NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04, NOTIF-05)
+  - [x] 83-04-PLAN.md — History page view + router registration (NOTIF-06, NOTIF-03)
+  - [x] 83-05-PLAN.md — UAT + production deploy + STATE/ROADMAP updates
 **UI hint**: yes
 
 ### Phase 84: Notification Triggers — Existing Events
@@ -254,6 +254,7 @@
   2. Finance users receive a notification when a PR, TR, or RFP requires their review
   3. Personnel assigned to a project receive a notification when that project's status changes (e.g., to Client Approved, On-going, Completed)
   4. Super Admin users receive a notification when a new account registration is pending approval
+**Plans progress**: 4/4 complete (Plans 01–04 done; all NOTIF triggers wired — Phase 84 complete)
 
 ### Phase 85: Collectibles Tracking
 **Goal**: Operations Admin and Finance can manually track money owed by clients on a project — create, edit, delete, record payments, and view auto-derived status — independent of any PM auto-trigger.
@@ -336,8 +337,8 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
 | 57-62.3 | v3.1 | 23/23 | Complete | 2026-03-10 |
 | 63-82 | v3.2 | 55/55 | Complete | 2026-04-28 |
-| 83 | v4.0 | 0/5 | Planning | - |
-| 84 | v4.0 | 0/TBD | Not started | - |
+| 83 | v4.0 | 5/5 | Complete | 2026-04-30 |
+| 84 | v4.0 | 2/TBD | In progress | - |
 | 85 | v4.0 | 0/TBD | Not started | - |
 | 86 | v4.0 | 0/TBD | Not started | - |
 | 87 | v4.0 | 0/TBD | Not started | - |

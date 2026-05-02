@@ -6,7 +6,7 @@
      - 'my-requests' → My Requests: user's submitted MRFs
    ======================================== */
 
-import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc } from '../firebase.js';
+import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from '../firebase.js';
 import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
 
@@ -1206,9 +1206,14 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedProjectCodes?.();
         let projects = cachedProjects;
         if (assignedCodes !== null) {
-            // Phase 78 D-02: clientless projects (no project_code) are not in assigned_project_codes;
-            // assignment filter applies to coded projects only.
-            projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
+            const uid = window.getCurrentUser?.()?.uid;
+            // Coded projects: include if in assignedCodes.
+            // Codeless projects: include if user is in personnel_user_ids
+            // (syncPersonnelToAssignments is skipped for codeless projects — no code to sync).
+            projects = cachedProjects.filter(p =>
+                assignedCodes.includes(p.project_code) ||
+                (!p.project_code && uid && (p.personnel_user_ids || []).includes(uid))
+            );
         }
         projects.forEach(p => {
             // Phase 78 D-04: clientless projects use Firestore doc ID as the stable option value
@@ -1230,7 +1235,11 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedServiceCodes?.();
         let services = cachedServices;
         if (assignedCodes !== null) {
-            services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
+            const uid = window.getCurrentUser?.()?.uid;
+            services = cachedServices.filter(s =>
+                (assignedCodes.includes(s.service_code) && s.active === true) ||
+                (!s.service_code && uid && (s.personnel_user_ids || []).includes(uid) && s.active === true)
+            );
         }
         services.forEach(s => {
             psOptions.push({
@@ -1771,8 +1780,9 @@ async function handleFormSubmit(e) {
             service_code: hasService ? serviceCode : '',        // MRF-07: denormalized
             service_name: hasService ? serviceName : '',        // MRF-07: denormalized
             requestor_name: requestorName,
+            requestor_user_id: window.getCurrentUser?.()?.uid ?? null,   // Phase 84 D-01
             date_needed: dateNeeded,
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             delivery_address: deliveryAddress,
             justification: justification,
             items_json: JSON.stringify(items),

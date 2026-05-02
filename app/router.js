@@ -16,7 +16,10 @@ const routePermissionMap = {
     '/mrf-form': 'mrf_form',
     '/procurement': 'procurement',
     '/finance': 'finance',
-    '/admin': 'role_config'
+    '/admin': 'role_config',
+    // Every active user has access to notifications — no role gate needed.
+    // Maps to 'dashboard' (same neutral key as '/') so the existing auth+active check applies.
+    '/notifications': 'dashboard'
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -98,6 +101,11 @@ const routes = {
         load: () => import('./views/admin.js'),
         title: 'Admin | CLMC Procurement',
         defaultTab: 'users'
+    },
+    '/notifications': {
+        name: 'Notifications',
+        load: () => import('./views/notifications.js'),
+        title: 'Notifications | CLMC Operations'
     }
 };
 

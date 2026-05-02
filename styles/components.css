@@ -1685,3 +1685,235 @@ tr:hover {
     opacity: 0.6;
     transition: opacity 0.3s ease;
 }
+
+/* ========================================
+   NOTIFICATIONS BELL + DROPDOWN — Phase 83 (D-01 / D-02)
+   Parallel to .nav-dropdown* but separate class set so visual styles
+   can diverge later (notif dropdown is wider, has rows with icons,
+   has a footer link to the history page).
+   ======================================== */
+
+.notif-bell-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    /* Visual placement on desktop: between Admin dropdown and Log Out.
+       Achieved by CSS `order` since the markup is a sibling of .nav-links. */
+    order: 2;
+    margin: 0 0.5rem;
+}
+
+.notif-bell {
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.notif-bell:hover,
+.notif-bell:focus-visible {
+    background: #f1f5f9;
+    color: #1a73e8;
+    outline: none;
+}
+
+.notif-bell-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.notif-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    border-radius: 9px;
+    box-shadow: 0 0 0 2px #fff;
+    pointer-events: none;
+}
+
+.notif-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 360px;
+    max-width: calc(100vw - 24px);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    z-index: 200;
+    max-height: 70vh;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.notif-dropdown-menu.open {
+    display: flex;
+}
+
+.notif-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.notif-dropdown-title {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.notif-mark-all-btn {
+    background: transparent;
+    border: none;
+    color: #1a73e8;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.notif-mark-all-btn:hover:not(:disabled) {
+    background: #eff6ff;
+}
+
+.notif-mark-all-btn:disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.notif-dropdown-rows {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.notif-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.notif-row:hover {
+    background: #f8fafc;
+}
+
+.notif-row--unread {
+    background: #eff6ff;
+}
+
+.notif-row--unread:hover {
+    background: #dbeafe;
+}
+
+.notif-row-message {
+    flex: 1 1 auto;
+    font-size: 0.875rem;
+    color: #1e293b;
+    line-height: 1.4;
+    /* MAJOR-8: prevent overflow when message contains long unbroken tokens
+       (URLs, IDs like MRF-2026-00001-LONG-SOURCE-ID). min-width:0 lets
+       the flex item shrink below its content's intrinsic min-content width. */
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+.notif-row-time {
+    font-size: 0.75rem;
+    color: #64748b;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.notif-row-mark-read {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.notif-row-mark-read:hover {
+    background: #fff;
+    border-color: #e2e8f0;
+    color: #1a73e8;
+}
+
+.notif-empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.notif-dropdown-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.notif-view-all {
+    color: #1a73e8;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.notif-view-all:hover {
+    text-decoration: underline;
+}
+
+/* Mobile: dropdown becomes near-full-width takeover.
+   Also adjust .top-nav-content so brand + bell + hamburger fit at narrow widths.
+   Consolidated in this file because the existing .top-nav-content rule lives here. */
+@media (max-width: 768px) {
+    .notif-bell-wrap {
+        order: 0;  /* Reset desktop ordering on mobile (where .nav-links is hidden anyway) */
+        margin: 0 0.25rem;
+    }
+    .notif-dropdown-menu {
+        width: calc(100vw - 24px);
+        right: -8px;
+    }
+
+    /* Top-nav mobile flex tweak — Phase 83 (D-02)
+       Bell remains visible at ≤768px alongside brand and hamburger.
+       Bell is a sibling of .nav-links (which becomes display:none here). */
+    .top-nav-content {
+        gap: 0.5rem;
+    }
+    .top-nav-content .nav-brand {
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

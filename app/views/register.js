@@ -7,6 +7,7 @@ import { db } from '../firebase.js';
 import { createUserWithEmailAndPassword, signOut } from '../firebase.js';
 import { auth } from '../firebase.js';
 import { validateInvitationCode, markInvitationCodeUsed, createUserDocument } from '../auth.js';
+import { createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 /**
  * Parse URL for invitation code parameter
@@ -226,6 +227,9 @@ async function handleRegister(e) {
     registerBtn.disabled = true;
     registerBtn.textContent = 'Creating Account...';
 
+    // WR-05: hoist userId so the catch block can clean up an orphan Auth account
+    // if createUserDocument or subsequent steps fail after Auth user creation.
+    let userId = null;
     try {
         // Validate invitation code
         const codeValidation = await validateInvitationCode(invitationCode);
@@ -239,7 +243,7 @@ async function handleRegister(e) {
 
         // Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const userId = userCredential.user.uid;
+        userId = userCredential.user.uid;
 
         // Create user document in Firestore
         await createUserDocument(userId, {
@@ -250,6 +254,22 @@ async function handleRegister(e) {
 
         // Mark invitation code as used (pass email so we can display "Used by [email]")
         await markInvitationCodeUsed(codeValidation.docId, email);
+
+        // Phase 84 NOTIF-12: notify super_admins of pending registration (D-11: before signOut)
+        // excludeActor: false — new user IS the actor; self-exclusion would prevent super_admin registrants from notifying other admins
+        try {
+            await createNotificationForRoles({
+                roles: ['super_admin'],
+                type: NOTIFICATION_TYPES.REGISTRATION_PENDING,
+                message: `New account pending approval: ${fullName} (${email})`,
+                link: '#/admin?section=user-management',
+                source_collection: 'users',
+                source_id: userId,
+                excludeActor: false
+            });
+        } catch (notifErr) {
+            console.error('[Register] NOTIF-12 notification failed:', notifErr);
+        }
 
         // Sign out the user (they must manually log in)
         await signOut(auth);
@@ -265,6 +285,12 @@ async function handleRegister(e) {
 
     } catch (error) {
         console.error('[Register] Error during registration:', error);
+
+        // WR-05: if Auth account was created but Firestore setup failed, delete the
+        // orphan Auth account so the user can re-register with the same email.
+        if (userId) {
+            try { await auth.currentUser?.delete(); } catch (_) {}
+        }
 
         // Show error based on type
         if (error.code) {

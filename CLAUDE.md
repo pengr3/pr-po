@@ -249,46 +249,7 @@ const q = query(
 const snapshot = await getDocs(q);
 ```
 
-## Critical Bug Fixes (2026-01-16)
-
-### Issue #1: Window Functions Lost During Tab Switching
-**Problem**: `TypeError: window.loadMRFs is not a function` when switching tabs
-**Fix**: Modified `app/router.js` to skip `destroy()` when navigating between tabs in same view
-
-### Issue #2: PR Generation "At least one item required" Error
-**Problem**: PR generation failed with items present
-**Root Cause**: Wrong DOM selectors (`#mrfDetailsItemRows`, `[data-field="item_name"]`)
-**Fix**: Updated to correct selectors (`#lineItemsBody`, `.item-name` classes)
-
-## Phase 46 Changes (2026-02-28)
-
-### Dead File Removal
-**Files removed:** `app/views/project-assignments.js`, `app/views/service-assignments.js`
-**Reason:** Superseded by `app/views/assignments.js` in Phase 39. No SPA route imported these files.
-**Impact:** Zero — router and index.html had no references to these files.
-
-### Unified Create MRF Dropdown
-**Problem:** Procurement > Create MRF had two separate dropdowns (one for Projects, one for Services), requiring users to know which type they needed before selecting.
-**Fix:** Replaced with a single `<select id="projectServiceSelect">` using native `<optgroup>` elements:
-```html
-<select id="projectServiceSelect">
-  <optgroup label="Projects"><!-- project options with data-type="project" --></optgroup>
-  <optgroup label="Services"><!-- service options with data-type="service" --></optgroup>
-</select>
-```
-**Read pattern in saveNewMRF():**
-```javascript
-const selectEl = document.getElementById('projectServiceSelect');
-const selectedOption = selectEl?.options[selectEl?.selectedIndex];
-const selectedType = selectedOption?.dataset?.type || '';   // 'project' | 'service'
-const selectedCode = selectEl?.value?.trim() || '';
-const selectedName = selectedOption?.dataset?.name || '';
-const hasProject = selectedType === 'project' && !!selectedCode;
-const hasService = selectedType === 'service' && !!selectedCode;
-```
-**Matches:** Pattern already used in `mrf-form.js` (`#projectServiceSelect` in the standalone MRF form).
-
-## UI Design System (2026-01-16)
+## UI Design System
 
 **Colors:**
 - Primary: `#1a73e8`, Dark: `#1557b0`
@@ -301,12 +262,6 @@ const hasService = selectedType === 'service' && !!selectedCode;
 - **Modals**: Window-style (not banners), blur backdrop, centered
 - **Tables**: Sticky headers, hover effects, modern input fields
 - **Buttons**: Primary blue, proper spacing, no-wrap text
-
-**Key Improvements:**
-- Standardized pagination across all tabs (15/page suppliers, 10/page records)
-- Window-style modals with lighter backdrop
-- Modern table styling with enhanced inputs
-- Consistent spacing (0.75rem, 1rem, 1.5rem, 2rem)
 
 ## Testing & Deployment
 

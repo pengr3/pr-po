@@ -8,6 +8,7 @@ import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, que
 import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 import { showProofModal, saveProofUrl } from '../proof-modal.js';
+import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ========================================
 // GLOBAL STATE
@@ -1345,6 +1346,20 @@ async function submitRFP(poDocId) {
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
 
+        // Phase 84 NOTIF-08: notify Finance of new RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} submitted successfully`, 'success');
     } catch (error) {
@@ -1441,6 +1456,20 @@ async function submitTRRFP(trDocId) {
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
 
+        // Phase 84 NOTIF-08: notify Finance of new TR RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New TR RFP pending Finance review: ${rfpId} for TR ${tr.tr_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitTRRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} submitted successfully`, 'success');
     } catch (error) {
@@ -1518,6 +1547,21 @@ async function submitDeliveryFeeRFP(poDocId) {
         };
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        // Phase 84 NOTIF-08: notify Finance of new Delivery Fee RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New Delivery Fee RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitDeliveryFeeRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} (Delivery Fee) submitted successfully`, 'success');
     } catch (error) {
@@ -3796,8 +3840,9 @@ async function saveNewMRF() {
             service_code: hasService ? serviceCode : '',
             service_name: hasService ? serviceName : '',
             requestor_name: requestorName,
+            requestor_user_id: window.getCurrentUser?.()?.uid ?? null,   // Phase 84 D-01
             date_needed: dateNeeded,
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             delivery_address: deliveryAddress,
             items_json: JSON.stringify(items),
             status: 'Pending',
@@ -4116,6 +4161,25 @@ async function deleteMRF() {
 };
 
 /**
+ * Resolve the requestor UID for notification delivery (Phase 84 D-02).
+ * Returns mrf.requestor_user_id if present (stamped on new MRFs by Plan 01).
+ * Returns null for legacy MRFs that lack the field — name-based lookup is
+ * intentionally omitted because full_name is non-unique (CR-02).
+ * @param {object} mrf - MRF document data with optional requestor_user_id
+ * @returns {Promise<string|null>}
+ */
+async function resolveRequestorUid(mrf) {
+    if (mrf.requestor_user_id) return mrf.requestor_user_id;
+    // CR-02: Do NOT fall back to full_name lookup — full_name is non-unique and
+    // returning snap.docs[0] could deliver a notification to the wrong user.
+    // Legacy MRFs (pre-Phase 84) that lack requestor_user_id will silently skip
+    // the notification. This is preferable to a privacy mis-delivery.
+    console.warn('[Procurement] resolveRequestorUid: no requestor_user_id on MRF', mrf.mrf_id,
+        '— notification suppressed. This MRF predates Phase 84 D-01 stamping.');
+    return null;
+}
+
+/**
  * Reject MRF - soft-reject by setting status='Rejected' with a reason.
  * Preserves the MRF and all linked PRs/TRs in Firestore for audit trail.
  */
@@ -4144,6 +4208,9 @@ async function rejectMRF() {
 
     showLoading(true);
     try {
+        // Capture MRF fields BEFORE nullification (Phase 84 — NOTIF-07 needs these)
+        const rejectedMrfSnap = { ...currentMRF };
+
         const mrfRef = doc(db, 'mrfs', currentMRF.id);
         await updateDoc(mrfRef, {
             status: 'Rejected',
@@ -4151,6 +4218,23 @@ async function rejectMRF() {
             rejected_by: 'Procurement',
             rejected_at: new Date().toISOString()
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF rejection (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(rejectedMrfSnap);
+            if (requestorUid) {
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_REJECTED,
+                    message: `Your MRF ${rejectedMrfSnap.mrf_id} has been rejected by Procurement`,
+                    link: '#/procurement/mrfs',
+                    source_collection: 'mrfs',
+                    source_id: rejectedMrfSnap.mrf_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 rejectMRF notification failed:', notifErr);
+        }
 
         currentMRF = null;
 
@@ -5692,7 +5776,7 @@ async function submitTransportRequest() {
             cost: totalCost,
             total_amount: totalCost,
             finance_status: 'Pending',
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             created_at: new Date().toISOString()
         });
 
@@ -5704,6 +5788,20 @@ async function submitTransportRequest() {
             items_json: JSON.stringify(trItems),
             updated_at: new Date().toISOString()
         });
+
+        // Phase 84 NOTIF-08: notify Finance of new TR needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.TR_REVIEW_NEEDED,
+                message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
+                link: '#/finance/pending',
+                source_collection: 'transport_requests',
+                source_id: trId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitTransportRequest notification failed:', notifErr);
+        }
 
         showToast(`Transport Request submitted successfully! TR ID: ${trId}`, 'success');
 
@@ -5986,6 +6084,39 @@ async function generatePR() {
             rejected_pr_id: null,
             is_rejected: false
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF approval (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(mrfData);
+            if (requestorUid) {
+                const firstPrId = generatedPRIds[0] || '';
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_APPROVED,
+                    message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} created` : ''}`,
+                    link: '#/procurement/records',
+                    source_collection: 'mrfs',
+                    source_id: mrfData.mrf_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 generatePR notification failed:', notifErr);
+        }
+
+        // Phase 84 NOTIF-08: notify Finance of new PR(s) needing review (D-03: fire-and-forget)
+        try {
+            const prListStr = generatedPRIds.join(', ') || 'PR';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.PR_REVIEW_NEEDED,
+                message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
+                link: '#/finance/pending',
+                source_collection: 'prs',
+                source_id: generatedPRIds[0] || ''
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePR notification failed:', notifErr);
+        }
 
         // Build success message
         const msgParts = [];
@@ -6307,7 +6438,7 @@ async function generatePRandTR() {
             cost: trTotalCost,
             total_amount: trTotalCost,
             finance_status: 'Pending',
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             created_at: new Date().toISOString()
         });
 
@@ -6323,6 +6454,51 @@ async function generatePRandTR() {
             rejected_pr_id: null,
             is_rejected: false
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF approval (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(mrfData);
+            if (requestorUid) {
+                const firstPrId = generatedPRIds[0] || '';
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_APPROVED,
+                    message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} + TR ${trId} created` : ''}`,
+                    link: '#/procurement/records',
+                    source_collection: 'mrfs',
+                    source_id: mrfData.mrf_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 generatePRandTR notification failed:', notifErr);
+        }
+
+        // Phase 84 NOTIF-08: notify Finance of new PR(s) and TR needing review (D-03: fire-and-forget)
+        try {
+            const prListStr = generatedPRIds.join(', ') || 'PR';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.PR_REVIEW_NEEDED,
+                message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
+                link: '#/finance/pending',
+                source_collection: 'prs',
+                source_id: generatedPRIds[0] || ''
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePRandTR PR notification failed:', notifErr);
+        }
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.TR_REVIEW_NEEDED,
+                message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
+                link: '#/finance/pending',
+                source_collection: 'transport_requests',
+                source_id: trId
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePRandTR TR notification failed:', notifErr);
+        }
 
         // Build success message
         const prMsg = generatedPRIds.length === 1
