@@ -47,6 +47,7 @@ const TYPE_META = {
     TR_REVIEW_NEEDED:       { label: 'TR Review Needed',       icon: '!', color: '#f59e0b' },
     RFP_REVIEW_NEEDED:      { label: 'RFP Review Needed',      icon: '!', color: '#f59e0b' },
     PROJECT_STATUS_CHANGED: { label: 'Project Status Changed', icon: '↻', color: '#1a73e8' },
+    PROJECT_COST_CHANGED:   { label: 'Project Cost',           icon: '$', color: '#1a73e8' },
     REGISTRATION_PENDING:   { label: 'Registration Pending',   icon: '⏳', color: '#64748b' },
     PROPOSAL_SUBMITTED:     { label: 'Proposal Submitted',     icon: '→', color: '#1a73e8' },
     PROPOSAL_DECIDED:       { label: 'Proposal Decided',       icon: '★', color: '#059669' },

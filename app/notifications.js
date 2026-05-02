@@ -42,7 +42,9 @@ export const NOTIFICATION_TYPES = Object.freeze({
     PR_DECIDED: 'PR_DECIDED',
     TR_DECIDED: 'TR_DECIDED',
     RFP_PAID: 'RFP_PAID',
-    PO_DELIVERED: 'PO_DELIVERED'
+    PO_DELIVERED: 'PO_DELIVERED',
+    // Phase 84.1 NOTIF-19 — project/service cost change
+    PROJECT_COST_CHANGED: 'PROJECT_COST_CHANGED'
 });
 
 /* ========================================
@@ -70,6 +72,7 @@ const TYPE_META = {
     TR_REVIEW_NEEDED:      { label: 'TR Review Needed',      icon: '!', color: '#f59e0b' },
     RFP_REVIEW_NEEDED:     { label: 'RFP Review Needed',     icon: '!', color: '#f59e0b' },
     PROJECT_STATUS_CHANGED:{ label: 'Project Status',        icon: '↻', color: '#1a73e8' },
+    PROJECT_COST_CHANGED:  { label: 'Project Cost',          icon: '$', color: '#1a73e8' },
     REGISTRATION_PENDING:  { label: 'Registration Pending',  icon: '⏳', color: '#64748b' },
     PROPOSAL_SUBMITTED:    { label: 'Proposal Submitted',    icon: '→', color: '#1a73e8' },
     PROPOSAL_DECIDED:      { label: 'Proposal Decided',      icon: '★', color: '#059669' },
