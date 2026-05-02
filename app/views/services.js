@@ -9,12 +9,14 @@ import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, wher
 import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { skeletonTableRows } from '../components.js';
+import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
 
 // Global state
 let servicesData = [];
 let clientsData = [];
 let usersData = [];  // Active users for personnel selection
 let editingService = null;
+let editingServiceTranches = []; // Phase 85: populated from service.collection_tranches when editing; reset on cancel/submit
 let selectedPersonnel = []; // Array of { id: string, name: string } for pill state
 let currentPage = 1;
 const itemsPerPage = 15;
@@ -74,6 +76,10 @@ function attachWindowFunctions() {
     window.removeServicePersonnel = removeServicePersonnel;
     window.filterServicePersonnelDropdown = filterServicePersonnelDropdown;
     window.showServicePersonnelDropdown = showServicePersonnelDropdown;
+    // Phase 85 D-01: tranche-builder window helpers (shared with projects.js — same names, same shared module)
+    window.addTranche = (scopeKey) => addTranche(scopeKey);
+    window.removeTranche = (button, scopeKey) => removeTranche(button, scopeKey);
+    window.recalculateTranches = (scopeKey) => recalculateTranches(scopeKey);
 }
 
 // Render view HTML
@@ -174,6 +180,14 @@ export function render(activeTab = null) {
                         <label>Contract Cost (Optional)</label>
                         <input type="number" id="serviceContractCost" min="0" step="0.01" placeholder="0.00">
                         <small class="form-hint">Leave blank if not applicable. Must be positive if provided.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Collection Tranches (Optional)</label>
+                        <div id="collTrancheBuilderWrapperService">
+                            ${renderTrancheBuilder([], 'serviceForm')}
+                        </div>
+                        <small class="form-hint">Define how the contract cost is split into billable tranches. Must sum to 100% if provided. Required to bill collectibles against this service (Phase 85).</small>
                     </div>
 
                     <div class="form-group" style="position: relative;">
@@ -377,6 +391,11 @@ export async function destroy() {
     delete window.removeServicePersonnel;
     delete window.filterServicePersonnelDropdown;
     delete window.showServicePersonnelDropdown;
+    // Phase 85 D-01: detach tranche-builder window helpers
+    delete window.addTranche;
+    delete window.removeTranche;
+    delete window.recalculateTranches;
+    editingServiceTranches = [];
 }
 
 // Load clients with real-time listener

@@ -15,6 +15,8 @@ let listener = null;
 let usersData = [];
 let usersListenerUnsub = null;
 let currentExpense = { total: 0, poCount: 0, trCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
+// Phase 85 D-06: collectibles aggregation alongside currentExpense
+let currentCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 let detailSelectedPersonnel = []; // Array of { id: string, name: string } for pill state
 let personnelClickOutsideHandler = null;
 // Phase 78 D-04: clients cache for the issuance client-select control (lazy-loaded when needed)
@@ -223,6 +225,8 @@ export async function destroy() {
     currentProject = null;
     projectCode = null;
     currentExpense = { total: 0, poCount: 0, trCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
+    // Phase 85 D-06: reset collectibles state alongside currentExpense
+    currentCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
     delete window.saveField;
     delete window.toggleActive;
@@ -426,6 +430,18 @@ function renderProjectDetail() {
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Payable</label>
                             <div style="font-weight: 600; color: ${currentExpense.remainingPayable > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
                                 ${formatCurrency(currentExpense.remainingPayable)}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Collected</label>
+                            <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
+                                ${formatCurrency(currentCollectibles.totalCollected)}
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Collectible</label>
+                            <div style="font-weight: 600; color: ${currentCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
+                                ${formatCurrency(currentCollectibles.remainingCollectible)}
                             </div>
                         </div>
                     </div>
@@ -807,6 +823,27 @@ async function refreshExpense(silent = false) {
             totalPaid: rfpTotalPaid,
             remainingPayable: (poTotal + trTotal) - rfpTotalPaid,
             hasRfps
+        };
+
+        // Phase 85 D-06: aggregate collectibles for this project — parallels RFP aggregation
+        let collTotalRequested = 0;
+        let collTotalCollected = 0;
+        if (projectCode) {
+            const collSnap = await getDocs(
+                query(collection(db, 'collectibles'), where('project_code', '==', projectCode))
+            );
+            collSnap.forEach(d => {
+                const coll = d.data();
+                collTotalRequested += parseFloat(coll.amount_requested || 0);
+                collTotalCollected += (coll.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+            });
+        }
+        currentCollectibles = {
+            totalRequested: collTotalRequested,
+            totalCollected: collTotalCollected,
+            remainingCollectible: collTotalRequested - collTotalCollected
         };
 
         // Re-render to show updated expense
