@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 84.1 Plan 03 implementation complete — NOTIF-20 MRF rejection reason augmentation in app/views/procurement.js rejectMRF (one-line template-literal change); 84.1-UAT.md scaffold created with 7 new-requirement tests + 8 regression tests; awaiting human UAT execution against dev Firebase environment per checkpoint:human-verify protocol
-last_updated: "2026-05-02T05:47:27.000Z"
+stopped_at: Phase 84.1 Plan 01 Task 3 RETROACTIVELY EXECUTED (commit f5d9940) — NOTIF-15/16/17 finance.js triggers wired (PR Approved + Rejected, TR Approved + Rejected, RFP Fully Paid); previous executor incorrectly skipped Task 3 claiming "belongs to plan 02" which was wrong per 84.1-01-PLAN.md lines 398–535. All five blocks added with isolated try/catch + creator-UID null-guard per D-03; node --check passes; verification grep counts all met. 84.1-UAT.md scaffold (Plan 03) still awaits human UAT execution against dev Firebase environment.
+last_updated: "2026-05-02T07:30:00.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 8
@@ -268,6 +268,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 84.1-03]: Plan executed exactly as written (zero deviations) — plan-supplied edit anchor matched the source verbatim, replacement string applied with zero modification, both verification grep counts (`has been rejected by Procurement` == 1, `reason && reason.trim()` == 1) matched plan expectations on first run
 - [Phase 84.1-03]: UAT scaffold (.planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md) committed separately as `test(84.1)` per parent's suggested commit pattern — pre-populated with 15 tests (7 new-requirement + 8 regression) all marked `[pending]`; frontmatter records `environment: dev Firebase project` (NOT production clmc-procurement) per Phase 53.1 dev-environment introduction
 - [Phase 84.1-03]: Phase closure gated on human UAT execution per autonomous=false plan contract — checkpoint:human-verify task in 84.1-03-PLAN.md awaits user-driven verification of all 7 new triggers + 8 regression tests against the dev Firebase environment before Phase 84.1 can be marked complete
+- [Phase 84.1-01 RETROACTIVE 2026-05-02]: Plan 01 Task 3 was originally SKIPPED by the executor with the incorrect note "Task 3 belongs to plan 02" — that was wrong per 84.1-01-PLAN.md lines 398–535. Retroactive fix commit f5d9940 wires all five finance.js notification blocks (NOTIF-15 PR Approved + Rejected, NOTIF-17 TR Approved + Rejected, NOTIF-16 RFP Fully Paid) plus the missing `import { createNotification, NOTIFICATION_TYPES } from '../notifications.js'` line. All blocks use isolated try/catch + creator-UID null-guard per D-03. Untouched: po_creator_user_id stamp from Task 1, Plan 02/03 deliverables, firestore.rules. 84.1-01-SUMMARY.md amended with a "Retroactive Fix (2026-05-02)" section documenting the gap, the fix, and the root-cause note (future executors must not silently move tasks between sibling plans). Phase-level requirements list NOTIF-15/NOTIF-16/NOTIF-17 are now actually shipped at the code layer; UAT-layer verification still pending per Plan 03's checkpoint:human-verify gate.
 
 ### Pending Todos
 
@@ -299,8 +300,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Completed Phase 84.1 Plan 03 implementation: NOTIF-20 MRF rejection reason augmentation in procurement.js rejectMRF + 84.1-UAT.md scaffold
-Last session: 2026-05-02T05:47:27Z
-Stopped at: Phase 84.1 Plan 03 implementation complete — NOTIF-20 MRF rejection reason augmentation in app/views/procurement.js rejectMRF (one-line template-literal change at line 4254); 84.1-UAT.md scaffold created with 7 new-requirement tests + 8 regression tests; awaiting human UAT execution against dev Firebase environment per checkpoint:human-verify protocol
+Last activity: 2026-05-02 - Retroactively executed Phase 84.1 Plan 01 Task 3 (commit f5d9940): wired NOTIF-15/16/17 finance.js triggers that the original Plan 01 executor incorrectly skipped; appended Retroactive Fix section to 84.1-01-SUMMARY.md
+Last session: 2026-05-02T07:30:00Z
+Stopped at: Phase 84.1 Plan 01 Task 3 retroactive fix complete (f5d9940) — NOTIF-15/16/17 finance.js triggers now wired; node --check passes; all verification grep counts met. Phase 84.1 implementation surface (Plans 01+02+03 + retroactive Task 3 fix) is now actually complete at the code layer. UAT execution against dev Firebase environment per Plan 03's checkpoint:human-verify gate still pending before Phase 84.1 can be marked complete.
 Resume file: .planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md
-Next action: Human UAT execution against dev Firebase project — fill in [pending] results in 84.1-UAT.md per the per-test verification steps in 84.1-03-PLAN.md Task 2; then mark Phase 84.1 complete and move to Phase 85 (Collectibles Tracking) or another v4.0 phase
+Next action: Human UAT execution against dev Firebase project — fill in [pending] results in 84.1-UAT.md per the per-test verification steps in 84.1-03-PLAN.md Task 2. Note: NOTIF-15 (PR decision) and NOTIF-17 (TR decision) and NOTIF-16 (RFP fully paid) UAT tests will now actually fire in the dev environment because the trigger sites are present in finance.js as of f5d9940; previously these UAT tests would have all returned a confusing "no notification fired" result. Then mark Phase 84.1 complete and move to Phase 85 (Collectibles Tracking) or another v4.0 phase.
