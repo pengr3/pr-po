@@ -8,7 +8,7 @@ import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, que
 import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 import { showProofModal, saveProofUrl } from '../proof-modal.js';
-import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
+import { createNotification, createNotificationForRoles, createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ========================================
 // GLOBAL STATE
@@ -3862,6 +3862,22 @@ async function saveNewMRF() {
         await addDoc(mrfsRef, mrfDoc);
         _prpoRecordsCachedAt = 0; // Invalidate Records tab cache so new MRF appears immediately
 
+        // Phase 84.1 NOTIF-14: broadcast new MRF to all active procurement users (fire-and-forget)
+        try {
+            const projectOrServiceLabel = mrfDoc.project_name || mrfDoc.service_name || 'Unknown';
+            await createNotificationForRoles({
+                roles: ['procurement'],
+                type: NOTIFICATION_TYPES.MRF_SUBMITTED,
+                message: `New MRF ${mrfId} for ${projectOrServiceLabel} needs processing`,
+                link: '#/procurement/mrfs',
+                source_collection: 'mrfs',
+                source_id: mrfId,
+                excludeActor: true
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-14 broadcast failed:', notifErr);
+        }
+
         showToast(`New MRF created successfully! MRF ID: ${mrfId}`, 'success');
 
         // Clear the form and reset currentMRF
@@ -7045,6 +7061,46 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
         }
 
         await updateDoc(poRef, updateData);
+
+        // Phase 84.1 NOTIF-18: notify MRF requestor + PO creator on Delivered (material POs only;
+        // subcon POs terminate at 'Processed' and are out of NOTIF-18 scope by design). Fire-and-forget per D-03.
+        // Local variable named poDataFresh (not poData) to avoid shadowing the module-scope poData array.
+        if (newStatus === 'Delivered' && !isSubcon) {
+            try {
+                // Re-fetch PO to get pristine post-update fields (po_creator_user_id, mrf_id)
+                const poDocFresh = await getDoc(poRef);
+                const poDataFresh = poDocFresh.data() || {};
+                const recipients = [];
+
+                // Recipient 1: PO creator (procurement user who originally generated the PR)
+                if (poDataFresh.po_creator_user_id) recipients.push(poDataFresh.po_creator_user_id);
+
+                // Recipient 2: MRF requestor (resolved via existing helper)
+                if (poDataFresh.mrf_id) {
+                    const mrfQ = query(collection(db, 'mrfs'), where('mrf_id', '==', poDataFresh.mrf_id));
+                    const mrfSnap = await getDocs(mrfQ);
+                    if (!mrfSnap.empty) {
+                        const mrfDocSnap = mrfSnap.docs[0];
+                        const requestorUid = await resolveRequestorUid({ ...mrfDocSnap.data() });
+                        if (requestorUid) recipients.push(requestorUid);
+                    }
+                }
+
+                if (recipients.length > 0) {
+                    await createNotificationForUsers({
+                        user_ids: recipients,
+                        type: NOTIFICATION_TYPES.PO_DELIVERED,
+                        message: `PO ${poDataFresh.po_id} for MRF ${poDataFresh.mrf_id || ''} has been Delivered`,
+                        link: '#/procurement/records',
+                        source_collection: 'pos',
+                        source_id: poDataFresh.po_id || '',
+                        excludeActor: true
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Procurement] NOTIF-18 PO Delivered notification failed:', notifErr);
+            }
+        }
 
         const successMsg = isSubcon
             ? `SUBCON status updated to ${newStatus}`

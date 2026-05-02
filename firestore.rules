@@ -119,9 +119,12 @@ service cloud.firestore {
         (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user')
       );
 
-      // List: super_admin OR operations_admin OR services_admin
-      // Note: operations_admin and services_admin list access must be filtered client-side to their respective user roles
-      allow list: if isRole('super_admin') || isRole('operations_admin') || isRole('services_admin');
+      // List: any active user. Aligns users.list with the read-rule pattern used by every other operational
+      // collection (projects/clients/suppliers/mrfs/prs/pos/transport_requests/rfps/services/role_templates).
+      // Required for createNotificationForRoles fan-out from non-admin actors (mrf-form.js NOTIF-14, etc.).
+      // Exposed fields: full_name / email / role / status — no SSN/address/financial PII. Role separation
+      // on WRITES is unchanged (allow update gates still apply). Threat T-84.1-01 accepted.
+      allow list: if isActiveUser();
 
       // Phase 84 D-12: allow any signed-in user to read super_admin user docs
       // Required for createNotificationForRoles({roles:['super_admin']}) called from register.js

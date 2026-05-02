@@ -9,6 +9,7 @@
 import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from '../firebase.js';
 import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
+import { createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // View state
 let projectsListener = null;
@@ -1792,6 +1793,22 @@ async function handleFormSubmit(e) {
 
         // Submit to Firebase
         await addDoc(collection(db, 'mrfs'), mrfDoc);
+
+        // Phase 84.1 NOTIF-14: broadcast new MRF to all active procurement users (fire-and-forget)
+        try {
+            const projectOrServiceLabel = mrfDoc.project_name || mrfDoc.service_name || 'Unknown';
+            await createNotificationForRoles({
+                roles: ['procurement'],
+                type: NOTIFICATION_TYPES.MRF_SUBMITTED,
+                message: `New MRF ${mrfId} for ${projectOrServiceLabel} needs processing`,
+                link: '#/procurement/mrfs',
+                source_collection: 'mrfs',
+                source_id: mrfId,
+                excludeActor: true   // if a procurement user submits an MRF themselves, skip self-notify
+            });
+        } catch (notifErr) {
+            console.error('[MRFForm] NOTIF-14 broadcast failed:', notifErr);
+        }
 
         showLoading(false);
 
