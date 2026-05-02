@@ -4251,7 +4251,7 @@ async function rejectMRF() {
                 await createNotification({
                     user_id: requestorUid,
                     type: NOTIFICATION_TYPES.MRF_REJECTED,
-                    message: `Your MRF ${rejectedMrfSnap.mrf_id} has been rejected by Procurement`,
+                    message: `Your MRF ${rejectedMrfSnap.mrf_id} has been rejected by Procurement${reason && reason.trim() ? `: ${reason.trim()}` : ''}`,
                     link: '#/procurement/mrfs',
                     source_collection: 'mrfs',
                     source_id: rejectedMrfSnap.mrf_id
