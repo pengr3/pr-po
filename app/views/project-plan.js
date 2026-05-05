@@ -1186,6 +1186,10 @@ async function recomputeParentDates(parentTaskId, excludeIds = null) {
             end_date: maxEnd,
             updated_at: serverTimestamp()
         });
+        const parentIdx = tasks.findIndex(t => t.task_id === parentTaskId);
+        if (parentIdx >= 0) {
+            tasks[parentIdx] = { ...tasks[parentIdx], start_date: minStart, end_date: maxEnd };
+        }
         // Bubble up — propagate the exclude set so deeper ancestors also ignore the just-deleted ids
         if (parent?.parent_task_id) await recomputeParentDates(parent.parent_task_id, exclude);
     } catch (err) {
