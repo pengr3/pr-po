@@ -941,11 +941,19 @@ async function deleteTaskNow(taskId) {
     const t = tasks.find(x => x.task_id === taskId);
     if (!t) return;
 
+    // Pre-build a parent->children map once so cascade collection is O(n) overall
+    // rather than O(depth * n) from repeated tasks.filter(...) at every level.
+    const childrenByParent = new Map();
+    tasks.forEach(x => {
+        const k = x.parent_task_id || '__root__';
+        if (!childrenByParent.has(k)) childrenByParent.set(k, []);
+        childrenByParent.get(k).push(x);
+    });
+
     // Collect the subtree (children-first order)
     const allIds = [];
     function collect(id) {
-        const kids = tasks.filter(x => x.parent_task_id === id);
-        kids.forEach(k => collect(k.task_id));
+        (childrenByParent.get(id) || []).forEach(k => collect(k.task_id));
         allIds.push(id);
     }
     collect(taskId);
