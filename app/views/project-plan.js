@@ -505,16 +505,12 @@ function applyFsViolationStyles() {
             }
         });
     });
-    // Frappe attaches data attributes to dep arrows: query path elements rendered in #ganttPane
+    // Frappe arrows don't carry id attrs out of the box, so we cannot reliably tag specific
+    // arrows as violations without a Frappe fork. The previous count-match heuristic gave
+    // non-monotonic UI (silently no tag when violation count != arrow count). Clear all
+    // violation classes and rely on the toast for UX until a Frappe patch lands.
     const arrows = document.querySelectorAll('#ganttPane .arrow');
     arrows.forEach(el => el.classList.remove('violation'));
-    // Frappe arrows don't carry id attrs out of the box, but they are rendered in the same order
-    // as the dependencies list. As a pragmatic match, mark all arrows as violation if there are any
-    // violations AND the count matches; otherwise skip detailed tagging (toast already covers UX).
-    // Future polish: fork Frappe to add data-from/data-to attrs.
-    if (violations.length > 0 && arrows.length === violations.length) {
-        arrows.forEach(el => el.classList.add('violation'));
-    }
 }
 
 function renderTodayLine() {
