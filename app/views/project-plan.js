@@ -1175,9 +1175,10 @@ async function recomputeParentDates(parentTaskId, excludeIds = null) {
         // Bubble up — propagate the exclude set so deeper ancestors also ignore the just-deleted ids
         if (parent?.parent_task_id) await recomputeParentDates(parent.parent_task_id, exclude);
     } catch (err) {
-        // Permission errors here generally mean the user can edit the leaf but not the parent —
-        // accept silently in MVP. Server rules would still allow if user is admin/ops_user assigned.
         console.warn('[ProjectPlan] recomputeParentDates: write failed for parent', parentTaskId, err?.code);
+        if (err?.code === 'permission-denied') {
+            showToast('Parent task dates could not be updated — your account may not have edit permission.', 'warning');
+        }
     }
 }
 
