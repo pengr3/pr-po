@@ -133,6 +133,10 @@ export async function init(activeTab = null, param = null) {
         window.deleteTaskNow = deleteTaskNow;                // Task 3 of this plan defines deleteTaskNow
         window.closeDeleteTaskConfirm = closeDeleteTaskConfirm; // Task 3 of this plan defines closeDeleteTaskConfirm
         window.editTaskProgress = editTaskProgress;          // Task 4 of this plan defines editTaskProgress (slider handler)
+        // Phase 86 Plan 05 — filter panel handlers (D-21, PM-09)
+        window.applyPlanFilters = applyPlanFilters;
+        window.clearPlanFilters = clearPlanFilters;
+        window.toggleFilterAssignee = toggleFilterAssignee;
     } finally {
         // showLoading() inverse handled by snapshot first-callback paint
     }
@@ -165,6 +169,10 @@ export async function destroy() {
     delete window.deleteTaskNow;
     delete window.closeDeleteTaskConfirm;
     delete window.editTaskProgress;
+    // Phase 86 Plan 05 — filter panel handler teardown
+    delete window.applyPlanFilters;
+    delete window.clearPlanFilters;
+    delete window.toggleFilterAssignee;
 }
 
 // ---- Tree rendering (left rail) ----
@@ -181,9 +189,19 @@ function renderTaskTree() {
         return;
     }
 
-    // Build parent_task_id → children[] map
+    // Build parent_task_id → children[] map (filtered to visible set per D-21)
+    const keepIds = getVisibleTaskSet();
+    const visibleTasks = tasks.filter(t => keepIds.has(t.task_id));
+    if (tasks.length > 0 && visibleTasks.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>No tasks match the current filters.</h3>
+                <p>Clear filters to see all tasks.</p>
+            </div>`;
+        return;
+    }
     const childrenByParent = new Map();
-    tasks.forEach(t => {
+    visibleTasks.forEach(t => {
         const key = t.parent_task_id || '__root__';
         if (!childrenByParent.has(key)) childrenByParent.set(key, []);
         childrenByParent.get(key).push(t);
@@ -191,11 +209,20 @@ function renderTaskTree() {
     // Sort children by start_date asc within each level (D-Discretion default)
     childrenByParent.forEach(arr => arr.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')));
 
+    // hasChildren must reflect the FULL tasks set (truth) — filters affect what's RENDERED,
+    // not whether a node is structurally a parent (slider vs % label decision).
+    const allChildrenByParent = new Map();
+    tasks.forEach(t => {
+        const key = t.parent_task_id || '__root__';
+        if (!allChildrenByParent.has(key)) allChildrenByParent.set(key, []);
+        allChildrenByParent.get(key).push(t);
+    });
+
     const rows = [];
     function walk(parentKey, depth) {
         const kids = childrenByParent.get(parentKey) || [];
         kids.forEach(t => {
-            const hasChildren = childrenByParent.has(t.task_id);
+            const hasChildren = allChildrenByParent.has(t.task_id);
             const isExpanded = expandedTaskIds.has(t.task_id);
             const chevronChar = hasChildren ? (isExpanded ? '⌄' : '›') : '';
             const isSelected = selectedTaskId === t.task_id;
@@ -212,7 +239,7 @@ function renderTaskTree() {
                         ${escapeHTML(t.name || '(unnamed)')}
                     </span>
                     ${hasChildren
-                        ? `<span class="task-tree-progress">${typeof t.progress === 'number' ? t.progress : 0}%</span>`
+                        ? `<span class="task-tree-progress">${computeWeightedProgress(t.task_id, tasks)}%</span>`
                         : `<input type="range" class="task-tree-progress-slider"
                                   min="0" max="100" step="1"
                                   value="${typeof t.progress === 'number' ? t.progress : 0}"
@@ -255,12 +282,24 @@ function renderGantt() {
     const mountEl = document.getElementById('ganttPane');
     if (!mountEl) return;
 
-    // 1. Build childrenByParent map (same shape as renderTaskTree)
+    // 0. Apply D-21 filters — restrict which tasks render but keep envelope math on the full set
+    const keepIds = getVisibleTaskSet();
+    const visibleTasksLocal = tasks.filter(t => keepIds.has(t.task_id));
+
+    // 1. Build childrenByParent map from the FULL tasks array — this is the truth-source for
+    //    parent envelope computation (D-12: rollup math uses truth, filters affect rendering only).
     const childrenByParent = new Map();
     tasks.forEach(t => {
         const key = t.parent_task_id || '__root__';
         if (!childrenByParent.has(key)) childrenByParent.set(key, []);
         childrenByParent.get(key).push(t);
+    });
+    // Build a separate visible-children map for the depth-first render walk.
+    const visibleChildrenByParent = new Map();
+    visibleTasksLocal.forEach(t => {
+        const key = t.parent_task_id || '__root__';
+        if (!visibleChildrenByParent.has(key)) visibleChildrenByParent.set(key, []);
+        visibleChildrenByParent.get(key).push(t);
     });
 
     // 2. Compute parent date envelopes (D-11 — locked computed, leaf-driven)
@@ -308,10 +347,12 @@ function renderGantt() {
     }
 
     function walk(parentKey) {
-        const kids = (childrenByParent.get(parentKey) || []).slice().sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+        // Iterate VISIBLE children (filter-aware); appendNode still uses truth-set childrenByParent
+        // to decide isParent / envelope so unfiltered structure is preserved on screen.
+        const kids = (visibleChildrenByParent.get(parentKey) || []).slice().sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
         kids.forEach(t => {
             appendNode(t);
-            if (childrenByParent.has(t.task_id)) walk(t.task_id);
+            if (visibleChildrenByParent.has(t.task_id)) walk(t.task_id);
         });
     }
     walk('__root__');
@@ -536,9 +577,142 @@ function checkAndToastFsViolations() {
     __lastViolationFingerprint = fingerprint;
 }
 
-// ---- Stubs (Plan 05 wires bodies) ----
+// ---- Filter panel (D-21, PM-09) ----
 
-function togglePlanFilters() { /* Plan 05 wires this */ }
+function togglePlanFilters() {
+    const panel = document.getElementById('planFilterPanel');
+    if (!panel) return;
+    const isOpen = panel.style.display === 'block';
+    if (isOpen) {
+        panel.style.display = 'none';
+    } else {
+        renderPlanFilterPanel();
+        panel.style.display = 'block';
+    }
+}
+
+function renderPlanFilterPanel() {
+    const panel = document.getElementById('planFilterPanel');
+    if (!panel) return;
+    const projectPersonnel = normalizePersonnel(currentProject);
+    const personnelChips = (projectPersonnel.userIds || []).map((uid, i) => {
+        const name = projectPersonnel.names?.[i] || uid;
+        const isOn = filterAssignees.includes(uid);
+        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" onclick="window.toggleFilterAssignee('${escapeHTML(uid)}')">${escapeHTML(name)}</span>`;
+    }).join('');
+
+    panel.innerHTML = `
+        <div style="display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px; align-items: end;">
+            <div>
+                <label class="form-label">Date range</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <input id="filterDateFromInput" class="form-control" type="date" value="${escapeHTML(filterDateFrom)}" onchange="window.applyPlanFilters()">
+                    <span>to</span>
+                    <input id="filterDateToInput" class="form-control" type="date" value="${escapeHTML(filterDateTo)}" onchange="window.applyPlanFilters()">
+                </div>
+            </div>
+            <div>
+                <label class="form-label">Personnel</label>
+                <div class="personnel-pills-container">${personnelChips || '<span style="color: var(--gray-700, #475569); font-size: 13px;">No personnel on this project.</span>'}</div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="window.clearPlanFilters()">Clear</button>
+            <button type="button" class="btn btn-secondary" onclick="window.togglePlanFilters()">Close</button>
+        </div>
+    `;
+}
+
+function applyPlanFilters() {
+    filterDateFrom = (document.getElementById('filterDateFromInput')?.value || '');
+    filterDateTo = (document.getElementById('filterDateToInput')?.value || '');
+    // Re-render — use filtered set
+    renderTaskTree();
+    renderGantt();
+}
+
+function toggleFilterAssignee(uid) {
+    const idx = filterAssignees.indexOf(uid);
+    if (idx >= 0) filterAssignees.splice(idx, 1);
+    else filterAssignees.push(uid);
+    renderPlanFilterPanel();
+    applyPlanFilters();
+}
+
+function clearPlanFilters() {
+    filterDateFrom = '';
+    filterDateTo = '';
+    filterAssignees = [];
+    renderPlanFilterPanel();
+    applyPlanFilters();
+}
+
+function getFilteredTasks() {
+    if (!filterDateFrom && !filterDateTo && filterAssignees.length === 0) return tasks.slice();
+    return tasks.filter(t => {
+        // Date range filter — task overlaps range if start_date <= dateTo AND end_date >= dateFrom
+        if (filterDateFrom && t.end_date && t.end_date < filterDateFrom) return false;
+        if (filterDateTo && t.start_date && t.start_date > filterDateTo) return false;
+        // Assignees filter — task matches if any assignee is in filterAssignees
+        if (filterAssignees.length > 0) {
+            const tAssignees = Array.isArray(t.assignees) ? t.assignees : [];
+            if (!tAssignees.some(a => filterAssignees.includes(a))) return false;
+        }
+        return true;
+    });
+}
+
+function getVisibleTaskSet() {
+    // Returns a Set of task_ids visible after applying filters AND preserving ancestors
+    // of any visible task (so parent rows stay in the tree even when filter excludes them).
+    const visible = getFilteredTasks();
+    const keepIds = new Set(visible.map(t => t.task_id));
+    // Walk ancestors
+    const tasksById = new Map(tasks.map(t => [t.task_id, t]));
+    visible.forEach(t => {
+        let p = t.parent_task_id;
+        while (p) {
+            if (keepIds.has(p)) break; // already included — stop walking
+            keepIds.add(p);
+            const pt = tasksById.get(p);
+            p = pt?.parent_task_id || null;
+        }
+    });
+    return keepIds;
+}
+
+function computeWeightedProgress(rootTaskId, allTasks) {
+    // Recursively gather all leaf descendants of rootTaskId (D-12 weighted-by-duration leaf-only).
+    // Always uses the FULL tasks array — filters affect what's RENDERED, rollup math uses truth.
+    const childrenByParent = new Map();
+    allTasks.forEach(t => {
+        const key = t.parent_task_id || '__root__';
+        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+        childrenByParent.get(key).push(t);
+    });
+    const leaves = [];
+    function walk(id) {
+        const kids = childrenByParent.get(id) || [];
+        if (kids.length === 0) {
+            const self = allTasks.find(x => x.task_id === id);
+            if (self) leaves.push(self);
+            return;
+        }
+        kids.forEach(k => walk(k.task_id));
+    }
+    walk(rootTaskId);
+    if (leaves.length === 0) return 0;
+    let ws = 0, wt = 0;
+    leaves.forEach(l => {
+        const dur = (function(s, e) {
+            if (!s || !e) return 1;
+            const sd = new Date(s); sd.setHours(0,0,0,0);
+            const ed = new Date(e); ed.setHours(0,0,0,0);
+            return Math.max(1, Math.round((ed - sd) / 86400000) + 1);
+        })(l.start_date, l.end_date);
+        const p = typeof l.progress === 'number' ? l.progress : 0;
+        ws += p * dur; wt += dur;
+    });
+    return wt > 0 ? Math.round(ws / wt) : 0;
+}
 
 // ---- Modal CRUD (Plan 04) ----
 
