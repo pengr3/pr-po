@@ -904,8 +904,10 @@ function confirmDeleteTask(taskId) {
     }
     const totalSubtaskCount = hasChildren ? countSubtree(taskId) : 0;
     const title = hasChildren ? 'Delete Task and Subtasks?' : 'Delete Task?';
+    // body is HTML-trusted: t.name passes through escapeHTML before interpolation, taskId is
+    // generator-controlled, totalSubtaskCount is a number — safe to drop into mount.innerHTML.
     const body = hasChildren
-        ? `Delete '${escapeHTML(t.name || taskId)}' and its ${totalSubtaskCount} subtask${totalSubtaskCount > 1 ? 's' : ''}? This cannot be undone.`
+        ? `Delete '${escapeHTML(t.name || taskId)}' and its ${totalSubtaskCount} subtask${totalSubtaskCount !== 1 ? 's' : ''}? This cannot be undone.`
         : `Delete '${escapeHTML(t.name || taskId)}'? This cannot be undone.`;
     const confirmLabel = hasChildren ? 'Delete All' : 'Delete';
     const mount = document.getElementById('deleteTaskConfirmModalMount');
