@@ -72,26 +72,28 @@ export async function init(activeTab = null, param = null) {
     document.addEventListener('mousedown', personnelClickOutsideHandler);
 
     // Listen for permission changes and re-render
+    // If a previous init left a handler attached (e.g., destroy() was skipped on a tab swap),
+    // detach it before adding the new one so we don't leak listeners across re-inits.
+    if (window._projectDetailPermissionHandler) {
+        window.removeEventListener('permissionsChanged', window._projectDetailPermissionHandler);
+    }
     const permissionChangeHandler = () => {
         renderProjectDetail();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
-
-    // Store handler for cleanup
-    if (!window._projectDetailPermissionHandler) {
-        window._projectDetailPermissionHandler = permissionChangeHandler;
-    }
+    window._projectDetailPermissionHandler = permissionChangeHandler;
 
     // Phase 7: Re-check access when assignments change
+    if (window._projectDetailAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._projectDetailAssignmentHandler);
+    }
     const assignmentChangeHandler = () => {
         if (currentProject) {
             checkProjectAccess(); // Will render access denied if project no longer assigned
         }
     };
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
-    if (!window._projectDetailAssignmentHandler) {
-        window._projectDetailAssignmentHandler = assignmentChangeHandler;
-    }
+    window._projectDetailAssignmentHandler = assignmentChangeHandler;
 
     if (!projectCode) {
         document.getElementById('projectDetailContainer').innerHTML = `
