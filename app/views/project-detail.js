@@ -1345,8 +1345,8 @@ function computeProjectProgress(tasks) {
     });
     result.percentComplete = weightTotal > 0 ? Math.round(weightedSum / weightTotal) : 0;
 
-    // Highlights (Specifics)
-    const today = new Date().toISOString().slice(0, 10);
+    // Highlights (Specifics) — use local-day, not UTC; toISOString() shifts off-by-one in PHT before 08:00.
+    const today = todayLocal();
     const completed = tasks.filter(t => t.progress === 100).slice().sort((a, b) => {
         const at = a.updated_at?.seconds || 0;
         const bt = b.updated_at?.seconds || 0;
@@ -1371,4 +1371,9 @@ function computeDurationDays(startDate, endDate) {
     const e = new Date(endDate); e.setHours(0, 0, 0, 0);
     const days = Math.round((e - s) / 86400000) + 1;
     return Math.max(1, days);
+}
+
+function todayLocal() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
