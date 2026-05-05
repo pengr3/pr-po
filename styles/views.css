@@ -2605,3 +2605,10 @@
 @media (max-width: 768px) {
     .plan-card-highlights { grid-template-columns: 1fr; }
 }
+
+.personnel-pills-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
