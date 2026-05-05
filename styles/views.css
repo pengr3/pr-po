@@ -2553,3 +2553,55 @@
     stroke: #ef4444;
     stroke-width: 2;
 }
+
+/* ========================================
+   PHASE 86 — PROJECT PLAN SUMMARY CARD (project-detail.js)
+   ======================================== */
+
+.project-plan-card .card-body { padding: 1.5rem; }
+
+.plan-card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+.plan-card-stat {
+    text-align: center;
+    padding: 8px;
+}
+.plan-card-stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--primary, #1a73e8);
+    line-height: 1.2;
+}
+.plan-card-stat-label {
+    font-size: 14px;
+    color: var(--gray-700, #475569);
+}
+
+.plan-card-highlights {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+.plan-card-highlight {
+    background: var(--gray-50, #f8f9fa);
+    padding: 12px;
+    border-radius: 6px;
+}
+.plan-card-highlight-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-700, #475569);
+    margin-bottom: 4px;
+}
+.plan-card-highlight-value {
+    font-size: 14px;
+    color: var(--gray-900, #1e293b);
+}
+
+@media (max-width: 768px) {
+    .plan-card-highlights { grid-template-columns: 1fr; }
+}
