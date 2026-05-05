@@ -2486,3 +2486,54 @@
     .plan-split-pane { grid-template-columns: 1fr; }
     .gantt-pane { display: none; }
 }
+
+/* ========================================
+   PHASE 86 — FRAPPE GANTT OVERLAYS
+   Milestone diamond, parent summary bar, today line, FS-violation arrow.
+   ======================================== */
+
+/* Milestone tasks: hide default Frappe rect bar; render 14px diamond at start_date */
+.gantt-container .bar-wrapper.milestone-marker .bar,
+.gantt-container .bar-wrapper.milestone-marker .bar-progress {
+    display: none;
+}
+.gantt-container .bar-wrapper.milestone-marker::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 14px;
+    height: 14px;
+    background: #f59e0b;
+    transform: translate(-7px, -50%) rotate(45deg);
+    border-radius: 2px;
+}
+
+/* Parent summary bar: thin charcoal strip; non-draggable */
+.gantt-container .bar-wrapper.parent-summary-bar .bar {
+    height: 4px;
+    fill: #475569;
+    transform: translateY(10px);
+}
+.gantt-container .bar-wrapper.parent-summary-bar .bar-progress {
+    display: none;
+}
+.gantt-container .bar-wrapper.parent-summary-bar .handle.left,
+.gantt-container .bar-wrapper.parent-summary-bar .handle.right,
+.gantt-container .bar-wrapper.parent-summary-bar .handle.progress {
+    pointer-events: none;
+    display: none;
+}
+
+/* Today line — 2px red SVG line, full chart height */
+.gantt-today-line {
+    stroke: #ef4444;
+    stroke-width: 2;
+    pointer-events: none;
+}
+
+/* FS-violation arrow — red stroke override */
+.gantt-container .arrow.violation {
+    stroke: #ef4444;
+    stroke-width: 2;
+}
