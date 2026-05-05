@@ -1203,7 +1203,9 @@ async function recomputeParentDates(parentTaskId, excludeIds = null) {
 // ---- Inline progress slider write helper (Plan 04 Task 4) ----
 
 async function editTaskProgress(taskId, valueRaw) {
-    const value = Math.max(0, Math.min(100, Math.round(Number(valueRaw))));
+    const parsed = Number(valueRaw);
+    if (!Number.isFinite(parsed)) return;
+    const value = Math.max(0, Math.min(100, Math.round(parsed)));
     const t = tasks.find(x => x.task_id === taskId);
     if (!t) return;
     if (value === t.progress) return;
