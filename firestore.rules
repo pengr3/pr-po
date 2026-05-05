@@ -478,6 +478,56 @@ service cloud.firestore {
     }
 
     // =============================================
+    // project_tasks collection (Phase 86 — PM-11, D-18)
+    // =============================================
+    // Native PM tasks for projects. project_code denormalized for project-scoped
+    // operations_user assignments (mirrors mrfs.project_code pattern).
+    //
+    // Two-tier update rule (D-18):
+    //   1. WBS field updates (name, description, dates, parent_task_id,
+    //      dependencies, is_milestone, assignees, progress + updated_at):
+    //      admins + assigned ops_user.
+    //   2. Progress-only updates (request affects ONLY progress + updated_at):
+    //      admins OR uid in resource.data.assignees.
+    //
+    // Schema (D-20): task_id (==doc id), project_id, project_code, parent_task_id,
+    //   name, description, start_date, end_date, progress (0-100),
+    //   is_milestone, dependencies[], assignees[uid], created_at, updated_at, created_by.
+    //
+    // Read scope: any active user. Project-scoping for ops_user happens at the
+    // JS query layer via where('project_id','==',X) — mirrors mrfs/prs/pos pattern.
+    match /project_tasks/{taskId} {
+      // Read: any active user (project-scoping at JS query layer)
+      allow read: if isActiveUser();
+
+      // Create: admins or operations_user assigned to this project
+      allow create: if hasRole(['super_admin', 'operations_admin']) ||
+                       (isRole('operations_user') &&
+                        isAssignedToProject(request.resource.data.project_code));
+
+      // Update — two-tier:
+      //  Tier 1 (full WBS edit): admins or assigned ops_user
+      //  Tier 2 (progress-only): admins OR uid in resource.data.assignees
+      //         (Phase 83 affectedKeys().hasOnly() technique mirrors notifications block)
+      allow update: if (
+        // Tier 1: full edit
+        hasRole(['super_admin', 'operations_admin']) ||
+        (isRole('operations_user') && isAssignedToProject(resource.data.project_code))
+      ) || (
+        // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
+        // D-15 + D-14: only operations_user (or admins) may write progress; finance/services/procurement
+        // are READ-ONLY even if accidentally added to task.assignees.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'updated_at']) &&
+        (hasRole(['super_admin', 'operations_admin']) ||
+         (isRole('operations_user') && request.auth.uid in resource.data.assignees))
+      );
+
+      // Delete: admins or operations_user assigned to this project (D-14)
+      allow delete: if hasRole(['super_admin', 'operations_admin']) ||
+                       (isRole('operations_user') && isAssignedToProject(resource.data.project_code));
+    }
+
+    // =============================================
     // notifications collection (Phase 83 — NOTIF-13)
     // =============================================
     // Per-user in-app notifications. Each user only touches their own.
