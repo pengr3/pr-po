@@ -686,7 +686,87 @@ function toggleTaskAssignee(uid) {
     }).join('');
 }
 
-function confirmDeleteTask(_taskId) { showToast('Delete Task — modal coming in Plan 04', 'info'); }
+// ---- Delete cascade (Plan 04 Task 3) ----
+
+function confirmDeleteTask(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    const children = tasks.filter(x => x.parent_task_id === taskId);
+    const hasChildren = children.length > 0;
+    // Walk subtree for full count
+    function countSubtree(id) {
+        const direct = tasks.filter(x => x.parent_task_id === id);
+        return direct.length + direct.reduce((acc, c) => acc + countSubtree(c.task_id), 0);
+    }
+    const totalSubtaskCount = hasChildren ? countSubtree(taskId) : 0;
+    const title = hasChildren ? 'Delete Task and Subtasks?' : 'Delete Task?';
+    const body = hasChildren
+        ? `Delete '${escapeHTML(t.name || taskId)}' and its ${totalSubtaskCount} subtask${totalSubtaskCount > 1 ? 's' : ''}? This cannot be undone.`
+        : `Delete '${escapeHTML(t.name || taskId)}'? This cannot be undone.`;
+    const confirmLabel = hasChildren ? 'Delete All' : 'Delete';
+    const mount = document.getElementById('deleteTaskConfirmModalMount');
+    if (!mount) return;
+    mount.innerHTML = `
+        <div class="modal" id="deleteTaskConfirmModal" style="display: flex;" aria-modal="true" role="dialog">
+            <div class="modal-content" style="max-width: 440px;">
+                <div class="modal-header"><h3 class="text-danger">${title}</h3></div>
+                <div class="modal-body">${body}</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeDeleteTaskConfirm()">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="window.deleteTaskNow('${escapeHTML(taskId)}')">${confirmLabel}</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function closeDeleteTaskConfirm() {
+    const mount = document.getElementById('deleteTaskConfirmModalMount');
+    if (mount) mount.innerHTML = '';
+}
+
+async function deleteTaskNow(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+
+    // Collect the subtree (children-first order)
+    const allIds = [];
+    function collect(id) {
+        const kids = tasks.filter(x => x.parent_task_id === id);
+        kids.forEach(k => collect(k.task_id));
+        allIds.push(id);
+    }
+    collect(taskId);
+
+    showLoading();
+    try {
+        // writeBatch supports up to 500 ops — chunk into 450-op batches to stay safely under the limit.
+        // (Theoretically 500 hits the hard cap; 450 leaves headroom for any future batch-internal ops.)
+        const CHUNK = 450;
+        for (let i = 0; i < allIds.length; i += CHUNK) {
+            const slice = allIds.slice(i, i + CHUNK);
+            const batch = writeBatch(db);
+            slice.forEach(id => batch.delete(doc(db, 'project_tasks', id)));
+            await batch.commit();
+        }
+
+        // Recompute the deleted node's parent (the deleted node is gone; parent's envelope shrinks).
+        // Pass the deleted ids as excludeIds because the local `tasks[]` snapshot may not have refreshed
+        // yet (Firestore onSnapshot is async after writes) — without exclude, the parent recompute
+        // would see the just-deleted children and write stale dates.
+        if (t.parent_task_id) await recomputeParentDates(t.parent_task_id, new Set(allIds));
+
+        closeDeleteTaskConfirm();
+        showToast('Task deleted.', 'success');
+    } catch (err) {
+        console.error('[ProjectPlan] deleteTaskNow failed:', err);
+        if (err?.code === 'permission-denied') {
+            showToast(`You don't have permission to edit tasks on this project.`, 'error');
+        } else {
+            showToast('Could not delete task. Please try again.', 'error');
+        }
+    }
+}
 
 // ---- Cycle detection + save + parent recompute (Plan 04 Task 2) ----
 
