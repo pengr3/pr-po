@@ -99,13 +99,16 @@ export async function init(activeTab = null, param = null) {
         }
 
         // 3. Subscribe to project_tasks (project-scoped at JS query layer per D-18)
+        let __snapshotCount = 0;
         const tasksUnsub = onSnapshot(
             query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id)),
             (snap) => {
                 tasks = [];
                 snap.forEach(d => tasks.push({ id: d.id, ...d.data() }));
                 renderTaskTree();
-                if (typeof renderGantt === 'function') renderGantt();   // Plan 03 defines
+                renderGantt();
+                if (__snapshotCount > 0) checkAndToastFsViolations();
+                __snapshotCount++;
                 if (typeof refreshSummaryHighlights === 'function') refreshSummaryHighlights();  // Plan 05
             }
         );
@@ -141,6 +144,8 @@ export async function destroy() {
     projectCode = null;
     expandedTaskIds = new Set();
     selectedTaskId = null;
+    __ganttInitialScrollDone = false;
+    __lastViolationFingerprint = '';
     delete window.toggleTaskExpand;
     delete window.selectTaskRow;
     delete window.setGanttZoom;
@@ -216,9 +221,302 @@ function selectTaskRow(taskId) {
     // Plan 03 will scroll-sync the Gantt pane to this task's bar
 }
 
-// ---- Stubs (Plan 03 + Plan 04 wire bodies) ----
+// ---- Gantt rendering (right pane) ----
 
-function setGanttZoom(_mode) { /* Plan 03 wires this */ }
+let __ganttInitialScrollDone = false;
+let __lastViolationFingerprint = '';
+
+function renderGantt() {
+    if (typeof window.Gantt !== 'function') {
+        // Frappe not yet loaded — guard. Plan 01 ships the CDN script, but defensive.
+        return;
+    }
+    const mountEl = document.getElementById('ganttPane');
+    if (!mountEl) return;
+
+    // 1. Build childrenByParent map (same shape as renderTaskTree)
+    const childrenByParent = new Map();
+    tasks.forEach(t => {
+        const key = t.parent_task_id || '__root__';
+        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+        childrenByParent.get(key).push(t);
+    });
+
+    // 2. Compute parent date envelopes (D-11 — locked computed, leaf-driven)
+    // For Gantt rendering we COMPUTE here (we don't persist; persistence happens on writes —
+    // Plan 04 owns parent-recompute on child write).
+    function getEnvelope(taskId) {
+        const kids = childrenByParent.get(taskId) || [];
+        if (kids.length === 0) return null;
+        let minStart = null, maxEnd = null;
+        kids.forEach(k => {
+            const env = getEnvelope(k.task_id);
+            const ks = env ? env.start : k.start_date;
+            const ke = env ? env.end : k.end_date;
+            if (ks && (!minStart || ks < minStart)) minStart = ks;
+            if (ke && (!maxEnd || ke > maxEnd)) maxEnd = ke;
+        });
+        return { start: minStart, end: maxEnd };
+    }
+
+    // 3. Build Frappe task array (depth-first to preserve list order)
+    const frappeTasks = [];
+
+    function appendNode(t) {
+        const isParent = childrenByParent.has(t.task_id);
+        const env = isParent ? getEnvelope(t.task_id) : null;
+        const start = env?.start || t.start_date;
+        const end = env?.end || t.end_date;
+        if (!start || !end) return; // skip task with missing dates
+
+        // Frappe deps must be a comma-joined string of task ids; null/empty array → ''
+        const depsArr = Array.isArray(t.dependencies) ? t.dependencies : [];
+        let customClass = '';
+        if (t.is_milestone) customClass = 'milestone-marker';
+        else if (isParent) customClass = 'parent-summary-bar';
+
+        frappeTasks.push({
+            id: t.task_id,
+            name: t.name || '(unnamed)',
+            start: start,
+            end: end,
+            progress: typeof t.progress === 'number' ? t.progress : 0,
+            dependencies: depsArr.join(','),
+            custom_class: customClass
+        });
+    }
+
+    function walk(parentKey) {
+        const kids = (childrenByParent.get(parentKey) || []).slice().sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+        kids.forEach(t => {
+            appendNode(t);
+            if (childrenByParent.has(t.task_id)) walk(t.task_id);
+        });
+    }
+    walk('__root__');
+
+    if (frappeTasks.length === 0) {
+        mountEl.innerHTML = '';
+        return;
+    }
+
+    // 4. Initialize or refresh Frappe Gantt
+    if (gantt) {
+        // Refresh rather than rebuild — preserves zoom + scroll
+        try { gantt.refresh(frappeTasks); } catch (e) { /* fall through to rebuild */ gantt = null; }
+    }
+    if (!gantt) {
+        mountEl.innerHTML = ''; // Frappe expects empty mount
+        const Gantt = window.Gantt;
+        gantt = new Gantt('#ganttPane', frappeTasks, {
+            view_mode: 'Week',
+            bar_height: 24,
+            bar_corner_radius: 3,
+            padding: 18,
+            language: 'en',
+            date_format: 'YYYY-MM-DD',
+            on_date_change: handleGanttDateChange,
+            on_progress_change: handleGanttProgressChange,
+            on_click: handleGanttBarClick
+        });
+    }
+
+    // 5. Apply FS-violation overlay (D-10)
+    applyFsViolationStyles();
+
+    // 6. Today line + one-shot scroll-to-today
+    renderTodayLine();
+    if (!__ganttInitialScrollDone) {
+        scrollGanttToToday();
+        __ganttInitialScrollDone = true;
+    }
+}
+
+function setGanttZoom(mode) {
+    if (!gantt || !mode) return;
+    try { gantt.change_view_mode(mode); } catch (e) { return; }
+    document.querySelectorAll('.zoom-pill').forEach(el => {
+        el.classList.toggle('active', el.dataset.zoom === mode);
+    });
+    // Re-apply overlays after view-mode swap
+    renderTodayLine();
+    applyFsViolationStyles();
+}
+
+function handleGanttDateChange(task, start, end) {
+    // task.id === task_id; start/end are Date objects from Frappe
+    const t = tasks.find(x => x.task_id === task.id);
+    if (!t) return;
+
+    // Defense-in-depth: parent bars MUST NOT be draggable (D-11).
+    // CSS pointer-events: none on .parent-summary-bar handles is the primary block;
+    // this is a server-rules + JS double-check.
+    const isParent = tasks.some(x => x.parent_task_id === t.task_id);
+    if (isParent) {
+        showToast('Parent task dates are computed from subtasks. Edit subtask dates instead.', 'warning');
+        // Force re-render to revert any optimistic move
+        renderGantt();
+        return;
+    }
+
+    const newStart = formatDateISO(start);
+    const newEnd = formatDateISO(end);
+    if (newStart === t.start_date && newEnd === t.end_date) return;
+
+    updateDoc(doc(db, 'project_tasks', t.task_id), {
+        start_date: newStart,
+        end_date: newEnd,
+        updated_at: serverTimestamp()
+    }).then(() => {
+        // Plan 04's parent-recompute helper will fire from the snapshot callback
+    }).catch(err => {
+        console.error('[ProjectPlan] Drag write failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to edit tasks on this project.`
+            : 'Could not save task. Please try again.', 'error');
+        renderGantt(); // revert
+    });
+}
+
+function handleGanttProgressChange(task, progress) {
+    // Authoritative write path for drag-progress on the Gantt bar.
+    // Permission rules (D-15) are enforced at firestore.rules layer (Plan 01 D-18 tier-2).
+    // The left-rail slider in Plan 04 (editTaskProgress) writes through the same shape.
+    const t = tasks.find(x => x.task_id === task.id);
+    if (!t) return;
+    const newProgress = Math.max(0, Math.min(100, Math.round(progress)));
+    if (newProgress === t.progress) return;
+    updateDoc(doc(db, 'project_tasks', t.task_id), {
+        progress: newProgress,
+        updated_at: serverTimestamp()
+    }).catch(err => {
+        console.error('[ProjectPlan] Progress write failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to edit tasks on this project.`
+            : 'Could not save task. Please try again.', 'error');
+        renderGantt();
+    });
+}
+
+function handleGanttBarClick(task) {
+    // Click on bar → select row in left rail (Plan 02 selectTaskRow + Plan 04 modal-on-name-click)
+    selectTaskRow(task.id);
+}
+
+function formatDateISO(d) {
+    if (!d) return '';
+    if (typeof d === 'string') return d.slice(0, 10);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function applyFsViolationStyles() {
+    // For each task with deps, check FS constraint (A.end <= B.start). Highlight violating arrows.
+    const tasksById = new Map(tasks.map(t => [t.task_id, t]));
+    const violations = []; // [{from, to}]
+    tasks.forEach(b => {
+        const deps = Array.isArray(b.dependencies) ? b.dependencies : [];
+        deps.forEach(aId => {
+            const a = tasksById.get(aId);
+            if (!a) return;
+            if (a.end_date && b.start_date && a.end_date > b.start_date) {
+                violations.push({ from: aId, to: b.task_id });
+            }
+        });
+    });
+    // Frappe attaches data attributes to dep arrows: query path elements rendered in #ganttPane
+    const arrows = document.querySelectorAll('#ganttPane .arrow');
+    arrows.forEach(el => el.classList.remove('violation'));
+    // Frappe arrows don't carry id attrs out of the box, but they are rendered in the same order
+    // as the dependencies list. As a pragmatic match, mark all arrows as violation if there are any
+    // violations AND the count matches; otherwise skip detailed tagging (toast already covers UX).
+    // Future polish: fork Frappe to add data-from/data-to attrs.
+    if (violations.length > 0 && arrows.length === violations.length) {
+        arrows.forEach(el => el.classList.add('violation'));
+    }
+}
+
+function renderTodayLine() {
+    const ganttSvg = document.querySelector('#ganttPane svg');
+    if (!ganttSvg) return;
+    // Remove old line
+    ganttSvg.querySelectorAll('.gantt-today-line').forEach(el => el.remove());
+    // Compute today's x-coord — Frappe stores tick width in gantt.options.column_width and uses
+    // gantt.gantt_start as the timeline anchor
+    if (!gantt) return;
+    try {
+        const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        startDate.setHours(0, 0, 0, 0);
+        const dayDiff = Math.round((today - startDate) / (1000 * 60 * 60 * 24));
+        // Step width per day depends on view_mode — Frappe exposes gantt.options.step (hours per column)
+        const stepHours = gantt.options.step || 24;
+        const colWidth = gantt.options.column_width || 30;
+        const xPerDay = (24 / stepHours) * colWidth;
+        const x = dayDiff * xPerDay;
+        // Build SVG line element
+        const ns = 'http://www.w3.org/2000/svg';
+        const line = document.createElementNS(ns, 'line');
+        line.setAttribute('class', 'gantt-today-line');
+        line.setAttribute('x1', x);
+        line.setAttribute('y1', 0);
+        line.setAttribute('x2', x);
+        line.setAttribute('y2', '100%');
+        ganttSvg.appendChild(line);
+    } catch (e) {
+        // Silent fail — today line is a nice-to-have, never break Gantt rendering
+    }
+}
+
+function scrollGanttToToday() {
+    const pane = document.querySelector('.gantt-pane');
+    if (!pane || !gantt) return;
+    try {
+        const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        startDate.setHours(0, 0, 0, 0);
+        const dayDiff = Math.round((today - startDate) / (1000 * 60 * 60 * 24));
+        const stepHours = gantt.options.step || 24;
+        const colWidth = gantt.options.column_width || 30;
+        const xPerDay = (24 / stepHours) * colWidth;
+        const x = dayDiff * xPerDay;
+        // Center today in the visible pane
+        pane.scrollLeft = Math.max(0, x - pane.clientWidth / 2);
+    } catch (e) { /* swallow */ }
+}
+
+function checkAndToastFsViolations() {
+    // Hook into the snapshot-driven render flow: after each renderGantt(),
+    // also re-check for the FS-violation toast (D-10) — only on drag commits, not initial paint.
+    const tasksById = new Map(tasks.map(t => [t.task_id, t]));
+    const lines = [];
+    tasks.forEach(b => {
+        const deps = Array.isArray(b.dependencies) ? b.dependencies : [];
+        deps.forEach(aId => {
+            const a = tasksById.get(aId);
+            if (!a) return;
+            if (a.end_date && b.start_date && a.end_date > b.start_date) {
+                lines.push(`Task '${b.name}' now starts before Task '${a.name}' finishes. Reschedule manually if needed.`);
+            }
+        });
+    });
+    const fingerprint = lines.join('|');
+    if (fingerprint && fingerprint !== __lastViolationFingerprint) {
+        // Only toast new violations introduced since the last snapshot
+        const prevSet = new Set(__lastViolationFingerprint.split('|').filter(Boolean));
+        lines.forEach(msg => {
+            if (!prevSet.has(msg)) showToast(msg, 'warning');
+        });
+    }
+    __lastViolationFingerprint = fingerprint;
+}
+
+// ---- Stubs (Plan 04 + Plan 05 wire bodies) ----
+
 function togglePlanFilters() { /* Plan 05 wires this */ }
 function openAddTaskModal() { showToast('Add Task — modal coming in Plan 04', 'info'); }
 function openEditTaskModal(_taskId) { showToast('Edit Task — modal coming in Plan 04', 'info'); }
