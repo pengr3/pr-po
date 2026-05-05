@@ -2366,3 +2366,123 @@
         min-height: 220px;
     }
 }
+
+/* ========================================
+   PROJECT PLAN VIEW (Phase 86)
+   Split-pane plan surface: toolbar + task tree (left) + Gantt pane (right)
+   ======================================== */
+
+.plan-view-surface {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);  /* nav-height adjust if needed */
+    background: var(--gray-50, #f8f9fa);
+}
+.plan-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    height: 56px;
+    border-bottom: 1px solid var(--gray-200, #dadce0);
+    background: #ffffff;
+}
+.plan-toolbar .plan-back-link {
+    color: var(--primary, #1a73e8);
+    text-decoration: none;
+    font-size: 14px;
+}
+.plan-toolbar .plan-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 0 8px;
+}
+.plan-toolbar-spacer { flex: 1 1 auto; }
+
+.zoom-pill-group {
+    display: inline-flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200, #dadce0);
+}
+.zoom-pill {
+    padding: 6px 12px;
+    background: #ffffff;
+    color: var(--gray-700, #475569);
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+.zoom-pill.active {
+    background: var(--primary, #1a73e8);
+    color: #ffffff;
+}
+
+.plan-filter-panel {
+    background: #ffffff;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--gray-200, #dadce0);
+}
+
+.plan-split-pane {
+    display: grid;
+    grid-template-columns: 35% 1fr;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-top: 1px solid var(--gray-200, #dadce0);
+}
+.task-tree {
+    overflow-y: auto;
+    background: #ffffff;
+    border-right: 1px solid var(--gray-200, #dadce0);
+}
+.task-tree-row {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 14px;
+    padding-right: 12px;
+}
+.task-tree-row:hover { background: var(--gray-50, #f8f9fa); }
+.task-tree-row.selected {
+    background: rgba(26, 115, 232, 0.08);
+    border-left: 3px solid var(--primary, #1a73e8);
+}
+.task-tree-chevron {
+    color: var(--gray-700, #475569);
+    font-size: 12px;
+    text-align: center;
+    user-select: none;
+}
+.task-tree-chevron.clickable { cursor: pointer; }
+.task-tree-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.task-tree-name.is-milestone::before {
+    content: '◆ ';
+    color: #f59e0b;
+}
+.task-tree-progress {
+    color: var(--gray-700, #475569);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.gantt-pane {
+    overflow: auto;
+    background: #ffffff;
+}
+.gantt-pane #ganttPane { padding: 8px; }
+
+/* Frappe Gantt customizations — Plan 03 will fill in milestone-marker + parent-summary-bar */
+.gantt-container { background: #ffffff; }
+
+@media (max-width: 768px) {
+    .plan-split-pane { grid-template-columns: 1fr; }
+    .gantt-pane { display: none; }
+}
