@@ -11,6 +11,7 @@ const routePermissionMap = {
     '/clients': 'clients',
     '/projects': 'projects',
     '/project-detail': 'projects',  // Detail view uses projects permission
+    '/project-plan': 'projects',  // Phase 86 — same gate as project-detail (PM-11 enforced at firestore.rules layer)
     '/services': 'services',
     '/service-detail': 'services',  // Detail view uses services permission
     '/mrf-form': 'mrf_form',
@@ -69,6 +70,11 @@ const routes = {
         name: 'Project Detail',
         load: () => import('./views/project-detail.js'),
         title: 'Project Details | CLMC Procurement'
+    },
+    '/project-plan': {
+        name: 'Project Plan',
+        load: () => import('./views/project-plan.js'),
+        title: 'Project Plan | CLMC Procurement'
     },
     '/services': {
         name: 'Services',
@@ -381,6 +387,12 @@ function handleHashChange() {
         return;
     }
 
+    // Phase 86 — handle plan route: #/projects/CODE/plan -> navigate to /project-plan with param=CODE
+    if (path === '/projects' && tab && subpath === 'plan') {
+        navigate('/project-plan', null, tab);
+        return;
+    }
+
     navigate(path, tab);
 }
 
@@ -412,6 +424,9 @@ export function handleInitialRoute() {
         navigate('/project-detail', null, subpath);
     } else if (path === '/services' && tab === 'detail' && subpath) {
         navigate('/service-detail', null, subpath);
+    } else if (path === '/projects' && tab && subpath === 'plan') {
+        // Phase 86 — initial-load branch for #/projects/CODE/plan
+        navigate('/project-plan', null, tab);
     } else {
         navigate(path, tab);
     }
