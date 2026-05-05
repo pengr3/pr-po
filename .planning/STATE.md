@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 86 context gathered
-last_updated: "2026-05-05T03:34:28.725Z"
-last_activity: "2026-05-02 - Phase 85 Plan 05 (Wave 3 — Finance Collectibles sub-tab read-side) executed and committed: 3399ea8 / 2799a68 / 1ab7b46. 5th finance-sub-nav-tab pill + section markup with 5-filter bar + 10-column flat table + 15-per-page filter-aware pagination + onSnapshot x3 (collectibles/projects/services) wired in initCollectiblesTab pushed to listeners[] + destroy() unsubscribe + 7 window function deletes + 9 state resets + 5 idempotent Plan 06 stub toasts. 3 tasks, 3 commits, 0 deviations, +448 lines on app/views/finance.js."
+stopped_at: Phase 86 PLANNED + VERIFIED (5 plans, 5 waves) — ready to execute
+last_updated: "2026-05-05T16:05:00.000Z"
+last_activity: "2026-05-05 - Phase 86 (Native Project Management & Gantt) PLANNED + VERIFIED. 5 PLAN.md files in 5 waves: 01 foundation (CDN+rules+task-id helper+router; PM-10/11), 02 view-skeleton (project-plan.js render/init/destroy + tree; PM-01/02), 03 Frappe Gantt (mount + drag + milestones + today line + zoom; PM-03/04/06/08), 04 modals (CRUD + cycle detection + parent recompute + progress slider + cascade delete with batch chunking; PM-01/02/03/05/10), 05 integration (project-detail summary card + weighted rollup + filters with ancestor preservation; PM-02/07/09). All 11 PM-* requirements covered. NOTE: planner agent (opus) hit org monthly usage limit after Plan 01; Plans 02-05 written in main thread. plan-checker (sonnet) ran successfully twice — first pass surfaced 5 blockers + 5 warnings, all addressed; second-pass re-check returned VERIFICATION PASSED with 2 new minor warnings, also addressed. Total 12 fixes applied (sync render(), tier-2 ops_user narrowing, FS-arrow honesty, keepIds ancestor walk, cumulative destroy() audit, re-read instruction, showToast XSS confirmed safe via textContent, splice-point sentinel, batch chunking CHUNK=450, all-users sub removed, recompute excludeIds parameter, narrative typo). Plans pass deterministic gap-analysis: 11/11 PM coverage."
 progress:
   total_phases: 8
   completed_phases: 3
@@ -319,7 +319,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-02 - Phase 85 Plan 05 (Wave 3 — Finance Collectibles sub-tab read-side) executed and committed: 3399ea8 / 2799a68 / 1ab7b46. 5th finance-sub-nav-tab pill + section markup with 5-filter bar + 10-column flat table + 15-per-page filter-aware pagination + onSnapshot x3 (collectibles/projects/services) wired in initCollectiblesTab pushed to listeners[] + destroy() unsubscribe + 7 window function deletes + 9 state resets + 5 idempotent Plan 06 stub toasts. 3 tasks, 3 commits, 0 deviations, +448 lines on app/views/finance.js.
-Last session: 2026-05-05T03:34:28.714Z
-Stopped at: Phase 86 context gathered
-Resume file: .planning/phases/86-native-project-management-gantt/86-CONTEXT.md
+Last session: 2026-05-05T06:34:06.855Z
+Stopped at: Phase 86 UI-SPEC approved
+Resume file: .planning/phases/86-native-project-management-gantt/86-UI-SPEC.md
 Next action: Execute Plan 85-06 — collectible create modal (tranche dropdown sourced from already-populated projectsForCollMap/servicesForCollMap), record-payment modal with method dropdown (Bank/Check/Cash/GCash/Other), void-payment read-modify-write, cancel-collectible right-click, CSV export reusing getDisplayedCollectibles, and unconditional overwrite of the 5 Plan 05 stub window functions.
