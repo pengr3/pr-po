@@ -1052,8 +1052,8 @@ async function saveTaskFromModal() {
     const targetTaskId = modalEditingTaskId || `__candidate__`;
     const cycleNames = detectDependencyCycle(dependencies, targetTaskId);
     if (cycleNames) {
-        const pathStr = cycleNames.join(' → ');
-        showToast(`This dependency would create a cycle: ${pathStr} → ${cycleNames[0]}. Remove one of the deps to continue.`, 'error');
+        // Path already starts and ends at the same node from reconstruction — no extra suffix.
+        showToast(`This dependency would create a cycle: ${cycleNames.join(' → ')}. Remove one of the deps to continue.`, 'error');
         return;
     }
 
