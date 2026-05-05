@@ -687,3 +687,162 @@ function toggleTaskAssignee(uid) {
 }
 
 function confirmDeleteTask(_taskId) { showToast('Delete Task — modal coming in Plan 04', 'info'); }
+
+// ---- Cycle detection + save + parent recompute (Plan 04 Task 2) ----
+
+function detectDependencyCycle(candidateDeps, taskId) {
+    // Build adjacency: from -> to[]
+    const adj = new Map();
+    tasks.forEach(t => {
+        if (t.task_id === taskId) return; // skip the task being saved (use candidate deps instead)
+        const deps = Array.isArray(t.dependencies) ? t.dependencies : [];
+        adj.set(t.task_id, deps.slice());
+    });
+    adj.set(taskId, candidateDeps.slice());
+
+    // DFS for cycle starting from taskId. Track stack to reconstruct path.
+    const WHITE = 0, GRAY = 1, BLACK = 2;
+    const color = new Map();
+    const parent = new Map();
+    let cyclePath = null;
+
+    function dfs(node) {
+        color.set(node, GRAY);
+        const nbrs = adj.get(node) || [];
+        for (const nb of nbrs) {
+            if (color.get(nb) === GRAY) {
+                // Cycle detected: walk parent[] from node back to nb to reconstruct
+                const path = [nb, node];
+                let cur = node;
+                while (cur !== nb && parent.get(cur) != null && cur !== undefined) {
+                    cur = parent.get(cur);
+                    path.push(cur);
+                }
+                path.reverse();
+                cyclePath = path;
+                return true;
+            }
+            if (color.get(nb) === WHITE || color.get(nb) === undefined) {
+                parent.set(nb, node);
+                if (dfs(nb)) return true;
+            }
+        }
+        color.set(node, BLACK);
+        return false;
+    }
+    dfs(taskId);
+    if (!cyclePath) return null;
+    // Map ids → names
+    const tasksById = new Map(tasks.map(t => [t.task_id, t]));
+    const names = cyclePath.map(id => (tasksById.get(id)?.name) || id);
+    return names;
+}
+
+async function saveTaskFromModal() {
+    // Validate
+    const name = (document.getElementById('taskNameInput')?.value || '').trim();
+    const description = (document.getElementById('taskDescInput')?.value || '').trim();
+    const startInput = document.getElementById('taskStartInput');
+    const endInput = document.getElementById('taskEndInput');
+    const start_date = startInput?.disabled ? '' : (startInput?.value || '');
+    const end_date = endInput?.disabled ? '' : (endInput?.value || '');
+    const parent_task_id = (document.getElementById('taskParentInput')?.value || '') || null;
+    const depsSelect = document.getElementById('taskDepsInput');
+    const dependencies = depsSelect ? Array.from(depsSelect.selectedOptions).map(o => o.value) : [];
+    const is_milestone = !!document.getElementById('taskMilestoneInput')?.checked;
+    const assignees = [...modalSelectedAssignees];
+
+    if (!name) { showToast('Task name is required.', 'error'); return; }
+    // For parent tasks, dates are computed — accept whatever is on the doc; otherwise validate.
+    if (start_date && end_date && end_date < start_date) {
+        showToast('End date must be on or after start date.', 'error');
+        return;
+    }
+
+    // Cycle check (D-13)
+    const targetTaskId = modalEditingTaskId || `__candidate__`;
+    const cycleNames = detectDependencyCycle(dependencies, targetTaskId);
+    if (cycleNames) {
+        const pathStr = cycleNames.join(' → ');
+        showToast(`This dependency would create a cycle: ${pathStr} → ${cycleNames[0]}. Remove one of the deps to continue.`, 'error');
+        return;
+    }
+
+    showLoading();
+    try {
+        const userId = (typeof window.getCurrentUser === 'function') ? (window.getCurrentUser()?.uid || null) : null;
+        const taskId = modalEditingTaskId || await generateTaskId(currentProject.project_code);
+        const docData = {
+            task_id: taskId,
+            project_id: currentProject.id,
+            project_code: currentProject.project_code,         // denormalized for D-18 rule
+            parent_task_id: parent_task_id,
+            name: name,
+            description: description,
+            start_date: start_date,
+            end_date: end_date,
+            progress: modalEditingTaskId
+                ? (tasks.find(x => x.task_id === modalEditingTaskId)?.progress ?? 0)
+                : 0,
+            is_milestone: is_milestone,
+            dependencies: dependencies,
+            assignees: assignees,
+            updated_at: serverTimestamp()
+        };
+        if (!modalEditingTaskId) {
+            docData.created_at = serverTimestamp();
+            docData.created_by = userId;
+        }
+
+        await setDoc(doc(db, 'project_tasks', taskId), docData, { merge: !!modalEditingTaskId });
+
+        // Parent recompute (D-11) — walk the chain
+        // If the task moved between parents (edit case), recompute BOTH old and new parents.
+        const oldTask = modalEditingTaskId ? tasks.find(x => x.task_id === modalEditingTaskId) : null;
+        const oldParent = oldTask?.parent_task_id || null;
+        if (oldParent && oldParent !== parent_task_id) await recomputeParentDates(oldParent);
+        if (parent_task_id) await recomputeParentDates(parent_task_id);
+
+        closeTaskFormModal();
+        showToast('Task saved.', 'success');
+    } catch (err) {
+        console.error('[ProjectPlan] saveTaskFromModal failed:', err);
+        if (err?.code === 'permission-denied') {
+            showToast(`You don't have permission to edit tasks on this project.`, 'error');
+        } else {
+            showToast('Could not save task. Please try again.', 'error');
+        }
+    }
+}
+
+async function recomputeParentDates(parentTaskId, excludeIds = null) {
+    if (!parentTaskId) return;
+    // Children = direct children only (single-level; recursion happens when this fn re-fires up the chain).
+    // excludeIds: Set of task_ids that were JUST deleted but may still appear in the local snapshot
+    // because Firestore's onSnapshot fires asynchronously after writes. Callers (e.g. cascade delete)
+    // pass the deleted ids here so the recompute sees the correct post-delete envelope, not the stale one.
+    const exclude = excludeIds instanceof Set ? excludeIds : new Set();
+    const children = tasks.filter(t => t.parent_task_id === parentTaskId && !exclude.has(t.task_id));
+    if (children.length === 0) return;
+    let minStart = null, maxEnd = null;
+    children.forEach(c => {
+        if (c.start_date && (!minStart || c.start_date < minStart)) minStart = c.start_date;
+        if (c.end_date && (!maxEnd || c.end_date > maxEnd)) maxEnd = c.end_date;
+    });
+    if (!minStart || !maxEnd) return;
+    const parent = tasks.find(t => t.task_id === parentTaskId);
+    if (parent && parent.start_date === minStart && parent.end_date === maxEnd) return; // no change
+    try {
+        await updateDoc(doc(db, 'project_tasks', parentTaskId), {
+            start_date: minStart,
+            end_date: maxEnd,
+            updated_at: serverTimestamp()
+        });
+        // Bubble up — propagate the exclude set so deeper ancestors also ignore the just-deleted ids
+        if (parent?.parent_task_id) await recomputeParentDates(parent.parent_task_id, exclude);
+    } catch (err) {
+        // Permission errors here generally mean the user can edit the leaf but not the parent —
+        // accept silently in MVP. Server rules would still allow if user is admin/ops_user assigned.
+        console.warn('[ProjectPlan] recomputeParentDates: write failed for parent', parentTaskId, err?.code);
+    }
+}
