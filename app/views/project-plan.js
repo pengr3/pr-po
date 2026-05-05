@@ -1112,10 +1112,31 @@ async function saveTaskFromModal() {
 
         await setDoc(doc(db, 'project_tasks', taskId), docData, { merge: !!modalEditingTaskId });
 
-        // Parent recompute (D-11) — walk the chain
-        // If the task moved between parents (edit case), recompute BOTH old and new parents.
+        // Patch local tasks[] in place so recomputeParentDates sees the just-saved values
+        // — Firestore's onSnapshot fires asynchronously after writes, so module-state tasks[]
+        // would otherwise miss new children entirely or still hold the OLD parent_task_id for
+        // reparented tasks (causing double-count on the old parent's recompute).
         const oldTask = modalEditingTaskId ? tasks.find(x => x.task_id === modalEditingTaskId) : null;
         const oldParent = oldTask?.parent_task_id || null;
+        const patched = {
+            id: taskId,
+            task_id: taskId,
+            project_id: currentProject.id,
+            project_code: currentProject.project_code,
+            parent_task_id: parent_task_id,
+            name: name,
+            description: description,
+            progress: docData.progress,
+            is_milestone: is_milestone,
+            dependencies: dependencies,
+            assignees: assignees,
+            start_date: docData.start_date ?? oldTask?.start_date ?? '',
+            end_date: docData.end_date ?? oldTask?.end_date ?? ''
+        };
+        tasks = tasks.filter(x => x.task_id !== taskId).concat([patched]);
+
+        // Parent recompute (D-11) — walk the chain
+        // If the task moved between parents (edit case), recompute BOTH old and new parents.
         if (oldParent && oldParent !== parent_task_id) await recomputeParentDates(oldParent);
         if (parent_task_id) await recomputeParentDates(parent_task_id);
 
