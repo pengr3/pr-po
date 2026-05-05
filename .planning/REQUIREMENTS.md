@@ -20,7 +20,7 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 - [ ] **PM-08**: User can edit task dates inline from the Gantt view (drag bar edges to resize, drag bar body to reschedule)
 - [ ] **PM-09**: User can filter the Gantt view by date range and assigned personnel
 - [ ] **PM-10**: System persists project tasks in Firestore (`project_tasks` collection) with project_id, task_id, parent_task_id, name, description, start_date, end_date, progress, is_milestone, dependencies array, assignees array
-- [ ] **PM-11**: Firebase Security Rules enforce role-based read/write on `project_tasks` (assigned personnel + project admins read; admins + assignees write progress)
+- [x] **PM-11**: Firebase Security Rules enforce role-based read/write on `project_tasks` (assigned personnel + project admins read; admins + assignees write progress) — Phase 86-01
 
 ### Notification System — In-App (NOTIF)
 
@@ -140,7 +140,7 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | PM-08 | Phase 86 | Pending |
 | PM-09 | Phase 86 | Pending |
 | PM-10 | Phase 86 | Pending |
-| PM-11 | Phase 86 | Pending |
+| PM-11 | Phase 86 | 86-01 |
 | NOTIF-01 | Phase 83 | Pending |
 | NOTIF-02 | Phase 83 | Pending |
 | NOTIF-03 | Phase 83 | Pending |

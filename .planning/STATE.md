@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 86 PLANNED + VERIFIED (5 plans, 5 waves) — ready to execute
-last_updated: "2026-05-05T16:05:00.000Z"
-last_activity: "2026-05-05 - Phase 86 (Native Project Management & Gantt) PLANNED + VERIFIED. 5 PLAN.md files in 5 waves: 01 foundation (CDN+rules+task-id helper+router; PM-10/11), 02 view-skeleton (project-plan.js render/init/destroy + tree; PM-01/02), 03 Frappe Gantt (mount + drag + milestones + today line + zoom; PM-03/04/06/08), 04 modals (CRUD + cycle detection + parent recompute + progress slider + cascade delete with batch chunking; PM-01/02/03/05/10), 05 integration (project-detail summary card + weighted rollup + filters with ancestor preservation; PM-02/07/09). All 11 PM-* requirements covered. NOTE: planner agent (opus) hit org monthly usage limit after Plan 01; Plans 02-05 written in main thread. plan-checker (sonnet) ran successfully twice — first pass surfaced 5 blockers + 5 warnings, all addressed; second-pass re-check returned VERIFICATION PASSED with 2 new minor warnings, also addressed. Total 12 fixes applied (sync render(), tier-2 ops_user narrowing, FS-arrow honesty, keepIds ancestor walk, cumulative destroy() audit, re-read instruction, showToast XSS confirmed safe via textContent, splice-point sentinel, batch chunking CHUNK=450, all-users sub removed, recompute excludeIds parameter, narrative typo). Plans pass deterministic gap-analysis: 11/11 PM coverage."
+stopped_at: Phase 86 Plan 01 (Wave 1 foundation) SHIPPED — ready for Plan 02 (Wave 2 view skeleton)
+last_updated: "2026-05-05T17:00:00.000Z"
+last_activity: "2026-05-05 - Phase 86 Plan 01 (Wave 1 foundation) executed and committed: 742fb14 (frappe-gantt CDN @1.2.2 in index.html), a4e84a7 (app/task-id.js generateTaskId — D-19), 06c7955 (firestore.rules project_tasks block with two-tier update — D-18), b10ef41 (app/router.js /project-plan route + #/projects/CODE/plan hash branches). 4 tasks, 4 commits, 0 deviations. PM-11 marked complete in REQUIREMENTS.md (rules deployed). PM-10 deferred to whichever plan ships first JS write to project_tasks (Plan 04). All 7 plan-level verification greps pass at expected counts. Same-commit invariant satisfied: rules ship without JS writes; Plans 02-04 must NOT touch firestore.rules unless co-shipping the matching JS write."
 progress:
   total_phases: 8
   completed_phases: 3
-  total_plans: 20
-  completed_plans: 19
-  percent: 95
+  total_plans: 25
+  completed_plans: 20
+  percent: 80
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 85 (COMPLETE — all 8 plans shipped, all 9 COLL-* requirements closed)
-Plan: Phase 85 fully complete after Plan 06 close-out (2026-05-02). Next: another v4.0 phase (84.1 follow-ups pending: prod rules deploy + PR_DECIDED/TR_DECIDED icon-split polish per memory-flagged items; or proceed to Phase 86 PM/Gantt / Phase 87 Proposal lifecycle / Phase 88 Mgmt Tab shell — all independent per v4.0 dependency map).
+Phase: 86 (IN PROGRESS — Wave 1 of 5 shipped)
+Plan: Phase 86 Plan 01 (Wave 1 foundation) shipped 2026-05-05. Next: Plan 02 (Wave 2 view skeleton — project-plan.js render/init/destroy + tree; PM-01/02). Wave 1 deliverables (frappe-gantt CDN, project_tasks rules, task-id helper, /project-plan route) are pure prerequisites for Waves 2-5; downstream plans now have all four foundation surfaces available.
 
 ## Performance Metrics
 
@@ -117,6 +117,7 @@ Plan: Phase 85 fully complete after Plan 06 close-out (2026-05-02). Next: anothe
 | Phase 85 P08 | 9 | 1 task | 1 files |
 | Phase 85 P05 | 8 | 3 tasks | 1 files |
 | Phase 85 P06 | 50 | 3 tasks | 1 files |
+| Phase 86 P01 | 30 | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -287,6 +288,13 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 85-05]: Due-date range filter uses lexicographic string compare (>= / <=) on YYYY-MM-DD instead of Date parsing — same shape as Phase 65 RFP filter; safe because Firestore stores due_date as ISO string per D-09
 - [Phase 85-05]: All user-controlled string interpolations in renderCollectiblesTable wrapped in escapeHTML (T-85.5-01 mitigation) — coll.id (Firestore auto-id, alphanumeric) interpolated bare in JS-string-literal contexts to match existing finance.js parity (rfp.id same treatment, no new attack surface)
 - [Phase 85-05]: getDisplayedCollectibles extracted as pure helper so Plan 06's CSV export reuses the filter+sort pipeline without duplication; orchestrator note for Plan 06 executor — call getDisplayedCollectibles() instead of re-implementing
+- [Phase 86-01]: Plan 01 ships rules side ALONE — zero JS writes to project_tasks land in this plan (first write is Plan 04 Add Task modal). D-24 same-commit invariant satisfied because there is no JS write yet to pair with. Plans 02-04 must NOT touch firestore.rules unless co-shipping the matching JS write in the same commit
+- [Phase 86-01]: Frappe Gantt pinned to exact @1.2.2 (NOT @latest) per UI-SPEC Registry Safety + Phase 77.1 Chart.js precedent; SRI deliberately not added (Chart.js doesn't use SRI either; UI-SPEC carves SRI as ecosystem-wide hardening, not Phase 86 scope)
+- [Phase 86-01]: task-id.js drops the dept switch present in coll-id.js since Phase 86 is projects-only (D-04); services-side parallel surface intentionally deferred. Otherwise byte-for-byte mirror of coll-id.js shape including precondition guard, full-collection scan, and lastDash-suffix parser
+- [Phase 86-01]: project_tasks update rule's tier-2 (progress-only) narrows to operations_user (NOT all roles) per D-15/D-14 — finance/services/procurement remain READ-ONLY even if accidentally added to task.assignees; the affectedKeys().hasOnly(['progress','updated_at']) check is paired with isRole('operations_user') AND request.auth.uid in resource.data.assignees for the strict subset
+- [Phase 86-01]: /project-plan route registered with lazy import('./views/project-plan.js') even though that file does not exist yet (Plan 02 creates it) — runtime navigation will fail until Plan 02 ships, but no UI links to the route at this point so users cannot reach it; standalone-route shape avoids modifying existing project-detail tab structure
+- [Phase 86-01]: Plan executed exactly as written (zero deviations) — all 4 task acceptance criteria met on first pass, no Rule 1/2/3 auto-fixes triggered, no Rule 4 architectural questions surfaced; Wave 1 prerequisites cleanly delivered for Waves 2-5
+- [Phase 86-01]: PM-11 marked complete (rules fully deployed); PM-10 deferred to whichever plan ships the first JS write to project_tasks (Plan 04 by current plan layout) — conservative reading since PM-10 says "system PERSISTS tasks" which strictly requires actual addDoc/setDoc
 
 ### Pending Todos
 
@@ -318,8 +326,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-02 - Phase 85 Plan 05 (Wave 3 — Finance Collectibles sub-tab read-side) executed and committed: 3399ea8 / 2799a68 / 1ab7b46. 5th finance-sub-nav-tab pill + section markup with 5-filter bar + 10-column flat table + 15-per-page filter-aware pagination + onSnapshot x3 (collectibles/projects/services) wired in initCollectiblesTab pushed to listeners[] + destroy() unsubscribe + 7 window function deletes + 9 state resets + 5 idempotent Plan 06 stub toasts. 3 tasks, 3 commits, 0 deviations, +448 lines on app/views/finance.js.
-Last session: 2026-05-05T06:34:06.855Z
-Stopped at: Phase 86 UI-SPEC approved
-Resume file: .planning/phases/86-native-project-management-gantt/86-UI-SPEC.md
-Next action: Execute Plan 85-06 — collectible create modal (tranche dropdown sourced from already-populated projectsForCollMap/servicesForCollMap), record-payment modal with method dropdown (Bank/Check/Cash/GCash/Other), void-payment read-modify-write, cancel-collectible right-click, CSV export reusing getDisplayedCollectibles, and unconditional overwrite of the 5 Plan 05 stub window functions.
+Last activity: 2026-05-05 - Phase 86 Plan 01 (Wave 1 foundation) executed and committed: 742fb14 (frappe-gantt @1.2.2 CDN), a4e84a7 (app/task-id.js generateTaskId), 06c7955 (firestore.rules /project_tasks block with two-tier update), b10ef41 (app/router.js /project-plan + #/projects/CODE/plan parsing). 4 tasks, 4 commits, 0 deviations. PM-11 marked complete; PM-10 deferred to first-write plan (Plan 04). All 7 plan-level greps pass at expected counts. Same-commit invariant satisfied (rules ship without JS writes; Plans 02-04 must not touch rules unless co-shipping matching JS).
+Last session: 2026-05-05T17:00:00.000Z
+Stopped at: Phase 86 Plan 01 SHIPPED
+Resume file: .planning/phases/86-native-project-management-gantt/86-02-PLAN.md
+Next action: Execute Plan 86-02 (Wave 2 view skeleton) — create app/views/project-plan.js with render(activeTab, projectCode) + init() + destroy() lifecycle; build hierarchical task tree in left rail; subscribe to project_tasks via onSnapshot filtered by project_id; ships PM-01/PM-02. Window functions registered in init, deleted in destroy. Plan 02 must NOT modify firestore.rules (D-24 invariant).
