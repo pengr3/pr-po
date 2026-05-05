@@ -11,11 +11,15 @@
     <link rel="stylesheet" href="styles/components.css">
     <link rel="stylesheet" href="styles/views.css">
     <link rel="stylesheet" href="styles/hero.css">
+    <!-- Frappe Gantt (Phase 86) — pinned to v1.2.2; powers the project plan view -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.css">
 
     <!-- Signature capture library (self-hosted to avoid CDN tracking-prevention warnings) -->
     <script src="lib/signature_pad.umd.min.js"></script>
     <!-- Chart.js (Phase 77.1) — pinned to v4.4.7 for home page status breakdown charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <!-- Frappe Gantt (Phase 86) — pinned to v1.2.2; expose window.Gantt for app/views/project-plan.js -->
+    <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.umd.js"></script>
 </head>
 <body>
     <!-- Top Navigation (hidden until auth state known - SEC-01) -->
