@@ -1036,7 +1036,24 @@ async function saveTaskFromModal() {
     showLoading(true);
     try {
         const userId = (typeof window.getCurrentUser === 'function') ? (window.getCurrentUser()?.uid || null) : null;
-        const taskId = modalEditingTaskId || await generateTaskId(currentProject.project_code);
+        // For new tasks: generateTaskId uses a scan-then-write pattern that can race when two
+        // creates land within the same snapshot window. Re-generate up to N times if the picked
+        // id already exists on disk (D-19 mitigation; full fix would be a counter doc + transaction).
+        let taskId;
+        if (modalEditingTaskId) {
+            taskId = modalEditingTaskId;
+        } else {
+            const MAX_ID_RETRIES = 5;
+            for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
+                const candidate = await generateTaskId(currentProject.project_code);
+                const existing = await getDoc(doc(db, 'project_tasks', candidate));
+                if (!existing.exists()) { taskId = candidate; break; }
+            }
+            if (!taskId) {
+                showToast('Could not allocate a task id — please try again.', 'error');
+                return;
+            }
+        }
         const docData = {
             task_id: taskId,
             project_id: currentProject.id,
