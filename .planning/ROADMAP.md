@@ -221,7 +221,7 @@
 - [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
 - [x] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [3/3 plans complete; 15/15 UAT pass] — completed 2026-05-02 — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
 - [x] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export — completed 2026-05-02 (8 plans)
-- [ ] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
+- [ ] **Phase 86: Native Project Management & Gantt** [3/5 plans complete] — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -328,7 +328,12 @@
   3. User can view the project's tasks as an interactive Gantt chart with timeline bars, and edit dates inline by dragging bar edges (resize) or the bar body (reschedule)
   4. User can update task progress (0–100%) from both the task list and the Gantt view, and the project detail page shows overall project progress weighted by task duration
   5. User can filter the Gantt view by date range and assigned personnel; tasks persist in `project_tasks` with role-based read/write enforced by Firebase Security Rules
-**Plans**: TBD
+**Plans**: 5 plans (3/5 complete)
+  - [x] 86-01-PLAN.md — Frappe Gantt v1.2.2 CDN load + project_tasks two-tier security rules + project-scoped task ID generator + /project-plan route (PM-11) — completed 2026-05-05
+  - [x] 86-02-PLAN.md — project-plan.js view skeleton + onSnapshot task-tree render + 7 window.* handlers (2 active, 5 stubbed) + plan-view CSS (PM-01/02 partial) — completed 2026-05-05
+  - [x] 86-03-PLAN.md — Frappe Gantt mount + drag-resize/reschedule + drag-progress + milestones + today line + zoom toolbar + FS-violation toast (PM-04, PM-06, PM-08; PM-03 partial) — completed 2026-05-05
+  - [ ] 86-04-PLAN.md — Add/Edit/Delete task modals + cycle detection + assignee picker + parent-recompute on child writes + left-rail progress slider (PM-01/02/03/05 remainder)
+  - [ ] 86-05-PLAN.md — Filter panel (date range + assignees) + project-detail Project Plan summary card with highlights + weighted overall progress (PM-07, PM-09)
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
