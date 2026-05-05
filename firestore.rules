@@ -519,7 +519,10 @@ service cloud.firestore {
         // are READ-ONLY even if accidentally added to task.assignees.
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'updated_at']) &&
         (hasRole(['super_admin', 'operations_admin']) ||
-         (isRole('operations_user') && request.auth.uid in resource.data.assignees))
+         (isRole('operations_user') &&
+          resource.data.keys().hasAny(['assignees']) &&
+          resource.data.assignees is list &&
+          request.auth.uid in resource.data.assignees))
       );
 
       // Delete: admins or operations_user assigned to this project (D-14)
