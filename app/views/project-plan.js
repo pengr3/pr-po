@@ -99,7 +99,9 @@ export async function init(activeTab = null, param = null) {
         }
 
         // 3. Subscribe to project_tasks (project-scoped at JS query layer per D-18)
-        let __snapshotCount = 0;
+        // __snapshotCount is module-scoped; destroy() resets it alongside __lastViolationFingerprint
+        // so the first-snapshot toast suppression and the dedupe fingerprint stay in sync.
+        __snapshotCount = 0;
         const tasksUnsub = onSnapshot(
             query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id)),
             (snap) => {
@@ -155,6 +157,7 @@ export async function destroy() {
     selectedTaskId = null;
     __ganttInitialScrollDone = false;
     __lastViolationFingerprint = '';
+    __snapshotCount = 0;
     delete window.toggleTaskExpand;
     delete window.selectTaskRow;
     delete window.setGanttZoom;
@@ -289,6 +292,7 @@ function selectTaskRow(taskId) {
 
 let __ganttInitialScrollDone = false;
 let __lastViolationFingerprint = '';
+let __snapshotCount = 0;
 
 function renderGantt() {
     if (typeof window.Gantt !== 'function') {
