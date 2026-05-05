@@ -2438,7 +2438,7 @@
 }
 .task-tree-row {
     display: grid;
-    grid-template-columns: 24px 1fr auto;
+    grid-template-columns: 24px 1fr auto 24px;
     align-items: center;
     gap: 8px;
     height: 32px;
@@ -2472,6 +2472,22 @@
     font-size: 12px;
     font-variant-numeric: tabular-nums;
 }
+.task-tree-progress-slider {
+    width: 80px;
+    accent-color: var(--primary, #1a73e8);
+}
+.task-tree-delete-btn {
+    background: transparent;
+    border: none;
+    color: var(--gray-700, #475569);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.task-tree-row:hover .task-tree-delete-btn { opacity: 0.6; }
+.task-tree-row:hover .task-tree-delete-btn:hover { opacity: 1; }
 
 .gantt-pane {
     overflow: auto;

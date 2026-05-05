@@ -211,7 +211,16 @@ function renderTaskTree() {
                           onclick="event.stopPropagation(); window.openEditTaskModal('${escapeHTML(t.task_id)}')">
                         ${escapeHTML(t.name || '(unnamed)')}
                     </span>
-                    <span class="task-tree-progress">${typeof t.progress === 'number' ? t.progress : 0}%</span>
+                    ${hasChildren
+                        ? `<span class="task-tree-progress">${typeof t.progress === 'number' ? t.progress : 0}%</span>`
+                        : `<input type="range" class="task-tree-progress-slider"
+                                  min="0" max="100" step="1"
+                                  value="${typeof t.progress === 'number' ? t.progress : 0}"
+                                  onclick="event.stopPropagation()"
+                                  onchange="window.editTaskProgress('${escapeHTML(t.task_id)}', this.value)">`}
+                    <button type="button" class="task-tree-delete-btn"
+                            title="Delete task"
+                            onclick="event.stopPropagation(); window.confirmDeleteTask('${escapeHTML(t.task_id)}')">&times;</button>
                 </div>
             `);
             if (hasChildren && isExpanded) walk(t.task_id, depth + 1);
@@ -924,5 +933,29 @@ async function recomputeParentDates(parentTaskId, excludeIds = null) {
         // Permission errors here generally mean the user can edit the leaf but not the parent —
         // accept silently in MVP. Server rules would still allow if user is admin/ops_user assigned.
         console.warn('[ProjectPlan] recomputeParentDates: write failed for parent', parentTaskId, err?.code);
+    }
+}
+
+// ---- Inline progress slider write helper (Plan 04 Task 4) ----
+
+async function editTaskProgress(taskId, valueRaw) {
+    const value = Math.max(0, Math.min(100, Math.round(Number(valueRaw))));
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    if (value === t.progress) return;
+    try {
+        await updateDoc(doc(db, 'project_tasks', taskId), {
+            progress: value,
+            updated_at: serverTimestamp()
+        });
+        // Snapshot will refresh tree + Gantt; nothing else to do.
+    } catch (err) {
+        console.error('[ProjectPlan] progress write failed:', err);
+        if (err?.code === 'permission-denied') {
+            showToast(`You don't have permission to edit tasks on this project.`, 'error');
+        } else {
+            showToast('Could not save task. Please try again.', 'error');
+        }
+        renderTaskTree(); // revert UI to last-known-good
     }
 }
