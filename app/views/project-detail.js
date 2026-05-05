@@ -23,6 +23,11 @@ let personnelClickOutsideHandler = null;
 let clientsCacheForIssuance = [];
 let clientsCacheLoaded = false;
 
+// Phase 86 — Project Plan summary card
+let currentTasks = [];
+let currentTasksListenerUnsub = null;
+let currentProjectProgress = { taskCount: 0, percentComplete: 0, recentDone: null, nextMilestone: null, ongoingMilestone: null };
+
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
@@ -149,6 +154,8 @@ export async function init(activeTab = null, param = null) {
                         if (!currentProject.client_code) {
                             await loadClientsCache();
                         }
+                        // Phase 86 — Project Plan summary listener (idempotent attach)
+                        ensureTasksListener();
                         if (checkProjectAccess()) {
                             renderProjectDetail();
                         }
@@ -182,12 +189,41 @@ export async function init(activeTab = null, param = null) {
             await loadClientsCache();
         }
 
+        // Phase 86 — Project Plan summary listener (idempotent attach once currentProject.id is known)
+        ensureTasksListener();
+
         // Phase 7: Check project assignment access for operations_user
         if (checkProjectAccess()) {
             renderProjectDetail();
         }
         // If checkProjectAccess() returns false, it already rendered the access denied message
     });
+}
+
+// Phase 86 — idempotent attach of project_tasks listener. Computes summary stats + Highlights
+// and patches the Project Plan card DOM in place (avoids full re-render of project-detail).
+function ensureTasksListener() {
+    if (currentTasksListenerUnsub) return; // already attached
+    if (!currentProject || !currentProject.id) return;
+    currentTasksListenerUnsub = onSnapshot(
+        query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id)),
+        (snap) => {
+            currentTasks = [];
+            snap.forEach(d => currentTasks.push({ id: d.id, ...d.data() }));
+            currentProjectProgress = computeProjectProgress(currentTasks);
+            // Patch DOM in place (avoid full re-render of the project-detail page)
+            const taskCountEl = document.getElementById('planCardTaskCount');
+            if (taskCountEl) taskCountEl.textContent = currentProjectProgress.taskCount;
+            const pctEl = document.getElementById('planCardPctComplete');
+            if (pctEl) pctEl.textContent = `${currentProjectProgress.percentComplete}%`;
+            const recentEl = document.getElementById('planCardRecentDone');
+            if (recentEl) recentEl.textContent = currentProjectProgress.recentDone || 'No completed tasks yet.';
+            const nextEl = document.getElementById('planCardNextMilestone');
+            if (nextEl) nextEl.textContent = currentProjectProgress.nextMilestone || 'No upcoming milestones.';
+            const ongoingEl = document.getElementById('planCardOngoingMilestone');
+            if (ongoingEl) ongoingEl.textContent = currentProjectProgress.ongoingMilestone || 'No active milestones.';
+        }
+    );
 }
 
 // Cleanup
@@ -214,6 +250,12 @@ export async function destroy() {
         usersListenerUnsub = null;
     }
     usersData = [];
+
+    // Phase 86 — Project Plan summary listener teardown
+    if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } }
+    currentTasksListenerUnsub = null;
+    currentTasks = [];
+    currentProjectProgress = { taskCount: 0, percentComplete: 0, recentDone: null, nextMilestone: null, ongoingMilestone: null };
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -305,6 +347,48 @@ function renderProjectDetail() {
     const canEditPersonnel = showEditControls && (user?.role === 'super_admin' || user?.role === 'operations_admin');
 
     const focusedField = document.activeElement?.dataset?.field;
+
+    // ----- Project Plan summary card (Phase 86 D-03) -----
+    const planCardHtml = `
+        <div class="card project-plan-card">
+            <div class="card-header"><h3>Project Plan</h3></div>
+            <div class="card-body">
+                <div class="plan-card-stats">
+                    <div class="plan-card-stat">
+                        <div class="plan-card-stat-value" id="planCardTaskCount">${currentProjectProgress.taskCount}</div>
+                        <div class="plan-card-stat-label">tasks</div>
+                    </div>
+                    <div class="plan-card-stat">
+                        <div class="plan-card-stat-value" id="planCardPctComplete">${currentProjectProgress.percentComplete}%</div>
+                        <div class="plan-card-stat-label">complete</div>
+                    </div>
+                </div>
+                <div class="plan-card-highlights">
+                    <div class="plan-card-highlight">
+                        <div class="plan-card-highlight-label">Most recent accomplishment</div>
+                        <div class="plan-card-highlight-value" id="planCardRecentDone">${escapeHTML(currentProjectProgress.recentDone || 'No completed tasks yet.')}</div>
+                    </div>
+                    <div class="plan-card-highlight">
+                        <div class="plan-card-highlight-label">Next milestone</div>
+                        <div class="plan-card-highlight-value" id="planCardNextMilestone">${escapeHTML(currentProjectProgress.nextMilestone || 'No upcoming milestones.')}</div>
+                    </div>
+                    <div class="plan-card-highlight">
+                        <div class="plan-card-highlight-label">Ongoing milestone</div>
+                        <div class="plan-card-highlight-value" id="planCardOngoingMilestone">${escapeHTML(currentProjectProgress.ongoingMilestone || 'No active milestones.')}</div>
+                    </div>
+                </div>
+                ${currentProjectProgress.taskCount === 0
+                    ? `<div class="empty-state" style="padding: 16px; text-align: center;"><strong>No tasks yet.</strong><br><span>Open the plan to get started.</span></div>`
+                    : ''}
+                <div style="margin-top: 16px; text-align: right;">
+                    <a href="#/projects/${escapeHTML(currentProject?.project_code || '')}/plan" class="btn btn-primary"
+                       ${!currentProject?.project_code ? 'style="pointer-events: none; opacity: 0.5;" title="No project code"' : ''}>
+                        Open Plan
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
@@ -470,6 +554,8 @@ function renderProjectDetail() {
                     </div>
                 </div>
             </div>
+
+            ${planCardHtml}
 
             <!-- Delete Button (Below All Cards) -->
             ${showEditControls ? `
@@ -1213,4 +1299,62 @@ function attachWindowFunctions() {
     window.exportProjectExpenseCSV = exportProjectExpenseCSV;
     window.startCodeIssuance = startCodeIssuance;
     window.runCodeIssuance = runCodeIssuance;
+}
+
+// Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
+
+function computeProjectProgress(tasks) {
+    const result = { taskCount: tasks.length, percentComplete: 0, recentDone: null, nextMilestone: null, ongoingMilestone: null };
+    if (tasks.length === 0) return result;
+
+    const childrenByParent = new Map();
+    tasks.forEach(t => {
+        const key = t.parent_task_id || '__root__';
+        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+        childrenByParent.get(key).push(t);
+    });
+
+    // Leaves = tasks with no children
+    const leaves = tasks.filter(t => !childrenByParent.has(t.task_id));
+    if (leaves.length === 0) {
+        result.percentComplete = 0;
+        return result;
+    }
+
+    let weightedSum = 0;
+    let weightTotal = 0;
+    leaves.forEach(l => {
+        const dur = computeDurationDays(l.start_date, l.end_date);
+        const p = typeof l.progress === 'number' ? l.progress : 0;
+        weightedSum += p * dur;
+        weightTotal += dur;
+    });
+    result.percentComplete = weightTotal > 0 ? Math.round(weightedSum / weightTotal) : 0;
+
+    // Highlights (Specifics)
+    const today = new Date().toISOString().slice(0, 10);
+    const completed = tasks.filter(t => t.progress === 100).slice().sort((a, b) => {
+        const at = a.updated_at?.seconds || 0;
+        const bt = b.updated_at?.seconds || 0;
+        return bt - at;
+    });
+    if (completed.length > 0) result.recentDone = completed[0].name || completed[0].task_id;
+
+    const upcomingMilestones = tasks.filter(t => t.is_milestone && t.end_date >= today && (t.progress ?? 0) < 100)
+        .sort((a, b) => (a.end_date || '').localeCompare(b.end_date || ''));
+    if (upcomingMilestones.length > 0) result.nextMilestone = upcomingMilestones[0].name || upcomingMilestones[0].task_id;
+
+    const ongoingMilestones = tasks.filter(t => t.is_milestone && (t.progress ?? 0) < 100 && t.start_date <= today && t.end_date >= today)
+        .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+    if (ongoingMilestones.length > 0) result.ongoingMilestone = ongoingMilestones[0].name || ongoingMilestones[0].task_id;
+
+    return result;
+}
+
+function computeDurationDays(startDate, endDate) {
+    if (!startDate || !endDate) return 1;
+    const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+    const e = new Date(endDate); e.setHours(0, 0, 0, 0);
+    const days = Math.round((e - s) / 86400000) + 1;
+    return Math.max(1, days);
 }
