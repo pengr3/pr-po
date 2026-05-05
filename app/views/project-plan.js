@@ -109,7 +109,6 @@ export async function init(activeTab = null, param = null) {
                 renderGantt();
                 if (__snapshotCount > 0) checkAndToastFsViolations();
                 __snapshotCount++;
-                if (typeof refreshSummaryHighlights === 'function') refreshSummaryHighlights();  // Plan 05
             }
         );
         listeners.push(tasksUnsub);
