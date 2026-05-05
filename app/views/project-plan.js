@@ -64,7 +64,7 @@ export async function init(activeTab = null, param = null) {
     projectCode = param;
     if (!projectCode) return;
 
-    showLoading();
+    showLoading(true);
     try {
         // 1. Load the project doc by project_code
         const projSnap = await getDocs(query(collection(db, 'projects'), where('project_code', '==', projectCode)));
@@ -138,7 +138,7 @@ export async function init(activeTab = null, param = null) {
         window.clearPlanFilters = clearPlanFilters;
         window.toggleFilterAssignee = toggleFilterAssignee;
     } finally {
-        // showLoading() inverse handled by snapshot first-callback paint
+        showLoading(false);
     }
 }
 
@@ -921,7 +921,7 @@ async function deleteTaskNow(taskId) {
     }
     collect(taskId);
 
-    showLoading();
+    showLoading(true);
     try {
         // writeBatch supports up to 500 ops — chunk into 450-op batches to stay safely under the limit.
         // (Theoretically 500 hits the hard cap; 450 leaves headroom for any future batch-internal ops.)
@@ -948,6 +948,8 @@ async function deleteTaskNow(taskId) {
         } else {
             showToast('Could not delete task. Please try again.', 'error');
         }
+    } finally {
+        showLoading(false);
     }
 }
 
@@ -1031,7 +1033,7 @@ async function saveTaskFromModal() {
         return;
     }
 
-    showLoading();
+    showLoading(true);
     try {
         const userId = (typeof window.getCurrentUser === 'function') ? (window.getCurrentUser()?.uid || null) : null;
         const taskId = modalEditingTaskId || await generateTaskId(currentProject.project_code);
@@ -1075,6 +1077,8 @@ async function saveTaskFromModal() {
         } else {
             showToast('Could not save task. Please try again.', 'error');
         }
+    } finally {
+        showLoading(false);
     }
 }
 
