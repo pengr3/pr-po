@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 85 Plan 06 complete — Wave 4 Finance Collectibles full CRUD shipped (Plans 01–05, 07, 08 prior; Phase 85 now 100% complete)
-last_updated: "2026-05-02T17:30:00Z"
-last_activity: "2026-05-02 - Phase 85 Plan 06 complete: Wave 4 — 16 new functions added to app/views/finance.js layering full CRUD onto Plan 05 read-side. Create modal with D-11/D-20 blocks + D-12 strict 1:1 tranche dedup, submitCollectible writes Pattern 21 doc shape with FROZEN tranche fields per D-13, COLLECTIBLE_CREATED notification fan-out to Finance role wrapped in fire-and-forget try/catch (D-21). Edit modal restricts to Description + Due Date only (D-13 frozen invariant). Payment recording with D-15 partial-pay support, D-14 method dropdown + Other reveal, arrayUnion append. voidCollectiblePayment uses D-16 read-modify-write with full audit fields (voided_by, voided_at, void_reason). Expandable history row D-17 shows ALL records (active + voided strike-through). Right-click context menu (Phase 65.10 mirror) wires Edit + Cancel; Cancel only allowed when zero non-voided payments. Filter-aware CSV export with 13 columns per D-27 and HIGH-severity T-85.6-01 CSV-injection mitigation (safe() wrapper neutralises =/+/-/@/tab/CR leading chars). 3 atomic commits (5fad81d, 4650665, cb935a2), 1 file modified (app/views/finance.js +932 lines, total 5916), 1 deviation (Rule 2 defense-in-depth: authority guard added to submit/void/cancel functions on top of plan's modal-open-only guard, defends console-call bypass). All 6 listed COLL requirements (COLL-01, COLL-02, COLL-03, COLL-05, COLL-06, COLL-08) closed by Plan 06."
+stopped_at: Phase 86 context gathered
+last_updated: "2026-05-05T03:34:28.725Z"
+last_activity: "2026-05-02 - Phase 85 Plan 05 (Wave 3 — Finance Collectibles sub-tab read-side) executed and committed: 3399ea8 / 2799a68 / 1ab7b46. 5th finance-sub-nav-tab pill + section markup with 5-filter bar + 10-column flat table + 15-per-page filter-aware pagination + onSnapshot x3 (collectibles/projects/services) wired in initCollectiblesTab pushed to listeners[] + destroy() unsubscribe + 7 window function deletes + 9 state resets + 5 idempotent Plan 06 stub toasts. 3 tasks, 3 commits, 0 deviations, +448 lines on app/views/finance.js."
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 20
-  completed_plans: 14
-  percent: 70
+  completed_plans: 19
+  percent: 95
 ---
 
 # Project State
@@ -319,7 +319,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-02 - Phase 85 Plan 05 (Wave 3 — Finance Collectibles sub-tab read-side) executed and committed: 3399ea8 / 2799a68 / 1ab7b46. 5th finance-sub-nav-tab pill + section markup with 5-filter bar + 10-column flat table + 15-per-page filter-aware pagination + onSnapshot x3 (collectibles/projects/services) wired in initCollectiblesTab pushed to listeners[] + destroy() unsubscribe + 7 window function deletes + 9 state resets + 5 idempotent Plan 06 stub toasts. 3 tasks, 3 commits, 0 deviations, +448 lines on app/views/finance.js.
-Last session: 2026-05-02T16:30:00Z
-Stopped at: Phase 85 Plan 05 complete; ready to execute Plan 06 (Wave 4 — CRUD + payment + CSV)
-Resume file: .planning/phases/85-collectibles-tracking/ (parent orchestrator continues)
+Last session: 2026-05-05T03:34:28.714Z
+Stopped at: Phase 86 context gathered
+Resume file: .planning/phases/86-native-project-management-gantt/86-CONTEXT.md
 Next action: Execute Plan 85-06 — collectible create modal (tranche dropdown sourced from already-populated projectsForCollMap/servicesForCollMap), record-payment modal with method dropdown (Bank/Check/Cash/GCash/Other), void-payment read-modify-write, cancel-collectible right-click, CSV export reusing getDisplayedCollectibles, and unconditional overwrite of the 5 Plan 05 stub window functions.
