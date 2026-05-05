@@ -127,6 +127,12 @@ export async function init(activeTab = null, param = null) {
         window.openAddTaskModal = openAddTaskModal;
         window.openEditTaskModal = openEditTaskModal;
         window.confirmDeleteTask = confirmDeleteTask;
+        window.closeTaskFormModal = closeTaskFormModal;
+        window.toggleTaskAssignee = toggleTaskAssignee;
+        window.saveTaskFromModal = saveTaskFromModal;       // Task 2 of this plan defines saveTaskFromModal
+        window.deleteTaskNow = deleteTaskNow;                // Task 3 of this plan defines deleteTaskNow
+        window.closeDeleteTaskConfirm = closeDeleteTaskConfirm; // Task 3 of this plan defines closeDeleteTaskConfirm
+        window.editTaskProgress = editTaskProgress;          // Task 4 of this plan defines editTaskProgress (slider handler)
     } finally {
         // showLoading() inverse handled by snapshot first-callback paint
     }
@@ -153,6 +159,12 @@ export async function destroy() {
     delete window.openAddTaskModal;
     delete window.openEditTaskModal;
     delete window.confirmDeleteTask;
+    delete window.closeTaskFormModal;
+    delete window.toggleTaskAssignee;
+    delete window.saveTaskFromModal;
+    delete window.deleteTaskNow;
+    delete window.closeDeleteTaskConfirm;
+    delete window.editTaskProgress;
 }
 
 // ---- Tree rendering (left rail) ----
@@ -515,9 +527,163 @@ function checkAndToastFsViolations() {
     __lastViolationFingerprint = fingerprint;
 }
 
-// ---- Stubs (Plan 04 + Plan 05 wire bodies) ----
+// ---- Stubs (Plan 05 wires bodies) ----
 
 function togglePlanFilters() { /* Plan 05 wires this */ }
-function openAddTaskModal() { showToast('Add Task — modal coming in Plan 04', 'info'); }
-function openEditTaskModal(_taskId) { showToast('Edit Task — modal coming in Plan 04', 'info'); }
+
+// ---- Modal CRUD (Plan 04) ----
+
+let modalEditingTaskId = null;            // null = Add mode; task_id = Edit mode
+let modalSelectedAssignees = [];          // mirrors detailSelectedPersonnel pattern from project-detail.js
+
+function openAddTaskModal() {
+    if (!currentProject || !currentProject.project_code) {
+        showToast(`This project doesn't have a project code yet. Assign a client to issue the code, then return to plan tasks.`, 'warning');
+        return;
+    }
+    modalEditingTaskId = null;
+    modalSelectedAssignees = [];
+    const today = new Date();
+    const week = new Date(today.getTime() + 7 * 86400000);
+    const fmt = d => d.toISOString().slice(0, 10);
+    renderTaskFormModal({
+        mode: 'add',
+        task: { name: '', description: '', start_date: fmt(today), end_date: fmt(week), parent_task_id: '', dependencies: [], is_milestone: false, assignees: [] }
+    });
+}
+
+function openEditTaskModal(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    modalEditingTaskId = taskId;
+    modalSelectedAssignees = Array.isArray(t.assignees) ? [...t.assignees] : [];
+    renderTaskFormModal({
+        mode: 'edit',
+        task: {
+            name: t.name || '',
+            description: t.description || '',
+            start_date: t.start_date || '',
+            end_date: t.end_date || '',
+            parent_task_id: t.parent_task_id || '',
+            dependencies: Array.isArray(t.dependencies) ? [...t.dependencies] : [],
+            is_milestone: !!t.is_milestone,
+            assignees: Array.isArray(t.assignees) ? [...t.assignees] : []
+        }
+    });
+}
+
+function renderTaskFormModal({ mode, task }) {
+    const mount = document.getElementById('taskFormModalMount');
+    if (!mount) return;
+    const isParentTask = modalEditingTaskId && tasks.some(x => x.parent_task_id === modalEditingTaskId);
+    const datesDisabled = isParentTask;
+    const projectPersonnel = normalizePersonnel(currentProject); // { names, userIds }
+    const personnelOptions = (projectPersonnel.userIds || []).map((uid, i) => {
+        const name = projectPersonnel.names?.[i] || uid;
+        const isOn = modalSelectedAssignees.includes(uid);
+        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" onclick="window.toggleTaskAssignee('${escapeHTML(uid)}')">${escapeHTML(name)}</span>`;
+    }).join('');
+
+    // Parent dropdown — exclude self + descendants of self
+    const excluded = new Set();
+    if (modalEditingTaskId) {
+        excluded.add(modalEditingTaskId);
+        const collectDesc = (id) => {
+            tasks.filter(x => x.parent_task_id === id).forEach(c => { excluded.add(c.task_id); collectDesc(c.task_id); });
+        };
+        collectDesc(modalEditingTaskId);
+    }
+    const parentOptions = ['<option value="">— No parent (root task)</option>']
+        .concat(tasks
+            .filter(x => !excluded.has(x.task_id))
+            .map(x => `<option value="${escapeHTML(x.task_id)}"${task.parent_task_id === x.task_id ? ' selected' : ''}>${escapeHTML(x.name || x.task_id)}</option>`))
+        .join('');
+
+    // Dependencies multi-select — exclude self + ancestors + descendants
+    const depExcluded = new Set(excluded);
+    if (modalEditingTaskId) {
+        const collectAnc = (id) => {
+            const t2 = tasks.find(x => x.task_id === id);
+            if (t2 && t2.parent_task_id) { depExcluded.add(t2.parent_task_id); collectAnc(t2.parent_task_id); }
+        };
+        collectAnc(modalEditingTaskId);
+    }
+    const depOptions = tasks
+        .filter(x => !depExcluded.has(x.task_id))
+        .map(x => `<option value="${escapeHTML(x.task_id)}"${(task.dependencies || []).includes(x.task_id) ? ' selected' : ''}>${escapeHTML(x.name || x.task_id)}</option>`)
+        .join('');
+
+    mount.innerHTML = `
+        <div class="modal" id="taskFormModal" style="display: flex;" aria-modal="true" role="dialog">
+            <div class="modal-content" style="max-width: 560px;">
+                <div class="modal-header">
+                    <h3>${mode === 'add' ? 'Add Task' : 'Edit Task'}</h3>
+                    <button type="button" class="modal-close" onclick="window.closeTaskFormModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="taskNameInput">Name</label>
+                    <input id="taskNameInput" class="form-control" type="text" value="${escapeHTML(task.name)}" required>
+
+                    <label class="form-label" for="taskDescInput">Description</label>
+                    <textarea id="taskDescInput" class="form-control" rows="3">${escapeHTML(task.description)}</textarea>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div>
+                            <label class="form-label" for="taskStartInput">Start date</label>
+                            <input id="taskStartInput" class="form-control" type="date" value="${escapeHTML(task.start_date)}"${datesDisabled ? ' disabled' : ''}>
+                        </div>
+                        <div>
+                            <label class="form-label" for="taskEndInput">End date</label>
+                            <input id="taskEndInput" class="form-control" type="date" value="${escapeHTML(task.end_date)}"${datesDisabled ? ' disabled' : ''}>
+                        </div>
+                    </div>
+                    ${datesDisabled ? '<p style="font-style: italic; color: var(--gray-700, #475569); font-size: 12px;">Computed from subtasks</p>' : ''}
+
+                    <label class="form-label" for="taskParentInput">Parent task</label>
+                    <select id="taskParentInput" class="form-control">${parentOptions}</select>
+
+                    <label class="form-label" for="taskDepsInput">Depends on (Finish-to-Start)</label>
+                    <select id="taskDepsInput" class="form-control" multiple size="5">${depOptions}</select>
+
+                    <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
+                        <input id="taskMilestoneInput" type="checkbox"${task.is_milestone ? ' checked' : ''}>
+                        Mark as milestone
+                    </label>
+
+                    <label class="form-label">Assignees</label>
+                    <div id="taskAssigneesPills" class="personnel-pills-container">
+                        ${personnelOptions || '<span style="color: var(--gray-700, #475569); font-size: 13px;">No personnel assigned to this project. Add personnel on the project detail page first.</span>'}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="window.closeTaskFormModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="window.saveTaskFromModal()">Save Task</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function closeTaskFormModal() {
+    const mount = document.getElementById('taskFormModalMount');
+    if (mount) mount.innerHTML = '';
+    modalEditingTaskId = null;
+    modalSelectedAssignees = [];
+}
+
+function toggleTaskAssignee(uid) {
+    const idx = modalSelectedAssignees.indexOf(uid);
+    if (idx >= 0) modalSelectedAssignees.splice(idx, 1);
+    else modalSelectedAssignees.push(uid);
+    // Re-render only the pills (cheap)
+    const container = document.getElementById('taskAssigneesPills');
+    if (!container) return;
+    const projectPersonnel = normalizePersonnel(currentProject);
+    container.innerHTML = (projectPersonnel.userIds || []).map((uid2, i) => {
+        const name = projectPersonnel.names?.[i] || uid2;
+        const isOn = modalSelectedAssignees.includes(uid2);
+        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid2)}" onclick="window.toggleTaskAssignee('${escapeHTML(uid2)}')">${escapeHTML(name)}</span>`;
+    }).join('');
+}
+
 function confirmDeleteTask(_taskId) { showToast('Delete Task — modal coming in Plan 04', 'info'); }
