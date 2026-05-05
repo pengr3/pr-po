@@ -1166,7 +1166,11 @@ async function startCodeIssuance() {
                         </p>
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                             <button class="btn btn-secondary" onclick="document.getElementById('issueCodeOverlay').remove()">Cancel</button>
-                            <button class="btn btn-primary" onclick="window.runCodeIssuance('${escapeHTML(clientId)}', '${escapeHTML(clientCode)}', '${escapeHTML(newProjectCode)}')">Confirm &amp; Issue</button>
+                            <button class="btn btn-primary"
+                                    data-action="run-code-issuance"
+                                    data-client-id="${escapeHTML(clientId)}"
+                                    data-client-code="${escapeHTML(clientCode)}"
+                                    data-new-project-code="${escapeHTML(newProjectCode)}">Confirm &amp; Issue</button>
                         </div>
                     </div>
                 </div>
@@ -1175,6 +1179,14 @@ async function startCodeIssuance() {
         // Remove any prior overlay before appending (defensive de-dup)
         document.getElementById('issueCodeOverlay')?.remove();
         document.body.insertAdjacentHTML('beforeend', overlayHtml);
+        const confirmBtn = document.querySelector('#issueCodeOverlay [data-action="run-code-issuance"]');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => runCodeIssuance(
+                confirmBtn.dataset.clientId,
+                confirmBtn.dataset.clientCode,
+                confirmBtn.dataset.newProjectCode
+            ));
+        }
     } catch (err) {
         console.error('[ProjectDetail] startCodeIssuance failed:', err);
         showToast('Failed to prepare code issuance: ' + (err.message || err), 'error');

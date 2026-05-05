@@ -230,12 +230,11 @@ function renderTaskTree() {
                 <div class="task-tree-row${isSelected ? ' selected' : ''}"
                      data-task-id="${escapeHTML(t.task_id)}"
                      tabindex="0"
-                     style="padding-left: ${depth * 16 + 8}px;"
-                     onclick="window.selectTaskRow('${escapeHTML(t.task_id)}')">
+                     style="padding-left: ${depth * 16 + 8}px;">
                     <span class="task-tree-chevron${hasChildren ? ' clickable' : ''}"
-                          onclick="event.stopPropagation(); window.toggleTaskExpand('${escapeHTML(t.task_id)}')">${chevronChar}</span>
+                          data-action="toggle-expand">${chevronChar}</span>
                     <span class="task-tree-name${t.is_milestone ? ' is-milestone' : ''}"
-                          onclick="event.stopPropagation(); window.openEditTaskModal('${escapeHTML(t.task_id)}')">
+                          data-action="open-edit">
                         ${escapeHTML(t.name || '(unnamed)')}
                     </span>
                     ${hasChildren
@@ -243,11 +242,10 @@ function renderTaskTree() {
                         : `<input type="range" class="task-tree-progress-slider"
                                   min="0" max="100" step="1"
                                   value="${typeof t.progress === 'number' ? t.progress : 0}"
-                                  onclick="event.stopPropagation()"
-                                  onchange="window.editTaskProgress('${escapeHTML(t.task_id)}', this.value)">`}
+                                  data-action="edit-progress">`}
                     <button type="button" class="task-tree-delete-btn"
                             title="Delete task"
-                            onclick="event.stopPropagation(); window.confirmDeleteTask('${escapeHTML(t.task_id)}')">&times;</button>
+                            data-action="confirm-delete">&times;</button>
                 </div>
             `);
             if (hasChildren && isExpanded) walk(t.task_id, depth + 1);
@@ -255,6 +253,25 @@ function renderTaskTree() {
     }
     walk('__root__', 0);
     container.innerHTML = rows.join('');
+
+    // Bind task-tree row event handlers via data-* + addEventListener (defense-in-depth vs.
+    // escapeHTML-in-JS-string-literal injection — escapeHTML produces &#039; which the browser
+    // HTML-decodes back to ' inside attribute values, breaking out of the JS string).
+    container.querySelectorAll('.task-tree-row').forEach(row => {
+        const id = row.dataset.taskId;
+        row.addEventListener('click', () => selectTaskRow(id));
+        const chevron = row.querySelector('[data-action="toggle-expand"]');
+        if (chevron) chevron.addEventListener('click', (e) => { e.stopPropagation(); toggleTaskExpand(id); });
+        const nameEl = row.querySelector('[data-action="open-edit"]');
+        if (nameEl) nameEl.addEventListener('click', (e) => { e.stopPropagation(); openEditTaskModal(id); });
+        const slider = row.querySelector('[data-action="edit-progress"]');
+        if (slider) {
+            slider.addEventListener('click', (e) => e.stopPropagation());
+            slider.addEventListener('change', (e) => editTaskProgress(id, e.target.value));
+        }
+        const delBtn = row.querySelector('[data-action="confirm-delete"]');
+        if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteTask(id); });
+    });
 }
 
 function toggleTaskExpand(taskId) {
@@ -598,7 +615,7 @@ function renderPlanFilterPanel() {
     const personnelChips = (projectPersonnel.userIds || []).map((uid, i) => {
         const name = projectPersonnel.names?.[i] || uid;
         const isOn = filterAssignees.includes(uid);
-        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" onclick="window.toggleFilterAssignee('${escapeHTML(uid)}')">${escapeHTML(name)}</span>`;
+        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" data-action="toggle-filter-assignee">${escapeHTML(name)}</span>`;
     }).join('');
 
     panel.innerHTML = `
@@ -619,6 +636,9 @@ function renderPlanFilterPanel() {
             <button type="button" class="btn btn-secondary" onclick="window.togglePlanFilters()">Close</button>
         </div>
     `;
+    panel.querySelectorAll('.personnel-pill[data-action="toggle-filter-assignee"]').forEach(pill => {
+        pill.addEventListener('click', () => toggleFilterAssignee(pill.dataset.uid));
+    });
 }
 
 function applyPlanFilters() {
@@ -764,7 +784,7 @@ function renderTaskFormModal({ mode, task }) {
     const personnelOptions = (projectPersonnel.userIds || []).map((uid, i) => {
         const name = projectPersonnel.names?.[i] || uid;
         const isOn = modalSelectedAssignees.includes(uid);
-        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" onclick="window.toggleTaskAssignee('${escapeHTML(uid)}')">${escapeHTML(name)}</span>`;
+        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" data-action="toggle-task-assignee">${escapeHTML(name)}</span>`;
     }).join('');
 
     // Parent dropdown — exclude self + descendants of self
@@ -845,6 +865,9 @@ function renderTaskFormModal({ mode, task }) {
             </div>
         </div>
     `;
+    mount.querySelectorAll('#taskAssigneesPills .personnel-pill[data-action="toggle-task-assignee"]').forEach(pill => {
+        pill.addEventListener('click', () => toggleTaskAssignee(pill.dataset.uid));
+    });
 }
 
 function closeTaskFormModal() {
@@ -865,8 +888,11 @@ function toggleTaskAssignee(uid) {
     container.innerHTML = (projectPersonnel.userIds || []).map((uid2, i) => {
         const name = projectPersonnel.names?.[i] || uid2;
         const isOn = modalSelectedAssignees.includes(uid2);
-        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid2)}" onclick="window.toggleTaskAssignee('${escapeHTML(uid2)}')">${escapeHTML(name)}</span>`;
+        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid2)}" data-action="toggle-task-assignee">${escapeHTML(name)}</span>`;
     }).join('');
+    container.querySelectorAll('.personnel-pill[data-action="toggle-task-assignee"]').forEach(pill => {
+        pill.addEventListener('click', () => toggleTaskAssignee(pill.dataset.uid));
+    });
 }
 
 // ---- Delete cascade (Plan 04 Task 3) ----
@@ -896,11 +922,13 @@ function confirmDeleteTask(taskId) {
                 <div class="modal-body">${body}</div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="window.closeDeleteTaskConfirm()">Cancel</button>
-                    <button type="button" class="btn btn-danger" onclick="window.deleteTaskNow('${escapeHTML(taskId)}')">${confirmLabel}</button>
+                    <button type="button" class="btn btn-danger" data-action="delete-task" data-task-id="${escapeHTML(taskId)}">${confirmLabel}</button>
                 </div>
             </div>
         </div>
     `;
+    const confirmBtn = mount.querySelector('[data-action="delete-task"]');
+    if (confirmBtn) confirmBtn.addEventListener('click', () => deleteTaskNow(confirmBtn.dataset.taskId));
 }
 
 function closeDeleteTaskConfirm() {
