@@ -383,7 +383,7 @@ function renderProjectDetail() {
                     ? `<div class="empty-state" style="padding: 16px; text-align: center;"><strong>No tasks yet.</strong><br><span>Open the plan to get started.</span></div>`
                     : ''}
                 <div style="margin-top: 16px; text-align: right;">
-                    <a href="#/projects/${escapeHTML(currentProject?.project_code || '')}/plan" class="btn btn-primary"
+                    <a href="#/projects/${encodeURIComponent(currentProject?.project_code || '')}/plan" class="btn btn-primary"
                        ${!currentProject?.project_code ? 'style="pointer-events: none; opacity: 0.5;" title="No project code"' : ''}>
                         Open Plan
                     </a>
