@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 86 Plan 01 (Wave 1 foundation) SHIPPED — ready for Plan 02 (Wave 2 view skeleton)
-last_updated: "2026-05-05T17:00:00.000Z"
-last_activity: "2026-05-05 - Phase 86 Plan 01 (Wave 1 foundation) executed and committed: 742fb14 (frappe-gantt CDN @1.2.2 in index.html), a4e84a7 (app/task-id.js generateTaskId — D-19), 06c7955 (firestore.rules project_tasks block with two-tier update — D-18), b10ef41 (app/router.js /project-plan route + #/projects/CODE/plan hash branches). 4 tasks, 4 commits, 0 deviations. PM-11 marked complete in REQUIREMENTS.md (rules deployed). PM-10 deferred to whichever plan ships first JS write to project_tasks (Plan 04). All 7 plan-level verification greps pass at expected counts. Same-commit invariant satisfied: rules ship without JS writes; Plans 02-04 must NOT touch firestore.rules unless co-shipping the matching JS write."
+stopped_at: Phase 86 Plan 02 (Wave 2 view skeleton) SHIPPED — ready for Plan 03 (Wave 3 Gantt mount + drag-edit)
+last_updated: "2026-05-05T08:30:55.000Z"
+last_activity: "2026-05-05 - Phase 86 Plan 02 (Wave 2 view skeleton) executed and committed: 53c76b7 (app/views/project-plan.js — synchronous render + async init/destroy + onSnapshot project_tasks listener + hierarchical task tree + 7 window.* handlers (2 active, 5 stubbed)), 1ef2abb (styles/views.css — +120 lines plan-view shell + task-tree + zoom-pill CSS, 35%/1fr split-pane). 2 tasks, 2 commits, 0 deviations. PM-01 + PM-02 partial (read/list + hierarchy display delivered; create comes in Plan 04, weighted-rollup display in Plan 05). All 8 plan-level verification greps pass at expected counts. ZERO writes to project_tasks; firestore.rules untouched (D-24 same-commit invariant respected). Plans 03/04/05 unblocked: #ganttPane mount point present, snapshot callback pre-wires renderGantt() and refreshSummaryHighlights() optional-call hooks, all 5 stub functions attached to window.* for direct-assignment override."
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 25
-  completed_plans: 20
-  percent: 80
+  completed_plans: 21
+  percent: 84
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86 (IN PROGRESS — Wave 1 of 5 shipped)
-Plan: Phase 86 Plan 01 (Wave 1 foundation) shipped 2026-05-05. Next: Plan 02 (Wave 2 view skeleton — project-plan.js render/init/destroy + tree; PM-01/02). Wave 1 deliverables (frappe-gantt CDN, project_tasks rules, task-id helper, /project-plan route) are pure prerequisites for Waves 2-5; downstream plans now have all four foundation surfaces available.
+Phase: 86 (IN PROGRESS — Wave 2 of 5 shipped)
+Plan: Phase 86 Plan 02 (Wave 2 view skeleton) shipped 2026-05-05. Next: Plan 03 (Wave 3 Gantt mount + drag-edit dates/progress — Frappe Gantt instantiation into #ganttPane mount point; renderGantt() function; setGanttZoom body; on_date_change + on_progress_change writes; PM-03/04). Wave 2 deliverables (project-plan.js view module + plan-view CSS) provide the DOM mount point + tasks state + window.* handler skeleton that Plan 03 hooks into without listener-wiring changes.
 
 ## Performance Metrics
 
@@ -118,6 +118,7 @@ Plan: Phase 86 Plan 01 (Wave 1 foundation) shipped 2026-05-05. Next: Plan 02 (Wa
 | Phase 85 P05 | 8 | 3 tasks | 1 files |
 | Phase 85 P06 | 50 | 3 tasks | 1 files |
 | Phase 86 P01 | 30 | 4 tasks | 4 files |
+| Phase 86 P02 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -295,6 +296,14 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 86-01]: /project-plan route registered with lazy import('./views/project-plan.js') even though that file does not exist yet (Plan 02 creates it) — runtime navigation will fail until Plan 02 ships, but no UI links to the route at this point so users cannot reach it; standalone-route shape avoids modifying existing project-detail tab structure
 - [Phase 86-01]: Plan executed exactly as written (zero deviations) — all 4 task acceptance criteria met on first pass, no Rule 1/2/3 auto-fixes triggered, no Rule 4 architectural questions surfaced; Wave 1 prerequisites cleanly delivered for Waves 2-5
 - [Phase 86-01]: PM-11 marked complete (rules fully deployed); PM-10 deferred to whichever plan ships the first JS write to project_tasks (Plan 04 by current plan layout) — conservative reading since PM-10 says "system PERSISTS tasks" which strictly requires actual addDoc/setDoc
+- [Phase 86-02]: render(activeTab, param) is SYNCHRONOUS (not async) — router.js inserts the return value as innerHTML immediately; init() does the async Firestore + DOM hydration. Plan acceptance criterion `grep -c 'export async function render' == 0` enforces this. Diverges from generic execute-plan pseudocode that often assumes async render
+- [Phase 86-02]: Empty-state and clientless-block copy taken VERBATIM from UI-SPEC Copywriting Contract — zero residual creative choices left at execution time. Single source of truth for UI strings; future plans must not paraphrase
+- [Phase 86-02]: Module-scope expandedTaskIds Set is reset on destroy() — chevron expand/collapse state is intentionally NON-persistent (CONTEXT D-22 + UI-SPEC interaction contract); re-entering the view always starts with all parents collapsed
+- [Phase 86-02]: 7 window.* handlers (2 active + 5 stubs) ALL deleted in destroy() — keeps the global namespace tidy and gives Plans 03/04/05 a known-clean slate when their init() reattaches via direct assignment (Phase 85-05 stub-bridge precedent inverted: Plan 02 ships toast-stubs FIRST, downstream plans overwrite by direct assignment, no stub guard needed)
+- [Phase 86-02]: Optional-call hooks pre-wired in the snapshot callback — `if (typeof renderGantt === 'function') renderGantt()` (Plan 03) and `if (typeof refreshSummaryHighlights === 'function') refreshSummaryHighlights()` (Plan 05). Downstream plans define these as module-level functions in the same file; the listener body never changes
+- [Phase 86-02]: parent_task_id-keyed children Map for depth-first tree walk — built fresh on each snapshot, sorted by start_date asc, recursed with `depth*16+8px` indent. O(N) tree render acceptable up to ~500 tasks (CONTEXT D-22)
+- [Phase 86-02]: ZERO writes to project_tasks ship in Plan 02 (read-only listener + tree render only); D-24 same-commit invariant fully respected — firestore.rules untouched. Plans 03 + 04 retain ownership of the rules+writes co-ship if they need rule tweaks
+- [Phase 86-02]: Plan executed exactly as written (zero deviations) — both task acceptance criteria met on first pass, all 8 plan-level verification greps pass at expected counts, no Rule 1/2/3 auto-fixes triggered, no Rule 4 architectural questions surfaced
 
 ### Pending Todos
 
@@ -326,8 +335,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-05 - Phase 86 Plan 01 (Wave 1 foundation) executed and committed: 742fb14 (frappe-gantt @1.2.2 CDN), a4e84a7 (app/task-id.js generateTaskId), 06c7955 (firestore.rules /project_tasks block with two-tier update), b10ef41 (app/router.js /project-plan + #/projects/CODE/plan parsing). 4 tasks, 4 commits, 0 deviations. PM-11 marked complete; PM-10 deferred to first-write plan (Plan 04). All 7 plan-level greps pass at expected counts. Same-commit invariant satisfied (rules ship without JS writes; Plans 02-04 must not touch rules unless co-shipping matching JS).
-Last session: 2026-05-05T17:00:00.000Z
-Stopped at: Phase 86 Plan 01 SHIPPED
-Resume file: .planning/phases/86-native-project-management-gantt/86-02-PLAN.md
-Next action: Execute Plan 86-02 (Wave 2 view skeleton) — create app/views/project-plan.js with render(activeTab, projectCode) + init() + destroy() lifecycle; build hierarchical task tree in left rail; subscribe to project_tasks via onSnapshot filtered by project_id; ships PM-01/PM-02. Window functions registered in init, deleted in destroy. Plan 02 must NOT modify firestore.rules (D-24 invariant).
+Last activity: 2026-05-05 - Phase 86 Plan 02 (Wave 2 view skeleton) executed and committed: 53c76b7 (app/views/project-plan.js — synchronous render + async init/destroy + onSnapshot project_tasks listener filtered by project_id + hierarchical task tree with chevron toggle + 7 window.* handlers (2 active: toggleTaskExpand/selectTaskRow; 5 stubbed for Plans 03/04/05), 1ef2abb (styles/views.css — +120 lines plan-view shell + task-tree row + zoom-pill segmented control + 35%/1fr split-pane + mobile collapse). 2 tasks, 2 commits, 0 deviations. PM-01 + PM-02 partial (read/list + hierarchy display delivered; create comes in Plan 04, weighted-rollup display in Plan 05). All 8 plan-level verification greps pass at expected counts. ZERO writes to project_tasks; firestore.rules untouched (D-24 same-commit invariant respected). Plan 03 (Gantt mount), Plan 04 (modal CRUD + first writes), and Plan 05 (filter panel + summary card) are all unblocked: #ganttPane mount point is in the DOM, snapshot callback pre-wires renderGantt() and refreshSummaryHighlights() optional-call hooks, all 5 stub functions attached to window.* for direct-assignment override, mount-point divs (#taskFormModalMount, #deleteTaskConfirmModalMount) present.
+Last session: 2026-05-05T08:30:55.000Z
+Stopped at: Phase 86 Plan 02 SHIPPED
+Resume file: .planning/phases/86-native-project-management-gantt/86-03-PLAN.md
+Next action: Execute Plan 86-03 (Wave 3 Gantt mount + drag-edit dates/progress) — instantiate Frappe Gantt into #ganttPane via window.Gantt(...); add renderGantt() module function (called from existing snapshot callback hook); wire setGanttZoom body to gantt.change_view_mode + .zoom-pill.active toggle; implement on_date_change + on_progress_change updateDoc handlers (FIRST writes to project_tasks — but D-24 still respected since rules already deployed in Plan 01); auto-scroll Gantt to today on init (D-09); milestone-marker + parent-summary-bar custom_class hooks (D-08, D-11). Will land PM-03/04. If rule tweaks are required, they MUST co-ship with the matching JS write in the same commit (D-24).

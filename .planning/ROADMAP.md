@@ -390,7 +390,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 84 | v4.0 | 4/4 | Complete | 2026-04-30 |
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
 | 85 | v4.0 | 7/8 | In progress | - |
-| 86 | v4.0 | 1/5 | In progress | - |
+| 86 | v4.0 | 2/5 | In progress | - |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
 | 89 | v4.0 | 0/TBD | Not started | - |
