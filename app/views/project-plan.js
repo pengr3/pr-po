@@ -1044,8 +1044,6 @@ async function saveTaskFromModal() {
             parent_task_id: parent_task_id,
             name: name,
             description: description,
-            start_date: start_date,
-            end_date: end_date,
             progress: modalEditingTaskId
                 ? (tasks.find(x => x.task_id === modalEditingTaskId)?.progress ?? 0)
                 : 0,
@@ -1054,9 +1052,17 @@ async function saveTaskFromModal() {
             assignees: assignees,
             updated_at: serverTimestamp()
         };
+        // Only persist start/end when the inputs are enabled — for parent tasks the dates are
+        // computed from children (D-11) and writing '' here would clobber the persisted envelope.
+        if (!startInput?.disabled && start_date) docData.start_date = start_date;
+        if (!endInput?.disabled && end_date) docData.end_date = end_date;
         if (!modalEditingTaskId) {
             docData.created_at = serverTimestamp();
             docData.created_by = userId;
+            if (!docData.start_date || !docData.end_date) {
+                showToast('Start and end dates are required for new tasks.', 'error');
+                return;
+            }
         }
 
         await setDoc(doc(db, 'project_tasks', taskId), docData, { merge: !!modalEditingTaskId });
