@@ -1004,7 +1004,11 @@ function renderGantt() {
     function walk(parentKey) {
         // Iterate VISIBLE children (filter-aware); appendNode still uses truth-set childrenByParent
         // to decide isParent / envelope so unfiltered structure is preserved on screen.
-        const kids = (visibleChildrenByParent.get(parentKey) || []).slice().sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
+        // Phase 86.3 D-06/D-07: sort by row_order (same key the grid uses at line 248) so:
+        // (a) newly inserted tasks stay at their row_order (no auto-resort by start_date)
+        // (b) gantt.refresh(frappeTasks) after a horizontal bar drag does not reorder bars,
+        //     since the field that changed (start_date) is no longer the sort key — bars stay row-locked.
+        const kids = (visibleChildrenByParent.get(parentKey) || []).slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
         kids.forEach(t => {
             appendNode(t);
             if (visibleChildrenByParent.has(t.task_id)) walk(t.task_id);
