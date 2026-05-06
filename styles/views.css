@@ -2599,6 +2599,112 @@
 }
 .gantt-pane #ganttPane { padding: 8px; }
 
+/* ========================================
+   PHASE 86.3 D-03 — Per-zoom calendar header overlay
+   Day view: day-of-week row (M T W Th F S S)
+   Week view: Monday-date label
+   Month view: month-name parent row + week-range cells
+   ======================================== */
+
+.gantt-pane { position: relative; } /* anchor for absolutely-positioned .gantt-header-overlay children */
+
+.gantt-header-overlay {
+    position: absolute;
+    top: 0;          /* aligned with the top of .gantt-pane (over Frappe's header band) */
+    left: 0;
+    pointer-events: none;            /* never intercept clicks meant for Frappe SVG bars */
+    font-size: 11px;
+    color: var(--gray-700, #475569);
+    z-index: 5;                       /* above SVG, below today-line if any */
+    user-select: none;
+    /* Width is implicit — children are absolutely positioned with explicit left/width in px */
+    width: 100%;
+    height: 45px;                    /* matches Frappe upper header band */
+}
+
+/* Day-of-week row (Day mode) — sits at the BOTTOM of the header band, under Frappe's date numbers */
+.gantt-header-overlay.mode-day .gantt-header-dow-cell {
+    position: absolute;
+    top: 28px;                       /* below Frappe date row (which is at top:0..28px) */
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    font-weight: 500;
+    box-sizing: border-box;
+    border-left: 1px solid transparent;
+}
+.gantt-header-overlay.mode-day .gantt-header-dow-cell.weekend {
+    color: var(--gray-500, #94a3b8);
+    font-style: italic;
+}
+
+/* Week mode — Monday-date label per column. Sits as the major header label. */
+.gantt-header-overlay.mode-week .gantt-header-week-monday {
+    position: absolute;
+    top: 8px;
+    height: 18px;
+    line-height: 18px;
+    text-align: left;
+    padding-left: 6px;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--gray-800, #1e293b);
+    box-sizing: border-box;
+    border-left: 1px solid var(--gray-200, #e5e7eb);
+    background: rgba(255, 255, 255, 0.85); /* legibility over Frappe's default header */
+}
+
+/* Month mode — week-range cells (lower row) and month-name parent row (upper row) */
+.gantt-header-overlay.mode-month {
+    height: 45px; /* upper 22px = month name, lower 23px = week range */
+}
+.gantt-header-overlay.mode-month .gantt-header-month-name-row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 22px;
+    width: 100%;
+}
+.gantt-header-overlay.mode-month .gantt-header-month-name-cell {
+    position: absolute;
+    top: 0;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--gray-900, #0f172a);
+    box-sizing: border-box;
+    border-left: 1px solid var(--gray-300, #cbd5e1);
+    border-bottom: 1px solid var(--gray-200, #e5e7eb);
+    background: rgba(248, 250, 252, 0.95);
+}
+.gantt-header-overlay.mode-month .gantt-header-month-week-range-row {
+    position: absolute;
+    top: 22px;
+    left: 0;
+    height: 23px;
+    width: 100%;
+}
+.gantt-header-overlay.mode-month .gantt-header-month-week-cell {
+    position: absolute;
+    top: 0;
+    height: 23px;
+    line-height: 23px;
+    text-align: center;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--gray-700, #475569);
+    box-sizing: border-box;
+    border-left: 1px solid var(--gray-200, #e5e7eb);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* Hide overlay rows on mobile (the gantt-pane is already display:none on mobile per existing rule) */
+@media (max-width: 768px) {
+    .gantt-header-overlay { display: none; }
+}
+
 /* Frappe Gantt customizations — Plan 03 will fill in milestone-marker + parent-summary-bar */
 .gantt-container { background: #ffffff; }
 
