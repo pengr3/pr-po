@@ -418,12 +418,16 @@ async function handleGridCellBlur(taskId, col, rawValue) {
         updateData = { name, updated_at: serverTimestamp() };
 
     } else if (col === 'duration') {
-        // Parse "3d" / "2w" (D-03)
+        // Parse "3d" / "2w" / bare integer (D-03)
         const days = parseDuration(rawValue);
-        if (days === null || !t.start_date) return;
-        const endDate = addDays(t.start_date, days - 1); // inclusive: 1d => same day
-        if (endDate === t.end_date) return;
-        updateData = { end_date: endDate, updated_at: serverTimestamp() };
+        if (days === null) return;
+        // Default start_date to today if empty
+        const effectiveStart = t.start_date || formatDateISO(new Date());
+        const endDate = addDays(effectiveStart, days - 1); // inclusive: 1d => same day
+        if (effectiveStart === t.start_date && endDate === t.end_date) return;
+        updateData = effectiveStart !== t.start_date
+            ? { start_date: effectiveStart, end_date: endDate, updated_at: serverTimestamp() }
+            : { end_date: endDate, updated_at: serverTimestamp() };
 
     } else if (col === 'start') {
         if (!rawValue || rawValue === t.start_date) return;
@@ -821,12 +825,19 @@ async function commitRowOrderReorder(reorderedTaskIds) {
     }
 }
 
-// "3d" -> 3, "2w" -> 14, invalid -> null
+// "3d" -> 3, "2w" -> 14, "5" -> 5, invalid -> null
 function parseDuration(str) {
     if (!str) return null;
-    const m = str.trim().match(/^(\d+)\s*([dw])$/i);
-    if (!m) return null;
-    return m[2].toLowerCase() === 'w' ? parseInt(m[1], 10) * 7 : parseInt(m[1], 10);
+    const s = str.trim();
+    // Accept "3d", "2w" (with optional space), OR a bare positive integer treated as days
+    const mSuffix = s.match(/^(\d+)\s*([dw])$/i);
+    if (mSuffix) return mSuffix[2].toLowerCase() === 'w' ? parseInt(mSuffix[1], 10) * 7 : parseInt(mSuffix[1], 10);
+    const mBare = s.match(/^(\d+)$/);
+    if (mBare) {
+        const n = parseInt(mBare[1], 10);
+        return n > 0 ? n : null;
+    }
+    return null;
 }
 
 // "3d", "14d" from start/end ISO strings
