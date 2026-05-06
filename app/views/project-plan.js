@@ -1286,7 +1286,7 @@ function initGanttDragLink() {
             const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
             const line = ganttDragState.svgLine;
             // x1/y1 = from-bar right-edge center
-            const fromWrapper = svg.querySelector(`.bar-wrapper[data-id="${ganttDragState.fromTaskId}"]`);
+            const fromWrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(ganttDragState.fromTaskId)}"]`);
             const fromBar = fromWrapper?.querySelector('.bar');
             if (fromBar) {
                 const r = fromBar.getBBox();
