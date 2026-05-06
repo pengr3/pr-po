@@ -4,8 +4,8 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
 stopped_at: ""
-last_updated: "2026-05-06T11:00:00.000Z"
-last_activity: "2026-05-06 - Phase 86.2 Plan 03 complete (c736b13, 7e3530b). Resizable panel divider (DEFECT-8): 4px drag divider between task grid and Gantt, clamped 15-75%, destroy() cleanup. Delete confirm modal (DEFECT-7): centered overlay modal replaces inline tooltip for parent-task deletes; leaf tasks delete immediately. 2 tasks, 2 commits, 1 auto-fix (removed stale tg-delete-confirm cleanup from deleteTaskNow)."
+last_updated: "2026-05-06T12:00:00.000Z"
+last_activity: "2026-05-06 - Phase 86.2 UAT complete (c30640c). 8/8 tests passed. All 10 Gantt UX defects verified: row alignment, drag isolation, drag-over isolation, Enter key commit, smart indent inheritance, popup suppression, resizable panel divider, delete confirm modal. Phase 86.2 marked Complete."
 progress:
   total_phases: 9
   completed_phases: 5
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.2 complete. All 3 plans done: Plan 01 (CSS row alignment), Plan 02 (JS behavior defects), Plan 03 (resizable panel + delete confirm modal). Phase 86.2 delivered all 10 Gantt UX defects.
+**Current focus:** Phase 86.2 UAT verified (8/8 passed, 2026-05-06). All 10 Gantt UX defects resolved and confirmed. Next: Phase 87 (Proposal Lifecycle) or Phase 88 (Mgmt Tab Shell) — both are independent.
 
 ## Current Position
 
-Phase: 86.2 (complete)
-Plan: Phase 86.2 Plan 03 complete (c736b13, 7e3530b). Wave 3 done: resizable panel divider (DEFECT-8), centered delete-confirm modal (DEFECT-7). All 3 waves complete. Phase 86.2 fully delivered.
+Phase: 86.2 (UAT verified — Complete)
+Plan: Phase 86.2 UAT complete (c30640c). 8/8 passed. All 10 Gantt UX defects verified. Ready for Phase 87 or 88.
 
 ## Performance Metrics
 
