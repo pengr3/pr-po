@@ -393,8 +393,8 @@
   8. A newly added task stays on the row where the user inserted it (preserving user-defined order) — the Gantt does not auto-resort tasks by start date on insert
   9. Pressing Enter inside the Predecessors cell commits the value (same Tab/blur semantics as Duration and Resources cells from Phase 86.2)
 **Plans**: 5 plans
-  - [ ] 86.3-01-PLAN.md — Walk sort fix (D-06/D-07 shared root cause): change walk() sort key from start_date to row_order to lock bars to rows on drag and preserve insert position; D-08 drag-from-edge → FS predecessor preserved verbatim — Wave 1
-  - [ ] 86.3-02-PLAN.md — Predecessors Enter commit (D-09): one-line allowlist extension on _gridKeydownHandler — Wave 2
+  - [x] 86.3-01-PLAN.md — Walk sort fix (D-06/D-07 shared root cause): change walk() sort key from start_date to row_order to lock bars to rows on drag and preserve insert position; D-08 drag-from-edge → FS predecessor preserved verbatim — Wave 1
+  - [x] 86.3-02-PLAN.md — Predecessors Enter commit (D-09): one-line allowlist extension on _gridKeydownHandler — Wave 2
   - [ ] 86.3-03-PLAN.md — New-task defaults (D-04/D-05) + stray scrollbar (D-10): default 1-day bar anchored on row above; targeted CSS overflow patch on diagnosed selector — Wave 3
   - [ ] 86.3-04-PLAN.md — Soft date floor (D-01/D-02) + scroll jank fix (D-11): scroll-clamp listener at min(today, earliest task.start_date); diagnose-then-fix scroll jank at root cause — Wave 4
   - [ ] 86.3-05-PLAN.md — Per-zoom calendar headers (D-03): Day-of-week / Week-Monday / Month-name+week-range overlay via post-render DOM, no Frappe fork — Wave 5
