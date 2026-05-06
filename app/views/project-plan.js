@@ -566,12 +566,20 @@ async function handleNewRowCommit(input) {
         const sortedForInherit = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
         const inheritedParentId = sortedForInherit[sortedForInherit.length - 1]?.parent_task_id ?? null;
 
+        // Phase 86.3 D-05: anchor new task's start_date on the row immediately above (reuse sortedForInherit, no re-sort).
+        // Fallback to today if (a) tasks is empty OR (b) row above has no start_date. Phase 86.3 D-04: 1-day inclusive → end = start.
+        const rowAbove = sortedForInherit[sortedForInherit.length - 1];
+        const anchorStart = rowAbove?.start_date || formatDateISO(new Date());
+
         const docData = {
             task_id: taskId,
             project_id: currentProject.id,
             project_code: currentProject.project_code,
             parent_task_id: inheritedParentId,
             name,
+            // Phase 86.3 D-04/D-05: default 1-day bar anchored on row above (or today)
+            start_date: anchorStart,
+            end_date: anchorStart, // 1-day inclusive: addDays(anchorStart, 1-1) === anchorStart
             description: '',
             progress: 0,
             is_milestone: false,
