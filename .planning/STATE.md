@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: "Phase 86.1 Plan 04 complete — Gantt drag-to-link SVG overlay shipped (1 task, 1 commit: b93b6fa). Phase 86.1 COMPLETE — all 4 plans shipped."
-last_updated: "2026-05-06T06:43:00Z"
-last_activity: "2026-05-05 - Phase 86 Plan 05 (Wave 5 — Project Plan summary card on project-detail.js + weighted leaf-only progress rollup + filter panel on plan view) executed and committed across 3 task commits (24a3ed9 feat 86-05 add Project Plan summary card to project-detail — +144 lines on project-detail.js with module-scope state for currentTasks/currentTasksListenerUnsub/currentProjectProgress, idempotent ensureTasksListener helper attached from BOTH project_code-found path and clientless-fallback path, planCardHtml stats row + Highlights row + Open Plan CTA inserted between Status & Assignment closing div and Delete Button comment, in-place DOM patch on snapshot fire via textContent updates, computeProjectProgress D-12 weighted-by-duration + Highlights derivation, computeDurationDays clamps 0-day to 1; 35cb75f style 86-05 add Project Plan summary card CSS — +52 lines on views.css with .project-plan-card padding override + .plan-card-stats grid 1fr/1fr + .plan-card-highlights repeat(3,1fr) → 1fr at <=768px + .plan-card-stat 24px primary-accent values + .plan-card-highlight gray-50 chip 14px label/value typography; af3d2ca feat 86-05 wire filter panel + weighted parent progress on plan view — +173 lines net on project-plan.js with togglePlanFilters/renderPlanFilterPanel/applyPlanFilters/toggleFilterAssignee/clearPlanFilters/getFilteredTasks/getVisibleTaskSet/computeWeightedProgress, dual children-by-parent maps in BOTH renderTaskTree (allChildrenByParent from full tasks drives hasChildren — slider vs % label decision; childrenByParent from visibleTasks drives traversal walk) AND renderGantt (childrenByParent from full tasks drives getEnvelope D-11/D-12 truth; visibleChildrenByParent drives walk that emits frappeTasks), parent rows in left rail show computeWeightedProgress(t.task_id, tasks)% replacing persisted t.progress, no-results state verbatim 'No tasks match the current filters. Clear filters to see all tasks.', 3 new window.* attachments (applyPlanFilters/clearPlanFilters/toggleFilterAssignee) + 3 matching deletes for cumulative 16/16 across Phase 86 lifecycle). 3 tasks, 3 commits, 3 deviations (Rule 3: ensureTasksListener idempotent helper because plan-supplied attach site has currentProject=null; Rule 1: hasChildren in renderTaskTree must use full tasks not visibleTasks; Rule 1: renderGantt envelope must use full tasks not visibleTasksLocal — both Rule 1 fixes preserve D-12's truth-vs-render separation). All 11 plan-level verification greps pass at expected counts. node --check returns 0 on both modified .js files. ZERO firestore.rules changes (D-24 invariant respected — Plan 05 ships READ listener only, covered by Plan 01's deployed isActiveUser predicate; no JS write paired with rules changes because there are no writes in this plan). PM-02 (parent rollup display via derived computeWeightedProgress instead of persisted), PM-07 (auto-calculated weighted progress on project-detail), PM-09 (filter Gantt + tree by date range + assignees) fully shipped. **Phase 86 COMPLETE — all 11 PM-* requirements satisfied across Plans 01-05.** Phase audit-ready. Files modified: app/views/project-detail.js (1216 → 1360, +144), app/views/project-plan.js (962 → 1135, +173), styles/views.css (2555 → 2607, +52)."
+stopped_at: context exhaustion at 75% (2026-05-06)
+last_updated: "2026-05-06T07:56:51.000Z"
+last_activity: "2026-05-06 - Phase 86.1 Plan 05 (Double-write fix + Duration UX) executed and committed in 2 task commits (449b492 fix bindGridEvents-before-innerHTML + handleNewRowCommit re-entry guard; 6e6b326 fix parseDuration bare-integer + effectiveStart today-default). 2 tasks, 2 commits, 0 deviations. node --check passes. Addresses UAT gaps 1/2/3 (double-write Name, double-create new-row, Duration bare-integer + today-default). Files modified: app/views/project-plan.js."
 progress:
   total_phases: 9
-  completed_phases: 4
-  total_plans: 29
-  completed_plans: 28
-  percent: 93
+  completed_phases: 5
+  total_plans: 30
+  completed_plans: 29
+  percent: 97
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.1 (Plan 04 of 4 complete — Phase COMPLETE)
-Plan: Phase 86.1 Plan 04 shipped 2026-05-06. 1 task, 1 commit (b93b6fa). Deliverables: initGanttDragLink() SVG overlay on Frappe Gantt right pane — hover circle handle on non-parent bars (parent-summary-bar guard), rubber-band SVG line via createSVGPoint+getScreenCTM coord transform, mouseup resolves drop target from barWrapper.dataset.id, cycle detection via detectDependencyCycle before write, updateDoc(dependencies: newDeps) with permission-denied toast guard; sentinel-attribute de-dup (data-linkBound) prevents handler accumulation on gantt.refresh() re-fires. PM-03 fully satisfied via TWO surfaces: Predecessors column (Plan 01) + Gantt drag-to-link (Plan 04). Phase 86.1 COMPLETE.
+Phase: 86.1 (Plan 05 of gap-closure plans complete)
+Plan: Phase 86.1 Plan 05 shipped 2026-05-06. 2 tasks, 2 commits (449b492, 6e6b326). Deliverables: renderTaskGrid bindGridEvents-before-innerHTML fix (eliminates double-write on Name/new-row); handleNewRowCommit re-entry guard + synchronous value clear; parseDuration bare-integer path (mBare) + n>0 guard; handleGridCellBlur effectiveStart today-default writing both start_date+end_date. UAT gaps 1/2/3 addressed. Plan 06 (resources free-text) remains.
 
 ## Performance Metrics
 
@@ -133,6 +133,10 @@ Plan: Phase 86.1 Plan 04 shipped 2026-05-06. 1 task, 1 commit (b93b6fa). Deliver
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.1-05]: bindGridEvents-before-innerHTML in renderTaskGrid non-empty path: old capture-phase blur handler removed BEFORE DOM replacement fires blur on destroyed input nodes — primary fix for double-write on Name edit (UAT gap 1) and double task creation on new-row commit (UAT gap 2)
+- [Phase 86.1-05]: handleNewRowCommit re-entry guard: `if (!input.value.trim()) return;` at top + `input.value = ''` clear before first await — second invocation from surviving blur sees empty value and exits immediately; defense-in-depth complementing Fix A
+- [Phase 86.1-05]: parseDuration bare-integer path: mBare `/^(\d+)$/` accepts digits-only; n>0 guard per T-86.1-05-01 rejects zero/negative; mSuffix path unchanged for 3d/2w forms (UAT gap 3 — typing '5' accepted as 5 days)
+- [Phase 86.1-05]: effectiveStart today-default: `t.start_date || formatDateISO(new Date())` uses local-time (getFullYear/getMonth/getDate) consistent with addDays helper; writes both start_date+end_date when start was empty, only end_date when start was already set
 - [Phase 86.1-04]: initGanttDragLink() SVG overlay uses sentinel-attribute de-dup (barWrapper.dataset.linkBound='1' + svg.dataset.linkBound='1') to prevent duplicate listener accumulation across gantt.refresh() snapshot re-fires — PATTERNS.md excerpt did not include this guard; added as plan-specified required deviation (Task 1 action item #4)
 - [Phase 86.1-04]: PM-03 (Finish-to-Start dependencies) fully satisfied via TWO surfaces: Predecessors column inline edit (Plan 01) and Gantt drag-to-link (this plan). Both paths reuse detectDependencyCycle from Phase 86 before committing.
 - [Phase 86.1-04]: Phase 86.1 COMPLETE — PM-01 (Plans 01+02+03), PM-02 (Plan 02), PM-03 (Plans 01+04), PM-05 (Plan 01 handleGanttProgressChange survived from Phase 86) all delivered. Inline grid editor + Gantt predecessor linking fully shipped.
@@ -375,8 +379,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-06 - Phase 86.1 Plan 04 (Gantt Drag-to-Link) executed and committed in 1 task commit (b93b6fa feat 86.1-04 — +139 lines on project-plan.js: ganttDragState module-scope state, initGanttDragLink() SVG overlay with mouseenter handle, mouseleave cleanup, mousedown rubber-band start, mousemove coord transform, mouseup drop-resolve + cycle-check + updateDoc; sentinel-attribute de-dup on bar-wrapper and SVG root; destroy() ganttDragState=null; initGanttDragLink() call wired at end of renderGantt()). 1 task, 1 commit, 0 deviations. node --check passes. PM-03 fully satisfied via TWO surfaces. Phase 86.1 COMPLETE. Files modified: app/views/project-plan.js (1394 → 1533 lines, net +139).
-Last session: 2026-05-06T06:43:00Z
-Stopped at: "Phase 86.1 Plan 04 complete — Gantt drag-to-link SVG overlay shipped (1 task, 1 commit: b93b6fa). Phase 86.1 COMPLETE — all 4 plans shipped."
-Resume file: None — Phase 86.1 complete. Next phase: 87 (Proposal Lifecycle) or 88 (Mgmt Tab Shell).
-Next action: Phase 86.1 complete. User should run UAT on the full inline grid + Gantt drag-to-link before proceeding to next phase.
+Last activity: 2026-05-06 - Phase 86.1 Plan 05 (Double-write fix + Duration UX) executed and committed in 2 task commits. Task 1 (449b492): bindGridEvents before innerHTML in non-empty renderTaskGrid path + handleNewRowCommit re-entry guard + synchronous value clear. Task 2 (6e6b326): parseDuration mBare bare-integer path with n>0 guard + effectiveStart today-default writing both start_date+end_date. 2 tasks, 2 commits, 0 deviations. node --check passes. UAT gaps 1/2/3 addressed.
+Last session: 2026-05-06T07:56:51.000Z
+Stopped at: Plan 05 complete — Plan 06 (resources free-text) remaining
+Resume file: None
+Next action: Execute Plan 06 to address UAT gap 5 (resources free-text / tg-resource-names editable).
