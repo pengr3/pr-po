@@ -15,6 +15,12 @@ let tasks = [];                       // raw task docs from onSnapshot (project-
 let listeners = [];                   // onSnapshot unsubscribers — destroy() loops this
 let gantt = null;                     // Frappe Gantt instance — Plan 03 sets this
 
+// Phase 86.1 — grid state
+let rowOrderCache = new Map();    // task_id -> 1-based row#, rebuilt every snapshot
+let _gridInputHandler = null;     // capture-phase blur handler for tg-input elements
+let _gridChangeHandler = null;    // change handler for tg-date-input
+let _gridContextMenuHandler = null; // Plan 02 hook (declare now, body added in Plan 02)
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -91,7 +97,7 @@ export async function init(activeTab = null, param = null) {
             (snap) => {
                 tasks = [];
                 snap.forEach(d => tasks.push({ id: d.id, ...d.data() }));
-                // renderTaskGrid() — added in Task 2
+                renderTaskGrid();
                 renderGantt();
                 if (__snapshotCount > 0) checkAndToastFsViolations();
                 __snapshotCount++;
@@ -108,6 +114,7 @@ export async function init(activeTab = null, param = null) {
         window.setGanttZoom = setGanttZoom;
         window.deleteTaskNow = deleteTaskNow;
         window.editTaskProgress = editTaskProgress;
+        window.handleNewRowKeydown = handleNewRowKeydown;
     } finally {
         showLoading(false);
     }
@@ -126,9 +133,363 @@ export async function destroy() {
     __ganttInitialScrollDone = false;
     __lastViolationFingerprint = '';
     __snapshotCount = 0;
+    // Grid handler cleanup
+    const gridContainer = document.getElementById('taskGridRail');
+    if (gridContainer) {
+        if (_gridInputHandler) gridContainer.removeEventListener('blur', _gridInputHandler, true);
+        if (_gridChangeHandler) gridContainer.removeEventListener('change', _gridChangeHandler);
+        if (_gridContextMenuHandler) gridContainer.removeEventListener('contextmenu', _gridContextMenuHandler);
+    }
+    _gridInputHandler = null;
+    _gridChangeHandler = null;
+    _gridContextMenuHandler = null;
+    rowOrderCache = new Map();
     delete window.setGanttZoom;
     delete window.deleteTaskNow;
     delete window.editTaskProgress;
+    delete window.handleNewRowKeydown;
+}
+
+// ---- Grid rendering (left rail) ----
+
+function renderTaskGrid() {
+    const container = document.getElementById('taskGridRail');
+    if (!container) return;
+
+    // Sort by row_order asc. Tasks without row_order get Infinity (sort to bottom).
+    const sorted = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+
+    // Rebuild stable row-number cache (task_id -> 1-based row#)
+    rowOrderCache = new Map();
+    sorted.forEach((t, i) => rowOrderCache.set(t.task_id, i + 1));
+
+    if (sorted.length === 0) {
+        container.innerHTML = `
+            <table class="task-grid">
+              <thead><tr>
+                <th class="tg-rn">#</th>
+                <th class="tg-name">Name</th>
+                <th class="tg-dur">Duration</th>
+                <th class="tg-date">Start</th>
+                <th class="tg-date">End</th>
+                <th class="tg-pred">Predecessors</th>
+                <th class="tg-res">Resources</th>
+              </tr></thead>
+              <tbody id="taskGridBody">
+                <tr class="tg-empty-row" data-task-id="__new__">
+                  <td class="tg-rn"></td>
+                  <td class="tg-name"><input class="tg-input tg-name-input" placeholder="Add task..." data-col="name" data-task-id="__new__" onkeydown="window.handleNewRowKeydown(event)"></td>
+                  <td colspan="5"></td>
+                </tr>
+              </tbody>
+            </table>`;
+        bindGridEvents(container);
+        return;
+    }
+
+    const depsByTarget = new Map(); // task_id -> predecessor row#s string (for Predecessors column)
+    // Build from dependencies[] on each task
+    sorted.forEach(t => {
+        if (!Array.isArray(t.dependencies) || t.dependencies.length === 0) return;
+        const rowNums = t.dependencies
+            .map(depId => rowOrderCache.get(depId))
+            .filter(Boolean)
+            .join(',');
+        depsByTarget.set(t.task_id, rowNums);
+    });
+
+    const isParentSet = new Set(tasks.filter(t => t.parent_task_id).map(t => t.parent_task_id));
+
+    const rowsHtml = sorted.map(t => {
+        const rowNum = rowOrderCache.get(t.task_id);
+        const isParent = isParentSet.has(t.task_id);
+        const depth = computeDepth(t.task_id);
+        const indent = depth * 16;
+        const predStr = depsByTarget.get(t.task_id) || '';
+        const durStr = computeDurationDisplay(t.start_date, t.end_date);
+
+        // Project personnel names for Resources column
+        const pp = normalizePersonnel(currentProject);
+        const assigneeNames = (Array.isArray(t.assignees) ? t.assignees : [])
+            .map(uid => { const i = (pp.userIds || []).indexOf(uid); return i >= 0 ? pp.names[i] : uid; })
+            .join(', ');
+
+        const parentLockAttr = isParent ? ' data-parent-locked="1"' : '';
+        const parentStyle = isParent ? 'style="color:var(--gray-700,#475569);font-style:italic;"' : '';
+
+        return `
+          <tr class="tg-row" data-task-id="${escapeHTML(t.task_id)}" draggable="true">
+            <td class="tg-rn">${rowNum}</td>
+            <td class="tg-name" style="padding-left:${indent}px;">
+              <input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
+                     data-task-id="${escapeHTML(t.task_id)}">
+            </td>
+            <td class="tg-dur"${parentLockAttr}>
+              ${isParent
+                ? `<span class="tg-locked" ${parentStyle} title="Dates are computed from subtasks.">${escapeHTML(durStr)}</span>`
+                : `<input class="tg-input tg-dur-input" value="${escapeHTML(durStr)}" data-col="duration"
+                          data-task-id="${escapeHTML(t.task_id)}">`}
+            </td>
+            <td class="tg-date"${parentLockAttr}>
+              ${isParent
+                ? `<span class="tg-locked" ${parentStyle} title="Dates are computed from subtasks.">${escapeHTML(t.start_date || '')}</span>`
+                : `<input class="tg-input tg-date-input" type="date" value="${escapeHTML(t.start_date || '')}"
+                          data-col="start" data-task-id="${escapeHTML(t.task_id)}">`}
+            </td>
+            <td class="tg-date"${parentLockAttr}>
+              ${isParent
+                ? `<span class="tg-locked" ${parentStyle} title="Dates are computed from subtasks.">${escapeHTML(t.end_date || '')}</span>`
+                : `<input class="tg-input tg-date-input" type="date" value="${escapeHTML(t.end_date || '')}"
+                          data-col="end" data-task-id="${escapeHTML(t.task_id)}">`}
+            </td>
+            <td class="tg-pred">
+              <input class="tg-input tg-pred-input" value="${escapeHTML(predStr)}" data-col="predecessors"
+                     data-task-id="${escapeHTML(t.task_id)}">
+            </td>
+            <td class="tg-res">
+              <span class="tg-resource-names" data-task-id="${escapeHTML(t.task_id)}"
+                    title="Click to edit assignees">${escapeHTML(assigneeNames || '—')}</span>
+            </td>
+          </tr>`;
+    }).join('');
+
+    // Empty trailing row for add-via-click (D-04)
+    const emptyRow = `
+      <tr class="tg-row tg-empty-row" data-task-id="__new__">
+        <td class="tg-rn"></td>
+        <td class="tg-name"><input class="tg-input tg-name-input" placeholder="Add task..." data-col="name" data-task-id="__new__" onkeydown="window.handleNewRowKeydown(event)"></td>
+        <td colspan="5"></td>
+      </tr>`;
+
+    container.innerHTML = `
+      <table class="task-grid">
+        <thead><tr>
+          <th class="tg-rn">#</th>
+          <th class="tg-name">Name</th>
+          <th class="tg-dur">Duration</th>
+          <th class="tg-date">Start</th>
+          <th class="tg-date">End</th>
+          <th class="tg-pred">Predecessors</th>
+          <th class="tg-res">Resources</th>
+        </tr></thead>
+        <tbody id="taskGridBody">${rowsHtml}${emptyRow}</tbody>
+      </table>`;
+
+    bindGridEvents(container);
+}
+
+function bindGridEvents(container) {
+    // Remove old handlers first (safe re-bind on re-render)
+    if (_gridInputHandler) container.removeEventListener('blur', _gridInputHandler, true);
+    if (_gridChangeHandler) container.removeEventListener('change', _gridChangeHandler);
+    if (_gridContextMenuHandler) container.removeEventListener('contextmenu', _gridContextMenuHandler);
+
+    // Blur (capture phase) — fires on input blur regardless of which child loses focus
+    _gridInputHandler = function(e) {
+        const input = e.target;
+        if (!input.classList.contains('tg-input')) return;
+        const taskId = input.dataset.taskId;
+        const col = input.dataset.col;
+        if (!taskId || !col) return;
+        if (taskId === '__new__') { handleNewRowCommit(input); return; }
+        handleGridCellBlur(taskId, col, input.value.trim());
+    };
+    container.addEventListener('blur', _gridInputHandler, true); // capture phase for blur
+
+    // Change — date inputs fire 'change' not 'blur' reliably across browsers
+    _gridChangeHandler = function(e) {
+        const input = e.target;
+        if (!input.classList.contains('tg-date-input')) return;
+        const taskId = input.dataset.taskId;
+        const col = input.dataset.col;
+        if (!taskId || !col || taskId === '__new__') return;
+        handleGridCellBlur(taskId, col, input.value);
+    };
+    container.addEventListener('change', _gridChangeHandler);
+
+    // Context menu (Plan 02)
+    _gridContextMenuHandler = function(e) {
+        const row = e.target.closest('.tg-row');
+        if (!row || row.dataset.taskId === '__new__') return;
+        e.preventDefault();
+        if (typeof showTaskContextMenu === 'function') showTaskContextMenu(e, row.dataset.taskId);
+    };
+    container.addEventListener('contextmenu', _gridContextMenuHandler);
+
+    // Resource Names click — open assignee picker popup (Plan 03)
+    container.querySelectorAll('.tg-resource-names').forEach(el => {
+        el.addEventListener('click', () => {
+            if (typeof openAssigneePicker === 'function') openAssigneePicker(el.dataset.taskId, el);
+        });
+    });
+}
+
+async function handleGridCellBlur(taskId, col, rawValue) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+
+    let updateData = null;
+
+    if (col === 'name') {
+        const name = rawValue.trim();
+        if (!name || name === t.name) return;
+        updateData = { name, updated_at: serverTimestamp() };
+
+    } else if (col === 'duration') {
+        // Parse "3d" / "2w" (D-03)
+        const days = parseDuration(rawValue);
+        if (days === null || !t.start_date) return;
+        const endDate = addDays(t.start_date, days - 1); // inclusive: 1d => same day
+        if (endDate === t.end_date) return;
+        updateData = { end_date: endDate, updated_at: serverTimestamp() };
+
+    } else if (col === 'start') {
+        if (!rawValue || rawValue === t.start_date) return;
+        const endDate = t.end_date || rawValue;
+        if (endDate < rawValue) return; // invalid; keep
+        updateData = { start_date: rawValue, updated_at: serverTimestamp() };
+
+    } else if (col === 'end') {
+        if (!rawValue || rawValue === t.end_date) return;
+        if (t.start_date && rawValue < t.start_date) return; // invalid; keep
+        updateData = { end_date: rawValue, updated_at: serverTimestamp() };
+
+    } else if (col === 'predecessors') {
+        // Resolve row#s to task_ids (D-Q3 stable row#)
+        const depIds = rawValue.split(',').map(s => s.trim()).filter(Boolean)
+            .map(n => { const num = parseInt(n, 10); return [...rowOrderCache.entries()].find(([, v]) => v === num)?.[0]; })
+            .filter(Boolean);
+        // Dedupe
+        const deps = [...new Set(depIds)];
+        // Cycle check
+        const cycleNames = detectDependencyCycle(deps, taskId);
+        if (cycleNames) {
+            showToast(`This dependency would create a cycle: ${cycleNames.join(' → ')}. Remove one of the deps.`, 'error');
+            renderTaskGrid(); // revert display
+            return;
+        }
+        updateData = { dependencies: deps, updated_at: serverTimestamp() };
+    }
+
+    if (!updateData) return;
+
+    try {
+        await updateDoc(doc(db, 'project_tasks', taskId), updateData);
+        // Patch local for recomputeParentDates
+        const idx = tasks.findIndex(x => x.task_id === taskId);
+        if (idx >= 0) tasks[idx] = { ...tasks[idx], ...updateData };
+        if (t.parent_task_id && (col === 'start' || col === 'end' || col === 'duration')) {
+            await recomputeParentDates(t.parent_task_id);
+        }
+    } catch (err) {
+        console.error('[ProjectPlan] grid cell write failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to edit tasks on this project.`
+            : 'Could not save task. Please try again.', 'error');
+        renderTaskGrid(); // revert
+    }
+}
+
+async function handleNewRowCommit(input) {
+    const name = input.value.trim();
+    if (!name) return;
+    if (!currentProject?.project_code) {
+        showToast(`This project doesn't have a project code yet.`, 'warning');
+        return;
+    }
+    showLoading(true);
+    try {
+        // row_order: max existing + 1
+        const maxOrder = tasks.reduce((m, t) => Math.max(m, t.row_order ?? 0), 0);
+        const newRowOrder = maxOrder + 1;
+
+        // generateTaskId with retry (mirrors saveTaskFromModal lines 1082–1093)
+        let taskId;
+        const MAX_ID_RETRIES = 5;
+        for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
+            const candidate = await generateTaskId(currentProject.project_code);
+            const existing = await getDoc(doc(db, 'project_tasks', candidate));
+            if (!existing.exists()) { taskId = candidate; break; }
+        }
+        if (!taskId) { showToast('Could not allocate a task id — please try again.', 'error'); return; }
+
+        const docData = {
+            task_id: taskId,
+            project_id: currentProject.id,
+            project_code: currentProject.project_code,
+            parent_task_id: null,
+            name,
+            description: '',
+            progress: 0,
+            is_milestone: false,
+            dependencies: [],
+            assignees: [],
+            row_order: newRowOrder,
+            created_at: serverTimestamp(),
+            updated_at: serverTimestamp()
+        };
+        await setDoc(doc(db, 'project_tasks', taskId), docData);
+        showToast('Task created.', 'success');
+        // onSnapshot will fire → renderTaskGrid() + renderGantt()
+    } catch (err) {
+        console.error('[ProjectPlan] handleNewRowCommit failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to add tasks on this project.`
+            : 'Could not create task. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Commit new-row entry on Enter; cancel on Escape
+function handleNewRowKeydown(event) {
+    const input = event.target;
+    if (!input || !input.classList.contains('tg-name-input')) return;
+    if (input.dataset.taskId !== '__new__') return;
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        handleNewRowCommit(input);
+    } else if (event.key === 'Escape') {
+        input.value = '';
+        input.blur();
+    }
+}
+
+// "3d" -> 3, "2w" -> 14, invalid -> null
+function parseDuration(str) {
+    if (!str) return null;
+    const m = str.trim().match(/^(\d+)\s*([dw])$/i);
+    if (!m) return null;
+    return m[2].toLowerCase() === 'w' ? parseInt(m[1], 10) * 7 : parseInt(m[1], 10);
+}
+
+// "3d", "14d" from start/end ISO strings
+function computeDurationDisplay(start, end) {
+    if (!start || !end) return '';
+    const s = new Date(start); s.setHours(0,0,0,0);
+    const e = new Date(end);   e.setHours(0,0,0,0);
+    const days = Math.max(1, Math.round((e - s) / 86400000) + 1);
+    return `${days}d`;
+}
+
+// Add N calendar days to ISO date string
+function addDays(isoDate, n) {
+    const d = new Date(isoDate);
+    d.setDate(d.getDate() + n);
+    return formatDateISO(d); // reuses existing formatDateISO
+}
+
+// Depth in hierarchy (distance from root)
+function computeDepth(taskId) {
+    let depth = 0;
+    const tasksById = new Map(tasks.map(t => [t.task_id, t]));
+    let cur = tasksById.get(taskId);
+    while (cur?.parent_task_id) {
+        depth++;
+        cur = tasksById.get(cur.parent_task_id);
+        if (depth > 20) break; // cycle guard
+    }
+    return depth;
 }
 
 // ---- Gantt rendering (right pane) ----
