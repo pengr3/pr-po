@@ -1275,10 +1275,11 @@ function installGanttScrollClamp() {
     if (_ganttScrollClampHandler && _ganttScrollClampPane) {
         try { _ganttScrollClampPane.removeEventListener('scroll', _ganttScrollClampHandler); } catch (e) { /* swallow */ }
     }
+    // Phase 86.3 D-11: compute floorX ONCE at install time (cached in closure).
+    // Re-installed on snapshot (renderGantt step 8) and view-mode change (setGanttZoom),
+    // so the cached value stays current without per-scroll O(n) recomputation.
+    const floorX = computeGanttFloorX();
     _ganttScrollClampHandler = function() {
-        // Recompute floorX on each scroll event so it tracks current view_mode column_width.
-        // Cheap: O(n) over tasks, runs only on user scroll.
-        const floorX = computeGanttFloorX();
         if (pane.scrollLeft < floorX) {
             pane.scrollLeft = floorX;
         }
