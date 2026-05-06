@@ -4,14 +4,16 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
 stopped_at: ""
-last_updated: "2026-05-06T12:00:00.000Z"
-last_activity: "2026-05-06 - Phase 86.2 UAT complete (c30640c). 8/8 tests passed. All 10 Gantt UX defects verified: row alignment, drag isolation, drag-over isolation, Enter key commit, smart indent inheritance, popup suppression, resizable panel divider, delete confirm modal. Phase 86.2 marked Complete."
+last_updated: "2026-05-06T13:00:00.000Z"
+stopped_at: "Phase 86.3 context gathered"
+resume_file: ".planning/phases/86.3-gantt-ux-polish-2-date-floor-bar-drag-row-lock-new-task-defaults/86.3-CONTEXT.md"
+last_activity: "2026-05-06 - Phase 86.3 context gathered (71faf72). 9 defects scoped: date floor (soft min(today,earliest)), scroll jank, per-zoom calendar header (Day=DoW row, Week=Monday dates, Month=week ranges + month-name parent row), bar drag row-lock (cross-row vertical drag removed; FS-on-bar preserved), drag semantics unification, stray middle scrollbar, new-task default 1d anchored on row-above, new-task row position preservation, Predecessors-cell Enter commit. Ready for /gsd-plan-phase 86.3."
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 5
   total_plans: 33
   completed_plans: 33
-  percent: 100
+  percent: 50
 ---
 
 # Project State
@@ -21,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.2 UAT verified (8/8 passed, 2026-05-06). All 10 Gantt UX defects resolved and confirmed. Next: Phase 87 (Proposal Lifecycle) or Phase 88 (Mgmt Tab Shell) — both are independent.
+**Current focus:** Phase 86.3 context gathered (2026-05-06, commit 71faf72). 9 Gantt UX defects scoped — see CONTEXT.md. Next: `/gsd-plan-phase 86.3`.
 
 ## Current Position
 
