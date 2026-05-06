@@ -21,6 +21,13 @@ let _gridInputHandler = null;     // capture-phase blur handler for tg-input ele
 let _gridChangeHandler = null;    // change handler for tg-date-input
 let _gridContextMenuHandler = null; // Plan 02 hook (declare now, body added in Plan 02)
 
+// Plan 02 — drag-and-drop state
+let _gridDragStartHandler = null;
+let _gridDragOverHandler = null;
+let _gridDropHandler = null;
+let _gridDragEndHandler = null;
+let _draggedTaskId = null;        // currently-dragged task_id during drag
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -143,10 +150,19 @@ export async function destroy() {
         if (_gridInputHandler) gridContainer.removeEventListener('blur', _gridInputHandler, true);
         if (_gridChangeHandler) gridContainer.removeEventListener('change', _gridChangeHandler);
         if (_gridContextMenuHandler) gridContainer.removeEventListener('contextmenu', _gridContextMenuHandler);
+        if (_gridDragStartHandler) gridContainer.removeEventListener('dragstart', _gridDragStartHandler);
+        if (_gridDragOverHandler) gridContainer.removeEventListener('dragover', _gridDragOverHandler);
+        if (_gridDropHandler) gridContainer.removeEventListener('drop', _gridDropHandler);
+        if (_gridDragEndHandler) gridContainer.removeEventListener('dragend', _gridDragEndHandler);
     }
     _gridInputHandler = null;
     _gridChangeHandler = null;
     _gridContextMenuHandler = null;
+    _gridDragStartHandler = null;
+    _gridDragOverHandler = null;
+    _gridDropHandler = null;
+    _gridDragEndHandler = null;
+    _draggedTaskId = null;
     rowOrderCache = new Map();
     delete window.setGanttZoom;
     delete window.deleteTaskNow;
@@ -332,6 +348,57 @@ function bindGridEvents(container) {
             if (typeof openAssigneePicker === 'function') openAssigneePicker(el.dataset.taskId, el);
         });
     });
+
+    // HTML5 drag-and-drop row reorder (Plan 02 D-Q4)
+    if (_gridDragStartHandler) container.removeEventListener('dragstart', _gridDragStartHandler);
+    if (_gridDragOverHandler) container.removeEventListener('dragover', _gridDragOverHandler);
+    if (_gridDropHandler) container.removeEventListener('drop', _gridDropHandler);
+    if (_gridDragEndHandler) container.removeEventListener('dragend', _gridDragEndHandler);
+
+    _gridDragStartHandler = function(e) {
+        const row = e.target.closest('.tg-row');
+        if (!row || row.dataset.taskId === '__new__') { e.preventDefault(); return; }
+        // Don't start drag if user is editing an input cell
+        if (e.target.tagName === 'INPUT' || e.target.classList.contains('tg-input')) {
+            e.preventDefault();
+            return;
+        }
+        _draggedTaskId = row.dataset.taskId;
+        row.classList.add('tg-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', _draggedTaskId);
+    };
+    container.addEventListener('dragstart', _gridDragStartHandler);
+
+    _gridDragOverHandler = function(e) {
+        const row = e.target.closest('.tg-row');
+        if (!row || !_draggedTaskId) return;
+        if (row.dataset.taskId === _draggedTaskId) return;
+        if (row.dataset.taskId === '__new__') return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Visual hint
+        container.querySelectorAll('.tg-row.tg-drag-over').forEach(r => r.classList.remove('tg-drag-over'));
+        row.classList.add('tg-drag-over');
+    };
+    container.addEventListener('dragover', _gridDragOverHandler);
+
+    _gridDropHandler = function(e) {
+        const row = e.target.closest('.tg-row');
+        if (!row || !_draggedTaskId) return;
+        e.preventDefault();
+        const targetTaskId = row.dataset.taskId;
+        if (targetTaskId === _draggedTaskId || targetTaskId === '__new__') return;
+        handleRowDrop(_draggedTaskId, targetTaskId);
+    };
+    container.addEventListener('drop', _gridDropHandler);
+
+    _gridDragEndHandler = function(e) {
+        container.querySelectorAll('.tg-row.tg-dragging, .tg-row.tg-drag-over')
+            .forEach(r => r.classList.remove('tg-dragging', 'tg-drag-over'));
+        _draggedTaskId = null;
+    };
+    container.addEventListener('dragend', _gridDragEndHandler);
 }
 
 async function handleGridCellBlur(taskId, col, rawValue) {
@@ -683,6 +750,68 @@ function gridDeleteRow(taskId) {
     } else {
         // Leaf task — delete directly (no confirm)
         deleteTaskNow(taskId);
+    }
+}
+
+// D-Q4: hierarchy-respecting drop validation + row_order writeBatch commit
+async function handleRowDrop(draggedTaskId, targetTaskId) {
+    const dragged = tasks.find(x => x.task_id === draggedTaskId);
+    const target = tasks.find(x => x.task_id === targetTaskId);
+    if (!dragged || !target) return;
+
+    // D-Q4: a task cannot be dragged above its parent or below its last descendant
+    // Check 1: target cannot be the dragged task's parent (would put dragged above its parent)
+    if (target.task_id === dragged.parent_task_id) {
+        showToast(`Can't move a task above its parent. Outdent it first.`, 'warning');
+        return;
+    }
+    // Check 2: target cannot be a descendant of dragged (would put dragged inside its own subtree)
+    const isDescendant = (candidateId, ancestorId) => {
+        let cur = tasks.find(x => x.task_id === candidateId);
+        while (cur?.parent_task_id) {
+            if (cur.parent_task_id === ancestorId) return true;
+            cur = tasks.find(x => x.task_id === cur.parent_task_id);
+        }
+        return false;
+    };
+    if (isDescendant(targetTaskId, draggedTaskId)) {
+        showToast(`Can't drop a task into its own subtree.`, 'warning');
+        return;
+    }
+
+    // Compute new ordering: move dragged to position of target, shift everything else
+    const sorted = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+    const filtered = sorted.filter(x => x.task_id !== draggedTaskId);
+    const targetIdx = filtered.findIndex(x => x.task_id === targetTaskId);
+    if (targetIdx < 0) return;
+    filtered.splice(targetIdx, 0, dragged);
+    const newTaskIdOrder = filtered.map(x => x.task_id);
+
+    try {
+        await commitRowOrderReorder(newTaskIdOrder);
+        // onSnapshot will refresh
+    } catch (err) {
+        console.error('[ProjectPlan] handleRowDrop failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to reorder tasks on this project.`
+            : 'Could not reorder. Please try again.', 'error');
+    }
+}
+
+// writeBatch for row_order reorder (analog: deleteTaskNow CHUNK=450 pattern)
+async function commitRowOrderReorder(reorderedTaskIds) {
+    const CHUNK = 450;
+    for (let i = 0; i < reorderedTaskIds.length; i += CHUNK) {
+        const slice = reorderedTaskIds.slice(i, i + CHUNK);
+        const batch = writeBatch(db);
+        slice.forEach((taskId, sliceIdx) => {
+            const globalIdx = i + sliceIdx;
+            batch.update(doc(db, 'project_tasks', taskId), {
+                row_order: globalIdx + 1,  // 1-based
+                updated_at: serverTimestamp()
+            });
+        });
+        await batch.commit();
     }
 }
 
