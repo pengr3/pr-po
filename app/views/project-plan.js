@@ -292,6 +292,8 @@ function renderTaskGrid() {
         <td colspan="5"></td>
       </tr>`;
 
+    bindGridEvents(container);
+
     container.innerHTML = `
       <table class="task-grid">
         <thead><tr>
@@ -305,8 +307,6 @@ function renderTaskGrid() {
         </tr></thead>
         <tbody id="taskGridBody">${rowsHtml}${emptyRow}</tbody>
       </table>`;
-
-    bindGridEvents(container);
 }
 
 function bindGridEvents(container) {
@@ -473,8 +473,9 @@ async function handleGridCellBlur(taskId, col, rawValue) {
 }
 
 async function handleNewRowCommit(input) {
+    if (!input.value.trim()) return;          // re-entry guard: second call finds empty value → exits
     const name = input.value.trim();
-    if (!name) return;
+    input.value = '';                          // clear synchronously before first await
     if (!currentProject?.project_code) {
         showToast(`This project doesn't have a project code yet.`, 'warning');
         return;
