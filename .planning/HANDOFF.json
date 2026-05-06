@@ -1,43 +1,40 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-06T00:00:00Z",
-  "phase": "86",
-  "phase_name": "native-project-management-gantt",
-  "phase_dir": ".planning/phases/86-native-project-management-gantt",
-  "plan": 5,
-  "task": 0,
-  "total_tasks": 5,
-  "status": "paused",
+  "timestamp": "2026-05-06T12:30:00.000Z",
+  "phase": "86.2",
+  "phase_name": "gantt-ux-polish-row-alignment-drag-indent-panels",
+  "phase_dir": ".planning/phases/86.2-gantt-ux-polish-row-alignment-drag-indent-panels",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "phase_complete",
   "completed_tasks": [
-    {"id": 1, "name": "Plan 01 — Project Plan view scaffold + Frappe Gantt integration", "status": "done"},
-    {"id": 2, "name": "Plan 02 — task tree, modal, dependencies, FS-violation overlay", "status": "done"},
-    {"id": 3, "name": "Plan 03 — assignees + Tier-2 progress permission rules", "status": "done"},
-    {"id": 4, "name": "Plan 04 — inline progress slider + cycle detection + recompute", "status": "done"},
-    {"id": 5, "name": "Plan 05 — summary card + weighted parent rollup + filter panel", "status": "done", "commit": "3bcb9ab"},
-    {"id": "review", "name": "Code review (86-REVIEW.md, depth=standard, 7 files)", "status": "done", "commit": "9aed588"},
-    {"id": "fix-iter1", "name": "Code review fix iter-1 — 5 Critical (CR-01..CR-05) + 11 Warning (WR-01..WR-11) all fixed in 16 atomic commits", "status": "done", "commit": "5f1960d (last)"},
-    {"id": "fix-iter2", "name": "Code review fix iter-2 — 3 of 4 surfaced warnings fixed (WR-02, WR-03, WR-04); 1 skipped (TASK-ID race, user-acknowledged)", "status": "done", "commit": "0cb9e6d (last)"},
-    {"id": "fix-report", "name": "Cumulative REVIEW-FIX.md committed (covers all 20 findings, 19 fixed, 1 residual)", "status": "done", "commit": "44800ac"}
+    {"id": 1, "name": "86.2-01: CSS row alignment + full-width Gantt", "status": "done", "commit": "fa377ac"},
+    {"id": 2, "name": "86.2-02: Drag isolation, Enter key, smart indent, popup:false", "status": "done", "commit": "24ea9bf"},
+    {"id": 3, "name": "86.2-03: Resizable panel divider + delete confirm modal", "status": "done", "commit": "7e3530b"},
+    {"id": 4, "name": "86.2 UAT: 8/8 tests passed", "status": "done", "commit": "c30640c"}
   ],
-  "remaining_tasks": [
-    {"id": "manual-uat", "name": "Manual UAT in browser — verify CR-02 (parent date wipe), CR-04 (onclick refactor across task tree, filter pills, modal pills, delete confirm, code-issuance), WR-02 iter-2 (3-level recompute), WR-04 iter-2 (progress NaN guard)", "status": "not_started"},
-    {"id": "task-id-race", "name": "WR-01 user-acknowledged residual — TASK-ID race needs runTransaction infrastructure (export from firebase.js, refactor generateTaskId + saveTaskFromModal). Deferred — track for future infra phase", "status": "deferred"},
-    {"id": "next-phase", "name": "After UAT: /gsd-verify-work or advance to next phase per ROADMAP.md", "status": "not_started"}
-  ],
-  "blockers": [
-    {"description": "Org monthly usage limit hit during iter-3 re-review of --auto loop. Iter-2 patches were spot-checked manually instead — minimal, syntactically clean. Loop terminated cleanly with cumulative report committed.", "type": "external", "workaround": "Manual spot-check of iter-2 commits (0144085, 83c2a01, 0cb9e6d) confirmed correctness. No regressions observed in patches. Re-running iter-3 unnecessary if manual UAT passes."}
-  ],
+  "remaining_tasks": [],
+  "blockers": [],
   "human_actions_pending": [
-    {"action": "Browser UAT — exercise the Project Plan view: edit parent task (verify dates persist), click task tree rows (verify selection works after onclick->data-attr refactor), toggle filter pills, open task modal, save with progress slider value, delete task with subtree, add nested chain of 3+ levels and edit grandchild past parent envelope to confirm WR-02 recursive recompute", "context": "All 19 code-fix patches pass syntax checks but several involve behavioral changes that require runtime verification. Listed in 86-REVIEW-FIX.md 'Verification Notes' section.", "blocking": true},
-    {"action": "Decide whether to defer or invest in runTransaction infrastructure for TASK-ID race", "context": "Iter-1 chose lowest-scope fix (retry-on-collision via getDoc check, 5 attempts). Iter-2 review noted TOCTOU window remains. Full fix needs runTransaction export from firebase.js + counter doc OR addDoc with auto-id. Tracked in 86-REVIEW-FIX.md as user-acknowledged.", "blocking": false}
+    {
+      "action": "Phase 84.1 UAT still pending — 15 notification tests against dev Firebase env",
+      "context": "84.1-UAT.md was scaffolded with pending tests; human UAT gate never resolved",
+      "blocking": false
+    }
   ],
   "decisions": [
-    {"decision": "Default --fix scope (critical_warning, no --all): info-level findings deferred", "rationale": "User invoked /gsd-code-review --fix 86 then chose --auto for iteration mode. Default scope per command spec is critical+warning. Info findings (4 in iter-1, 5 in iter-2) left for future polish.", "phase": "86"},
-    {"decision": "CR-03 lowest-scope fix (retry-on-collision) over runTransaction migration", "rationale": "runTransaction not currently exported from app/firebase.js. Adding it would broaden scope beyond a code-review fix into infrastructure refactor. Retry-on-collision narrows the race window; user-acknowledged residual documented for future.", "phase": "86"},
-    {"decision": "CR-04 escapeHTML->data-attr refactor used the 'data-* + addEventListener' pattern (review's preferred fix), not the JSON.stringify alternative", "rationale": "Matches existing pattern in the same file (personnel-pill click-outside handler). 5 surfaces refactored: task tree rows, filter pills, modal pills, delete confirm, code-issuance overlay. Listeners re-attach on every innerHTML rewrite per iter-2 reviewer verification.", "phase": "86"},
-    {"decision": "Loop terminated at iter-2 fix (not iter-3) due to org usage limit; no full third re-review run", "rationale": "Iter-3 reviewer agent failed before producing output (org monthly usage limit). Manually spot-checked iter-2 commits via git show — patches minimal and correct. iter-3 backup files (.iter3.md duplicates) cleaned up; iter-2 backups preserved as audit trail.", "phase": "86"}
+    {"decision": "Phase 86.2 all 10 Gantt UX defects resolved across 3 plans", "rationale": "UAT 8/8 passed 2026-05-06", "phase": "86.2"},
+    {"decision": "Next phases: 87 or 88 (independent, can start either)", "rationale": "Phase 89 depends on both 87+88; 85 ROADMAP table stale (shows 7/8 but all 8 plans complete)", "phase": "86.2"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Run manual UAT in browser before advancing. Start dev server (python -m http.server 8000), navigate to a project, exercise Project Plan: parent task edit, child task with progress slider, dependency creation, FS-violation overlay, nested 3-level recompute. Specifically verify the CR-04 onclick refactor (clicks on task tree rows, filter pills, delete confirm) since this was the largest behavioral change.",
-  "context_notes": "Phase 86 implementation (5 plans, ~1100 lines view code, new project_tasks collection + tier-2 rules, Frappe Gantt integration) was complete before this session. This session only ran the code-review-fix --auto loop on the existing implementation. 19 atomic fix commits + 1 cumulative docs commit. The TASK-ID race is the only known unaddressed warning, deliberately deferred. Working tree clean."
+  "uncommitted_files": [
+    ".planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-VERIFICATION.md (modified)",
+    ".planning/phases/86-native-project-management-gantt/86-UAT.md (untracked)",
+    ".planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-CONTEXT.md (untracked)",
+    ".planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-PATTERNS.md (untracked)",
+    "scripts/preprocess.js (untracked — possibly leftover, not phase-related)",
+    "serviceAccountKey.json (untracked — DO NOT COMMIT, Firebase credentials)"
+  ],
+  "next_action": "Run /gsd-plan-phase 87 (Proposal Lifecycle) or /gsd-plan-phase 88 (Mgmt Tab Shell). Both are independent. Phase 89 depends on both.",
+  "context_notes": "Session ended at a clean phase boundary. 86.2 fully verified. ROADMAP Phase 85 tracker table shows 7/8 but all 8 plans are complete in the phase section — table is stale. serviceAccountKey.json is in working tree and must never be committed."
 }
