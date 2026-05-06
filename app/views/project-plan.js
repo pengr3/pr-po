@@ -115,6 +115,10 @@ export async function init(activeTab = null, param = null) {
         window.deleteTaskNow = deleteTaskNow;
         window.editTaskProgress = editTaskProgress;
         window.handleNewRowKeydown = handleNewRowKeydown;
+        window.gridIndentTask = gridIndentTask;
+        window.gridOutdentTask = gridOutdentTask;
+        window.gridInsertRowAbove = gridInsertRowAbove;
+        window.gridDeleteRow = gridDeleteRow;
     } finally {
         showLoading(false);
     }
@@ -148,6 +152,12 @@ export async function destroy() {
     delete window.deleteTaskNow;
     delete window.editTaskProgress;
     delete window.handleNewRowKeydown;
+    delete window.gridIndentTask;
+    delete window.gridOutdentTask;
+    delete window.gridInsertRowAbove;
+    delete window.gridDeleteRow;
+    // Clean up any open context menu so it doesn't survive view destruction
+    document.getElementById('taskGridContextMenu')?.remove();
 }
 
 // ---- Grid rendering (left rail) ----
@@ -312,7 +322,7 @@ function bindGridEvents(container) {
         const row = e.target.closest('.tg-row');
         if (!row || row.dataset.taskId === '__new__') return;
         e.preventDefault();
-        if (typeof showTaskContextMenu === 'function') showTaskContextMenu(e, row.dataset.taskId);
+        showTaskContextMenu(e, row.dataset.taskId);
     };
     container.addEventListener('contextmenu', _gridContextMenuHandler);
 
@@ -452,6 +462,227 @@ function handleNewRowKeydown(event) {
     } else if (event.key === 'Escape') {
         input.value = '';
         input.blur();
+    }
+}
+
+// ---- Task grid hierarchy + reorder operations (Plan 02) ----
+
+// Right-click context menu — analog: procurement.js showRFPContextMenu
+function showTaskContextMenu(event, taskId) {
+    const existing = document.getElementById('taskGridContextMenu');
+    if (existing) existing.remove();
+
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+
+    const rowEls = [...document.querySelectorAll('.tg-row:not(.tg-empty-row)')];
+    const rowIdx = rowEls.findIndex(r => r.dataset.taskId === taskId);
+    const isFirstRow = rowIdx === 0;
+    const rowAbove = rowIdx > 0
+        ? tasks.find(x => x.task_id === rowEls[rowIdx - 1]?.dataset.taskId)
+        : null;
+
+    // Indent disabled if: first row, or row above is a descendant of this task (would create cycle)
+    const isDescendant = (candidateId, ancestorId) => {
+        let cur = tasks.find(x => x.task_id === candidateId);
+        while (cur?.parent_task_id) {
+            if (cur.parent_task_id === ancestorId) return true;
+            cur = tasks.find(x => x.task_id === cur.parent_task_id);
+        }
+        return false;
+    };
+    const canIndent = !isFirstRow && rowAbove != null && !isDescendant(rowAbove.task_id, taskId);
+    const canOutdent = !!t.parent_task_id;
+
+    const hasChildren = tasks.some(x => x.parent_task_id === taskId);
+    const childCount = hasChildren ? tasks.filter(x => x.parent_task_id === taskId).length : 0;
+
+    const menu = document.createElement('div');
+    menu.id = 'taskGridContextMenu';
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
+
+    menu.innerHTML = `
+        <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(t.name || taskId)}</div>
+        <div style="padding:8px 16px;cursor:${canIndent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canIndent ? '#1e293b' : '#9ca3af'};"
+             ${canIndent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridIndentTask('${escapeHTML(taskId)}')"` : ''}>
+            Indent
+        </div>
+        <div style="padding:8px 16px;cursor:${canOutdent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canOutdent ? '#1e293b' : '#9ca3af'};"
+             ${canOutdent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridOutdentTask('${escapeHTML(taskId)}')"` : ''}>
+            Outdent
+        </div>
+        <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+             onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridInsertRowAbove('${escapeHTML(taskId)}')">
+            Insert Row Above
+        </div>
+        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+             onmouseenter="this.style.background='#fef2f2'" onmouseleave="this.style.background='transparent'"
+             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridDeleteRow('${escapeHTML(taskId)}')">
+            Delete Row${hasChildren ? ` (+ ${childCount} subtask${childCount !== 1 ? 's' : ''})` : ''}
+        </div>
+    `;
+    document.body.appendChild(menu);
+    // Dismiss on outside click — 10ms delay (mirrors procurement.js pattern)
+    setTimeout(() => {
+        document.addEventListener('click', function handler() {
+            menu.remove();
+            document.removeEventListener('click', handler);
+        }, { once: true });
+    }, 10);
+}
+
+async function gridIndentTask(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    // Sort by row_order
+    const sorted = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+    const idx = sorted.findIndex(x => x.task_id === taskId);
+    if (idx <= 0) return; // first row — can't indent
+    const newParent = sorted[idx - 1];
+    // Reject if newParent is a descendant of this task (would create a cycle)
+    const isDescendant = (candidateId, ancestorId) => {
+        let cur = tasks.find(x => x.task_id === candidateId);
+        while (cur?.parent_task_id) {
+            if (cur.parent_task_id === ancestorId) return true;
+            cur = tasks.find(x => x.task_id === cur.parent_task_id);
+        }
+        return false;
+    };
+    if (isDescendant(newParent.task_id, taskId)) {
+        showToast(`Can't indent — would create a cycle.`, 'error');
+        return;
+    }
+    const oldParentId = t.parent_task_id || null;
+    try {
+        await updateDoc(doc(db, 'project_tasks', taskId), {
+            parent_task_id: newParent.task_id,
+            updated_at: serverTimestamp()
+        });
+        // Patch local
+        const i = tasks.findIndex(x => x.task_id === taskId);
+        if (i >= 0) tasks[i] = { ...tasks[i], parent_task_id: newParent.task_id };
+        // Recompute envelopes for both old and new parent
+        if (oldParentId) await recomputeParentDates(oldParentId);
+        await recomputeParentDates(newParent.task_id);
+    } catch (err) {
+        console.error('[ProjectPlan] gridIndentTask failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to change task hierarchy on this project.`
+            : 'Could not indent task. Please try again.', 'error');
+    }
+}
+
+async function gridOutdentTask(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t || !t.parent_task_id) return;
+    const oldParent = tasks.find(x => x.task_id === t.parent_task_id);
+    const newParentId = oldParent?.parent_task_id || null;
+    const oldParentId = t.parent_task_id;
+    try {
+        await updateDoc(doc(db, 'project_tasks', taskId), {
+            parent_task_id: newParentId,
+            updated_at: serverTimestamp()
+        });
+        const i = tasks.findIndex(x => x.task_id === taskId);
+        if (i >= 0) tasks[i] = { ...tasks[i], parent_task_id: newParentId };
+        await recomputeParentDates(oldParentId);
+        if (newParentId) await recomputeParentDates(newParentId);
+    } catch (err) {
+        console.error('[ProjectPlan] gridOutdentTask failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to change task hierarchy on this project.`
+            : 'Could not outdent task. Please try again.', 'error');
+    }
+}
+
+async function gridInsertRowAbove(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    if (!currentProject?.project_code) {
+        showToast(`This project doesn't have a project code yet.`, 'warning');
+        return;
+    }
+    const targetOrder = t.row_order ?? 0;
+
+    showLoading(true);
+    try {
+        // Allocate task id
+        let newTaskId;
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const candidate = await generateTaskId(currentProject.project_code);
+            const existing = await getDoc(doc(db, 'project_tasks', candidate));
+            if (!existing.exists()) { newTaskId = candidate; break; }
+        }
+        if (!newTaskId) { showToast('Could not allocate a task id — please try again.', 'error'); return; }
+
+        // Shift all rows with row_order >= targetOrder up by 1 (writeBatch chunked at 450)
+        const toShift = tasks.filter(x => (x.row_order ?? 0) >= targetOrder);
+        const CHUNK = 450;
+        for (let i = 0; i < toShift.length; i += CHUNK) {
+            const slice = toShift.slice(i, i + CHUNK);
+            const batch = writeBatch(db);
+            slice.forEach(task => {
+                batch.update(doc(db, 'project_tasks', task.task_id), {
+                    row_order: (task.row_order ?? 0) + 1,
+                    updated_at: serverTimestamp()
+                });
+            });
+            await batch.commit();
+        }
+
+        // Create new task at targetOrder, inheriting parent_task_id from the row below for visual locality
+        await setDoc(doc(db, 'project_tasks', newTaskId), {
+            task_id: newTaskId,
+            project_id: currentProject.id,
+            project_code: currentProject.project_code,
+            parent_task_id: t.parent_task_id || null,
+            name: '',
+            description: '',
+            progress: 0,
+            is_milestone: false,
+            dependencies: [],
+            assignees: [],
+            row_order: targetOrder,
+            created_at: serverTimestamp(),
+            updated_at: serverTimestamp()
+        });
+        // onSnapshot will fire → renderTaskGrid()
+    } catch (err) {
+        console.error('[ProjectPlan] gridInsertRowAbove failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to add tasks on this project.`
+            : 'Could not insert row. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// D-05: inline confirm on delete — no modal overlay
+function gridDeleteRow(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    const hasChildren = tasks.some(x => x.parent_task_id === taskId);
+
+    if (hasChildren) {
+        // Show inline confirm tooltip on the row — no modal
+        const row = document.querySelector(`.tg-row[data-task-id="${CSS.escape(taskId)}"]`);
+        if (!row) return;
+        // Remove any existing confirm
+        row.querySelector('.tg-delete-confirm')?.remove();
+        const confirm = document.createElement('span');
+        confirm.className = 'tg-delete-confirm';
+        const childCount = tasks.filter(x => x.parent_task_id === taskId).length;
+        confirm.innerHTML = `Delete task + ${childCount} subtask${childCount !== 1 ? 's' : ''}? <button class="tg-delete-yes">Yes</button> <button class="tg-delete-no">No</button>`;
+        row.appendChild(confirm);
+        confirm.querySelector('.tg-delete-yes').addEventListener('click', () => deleteTaskNow(taskId));
+        confirm.querySelector('.tg-delete-no').addEventListener('click', () => confirm.remove());
+    } else {
+        // Leaf task — delete directly (no confirm)
+        deleteTaskNow(taskId);
     }
 }
 
@@ -836,7 +1067,8 @@ async function deleteTaskNow(taskId) {
         // would see the just-deleted children and write stale dates.
         if (t.parent_task_id) await recomputeParentDates(t.parent_task_id, new Set(allIds));
 
-        closeDeleteTaskConfirm();
+        // Clean up any inline delete-confirm tooltip still visible in the grid
+        document.querySelector('.tg-delete-confirm')?.remove();
         showToast('Task deleted.', 'success');
     } catch (err) {
         console.error('[ProjectPlan] deleteTaskNow failed:', err);
