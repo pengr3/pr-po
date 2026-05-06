@@ -2420,10 +2420,21 @@
 
 .plan-split-pane {
     display: grid;
-    grid-template-columns: 35% 1fr;
+    grid-template-columns: 35% 4px 1fr;
     flex: 1 1 auto;
     min-height: 0;
     border-top: 1px solid var(--gray-200, #dadce0);
+}
+
+.plan-divider {
+    background: var(--gray-200, #dadce0);
+    cursor: col-resize;
+    user-select: none;
+    transition: background 0.15s;
+}
+.plan-divider:hover,
+.plan-divider.dragging {
+    background: var(--primary, #1a73e8);
 }
 
 /* ========================================

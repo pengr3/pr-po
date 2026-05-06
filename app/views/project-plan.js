@@ -32,6 +32,11 @@ let _gridDragEndHandler = null;
 let _draggedTaskId = null;        // currently-dragged task_id during drag
 let _gridKeydownHandler = null;   // keydown Enter handler for Duration/Resources cells (86.2)
 
+// Plan 03 — resizable panel divider state
+let _resizeMouseMoveHandler = null;
+let _resizeMouseUpHandler = null;
+let _resizeDragging = false;
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -54,10 +59,11 @@ export function render(activeTab = null, param = null) {
                 </div>
                 <!-- No Filters button (D-Q2: filter panel removed in 86.1) -->
             </div>
-            <div class="plan-split-pane">
+            <div class="plan-split-pane" id="planSplitPane">
                 <div class="task-grid-rail" id="taskGridRail" aria-label="Task grid">
                     <div class="empty-state"><h3>Loading…</h3></div>
                 </div>
+                <div class="plan-divider" id="planDivider" aria-hidden="true"></div>
                 <div class="gantt-pane">
                     <div id="ganttPane"></div>
                 </div>
@@ -130,6 +136,7 @@ export async function init(activeTab = null, param = null) {
         window.gridOutdentTask = gridOutdentTask;
         window.gridInsertRowAbove = gridInsertRowAbove;
         window.gridDeleteRow = gridDeleteRow;
+        initPanelResize();
     } finally {
         showLoading(false);
     }
@@ -181,6 +188,43 @@ export async function destroy() {
     delete window.gridDeleteRow;
     // Clean up any open context menu so it doesn't survive view destruction
     document.getElementById('taskGridContextMenu')?.remove();
+    document.getElementById('planDeleteConfirm')?.remove();
+    // Resize handler cleanup
+    if (_resizeMouseMoveHandler) document.removeEventListener('mousemove', _resizeMouseMoveHandler);
+    if (_resizeMouseUpHandler)   document.removeEventListener('mouseup',   _resizeMouseUpHandler);
+    _resizeMouseMoveHandler = null;
+    _resizeMouseUpHandler   = null;
+    _resizeDragging = false;
+}
+
+// ---- Resizable panel divider ----
+
+function initPanelResize() {
+    const divider = document.getElementById('planDivider');
+    const splitPane = document.getElementById('planSplitPane');
+    if (!divider || !splitPane) return;
+
+    divider.addEventListener('mousedown', (e) => {
+        _resizeDragging = true;
+        divider.classList.add('dragging');
+        e.preventDefault();
+    });
+
+    _resizeMouseMoveHandler = function(e) {
+        if (!_resizeDragging) return;
+        const rect = splitPane.getBoundingClientRect();
+        const pct = Math.max(15, Math.min(75, ((e.clientX - rect.left) / rect.width) * 100));
+        splitPane.style.gridTemplateColumns = pct.toFixed(1) + '% 4px 1fr';
+    };
+
+    _resizeMouseUpHandler = function() {
+        if (!_resizeDragging) return;
+        _resizeDragging = false;
+        divider.classList.remove('dragging');
+    };
+
+    document.addEventListener('mousemove', _resizeMouseMoveHandler);
+    document.addEventListener('mouseup', _resizeMouseUpHandler);
 }
 
 // ---- Grid rendering (left rail) ----
