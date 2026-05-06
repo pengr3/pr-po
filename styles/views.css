@@ -2445,12 +2445,17 @@
     table-layout: fixed;
 }
 
+.task-grid thead tr {
+    height: 85px;                                     /* aligns with Frappe header: upper(45) + lower(30) + 10 = 85px */
+}
+
 .task-grid thead th {
     position: sticky;
     top: 0;
     background: #f8f9fa;
     border-bottom: 2px solid var(--gray-200, #dadce0);
     padding: 6px 8px;
+    padding-bottom: 8px;
     text-align: left;
     font-weight: 600;
     font-size: 12px;
@@ -2458,6 +2463,7 @@
     user-select: none;
     white-space: nowrap;
     z-index: 2;
+    vertical-align: bottom;
 }
 
 /* Column widths */
@@ -2469,7 +2475,9 @@
 .tg-res  { width: 120px; }
 
 .tg-row {
+    height: 42px;                                     /* MUST match Frappe bar_height(24) + padding(18) = 42px */
     border-bottom: 1px solid var(--gray-200, #dadce0);
+    box-sizing: border-box;
 }
 .tg-row:hover { background: #f8f9fa; }
 .tg-row.tg-empty-row { background: #fafafa; }
@@ -2548,6 +2556,13 @@
 .tg-row.tg-dragging { opacity: 0.5; }
 .tg-row.tg-drag-over { border-top: 2px solid var(--primary, #1a73e8); }
 
+.task-grid tbody td {
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
 /* Gantt SVG overlay — drag-to-link (Plan 04) */
 .gantt-link-handle { opacity: 0.85; transition: opacity 0.1s; }
 .gantt-link-handle:hover { opacity: 1; }
@@ -2560,6 +2575,10 @@
 .gantt-pane {
     overflow: auto;
     background: #ffffff;
+    min-width: 0;                  /* CSS grid child: prevents overflow past column boundary */
+}
+.gantt-pane .gantt-container {
+    min-width: 100%;               /* Frappe SVG container fills available column width */
 }
 .gantt-pane #ganttPane { padding: 8px; }
 
