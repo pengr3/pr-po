@@ -518,11 +518,15 @@ async function handleNewRowCommit(input) {
         }
         if (!taskId) { showToast('Could not allocate a task id — please try again.', 'error'); return; }
 
+        // DEFECT-6 fix: new trailing row inherits parent from the last sorted task above it
+        const sortedForInherit = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+        const inheritedParentId = sortedForInherit[sortedForInherit.length - 1]?.parent_task_id ?? null;
+
         const docData = {
             task_id: taskId,
             project_id: currentProject.id,
             project_code: currentProject.project_code,
-            parent_task_id: null,
+            parent_task_id: inheritedParentId,
             name,
             description: '',
             progress: 0,
@@ -973,6 +977,7 @@ function renderGantt() {
             padding: 18,
             language: 'en',
             date_format: 'YYYY-MM-DD',
+            popup: false,                          // DEFECT-4: suppress click-triggered popup
             on_date_change: handleGanttDateChange,
             on_progress_change: handleGanttProgressChange,
             on_click: handleGanttBarClick
