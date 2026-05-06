@@ -1572,6 +1572,11 @@ tr:hover {
     text-overflow: ellipsis;
 }
 
+.personnel-pill.selected {
+    background: var(--primary, #1a73e8);
+    color: #ffffff;
+}
+
 .personnel-pill.legacy {
     background: var(--gray-100);
     color: var(--gray-700);

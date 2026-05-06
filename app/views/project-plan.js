@@ -172,8 +172,9 @@ export async function destroy() {
     delete window.gridOutdentTask;
     delete window.gridInsertRowAbove;
     delete window.gridDeleteRow;
-    // Clean up any open context menu so it doesn't survive view destruction
+    // Clean up any open context menu or assignee picker so they don't survive view destruction
     document.getElementById('taskGridContextMenu')?.remove();
+    document.getElementById('taskAssigneePicker')?.remove();
 }
 
 // ---- Grid rendering (left rail) ----
@@ -850,6 +851,73 @@ function computeDepth(taskId) {
         if (depth > 20) break; // cycle guard
     }
     return depth;
+}
+
+// ---- Resource Names assignee picker (Plan 03) ----
+
+// openAssigneePicker — pill popup anchored below the clicked Resource Names cell.
+// Each pill toggle is its own atomic Firestore write — no save button.
+// Popup dismisses on outside click; at most one picker exists in the DOM at any time.
+function openAssigneePicker(taskId, anchorEl) {
+    // Remove any existing picker first (idempotent — at most one in DOM)
+    document.getElementById('taskAssigneePicker')?.remove();
+
+    // Guard: never open for the empty trailing row
+    if (!taskId || taskId === '__new__') return;
+
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+
+    const projectPersonnel = normalizePersonnel(currentProject); // { names, userIds }
+    const currentAssignees = Array.isArray(t.assignees) ? [...t.assignees] : [];
+
+    const picker = document.createElement('div');
+    picker.id = 'taskAssigneePicker';
+    // Position relative to anchor — same position:fixed approach as context menus
+    const rect = anchorEl.getBoundingClientRect();
+    picker.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:8px;z-index:10000;min-width:180px;max-width:320px;`;
+
+    const pipsHtml = (projectPersonnel.userIds || []).length > 0
+        ? (projectPersonnel.userIds || []).map((uid, i) => {
+            const name = projectPersonnel.names?.[i] || uid;
+            const isOn = currentAssignees.includes(uid);
+            return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}"
+                          style="cursor:pointer;display:inline-block;margin:2px;">${escapeHTML(name)}</span>`;
+        }).join('')
+        : '<span style="color:#94a3b8;font-size:13px;">No personnel on this project.</span>';
+
+    picker.innerHTML = `<div class="personnel-pills-container">${pipsHtml}</div>`;
+    document.body.appendChild(picker);
+
+    // Toggle on pill click, then write to Firestore atomically
+    picker.querySelectorAll('.personnel-pill[data-uid]').forEach(pill => {
+        pill.addEventListener('click', async () => {
+            const uid = pill.dataset.uid;
+            const idx = currentAssignees.indexOf(uid);
+            if (idx >= 0) currentAssignees.splice(idx, 1);
+            else currentAssignees.push(uid);
+            pill.classList.toggle('selected', currentAssignees.includes(uid));
+            try {
+                await updateDoc(doc(db, 'project_tasks', taskId), {
+                    assignees: [...currentAssignees],
+                    updated_at: serverTimestamp()
+                });
+            } catch (err) {
+                console.error('[ProjectPlan] openAssigneePicker write failed:', err);
+                showToast('Could not save assignees.', 'error');
+            }
+        });
+    });
+
+    // Close on outside click (same 10ms-delay pattern as context menu — prevents same-tick double-fire)
+    setTimeout(() => {
+        document.addEventListener('click', function handler(e) {
+            if (!picker.contains(e.target) && e.target !== anchorEl) {
+                picker.remove();
+                document.removeEventListener('click', handler);
+            }
+        });
+    }, 10);
 }
 
 // ---- Gantt rendering (right pane) ----
