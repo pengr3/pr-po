@@ -221,7 +221,8 @@
 - [x] **Phase 84: Notification Triggers — Existing Events** — Wire notifications to MRF approval, PR/TR/RFP review, project status change, registration approval (uses Phase 83 plumbing on events that already exist in v3.2) — completed 2026-04-30 (4 plans)
 - [x] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [3/3 plans complete; 15/15 UAT pass] — completed 2026-05-02 — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
 - [x] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export — completed 2026-05-02 (8 plans)
-- [ ] **Phase 86: Native Project Management & Gantt** [3/5 plans complete] — `project_tasks` collection, hierarchy + dependencies + milestones, interactive Gantt view (drag-resize, drag-reschedule), filters, weighted progress rollup, Security Rules
+- [x] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, Frappe Gantt (drag-resize, drag-reschedule), filter panel, weighted progress rollup, project-detail summary card, Security Rules — completed 2026-05-05 (5 plans)
+- [ ] **Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking** — Replace modal-CRUD left rail with ProjectLibre-style inline spreadsheet grid (Name/Duration/Start/End/Predecessors/Resource Names); duration input auto-computes End; right-click indent/outdent hierarchy; drag-from-bar-to-bar in Gantt to create FS predecessor links
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -328,12 +329,31 @@
   3. User can view the project's tasks as an interactive Gantt chart with timeline bars, and edit dates inline by dragging bar edges (resize) or the bar body (reschedule)
   4. User can update task progress (0–100%) from both the task list and the Gantt view, and the project detail page shows overall project progress weighted by task duration
   5. User can filter the Gantt view by date range and assigned personnel; tasks persist in `project_tasks` with role-based read/write enforced by Firebase Security Rules
-**Plans**: 5 plans (3/5 complete)
+**Plans**: 5 plans (all complete)
   - [x] 86-01-PLAN.md — Frappe Gantt v1.2.2 CDN load + project_tasks two-tier security rules + project-scoped task ID generator + /project-plan route (PM-11) — completed 2026-05-05
-  - [x] 86-02-PLAN.md — project-plan.js view skeleton + onSnapshot task-tree render + 7 window.* handlers (2 active, 5 stubbed) + plan-view CSS (PM-01/02 partial) — completed 2026-05-05
+  - [x] 86-02-PLAN.md — project-plan.js view skeleton + onSnapshot task-tree render + 7 window.* handlers + plan-view CSS (PM-01/02 partial) — completed 2026-05-05
   - [x] 86-03-PLAN.md — Frappe Gantt mount + drag-resize/reschedule + drag-progress + milestones + today line + zoom toolbar + FS-violation toast (PM-04, PM-06, PM-08; PM-03 partial) — completed 2026-05-05
-  - [ ] 86-04-PLAN.md — Add/Edit/Delete task modals + cycle detection + assignee picker + parent-recompute on child writes + left-rail progress slider (PM-01/02/03/05 remainder)
-  - [ ] 86-05-PLAN.md — Filter panel (date range + assignees) + project-detail Project Plan summary card with highlights + weighted overall progress (PM-07, PM-09)
+  - [x] 86-04-PLAN.md — Add/Edit/Delete task modals + cycle detection + assignee picker + parent-recompute + left-rail progress slider (PM-01/02/03/05) — completed 2026-05-05
+  - [x] 86-05-PLAN.md — Filter panel + project-detail summary card + weighted rollup (PM-07, PM-09) — completed 2026-05-05
+**UI hint**: yes
+
+### Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking
+**Goal**: Replace the modal-based task editor from Phase 86 with a ProjectLibre-style inline spreadsheet grid synchronized with the Frappe Gantt — users edit task data directly in the grid rows without opening any modal, and can create predecessor dependencies by dragging from one Gantt bar to another.
+**Depends on**: Phase 86 (Frappe Gantt + project_tasks collection + Security Rules already deployed)
+**Scraps from Phase 86**: `renderTaskTree()`, all modal CRUD functions (`openAddTaskModal`, `openEditTaskModal`, `renderTaskFormModal`, `closeTaskFormModal`, `toggleTaskAssignee`, `confirmDeleteTask`), chevron expand/collapse state, modal mount divs, tree-specific CSS classes. Firestore rules, data model, `renderGantt()`, filter panel, and project-detail summary card are UNCHANGED.
+**Requirements**: PM-01, PM-02, PM-03, PM-05 (revised delivery — same outcomes, better UX)
+**Success Criteria** (what must be TRUE):
+  1. User sees a spreadsheet grid in the left rail with columns: row# · Name · Duration · Start · End · Predecessors · Resource Names — each cell is directly editable without a modal; row numbers are stable (assigned at creation, never change on reorder)
+  2. Typing a duration value (e.g. "3d", "2w") automatically computes and populates End from Start + duration; Start and End also support date pickers; changing End recomputes Duration display
+  3. Clicking the empty row at the bottom creates a new task inline; dragging a row's left handle reorders it (updates `row_order` in Firestore via writeBatch)
+  4. Right-clicking any row shows a context menu: Indent (make subtask of row above), Outdent, Insert Row Above, Delete Row (inline confirm — no modal)
+  5. User can drag from the right edge of any Gantt bar to another bar to create a Finish-to-Start predecessor link; the Predecessors column shows the source task's stable row# and the Gantt arrow renders immediately
+  6. Parent rows are locked (Start/End/Duration grayed-out, computed from children); Resource Names cell shows assigned personnel names; clicking opens an inline picker popup (no modal)
+**Plans**: 4 plans
+  - [ ] 86.1-01-PLAN.md — Scaffold inline grid: replace renderTaskTree with renderTaskGrid, editable cells, duration parsing, add-via-empty-row, save-on-blur, row_order field, remove filter panel + modal CRUD (PM-01, PM-05)
+  - [ ] 86.1-02-PLAN.md — Hierarchy + reorder: right-click context menu (Indent/Outdent/Insert Above/Delete Row with inline confirm), HTML5 drag-to-reorder with row_order writeBatch, parent_task_id writes (PM-02)
+  - [ ] 86.1-03-PLAN.md — Resource Names assignee picker: pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal (PM-01 assignees portion)
+  - [ ] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03)
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
