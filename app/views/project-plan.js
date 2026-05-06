@@ -21,6 +21,9 @@ let _gridInputHandler = null;     // capture-phase blur handler for tg-input ele
 let _gridChangeHandler = null;    // change handler for tg-date-input
 let _gridContextMenuHandler = null; // Plan 02 hook (declare now, body added in Plan 02)
 
+// Plan 04 — Gantt drag-to-link state
+let ganttDragState = null;       // { fromTaskId, svgLine } during drag-to-link, null otherwise
+
 // Plan 02 — drag-and-drop state
 let _gridDragStartHandler = null;
 let _gridDragOverHandler = null;
@@ -138,6 +141,7 @@ export async function destroy() {
         try { gantt.destroy(); } catch (e) { /* swallow */ }
     }
     gantt = null;
+    ganttDragState = null;
     tasks = [];
     currentProject = null;
     projectCode = null;
@@ -1043,6 +1047,9 @@ function renderGantt() {
         scrollGanttToToday();
         __ganttInitialScrollDone = true;
     }
+
+    // 7. Phase 86.1 Plan 04 — drag-to-link overlay
+    initGanttDragLink();
 }
 
 function setGanttZoom(mode) {
@@ -1195,6 +1202,138 @@ function scrollGanttToToday() {
         // Center today in the visible pane
         pane.scrollLeft = Math.max(0, x - pane.clientWidth / 2);
     } catch (e) { /* swallow */ }
+}
+
+// ---- Gantt drag-to-link SVG overlay (Phase 86.1 Plan 04) ----
+// Adds a blue circle handle at the right edge of each non-parent Gantt bar on hover.
+// Dragging from that handle draws a rubber-band SVG line; releasing over another bar
+// creates a Finish-to-Start dependency with cycle detection (reuses detectDependencyCycle).
+// Sentinel attributes (data-linkBound) prevent duplicate listener binding across snapshot re-fires.
+
+function initGanttDragLink() {
+    const svg = document.querySelector('#ganttPane svg');
+    if (!svg) return;
+
+    // Bind per-bar-wrapper handlers (mouseenter / mouseleave / mousedown)
+    svg.querySelectorAll('.bar-wrapper').forEach(barWrapper => {
+        // Sentinel: skip if already bound (Frappe gantt.refresh() keeps same DOM elements)
+        if (barWrapper.dataset.linkBound === '1') return;
+        barWrapper.dataset.linkBound = '1';
+
+        const bar = barWrapper.querySelector('.bar');
+        if (!bar) return;
+
+        barWrapper.addEventListener('mouseenter', () => {
+            // D-07 parent lock — never show a handle on parent summary bars
+            if (barWrapper.classList.contains('parent-summary-bar')) return;
+            let handle = barWrapper.querySelector('.gantt-link-handle');
+            if (!handle) {
+                const ns = 'http://www.w3.org/2000/svg';
+                handle = document.createElementNS(ns, 'circle');
+                handle.setAttribute('class', 'gantt-link-handle');
+                handle.setAttribute('r', '6');
+                handle.setAttribute('fill', '#1a73e8');
+                handle.setAttribute('cursor', 'crosshair');
+                barWrapper.appendChild(handle);
+            }
+            // Position at bar right-edge midpoint
+            const barRect = bar.getBBox ? bar.getBBox() : { x: 0, y: 0, width: 0, height: 0 };
+            handle.setAttribute('cx', barRect.x + barRect.width);
+            handle.setAttribute('cy', barRect.y + barRect.height / 2);
+            handle.style.display = '';
+        });
+
+        barWrapper.addEventListener('mouseleave', () => {
+            if (ganttDragState) return; // keep handle visible while drag is in progress
+            barWrapper.querySelector('.gantt-link-handle')?.remove();
+        });
+
+        barWrapper.addEventListener('mousedown', (e) => {
+            const handle = e.target;
+            if (!handle.classList.contains('gantt-link-handle')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            // Read source task_id from Frappe's data-id attribute on bar-wrapper
+            const fromTaskId = barWrapper.dataset.id;
+            if (!fromTaskId) return;
+            // Create rubber-band SVG line
+            const ns = 'http://www.w3.org/2000/svg';
+            const svgLine = document.createElementNS(ns, 'line');
+            svgLine.setAttribute('class', 'gantt-rubber-band');
+            svgLine.setAttribute('stroke', '#1a73e8');
+            svgLine.setAttribute('stroke-width', '2');
+            svgLine.setAttribute('stroke-dasharray', '4 4');
+            svgLine.setAttribute('pointer-events', 'none');
+            svg.appendChild(svgLine);
+            ganttDragState = { fromTaskId, svgLine };
+        });
+    });
+
+    // SVG-level mousemove + mouseup — bind once (sentinel on SVG itself)
+    if (svg.dataset.linkBound !== '1') {
+        svg.dataset.linkBound = '1';
+
+        svg.addEventListener('mousemove', (e) => {
+            if (!ganttDragState) return;
+            // Transform client coords to SVG coords
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+            const line = ganttDragState.svgLine;
+            // x1/y1 = from-bar right-edge center
+            const fromWrapper = svg.querySelector(`.bar-wrapper[data-id="${ganttDragState.fromTaskId}"]`);
+            const fromBar = fromWrapper?.querySelector('.bar');
+            if (fromBar) {
+                const r = fromBar.getBBox();
+                line.setAttribute('x1', r.x + r.width);
+                line.setAttribute('y1', r.y + r.height / 2);
+            }
+            line.setAttribute('x2', svgPt.x);
+            line.setAttribute('y2', svgPt.y);
+        });
+
+        svg.addEventListener('mouseup', async (e) => {
+            if (!ganttDragState) return;
+            const { fromTaskId, svgLine } = ganttDragState;
+            // Clear drag state and remove rubber-band line immediately
+            ganttDragState = null;
+            svgLine.remove();
+
+            // Resolve drop target
+            const toWrapper = e.target.closest('.bar-wrapper');
+            if (!toWrapper) return; // dropped on empty space — cancel silently
+            const toTaskId = toWrapper.dataset.id;
+            if (!toTaskId || toTaskId === fromTaskId) return; // self-link — reject silently
+
+            const toTask = tasks.find(x => x.task_id === toTaskId);
+            if (!toTask) return;
+
+            const existingDeps = Array.isArray(toTask.dependencies) ? [...toTask.dependencies] : [];
+            if (existingDeps.includes(fromTaskId)) return; // already linked — skip silently
+
+            const newDeps = [...existingDeps, fromTaskId];
+
+            // Cycle check (reuse detectDependencyCycle from Phase 86)
+            const cycleNames = detectDependencyCycle(newDeps, toTaskId);
+            if (cycleNames) {
+                showToast(`This dependency would create a cycle: ${cycleNames.join(' → ')}. Link rejected.`, 'error');
+                return;
+            }
+
+            // Write — T-86.1.4-07: catch permission-denied and surface actionable toast
+            try {
+                await updateDoc(doc(db, 'project_tasks', toTaskId), {
+                    dependencies: newDeps,
+                    updated_at: serverTimestamp()
+                });
+                // onSnapshot → renderTaskGrid() updates Predecessors column automatically
+            } catch (err) {
+                console.error('[ProjectPlan] drag-to-link write failed:', err);
+                showToast('Could not save dependency link.', 'error');
+            }
+        });
+    }
 }
 
 function checkAndToastFsViolations() {
