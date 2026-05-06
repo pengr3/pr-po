@@ -373,7 +373,7 @@
   7. Gantt click-triggered popup is suppressed; only bar-drag, bar-extend, and progress-extend interactions are active
 **Plans**: 3 plans
   - [x] 86.2-01-PLAN.md — CSS: row height sync (42px/85px), full-width Gantt (min-width: 0) — Wave 1 — shipped 2026-05-06
-  - [ ] 86.2-02-PLAN.md — JS: drag isolation (.tg-rn handle), Enter key handler, smart indent inheritance, popup: false, back button verify, monthly header verify — Wave 2
+  - [x] 86.2-02-PLAN.md — JS: drag isolation (.tg-rn handle), Enter key handler, smart indent inheritance, popup: false, back button verify, monthly header verify — Wave 2 — shipped 2026-05-06
   - [ ] 86.2-03-PLAN.md — Resizable panel divider (HTML+CSS+JS+destroy cleanup), delete-confirm modal — Wave 3
 **UI hint**: yes
 

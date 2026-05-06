@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
 stopped_at: ""
-last_updated: "2026-05-06T09:47:30.000Z"
-last_activity: "2026-05-06 - Phase 86.2 Plan 01 complete (fa377ac). CSS-only fix: .tg-row height 42px + .task-grid thead tr height 85px + .task-grid tbody td padding suppression + .gantt-pane min-width 0 + .gantt-pane .gantt-container min-width 100%. Defects 1 and 9 addressed. 1 task, 1 commit, 0 deviations."
+last_updated: "2026-05-06T10:00:00.000Z"
+last_activity: "2026-05-06 - Phase 86.2 Plan 02 complete (24ea9bf). JS behavior fixes: drag isolation to .tg-rn handle (DEFECT-3), Enter key commit for Duration/Resources (DEFECT-10), smart indent inheritance for new trailing rows (DEFECT-6), popup: false in Gantt constructor (DEFECT-4). Back button and monthly header verified as already correct (DEFECT-2, DEFECT-5). 3 tasks, 3 commits, 0 deviations."
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 33
-  completed_plans: 31
-  percent: 94
+  completed_plans: 32
+  percent: 97
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.2 planned (3 plans, 3 waves) — Ready to execute. 10 Gantt UX defects: row alignment, Back button, drag isolation, popup:false, monthly header verify, smart indent inheritance, delete-confirm modal, resizable panel divider, full-width Gantt, Enter key commits. Next: /gsd-execute-phase 86.2
+**Current focus:** Phase 86.2 executing. Wave 1 (Plan 01, CSS) DONE. Wave 2 (Plan 02, JS behavior) DONE. Next: Plan 03 (Wave 3 — resizable panel + delete confirm modal).
 
 ## Current Position
 
 Phase: 86.2 (executing)
-Plan: Phase 86.2 Plan 01 complete (fa377ac). Wave 1 CSS fixes done: row height sync (42px/85px) + Gantt full-width (min-width: 0). Next: Plan 02 (Wave 2 — JS behavior fixes). Phase 86.2 has 3 plans covering 10 Gantt UX defects. Wave 1: CSS fixes (Plan 01 DONE). Wave 2: JS behavior fixes (Plan 02). Wave 3: Resizable panel + delete modal (Plan 03, depends on Plans 01+02).
+Plan: Phase 86.2 Plan 02 complete (24ea9bf). Wave 2 JS fixes done: drag isolation (.tg-rn handle), Enter key commit (Duration/Resources), smart indent inheritance (trailing row), popup:false (Gantt). Back button and monthly header verified. Next: Plan 03 (Wave 3 — resizable panel divider + delete-confirm modal).
 
 ## Performance Metrics
 
@@ -115,6 +115,7 @@ Plan: Phase 86.2 Plan 01 complete (fa377ac). Wave 1 CSS fixes done: row height s
 | Phase 84.1 P02 | 2 | 2 tasks | 4 files |
 | Phase 84.1 P03 | 3 | 1 task + 1 UAT scaffold (UAT execution pending) | 2 files |
 | Phase 86.2 P01 | <5 | 1 task | 1 files |
+| Phase 86.2 P02 | <5 | 3 tasks | 1 files |
 | Phase 85 P08 | 9 | 1 task | 1 files |
 | Phase 85 P05 | 8 | 3 tasks | 1 files |
 | Phase 85 P06 | 50 | 3 tasks | 1 files |
@@ -134,6 +135,11 @@ Plan: Phase 86.2 Plan 01 complete (fa377ac). Wave 1 CSS fixes done: row height s
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.2-02]: DEFECT-3: _gridDragStartHandler uses e.target.closest('.tg-rn') as sole drag-initiation gate — INPUT-tag guard removed; drag cursor only appears when user clicks the row-number (#) column handle
+- [Phase 86.2-02]: DEFECT-10: _gridKeydownHandler delegates Enter→blur for col=duration and col=resources tg-input elements; __new__ row excluded (handleNewRowKeydown owns that path); declared at module scope, cleaned in destroy()
+- [Phase 86.2-02]: DEFECT-6: inheritedParentId sourced from sortedForInherit[last].parent_task_id so new trailing-row tasks inherit parent from the row immediately above (not always null/root)
+- [Phase 86.2-02]: DEFECT-4: popup: false added to Gantt constructor options in renderGantt() — suppresses Frappe Gantt v1.2.2 click-triggered bar tooltip (cosmetic-only, no auth/data implications per T-86.2-02-03)
+- [Phase 86.2-02]: DEFECT-2 + DEFECT-5 verified (no code change needed): href="#/projects" present on .plan-back-link; Frappe Month mode renders full month names natively
 - [Phase 86.1-06]: isDescendant extracted to module scope — 3 identical inline const closures removed from showTaskContextMenu, gridIndentTask, handleRowDrop; _gridDragOverHandler now calls isDescendant(row.dataset.taskId, _draggedTaskId) before e.preventDefault() so descendant rows receive no drag-over highlight (D-Q4 visual fix). handleRowDrop subtree check unchanged as belt-and-suspenders
 - [Phase 86.1-06]: Resources cell changed from span.tg-resource-names to input.tg-res-input — plain free-text input sourced from t.resources || ''; handleGridCellBlur resources branch writes {resources, updated_at} to Firestore; openAssigneePicker function deleted (66 lines); new-task payloads (handleNewRowCommit + gridInsertRowAbove) include resources: ''
 - [Phase 86.1-05]: bindGridEvents-before-innerHTML in renderTaskGrid non-empty path: old capture-phase blur handler removed BEFORE DOM replacement fires blur on destroyed input nodes — primary fix for double-write on Name edit (UAT gap 1) and double task creation on new-row commit (UAT gap 2)
@@ -384,8 +390,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-06 - Phase 86.1 Plan 06 (D-Q4 subtree guard + Resources free-text) executed in 2 task commits. Task 1 (7fadcbf): isDescendant extracted to module scope + _gridDragOverHandler subtree guard. Task 2 (65c62da): Resources cell free-text input + handleGridCellBlur resources branch + openAssigneePicker deleted. 2 tasks, 2 commits, 0 deviations. node --check passes. UAT gaps 4+5 addressed. All 6 gap-closure plans for Phase 86.1 complete.
-Last session: 2026-05-06T08:05:00.000Z
-Stopped at: Phase 86.1 Plan 06 complete — all gap-closure plans shipped
+Last activity: 2026-05-06 - Phase 86.2 Plan 02 (JS behavior fixes) executed in 3 task commits. Task 1 (8542b77): drag isolation to .tg-rn handle (DEFECT-3). Task 2 (846243d): _gridKeydownHandler Enter→blur for Duration/Resources (DEFECT-10). Task 3 (24ea9bf): inheritedParentId smart indent (DEFECT-6) + popup:false (DEFECT-4) + verify back/monthly. 3 tasks, 3 commits, 0 deviations. node --check passes.
+Last session: 2026-05-06T10:00:00.000Z
+Stopped at: Completed Phase 86.2 Plan 02 — Wave 2 JS behavior fixes done
 Resume file: None
-Next action: Phase 86.1 COMPLETE — ready for milestone or next phase.
+Next action: Execute Phase 86.2 Plan 03 (Wave 3 — resizable panel divider + delete-confirm modal)
