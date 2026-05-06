@@ -222,7 +222,7 @@
 - [x] **Phase 84.1: Procurement Notifications & Trigger Enhancements** [3/3 plans complete; 15/15 UAT pass] — completed 2026-05-02 — Broadcast MRF-submitted to procurement role; notify PR/TR/RFP creators of Finance decisions and payment; notify on PO Delivered; notify personnel on project cost changes; include rejection reason in MRF rejection notification
 - [x] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export — completed 2026-05-02 (8 plans)
 - [x] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, Frappe Gantt (drag-resize, drag-reschedule), filter panel, weighted progress rollup, project-detail summary card, Security Rules — completed 2026-05-05 (5 plans)
-- [ ] **Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking** — Replace modal-CRUD left rail with ProjectLibre-style inline spreadsheet grid (Name/Duration/Start/End/Predecessors/Resource Names); duration input auto-computes End; right-click indent/outdent hierarchy; drag-from-bar-to-bar in Gantt to create FS predecessor links
+- [x] **Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking** — Replace modal-CRUD left rail with ProjectLibre-style inline spreadsheet grid (Name/Duration/Start/End/Predecessors/Resource Names); duration input auto-computes End; right-click indent/outdent hierarchy; drag-from-bar-to-bar in Gantt to create FS predecessor links — completed 2026-05-06 (4 plans)
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -353,7 +353,7 @@
   - [x] 86.1-01-PLAN.md — Scaffold inline grid: replace renderTaskTree with renderTaskGrid, editable cells, duration parsing, add-via-empty-row, save-on-blur, row_order field, remove filter panel + modal CRUD (PM-01, PM-05) — shipped 2026-05-06
   - [x] 86.1-02-PLAN.md — Hierarchy + reorder: right-click context menu (Indent/Outdent/Insert Above/Delete Row with inline confirm), HTML5 drag-to-reorder with row_order writeBatch, parent_task_id writes (PM-02) — shipped 2026-05-06
   - [x] 86.1-03-PLAN.md — Resource Names assignee picker: pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal (PM-01 assignees portion) — shipped 2026-05-06
-  - [ ] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03)
+  - [x] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03) — shipped 2026-05-06
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
@@ -416,7 +416,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
 | 85 | v4.0 | 7/8 | In progress | - |
 | 86 | v4.0 | 5/5 | Complete | 2026-05-05 |
-| 86.1 | v4.0 | 3/4 | In progress | - |
+| 86.1 | v4.0 | 4/4 | Complete | 2026-05-06 |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
 | 89 | v4.0 | 0/TBD | Not started | - |
