@@ -223,6 +223,7 @@
 - [x] **Phase 85: Collectibles Tracking** — Manual create/edit/delete collectibles against a project, payment recording, auto-derived status, Finance sub-tab + project-detail surface, CSV export — completed 2026-05-02 (8 plans)
 - [x] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, Frappe Gantt (drag-resize, drag-reschedule), filter panel, weighted progress rollup, project-detail summary card, Security Rules — completed 2026-05-05 (5 plans)
 - [x] **Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking** — Replace modal-CRUD left rail with ProjectLibre-style inline spreadsheet grid (Name/Duration/Start/End/Predecessors/Resources); duration input auto-computes End; right-click indent/outdent hierarchy; drag-from-bar-to-bar in Gantt to create FS predecessor links; 5 UAT defects resolved (double-write, duration UX, subtree drag guard, resources free-text) — completed 2026-05-06 (6 plans)
+- [ ] **Phase 86.2: Gantt UX Polish — Row Alignment, Drag Fixes, Indent UX, Monthly View, Resizable Panels, Enter Key** (INSERTED) — Fix left-rail rows misaligned with Gantt bars; Back button navigates to project list; drag isolation (moving B must not shift C); restrict interactions to drag-predecessor, bar-extend, bar-drag, progress-extend only; monthly header format matching MS Project style; smart indent inheritance on new row; delete-confirmation modal for indented tasks; resizable left/right panel divider; full-width Gantt right panel; Enter key commits Duration and Resources cells (3 plans)
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -356,6 +357,24 @@
   - [x] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03) — shipped 2026-05-06
   - [x] 86.1-05-PLAN.md — UAT gap closure: bindGridEvents-before-innerHTML (double-write fix), handleNewRowCommit re-entry guard, parseDuration bare-integer path, effectiveStart today-default — shipped 2026-05-06
   - [x] 86.1-06-PLAN.md — UAT gap closure: isDescendant module extraction, _gridDragOverHandler subtree guard (D-Q4), Resources cell free-text input, handleGridCellBlur resources branch, openAssigneePicker deleted — shipped 2026-05-06
+**UI hint**: yes
+
+### Phase 86.2: Gantt UX Polish — Row Alignment, Drag Fixes, Indent UX, Monthly View, Resizable Panels, Enter Key
+**Goal**: Fix 10 Gantt UX defects discovered during Phase 86.1 UAT: left-rail row misalignment, Back button, drag isolation, interaction restrictions, monthly header format, smart indent inheritance, delete-confirm modal, resizable panel divider, full-width Gantt right panel, Enter key commits cells.
+**Depends on**: Phase 86.1 (inline grid editor must exist; this phase polishes it)
+**Requirements**: None mapped (INSERTED phase — no REQUIREMENTS.md IDs)
+**Success Criteria** (what must be TRUE):
+  1. Left-rail task rows (42px) align vertically with Frappe Gantt SVG bars; grid header (85px) aligns with Gantt header region
+  2. Dragging a row initiates only from the row-number (#) cell; clicking inputs never triggers a row drag; row C does not shift when B is dragged
+  3. New task created via empty trailing row inherits parent_task_id of the last task above it
+  4. Deleting a task with children shows a centered confirm modal; leaf tasks delete immediately
+  5. A draggable divider between the task grid and Gantt pane allows the user to resize the split (clamped 15-75%)
+  6. Pressing Enter in a Duration or Resources cell commits the value (same as Tab/blur)
+  7. Gantt click-triggered popup is suppressed; only bar-drag, bar-extend, and progress-extend interactions are active
+**Plans**: 3 plans
+  - [ ] 86.2-01-PLAN.md — CSS: row height sync (42px/85px), full-width Gantt (min-width: 0) — Wave 1
+  - [ ] 86.2-02-PLAN.md — JS: drag isolation (.tg-rn handle), Enter key handler, smart indent inheritance, popup: false, back button verify, monthly header verify — Wave 2
+  - [ ] 86.2-03-PLAN.md — Resizable panel divider (HTML+CSS+JS+destroy cleanup), delete-confirm modal — Wave 3
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
