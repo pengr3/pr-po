@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: context exhaustion at 75% (2026-05-06)
-last_updated: "2026-05-06T07:56:51.000Z"
-last_activity: "2026-05-06 - Phase 86.1 Plan 05 (Double-write fix + Duration UX) executed and committed in 2 task commits (449b492 fix bindGridEvents-before-innerHTML + handleNewRowCommit re-entry guard; 6e6b326 fix parseDuration bare-integer + effectiveStart today-default). 2 tasks, 2 commits, 0 deviations. node --check passes. Addresses UAT gaps 1/2/3 (double-write Name, double-create new-row, Duration bare-integer + today-default). Files modified: app/views/project-plan.js."
+stopped_at: Phase 86.1 Plan 06 complete — all gap-closure plans shipped
+last_updated: "2026-05-06T08:05:00.000Z"
+last_activity: "2026-05-06 - Phase 86.1 Plan 06 (D-Q4 subtree guard + Resources free-text) executed in 2 task commits (7fadcbf isDescendant module extraction + _gridDragOverHandler subtree guard; 65c62da Resources cell free-text input + handleGridCellBlur resources branch). 2 tasks, 2 commits, 0 deviations. node --check passes. Addresses UAT gaps 4 (D-Q4 subtree drag highlight) and 5 (Resources free-text). Files modified: app/views/project-plan.js."
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 30
-  completed_plans: 29
-  percent: 97
+  completed_plans: 30
+  percent: 100
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.1 (Plan 05 of gap-closure plans complete)
-Plan: Phase 86.1 Plan 05 shipped 2026-05-06. 2 tasks, 2 commits (449b492, 6e6b326). Deliverables: renderTaskGrid bindGridEvents-before-innerHTML fix (eliminates double-write on Name/new-row); handleNewRowCommit re-entry guard + synchronous value clear; parseDuration bare-integer path (mBare) + n>0 guard; handleGridCellBlur effectiveStart today-default writing both start_date+end_date. UAT gaps 1/2/3 addressed. Plan 06 (resources free-text) remains.
+Phase: 86.1 (ALL gap-closure plans complete — Plans 01-06 shipped)
+Plan: Phase 86.1 Plan 06 shipped 2026-05-06. 2 tasks, 2 commits (7fadcbf, 65c62da). Deliverables: isDescendant extracted to module scope (removes 3 inline closures); _gridDragOverHandler subtree guard prevents drag-over highlight on descendant rows (D-Q4); Resources cell replaced from span.tg-resource-names pill picker to input.tg-res-input free-text; handleGridCellBlur resources branch writes {resources, updated_at}; resources: '' added to handleNewRowCommit + gridInsertRowAbove payloads; openAssigneePicker function deleted. All 6 UAT gaps addressed. Phase 86.1 COMPLETE.
 
 ## Performance Metrics
 
@@ -133,6 +133,8 @@ Plan: Phase 86.1 Plan 05 shipped 2026-05-06. 2 tasks, 2 commits (449b492, 6e6b32
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.1-06]: isDescendant extracted to module scope — 3 identical inline const closures removed from showTaskContextMenu, gridIndentTask, handleRowDrop; _gridDragOverHandler now calls isDescendant(row.dataset.taskId, _draggedTaskId) before e.preventDefault() so descendant rows receive no drag-over highlight (D-Q4 visual fix). handleRowDrop subtree check unchanged as belt-and-suspenders
+- [Phase 86.1-06]: Resources cell changed from span.tg-resource-names to input.tg-res-input — plain free-text input sourced from t.resources || ''; handleGridCellBlur resources branch writes {resources, updated_at} to Firestore; openAssigneePicker function deleted (66 lines); new-task payloads (handleNewRowCommit + gridInsertRowAbove) include resources: ''
 - [Phase 86.1-05]: bindGridEvents-before-innerHTML in renderTaskGrid non-empty path: old capture-phase blur handler removed BEFORE DOM replacement fires blur on destroyed input nodes — primary fix for double-write on Name edit (UAT gap 1) and double task creation on new-row commit (UAT gap 2)
 - [Phase 86.1-05]: handleNewRowCommit re-entry guard: `if (!input.value.trim()) return;` at top + `input.value = ''` clear before first await — second invocation from surviving blur sees empty value and exits immediately; defense-in-depth complementing Fix A
 - [Phase 86.1-05]: parseDuration bare-integer path: mBare `/^(\d+)$/` accepts digits-only; n>0 guard per T-86.1-05-01 rejects zero/negative; mSuffix path unchanged for 3d/2w forms (UAT gap 3 — typing '5' accepted as 5 days)
@@ -379,8 +381,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-06 - Phase 86.1 Plan 05 (Double-write fix + Duration UX) executed and committed in 2 task commits. Task 1 (449b492): bindGridEvents before innerHTML in non-empty renderTaskGrid path + handleNewRowCommit re-entry guard + synchronous value clear. Task 2 (6e6b326): parseDuration mBare bare-integer path with n>0 guard + effectiveStart today-default writing both start_date+end_date. 2 tasks, 2 commits, 0 deviations. node --check passes. UAT gaps 1/2/3 addressed.
-Last session: 2026-05-06T07:56:51.000Z
-Stopped at: Plan 05 complete — Plan 06 (resources free-text) remaining
+Last activity: 2026-05-06 - Phase 86.1 Plan 06 (D-Q4 subtree guard + Resources free-text) executed in 2 task commits. Task 1 (7fadcbf): isDescendant extracted to module scope + _gridDragOverHandler subtree guard. Task 2 (65c62da): Resources cell free-text input + handleGridCellBlur resources branch + openAssigneePicker deleted. 2 tasks, 2 commits, 0 deviations. node --check passes. UAT gaps 4+5 addressed. All 6 gap-closure plans for Phase 86.1 complete.
+Last session: 2026-05-06T08:05:00.000Z
+Stopped at: Phase 86.1 Plan 06 complete — all gap-closure plans shipped
 Resume file: None
-Next action: Execute Plan 06 to address UAT gap 5 (resources free-text / tg-resource-names editable).
+Next action: Phase 86.1 COMPLETE — ready for milestone or next phase.

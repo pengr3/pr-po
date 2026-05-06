@@ -349,11 +349,13 @@
   4. Right-clicking any row shows a context menu: Indent (make subtask of row above), Outdent, Insert Row Above, Delete Row (inline confirm — no modal)
   5. User can drag from the right edge of any Gantt bar to another bar to create a Finish-to-Start predecessor link; the Predecessors column shows the source task's stable row# and the Gantt arrow renders immediately
   6. Parent rows are locked (Start/End/Duration grayed-out, computed from children); Resource Names cell shows assigned personnel names; clicking opens an inline picker popup (no modal)
-**Plans**: 4 plans
+**Plans**: 6 plans (4 core + 2 gap-closure)
   - [x] 86.1-01-PLAN.md — Scaffold inline grid: replace renderTaskTree with renderTaskGrid, editable cells, duration parsing, add-via-empty-row, save-on-blur, row_order field, remove filter panel + modal CRUD (PM-01, PM-05) — shipped 2026-05-06
   - [x] 86.1-02-PLAN.md — Hierarchy + reorder: right-click context menu (Indent/Outdent/Insert Above/Delete Row with inline confirm), HTML5 drag-to-reorder with row_order writeBatch, parent_task_id writes (PM-02) — shipped 2026-05-06
   - [x] 86.1-03-PLAN.md — Resource Names assignee picker: pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal (PM-01 assignees portion) — shipped 2026-05-06
   - [x] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03) — shipped 2026-05-06
+  - [x] 86.1-05-PLAN.md — UAT gap closure: bindGridEvents-before-innerHTML (double-write fix), handleNewRowCommit re-entry guard, parseDuration bare-integer path, effectiveStart today-default — shipped 2026-05-06
+  - [x] 86.1-06-PLAN.md — UAT gap closure: isDescendant module extraction, _gridDragOverHandler subtree guard (D-Q4), Resources cell free-text input, handleGridCellBlur resources branch, openAssigneePicker deleted — shipped 2026-05-06
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
@@ -416,7 +418,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
 | 85 | v4.0 | 7/8 | In progress | - |
 | 86 | v4.0 | 5/5 | Complete | 2026-05-05 |
-| 86.1 | v4.0 | 4/4 | Complete | 2026-05-06 |
+| 86.1 | v4.0 | 6/6 | Complete | 2026-05-06 |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
 | 89 | v4.0 | 0/TBD | Not started | - |
