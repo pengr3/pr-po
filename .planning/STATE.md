@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
 stopped_at: ""
-last_updated: "2026-05-06T10:00:00.000Z"
-last_activity: "2026-05-06 - Phase 86.2 Plan 02 complete (24ea9bf). JS behavior fixes: drag isolation to .tg-rn handle (DEFECT-3), Enter key commit for Duration/Resources (DEFECT-10), smart indent inheritance for new trailing rows (DEFECT-6), popup: false in Gantt constructor (DEFECT-4). Back button and monthly header verified as already correct (DEFECT-2, DEFECT-5). 3 tasks, 3 commits, 0 deviations."
+last_updated: "2026-05-06T11:00:00.000Z"
+last_activity: "2026-05-06 - Phase 86.2 Plan 03 complete (c736b13, 7e3530b). Resizable panel divider (DEFECT-8): 4px drag divider between task grid and Gantt, clamped 15-75%, destroy() cleanup. Delete confirm modal (DEFECT-7): centered overlay modal replaces inline tooltip for parent-task deletes; leaf tasks delete immediately. 2 tasks, 2 commits, 1 auto-fix (removed stale tg-delete-confirm cleanup from deleteTaskNow)."
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 33
-  completed_plans: 32
-  percent: 97
+  completed_plans: 33
+  percent: 100
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.2 executing. Wave 1 (Plan 01, CSS) DONE. Wave 2 (Plan 02, JS behavior) DONE. Next: Plan 03 (Wave 3 — resizable panel + delete confirm modal).
+**Current focus:** Phase 86.2 complete. All 3 plans done: Plan 01 (CSS row alignment), Plan 02 (JS behavior defects), Plan 03 (resizable panel + delete confirm modal). Phase 86.2 delivered all 10 Gantt UX defects.
 
 ## Current Position
 
-Phase: 86.2 (executing)
-Plan: Phase 86.2 Plan 02 complete (24ea9bf). Wave 2 JS fixes done: drag isolation (.tg-rn handle), Enter key commit (Duration/Resources), smart indent inheritance (trailing row), popup:false (Gantt). Back button and monthly header verified. Next: Plan 03 (Wave 3 — resizable panel divider + delete-confirm modal).
+Phase: 86.2 (complete)
+Plan: Phase 86.2 Plan 03 complete (c736b13, 7e3530b). Wave 3 done: resizable panel divider (DEFECT-8), centered delete-confirm modal (DEFECT-7). All 3 waves complete. Phase 86.2 fully delivered.
 
 ## Performance Metrics
 
@@ -116,6 +116,7 @@ Plan: Phase 86.2 Plan 02 complete (24ea9bf). Wave 2 JS fixes done: drag isolatio
 | Phase 84.1 P03 | 3 | 1 task + 1 UAT scaffold (UAT execution pending) | 2 files |
 | Phase 86.2 P01 | <5 | 1 task | 1 files |
 | Phase 86.2 P02 | <5 | 3 tasks | 1 files |
+| Phase 86.2 P03 | <5 | 2 tasks | 2 files |
 | Phase 85 P08 | 9 | 1 task | 1 files |
 | Phase 85 P05 | 8 | 3 tasks | 1 files |
 | Phase 85 P06 | 50 | 3 tasks | 1 files |
@@ -135,6 +136,9 @@ Plan: Phase 86.2 Plan 02 complete (24ea9bf). Wave 2 JS fixes done: drag isolatio
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.2-03]: DEFECT-8: initPanelResize() attaches document-level mousemove/mouseup via _resizeMouseMoveHandler/_resizeMouseUpHandler; both removed in destroy() (T-86.2-03-03 mitigate); pct clamped 15-75% via Math.max/Math.min on clientX arithmetic (T-86.2-03-02 accept)
+- [Phase 86.2-03]: DEFECT-7: showDeleteConfirmModal uses string concatenation in innerHTML; childCount is integer arithmetic (T-86.2-03-01 accept); planDeleteConfirm cleanup in destroy() (T-86.2-03-04 mitigate)
+- [Phase 86.2-03]: Removed stale .tg-delete-confirm cleanup from deleteTaskNow() — modal approach supersedes inline tooltip; modal's #planDeleteYes handler calls modal.remove() before deleteTaskNow so no tooltip can exist at call time
 - [Phase 86.2-02]: DEFECT-3: _gridDragStartHandler uses e.target.closest('.tg-rn') as sole drag-initiation gate — INPUT-tag guard removed; drag cursor only appears when user clicks the row-number (#) column handle
 - [Phase 86.2-02]: DEFECT-10: _gridKeydownHandler delegates Enter→blur for col=duration and col=resources tg-input elements; __new__ row excluded (handleNewRowKeydown owns that path); declared at module scope, cleaned in destroy()
 - [Phase 86.2-02]: DEFECT-6: inheritedParentId sourced from sortedForInherit[last].parent_task_id so new trailing-row tasks inherit parent from the row immediately above (not always null/root)
@@ -390,8 +394,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-06 - Phase 86.2 Plan 02 (JS behavior fixes) executed in 3 task commits. Task 1 (8542b77): drag isolation to .tg-rn handle (DEFECT-3). Task 2 (846243d): _gridKeydownHandler Enter→blur for Duration/Resources (DEFECT-10). Task 3 (24ea9bf): inheritedParentId smart indent (DEFECT-6) + popup:false (DEFECT-4) + verify back/monthly. 3 tasks, 3 commits, 0 deviations. node --check passes.
-Last session: 2026-05-06T10:00:00.000Z
-Stopped at: Completed Phase 86.2 Plan 02 — Wave 2 JS behavior fixes done
+Last activity: 2026-05-06 - Phase 86.2 Plan 03 (Wave 3) executed in 2 task commits. Task 1 (c736b13): resizable panel divider — 4px divider HTML+CSS+JS, initPanelResize(), _resizeMouseMoveHandler/_resizeMouseUpHandler module-scope, destroy() cleanup (DEFECT-8). Task 2 (7e3530b): showDeleteConfirmModal() centered overlay replaces inline tooltip in gridDeleteRow(), removed stale tg-delete-confirm cleanup from deleteTaskNow (DEFECT-7). 2 tasks, 2 commits, 1 auto-fix. Phase 86.2 COMPLETE.
+Last session: 2026-05-06T11:00:00.000Z
+Stopped at: Completed Phase 86.2 Plan 03 — Phase 86.2 all waves complete
 Resume file: None
-Next action: Execute Phase 86.2 Plan 03 (Wave 3 — resizable panel divider + delete-confirm modal)
+Next action: Phase 86.2 complete. All 10 Gantt UX defects resolved across 3 plans.
