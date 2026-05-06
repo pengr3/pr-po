@@ -2443,7 +2443,13 @@
    ======================================== */
 
 .task-grid-rail {
-    overflow: auto;       /* both axes — grid may be wider than the rail */
+    /* Phase 86.3 D-10: kill stray horizontal scrollbar (Candidate A — .task-grid min-width: 640px > narrow rail width).
+       At default 35% split on a 1440px viewport (~504px rail), the 640px min-width forced a stray horizontal scrollbar
+       at the bottom of the left rail (appearing mid-screen, just left of the divider).
+       Vertical scroll preserved for many-tasks projects.
+       NOTE: Diagnosis assumption per CONTEXT.md D-10 batch-authorization — user verifies in morning UAT. */
+    overflow-x: hidden;
+    overflow-y: auto;
     background: #ffffff;
     border-right: 1px solid var(--gray-200, #dadce0);
 }
