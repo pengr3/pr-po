@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
 stopped_at: ""
-last_updated: "2026-05-06T12:00:00.000Z"
-last_activity: "2026-05-06 - Phase 86.2 planned (3 plans, 3 waves). Covers 10 Gantt UX defects: row alignment, Back button, drag isolation, popup:false, monthly header verify, smart indent inheritance, delete-confirm modal, resizable panel divider, full-width Gantt, Enter key commits. Verification passed after 1 revision cycle (2 blockers + 3 warnings resolved). Ready to execute."
+last_updated: "2026-05-06T09:47:30.000Z"
+last_activity: "2026-05-06 - Phase 86.2 Plan 01 complete (fa377ac). CSS-only fix: .tg-row height 42px + .task-grid thead tr height 85px + .task-grid tbody td padding suppression + .gantt-pane min-width 0 + .gantt-pane .gantt-container min-width 100%. Defects 1 and 9 addressed. 1 task, 1 commit, 0 deviations."
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 33
-  completed_plans: 30
-  percent: 91
+  completed_plans: 31
+  percent: 94
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.2 (INSERTED — planned, ready to execute)
-Plan: Phase 86.1 complete (6 plans). Phase 86.2 planned 2026-05-06 with 3 plans covering 10 Gantt UX defects. Wave 1: CSS fixes (Plan 01). Wave 2: JS behavior fixes (Plan 02). Wave 3: Resizable panel + delete modal (Plan 03, depends on Plans 01+02).
+Phase: 86.2 (executing)
+Plan: Phase 86.2 Plan 01 complete (fa377ac). Wave 1 CSS fixes done: row height sync (42px/85px) + Gantt full-width (min-width: 0). Next: Plan 02 (Wave 2 — JS behavior fixes). Phase 86.2 has 3 plans covering 10 Gantt UX defects. Wave 1: CSS fixes (Plan 01 DONE). Wave 2: JS behavior fixes (Plan 02). Wave 3: Resizable panel + delete modal (Plan 03, depends on Plans 01+02).
 
 ## Performance Metrics
 
@@ -114,6 +114,7 @@ Plan: Phase 86.1 complete (6 plans). Phase 86.2 planned 2026-05-06 with 3 plans 
 | Phase 84.1 P01 | 5 | 2 tasks | 6 files |
 | Phase 84.1 P02 | 2 | 2 tasks | 4 files |
 | Phase 84.1 P03 | 3 | 1 task + 1 UAT scaffold (UAT execution pending) | 2 files |
+| Phase 86.2 P01 | <5 | 1 task | 1 files |
 | Phase 85 P08 | 9 | 1 task | 1 files |
 | Phase 85 P05 | 8 | 3 tasks | 1 files |
 | Phase 85 P06 | 50 | 3 tasks | 1 files |
