@@ -2418,12 +2418,6 @@
     color: #ffffff;
 }
 
-.plan-filter-panel {
-    background: #ffffff;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--gray-200, #dadce0);
-}
-
 .plan-split-pane {
     display: grid;
     grid-template-columns: 35% 1fr;
@@ -2431,63 +2425,137 @@
     min-height: 0;
     border-top: 1px solid var(--gray-200, #dadce0);
 }
-.task-tree {
-    overflow-y: auto;
+
+/* ========================================
+   PHASE 86.1 — TASK GRID (inline spreadsheet)
+   Left rail: editable table replacing task-tree
+   ======================================== */
+
+.task-grid-rail {
+    overflow: auto;       /* both axes — grid may be wider than the rail */
     background: #ffffff;
     border-right: 1px solid var(--gray-200, #dadce0);
 }
-.task-tree-row {
-    display: grid;
-    grid-template-columns: 24px 1fr auto 24px;
-    align-items: center;
-    gap: 8px;
-    height: 32px;
-    cursor: pointer;
-    font-size: 14px;
-    padding-right: 12px;
+
+.task-grid {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 640px;     /* prevent column squishing on narrow rails */
+    font-size: 13px;
+    table-layout: fixed;
 }
-.task-tree-row:hover { background: var(--gray-50, #f8f9fa); }
-.task-tree-row.selected {
-    background: rgba(26, 115, 232, 0.08);
-    border-left: 3px solid var(--primary, #1a73e8);
+
+.task-grid thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    border-bottom: 2px solid var(--gray-200, #dadce0);
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--gray-700, #475569);
+    user-select: none;
+    white-space: nowrap;
+    z-index: 2;
 }
-.task-tree-chevron {
+
+/* Column widths */
+.tg-rn  { width: 36px; text-align: center; }
+.tg-name { width: auto; min-width: 140px; }
+.tg-dur  { width: 72px; }
+.tg-date { width: 110px; }
+.tg-pred { width: 90px; }
+.tg-res  { width: 120px; }
+
+.tg-row {
+    border-bottom: 1px solid var(--gray-200, #dadce0);
+}
+.tg-row:hover { background: #f8f9fa; }
+.tg-row.tg-empty-row { background: #fafafa; }
+
+.tg-rn {
+    text-align: center;
     color: var(--gray-700, #475569);
     font-size: 12px;
-    text-align: center;
+    font-variant-numeric: tabular-nums;
     user-select: none;
+    padding: 4px 4px;
 }
-.task-tree-chevron.clickable { cursor: pointer; }
-.task-tree-name {
+
+.tg-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    padding: 4px 6px;
+    outline: none;
+    box-sizing: border-box;
+}
+.tg-input:focus {
+    background: #eff6ff;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px var(--primary, #1a73e8);
+}
+.tg-date-input { min-width: 100px; }
+
+.tg-locked {
+    display: block;
+    padding: 4px 6px;
+    color: var(--gray-700, #475569);
+    font-style: italic;
+    font-size: 13px;
+    cursor: help;
+}
+
+.tg-resource-names {
+    display: block;
+    padding: 4px 6px;
+    font-size: 12px;
+    color: var(--primary, #1a73e8);
+    cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.task-tree-name.is-milestone::before {
-    content: '◆ ';
-    color: #f59e0b;
-}
-.task-tree-progress {
-    color: var(--gray-700, #475569);
+.tg-resource-names:hover { text-decoration: underline; }
+
+/* Inline delete confirm (Plan 02 D-05) */
+.tg-delete-confirm {
     font-size: 12px;
-    font-variant-numeric: tabular-nums;
+    color: #ef4444;
+    margin-left: 8px;
 }
-.task-tree-progress-slider {
-    width: 80px;
-    accent-color: var(--primary, #1a73e8);
-}
-.task-tree-delete-btn {
-    background: transparent;
-    border: none;
-    color: var(--gray-700, #475569);
+.tg-delete-confirm .tg-delete-yes,
+.tg-delete-confirm .tg-delete-no {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
     cursor: pointer;
-    font-size: 16px;
-    padding: 0 4px;
-    opacity: 0;
-    transition: opacity 0.15s ease;
+    margin-left: 4px;
 }
-.task-tree-row:hover .task-tree-delete-btn { opacity: 0.6; }
-.task-tree-row:hover .task-tree-delete-btn:hover { opacity: 1; }
+.tg-delete-confirm .tg-delete-yes { color: #ef4444; background: transparent; }
+.tg-delete-confirm .tg-delete-no  { color: #475569; background: transparent; }
+
+/* Drag row handle (Plan 02 D-Q4) */
+.tg-drag-handle {
+    cursor: row-resize;
+    color: #94a3b8;
+    user-select: none;
+    padding: 0 4px;
+}
+.tg-row.tg-dragging { opacity: 0.5; }
+.tg-row.tg-drag-over { border-top: 2px solid var(--primary, #1a73e8); }
+
+/* Gantt SVG overlay — drag-to-link (Plan 04) */
+.gantt-link-handle { opacity: 0.85; transition: opacity 0.1s; }
+.gantt-link-handle:hover { opacity: 1; }
+.gantt-rubber-band { pointer-events: none; }
+
+@media (max-width: 768px) {
+    .task-grid-rail { display: none; }
+}
 
 .gantt-pane {
     overflow: auto;
