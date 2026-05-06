@@ -1087,8 +1087,12 @@ function handleGanttDateChange(task, start, end) {
         start_date: newStart,
         end_date: newEnd,
         updated_at: serverTimestamp()
-    }).then(() => {
-        // Plan 04's parent-recompute helper will fire from the snapshot callback
+    }).then(async () => {
+        if (t.parent_task_id) {
+            const idx = tasks.findIndex(x => x.task_id === t.task_id);
+            if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
+            await recomputeParentDates(t.parent_task_id);
+        }
     }).catch(err => {
         console.error('[ProjectPlan] Drag write failed:', err);
         showToast(err?.code === 'permission-denied'
