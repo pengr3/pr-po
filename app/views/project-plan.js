@@ -790,29 +790,40 @@ async function gridInsertRowAbove(taskId) {
     }
 }
 
-// D-05: inline confirm on delete — no modal overlay
 function gridDeleteRow(taskId) {
     const t = tasks.find(x => x.task_id === taskId);
     if (!t) return;
     const hasChildren = tasks.some(x => x.parent_task_id === taskId);
 
     if (hasChildren) {
-        // Show inline confirm tooltip on the row — no modal
-        const row = document.querySelector(`.tg-row[data-task-id="${CSS.escape(taskId)}"]`);
-        if (!row) return;
-        // Remove any existing confirm
-        row.querySelector('.tg-delete-confirm')?.remove();
-        const confirm = document.createElement('span');
-        confirm.className = 'tg-delete-confirm';
         const childCount = tasks.filter(x => x.parent_task_id === taskId).length;
-        confirm.innerHTML = `Delete task + ${childCount} subtask${childCount !== 1 ? 's' : ''}? <button class="tg-delete-yes">Yes</button> <button class="tg-delete-no">No</button>`;
-        row.appendChild(confirm);
-        confirm.querySelector('.tg-delete-yes').addEventListener('click', () => deleteTaskNow(taskId));
-        confirm.querySelector('.tg-delete-no').addEventListener('click', () => confirm.remove());
+        showDeleteConfirmModal(taskId, childCount);
     } else {
         // Leaf task — delete directly (no confirm)
         deleteTaskNow(taskId);
     }
+}
+
+function showDeleteConfirmModal(taskId, childCount) {
+    document.getElementById('planDeleteConfirm')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'planDeleteConfirm';
+    modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
+    modal.innerHTML =
+        '<div style="background:#fff;border-radius:8px;padding:24px 28px;min-width:320px;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
+            '<h3 style="margin:0 0 10px;font-size:1rem;color:#1e293b;">Delete task and subtasks?</h3>' +
+            '<p style="color:#475569;margin:0 0 20px;font-size:0.875rem;line-height:1.5;">' +
+                'This will permanently delete this task and its <strong>' + childCount + '</strong> subtask' + (childCount !== 1 ? 's' : '') + '. This cannot be undone.' +
+            '</p>' +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+                '<button id="planDeleteNo" style="padding:8px 16px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;font-size:0.875rem;">Cancel</button>' +
+                '<button id="planDeleteYes" style="padding:8px 16px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.875rem;font-weight:600;">Delete</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(modal);
+    modal.querySelector('#planDeleteNo').addEventListener('click', () => modal.remove());
+    modal.querySelector('#planDeleteYes').addEventListener('click', () => { modal.remove(); deleteTaskNow(taskId); });
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 // D-Q4: hierarchy-respecting drop validation + row_order writeBatch commit
@@ -1397,8 +1408,6 @@ async function deleteTaskNow(taskId) {
         // would see the just-deleted children and write stale dates.
         if (t.parent_task_id) await recomputeParentDates(t.parent_task_id, new Set(allIds));
 
-        // Clean up any inline delete-confirm tooltip still visible in the grid
-        document.querySelector('.tg-delete-confirm')?.remove();
         showToast('Task deleted.', 'success');
     } catch (err) {
         console.error('[ProjectPlan] deleteTaskNow failed:', err);
