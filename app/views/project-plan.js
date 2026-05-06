@@ -30,6 +30,7 @@ let _gridDragOverHandler = null;
 let _gridDropHandler = null;
 let _gridDragEndHandler = null;
 let _draggedTaskId = null;        // currently-dragged task_id during drag
+let _gridKeydownHandler = null;   // keydown Enter handler for Duration/Resources cells (86.2)
 
 // ---- Lifecycle ----
 
@@ -158,6 +159,7 @@ export async function destroy() {
         if (_gridDragOverHandler) gridContainer.removeEventListener('dragover', _gridDragOverHandler);
         if (_gridDropHandler) gridContainer.removeEventListener('drop', _gridDropHandler);
         if (_gridDragEndHandler) gridContainer.removeEventListener('dragend', _gridDragEndHandler);
+        if (_gridKeydownHandler) gridContainer.removeEventListener('keydown', _gridKeydownHandler);
     }
     _gridInputHandler = null;
     _gridChangeHandler = null;
@@ -166,6 +168,7 @@ export async function destroy() {
     _gridDragOverHandler = null;
     _gridDropHandler = null;
     _gridDragEndHandler = null;
+    _gridKeydownHandler = null;
     _draggedTaskId = null;
     rowOrderCache = new Map();
     delete window.setGanttZoom;
@@ -401,6 +404,20 @@ function bindGridEvents(container) {
         _draggedTaskId = null;
     };
     container.addEventListener('dragend', _gridDragEndHandler);
+
+    // DEFECT-10 fix: Enter key commits Duration and Resources cells (delegates to existing blur path)
+    if (_gridKeydownHandler) container.removeEventListener('keydown', _gridKeydownHandler);
+    _gridKeydownHandler = function(e) {
+        if (e.key !== 'Enter') return;
+        const input = e.target;
+        if (!input.classList.contains('tg-input')) return;
+        if (input.dataset.taskId === '__new__') return; // handled by handleNewRowKeydown
+        const col = input.dataset.col;
+        if (col !== 'duration' && col !== 'resources') return; // only Duration and Resources per spec
+        e.preventDefault();
+        input.blur(); // triggers handleGridCellBlur via existing capture-phase blur listener
+    };
+    container.addEventListener('keydown', _gridKeydownHandler);
 }
 
 async function handleGridCellBlur(taskId, col, rawValue) {
