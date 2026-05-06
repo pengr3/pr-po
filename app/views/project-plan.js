@@ -14,13 +14,6 @@ let projectCode = null;
 let tasks = [];                       // raw task docs from onSnapshot (project-scoped)
 let listeners = [];                   // onSnapshot unsubscribers — destroy() loops this
 let gantt = null;                     // Frappe Gantt instance — Plan 03 sets this
-let expandedTaskIds = new Set();      // tree expand/collapse state (UI only — D-22 no Firestore)
-let selectedTaskId = null;            // currently-selected row in left rail
-
-// Filter state — Plan 05 wires bodies (D-21 independent state vars)
-let filterDateFrom = '';
-let filterDateTo = '';
-let filterAssignees = [];
 
 // ---- Lifecycle ----
 
@@ -42,12 +35,10 @@ export function render(activeTab = null, param = null) {
                     <button type="button" class="zoom-pill active" data-zoom="Week" onclick="window.setGanttZoom('Week')">Week</button>
                     <button type="button" class="zoom-pill" data-zoom="Month" onclick="window.setGanttZoom('Month')">Month</button>
                 </div>
-                <button type="button" class="btn btn-secondary" id="filtersToggleBtn" onclick="window.togglePlanFilters()">Filters</button>
-                <button type="button" class="btn btn-primary" id="addTaskBtn" onclick="window.openAddTaskModal()">+ Add Task</button>
+                <!-- No Filters button (D-Q2: filter panel removed in 86.1) -->
             </div>
-            <div class="plan-filter-panel" id="planFilterPanel" style="display: none;"></div>
             <div class="plan-split-pane">
-                <div class="task-tree" id="taskTree" aria-label="Task list">
+                <div class="task-grid-rail" id="taskGridRail" aria-label="Task grid">
                     <div class="empty-state"><h3>Loading…</h3></div>
                 </div>
                 <div class="gantt-pane">
@@ -55,8 +46,6 @@ export function render(activeTab = null, param = null) {
                 </div>
             </div>
         </div>
-        <div id="taskFormModalMount"></div>
-        <div id="deleteTaskConfirmModalMount"></div>
     `;
 }
 
@@ -82,18 +71,13 @@ export async function init(activeTab = null, param = null) {
 
         // 2. Clientless block (D-19) — projects without project_code (Phase 78 deferred-issuance)
         if (!currentProject.project_code) {
-            const tree = document.getElementById('taskTree');
+            const tree = document.getElementById('taskGridRail');
             if (tree) {
                 tree.innerHTML = `
                     <div class="empty-state">
                         <h3>No project code</h3>
                         <p>This project doesn't have a project code yet. Assign a client to issue the code, then return to plan tasks.</p>
                     </div>`;
-            }
-            const addBtn = document.getElementById('addTaskBtn');
-            if (addBtn) {
-                addBtn.disabled = true;
-                addBtn.title = `This project doesn't have a project code yet. Assign a client to issue the code, then return to plan tasks.`;
             }
             return;
         }
@@ -107,7 +91,7 @@ export async function init(activeTab = null, param = null) {
             (snap) => {
                 tasks = [];
                 snap.forEach(d => tasks.push({ id: d.id, ...d.data() }));
-                renderTaskTree();
+                // renderTaskGrid() — added in Task 2
                 renderGantt();
                 if (__snapshotCount > 0) checkAndToastFsViolations();
                 __snapshotCount++;
@@ -121,23 +105,9 @@ export async function init(activeTab = null, param = null) {
         //    plan-view access AND duplicate data already present on the project doc.)
 
         // 5. Wire window functions
-        window.toggleTaskExpand = toggleTaskExpand;
-        window.selectTaskRow = selectTaskRow;
         window.setGanttZoom = setGanttZoom;
-        window.togglePlanFilters = togglePlanFilters;
-        window.openAddTaskModal = openAddTaskModal;
-        window.openEditTaskModal = openEditTaskModal;
-        window.confirmDeleteTask = confirmDeleteTask;
-        window.closeTaskFormModal = closeTaskFormModal;
-        window.toggleTaskAssignee = toggleTaskAssignee;
-        window.saveTaskFromModal = saveTaskFromModal;       // Task 2 of this plan defines saveTaskFromModal
-        window.deleteTaskNow = deleteTaskNow;                // Task 3 of this plan defines deleteTaskNow
-        window.closeDeleteTaskConfirm = closeDeleteTaskConfirm; // Task 3 of this plan defines closeDeleteTaskConfirm
-        window.editTaskProgress = editTaskProgress;          // Task 4 of this plan defines editTaskProgress (slider handler)
-        // Phase 86 Plan 05 — filter panel handlers (D-21, PM-09)
-        window.applyPlanFilters = applyPlanFilters;
-        window.clearPlanFilters = clearPlanFilters;
-        window.toggleFilterAssignee = toggleFilterAssignee;
+        window.deleteTaskNow = deleteTaskNow;
+        window.editTaskProgress = editTaskProgress;
     } finally {
         showLoading(false);
     }
@@ -153,139 +123,12 @@ export async function destroy() {
     tasks = [];
     currentProject = null;
     projectCode = null;
-    expandedTaskIds = new Set();
-    selectedTaskId = null;
     __ganttInitialScrollDone = false;
     __lastViolationFingerprint = '';
     __snapshotCount = 0;
-    delete window.toggleTaskExpand;
-    delete window.selectTaskRow;
     delete window.setGanttZoom;
-    delete window.togglePlanFilters;
-    delete window.openAddTaskModal;
-    delete window.openEditTaskModal;
-    delete window.confirmDeleteTask;
-    delete window.closeTaskFormModal;
-    delete window.toggleTaskAssignee;
-    delete window.saveTaskFromModal;
     delete window.deleteTaskNow;
-    delete window.closeDeleteTaskConfirm;
     delete window.editTaskProgress;
-    // Phase 86 Plan 05 — filter panel handler teardown
-    delete window.applyPlanFilters;
-    delete window.clearPlanFilters;
-    delete window.toggleFilterAssignee;
-}
-
-// ---- Tree rendering (left rail) ----
-
-function renderTaskTree() {
-    const container = document.getElementById('taskTree');
-    if (!container) return;
-    if (!tasks || tasks.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <h3>No tasks yet.</h3>
-                <p>Click + Add Task to get started.</p>
-            </div>`;
-        return;
-    }
-
-    // Build parent_task_id → children[] map (filtered to visible set per D-21)
-    const keepIds = getVisibleTaskSet();
-    const visibleTasks = tasks.filter(t => keepIds.has(t.task_id));
-    if (tasks.length > 0 && visibleTasks.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <h3>No tasks match the current filters.</h3>
-                <p>Clear filters to see all tasks.</p>
-            </div>`;
-        return;
-    }
-    const childrenByParent = new Map();
-    visibleTasks.forEach(t => {
-        const key = t.parent_task_id || '__root__';
-        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
-        childrenByParent.get(key).push(t);
-    });
-    // Sort children by start_date asc within each level (D-Discretion default)
-    childrenByParent.forEach(arr => arr.sort((a, b) => (a.start_date || '').localeCompare(b.start_date || '')));
-
-    // hasChildren must reflect the FULL tasks set (truth) — filters affect what's RENDERED,
-    // not whether a node is structurally a parent (slider vs % label decision).
-    const allChildrenByParent = new Map();
-    tasks.forEach(t => {
-        const key = t.parent_task_id || '__root__';
-        if (!allChildrenByParent.has(key)) allChildrenByParent.set(key, []);
-        allChildrenByParent.get(key).push(t);
-    });
-
-    const rows = [];
-    function walk(parentKey, depth) {
-        const kids = childrenByParent.get(parentKey) || [];
-        kids.forEach(t => {
-            const hasChildren = allChildrenByParent.has(t.task_id);
-            const isExpanded = expandedTaskIds.has(t.task_id);
-            const chevronChar = hasChildren ? (isExpanded ? '⌄' : '›') : '';
-            const isSelected = selectedTaskId === t.task_id;
-            rows.push(`
-                <div class="task-tree-row${isSelected ? ' selected' : ''}"
-                     data-task-id="${escapeHTML(t.task_id)}"
-                     tabindex="0"
-                     style="padding-left: ${depth * 16 + 8}px;">
-                    <span class="task-tree-chevron${hasChildren ? ' clickable' : ''}"
-                          data-action="toggle-expand">${chevronChar}</span>
-                    <span class="task-tree-name${t.is_milestone ? ' is-milestone' : ''}"
-                          data-action="open-edit">
-                        ${escapeHTML(t.name || '(unnamed)')}
-                    </span>
-                    ${hasChildren
-                        ? `<span class="task-tree-progress">${computeWeightedProgress(t.task_id, tasks)}%</span>`
-                        : `<input type="range" class="task-tree-progress-slider"
-                                  min="0" max="100" step="1"
-                                  value="${typeof t.progress === 'number' ? t.progress : 0}"
-                                  data-action="edit-progress">`}
-                    <button type="button" class="task-tree-delete-btn"
-                            title="Delete task"
-                            data-action="confirm-delete">&times;</button>
-                </div>
-            `);
-            if (hasChildren && isExpanded) walk(t.task_id, depth + 1);
-        });
-    }
-    walk('__root__', 0);
-    container.innerHTML = rows.join('');
-
-    // Bind task-tree row event handlers via data-* + addEventListener (defense-in-depth vs.
-    // escapeHTML-in-JS-string-literal injection — escapeHTML produces &#039; which the browser
-    // HTML-decodes back to ' inside attribute values, breaking out of the JS string).
-    container.querySelectorAll('.task-tree-row').forEach(row => {
-        const id = row.dataset.taskId;
-        row.addEventListener('click', () => selectTaskRow(id));
-        const chevron = row.querySelector('[data-action="toggle-expand"]');
-        if (chevron) chevron.addEventListener('click', (e) => { e.stopPropagation(); toggleTaskExpand(id); });
-        const nameEl = row.querySelector('[data-action="open-edit"]');
-        if (nameEl) nameEl.addEventListener('click', (e) => { e.stopPropagation(); openEditTaskModal(id); });
-        const slider = row.querySelector('[data-action="edit-progress"]');
-        if (slider) {
-            slider.addEventListener('click', (e) => e.stopPropagation());
-            slider.addEventListener('change', (e) => editTaskProgress(id, e.target.value));
-        }
-        const delBtn = row.querySelector('[data-action="confirm-delete"]');
-        if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteTask(id); });
-    });
-}
-
-function toggleTaskExpand(taskId) {
-    if (expandedTaskIds.has(taskId)) expandedTaskIds.delete(taskId);
-    else expandedTaskIds.add(taskId);
-    renderTaskTree();
-}
-
-function selectTaskRow(taskId) {
-    selectedTaskId = taskId;
-    renderTaskTree();
-    // Plan 03 will scroll-sync the Gantt pane to this task's bar
 }
 
 // ---- Gantt rendering (right pane) ----
@@ -302,9 +145,8 @@ function renderGantt() {
     const mountEl = document.getElementById('ganttPane');
     if (!mountEl) return;
 
-    // 0. Apply D-21 filters — restrict which tasks render but keep envelope math on the full set
-    const keepIds = getVisibleTaskSet();
-    const visibleTasksLocal = tasks.filter(t => keepIds.has(t.task_id));
+    // Phase 86.1: filter panel removed (D-Q2). All tasks visible.
+    const visibleTasksLocal = tasks.slice();
 
     // 1. Build childrenByParent map from the FULL tasks array — this is the truth-source for
     //    parent envelope computation (D-12: rollup math uses truth, filters affect rendering only).
@@ -481,8 +323,7 @@ function handleGanttProgressChange(task, progress) {
 }
 
 function handleGanttBarClick(task) {
-    // Click on bar → select row in left rail (Plan 02 selectTaskRow + Plan 04 modal-on-name-click)
-    selectTaskRow(task.id);
+    // Click on bar — Plan 02 will wire grid row selection here
 }
 
 function formatDateISO(d) {
@@ -593,349 +434,7 @@ function checkAndToastFsViolations() {
     __lastViolationFingerprint = fingerprint;
 }
 
-// ---- Filter panel (D-21, PM-09) ----
-
-function togglePlanFilters() {
-    const panel = document.getElementById('planFilterPanel');
-    if (!panel) return;
-    const isOpen = panel.style.display === 'block';
-    if (isOpen) {
-        panel.style.display = 'none';
-    } else {
-        renderPlanFilterPanel();
-        panel.style.display = 'block';
-    }
-}
-
-function renderPlanFilterPanel() {
-    const panel = document.getElementById('planFilterPanel');
-    if (!panel) return;
-    const projectPersonnel = normalizePersonnel(currentProject);
-    const personnelChips = (projectPersonnel.userIds || []).map((uid, i) => {
-        const name = projectPersonnel.names?.[i] || uid;
-        const isOn = filterAssignees.includes(uid);
-        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" data-action="toggle-filter-assignee">${escapeHTML(name)}</span>`;
-    }).join('');
-
-    panel.innerHTML = `
-        <div style="display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px; align-items: end;">
-            <div>
-                <label class="form-label">Date range</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input id="filterDateFromInput" class="form-control" type="date" value="${escapeHTML(filterDateFrom)}" onchange="window.applyPlanFilters()">
-                    <span>to</span>
-                    <input id="filterDateToInput" class="form-control" type="date" value="${escapeHTML(filterDateTo)}" onchange="window.applyPlanFilters()">
-                </div>
-            </div>
-            <div>
-                <label class="form-label">Personnel</label>
-                <div class="personnel-pills-container">${personnelChips || '<span style="color: var(--gray-700, #475569); font-size: 13px;">No personnel on this project.</span>'}</div>
-            </div>
-            <button type="button" class="btn btn-secondary" onclick="window.clearPlanFilters()">Clear</button>
-            <button type="button" class="btn btn-secondary" onclick="window.togglePlanFilters()">Close</button>
-        </div>
-    `;
-    panel.querySelectorAll('.personnel-pill[data-action="toggle-filter-assignee"]').forEach(pill => {
-        pill.addEventListener('click', () => toggleFilterAssignee(pill.dataset.uid));
-    });
-}
-
-function applyPlanFilters() {
-    filterDateFrom = (document.getElementById('filterDateFromInput')?.value || '');
-    filterDateTo = (document.getElementById('filterDateToInput')?.value || '');
-    // Re-render — use filtered set
-    renderTaskTree();
-    renderGantt();
-}
-
-function toggleFilterAssignee(uid) {
-    const idx = filterAssignees.indexOf(uid);
-    if (idx >= 0) filterAssignees.splice(idx, 1);
-    else filterAssignees.push(uid);
-    renderPlanFilterPanel();
-    applyPlanFilters();
-}
-
-function clearPlanFilters() {
-    filterDateFrom = '';
-    filterDateTo = '';
-    filterAssignees = [];
-    renderPlanFilterPanel();
-    applyPlanFilters();
-}
-
-function getFilteredTasks() {
-    if (!filterDateFrom && !filterDateTo && filterAssignees.length === 0) return tasks.slice();
-    return tasks.filter(t => {
-        // Date range filter — task overlaps range if start_date <= dateTo AND end_date >= dateFrom
-        if (filterDateFrom && t.end_date && t.end_date < filterDateFrom) return false;
-        if (filterDateTo && t.start_date && t.start_date > filterDateTo) return false;
-        // Assignees filter — task matches if any assignee is in filterAssignees
-        if (filterAssignees.length > 0) {
-            const tAssignees = Array.isArray(t.assignees) ? t.assignees : [];
-            if (!tAssignees.some(a => filterAssignees.includes(a))) return false;
-        }
-        return true;
-    });
-}
-
-function getVisibleTaskSet() {
-    // Returns a Set of task_ids visible after applying filters AND preserving ancestors
-    // of any visible task (so parent rows stay in the tree even when filter excludes them).
-    const visible = getFilteredTasks();
-    const keepIds = new Set(visible.map(t => t.task_id));
-    // Walk ancestors
-    const tasksById = new Map(tasks.map(t => [t.task_id, t]));
-    visible.forEach(t => {
-        let p = t.parent_task_id;
-        while (p) {
-            if (keepIds.has(p)) break; // already included — stop walking
-            keepIds.add(p);
-            const pt = tasksById.get(p);
-            p = pt?.parent_task_id || null;
-        }
-    });
-    return keepIds;
-}
-
-function computeWeightedProgress(rootTaskId, allTasks) {
-    // Recursively gather all leaf descendants of rootTaskId (D-12 weighted-by-duration leaf-only).
-    // Always uses the FULL tasks array — filters affect what's RENDERED, rollup math uses truth.
-    const childrenByParent = new Map();
-    allTasks.forEach(t => {
-        const key = t.parent_task_id || '__root__';
-        if (!childrenByParent.has(key)) childrenByParent.set(key, []);
-        childrenByParent.get(key).push(t);
-    });
-    const leaves = [];
-    function walk(id) {
-        const kids = childrenByParent.get(id) || [];
-        if (kids.length === 0) {
-            const self = allTasks.find(x => x.task_id === id);
-            if (self) leaves.push(self);
-            return;
-        }
-        kids.forEach(k => walk(k.task_id));
-    }
-    walk(rootTaskId);
-    if (leaves.length === 0) return 0;
-    let ws = 0, wt = 0;
-    leaves.forEach(l => {
-        const dur = (function(s, e) {
-            if (!s || !e) return 1;
-            const sd = new Date(s); sd.setHours(0,0,0,0);
-            const ed = new Date(e); ed.setHours(0,0,0,0);
-            return Math.max(1, Math.round((ed - sd) / 86400000) + 1);
-        })(l.start_date, l.end_date);
-        const p = typeof l.progress === 'number' ? l.progress : 0;
-        ws += p * dur; wt += dur;
-    });
-    return wt > 0 ? Math.round(ws / wt) : 0;
-}
-
-// ---- Modal CRUD (Plan 04) ----
-
-let modalEditingTaskId = null;            // null = Add mode; task_id = Edit mode
-let modalSelectedAssignees = [];          // mirrors detailSelectedPersonnel pattern from project-detail.js
-
-function openAddTaskModal() {
-    if (!currentProject || !currentProject.project_code) {
-        showToast(`This project doesn't have a project code yet. Assign a client to issue the code, then return to plan tasks.`, 'warning');
-        return;
-    }
-    modalEditingTaskId = null;
-    modalSelectedAssignees = [];
-    const today = new Date();
-    const week = new Date(today.getTime() + 7 * 86400000);
-    const fmt = d => d.toISOString().slice(0, 10);
-    renderTaskFormModal({
-        mode: 'add',
-        task: { name: '', description: '', start_date: fmt(today), end_date: fmt(week), parent_task_id: '', dependencies: [], is_milestone: false, assignees: [] }
-    });
-}
-
-function openEditTaskModal(taskId) {
-    const t = tasks.find(x => x.task_id === taskId);
-    if (!t) return;
-    modalEditingTaskId = taskId;
-    modalSelectedAssignees = Array.isArray(t.assignees) ? [...t.assignees] : [];
-    renderTaskFormModal({
-        mode: 'edit',
-        task: {
-            name: t.name || '',
-            description: t.description || '',
-            start_date: t.start_date || '',
-            end_date: t.end_date || '',
-            parent_task_id: t.parent_task_id || '',
-            dependencies: Array.isArray(t.dependencies) ? [...t.dependencies] : [],
-            is_milestone: !!t.is_milestone,
-            assignees: Array.isArray(t.assignees) ? [...t.assignees] : []
-        }
-    });
-}
-
-function renderTaskFormModal({ mode, task }) {
-    const mount = document.getElementById('taskFormModalMount');
-    if (!mount) return;
-    const isParentTask = modalEditingTaskId && tasks.some(x => x.parent_task_id === modalEditingTaskId);
-    const datesDisabled = isParentTask;
-    const projectPersonnel = normalizePersonnel(currentProject); // { names, userIds }
-    const personnelOptions = (projectPersonnel.userIds || []).map((uid, i) => {
-        const name = projectPersonnel.names?.[i] || uid;
-        const isOn = modalSelectedAssignees.includes(uid);
-        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid)}" data-action="toggle-task-assignee">${escapeHTML(name)}</span>`;
-    }).join('');
-
-    // Parent dropdown — exclude self + descendants of self
-    const excluded = new Set();
-    if (modalEditingTaskId) {
-        excluded.add(modalEditingTaskId);
-        const collectDesc = (id) => {
-            tasks.filter(x => x.parent_task_id === id).forEach(c => { excluded.add(c.task_id); collectDesc(c.task_id); });
-        };
-        collectDesc(modalEditingTaskId);
-    }
-    const parentOptions = ['<option value="">— No parent (root task)</option>']
-        .concat(tasks
-            .filter(x => !excluded.has(x.task_id))
-            .map(x => `<option value="${escapeHTML(x.task_id)}"${task.parent_task_id === x.task_id ? ' selected' : ''}>${escapeHTML(x.name || x.task_id)}</option>`))
-        .join('');
-
-    // Dependencies multi-select — exclude self + ancestors + descendants
-    const depExcluded = new Set(excluded);
-    if (modalEditingTaskId) {
-        const collectAnc = (id) => {
-            const t2 = tasks.find(x => x.task_id === id);
-            if (t2 && t2.parent_task_id) { depExcluded.add(t2.parent_task_id); collectAnc(t2.parent_task_id); }
-        };
-        collectAnc(modalEditingTaskId);
-    }
-    const depOptions = tasks
-        .filter(x => !depExcluded.has(x.task_id))
-        .map(x => `<option value="${escapeHTML(x.task_id)}"${(task.dependencies || []).includes(x.task_id) ? ' selected' : ''}>${escapeHTML(x.name || x.task_id)}</option>`)
-        .join('');
-
-    mount.innerHTML = `
-        <div class="modal" id="taskFormModal" style="display: flex;" aria-modal="true" role="dialog">
-            <div class="modal-content" style="max-width: 560px;">
-                <div class="modal-header">
-                    <h3>${mode === 'add' ? 'Add Task' : 'Edit Task'}</h3>
-                    <button type="button" class="modal-close" onclick="window.closeTaskFormModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <label class="form-label" for="taskNameInput">Name</label>
-                    <input id="taskNameInput" class="form-control" type="text" value="${escapeHTML(task.name)}" required>
-
-                    <label class="form-label" for="taskDescInput">Description</label>
-                    <textarea id="taskDescInput" class="form-control" rows="3">${escapeHTML(task.description)}</textarea>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                        <div>
-                            <label class="form-label" for="taskStartInput">Start date</label>
-                            <input id="taskStartInput" class="form-control" type="date" value="${escapeHTML(task.start_date)}"${datesDisabled ? ' disabled' : ''}>
-                        </div>
-                        <div>
-                            <label class="form-label" for="taskEndInput">End date</label>
-                            <input id="taskEndInput" class="form-control" type="date" value="${escapeHTML(task.end_date)}"${datesDisabled ? ' disabled' : ''}>
-                        </div>
-                    </div>
-                    ${datesDisabled ? '<p style="font-style: italic; color: var(--gray-700, #475569); font-size: 12px;">Computed from subtasks</p>' : ''}
-
-                    <label class="form-label" for="taskParentInput">Parent task</label>
-                    <select id="taskParentInput" class="form-control">${parentOptions}</select>
-
-                    <label class="form-label" for="taskDepsInput">Depends on (Finish-to-Start)</label>
-                    <select id="taskDepsInput" class="form-control" multiple size="5">${depOptions}</select>
-
-                    <label class="form-label" style="display: flex; align-items: center; gap: 8px;">
-                        <input id="taskMilestoneInput" type="checkbox"${task.is_milestone ? ' checked' : ''}>
-                        Mark as milestone
-                    </label>
-
-                    <label class="form-label">Assignees</label>
-                    <div id="taskAssigneesPills" class="personnel-pills-container">
-                        ${personnelOptions || '<span style="color: var(--gray-700, #475569); font-size: 13px;">No personnel assigned to this project. Add personnel on the project detail page first.</span>'}
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="window.closeTaskFormModal()">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="window.saveTaskFromModal()">Save Task</button>
-                </div>
-            </div>
-        </div>
-    `;
-    mount.querySelectorAll('#taskAssigneesPills .personnel-pill[data-action="toggle-task-assignee"]').forEach(pill => {
-        pill.addEventListener('click', () => toggleTaskAssignee(pill.dataset.uid));
-    });
-}
-
-function closeTaskFormModal() {
-    const mount = document.getElementById('taskFormModalMount');
-    if (mount) mount.innerHTML = '';
-    modalEditingTaskId = null;
-    modalSelectedAssignees = [];
-}
-
-function toggleTaskAssignee(uid) {
-    const idx = modalSelectedAssignees.indexOf(uid);
-    if (idx >= 0) modalSelectedAssignees.splice(idx, 1);
-    else modalSelectedAssignees.push(uid);
-    // Re-render only the pills (cheap)
-    const container = document.getElementById('taskAssigneesPills');
-    if (!container) return;
-    const projectPersonnel = normalizePersonnel(currentProject);
-    container.innerHTML = (projectPersonnel.userIds || []).map((uid2, i) => {
-        const name = projectPersonnel.names?.[i] || uid2;
-        const isOn = modalSelectedAssignees.includes(uid2);
-        return `<span class="personnel-pill${isOn ? ' selected' : ''}" data-uid="${escapeHTML(uid2)}" data-action="toggle-task-assignee">${escapeHTML(name)}</span>`;
-    }).join('');
-    container.querySelectorAll('.personnel-pill[data-action="toggle-task-assignee"]').forEach(pill => {
-        pill.addEventListener('click', () => toggleTaskAssignee(pill.dataset.uid));
-    });
-}
-
-// ---- Delete cascade (Plan 04 Task 3) ----
-
-function confirmDeleteTask(taskId) {
-    const t = tasks.find(x => x.task_id === taskId);
-    if (!t) return;
-    const children = tasks.filter(x => x.parent_task_id === taskId);
-    const hasChildren = children.length > 0;
-    // Walk subtree for full count
-    function countSubtree(id) {
-        const direct = tasks.filter(x => x.parent_task_id === id);
-        return direct.length + direct.reduce((acc, c) => acc + countSubtree(c.task_id), 0);
-    }
-    const totalSubtaskCount = hasChildren ? countSubtree(taskId) : 0;
-    const title = hasChildren ? 'Delete Task and Subtasks?' : 'Delete Task?';
-    // body is HTML-trusted: t.name passes through escapeHTML before interpolation, taskId is
-    // generator-controlled, totalSubtaskCount is a number — safe to drop into mount.innerHTML.
-    const body = hasChildren
-        ? `Delete '${escapeHTML(t.name || taskId)}' and its ${totalSubtaskCount} subtask${totalSubtaskCount !== 1 ? 's' : ''}? This cannot be undone.`
-        : `Delete '${escapeHTML(t.name || taskId)}'? This cannot be undone.`;
-    const confirmLabel = hasChildren ? 'Delete All' : 'Delete';
-    const mount = document.getElementById('deleteTaskConfirmModalMount');
-    if (!mount) return;
-    mount.innerHTML = `
-        <div class="modal" id="deleteTaskConfirmModal" style="display: flex;" aria-modal="true" role="dialog">
-            <div class="modal-content" style="max-width: 440px;">
-                <div class="modal-header"><h3 class="text-danger">${title}</h3></div>
-                <div class="modal-body">${body}</div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" onclick="window.closeDeleteTaskConfirm()">Cancel</button>
-                    <button type="button" class="btn btn-danger" data-action="delete-task" data-task-id="${escapeHTML(taskId)}">${confirmLabel}</button>
-                </div>
-            </div>
-        </div>
-    `;
-    const confirmBtn = mount.querySelector('[data-action="delete-task"]');
-    if (confirmBtn) confirmBtn.addEventListener('click', () => deleteTaskNow(confirmBtn.dataset.taskId));
-}
-
-function closeDeleteTaskConfirm() {
-    const mount = document.getElementById('deleteTaskConfirmModalMount');
-    if (mount) mount.innerHTML = '';
-}
+// ---- Delete cascade ----
 
 async function deleteTaskNow(taskId) {
     const t = tasks.find(x => x.task_id === taskId);
@@ -990,7 +489,7 @@ async function deleteTaskNow(taskId) {
     }
 }
 
-// ---- Cycle detection + save + parent recompute (Plan 04 Task 2) ----
+// ---- Cycle detection + parent recompute ----
 
 function detectDependencyCycle(candidateDeps, taskId) {
     // Build adjacency: from -> to[]
@@ -1038,129 +537,6 @@ function detectDependencyCycle(candidateDeps, taskId) {
     const tasksById = new Map(tasks.map(t => [t.task_id, t]));
     const names = cyclePath.map(id => (tasksById.get(id)?.name) || id);
     return names;
-}
-
-async function saveTaskFromModal() {
-    // Validate
-    const name = (document.getElementById('taskNameInput')?.value || '').trim();
-    const description = (document.getElementById('taskDescInput')?.value || '').trim();
-    const startInput = document.getElementById('taskStartInput');
-    const endInput = document.getElementById('taskEndInput');
-    const start_date = startInput?.disabled ? '' : (startInput?.value || '');
-    const end_date = endInput?.disabled ? '' : (endInput?.value || '');
-    const parent_task_id = (document.getElementById('taskParentInput')?.value || '') || null;
-    const depsSelect = document.getElementById('taskDepsInput');
-    const dependencies = depsSelect ? Array.from(depsSelect.selectedOptions).map(o => o.value) : [];
-    const is_milestone = !!document.getElementById('taskMilestoneInput')?.checked;
-    const assignees = [...modalSelectedAssignees];
-
-    if (!name) { showToast('Task name is required.', 'error'); return; }
-    // For parent tasks, dates are computed — accept whatever is on the doc; otherwise validate.
-    if (start_date && end_date && end_date < start_date) {
-        showToast('End date must be on or after start date.', 'error');
-        return;
-    }
-
-    // Cycle check (D-13)
-    const targetTaskId = modalEditingTaskId || `__candidate__`;
-    const cycleNames = detectDependencyCycle(dependencies, targetTaskId);
-    if (cycleNames) {
-        // Path already starts and ends at the same node from reconstruction — no extra suffix.
-        showToast(`This dependency would create a cycle: ${cycleNames.join(' → ')}. Remove one of the deps to continue.`, 'error');
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const userId = (typeof window.getCurrentUser === 'function') ? (window.getCurrentUser()?.uid || null) : null;
-        // For new tasks: generateTaskId uses a scan-then-write pattern that can race when two
-        // creates land within the same snapshot window. Re-generate up to N times if the picked
-        // id already exists on disk (D-19 mitigation; full fix would be a counter doc + transaction).
-        let taskId;
-        if (modalEditingTaskId) {
-            taskId = modalEditingTaskId;
-        } else {
-            const MAX_ID_RETRIES = 5;
-            for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
-                const candidate = await generateTaskId(currentProject.project_code);
-                const existing = await getDoc(doc(db, 'project_tasks', candidate));
-                if (!existing.exists()) { taskId = candidate; break; }
-            }
-            if (!taskId) {
-                showToast('Could not allocate a task id — please try again.', 'error');
-                return;
-            }
-        }
-        const docData = {
-            task_id: taskId,
-            project_id: currentProject.id,
-            project_code: currentProject.project_code,         // denormalized for D-18 rule
-            parent_task_id: parent_task_id,
-            name: name,
-            description: description,
-            progress: modalEditingTaskId
-                ? (tasks.find(x => x.task_id === modalEditingTaskId)?.progress ?? 0)
-                : 0,
-            is_milestone: is_milestone,
-            dependencies: dependencies,
-            assignees: assignees,
-            updated_at: serverTimestamp()
-        };
-        // Only persist start/end when the inputs are enabled — for parent tasks the dates are
-        // computed from children (D-11) and writing '' here would clobber the persisted envelope.
-        if (!startInput?.disabled && start_date) docData.start_date = start_date;
-        if (!endInput?.disabled && end_date) docData.end_date = end_date;
-        if (!modalEditingTaskId) {
-            docData.created_at = serverTimestamp();
-            docData.created_by = userId;
-            if (!docData.start_date || !docData.end_date) {
-                showToast('Start and end dates are required for new tasks.', 'error');
-                return;
-            }
-        }
-
-        await setDoc(doc(db, 'project_tasks', taskId), docData, { merge: !!modalEditingTaskId });
-
-        // Patch local tasks[] in place so recomputeParentDates sees the just-saved values
-        // — Firestore's onSnapshot fires asynchronously after writes, so module-state tasks[]
-        // would otherwise miss new children entirely or still hold the OLD parent_task_id for
-        // reparented tasks (causing double-count on the old parent's recompute).
-        const oldTask = modalEditingTaskId ? tasks.find(x => x.task_id === modalEditingTaskId) : null;
-        const oldParent = oldTask?.parent_task_id || null;
-        const patched = {
-            id: taskId,
-            task_id: taskId,
-            project_id: currentProject.id,
-            project_code: currentProject.project_code,
-            parent_task_id: parent_task_id,
-            name: name,
-            description: description,
-            progress: docData.progress,
-            is_milestone: is_milestone,
-            dependencies: dependencies,
-            assignees: assignees,
-            start_date: docData.start_date ?? oldTask?.start_date ?? '',
-            end_date: docData.end_date ?? oldTask?.end_date ?? ''
-        };
-        tasks = tasks.filter(x => x.task_id !== taskId).concat([patched]);
-
-        // Parent recompute (D-11) — walk the chain
-        // If the task moved between parents (edit case), recompute BOTH old and new parents.
-        if (oldParent && oldParent !== parent_task_id) await recomputeParentDates(oldParent);
-        if (parent_task_id) await recomputeParentDates(parent_task_id);
-
-        closeTaskFormModal();
-        showToast('Task saved.', 'success');
-    } catch (err) {
-        console.error('[ProjectPlan] saveTaskFromModal failed:', err);
-        if (err?.code === 'permission-denied') {
-            showToast(`You don't have permission to edit tasks on this project.`, 'error');
-        } else {
-            showToast('Could not save task. Please try again.', 'error');
-        }
-    } finally {
-        showLoading(false);
-    }
 }
 
 async function recomputeParentDates(parentTaskId, excludeIds = null) {
@@ -1222,6 +598,6 @@ async function editTaskProgress(taskId, valueRaw) {
         } else {
             showToast('Could not save task. Please try again.', 'error');
         }
-        renderTaskTree(); // revert UI to last-known-good
+        renderGantt(); // revert UI to last-known-good
     }
 }
