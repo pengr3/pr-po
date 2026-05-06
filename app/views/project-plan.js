@@ -831,15 +831,15 @@ function parseDuration(str) {
 // "3d", "14d" from start/end ISO strings
 function computeDurationDisplay(start, end) {
     if (!start || !end) return '';
-    const s = new Date(start); s.setHours(0,0,0,0);
-    const e = new Date(end);   e.setHours(0,0,0,0);
+    const s = new Date(start + 'T00:00:00');
+    const e = new Date(end   + 'T00:00:00');
     const days = Math.max(1, Math.round((e - s) / 86400000) + 1);
     return `${days}d`;
 }
 
 // Add N calendar days to ISO date string
 function addDays(isoDate, n) {
-    const d = new Date(isoDate);
+    const d = new Date(isoDate + 'T00:00:00');
     d.setDate(d.getDate() + n);
     return formatDateISO(d); // reuses existing formatDateISO
 }
