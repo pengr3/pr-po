@@ -37,6 +37,10 @@ let _resizeMouseMoveHandler = null;
 let _resizeMouseUpHandler = null;
 let _resizeDragging = false;
 
+// Phase 86.3 D-01: scroll-clamp handler for soft date floor (min(today, earliest task.start_date))
+let _ganttScrollClampHandler = null;
+let _ganttScrollClampPane = null; // the .gantt-pane element (kept so destroy() can removeEventListener)
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -195,6 +199,12 @@ export async function destroy() {
     _resizeMouseMoveHandler = null;
     _resizeMouseUpHandler   = null;
     _resizeDragging = false;
+    // Phase 86.3 D-01: scroll-clamp cleanup
+    if (_ganttScrollClampHandler && _ganttScrollClampPane) {
+        try { _ganttScrollClampPane.removeEventListener('scroll', _ganttScrollClampHandler); } catch (e) { /* swallow */ }
+    }
+    _ganttScrollClampHandler = null;
+    _ganttScrollClampPane = null;
 }
 
 // ---- Resizable panel divider ----
@@ -1063,6 +1073,9 @@ function renderGantt() {
 
     // 7. Phase 86.1 Plan 04 — drag-to-link overlay
     initGanttDragLink();
+
+    // 8. Phase 86.3 D-01 — soft date floor scroll clamp (min(today, earliest task.start_date))
+    installGanttScrollClamp();
 }
 
 function setGanttZoom(mode) {
@@ -1074,6 +1087,7 @@ function setGanttZoom(mode) {
     // Re-apply overlays after view-mode swap
     renderTodayLine();
     applyFsViolationStyles();
+    installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1219,6 +1233,58 @@ function scrollGanttToToday() {
         // Center today in the visible pane
         pane.scrollLeft = Math.max(0, x - pane.clientWidth / 2);
     } catch (e) { /* swallow */ }
+}
+
+// Phase 86.3 D-01/D-02: compute the floor x-coordinate for the soft date floor.
+// Floor date = min(today, earliest task.start_date). For empty / all-future projects → today.
+// Returns 0 (no clamp) if gantt is null or computation fails — fail-open.
+function computeGanttFloorX() {
+    if (!gantt) return 0;
+    try {
+        const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
+        startDate.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        // Earliest task.start_date (if any), else today
+        let earliest = null;
+        for (const t of tasks) {
+            if (!t.start_date) continue;
+            const d = new Date(t.start_date + 'T00:00:00');
+            d.setHours(0, 0, 0, 0);
+            if (!earliest || d < earliest) earliest = d;
+        }
+        // Soft floor: min(today, earliest). Empty / future-only projects → today.
+        const floorDate = (earliest && earliest < today) ? earliest : today;
+        const dayDiff = Math.round((floorDate - startDate) / (1000 * 60 * 60 * 24));
+        const stepHours = gantt.options.step || 24;
+        const colWidth = gantt.options.column_width || 30;
+        const xPerDay = (24 / stepHours) * colWidth;
+        const floorX = Math.max(0, dayDiff * xPerDay);
+        return floorX;
+    } catch (e) {
+        return 0; // fail-open: no clamp on error
+    }
+}
+
+// Phase 86.3 D-01/D-02: install the scroll-clamp listener on .gantt-pane.
+// Idempotent: removes any existing listener before re-attaching (handles re-runs from setGanttZoom / renderGantt).
+function installGanttScrollClamp() {
+    const pane = document.querySelector('.gantt-pane');
+    if (!pane) return;
+    // Remove previous listener if present (idempotent re-installation)
+    if (_ganttScrollClampHandler && _ganttScrollClampPane) {
+        try { _ganttScrollClampPane.removeEventListener('scroll', _ganttScrollClampHandler); } catch (e) { /* swallow */ }
+    }
+    _ganttScrollClampHandler = function() {
+        // Recompute floorX on each scroll event so it tracks current view_mode column_width.
+        // Cheap: O(n) over tasks, runs only on user scroll.
+        const floorX = computeGanttFloorX();
+        if (pane.scrollLeft < floorX) {
+            pane.scrollLeft = floorX;
+        }
+    };
+    _ganttScrollClampPane = pane;
+    pane.addEventListener('scroll', _ganttScrollClampHandler, { passive: true });
 }
 
 // ---- Gantt drag-to-link SVG overlay (Phase 86.1 Plan 04) ----
