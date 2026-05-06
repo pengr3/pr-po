@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Executing Phase 86.3
-stopped_at: Completed Phase 86.3 Plan 04 — soft date floor + scroll jank (D-01/D-02/D-11)
-last_updated: "2026-05-07T00:00:00.000Z"
-last_activity: 2026-05-07
+status: Ready to plan
+stopped_at: Completed Phase 86.2 Plan 03 — Phase 86.2 all waves complete
+last_updated: "2026-05-06T17:40:50.803Z"
+last_activity: 2026-05-06
 progress:
   total_phases: 11
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 39
-  completed_plans: 33
-  percent: 85
+  completed_plans: 38
+  percent: 97
 ---
 
 # Project State
@@ -25,14 +25,14 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.3 (Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults) — EXECUTING
-Plan: 5 of 5 (Wave 5 — Plan 05 remaining)
+Phase: 88
+Plan: Not started
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 222 (v1.0–v3.2)
+- Total plans completed: 227 (v1.0–v3.2)
 - Total milestones shipped: 10
 
 **By Milestone:**
