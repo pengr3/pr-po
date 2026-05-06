@@ -358,13 +358,11 @@ function bindGridEvents(container) {
     if (_gridDragEndHandler) container.removeEventListener('dragend', _gridDragEndHandler);
 
     _gridDragStartHandler = function(e) {
-        const row = e.target.closest('.tg-row');
+        // DEFECT-3 fix: only allow drag from the row-number (.tg-rn) cell (drag handle)
+        const handle = e.target.closest('.tg-rn');
+        if (!handle) { e.preventDefault(); return; }
+        const row = handle.closest('.tg-row');
         if (!row || row.dataset.taskId === '__new__') { e.preventDefault(); return; }
-        // Don't start drag if user is editing an input cell
-        if (e.target.tagName === 'INPUT' || e.target.classList.contains('tg-input')) {
-            e.preventDefault();
-            return;
-        }
         _draggedTaskId = row.dataset.taskId;
         row.classList.add('tg-dragging');
         e.dataTransfer.effectAllowed = 'move';
