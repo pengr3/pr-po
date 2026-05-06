@@ -183,6 +183,17 @@ export async function destroy() {
 
 // ---- Grid rendering (left rail) ----
 
+// Module-scope isDescendant — used by _gridDragOverHandler and handleRowDrop.
+// Returns true if candidateId is a descendant of ancestorId in the task hierarchy.
+function isDescendant(candidateId, ancestorId) {
+    let cur = tasks.find(x => x.task_id === candidateId);
+    while (cur?.parent_task_id) {
+        if (cur.parent_task_id === ancestorId) return true;
+        cur = tasks.find(x => x.task_id === cur.parent_task_id);
+    }
+    return false;
+}
+
 function renderTaskGrid() {
     const container = document.getElementById('taskGridRail');
     if (!container) return;
@@ -380,6 +391,8 @@ function bindGridEvents(container) {
         if (!row || !_draggedTaskId) return;
         if (row.dataset.taskId === _draggedTaskId) return;
         if (row.dataset.taskId === '__new__') return;
+        // D-Q4: do not allow dragging into own subtree — skip highlight + prevent
+        if (isDescendant(row.dataset.taskId, _draggedTaskId)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         // Visual hint
@@ -560,14 +573,6 @@ function showTaskContextMenu(event, taskId) {
         : null;
 
     // Indent disabled if: first row, or row above is a descendant of this task (would create cycle)
-    const isDescendant = (candidateId, ancestorId) => {
-        let cur = tasks.find(x => x.task_id === candidateId);
-        while (cur?.parent_task_id) {
-            if (cur.parent_task_id === ancestorId) return true;
-            cur = tasks.find(x => x.task_id === cur.parent_task_id);
-        }
-        return false;
-    };
     const canIndent = !isFirstRow && rowAbove != null && !isDescendant(rowAbove.task_id, taskId);
     const canOutdent = !!t.parent_task_id;
 
@@ -621,14 +626,6 @@ async function gridIndentTask(taskId) {
     if (idx <= 0) return; // first row — can't indent
     const newParent = sorted[idx - 1];
     // Reject if newParent is a descendant of this task (would create a cycle)
-    const isDescendant = (candidateId, ancestorId) => {
-        let cur = tasks.find(x => x.task_id === candidateId);
-        while (cur?.parent_task_id) {
-            if (cur.parent_task_id === ancestorId) return true;
-            cur = tasks.find(x => x.task_id === cur.parent_task_id);
-        }
-        return false;
-    };
     if (isDescendant(newParent.task_id, taskId)) {
         showToast(`Can't indent — would create a cycle.`, 'error');
         return;
@@ -776,14 +773,6 @@ async function handleRowDrop(draggedTaskId, targetTaskId) {
         return;
     }
     // Check 2: target cannot be a descendant of dragged (would put dragged inside its own subtree)
-    const isDescendant = (candidateId, ancestorId) => {
-        let cur = tasks.find(x => x.task_id === candidateId);
-        while (cur?.parent_task_id) {
-            if (cur.parent_task_id === ancestorId) return true;
-            cur = tasks.find(x => x.task_id === cur.parent_task_id);
-        }
-        return false;
-    };
     if (isDescendant(targetTaskId, draggedTaskId)) {
         showToast(`Can't drop a task into its own subtree.`, 'warning');
         return;
