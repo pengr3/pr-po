@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
 stopped_at: ""
-last_updated: "2026-05-06T08:05:00.000Z"
-last_activity: "2026-05-06 - Phase 86.1 Plan 06 (D-Q4 subtree guard + Resources free-text) executed in 2 task commits (7fadcbf isDescendant module extraction + _gridDragOverHandler subtree guard; 65c62da Resources cell free-text input + handleGridCellBlur resources branch). 2 tasks, 2 commits, 0 deviations. node --check passes. Addresses UAT gaps 4 (D-Q4 subtree drag highlight) and 5 (Resources free-text). Files modified: app/views/project-plan.js."
+last_updated: "2026-05-06T12:00:00.000Z"
+last_activity: "2026-05-06 - Phase 86.2 planned (3 plans, 3 waves). Covers 10 Gantt UX defects: row alignment, Back button, drag isolation, popup:false, monthly header verify, smart indent inheritance, delete-confirm modal, resizable panel divider, full-width Gantt, Enter key commits. Verification passed after 1 revision cycle (2 blockers + 3 warnings resolved). Ready to execute."
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 30
+  total_plans: 33
   completed_plans: 30
-  percent: 100
+  percent: 91
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.1 COMPLETE — 6 plans shipped 2026-05-06 (4 core + 2 UAT gap-closure). Gap-closure fixed: double-write, add-row duplicate, duration bare-integer + today-default, D-Q4 subtree drag guard, Resources free-text. Human UAT approved 2026-05-06. Next: Phase 87 (Proposal Lifecycle) or Phase 88 (Mgmt Tab Shell).
+**Current focus:** Phase 86.2 planned (3 plans, 3 waves) — Ready to execute. 10 Gantt UX defects: row alignment, Back button, drag isolation, popup:false, monthly header verify, smart indent inheritance, delete-confirm modal, resizable panel divider, full-width Gantt, Enter key commits. Next: /gsd-execute-phase 86.2
 
 ## Current Position
 
-Phase: 86.1 (ALL gap-closure plans complete — Plans 01-06 shipped)
-Plan: Phase 86.1 Plan 06 shipped 2026-05-06. 2 tasks, 2 commits (7fadcbf, 65c62da). Deliverables: isDescendant extracted to module scope (removes 3 inline closures); _gridDragOverHandler subtree guard prevents drag-over highlight on descendant rows (D-Q4); Resources cell replaced from span.tg-resource-names pill picker to input.tg-res-input free-text; handleGridCellBlur resources branch writes {resources, updated_at}; resources: '' added to handleNewRowCommit + gridInsertRowAbove payloads; openAssigneePicker function deleted. All 6 UAT gaps addressed. Phase 86.1 COMPLETE.
+Phase: 86.2 (INSERTED — planned, ready to execute)
+Plan: Phase 86.1 complete (6 plans). Phase 86.2 planned 2026-05-06 with 3 plans covering 10 Gantt UX defects. Wave 1: CSS fixes (Plan 01). Wave 2: JS behavior fixes (Plan 02). Wave 3: Resizable panel + delete modal (Plan 03, depends on Plans 01+02).
 
 ## Performance Metrics
 
@@ -365,6 +365,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ### Roadmap Evolution
 
 (v4.0 phases planned 2026-04-28; insertions tracked here as they happen)
+
+- Phase 86.2 inserted after 86.1 (URGENT, 2026-05-06) — 8 Gantt UX defects found during UAT: row-bar misalignment, Back button nav, drag isolation bug (B moves C), interaction-only restrictions, monthly header format, smart indent inheritance on new row, delete-confirm modal for indented rows, resizable panel divider, full-width Gantt, Enter key commits Duration/Resources
 
 ### Quick Tasks Completed
 
