@@ -352,7 +352,7 @@
 **Plans**: 4 plans
   - [x] 86.1-01-PLAN.md — Scaffold inline grid: replace renderTaskTree with renderTaskGrid, editable cells, duration parsing, add-via-empty-row, save-on-blur, row_order field, remove filter panel + modal CRUD (PM-01, PM-05) — shipped 2026-05-06
   - [x] 86.1-02-PLAN.md — Hierarchy + reorder: right-click context menu (Indent/Outdent/Insert Above/Delete Row with inline confirm), HTML5 drag-to-reorder with row_order writeBatch, parent_task_id writes (PM-02) — shipped 2026-05-06
-  - [ ] 86.1-03-PLAN.md — Resource Names assignee picker: pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal (PM-01 assignees portion)
+  - [x] 86.1-03-PLAN.md — Resource Names assignee picker: pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal (PM-01 assignees portion) — shipped 2026-05-06
   - [ ] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03)
 **UI hint**: yes
 
@@ -416,7 +416,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
 | 85 | v4.0 | 7/8 | In progress | - |
 | 86 | v4.0 | 5/5 | Complete | 2026-05-05 |
-| 86.1 | v4.0 | 2/4 | In progress | - |
+| 86.1 | v4.0 | 3/4 | In progress | - |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
 | 89 | v4.0 | 0/TBD | Not started | - |

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: "Phase 86.1 Plan 02 complete — hierarchy context menu + drag-to-reorder shipped (2 tasks, 2 commits: c2530ab / 7e39417)"
-last_updated: "2026-05-06T06:16:00Z"
+stopped_at: "Phase 86.1 Plan 03 complete — Resource Names assignee picker shipped (1 task, 1 commit: 6df73dd)"
+last_updated: "2026-05-06T06:30:00Z"
 last_activity: "2026-05-05 - Phase 86 Plan 05 (Wave 5 — Project Plan summary card on project-detail.js + weighted leaf-only progress rollup + filter panel on plan view) executed and committed across 3 task commits (24a3ed9 feat 86-05 add Project Plan summary card to project-detail — +144 lines on project-detail.js with module-scope state for currentTasks/currentTasksListenerUnsub/currentProjectProgress, idempotent ensureTasksListener helper attached from BOTH project_code-found path and clientless-fallback path, planCardHtml stats row + Highlights row + Open Plan CTA inserted between Status & Assignment closing div and Delete Button comment, in-place DOM patch on snapshot fire via textContent updates, computeProjectProgress D-12 weighted-by-duration + Highlights derivation, computeDurationDays clamps 0-day to 1; 35cb75f style 86-05 add Project Plan summary card CSS — +52 lines on views.css with .project-plan-card padding override + .plan-card-stats grid 1fr/1fr + .plan-card-highlights repeat(3,1fr) → 1fr at <=768px + .plan-card-stat 24px primary-accent values + .plan-card-highlight gray-50 chip 14px label/value typography; af3d2ca feat 86-05 wire filter panel + weighted parent progress on plan view — +173 lines net on project-plan.js with togglePlanFilters/renderPlanFilterPanel/applyPlanFilters/toggleFilterAssignee/clearPlanFilters/getFilteredTasks/getVisibleTaskSet/computeWeightedProgress, dual children-by-parent maps in BOTH renderTaskTree (allChildrenByParent from full tasks drives hasChildren — slider vs % label decision; childrenByParent from visibleTasks drives traversal walk) AND renderGantt (childrenByParent from full tasks drives getEnvelope D-11/D-12 truth; visibleChildrenByParent drives walk that emits frappeTasks), parent rows in left rail show computeWeightedProgress(t.task_id, tasks)% replacing persisted t.progress, no-results state verbatim 'No tasks match the current filters. Clear filters to see all tasks.', 3 new window.* attachments (applyPlanFilters/clearPlanFilters/toggleFilterAssignee) + 3 matching deletes for cumulative 16/16 across Phase 86 lifecycle). 3 tasks, 3 commits, 3 deviations (Rule 3: ensureTasksListener idempotent helper because plan-supplied attach site has currentProject=null; Rule 1: hasChildren in renderTaskTree must use full tasks not visibleTasks; Rule 1: renderGantt envelope must use full tasks not visibleTasksLocal — both Rule 1 fixes preserve D-12's truth-vs-render separation). All 11 plan-level verification greps pass at expected counts. node --check returns 0 on both modified .js files. ZERO firestore.rules changes (D-24 invariant respected — Plan 05 ships READ listener only, covered by Plan 01's deployed isActiveUser predicate; no JS write paired with rules changes because there are no writes in this plan). PM-02 (parent rollup display via derived computeWeightedProgress instead of persisted), PM-07 (auto-calculated weighted progress on project-detail), PM-09 (filter Gantt + tree by date range + assignees) fully shipped. **Phase 86 COMPLETE — all 11 PM-* requirements satisfied across Plans 01-05.** Phase audit-ready. Files modified: app/views/project-detail.js (1216 → 1360, +144), app/views/project-plan.js (962 → 1135, +173), styles/views.css (2555 → 2607, +52)."
 progress:
   total_phases: 9
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.1 (Inline Grid Editor + Gantt Predecessor Linking) in progress — Plans 01-02 shipped 2026-05-06. Plans 03-04 remain (assignee picker, Gantt drag-to-link).
+**Current focus:** Phase 86.1 (Inline Grid Editor + Gantt Predecessor Linking) in progress — Plans 01-03 shipped 2026-05-06. Plan 04 remains (Gantt drag-to-link predecessors).
 
 ## Current Position
 
-Phase: 86.1 (Plan 02 of 4 complete)
-Plan: Phase 86.1 Plan 02 shipped 2026-05-06. 2 tasks, 2 commits (c2530ab / 7e39417). Deliverables: showTaskContextMenu right-click menu with Indent/Outdent/Insert Row Above/Delete Row; gridIndentTask/gridOutdentTask (parent_task_id writes + recomputeParentDates); gridInsertRowAbove (writeBatch row_order shift + setDoc); gridDeleteRow (leaf → immediate delete, parent → inline tg-delete-confirm tooltip, no modal); HTML5 drag-to-reorder (handleRowDrop D-Q4 validation + commitRowOrderReorder writeBatch CHUNK=450); Rule 1 fix: closeDeleteTaskConfirm() dead call removed from deleteTaskNow. PM-02 (task hierarchy create) fully satisfied. Next: Plan 03 (Resource Names assignee picker pill popup).
+Phase: 86.1 (Plan 03 of 4 complete)
+Plan: Phase 86.1 Plan 03 shipped 2026-05-06. 1 task, 1 commit (6df73dd). Deliverables: openAssigneePicker(taskId, anchorEl) pill popup anchored to Resource Names cell — position:fixed at getBoundingClientRect().bottom+4, normalizePersonnel sourced pills with .personnel-pill.selected toggle, per-toggle atomic updateDoc(assignees, updated_at), 10ms-delayed outside-click dismissal, destroy() cleanup for picker DOM; Rule 2 fix: .personnel-pill.selected CSS added to components.css (was missing from Phase 20 definition). PM-01 assigned personnel sub-requirement fully satisfied. Next: Plan 04 (Gantt drag-to-link predecessors — SVG overlay + rubber-band line + dep write + cycle detection).
 
 ## Performance Metrics
 
@@ -124,6 +124,7 @@ Plan: Phase 86.1 Plan 02 shipped 2026-05-06. 2 tasks, 2 commits (c2530ab / 7e394
 | Phase 86 P05 | 8 | 3 tasks | 3 files |
 | Phase 86.1 P01 | 9 | 3 tasks | 2 files |
 | Phase 86.1 P02 | 3 | 2 tasks | 1 files |
+| Phase 86.1 P03 | 2 | 1 task | 2 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,7 @@ Plan: Phase 86.1 Plan 02 shipped 2026-05-06. 2 tasks, 2 commits (c2530ab / 7e394
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.1-03]: openAssigneePicker is module-scope only, NOT window-registered — called exclusively from bindGridEvents .tg-resource-names click handler (typeof guard from Plan 01 now resolves true). .personnel-pill.selected CSS added to components.css as Rule 2 fix (class was missing from Phase 20 definition; selected state requires visual contrast)
 - [Phase 86.1-02]: showTaskContextMenu typeof guard removed from bindGridEvents — showTaskContextMenu is now defined in same file (Plan 01 guard was a forward-reference workaround for Plan 02)
 - [Phase 86.1-02]: closeDeleteTaskConfirm() call in deleteTaskNow removed — Rule 1 fix (function was deleted in Phase 86.1 Plan 01 modal-layer deletion); replaced with document.querySelector('.tg-delete-confirm')?.remove() to clean up inline tooltip
 - [Phase 86.1-02]: handleRowDrop places dragged task BEFORE the target row (insert at targetIdx in filtered array, before splice pushes target down) — "drag to" means swap position with target row
@@ -369,8 +371,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-06 - Phase 86.1 Plan 02 (Hierarchy + Reorder) executed and committed across 2 task commits (c2530ab feat 86.1-02 Task 1 — +234 lines: showTaskContextMenu right-click menu at position:fixed with Indent/Outdent/Insert/Delete items + canIndent/canOutdent logic + outside-click dismissal; gridIndentTask/gridOutdentTask (parent_task_id writes + recomputeParentDates for old+new parents); gridInsertRowAbove (5-attempt taskId retry + writeBatch shift row_order >= target + setDoc at targetOrder); gridDeleteRow (leaf→deleteTaskNow direct, parent→inline tg-delete-confirm tooltip Yes/No); window.grid* registrations + destroy() teardowns; Rule 1 fix: closeDeleteTaskConfirm dead call removed from deleteTaskNow; 7e39417 feat 86.1-02 Task 2 — +129 lines: _gridDragStartHandler/Over/Drop/End module-scope state; bindGridEvents extended with idempotent drag handler wiring; handleRowDrop D-Q4 validation (cannot drag above own parent, cannot drop into own subtree, 2 warning toasts); commitRowOrderReorder writeBatch CHUNK=450 assigns 1-based row_order; destroy() teardown for all 4 drag handlers). 2 tasks, 2 commits, 1 deviation (Rule 1: closeDeleteTaskConfirm removed). node --check passes. PM-02 (task hierarchy create + parent_task_id writes) fully satisfied. Files modified: app/views/project-plan.js (964 → 1327 lines, net +363).
-Last session: 2026-05-06T06:16:00Z
-Stopped at: "Phase 86.1 Plan 02 complete — hierarchy context menu + drag-to-reorder shipped (2 tasks, 2 commits: c2530ab / 7e39417)"
-Resume file: .planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-03-PLAN.md (Plan 03: Resource Names assignee picker — pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal)
-Next action: Execute Plan 03 (86.1-03-PLAN.md) — Resource Names assignee picker pill popup.
+Last activity: 2026-05-06 - Phase 86.1 Plan 03 (Resource Names Assignee Picker) executed and committed in 1 task commit (6df73dd feat 86.1-03 — +67 lines on project-plan.js: openAssigneePicker function — position:fixed picker anchored to getBoundingClientRect().bottom+4, normalizePersonnel sourced personnel pills with .personnel-pill.selected toggle, per-toggle atomic updateDoc(assignees, updated_at), 10ms-delay outside-click handler, destroy() cleanup for #taskAssigneePicker; +4 lines on components.css: .personnel-pill.selected { background: var(--primary); color: #fff } added as Rule 2 fix — class was missing from Phase 20 definition). 1 task, 1 commit, 1 deviation (Rule 2: .personnel-pill.selected CSS added). node --check passes. PM-01 assigned personnel fully satisfied. Files modified: app/views/project-plan.js (1327 → 1394 lines, net +67), styles/components.css (net +4).
+Last session: 2026-05-06T06:30:00Z
+Stopped at: "Phase 86.1 Plan 03 complete — Resource Names assignee picker shipped (1 task, 1 commit: 6df73dd)"
+Resume file: .planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-04-PLAN.md (Plan 04: Gantt drag-to-link predecessors — SVG overlay handle on bar right-edge, rubber-band line, drop-on-bar creates FS dep with cycle detection)
+Next action: Execute Plan 04 (86.1-04-PLAN.md) — Gantt drag-to-link predecessors.
