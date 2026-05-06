@@ -350,7 +350,7 @@
   5. User can drag from the right edge of any Gantt bar to another bar to create a Finish-to-Start predecessor link; the Predecessors column shows the source task's stable row# and the Gantt arrow renders immediately
   6. Parent rows are locked (Start/End/Duration grayed-out, computed from children); Resource Names cell shows assigned personnel names; clicking opens an inline picker popup (no modal)
 **Plans**: 4 plans
-  - [ ] 86.1-01-PLAN.md — Scaffold inline grid: replace renderTaskTree with renderTaskGrid, editable cells, duration parsing, add-via-empty-row, save-on-blur, row_order field, remove filter panel + modal CRUD (PM-01, PM-05)
+  - [x] 86.1-01-PLAN.md — Scaffold inline grid: replace renderTaskTree with renderTaskGrid, editable cells, duration parsing, add-via-empty-row, save-on-blur, row_order field, remove filter panel + modal CRUD (PM-01, PM-05) — shipped 2026-05-06
   - [ ] 86.1-02-PLAN.md — Hierarchy + reorder: right-click context menu (Indent/Outdent/Insert Above/Delete Row with inline confirm), HTML5 drag-to-reorder with row_order writeBatch, parent_task_id writes (PM-02)
   - [ ] 86.1-03-PLAN.md — Resource Names assignee picker: pill popup anchored to cell, per-toggle Firestore writes, outside-click dismissal (PM-01 assignees portion)
   - [ ] 86.1-04-PLAN.md — Gantt drag-to-link predecessors: SVG overlay handle on bar right-edge, rubber-band line during drag, drop-on-bar creates FS dep with cycle detection + toast, parent-summary-bar lock (PM-03)
