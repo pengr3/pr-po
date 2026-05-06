@@ -1314,7 +1314,9 @@ function renderGanttHeaderOverlay() {
         const colWidth = gantt.options.column_width || 30;
         const xPerDay = (24 / stepHours) * colWidth;
         const endDate = gantt.gantt_end instanceof Date ? gantt.gantt_end : new Date(gantt.gantt_end);
-        if (!endDate) return;
+        // Phase 86.3 D-03 fix (H-02): new Date(undefined) returns Invalid Date which is truthy,
+        // so a plain `!endDate` guard would let NaN propagate through downstream date math.
+        if (!endDate || isNaN(endDate.getTime())) return;
         endDate.setHours(0, 0, 0, 0);
 
         // Build the overlay container (absolutely positioned over the Frappe header strip).
@@ -1381,6 +1383,11 @@ function renderGanttHeaderOverlay() {
             // Week-range cells (lower row)
             const weekRangeRow = document.createElement('div');
             weekRangeRow.className = 'gantt-header-month-week-range-row';
+            // Phase 86.3 D-03 fix (H-01): track the month of the active run so only the FIRST
+            // in-month cell of each run carries the month abbreviation. CONTEXT.md examples:
+            // "03 May - 09" (first cell of May run), "10 - 16" / "17 - 23" / "24 - 30" (subsequent
+            // cells omit "May"), "31 - 06 Jun" (cross-month), "07 Jun - 13" (first cell of Jun run).
+            let currentRunMonth = -1;
             for (let w = 0; w < totalWeeks; w++) {
                 const monday = new Date(firstMonday);
                 monday.setDate(monday.getDate() + w * 7);
@@ -1392,13 +1399,17 @@ function renderGanttHeaderOverlay() {
                 const endMMM = monthShort[sunday.getMonth()];
                 let label;
                 if (monday.getMonth() === sunday.getMonth()) {
-                    // Same month: "03 May - 09"
-                    label = `${startDD} ${startMMM} - ${endDD}`;
+                    // In-month: include startMMM only on the first cell of this month's run.
+                    if (monday.getMonth() !== currentRunMonth) {
+                        label = `${startDD} ${startMMM} - ${endDD}`; // e.g., "03 May - 09"
+                        currentRunMonth = monday.getMonth();
+                    } else {
+                        label = `${startDD} - ${endDD}`;             // e.g., "10 - 16"
+                    }
                 } else {
-                    // Cross-month: "31 - 06 Jun" if start day shown first, OR "31 May - 06 Jun" — per CONTEXT.md D-03 examples
-                    // CONTEXT shows: "31 - 06 Jun" and "07 Jun - 13" — so when the month CHANGES inside a row,
-                    // the leading day comes from the previous month and is shown without its month name (the parent month row carries it).
-                    label = `${startDD} - ${endDD} ${endMMM}`;
+                    // Cross-month: omit start month (parent row carries it), keep end month.
+                    label = `${startDD} - ${endDD} ${endMMM}`;       // e.g., "31 - 06 Jun"
+                    currentRunMonth = sunday.getMonth();             // next in-month week starts a new run
                 }
                 const dayDiffFromStart = Math.round((monday - startDate) / (1000 * 60 * 60 * 24));
                 const cell = document.createElement('div');
