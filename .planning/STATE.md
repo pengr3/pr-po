@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Executing Phase 86.3
-stopped_at: Completed Phase 86.2 Plan 03 — Phase 86.2 all waves complete
-last_updated: "2026-05-06T16:32:43.123Z"
-last_activity: 2026-05-06
+stopped_at: Completed Phase 86.3 Plan 04 — soft date floor + scroll jank (D-01/D-02/D-11)
+last_updated: "2026-05-07T00:00:00.000Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 11
   completed_phases: 6
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 86.3 (Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults) — EXECUTING
-Plan: 1 of 5
+Plan: 5 of 5 (Wave 5 — Plan 05 remaining)
 
 ## Performance Metrics
 
@@ -129,6 +129,7 @@ Plan: 1 of 5
 | Phase 86.1 P02 | 3 | 2 tasks | 1 files |
 | Phase 86.1 P03 | 2 | 1 task | 2 files |
 | Phase 86.1 P04 | 8 | 1 task | 1 file |
+| Phase 86.3 P04 | 15 | 3 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -136,6 +137,9 @@ Plan: 1 of 5
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.3-04]: D-11 Root Cause A applied in batch mode — floorX cached at installGanttScrollClamp() call time in closure; scroll handler is O(1); re-installation on snapshot+zoom keeps value current. Two-commit approach (feat then perf) makes D-11 fix independently revertable.
+- [Phase 86.3-04]: computeGanttFloorX() fail-open: returns 0 on any exception so no clamp is applied rather than blocking all Gantt scroll on error.
+- [Phase 86.3-04]: D-02 confirmed — no setDoc/updateDoc added; floor constraint mutates only pane.scrollLeft; computeGanttFloorX reads in-memory tasks[] already loaded by existing onSnapshot listener.
 - [Phase 86.2-03]: DEFECT-8: initPanelResize() attaches document-level mousemove/mouseup via _resizeMouseMoveHandler/_resizeMouseUpHandler; both removed in destroy() (T-86.2-03-03 mitigate); pct clamped 15-75% via Math.max/Math.min on clientX arithmetic (T-86.2-03-02 accept)
 - [Phase 86.2-03]: DEFECT-7: showDeleteConfirmModal uses string concatenation in innerHTML; childCount is integer arithmetic (T-86.2-03-01 accept); planDeleteConfirm cleanup in destroy() (T-86.2-03-04 mitigate)
 - [Phase 86.2-03]: Removed stale .tg-delete-confirm cleanup from deleteTaskNow() — modal approach supersedes inline tooltip; modal's #planDeleteYes handler calls modal.remove() before deleteTaskNow so no tooltip can exist at call time
