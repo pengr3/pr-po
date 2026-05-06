@@ -457,7 +457,7 @@ function bindGridEvents(container) {
         if (!input.classList.contains('tg-input')) return;
         if (input.dataset.taskId === '__new__') return; // handled by handleNewRowKeydown
         const col = input.dataset.col;
-        if (col !== 'duration' && col !== 'resources') return; // only Duration and Resources per spec
+        if (col !== 'duration' && col !== 'resources' && col !== 'predecessors') return; // Phase 86.3 D-09: Duration, Resources, Predecessors
         e.preventDefault();
         input.blur(); // triggers handleGridCellBlur via existing capture-phase blur listener
     };
