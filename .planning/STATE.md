@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in-progress
-stopped_at: Phase 86.1 Plan 06 complete — all gap-closure plans shipped
+stopped_at: ""
 last_updated: "2026-05-06T08:05:00.000Z"
 last_activity: "2026-05-06 - Phase 86.1 Plan 06 (D-Q4 subtree guard + Resources free-text) executed in 2 task commits (7fadcbf isDescendant module extraction + _gridDragOverHandler subtree guard; 65c62da Resources cell free-text input + handleGridCellBlur resources branch). 2 tasks, 2 commits, 0 deviations. node --check passes. Addresses UAT gaps 4 (D-Q4 subtree drag highlight) and 5 (Resources free-text). Files modified: app/views/project-plan.js."
 progress:
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.1 (Inline Grid Editor + Gantt Predecessor Linking) COMPLETE — all 4 plans shipped 2026-05-06. Phase 86.1 delivers PM-01 (Plans 01+02+03), PM-02 (Plan 02), PM-03 (Plans 01+04), PM-05 (Plan 01 handleGanttProgressChange). Next: Phase 87 (Proposal Lifecycle) or Phase 88 (Mgmt Tab Shell).
+**Current focus:** Phase 86.1 COMPLETE — 6 plans shipped 2026-05-06 (4 core + 2 UAT gap-closure). Gap-closure fixed: double-write, add-row duplicate, duration bare-integer + today-default, D-Q4 subtree drag guard, Resources free-text. Human UAT approved 2026-05-06. Next: Phase 87 (Proposal Lifecycle) or Phase 88 (Mgmt Tab Shell).
 
 ## Current Position
 
