@@ -224,6 +224,7 @@
 - [x] **Phase 86: Native Project Management & Gantt** — `project_tasks` collection, hierarchy + dependencies + milestones, Frappe Gantt (drag-resize, drag-reschedule), filter panel, weighted progress rollup, project-detail summary card, Security Rules — completed 2026-05-05 (5 plans)
 - [x] **Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking** — Replace modal-CRUD left rail with ProjectLibre-style inline spreadsheet grid (Name/Duration/Start/End/Predecessors/Resources); duration input auto-computes End; right-click indent/outdent hierarchy; drag-from-bar-to-bar in Gantt to create FS predecessor links; 5 UAT defects resolved (double-write, duration UX, subtree drag guard, resources free-text) — completed 2026-05-06 (6 plans)
 - [x] **Phase 86.2: Gantt UX Polish — Row Alignment, Drag Fixes, Indent UX, Monthly View, Resizable Panels, Enter Key** (INSERTED) — Fix left-rail rows misaligned with Gantt bars; Back button navigates to project list; drag isolation (moving B must not shift C); restrict interactions to drag-predecessor, bar-extend, bar-drag, progress-extend only; monthly header format matching MS Project style; smart indent inheritance on new row; delete-confirmation modal for indented tasks; resizable left/right panel divider; full-width Gantt right panel; Enter key commits Duration and Resources cells (3 plans) — completed 2026-05-06
+- [ ] **Phase 86.3: Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults** (INSERTED) — Right-panel: lock leftmost date to today (no further left-scroll), investigate scroll jank, add day-of-week (M T W Th F S S) row to calendar header, prevent bars from changing rows when dragged horizontally (cross-row vertical drag removed; drop-on-bar still creates FS predecessor), remove stray middle-of-screen scrollbar. Left-panel: new task defaults to 1d duration so the bar renders immediately, new task stays on the row where it was inserted (no auto-resort by start date), Predecessors cell commits on Enter
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -375,6 +376,23 @@
   - [x] 86.2-01-PLAN.md — CSS: row height sync (42px/85px), full-width Gantt (min-width: 0) — Wave 1 — shipped 2026-05-06
   - [x] 86.2-02-PLAN.md — JS: drag isolation (.tg-rn handle), Enter key handler, smart indent inheritance, popup: false, back button verify, monthly header verify — Wave 2 — shipped 2026-05-06
   - [x] 86.2-03-PLAN.md — Resizable panel divider (HTML+CSS+JS+destroy cleanup), delete-confirm modal — Wave 3 — shipped 2026-05-06
+**UI hint**: yes
+
+### Phase 86.3: Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults
+**Goal**: Fix 9 Gantt UX defects discovered during continued use of the project plan view (post Phase 86.2): timeline left-floor at today, scrolling jank, day-of-week calendar row, row-locked bar drag, drag-semantics unification, stray middle scrollbar, new-task default-1d duration, new-task row position preservation, and Predecessors-cell Enter commit.
+**Depends on**: Phase 86.1 (inline grid + drag-to-link predecessors), Phase 86.2 (Enter handler infrastructure for Duration/Resources cells must exist before extending it to Predecessors)
+**Requirements**: None mapped (INSERTED phase — no REQUIREMENTS.md IDs)
+**Success Criteria** (what must be TRUE):
+  1. The Gantt timeline's leftmost visible date is today; the user cannot scroll the timeline to view dates before today
+  2. Timeline horizontal scrolling is smooth — no jank, snap-back, or skipped frames during scroll
+  3. The Gantt calendar header shows a day-of-week row (M T W Th F S S) beneath the date row
+  4. Dragging a Gantt bar horizontally only repositions it in time on the same row — the bar never changes rows; left-rail row-to-bar alignment is preserved after any drag
+  5. Drag semantics are unified and predictable: horizontal drag on a bar moves/extends in time on its own row only; dragging from a bar's edge handle to land on another bar still creates an FS predecessor link (existing 86.1 behavior preserved); cross-row vertical drag of bars is removed
+  6. No stray scrollbar appears in the middle of the project plan view; only the intended scroll containers (timeline, grid) show scrollbars
+  7. A newly added task in the inline grid renders immediately as a 1-day bar in the Gantt without requiring the user to type a Duration first
+  8. A newly added task stays on the row where the user inserted it (preserving user-defined order) — the Gantt does not auto-resort tasks by start date on insert
+  9. Pressing Enter inside the Predecessors cell commits the value (same Tab/blur semantics as Duration and Resources cells from Phase 86.2)
+**Plans**: TBD
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
