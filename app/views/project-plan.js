@@ -1605,10 +1605,10 @@ function initGanttDragLink() {
             // Resolve drop target
             const toWrapper = e.target.closest('.bar-wrapper');
             if (!toWrapper) {
-                // Dropped on empty space — if dragged rightward, extend task duration
+                // Dropped on empty space — extend (rightward) or reduce (leftward) duration
                 if (!gantt || typeof gantt.config !== 'object') return;
                 const fromTask = tasks.find(x => x.task_id === fromTaskId);
-                if (!fromTask || !fromTask.end_date) return;
+                if (!fromTask || !fromTask.start_date || !fromTask.end_date) return;
                 const fromWrapper2 = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(fromTaskId)}"]`);
                 const fromBar2 = fromWrapper2?.querySelector('.bar');
                 if (!fromBar2) return;
@@ -1618,18 +1618,21 @@ function initGanttDragLink() {
                 pt2.x = e.clientX;
                 pt2.y = e.clientY;
                 const svgPt2 = pt2.matrixTransform(svg.getScreenCTM().inverse());
-                if (svgPt2.x <= barRightX) return; // dragged leftward — cancel silently
                 const xPerDay2 = (gantt.config.column_width || 45) / (gantt.config.step || 1);
-                const daysToAdd = Math.max(1, Math.round((svgPt2.x - barRightX) / xPerDay2));
-                const newEndDate = addDays(fromTask.end_date, daysToAdd);
+                const daysDelta = Math.round((svgPt2.x - barRightX) / xPerDay2);
+                if (daysDelta === 0) return; // no meaningful change
+                let newEndDate = addDays(fromTask.end_date, daysDelta);
+                // Clamp: end_date must not be earlier than start_date (1-day minimum duration, end == start)
+                if (newEndDate < fromTask.start_date) newEndDate = fromTask.start_date;
+                if (newEndDate === fromTask.end_date) return; // clamp produced no change
                 try {
                     await updateDoc(doc(db, 'project_tasks', fromTaskId), { end_date: newEndDate, updated_at: serverTimestamp() });
                     const idx2 = tasks.findIndex(x => x.task_id === fromTaskId);
                     if (idx2 >= 0) tasks[idx2] = { ...tasks[idx2], end_date: newEndDate };
                     if (fromTask.parent_task_id) await recomputeParentDates(fromTask.parent_task_id);
                 } catch (err) {
-                    console.error('[ProjectPlan] bar extend failed:', err);
-                    showToast('Could not extend task duration.', 'error');
+                    console.error('[ProjectPlan] bar resize failed:', err);
+                    showToast('Could not adjust task duration.', 'error');
                 }
                 return;
             }
