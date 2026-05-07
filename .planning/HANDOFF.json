@@ -1,40 +1,57 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-06T12:30:00.000Z",
-  "phase": "86.2",
-  "phase_name": "gantt-ux-polish-row-alignment-drag-indent-panels",
-  "phase_dir": ".planning/phases/86.2-gantt-ux-polish-row-alignment-drag-indent-panels",
+  "timestamp": "2026-05-07T00:35:13.284Z",
+  "phase": "86.3",
+  "phase_name": "Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults",
+  "phase_dir": ".planning/phases/86.3-gantt-ux-polish-2-date-floor-bar-drag-row-lock-new-task-defaults",
   "plan": null,
   "task": null,
-  "total_tasks": null,
-  "status": "phase_complete",
+  "total_tasks": 34,
+  "status": "awaiting_human_uat",
   "completed_tasks": [
-    {"id": 1, "name": "86.2-01: CSS row alignment + full-width Gantt", "status": "done", "commit": "fa377ac"},
-    {"id": 2, "name": "86.2-02: Drag isolation, Enter key, smart indent, popup:false", "status": "done", "commit": "24ea9bf"},
-    {"id": 3, "name": "86.2-03: Resizable panel divider + delete confirm modal", "status": "done", "commit": "7e3530b"},
-    {"id": 4, "name": "86.2 UAT: 8/8 tests passed", "status": "done", "commit": "c30640c"}
+    {"id": "86.3-01", "name": "walk() sort key change (D-06/D-07)", "status": "done", "commit": "07c4be1"},
+    {"id": "86.3-01-summary", "name": "Plan 01 SUMMARY.md", "status": "done", "commit": "4cdd2c1"},
+    {"id": "86.3-02", "name": "Predecessors Enter commit allowlist (D-09)", "status": "done", "commit": "813f79b"},
+    {"id": "86.3-02-summary", "name": "Plan 02 SUMMARY.md", "status": "done", "commit": "7b9ea41"},
+    {"id": "86.3-03-defaults", "name": "New-task default 1d bar (D-04/D-05)", "status": "done", "commit": "009fd35"},
+    {"id": "86.3-03-scrollbar", "name": "Stray scrollbar fix (D-10 — Candidate A)", "status": "done", "commit": "134cc42"},
+    {"id": "86.3-03-summary", "name": "Plan 03 SUMMARY.md", "status": "done", "commit": "497dd77"},
+    {"id": "86.3-04-floor", "name": "Soft date floor scroll-clamp (D-01/D-02)", "status": "done", "commit": "11c7804"},
+    {"id": "86.3-04-perf", "name": "Cached floorX D-11 fix (Root Cause A)", "status": "done", "commit": "c9eceeb"},
+    {"id": "86.3-04-summary", "name": "Plan 04 SUMMARY.md", "status": "done", "commit": "c3576b9"},
+    {"id": "86.3-04-tracking", "name": "Plan 04 STATE+ROADMAP update", "status": "done", "commit": "b8a4952"},
+    {"id": "86.3-05-js", "name": "renderGanttHeaderOverlay (D-03)", "status": "done", "commit": "efd94db"},
+    {"id": "86.3-05-css", "name": "Calendar header overlay CSS (D-03)", "status": "done", "commit": "a6b5d11"},
+    {"id": "86.3-05-summary", "name": "Plan 05 SUMMARY.md", "status": "done", "commit": "0b5ec3f"},
+    {"id": "86.3-roadmap", "name": "ROADMAP marked phase complete", "status": "done", "commit": "6a58c8f"},
+    {"id": "86.3-codereview-fixes", "name": "HIGH-severity code review fixes (H-01 month label format, H-02 Invalid Date guard)", "status": "done", "commit": "8f6425c"},
+    {"id": "86.3-artifacts", "name": "VERIFICATION.md + REVIEW.md + HUMAN-UAT.md committed", "status": "done", "commit": "423eb32"}
   ],
-  "remaining_tasks": [],
+  "remaining_tasks": [
+    {"id": "morning-uat", "name": "Run 34-test punch list in 86.3-HUMAN-UAT.md against the live app in Chrome", "status": "not_started", "blocking": true},
+    {"id": "morning-d10-confirm", "name": "Verify D-10 stray scrollbar is gone (Candidate A guess); if not, investigate Candidates B/C", "status": "not_started", "context": "See 86.3-03-SUMMARY.md D-10 Diagnosis Note"},
+    {"id": "morning-d11-confirm", "name": "Run DevTools Performance trace during scroll; verify no Long Tasks > 16ms (Root Cause A guess)", "status": "not_started", "context": "See 86.3-04-SUMMARY.md D-11 Diagnosis Note"},
+    {"id": "morning-h01-confirm", "name": "Verify month-view labels read '10 - 16' / '07 Jun - 13' style (H-01 fix). Critical — flag if labels still show '10 May - 16'.", "status": "not_started"},
+    {"id": "medium-followups", "name": "Decide fix-vs-defer for code review MEDIUM issues", "status": "not_started", "details": "M-01 passive listener flag, M-02 gridInsertRowAbove not patched, M-03 last-week guard. See bottom of HUMAN-UAT.md."}
+  ],
   "blockers": [],
   "human_actions_pending": [
-    {
-      "action": "Phase 84.1 UAT still pending — 15 notification tests against dev Firebase env",
-      "context": "84.1-UAT.md was scaffolded with pending tests; human UAT gate never resolved",
-      "blocking": false
-    }
+    {"action": "Run morning UAT punch list in Chrome (python -m http.server 8000)", "context": "User authorized batch overnight execution; UAT was deferred and pre-approved. 34 tests organized plan-by-plan in 86.3-HUMAN-UAT.md.", "blocking": true},
+    {"action": "Decide on 4 code-review followups (3 MEDIUM + 1 LOW)", "context": "Listed at bottom of 86.3-HUMAN-UAT.md with fix recommendations. Each has 'pending — fix vs defer' marker.", "blocking": false},
+    {"action": "Phase 84.1 UAT still pending (carried from previous handoff)", "context": "15 notification tests against dev Firebase env. 84.1-UAT.md scaffolded but never resolved.", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Phase 86.2 all 10 Gantt UX defects resolved across 3 plans", "rationale": "UAT 8/8 passed 2026-05-06", "phase": "86.2"},
-    {"decision": "Next phases: 87 or 88 (independent, can start either)", "rationale": "Phase 89 depends on both 87+88; 85 ROADMAP table stale (shows 7/8 but all 8 plans complete)", "phase": "86.2"}
+    {"decision": "Batch overnight execution with auto-approved UAT", "rationale": "User explicitly authorized: 'let's say it's all approved, I'll check in the morning'. SUMMARYs explicitly marked UAT as 'pre-approved batch — pending in-browser confirmation' to preserve audit truth.", "phase": "86.3"},
+    {"decision": "Sequential mode (no worktree isolation) for all 5 plans", "rationale": "Windows + worktree + checkpoint plans is a known footgun (#2070 SUMMARY.md stranding). Each wave had only 1 plan, so worktree gave no parallelism benefit anyway.", "phase": "86.3"},
+    {"decision": "D-10 used PATTERNS.md Candidate A (.task-grid-rail overflow-x: hidden)", "rationale": "Could not run live DevTools diagnosis during overnight batch. Candidate A is highest-probability cause per pattern map. Documented assumption in 86.3-03-SUMMARY.md so morning UAT can confirm or trigger Candidate B/C investigation.", "phase": "86.3"},
+    {"decision": "D-11 used Root Cause A (cache floorX in scroll-clamp closure)", "rationale": "Could not run live Performance trace during overnight batch. Root Cause A addresses the largest new risk this phase introduces (the new scroll listener doing O(n) work per scroll event). Documented assumption in 86.3-04-SUMMARY.md.", "phase": "86.3"},
+    {"decision": "Fix 2 HIGH-severity code-review bugs pre-emptively (commit 8f6425c)", "rationale": "Code review caught H-01 (month-view label format always included startMMM, contradicting CONTEXT.md D-03 examples) and H-02 (Invalid Date guard never fired because new Date(undefined) is truthy). Both would fail morning UAT — fixing pre-emptively avoids burning user time on obvious bugs. Defended under user's batch authorization.", "phase": "86.3"},
+    {"decision": "Saved 'overnight batch execution' as feedback memory", "rationale": "User's pattern of authorizing 'let's say approved, check in morning' is a real workflow preference distinct from default interactive UAT. Memorialized so future phases recognize it without re-asking.", "phase": "86.3"}
   ],
   "uncommitted_files": [
-    ".planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-VERIFICATION.md (modified)",
-    ".planning/phases/86-native-project-management-gantt/86-UAT.md (untracked)",
-    ".planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-CONTEXT.md (untracked)",
-    ".planning/phases/86.1-inline-grid-editor-gantt-predecessor/86.1-PATTERNS.md (untracked)",
-    "scripts/preprocess.js (untracked — possibly leftover, not phase-related)",
-    "serviceAccountKey.json (untracked — DO NOT COMMIT, Firebase credentials)"
+    "scripts/preprocess.js (untracked — pre-existing, not 86.3-related)",
+    "serviceAccountKey.json (untracked — DO NOT COMMIT, Firebase credentials, pre-existing)"
   ],
-  "next_action": "Run /gsd-plan-phase 87 (Proposal Lifecycle) or /gsd-plan-phase 88 (Mgmt Tab Shell). Both are independent. Phase 89 depends on both.",
-  "context_notes": "Session ended at a clean phase boundary. 86.2 fully verified. ROADMAP Phase 85 tracker table shows 7/8 but all 8 plans are complete in the phase section — table is stale. serviceAccountKey.json is in working tree and must never be committed."
+  "next_action": "User opens .planning/phases/86.3-gantt-ux-polish-2-date-floor-bar-drag-row-lock-new-task-defaults/86.3-HUMAN-UAT.md and runs through tests 1-34 in order in Chrome (python -m http.server 8000 → http://localhost:8000/#/projects). Mark each test result inline. Tests 26 (H-01 label format), 13 (D-10 scrollbar), 21 (D-11 perf trace) are highest-uncertainty items — start there if time-constrained.",
+  "context_notes": "Phase 86.3 fully implemented at the code level — verifier passed 9/9 must_haves. The phase is functionally shipped pending in-browser UAT. ROADMAP shows it as [x] complete with date 2026-05-06 (the gsd-tools phase complete command stamped that date even though today is 2026-05-07; minor cosmetic issue, ignorable). 19 commits added since 1de4dd1 across 2 source files (project-plan.js +250 lines, views.css +80 lines). All planning artifacts (PLANs, PATTERNS, SUMMARYs, VERIFICATION, REVIEW, HUMAN-UAT) committed. Branch v3.3, clean tree, no push. If morning UAT exposes failures, the standard /gsd-plan-phase 86.3 --gaps cycle handles gap closure. The two unverified diagnostic assumptions (D-10 Candidate A, D-11 Root Cause A) are the most likely sources of UAT failure — their SUMMARYs document the fallback investigation paths."
 }
