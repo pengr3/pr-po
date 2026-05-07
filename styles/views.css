@@ -2449,7 +2449,7 @@
        Vertical scroll preserved for many-tasks projects.
        NOTE: Diagnosis assumption per CONTEXT.md D-10 batch-authorization — user verifies in morning UAT. */
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: auto;      /* D-SCROLL (86.4): needed for synchronized vertical scroll */
     background: #ffffff;
     border-right: 1px solid var(--gray-200, #dadce0);
 }
