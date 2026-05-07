@@ -809,6 +809,9 @@ async function gridInsertRowAbove(taskId) {
         }
 
         // Create new task at targetOrder, inheriting parent_task_id from the row below for visual locality
+        // Anchor start/end on the displaced task's start_date (or today) so the new row has a
+        // valid 1-day Gantt bar immediately — prevents appendNode from skipping it (no-date guard).
+        const anchorInsert = t.start_date || formatDateISO(new Date());
         await setDoc(doc(db, 'project_tasks', newTaskId), {
             task_id: newTaskId,
             project_id: currentProject.id,
@@ -816,6 +819,8 @@ async function gridInsertRowAbove(taskId) {
             parent_task_id: t.parent_task_id || null,
             name: '',
             description: '',
+            start_date: anchorInsert,
+            end_date: anchorInsert,
             progress: 0,
             is_milestone: false,
             dependencies: [],
@@ -1064,6 +1069,7 @@ function renderGantt() {
 
     if (frappeTasks.length === 0) {
         mountEl.innerHTML = '';
+        gantt = null; // BloomFilter-guard: reset stale instance so next snapshot rebuilds clean
         return;
     }
 
