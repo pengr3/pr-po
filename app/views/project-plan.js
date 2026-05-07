@@ -223,8 +223,8 @@ export async function destroy() {
     _syncScrollRailHandler = null;
     _syncScrollPaneHandler = null;
     _syncingScroll = false;
-    // Phase 86.3 D-03: header overlay cleanup (defensive — would also be removed by view tear-down)
-    document.querySelectorAll('.gantt-header-overlay').forEach(el => el.remove());
+    // Phase 86.4 D-03: SVG header label cleanup
+    document.querySelectorAll('#ganttPane .gantt-header-svg-label').forEach(el => el.remove());
 }
 
 // ---- Resizable panel divider ----
@@ -1104,8 +1104,8 @@ function renderGantt() {
     // 8. Phase 86.3 D-01 — soft date floor scroll clamp (min(today, earliest task.start_date))
     installGanttScrollClamp();
 
-    // Phase 86.3 D-03 overlay removed — DOM overlay approach broken (width: 100% clips on scroll).
-    // Reimplementation via SVG injection planned separately.
+    // 9. Phase 86.4 D-03 — SVG calendar header labels (Day: M T W Th F S S; Month: week-range)
+    renderGanttHeaderSvg();
 }
 
 function setGanttZoom(mode) {
@@ -1118,7 +1118,7 @@ function setGanttZoom(mode) {
     renderTodayLine();
     applyFsViolationStyles();
     installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
-    // renderGanttHeaderOverlay() removed — D-03 overlay approach replaced with SVG injection (planned)
+    renderGanttHeaderSvg(); // Phase 86.4 D-03 — SVG header labels
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1353,85 +1353,74 @@ function bindScrollSync() {
     pane.addEventListener('scroll', _syncScrollPaneHandler);
 }
 
-// Phase 86.3 D-03: per-zoom calendar header overlay.
-// Day view → day-of-week row (M T W Th F S S) under Frappe's date row.
-// Week view → Monday-date label per column (e.g., "03 May"). No DoW row.
-// Month view → month-name parent row + week-range cells (e.g., "May" / "03 May - 09").
-// Implemented as DOM overlay anchored on .gantt-pane (sibling to Frappe SVG).
-// Re-applied by setGanttZoom; cleaned up via destroy() container removal.
-function renderGanttHeaderOverlay() {
-    const pane = document.querySelector('.gantt-pane');
-    if (!pane || !gantt) return;
-    // Remove any prior overlay
-    pane.querySelectorAll('.gantt-header-overlay').forEach(el => el.remove());
+// Phase 86.4 D-03: per-zoom calendar header SVG injection.
+// Injects <text> elements directly into Frappe's <svg> so they scroll with the timeline.
+// Day view: single-letter weekday labels (M T W Th F S S) in the lower header band.
+// Month view: week-range sub-labels (e.g., "03 May - 09", "10 - 16", "31 - 06 Jun").
+// Week view: skipped — Frappe native "11 May" / "18 May" labels are already correct.
+// Idempotent: removes prior .gantt-header-svg-label elements before re-injecting.
+function renderGanttHeaderSvg() {
+    const ganttSvg = document.querySelector('#ganttPane svg');
+    if (!ganttSvg || !gantt) return;
+
+    // Idempotent cleanup
+    ganttSvg.querySelectorAll('.gantt-header-svg-label').forEach(el => el.remove());
 
     try {
         const mode = gantt.options.view_mode || 'Week';
+        if (mode === 'Week') return; // Frappe native labels are sufficient for Week view
+
         const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
         startDate.setHours(0, 0, 0, 0);
-        const stepHours = gantt.options.step || 24;
-        const colWidth = gantt.options.column_width || 30;
-        const xPerDay = (24 / stepHours) * colWidth;
         const endDate = gantt.gantt_end instanceof Date ? gantt.gantt_end : new Date(gantt.gantt_end);
-        // Phase 86.3 D-03 fix (H-02): new Date(undefined) returns Invalid Date which is truthy,
-        // so a plain `!endDate` guard would let NaN propagate through downstream date math.
         if (!endDate || isNaN(endDate.getTime())) return;
         endDate.setHours(0, 0, 0, 0);
 
-        // Build the overlay container (absolutely positioned over the Frappe header strip).
-        const overlay = document.createElement('div');
-        overlay.className = 'gantt-header-overlay';
-        overlay.dataset.mode = mode;
+        const stepHours = gantt.options.step || 24;
+        const colWidth = gantt.options.column_width || 30;
+        const xPerDay = (24 / stepHours) * colWidth;
+        const ns = 'http://www.w3.org/2000/svg';
+
+        // Derive the y-coordinate by querying existing Frappe <text> elements in the header band.
+        // Frappe renders two rows of text in the upper ~45px: upper row y ≈ 18px, lower row y ≈ 34px.
+        // We inject at y = lowerRowY + 14 (approximately 48px) to appear just below the lower header row.
+        // This keeps our labels within the 85px header height reserved by .task-grid thead tr.
+        let labelY = 48; // default; overridden if we can read actual Frappe text y values
+        try {
+            const existingTexts = [...ganttSvg.querySelectorAll('text')].filter(el => {
+                const y = parseFloat(el.getAttribute('y') || el.getAttribute('dy') || '0');
+                return y > 10 && y < 50; // only header-band text
+            });
+            if (existingTexts.length > 0) {
+                const maxY = Math.max(...existingTexts.map(el => parseFloat(el.getAttribute('y') || '0')));
+                labelY = maxY + 14; // 14px below the lowest existing header text
+            }
+        } catch (yErr) { /* use default labelY */ }
+
+        const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
         if (mode === 'Day') {
-            // Day-of-week row beneath Frappe's date number row.
-            // Frappe's lower header row is at y ≈ 30-45px. We render OUR row underneath the date numbers,
-            // visually integrated with the existing header band.
-            const dowLetters = ['M', 'T', 'W', 'Th', 'F', 'S', 'S']; // Monday-first; PATTERNS notes shorter form fits 42px row sizing
+            // Single-letter weekday labels: M T W Th F S S
+            const dowLetters = ['M', 'T', 'W', 'Th', 'F', 'S', 'S']; // Monday-first
             const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
             for (let i = 0; i < totalDays; i++) {
                 const d = new Date(startDate);
                 d.setDate(d.getDate() + i);
                 const jsDow = d.getDay(); // 0=Sun..6=Sat
-                // Map JS day-of-week to Monday-first index: Mon=0, Tue=1, ..., Sun=6
-                const mondayFirstIdx = (jsDow + 6) % 7;
-                const cell = document.createElement('div');
-                cell.className = 'gantt-header-dow-cell';
-                cell.style.left = (i * xPerDay) + 'px';
-                cell.style.width = xPerDay + 'px';
-                cell.textContent = dowLetters[mondayFirstIdx];
-                if (jsDow === 0 || jsDow === 6) cell.classList.add('weekend');
-                overlay.appendChild(cell);
-            }
-            overlay.classList.add('mode-day');
+                const mondayFirstIdx = (jsDow + 6) % 7; // Mon=0..Sun=6
+                const x = i * xPerDay + xPerDay / 2; // center of column
 
-        } else if (mode === 'Week') {
-            // Monday-date label per week column. Iterate week-by-week from gantt_start.
-            const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            // Find the first Monday on or after gantt_start
-            const firstMonday = new Date(startDate);
-            const offset = ((1 - firstMonday.getDay()) + 7) % 7; // days until next Monday (0 if already Monday)
-            firstMonday.setDate(firstMonday.getDate() + offset);
-            const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
-            const totalWeeks = Math.ceil(totalDays / 7);
-            for (let w = 0; w < totalWeeks; w++) {
-                const monday = new Date(firstMonday);
-                monday.setDate(monday.getDate() + w * 7);
-                const dayDiffFromStart = Math.round((monday - startDate) / (1000 * 60 * 60 * 24));
-                const dd = String(monday.getDate()).padStart(2, '0');
-                const mmm = monthShort[monday.getMonth()];
-                const cell = document.createElement('div');
-                cell.className = 'gantt-header-week-monday';
-                cell.style.left = (dayDiffFromStart * xPerDay) + 'px';
-                cell.style.width = (7 * xPerDay) + 'px';
-                cell.textContent = `${dd} ${mmm}`;
-                overlay.appendChild(cell);
+                const textEl = document.createElementNS(ns, 'text');
+                textEl.setAttribute('class', 'gantt-header-svg-label' + (jsDow === 0 || jsDow === 6 ? ' weekend' : ''));
+                textEl.setAttribute('x', x);
+                textEl.setAttribute('y', labelY);
+                textEl.setAttribute('text-anchor', 'middle');
+                textEl.textContent = dowLetters[mondayFirstIdx];
+                ganttSvg.appendChild(textEl);
             }
-            overlay.classList.add('mode-week');
 
         } else if (mode === 'Month') {
-            // Two-row overlay: month-name parent row + week-range row.
-            const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            // Week-range sub-labels in the lower header band.
             // Find first Monday on or after gantt_start
             const firstMonday = new Date(startDate);
             const offset = ((1 - firstMonday.getDay()) + 7) % 7;
@@ -1439,86 +1428,51 @@ function renderGanttHeaderOverlay() {
             const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
             const totalWeeks = Math.ceil(totalDays / 7);
 
-            // Week-range cells (lower row)
-            const weekRangeRow = document.createElement('div');
-            weekRangeRow.className = 'gantt-header-month-week-range-row';
-            // Phase 86.3 D-03 fix (H-01): track the month of the active run so only the FIRST
-            // in-month cell of each run carries the month abbreviation. CONTEXT.md examples:
-            // "03 May - 09" (first cell of May run), "10 - 16" / "17 - 23" / "24 - 30" (subsequent
-            // cells omit "May"), "31 - 06 Jun" (cross-month), "07 Jun - 13" (first cell of Jun run).
             let currentRunMonth = -1;
             for (let w = 0; w < totalWeeks; w++) {
                 const monday = new Date(firstMonday);
                 monday.setDate(monday.getDate() + w * 7);
                 const sunday = new Date(monday);
                 sunday.setDate(sunday.getDate() + 6);
+
+                // Guard: skip weeks that start past gantt_end
+                if (monday >= endDate) break;
+
                 const startDD = String(monday.getDate()).padStart(2, '0');
                 const startMMM = monthShort[monday.getMonth()];
                 const endDD = String(sunday.getDate()).padStart(2, '0');
                 const endMMM = monthShort[sunday.getMonth()];
                 let label;
                 if (monday.getMonth() === sunday.getMonth()) {
-                    // In-month: include startMMM only on the first cell of this month's run.
+                    // In-month: first cell of this month's run carries the MMM, subsequent omit it
                     if (monday.getMonth() !== currentRunMonth) {
-                        label = `${startDD} ${startMMM} - ${endDD}`; // e.g., "03 May - 09"
+                        label = `${startDD} ${startMMM} - ${endDD}`; // "03 May - 09"
                         currentRunMonth = monday.getMonth();
                     } else {
-                        label = `${startDD} - ${endDD}`;             // e.g., "10 - 16"
+                        label = `${startDD} - ${endDD}`;             // "10 - 16"
                     }
                 } else {
-                    // Cross-month: omit start month (parent row carries it), keep end month.
-                    label = `${startDD} - ${endDD} ${endMMM}`;       // e.g., "31 - 06 Jun"
-                    currentRunMonth = sunday.getMonth();             // next in-month week starts a new run
+                    // Cross-month: start has no MMM (parent row carries it), end carries new MMM
+                    label = `${startDD} - ${endDD} ${endMMM}`;       // "31 - 06 Jun"
+                    currentRunMonth = sunday.getMonth();
                 }
+
                 const dayDiffFromStart = Math.round((monday - startDate) / (1000 * 60 * 60 * 24));
-                const cell = document.createElement('div');
-                cell.className = 'gantt-header-month-week-cell';
-                cell.style.left = (dayDiffFromStart * xPerDay) + 'px';
-                cell.style.width = (7 * xPerDay) + 'px';
-                cell.textContent = label;
-                weekRangeRow.appendChild(cell);
-            }
-            overlay.appendChild(weekRangeRow);
+                const cellCenterX = dayDiffFromStart * xPerDay + (7 * xPerDay) / 2;
 
-            // Month-name parent row (upper row) — group consecutive weeks by their Monday's month.
-            const monthRow = document.createElement('div');
-            monthRow.className = 'gantt-header-month-name-row';
-            // Sweep weeks; emit a span when the month changes.
-            let runStart = 0;
-            let runMonth = -1;
-            for (let w = 0; w <= totalWeeks; w++) {
-                const monday = new Date(firstMonday);
-                monday.setDate(monday.getDate() + w * 7);
-                const m = w < totalWeeks ? monday.getMonth() : -2; // sentinel forces flush at end
-                if (m !== runMonth) {
-                    if (runMonth >= 0 && w > runStart) {
-                        // Emit previous run
-                        const runMonday = new Date(firstMonday);
-                        runMonday.setDate(runMonday.getDate() + runStart * 7);
-                        const dayDiffFromStart = Math.round((runMonday - startDate) / (1000 * 60 * 60 * 24));
-                        const widthDays = (w - runStart) * 7;
-                        const cell = document.createElement('div');
-                        cell.className = 'gantt-header-month-name-cell';
-                        cell.style.left = (dayDiffFromStart * xPerDay) + 'px';
-                        cell.style.width = (widthDays * xPerDay) + 'px';
-                        cell.textContent = monthShort[runMonth];
-                        monthRow.appendChild(cell);
-                    }
-                    runStart = w;
-                    runMonth = m;
-                }
+                const textEl = document.createElementNS(ns, 'text');
+                textEl.setAttribute('class', 'gantt-header-svg-label');
+                textEl.setAttribute('x', cellCenterX);
+                textEl.setAttribute('y', labelY);
+                textEl.setAttribute('text-anchor', 'middle');
+                textEl.textContent = label;
+                ganttSvg.appendChild(textEl);
             }
-            overlay.appendChild(monthRow);
-            overlay.classList.add('mode-month');
-        } else {
-            // Other view modes (Quarter Day / Half Day / Year) — no overlay; preserve Frappe default.
-            return;
         }
-
-        pane.appendChild(overlay);
+        // Quarter Day / Half Day / Year — no injection; Frappe default is fine
     } catch (e) {
-        // Silent fail — header overlay is a nice-to-have, never break Gantt rendering
-        console.warn('[ProjectPlan] header overlay failed:', e);
+        // Silent fail — header labels are a nice-to-have, never break Gantt rendering
+        console.warn('[ProjectPlan] SVG header label injection failed:', e);
     }
 }
 
