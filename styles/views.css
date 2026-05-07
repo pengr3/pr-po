@@ -2604,35 +2604,106 @@
 .gantt-pane .gantt-container {
     min-width: 100%;               /* Frappe SVG container fills available column width */
 }
-.gantt-pane #ganttPane { padding: 8px; }
+.gantt-pane #ganttPane { padding: 8px; position: relative; }
 
 /* ========================================
-   PHASE 86.4 D-03 — HTML calendar header labels
-   Injected into Frappe's .lower-header div by renderGanttHeaderLabels()
-   so labels scroll with the timeline (header scrolls horizontally with .gantt-container).
+   PHASE 86.4 D-03 Option B — Custom Gantt Header Overlay
+   Stable div appended inside #ganttPane, absolutely positioned over Frappe's header area.
+   Never touches Frappe's .lower-header DOM. Scroll synced via JS transform.
    ======================================== */
 
-/* Positioning context for injected label spans */
-#ganttPane .lower-header {
-    position: relative;
+#ganttHeaderOverlay {
+    position: absolute;
+    top: 8px;                          /* aligns with #ganttPane padding-top */
+    left: 8px;                         /* aligns with #ganttPane padding-left */
+    right: 8px;                        /* aligns with #ganttPane padding-right */
+    z-index: 20;
+    overflow: hidden;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    pointer-events: none;
+}
+
+.gho-inner {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    display: flex;
+    align-items: stretch;
+    will-change: transform;
+}
+
+/* Day view: one cell per calendar day */
+.gho-day-cell {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #e2e8f0;
     overflow: hidden;
 }
+.gho-day-cell.gho-wknd { background: #f1f5f9; }
+.gho-num { font-size: 12px; font-weight: 600; color: #1e293b; line-height: 1.2; }
+.gho-ltr { font-size: 10px; color: #64748b; line-height: 1; }
+.gho-day-cell.gho-wknd .gho-num,
+.gho-day-cell.gho-wknd .gho-ltr { color: #94a3b8; }
 
-/* HTML span labels: day-of-week (Day view: one per day; Week view: one per day within column) */
-.gantt-custom-label {
-    position: absolute;
-    bottom: 2px;
-    transform: translateX(-50%);
-    font-size: 9px;
-    color: #475569;      /* --gray-700 */
-    pointer-events: none;
-    user-select: none;
-    white-space: nowrap;
+/* Week view: one cell per week with date label + day sub-row */
+.gho-week-cell {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e2e8f0;
+    overflow: hidden;
 }
+.gho-wk-lbl {
+    flex: 0 0 40%;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #e2e8f0;
+}
+.gho-wk-days {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+}
+.gho-sub {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #64748b;
+    height: 100%;
+    border-right: 1px solid #f1f5f9;
+    overflow: hidden;
+}
+.gho-sub.gho-wknd { color: #94a3b8; background: #f8fafc; }
 
-.gantt-custom-label.weekend {
-    color: #94a3b8;      /* --gray-400 — lighter for Sat/Sun */
-    font-style: italic;
+/* Month view: one cell per month */
+.gho-month-cell {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+.gho-mon-lbl {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 8px;
 }
 
 /* Frappe Gantt customizations — Plan 03 will fill in milestone-marker + parent-summary-bar */

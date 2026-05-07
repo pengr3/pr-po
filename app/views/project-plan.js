@@ -46,6 +46,8 @@ let _syncScrollRailHandler = null;
 let _syncScrollPaneHandler = null;
 let _syncScrollGanttEl = null; // .gantt-container reference for cleanup
 let _syncingScroll = false;
+// Phase 86.4 D-03 overlay: horizontal scroll sync for custom header
+let _overlayScrollHandler = null;
 
 // ---- Lifecycle ----
 
@@ -212,6 +214,12 @@ export async function destroy() {
     }
     _ganttScrollClampHandler = null;
     _ganttScrollClampPane = null;
+    // Phase 86.4 D-03 overlay: horizontal scroll handler cleanup
+    const _overlayGanttEl = document.querySelector('#ganttPane .gantt-container');
+    if (_overlayScrollHandler && _overlayGanttEl) {
+        try { _overlayGanttEl.removeEventListener('scroll', _overlayScrollHandler); } catch (e) { /* swallow */ }
+    }
+    _overlayScrollHandler = null;
     // Phase 86.4 D-SCROLL: sync scroll cleanup
     const _syncRailEl = document.getElementById('taskGridRail');
     if (_syncScrollRailHandler && _syncRailEl) {
@@ -224,8 +232,6 @@ export async function destroy() {
     _syncScrollPaneHandler = null;
     _syncScrollGanttEl = null;
     _syncingScroll = false;
-    // Phase 86.4 D-03: header label cleanup
-    document.querySelectorAll('#ganttPane .gantt-custom-label').forEach(el => el.remove());
 }
 
 // ---- Resizable panel divider ----
@@ -1112,8 +1118,8 @@ function renderGantt() {
     // 8. Phase 86.3 D-01 — soft date floor scroll clamp (min(today, earliest task.start_date))
     installGanttScrollClamp();
 
-    // 9. Phase 86.4 D-03 — calendar header labels (Day/Week: M T W Th F S S per day column)
-    renderGanttHeaderLabels();
+    // 9. Phase 86.4 D-03 — custom header overlay (Option B: stable div, not Frappe injection)
+    renderCustomGanttHeader();
 }
 
 function setGanttZoom(mode) {
@@ -1126,7 +1132,7 @@ function setGanttZoom(mode) {
     renderTodayLine();
     applyFsViolationStyles();
     installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
-    renderGanttHeaderLabels(); // Phase 86.4 D-03 — header labels
+    renderCustomGanttHeader();
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1368,60 +1374,91 @@ function bindScrollSync() {
     ganttEl.addEventListener('scroll', _syncScrollPaneHandler);
 }
 
-// Phase 86.4 D-03: per-zoom calendar header label injection.
-// Injects HTML <span> elements into Frappe's .lower-header div so they scroll with the timeline.
-// Day view: single-letter weekday labels (M T W Th F S S), one per day column.
-// Week view: individual day letters within each week column (same xPerDay formula, one per day).
-// Month view: SC3 already passed — no injection needed.
-//
-// Fix v2: gantt.config.view_mode is a full object {name,step,...}; gantt.options.view_mode is the
-// string ("Day", "Week", "Month"). Prior code compared the object to a string → always false.
-// Fix v2: Frappe's header is HTML (.lower-header div inside .gantt-container), not part of the
-// bars SVG. Injecting <text> into #ganttPane svg placed labels in the bars area, not the header.
-function renderGanttHeaderLabels() {
-    const lowerHeader = document.querySelector('#ganttPane .lower-header');
-    if (!lowerHeader || !gantt) return;
-
-    // Idempotent cleanup
-    lowerHeader.querySelectorAll('.gantt-custom-label').forEach(el => el.remove());
-
+// Phase 86.4 D-03 Option B: custom header overlay — stable div appended to #ganttPane,
+// positioned absolutely over Frappe's header area. Never touches Frappe's .lower-header DOM.
+// Frappe's .upper-header / .lower-header are hidden; our overlay provides Day/Week/Month labels.
+// Horizontal scroll: .gho-inner translateX mirrors .gantt-container.scrollLeft via _overlayScrollHandler.
+function renderCustomGanttHeader() {
+    const mountEl = document.getElementById('ganttPane');
+    if (!mountEl || !gantt) return;
     try {
-        // gantt.options.view_mode is the string ("Day", "Week", "Month").
         const mode = gantt.options.view_mode || 'Week';
-        if (mode !== 'Day' && mode !== 'Week') return; // Month: SC3 already PASS, skip
+        const headerHeight = gantt.config.header_height || 50;
+        const colWidth = gantt.config.column_width || (mode === 'Day' ? 45 : mode === 'Week' ? 140 : 120);
+        const startDate = new Date(gantt.gantt_start); startDate.setHours(0, 0, 0, 0);
+        const endDate   = new Date(gantt.gantt_end);   endDate.setHours(0, 0, 0, 0);
 
-        const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = gantt.gantt_end instanceof Date ? gantt.gantt_end : new Date(gantt.gantt_end);
-        if (!endDate || isNaN(endDate.getTime())) return;
-        endDate.setHours(0, 0, 0, 0);
-
-        // config.step = parsed days per column (1 for Day, 7 for Week).
-        // config.unit = 'day' for both Day and Week modes.
-        // config.column_width = pixels per column.
-        const configStep = gantt.config.step || 1;
-        const configColWidth = gantt.config.column_width || 45;
-        const xPerDay = configColWidth / configStep; // pixels per calendar day
-
-        const dowLetters = ['M', 'T', 'W', 'Th', 'F', 'S', 'S']; // Monday-first
-        const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
-
-        for (let i = 0; i < totalDays; i++) {
-            const d = new Date(startDate);
-            d.setDate(d.getDate() + i);
-            const jsDow = d.getDay(); // 0=Sun..6=Sat
-            const mondayFirstIdx = (jsDow + 6) % 7; // Mon=0..Sun=6
-            const x = i * xPerDay + xPerDay / 2; // center of this day within its column
-
-            const span = document.createElement('span');
-            span.className = 'gantt-custom-label' + (jsDow === 0 || jsDow === 6 ? ' weekend' : '');
-            span.style.left = x + 'px';
-            span.textContent = dowLetters[mondayFirstIdx];
-            lowerHeader.appendChild(span);
+        let overlay = document.getElementById('ganttHeaderOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'ganttHeaderOverlay';
+            mountEl.appendChild(overlay);
         }
+        overlay.style.height = headerHeight + 'px';
+
+        // Hide Frappe's native header text layers (position:absolute inside .gantt-container — no layout impact)
+        mountEl.querySelectorAll('.upper-header, .lower-header').forEach(el => { el.style.display = 'none'; });
+
+        const DAY_ABBR = ['S', 'M', 'T', 'W', 'Th', 'F', 'S']; // indexed by getDay() (0=Sun)
+        let html = '', totalWidth = 0;
+
+        if (mode === 'Day') {
+            const totalDays = Math.round((endDate - startDate) / 86400000);
+            for (let i = 0; i < totalDays; i++) {
+                const d = new Date(startDate); d.setDate(d.getDate() + i);
+                const dow = d.getDay(), isWknd = dow === 0 || dow === 6;
+                html += `<div class="gho-day-cell${isWknd ? ' gho-wknd' : ''}" style="width:${colWidth}px">` +
+                        `<span class="gho-num">${d.getDate()}</span><span class="gho-ltr">${DAY_ABBR[dow]}</span></div>`;
+            }
+            totalWidth = totalDays * colWidth;
+
+        } else if (mode === 'Week') {
+            const xPerDay = colWidth / 7;
+            const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // compact sub-row
+            let cur = new Date(startDate);
+            while (cur < endDate) {
+                const ws = new Date(cur);
+                const lbl = `${ws.getDate()} ${ws.toLocaleDateString('en-GB', { month: 'short' })} ${String(ws.getFullYear()).slice(2)}`;
+                let subs = '';
+                for (let j = 0; j < 7; j++) {
+                    const sd = new Date(ws); sd.setDate(sd.getDate() + j);
+                    const wk = sd.getDay() === 0 || sd.getDay() === 6;
+                    subs += `<div class="gho-sub${wk ? ' gho-wknd' : ''}" style="width:${xPerDay}px">${DAY_LETTERS[sd.getDay()]}</div>`;
+                }
+                html += `<div class="gho-week-cell" style="width:${colWidth}px">` +
+                        `<div class="gho-wk-lbl">${lbl}</div><div class="gho-wk-days">${subs}</div></div>`;
+                cur.setDate(cur.getDate() + 7);
+                totalWidth += colWidth;
+            }
+
+        } else { // Month
+            let cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            const endMo = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+            while (cur <= endMo) {
+                const lbl = cur.toLocaleDateString('en-GB', { month: 'short' }) + ' ' + cur.getFullYear();
+                html += `<div class="gho-month-cell" style="width:${colWidth}px"><span class="gho-mon-lbl">${lbl}</span></div>`;
+                cur.setMonth(cur.getMonth() + 1);
+                totalWidth += colWidth;
+            }
+        }
+
+        overlay.innerHTML = `<div class="gho-inner" style="width:${totalWidth}px">${html}</div>`;
+        _bindOverlayScrollSync();
     } catch (e) {
-        console.warn('[ProjectPlan] Header label injection failed:', e);
+        console.warn('[ProjectPlan] Custom header render failed:', e);
     }
+}
+
+function _bindOverlayScrollSync() {
+    const ganttEl = document.querySelector('#ganttPane .gantt-container');
+    const overlay = document.getElementById('ganttHeaderOverlay');
+    if (!ganttEl || !overlay) return;
+    if (_overlayScrollHandler) ganttEl.removeEventListener('scroll', _overlayScrollHandler);
+    const inner = overlay.querySelector('.gho-inner');
+    if (!inner) return;
+    _overlayScrollHandler = () => { inner.style.transform = `translateX(-${ganttEl.scrollLeft}px)`; };
+    ganttEl.addEventListener('scroll', _overlayScrollHandler);
+    inner.style.transform = `translateX(-${ganttEl.scrollLeft}px)`; // sync to current position
 }
 
 // ---- Gantt drag-to-link SVG overlay (Phase 86.1 Plan 04) ----
