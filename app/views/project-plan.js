@@ -12,6 +12,7 @@ import { generateTaskId } from '../task-id.js';
 let currentProject = null;
 let projectCode = null;
 let tasks = [];                       // raw task docs from onSnapshot (project-scoped)
+let _pendingOptimistic = new Map();   // Phase 86.5-08: taskId → optimistic task object, awaiting setDoc resolution
 let listeners = [];                   // onSnapshot unsubscribers — destroy() loops this
 let gantt = null;                     // Frappe Gantt instance — Plan 03 sets this
 
@@ -127,6 +128,13 @@ export async function init(activeTab = null, param = null) {
             (snap) => {
                 tasks = [];
                 snap.forEach(d => tasks.push({ id: d.id, ...d.data() }));
+                // Phase 86.5-08: re-inject optimistic rows that haven't yet appeared in the snapshot
+                if (_pendingOptimistic.size) {
+                    const presentIds = new Set(tasks.map(t => t.task_id));
+                    _pendingOptimistic.forEach((optTask, optId) => {
+                        if (!presentIds.has(optId)) tasks.push(optTask);
+                    });
+                }
                 renderTaskGrid();
                 renderGantt();
                 bindScrollSync(); // Phase 86.4 D-SCROLL
@@ -165,6 +173,7 @@ export async function destroy() {
     gantt = null;
     ganttDragState = null;
     tasks = [];
+    _pendingOptimistic.clear(); // Phase 86.5-08
     currentProject = null;
     projectCode = null;
     __ganttInitialScrollDone = false;
@@ -385,6 +394,17 @@ function renderTaskGrid() {
 
     bindGridEvents(container);
 
+    // Phase 86.5-08: capture empty-row input state before innerHTML replace
+    let _savedEmptyRow = null;
+    const _activeEl = document.activeElement;
+    if (_activeEl && _activeEl.classList?.contains('tg-name-input') && _activeEl.dataset?.taskId === '__new__') {
+        _savedEmptyRow = {
+            value: _activeEl.value,
+            selectionStart: _activeEl.selectionStart,
+            selectionEnd: _activeEl.selectionEnd
+        };
+    }
+
     container.innerHTML = `
       <table class="task-grid">
         <thead><tr>
@@ -399,8 +419,19 @@ function renderTaskGrid() {
         <tbody id="taskGridBody">${rowsHtml}${emptyRow}</tbody>
       </table>`;
 
-    // Phase 86.5: Excel-style continuous entry — auto-focus new row after commit
-    if (_focusNewRowAfterRender) {
+    // Phase 86.5-08: restore empty-row input state after innerHTML replace
+    if (_savedEmptyRow) {
+        const newRowInput = container.querySelector('.tg-empty-row .tg-name-input');
+        if (newRowInput) {
+            newRowInput.value = _savedEmptyRow.value;
+            setTimeout(() => {
+                newRowInput.focus();
+                try { newRowInput.setSelectionRange(_savedEmptyRow.selectionStart, _savedEmptyRow.selectionEnd); } catch (e) { /* swallow */ }
+            }, 0);
+        }
+        _focusNewRowAfterRender = false; // savedEmptyRow took precedence; clear the flag if also set
+    } else if (_focusNewRowAfterRender) {
+        // Phase 86.5: Excel-style continuous entry — auto-focus new row after commit (no in-progress text)
         _focusNewRowAfterRender = false;
         const newRowInput = container.querySelector('.tg-empty-row .tg-name-input');
         if (newRowInput) setTimeout(() => newRowInput.focus(), 0);
@@ -647,6 +678,7 @@ async function handleNewRowCommit(input) {
     const now = new Date();
     const optimisticTask = { ...docData, created_at: now, updated_at: now };
     tasks.push(optimisticTask);
+    _pendingOptimistic.set(taskId, optimisticTask); // Phase 86.5-08: survive snapshot wipes
     renderTaskGrid();
 
     try {
@@ -661,6 +693,8 @@ async function handleNewRowCommit(input) {
         showToast(err?.code === 'permission-denied'
             ? `You don't have permission to add tasks on this project.`
             : 'Could not create task. Please try again.', 'error');
+    } finally {
+        _pendingOptimistic.delete(taskId); // Phase 86.5-08: clear pending entry after server confirms or rejects
     }
 }
 
