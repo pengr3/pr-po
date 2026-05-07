@@ -1341,41 +1341,36 @@ function installGanttScrollClamp() {
     pane.addEventListener('scroll', _ganttScrollClampHandler);
 }
 
-// Phase 86.4 D-SCROLL (fix 2): constrain .gantt-container to a bounded height so it actually
-// scrolls vertically. Without this, Frappe auto-sizes the container to fit the full SVG height,
-// leaving no overflow — scroll events go to .gantt-pane instead and bindScrollSync never fires.
-// Shifts the SVG up by headerHeight so task bars start at container y=0 (Frappe's hidden header
-// area is pushed above the container's clipping edge). Called after every renderGantt() /
-// setGanttZoom() so the height stays correct across snapshot refreshes and view-mode changes.
+// Phase 86.4 D-SCROLL: constrain .gantt-container to a bounded height so it can scroll vertically.
+// Without this Frappe auto-sizes the container to the full SVG height — no overflow, no scroll events.
+// No marginTop: the custom overlay (z-index:20) already covers Frappe's blank SVG header visually.
+// Called after every renderGantt() / setGanttZoom() so height stays correct across re-renders.
 function fixGanttContainerScroll() {
     const pane = document.querySelector('.gantt-pane');
     const ganttPane = document.getElementById('ganttPane');
     if (!pane || !ganttPane || !gantt) return;
     const container = ganttPane.querySelector('.gantt-container');
-    const svg = container && container.querySelector('svg');
-    if (!container || !svg) return;
-    const headerH = gantt.config.header_height || 50;
+    if (!container) return;
     const paneH = pane.clientHeight;
-    if (paneH <= 0) return; // not yet laid out — will re-run on next snapshot
+    if (paneH <= 0) return;
     const paddingV = 16; // #ganttPane padding-top(8) + padding-bottom(8)
-    const containerH = Math.max(paneH - headerH - paddingV, 100);
-    container.style.marginTop = headerH + 'px';
-    container.style.height = containerH + 'px';
+    container.style.marginTop = '0px';
+    container.style.height = Math.max(paneH - paddingV, 100) + 'px';
     container.style.overflowY = 'auto';
-    svg.style.marginTop = '-' + headerH + 'px';
+    container.style.overflowAnchor = 'none';
 }
 
 // Phase 86.4 D-SCROLL: synchronized vertical scroll.
-// Rail and .gantt-container share scrollTop. _syncingScroll flag prevents infinite loop.
-// fixGanttContainerScroll() above gives .gantt-container a bounded height so it is the
-// actual scroll element; .gantt-pane is overflow-y: hidden (CSS) and does not scroll.
-// Idempotent: removes previous listeners before re-attaching (called from onSnapshot callback).
+// Rail and .gantt-container share scrollTop directly — no offset needed because:
+//   • rail thead height (85px) matches Frappe SVG header height (85px)
+//   • the custom overlay (z-index:20) covers the Frappe SVG header so bars are visible at y=0
+// _syncingScroll prevents infinite echo loops.
+// Idempotent: removes previous listeners before re-attaching.
 function bindScrollSync() {
     const rail = document.getElementById('taskGridRail');
     const ganttEl = document.querySelector('#ganttPane .gantt-container');
     if (!rail || !ganttEl) return;
 
-    // Remove previous listeners (idempotent)
     if (_syncScrollRailHandler && rail) {
         try { rail.removeEventListener('scroll', _syncScrollRailHandler); } catch (e) { /* swallow */ }
     }
