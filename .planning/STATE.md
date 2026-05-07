@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 86.4
-Plan: 02
+Plan: 03
 
 ## Performance Metrics
 
@@ -131,6 +131,7 @@ Plan: 02
 | Phase 86.1 P04 | 8 | 1 task | 1 file |
 | Phase 86.3 P04 | 15 | 3 tasks | 1 file |
 | Phase 86.4 P01 | 5 | 1 task | 1 file |
+| Phase 86.4 P02 | <2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -138,6 +139,7 @@ Plan: 02
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.4-02]: D-SCROLL — bindScrollSync() is idempotent (removes prior listeners before attaching); _syncingScroll boolean flag is synchronous (no async gap) to prevent A→B→A infinite scroll feedback loop; destroy() cleanup uses getElementById/querySelector at call time with try/catch.
 - [Phase 86.4-01]: D-CLAMP — replace bare `return` guard in handleGridCellBlur col='start' with auto-clamp: clampedEnd = (t.end_date && t.end_date < rawValue) ? rawValue : (t.end_date || rawValue); always include end_date in Firestore payload to avoid conditional drift. Silent — no toast.
 - [Phase 86.3-04]: D-11 Root Cause A applied in batch mode — floorX cached at installGanttScrollClamp() call time in closure; scroll handler is O(1); re-installation on snapshot+zoom keeps value current. Two-commit approach (feat then perf) makes D-11 fix independently revertable.
 - [Phase 86.3-04]: computeGanttFloorX() fail-open: returns 0 on any exception so no clamp is applied rather than blocking all Gantt scroll on error.
@@ -402,6 +404,6 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 Last activity: 2026-05-06
 Last session: 2026-05-07T06:01:00Z
-Stopped at: Completed 86.4-01-PLAN.md (D-CLAMP Start>End guard)
+Stopped at: Completed 86.4-02-PLAN.md (D-SCROLL synchronized vertical scroll)
 Resume file: None
-Next action: Execute Phase 86.4 Plan 02 (D-SCROLL synchronized vertical scroll).
+Next action: Execute Phase 86.4 Plan 03 (D-FS auto-scheduling on link creation).
