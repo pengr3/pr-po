@@ -2590,14 +2590,11 @@
 }
 
 .gantt-pane {
-    overflow-x: auto;              /* horizontal scroll for timeline */
-    overflow-y: scroll;            /* vertical scroll for D-SCROLL sync (scrollTop must be settable) */
+    overflow-x: auto;              /* horizontal scroll for timeline (clamp watches scrollLeft) */
+    overflow-y: hidden;            /* vertical scroll handled by .gantt-container (fixGanttContainerScroll) */
     background: #ffffff;
     min-width: 0;                  /* CSS grid child: prevents overflow past column boundary */
 }
-/* Hide pane's vertical scrollbar — rail is the primary vertical scroll indicator (D-SCROLL) */
-.gantt-pane::-webkit-scrollbar { width: 0; }
-.gantt-pane::-webkit-scrollbar-track { background: transparent; }
 /* Hide gantt-container's vertical scrollbar — it is the actual scroll element; rail is indicator */
 #ganttPane .gantt-container::-webkit-scrollbar { width: 0; }
 #ganttPane .gantt-container::-webkit-scrollbar-track { background: transparent; }

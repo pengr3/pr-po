@@ -1120,6 +1120,9 @@ function renderGantt() {
 
     // 9. Phase 86.4 D-03 — custom header overlay (Option B: stable div, not Frappe injection)
     renderCustomGanttHeader();
+
+    // 10. Phase 86.4 D-SCROLL — constrain container height so it scrolls (not .gantt-pane)
+    fixGanttContainerScroll();
 }
 
 function setGanttZoom(mode) {
@@ -1133,6 +1136,7 @@ function setGanttZoom(mode) {
     applyFsViolationStyles();
     installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
     renderCustomGanttHeader();
+    fixGanttContainerScroll(); // re-constrain container after Frappe rebuilds SVG
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1337,10 +1341,34 @@ function installGanttScrollClamp() {
     pane.addEventListener('scroll', _ganttScrollClampHandler);
 }
 
+// Phase 86.4 D-SCROLL (fix 2): constrain .gantt-container to a bounded height so it actually
+// scrolls vertically. Without this, Frappe auto-sizes the container to fit the full SVG height,
+// leaving no overflow — scroll events go to .gantt-pane instead and bindScrollSync never fires.
+// Shifts the SVG up by headerHeight so task bars start at container y=0 (Frappe's hidden header
+// area is pushed above the container's clipping edge). Called after every renderGantt() /
+// setGanttZoom() so the height stays correct across snapshot refreshes and view-mode changes.
+function fixGanttContainerScroll() {
+    const pane = document.querySelector('.gantt-pane');
+    const ganttPane = document.getElementById('ganttPane');
+    if (!pane || !ganttPane || !gantt) return;
+    const container = ganttPane.querySelector('.gantt-container');
+    const svg = container && container.querySelector('svg');
+    if (!container || !svg) return;
+    const headerH = gantt.config.header_height || 50;
+    const paneH = pane.clientHeight;
+    if (paneH <= 0) return; // not yet laid out — will re-run on next snapshot
+    const paddingV = 16; // #ganttPane padding-top(8) + padding-bottom(8)
+    const containerH = Math.max(paneH - headerH - paddingV, 100);
+    container.style.marginTop = headerH + 'px';
+    container.style.height = containerH + 'px';
+    container.style.overflowY = 'auto';
+    svg.style.marginTop = '-' + headerH + 'px';
+}
+
 // Phase 86.4 D-SCROLL: synchronized vertical scroll.
 // Rail and .gantt-container share scrollTop. _syncingScroll flag prevents infinite loop.
-// Fix: .gantt-container (Frappe's own overflow:auto div) is the actual vertical scroll element —
-// not .gantt-pane. Attaching to the wrong element caused zero sync.
+// fixGanttContainerScroll() above gives .gantt-container a bounded height so it is the
+// actual scroll element; .gantt-pane is overflow-y: hidden (CSS) and does not scroll.
 // Idempotent: removes previous listeners before re-attaching (called from onSnapshot callback).
 function bindScrollSync() {
     const rail = document.getElementById('taskGridRail');
@@ -1395,6 +1423,7 @@ function renderCustomGanttHeader() {
             mountEl.appendChild(overlay);
         }
         overlay.style.height = headerHeight + 'px';
+        overlay.dataset.weekOffset = 0; // reset; overridden in Week branch
 
         // Hide Frappe's native header text layers (position:absolute inside .gantt-container — no layout impact)
         mountEl.querySelectorAll('.upper-header, .lower-header').forEach(el => { el.style.display = 'none'; });
@@ -1415,7 +1444,15 @@ function renderCustomGanttHeader() {
         } else if (mode === 'Week') {
             const xPerDay = colWidth / 7;
             const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']; // compact sub-row
+            // Snap to the preceding Monday so cell borders fall on Mon regardless of gantt_start's weekday.
+            // weekOffsetPx is how far left the first Monday cell starts relative to gantt_start (x=0).
+            // _bindOverlayScrollSync subtracts this offset so Mon cells align with Frappe's day columns.
+            const dow0 = startDate.getDay(); // 0=Sun … 6=Sat
+            const daysBack = dow0 === 0 ? 6 : dow0 - 1; // Mon→0, Tue→1, …, Sun→6
+            const weekOffsetPx = Math.round(daysBack * xPerDay);
+            overlay.dataset.weekOffset = weekOffsetPx;
             let cur = new Date(startDate);
+            cur.setDate(cur.getDate() - daysBack); // rewind to Monday
             while (cur < endDate) {
                 const ws = new Date(cur);
                 const lbl = `${ws.getDate()} ${ws.toLocaleDateString('en-GB', { month: 'short' })} ${String(ws.getFullYear()).slice(2)}`;
@@ -1456,9 +1493,12 @@ function _bindOverlayScrollSync() {
     if (_overlayScrollHandler) ganttEl.removeEventListener('scroll', _overlayScrollHandler);
     const inner = overlay.querySelector('.gho-inner');
     if (!inner) return;
-    _overlayScrollHandler = () => { inner.style.transform = `translateX(-${ganttEl.scrollLeft}px)`; };
+    // weekOffset shifts the inner left so Monday-snapped cells align with Frappe's day columns.
+    // Zero for Day/Month modes (dataset.weekOffset reset to 0 in those branches).
+    const weekOffset = parseFloat(overlay.dataset.weekOffset) || 0;
+    _overlayScrollHandler = () => { inner.style.transform = `translateX(${-(weekOffset + ganttEl.scrollLeft)}px)`; };
     ganttEl.addEventListener('scroll', _overlayScrollHandler);
-    inner.style.transform = `translateX(-${ganttEl.scrollLeft}px)`; // sync to current position
+    inner.style.transform = `translateX(${-(weekOffset + ganttEl.scrollLeft)}px)`;
 }
 
 // ---- Gantt drag-to-link SVG overlay (Phase 86.1 Plan 04) ----
