@@ -500,9 +500,9 @@ async function handleGridCellBlur(taskId, col, rawValue) {
 
     } else if (col === 'start') {
         if (!rawValue || rawValue === t.start_date) return;
-        const endDate = t.end_date || rawValue;
-        if (endDate < rawValue) return; // invalid; keep
-        updateData = { start_date: rawValue, updated_at: serverTimestamp() };
+        // D-CLAMP: if new start is after current end, clamp end to start (1-day inclusive bar). Silent — no toast.
+        const clampedEnd = (t.end_date && t.end_date < rawValue) ? rawValue : (t.end_date || rawValue);
+        updateData = { start_date: rawValue, end_date: clampedEnd, updated_at: serverTimestamp() };
 
     } else if (col === 'end') {
         if (!rawValue || rawValue === t.end_date) return;
