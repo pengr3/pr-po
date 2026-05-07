@@ -41,6 +41,11 @@ let _resizeDragging = false;
 let _ganttScrollClampHandler = null;
 let _ganttScrollClampPane = null; // the .gantt-pane element (kept so destroy() can removeEventListener)
 
+// Phase 86.4 D-SCROLL: synchronized vertical scroll between rail and Gantt pane
+let _syncScrollRailHandler = null;
+let _syncScrollPaneHandler = null;
+let _syncingScroll = false;
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -120,6 +125,7 @@ export async function init(activeTab = null, param = null) {
                 snap.forEach(d => tasks.push({ id: d.id, ...d.data() }));
                 renderTaskGrid();
                 renderGantt();
+                bindScrollSync(); // Phase 86.4 D-SCROLL
                 if (__snapshotCount > 0) checkAndToastFsViolations();
                 __snapshotCount++;
             }
@@ -205,6 +211,18 @@ export async function destroy() {
     }
     _ganttScrollClampHandler = null;
     _ganttScrollClampPane = null;
+    // Phase 86.4 D-SCROLL: sync scroll cleanup
+    const _syncRailEl = document.getElementById('taskGridRail');
+    const _syncPaneEl = document.querySelector('.gantt-pane');
+    if (_syncScrollRailHandler && _syncRailEl) {
+        try { _syncRailEl.removeEventListener('scroll', _syncScrollRailHandler); } catch (e) { /* swallow */ }
+    }
+    if (_syncScrollPaneHandler && _syncPaneEl) {
+        try { _syncPaneEl.removeEventListener('scroll', _syncScrollPaneHandler); } catch (e) { /* swallow */ }
+    }
+    _syncScrollRailHandler = null;
+    _syncScrollPaneHandler = null;
+    _syncingScroll = false;
     // Phase 86.3 D-03: header overlay cleanup (defensive — would also be removed by view tear-down)
     document.querySelectorAll('.gantt-header-overlay').forEach(el => el.remove());
 }
@@ -1291,6 +1309,40 @@ function installGanttScrollClamp() {
     };
     _ganttScrollClampPane = pane;
     pane.addEventListener('scroll', _ganttScrollClampHandler);
+}
+
+// Phase 86.4 D-SCROLL: synchronized vertical scroll.
+// Rail and Gantt pane share scrollTop. _syncingScroll flag prevents infinite loop.
+// Idempotent: removes previous listeners before re-attaching (called from onSnapshot callback).
+function bindScrollSync() {
+    const rail = document.getElementById('taskGridRail');
+    const pane = document.querySelector('.gantt-pane');
+    if (!rail || !pane) return;
+
+    // Remove previous listeners (idempotent)
+    if (_syncScrollRailHandler) {
+        try { rail.removeEventListener('scroll', _syncScrollRailHandler); } catch (e) { /* swallow */ }
+    }
+    if (_syncScrollPaneHandler) {
+        try { pane.removeEventListener('scroll', _syncScrollPaneHandler); } catch (e) { /* swallow */ }
+    }
+
+    _syncScrollRailHandler = function() {
+        if (_syncingScroll) return;
+        _syncingScroll = true;
+        pane.scrollTop = rail.scrollTop;
+        _syncingScroll = false;
+    };
+
+    _syncScrollPaneHandler = function() {
+        if (_syncingScroll) return;
+        _syncingScroll = true;
+        rail.scrollTop = pane.scrollTop;
+        _syncingScroll = false;
+    };
+
+    rail.addEventListener('scroll', _syncScrollRailHandler);
+    pane.addEventListener('scroll', _syncScrollPaneHandler);
 }
 
 // Phase 86.3 D-03: per-zoom calendar header overlay.
