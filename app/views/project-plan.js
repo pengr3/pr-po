@@ -1611,7 +1611,9 @@ function initGanttDragLink() {
 
             // Resolve drop target
             const toWrapper = e.target.closest('.bar-wrapper');
-            if (!toWrapper) {
+            if (!toWrapper || toWrapper.dataset.id === fromTaskId) {
+                // self-bar drop routes to resize (Plan 86.5-06): leftward drag almost always lands
+                // on the source bar's own wrapper, not empty space — both should resize, not self-link.
                 // Dropped on empty space — extend (rightward) or reduce (leftward) duration
                 if (!gantt || typeof gantt.config !== 'object') return;
                 const fromTask = tasks.find(x => x.task_id === fromTaskId);
@@ -1644,7 +1646,7 @@ function initGanttDragLink() {
                 return;
             }
             const toTaskId = toWrapper.dataset.id;
-            if (!toTaskId || toTaskId === fromTaskId) return; // self-link — reject silently
+            if (!toTaskId) return; // wrapper without id — reject silently
 
             const toTask = tasks.find(x => x.task_id === toTaskId);
             if (!toTask) return;
