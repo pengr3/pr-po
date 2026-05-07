@@ -31,6 +31,7 @@ let _gridDropHandler = null;
 let _gridDragEndHandler = null;
 let _draggedTaskId = null;        // currently-dragged task_id during drag
 let _gridKeydownHandler = null;   // keydown Enter handler for Duration/Resources cells (86.2)
+let _focusNewRowAfterRender = false; // Phase 86.5: Excel-style continuous entry
 
 // Plan 03 — resizable panel divider state
 let _resizeMouseMoveHandler = null;
@@ -61,7 +62,7 @@ export function render(activeTab = null, param = null) {
     return `
         <div class="plan-view-surface" id="planViewSurface">
             <div class="plan-toolbar">
-                <a href="#/projects" class="plan-back-link">‹ Back</a>
+                <a href="#/projects/detail/${escapeHTML(projectCode || '')}" class="plan-back-link">‹ Back</a>
                 <h2 class="plan-title" id="planTitle">Plan</h2>
                 <div class="plan-toolbar-spacer"></div>
                 <div class="zoom-pill-group" id="zoomPillGroup" role="group" aria-label="Zoom">
@@ -189,6 +190,7 @@ export async function destroy() {
     _gridDropHandler = null;
     _gridDragEndHandler = null;
     _gridKeydownHandler = null;
+    _focusNewRowAfterRender = false; // Phase 86.5
     _draggedTaskId = null;
     rowOrderCache = new Map();
     delete window.setGanttZoom;
@@ -395,6 +397,13 @@ function renderTaskGrid() {
         </tr></thead>
         <tbody id="taskGridBody">${rowsHtml}${emptyRow}</tbody>
       </table>`;
+
+    // Phase 86.5: Excel-style continuous entry — auto-focus new row after commit
+    if (_focusNewRowAfterRender) {
+        _focusNewRowAfterRender = false;
+        const newRowInput = container.querySelector('.tg-empty-row .tg-name-input');
+        if (newRowInput) setTimeout(() => newRowInput.focus(), 0);
+    }
 }
 
 function bindGridEvents(container) {
@@ -654,6 +663,7 @@ function handleNewRowKeydown(event) {
     if (input.dataset.taskId !== '__new__') return;
     if (event.key === 'Enter') {
         event.preventDefault();
+        _focusNewRowAfterRender = true;  // Phase 86.5: Excel-style continuous entry
         handleNewRowCommit(input);
     } else if (event.key === 'Escape') {
         input.value = '';
