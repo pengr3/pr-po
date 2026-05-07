@@ -169,6 +169,7 @@ export async function destroy() {
     projectCode = null;
     __ganttInitialScrollDone = false;
     __lastViolationFingerprint = '';
+    _suppressFsViolationToast = false;
     __snapshotCount = 0;
     // Grid handler cleanup
     const gridContainer = document.getElementById('taskGridRail');
@@ -1002,6 +1003,7 @@ function computeDepth(taskId) {
 
 let __ganttInitialScrollDone = false;
 let __lastViolationFingerprint = '';
+let _suppressFsViolationToast = false; // Phase 86.5-07: skip toast during drag-link write window
 let __snapshotCount = 0;
 
 function renderGantt() {
@@ -1665,6 +1667,7 @@ function initGanttDragLink() {
 
             // Write — T-86.1.4-07: catch permission-denied and surface actionable toast
             try {
+                _suppressFsViolationToast = true;
                 await updateDoc(doc(db, 'project_tasks', toTaskId), {
                     dependencies: newDeps,
                     updated_at: serverTimestamp()
@@ -1674,6 +1677,8 @@ function initGanttDragLink() {
             } catch (err) {
                 console.error('[ProjectPlan] drag-to-link write failed:', err);
                 showToast('Could not save dependency link.', 'error');
+            } finally {
+                _suppressFsViolationToast = false;
             }
         });
     }
@@ -1695,8 +1700,10 @@ function checkAndToastFsViolations() {
         });
     });
     const fingerprint = lines.join('|');
-    if (fingerprint && fingerprint !== __lastViolationFingerprint) {
-        // Only toast new violations introduced since the last snapshot
+    if (fingerprint && fingerprint !== __lastViolationFingerprint && !_suppressFsViolationToast) {
+        // Only toast new violations introduced since the last snapshot.
+        // While _suppressFsViolationToast is true (drag-link write window),
+        // update the fingerprint baseline silently so the post-window check is accurate.
         const prevSet = new Set(__lastViolationFingerprint.split('|').filter(Boolean));
         lines.forEach(msg => {
             if (!prevSet.has(msg)) showToast(msg, 'warning');
