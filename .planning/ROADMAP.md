@@ -225,7 +225,7 @@
 - [x] **Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking** — Replace modal-CRUD left rail with ProjectLibre-style inline spreadsheet grid (Name/Duration/Start/End/Predecessors/Resources); duration input auto-computes End; right-click indent/outdent hierarchy; drag-from-bar-to-bar in Gantt to create FS predecessor links; 5 UAT defects resolved (double-write, duration UX, subtree drag guard, resources free-text) — completed 2026-05-06 (6 plans)
 - [x] **Phase 86.2: Gantt UX Polish — Row Alignment, Drag Fixes, Indent UX, Monthly View, Resizable Panels, Enter Key** (INSERTED) — Fix left-rail rows misaligned with Gantt bars; Back button navigates to project list; drag isolation (moving B must not shift C); restrict interactions to drag-predecessor, bar-extend, bar-drag, progress-extend only; monthly header format matching MS Project style; smart indent inheritance on new row; delete-confirmation modal for indented tasks; resizable left/right panel divider; full-width Gantt right panel; Enter key commits Duration and Resources cells (3 plans) — completed 2026-05-06
 - [x] **Phase 86.3: Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults** (INSERTED) — Right-panel: lock leftmost date to today (no further left-scroll), investigate scroll jank, add day-of-week (M T W Th F S S) row to calendar header, prevent bars from changing rows when dragged horizontally (cross-row vertical drag removed; drop-on-bar still creates FS predecessor), remove stray middle-of-screen scrollbar. Left-panel: new task defaults to 1d duration so the bar renders immediately, new task stays on the row where it was inserted (no auto-resort by start date), Predecessors cell commits on Enter (completed 2026-05-06)
-- [ ] **Phase 86.4: Gantt UAT Gap Closure** (INSERTED) — Fix 4 gaps found during Phase 86.3 UAT: (1) D-03 calendar header overlay reimplemented via SVG text injection (Day view M T W Th F S S row; Month view week-range sub-labels); (2) FS auto-scheduling — when a predecessor link is created the successor's start date auto-shifts to predecessor end+1d; (3) Start > End guard — editing Start past End clamps End to Start+1d to prevent Frappe "start can't be after end" error; (4) Synchronized vertical scroll — left rail and Gantt pane share a single scroll position so rows stay aligned on long task lists (4 plans)
+- [x] **Phase 86.4: Gantt UAT Gap Closure** (INSERTED) — Fix 4 gaps found during Phase 86.3 UAT: (1) D-03 calendar header overlay reimplemented via SVG text injection (Day view M T W Th F S S row; Month view week-range sub-labels); (2) FS auto-scheduling — when a predecessor link is created the successor's start date auto-shifts to predecessor end+1d; (3) Start > End guard — editing Start past End clamps End to Start+1d to prevent Frappe "start can't be after end" error; (4) Synchronized vertical scroll — left rail and Gantt pane share a single scroll position so rows stay aligned on long task lists (4 plans) — completed 2026-05-07
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -414,7 +414,7 @@
   - [x] 86.4-01-PLAN.md — Start > End clamp (D-CLAMP): one-line fix in handleGridCellBlur col=start — Wave 1
   - [x] 86.4-02-PLAN.md — Synchronized vertical scroll (D-SCROLL): bindScrollSync() + module-scope handlers + destroy cleanup — Wave 1
   - [x] 86.4-03-PLAN.md — FS auto-scheduling (D-FS): applyFsAutoSchedule() helper wired into drag-to-link and Predecessors cell blur — Wave 2
-  - [ ] 86.4-04-PLAN.md — SVG calendar header labels (D-03): renderGanttHeaderSvg() replaces deleted DOM overlay, wired into renderGantt + setGanttZoom — Wave 3 (UAT checkpoint)
+  - [x] 86.4-04-PLAN.md — SVG calendar header labels (D-03): renderGanttHeaderSvg() replaces deleted DOM overlay, wired into renderGantt + setGanttZoom — Wave 3 (UAT approved 2026-05-07)
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
@@ -480,7 +480,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 86.1 | v4.0 | 6/6 | Complete | 2026-05-06 |
 | 86.2 | v4.0 | 3/3 | Complete | 2026-05-06 |
 | 86.3 | v4.0 | 5/5 | Complete | 2026-05-06 |
-| 86.4 | v4.0 | 3/4 | In progress | - |
+| 86.4 | v4.0 | 4/4 | Complete | 2026-05-07 |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
 | 89 | v4.0 | 0/TBD | Not started | - |

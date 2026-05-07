@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Ready to plan
-stopped_at: Completed 86.4-03-PLAN.md (D-FS FS auto-scheduling)
-last_updated: "2026-05-07T06:07:20Z"
+stopped_at: Completed 86.4-04-PLAN.md (D-03 SVG calendar header labels)
+last_updated: "2026-05-07T09:00:00Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 11
@@ -133,6 +133,7 @@ Plan: 04
 | Phase 86.4 P01 | 5 | 1 task | 1 file |
 | Phase 86.4 P02 | <2 | 2 tasks | 2 files |
 | Phase 86.4 P03 | <2 | 2 tasks | 1 file |
+| Phase 86.4 P04 | ~90min + debug | 2 tasks + debug | 2 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,12 @@ Plan: 04
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.4-04]: renderGanttHeaderSvg uses SVG text injection (not DOM overlay) so labels scroll with the timeline — root cause of all 9 D-03 UAT failures was position:absolute DOM overlay that does not scroll with SVG content
+- [Phase 86.4-04]: infinite_padding: false is required in the Gantt constructor — Frappe's infinite-padding mode offsets all SVG x-coordinates by a large constant causing label misposition
+- [Phase 86.4-04]: gantt.config.step / gantt.config.column_width are the correct live Frappe runtime properties; gantt.options.step/column_width return undefined at runtime in v1.2.2
+- [Phase 86.4-04]: requestAnimationFrame used for _syncingScroll reset to prevent scroll ping-pong jank on rapid successive scroll events
+- [Phase 86.4-04]: gantt = null added to empty-tasks guard in renderGantt() to prevent stale object access after empty-state short-circuit
+- [Phase 86.4-04]: labelY derived at runtime from max y-value of existing Frappe text elements + 14px (not hardcoded) to adapt to Frappe header geometry
 - [Phase 86.4-03]: D-FS applyFsAutoSchedule is direct-successor-only — cascade (A→B→C) deliberately not implemented; B shifts but C does not auto-shift. Accepted per T-86.4-03-02 (DoS: cascade chain).
 - [Phase 86.4-03]: applyFsAutoSchedule has own internal try/catch (non-fatal) — dependency link write is the primary data-integrity gate; date-shift failure degrades gracefully (FS-violation toast fires instead via checkAndToastFsViolations).
 - [Phase 86.4-03]: prevDeps diff (newlyAdded) used in handleGridCellBlur to avoid re-firing applyFsAutoSchedule for pre-existing predecessors when user re-saves without changing the predecessors field.
@@ -407,7 +414,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-07
-Last session: 2026-05-07T06:07:20Z
-Stopped at: Completed 86.4-03-PLAN.md (D-FS FS auto-scheduling on link creation)
+Last session: 2026-05-07T09:00:00Z
+Stopped at: Completed 86.4-04-PLAN.md (D-03 SVG calendar header labels; Phase 86.4 complete)
 Resume file: None
-Next action: Execute Phase 86.4 Plan 04 (next gap-closure plan).
+Next action: Phase 86.4 fully complete. Next: Phase 87 (Proposal Lifecycle) or follow-up UAT fix session for remaining scroll/label items.
