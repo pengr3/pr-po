@@ -10,7 +10,7 @@ progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 39
-  completed_plans: 38
+  completed_plans: 39
   percent: 97
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.3 — Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults
+**Current focus:** Phase 86.4 — Gantt UAT Gap Closure
 
 ## Current Position
 
-Phase: 88
-Plan: Not started
+Phase: 86.4
+Plan: 02
 
 ## Performance Metrics
 
@@ -130,6 +130,7 @@ Plan: Not started
 | Phase 86.1 P03 | 2 | 1 task | 2 files |
 | Phase 86.1 P04 | 8 | 1 task | 1 file |
 | Phase 86.3 P04 | 15 | 3 tasks | 1 file |
+| Phase 86.4 P01 | 5 | 1 task | 1 file |
 
 ## Accumulated Context
 
@@ -137,6 +138,7 @@ Plan: Not started
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.4-01]: D-CLAMP — replace bare `return` guard in handleGridCellBlur col='start' with auto-clamp: clampedEnd = (t.end_date && t.end_date < rawValue) ? rawValue : (t.end_date || rawValue); always include end_date in Firestore payload to avoid conditional drift. Silent — no toast.
 - [Phase 86.3-04]: D-11 Root Cause A applied in batch mode — floorX cached at installGanttScrollClamp() call time in closure; scroll handler is O(1); re-installation on snapshot+zoom keeps value current. Two-commit approach (feat then perf) makes D-11 fix independently revertable.
 - [Phase 86.3-04]: computeGanttFloorX() fail-open: returns 0 on any exception so no clamp is applied rather than blocking all Gantt scroll on error.
 - [Phase 86.3-04]: D-02 confirmed — no setDoc/updateDoc added; floor constraint mutates only pane.scrollLeft; computeGanttFloorX reads in-memory tasks[] already loaded by existing onSnapshot listener.
@@ -399,7 +401,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-06
-Last session: 2026-05-07T05:47:09.868Z
-Stopped at: context exhaustion at 75% (2026-05-07)
+Last session: 2026-05-07T06:01:00Z
+Stopped at: Completed 86.4-01-PLAN.md (D-CLAMP Start>End guard)
 Resume file: None
-Next action: Phase 86.2 complete. All 10 Gantt UX defects resolved across 3 plans.
+Next action: Execute Phase 86.4 Plan 02 (D-SCROLL synchronized vertical scroll).

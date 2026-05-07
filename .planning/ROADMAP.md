@@ -411,7 +411,7 @@
   3. Editing a task's Start date past its End date silently clamps End to the new Start (1-day inclusive bar); Frappe never receives start > end
   4. Scrolling the left task rail vertically also scrolls the Gantt pane to the same position, and vice versa; rows and bars stay aligned on long task lists
 **Plans**: 4 plans
-  - [ ] 86.4-01-PLAN.md — Start > End clamp (D-CLAMP): one-line fix in handleGridCellBlur col=start — Wave 1
+  - [x] 86.4-01-PLAN.md — Start > End clamp (D-CLAMP): one-line fix in handleGridCellBlur col=start — Wave 1
   - [ ] 86.4-02-PLAN.md — Synchronized vertical scroll (D-SCROLL): bindScrollSync() + module-scope handlers + destroy cleanup — Wave 1
   - [ ] 86.4-03-PLAN.md — FS auto-scheduling (D-FS): applyFsAutoSchedule() helper wired into drag-to-link and Predecessors cell blur — Wave 2
   - [ ] 86.4-04-PLAN.md — SVG calendar header labels (D-03): renderGanttHeaderSvg() replaces deleted DOM overlay, wired into renderGantt + setGanttZoom — Wave 3 (UAT checkpoint)
@@ -480,7 +480,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 86.1 | v4.0 | 6/6 | Complete | 2026-05-06 |
 | 86.2 | v4.0 | 3/3 | Complete | 2026-05-06 |
 | 86.3 | v4.0 | 5/5 | Complete | 2026-05-06 |
-| 86.4 | v4.0 | 0/4 | Not started | - |
+| 86.4 | v4.0 | 1/4 | In progress | - |
 | 87 | v4.0 | 0/TBD | Not started | - |
 | 88 | v4.0 | 0/TBD | Not started | - |
 | 89 | v4.0 | 0/TBD | Not started | - |
