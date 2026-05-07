@@ -1604,7 +1604,35 @@ function initGanttDragLink() {
 
             // Resolve drop target
             const toWrapper = e.target.closest('.bar-wrapper');
-            if (!toWrapper) return; // dropped on empty space — cancel silently
+            if (!toWrapper) {
+                // Dropped on empty space — if dragged rightward, extend task duration
+                if (!gantt || typeof gantt.config !== 'object') return;
+                const fromTask = tasks.find(x => x.task_id === fromTaskId);
+                if (!fromTask || !fromTask.end_date) return;
+                const fromWrapper2 = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(fromTaskId)}"]`);
+                const fromBar2 = fromWrapper2?.querySelector('.bar');
+                if (!fromBar2) return;
+                const barRect2 = fromBar2.getBBox();
+                const barRightX = barRect2.x + barRect2.width;
+                const pt2 = svg.createSVGPoint();
+                pt2.x = e.clientX;
+                pt2.y = e.clientY;
+                const svgPt2 = pt2.matrixTransform(svg.getScreenCTM().inverse());
+                if (svgPt2.x <= barRightX) return; // dragged leftward — cancel silently
+                const xPerDay2 = (gantt.config.column_width || 45) / (gantt.config.step || 1);
+                const daysToAdd = Math.max(1, Math.round((svgPt2.x - barRightX) / xPerDay2));
+                const newEndDate = addDays(fromTask.end_date, daysToAdd);
+                try {
+                    await updateDoc(doc(db, 'project_tasks', fromTaskId), { end_date: newEndDate, updated_at: serverTimestamp() });
+                    const idx2 = tasks.findIndex(x => x.task_id === fromTaskId);
+                    if (idx2 >= 0) tasks[idx2] = { ...tasks[idx2], end_date: newEndDate };
+                    if (fromTask.parent_task_id) await recomputeParentDates(fromTask.parent_task_id);
+                } catch (err) {
+                    console.error('[ProjectPlan] bar extend failed:', err);
+                    showToast('Could not extend task duration.', 'error');
+                }
+                return;
+            }
             const toTaskId = toWrapper.dataset.id;
             if (!toTaskId || toTaskId === fromTaskId) return; // self-link — reject silently
 
