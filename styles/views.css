@@ -2601,7 +2601,7 @@
 .gantt-pane .gantt-container {
     min-width: 100%;               /* Frappe SVG container fills available column width */
 }
-.gantt-pane #ganttPane { padding: 8px; position: relative; }
+.gantt-pane #ganttPane { padding: 0 8px 8px 8px; position: relative; }
 
 /* ========================================
    PHASE 86.4 D-03 Option B — Custom Gantt Header Overlay
@@ -2611,7 +2611,7 @@
 
 #ganttHeaderOverlay {
     position: absolute;
-    top: 8px;                          /* aligns with #ganttPane padding-top */
+    top: 0;
     left: 8px;                         /* aligns with #ganttPane padding-left */
     right: 8px;                        /* aligns with #ganttPane padding-right */
     z-index: 20;
