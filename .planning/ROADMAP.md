@@ -226,6 +226,7 @@
 - [x] **Phase 86.2: Gantt UX Polish — Row Alignment, Drag Fixes, Indent UX, Monthly View, Resizable Panels, Enter Key** (INSERTED) — Fix left-rail rows misaligned with Gantt bars; Back button navigates to project list; drag isolation (moving B must not shift C); restrict interactions to drag-predecessor, bar-extend, bar-drag, progress-extend only; monthly header format matching MS Project style; smart indent inheritance on new row; delete-confirmation modal for indented tasks; resizable left/right panel divider; full-width Gantt right panel; Enter key commits Duration and Resources cells (3 plans) — completed 2026-05-06
 - [x] **Phase 86.3: Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults** (INSERTED) — Right-panel: lock leftmost date to today (no further left-scroll), investigate scroll jank, add day-of-week (M T W Th F S S) row to calendar header, prevent bars from changing rows when dragged horizontally (cross-row vertical drag removed; drop-on-bar still creates FS predecessor), remove stray middle-of-screen scrollbar. Left-panel: new task defaults to 1d duration so the bar renders immediately, new task stays on the row where it was inserted (no auto-resort by start date), Predecessors cell commits on Enter (completed 2026-05-06)
 - [x] **Phase 86.4: Gantt UAT Gap Closure** (INSERTED) — Fix 4 gaps found during Phase 86.3 UAT: (1) D-03 calendar header overlay reimplemented via SVG text injection (Day view M T W Th F S S row; Month view week-range sub-labels); (2) FS auto-scheduling — when a predecessor link is created the successor's start date auto-shifts to predecessor end+1d; (3) Start > End guard — editing Start past End clamps End to Start+1d to prevent Frappe "start can't be after end" error; (4) Synchronized vertical scroll — left rail and Gantt pane share a single scroll position so rows stay aligned on long task lists (4 plans) — completed 2026-05-07
+- [ ] **Phase 86.5: Gantt UI Polish 3 — Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry** (INSERTED) — (1) left and right panel headers flush-aligned despite divider; (2) unified bar interaction — hover dot initiates predecessor drag, right-extend without touching another bar extends task duration; (3) Back button navigates to project detail page (not project list); (4) Excel-style inline task entry — Enter commits row and opens new row immediately for continuous input
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -415,6 +416,22 @@
   - [x] 86.4-02-PLAN.md — Synchronized vertical scroll (D-SCROLL): bindScrollSync() + module-scope handlers + destroy cleanup — Wave 1
   - [x] 86.4-03-PLAN.md — FS auto-scheduling (D-FS): applyFsAutoSchedule() helper wired into drag-to-link and Predecessors cell blur — Wave 2
   - [x] 86.4-04-PLAN.md — SVG calendar header labels (D-03): renderGanttHeaderSvg() replaces deleted DOM overlay, wired into renderGantt + setGanttZoom — Wave 3 (UAT approved 2026-05-07)
+**UI hint**: yes
+
+### Phase 86.5: Gantt UI Polish 3 — Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry
+**Goal**: Fix 4 UX issues found during continued use of the project plan view: (1) left and right panel column headers are misaligned — they must be flush despite the resizable divider; (2) bar hover interactions unified — the blue dot initiates predecessor drag as before, but extending the right edge of a bar without touching another bar/object should extend task duration instead; (3) the Back button must navigate to the project detail page (#/projects/detail/{code}) not the project list; (4) the Add task row at the bottom of the left pane should behave like Excel — Enter commits the current row and immediately opens a new row for continuous task input.
+**Depends on**: Phase 86.4 (inline grid editor, drag-to-link, scroll sync all complete)
+**Requirements**: None mapped (INSERTED gap-closure phase)
+**Success Criteria** (what must be TRUE):
+  1. Left-rail column headers (#, Name, Duration, Start, End, Predecessors) are horizontally flush with the right-panel timeline header row at all panel widths
+  2. Hovering a Gantt bar shows the blue dot connector; dragging from the dot onto another bar creates a FS predecessor link (unchanged); dragging the right edge of a bar outward without landing on another bar/object extends the task's end date (duration increase)
+  3. Clicking Back from the plan view (#/projects/{code}/plan) navigates to the project detail page (#/projects/detail/{code}), not the project list (#/projects)
+  4. After typing a task name in the inline new-task input and pressing Enter, the row is committed and a fresh empty input row appears immediately — user can type the next task name without any click
+**Plans**: 3 plans
+Plans:
+- [ ] 86.5-01-PLAN.md — CSS: remove top padding from .gantt-pane #ganttPane for header flush alignment (SC-1)
+- [ ] 86.5-02-PLAN.md — JS: back button fix to project detail + Excel-style Enter-focus flow (SC-3, SC-4)
+- [ ] 86.5-03-PLAN.md — JS: unified bar drag — empty-space rightward drop extends end_date (SC-2)
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
