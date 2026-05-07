@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Ready to plan
-stopped_at: context exhaustion at 75% (2026-05-07)
-last_updated: "2026-05-07T05:47:09.882Z"
-last_activity: 2026-05-06
+stopped_at: Completed 86.4-03-PLAN.md (D-FS FS auto-scheduling)
+last_updated: "2026-05-07T06:07:20Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 11
   completed_phases: 7
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 86.4
-Plan: 03
+Plan: 04
 
 ## Performance Metrics
 
@@ -132,6 +132,7 @@ Plan: 03
 | Phase 86.3 P04 | 15 | 3 tasks | 1 file |
 | Phase 86.4 P01 | 5 | 1 task | 1 file |
 | Phase 86.4 P02 | <2 | 2 tasks | 2 files |
+| Phase 86.4 P03 | <2 | 2 tasks | 1 file |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Plan: 03
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.4-03]: D-FS applyFsAutoSchedule is direct-successor-only — cascade (A→B→C) deliberately not implemented; B shifts but C does not auto-shift. Accepted per T-86.4-03-02 (DoS: cascade chain).
+- [Phase 86.4-03]: applyFsAutoSchedule has own internal try/catch (non-fatal) — dependency link write is the primary data-integrity gate; date-shift failure degrades gracefully (FS-violation toast fires instead via checkAndToastFsViolations).
+- [Phase 86.4-03]: prevDeps diff (newlyAdded) used in handleGridCellBlur to avoid re-firing applyFsAutoSchedule for pre-existing predecessors when user re-saves without changing the predecessors field.
 - [Phase 86.4-02]: D-SCROLL — bindScrollSync() is idempotent (removes prior listeners before attaching); _syncingScroll boolean flag is synchronous (no async gap) to prevent A→B→A infinite scroll feedback loop; destroy() cleanup uses getElementById/querySelector at call time with try/catch.
 - [Phase 86.4-01]: D-CLAMP — replace bare `return` guard in handleGridCellBlur col='start' with auto-clamp: clampedEnd = (t.end_date && t.end_date < rawValue) ? rawValue : (t.end_date || rawValue); always include end_date in Firestore payload to avoid conditional drift. Silent — no toast.
 - [Phase 86.3-04]: D-11 Root Cause A applied in batch mode — floorX cached at installGanttScrollClamp() call time in closure; scroll handler is O(1); re-installation on snapshot+zoom keeps value current. Two-commit approach (feat then perf) makes D-11 fix independently revertable.
@@ -402,8 +406,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-06
-Last session: 2026-05-07T06:01:00Z
-Stopped at: Completed 86.4-02-PLAN.md (D-SCROLL synchronized vertical scroll)
+Last activity: 2026-05-07
+Last session: 2026-05-07T06:07:20Z
+Stopped at: Completed 86.4-03-PLAN.md (D-FS FS auto-scheduling on link creation)
 Resume file: None
-Next action: Execute Phase 86.4 Plan 03 (D-FS auto-scheduling on link creation).
+Next action: Execute Phase 86.4 Plan 04 (next gap-closure plan).
