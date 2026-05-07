@@ -44,6 +44,7 @@ let _ganttScrollClampPane = null; // the .gantt-pane element (kept so destroy() 
 // Phase 86.4 D-SCROLL: synchronized vertical scroll between rail and Gantt pane
 let _syncScrollRailHandler = null;
 let _syncScrollPaneHandler = null;
+let _syncScrollGanttEl = null; // .gantt-container reference for cleanup
 let _syncingScroll = false;
 
 // ---- Lifecycle ----
@@ -213,19 +214,18 @@ export async function destroy() {
     _ganttScrollClampPane = null;
     // Phase 86.4 D-SCROLL: sync scroll cleanup
     const _syncRailEl = document.getElementById('taskGridRail');
-    const _syncPaneEl = document.querySelector('.gantt-pane');
     if (_syncScrollRailHandler && _syncRailEl) {
         try { _syncRailEl.removeEventListener('scroll', _syncScrollRailHandler); } catch (e) { /* swallow */ }
     }
-    if (_syncScrollPaneHandler && _syncPaneEl) {
-        try { _syncPaneEl.removeEventListener('scroll', _syncScrollPaneHandler); } catch (e) { /* swallow */ }
+    if (_syncScrollPaneHandler && _syncScrollGanttEl) {
+        try { _syncScrollGanttEl.removeEventListener('scroll', _syncScrollPaneHandler); } catch (e) { /* swallow */ }
     }
     _syncScrollRailHandler = null;
     _syncScrollPaneHandler = null;
+    _syncScrollGanttEl = null;
     _syncingScroll = false;
-    // Phase 86.4 D-03: SVG + Week-view HTML header label cleanup
-    document.querySelectorAll('#ganttPane .gantt-header-svg-label').forEach(el => el.remove());
-    document.querySelectorAll('.gantt-week-lower-label').forEach(el => el.remove());
+    // Phase 86.4 D-03: header label cleanup
+    document.querySelectorAll('#ganttPane .gantt-custom-label').forEach(el => el.remove());
 }
 
 // ---- Resizable panel divider ----
@@ -1112,8 +1112,8 @@ function renderGantt() {
     // 8. Phase 86.3 D-01 — soft date floor scroll clamp (min(today, earliest task.start_date))
     installGanttScrollClamp();
 
-    // 9. Phase 86.4 D-03 — SVG calendar header labels (Day: M T W Th F S S; Month: week-range)
-    renderGanttHeaderSvg();
+    // 9. Phase 86.4 D-03 — calendar header labels (Day/Week: M T W Th F S S per day column)
+    renderGanttHeaderLabels();
 }
 
 function setGanttZoom(mode) {
@@ -1126,7 +1126,7 @@ function setGanttZoom(mode) {
     renderTodayLine();
     applyFsViolationStyles();
     installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
-    renderGanttHeaderSvg(); // Phase 86.4 D-03 — SVG header labels
+    renderGanttHeaderLabels(); // Phase 86.4 D-03 — header labels
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1332,61 +1332,63 @@ function installGanttScrollClamp() {
 }
 
 // Phase 86.4 D-SCROLL: synchronized vertical scroll.
-// Rail and Gantt pane share scrollTop. _syncingScroll flag prevents infinite loop.
+// Rail and .gantt-container share scrollTop. _syncingScroll flag prevents infinite loop.
+// Fix: .gantt-container (Frappe's own overflow:auto div) is the actual vertical scroll element —
+// not .gantt-pane. Attaching to the wrong element caused zero sync.
 // Idempotent: removes previous listeners before re-attaching (called from onSnapshot callback).
 function bindScrollSync() {
     const rail = document.getElementById('taskGridRail');
-    const pane = document.querySelector('.gantt-pane');
-    if (!rail || !pane) return;
+    const ganttEl = document.querySelector('#ganttPane .gantt-container');
+    if (!rail || !ganttEl) return;
 
     // Remove previous listeners (idempotent)
-    if (_syncScrollRailHandler) {
+    if (_syncScrollRailHandler && rail) {
         try { rail.removeEventListener('scroll', _syncScrollRailHandler); } catch (e) { /* swallow */ }
     }
-    if (_syncScrollPaneHandler) {
-        try { pane.removeEventListener('scroll', _syncScrollPaneHandler); } catch (e) { /* swallow */ }
+    if (_syncScrollPaneHandler && _syncScrollGanttEl) {
+        try { _syncScrollGanttEl.removeEventListener('scroll', _syncScrollPaneHandler); } catch (e) { /* swallow */ }
     }
+    _syncScrollGanttEl = ganttEl;
 
     _syncScrollRailHandler = function() {
         if (_syncingScroll) return;
         _syncingScroll = true;
-        pane.scrollTop = rail.scrollTop;
-        // Phase 86.4 fix: defer flag reset to next frame so the pane scroll event
-        // (fired async by the browser after scrollTop assignment) is still blocked.
+        ganttEl.scrollTop = rail.scrollTop;
         requestAnimationFrame(() => { _syncingScroll = false; });
     };
 
     _syncScrollPaneHandler = function() {
         if (_syncingScroll) return;
         _syncingScroll = true;
-        rail.scrollTop = pane.scrollTop;
+        rail.scrollTop = ganttEl.scrollTop;
         requestAnimationFrame(() => { _syncingScroll = false; });
     };
 
     rail.addEventListener('scroll', _syncScrollRailHandler);
-    pane.addEventListener('scroll', _syncScrollPaneHandler);
+    ganttEl.addEventListener('scroll', _syncScrollPaneHandler);
 }
 
-// Phase 86.4 D-03: per-zoom calendar header SVG injection.
-// Injects <text> elements directly into Frappe's <svg> so they scroll with the timeline.
-// Day view: single-letter weekday labels (M T W Th F S S) in the SVG lower header band.
-// Week view: full-date column headers ("4 May 26") + M T W T F S S sub-row injected into .lower-header HTML div.
-// Month view: week-range sub-labels (e.g., "03 May - 09", "10 - 16", "31 - 06 Jun") in SVG.
-// Idempotent: removes prior injected elements before re-injecting.
+// Phase 86.4 D-03: per-zoom calendar header label injection.
+// Injects HTML <span> elements into Frappe's .lower-header div so they scroll with the timeline.
+// Day view: single-letter weekday labels (M T W Th F S S), one per day column.
+// Week view: individual day letters within each week column (same xPerDay formula, one per day).
+// Month view: SC3 already passed — no injection needed.
 //
-// Phase 86.4 fix: use gantt.config.column_width / gantt.config.step for correct xPerDay.
-// Frappe v1.2.2 parses step strings ("1d", "7d") into config.step (number) + config.unit (string).
-// gantt.options.step / gantt.options.column_width are NOT updated after change_view_mode.
-function renderGanttHeaderSvg() {
-    const ganttSvg = document.querySelector('#ganttPane svg');
-    if (!ganttSvg || !gantt) return;
+// Fix v2: gantt.config.view_mode is a full object {name,step,...}; gantt.options.view_mode is the
+// string ("Day", "Week", "Month"). Prior code compared the object to a string → always false.
+// Fix v2: Frappe's header is HTML (.lower-header div inside .gantt-container), not part of the
+// bars SVG. Injecting <text> into #ganttPane svg placed labels in the bars area, not the header.
+function renderGanttHeaderLabels() {
+    const lowerHeader = document.querySelector('#ganttPane .lower-header');
+    if (!lowerHeader || !gantt) return;
 
     // Idempotent cleanup
-    ganttSvg.querySelectorAll('.gantt-header-svg-label').forEach(el => el.remove());
-    document.querySelectorAll('.gantt-week-lower-label').forEach(el => el.remove());
+    lowerHeader.querySelectorAll('.gantt-custom-label').forEach(el => el.remove());
 
     try {
-        const mode = gantt.config.view_mode || gantt.options.view_mode || 'Week';
+        // gantt.options.view_mode is the string ("Day", "Week", "Month").
+        const mode = gantt.options.view_mode || 'Week';
+        if (mode !== 'Day' && mode !== 'Week') return; // Month: SC3 already PASS, skip
 
         const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
         startDate.setHours(0, 0, 0, 0);
@@ -1394,150 +1396,31 @@ function renderGanttHeaderSvg() {
         if (!endDate || isNaN(endDate.getTime())) return;
         endDate.setHours(0, 0, 0, 0);
 
-        // Phase 86.4 fix: read from gantt.config, not gantt.options.
-        // config.step = parsed number of units per column (e.g. 1 for Day, 7 for Week).
-        // config.unit = scale string ('day', 'month', etc.).
-        // config.column_width = actual pixel width per column.
+        // config.step = parsed days per column (1 for Day, 7 for Week).
+        // config.unit = 'day' for both Day and Week modes.
+        // config.column_width = pixels per column.
         const configStep = gantt.config.step || 1;
         const configColWidth = gantt.config.column_width || 45;
-        // xPerDay: pixels per calendar day.
-        // Day/Week view: config.unit === 'day', step = days-per-column → correct division.
-        // Month view: config.unit === 'month', step = 1 (months) → dividing by 1 gives 120px/day
-        // (wrong). Approximate 30d/month instead so week-range labels land within the SVG viewport.
-        const xPerDay = (gantt.config.unit === 'day')
-            ? configColWidth / configStep
-            : configColWidth / 30; // Month view: ~30 days per column
+        const xPerDay = configColWidth / configStep; // pixels per calendar day
 
-        const ns = 'http://www.w3.org/2000/svg';
-        const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const dowLetters = ['M', 'T', 'W', 'Th', 'F', 'S', 'S']; // Monday-first
+        const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
 
-        // Frappe v1.2.2 renders header text in SVG at:
-        //   upper_y = 17  (month/year label row)
-        //   lower_y = upper_header_height + 5 = 50  (day/week label row)
-        // config.header_height = upper_header_height + lower_header_height = 75
-        // We inject Day/Month SVG labels at y = header_height - 8 (~67px) — sits in the
-        // lower header band, below Frappe's own lower text but still within the header region.
-        const headerHeight = gantt.config.header_height || 75;
-        const labelY = headerHeight - 8;
+        for (let i = 0; i < totalDays; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            const jsDow = d.getDay(); // 0=Sun..6=Sat
+            const mondayFirstIdx = (jsDow + 6) % 7; // Mon=0..Sun=6
+            const x = i * xPerDay + xPerDay / 2; // center of this day within its column
 
-        if (mode === 'Day') {
-            // Single-letter weekday labels: M T W Th F S S
-            const dowLetters = ['M', 'T', 'W', 'Th', 'F', 'S', 'S']; // Monday-first
-            const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
-            for (let i = 0; i < totalDays; i++) {
-                const d = new Date(startDate);
-                d.setDate(d.getDate() + i);
-                const jsDow = d.getDay(); // 0=Sun..6=Sat
-                const mondayFirstIdx = (jsDow + 6) % 7; // Mon=0..Sun=6
-                const x = i * xPerDay + xPerDay / 2; // center of column
-
-                const textEl = document.createElementNS(ns, 'text');
-                textEl.setAttribute('class', 'gantt-header-svg-label' + (jsDow === 0 || jsDow === 6 ? ' weekend' : ''));
-                textEl.setAttribute('x', x);
-                textEl.setAttribute('y', labelY);
-                textEl.setAttribute('text-anchor', 'middle');
-                textEl.textContent = dowLetters[mondayFirstIdx];
-                ganttSvg.appendChild(textEl);
-            }
-
-        } else if (mode === 'Week') {
-            // Week view: inject week-range sub-labels as SVG text, left-aligned to each Monday.
-            // Replaces the old .lower-header DOM injection which landed in the bars area.
-            const firstMonday = new Date(startDate);
-            const mOffset = ((1 - firstMonday.getDay()) + 7) % 7;
-            firstMonday.setDate(firstMonday.getDate() + mOffset);
-            const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
-            const totalWeeks = Math.ceil(totalDays / 7);
-            let currentRunMonthW = -1;
-
-            for (let w = 0; w < totalWeeks; w++) {
-                const monday = new Date(firstMonday);
-                monday.setDate(monday.getDate() + w * 7);
-                const sunday = new Date(monday);
-                sunday.setDate(sunday.getDate() + 6);
-                if (monday >= endDate) break;
-
-                const startDD = String(monday.getDate()).padStart(2, '0');
-                const startMMM = monthShort[monday.getMonth()];
-                const endDD = String(sunday.getDate()).padStart(2, '0');
-                const endMMM = monthShort[sunday.getMonth()];
-                let label;
-                if (monday.getMonth() === sunday.getMonth()) {
-                    if (monday.getMonth() !== currentRunMonthW) {
-                        label = `${startDD} ${startMMM} - ${endDD}`;
-                        currentRunMonthW = monday.getMonth();
-                    } else {
-                        label = `${startDD} - ${endDD}`;
-                    }
-                } else {
-                    label = `${startDD} - ${endDD} ${endMMM}`;
-                    currentRunMonthW = sunday.getMonth();
-                }
-
-                const dayDiffFromStart = Math.round((monday - startDate) / (1000 * 60 * 60 * 24));
-                const x = dayDiffFromStart * xPerDay + 2; // +2px margin, left-aligned to Monday
-
-                const textEl = document.createElementNS(ns, 'text');
-                textEl.setAttribute('class', 'gantt-header-svg-label');
-                textEl.setAttribute('x', x);
-                textEl.setAttribute('y', labelY);
-                textEl.setAttribute('text-anchor', 'start');
-                textEl.textContent = label;
-                ganttSvg.appendChild(textEl);
-            }
-
-        } else if (mode === 'Month') {
-            // Week-range sub-labels in the SVG lower header band.
-            // Find first Monday on or after gantt_start
-            const firstMonday = new Date(startDate);
-            const mOffset = ((1 - firstMonday.getDay()) + 7) % 7;
-            firstMonday.setDate(firstMonday.getDate() + mOffset);
-            const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
-            const totalWeeks = Math.ceil(totalDays / 7);
-
-            let currentRunMonth = -1;
-            for (let w = 0; w < totalWeeks; w++) {
-                const monday = new Date(firstMonday);
-                monday.setDate(monday.getDate() + w * 7);
-                const sunday = new Date(monday);
-                sunday.setDate(sunday.getDate() + 6);
-
-                // Guard: skip weeks that start past gantt_end
-                if (monday >= endDate) break;
-
-                const startDD = String(monday.getDate()).padStart(2, '0');
-                const startMMM = monthShort[monday.getMonth()];
-                const endDD = String(sunday.getDate()).padStart(2, '0');
-                const endMMM = monthShort[sunday.getMonth()];
-                let label;
-                if (monday.getMonth() === sunday.getMonth()) {
-                    if (monday.getMonth() !== currentRunMonth) {
-                        label = `${startDD} ${startMMM} - ${endDD}`; // "03 May - 09"
-                        currentRunMonth = monday.getMonth();
-                    } else {
-                        label = `${startDD} - ${endDD}`; // "10 - 16"
-                    }
-                } else {
-                    label = `${startDD} - ${endDD} ${endMMM}`; // "31 - 06 Jun"
-                    currentRunMonth = sunday.getMonth();
-                }
-
-                const dayDiffFromStart = Math.round((monday - startDate) / (1000 * 60 * 60 * 24));
-                const cellCenterX = dayDiffFromStart * xPerDay + (7 * xPerDay) / 2;
-
-                const textEl = document.createElementNS(ns, 'text');
-                textEl.setAttribute('class', 'gantt-header-svg-label');
-                textEl.setAttribute('x', cellCenterX);
-                textEl.setAttribute('y', labelY);
-                textEl.setAttribute('text-anchor', 'middle');
-                textEl.textContent = label;
-                ganttSvg.appendChild(textEl);
-            }
+            const span = document.createElement('span');
+            span.className = 'gantt-custom-label' + (jsDow === 0 || jsDow === 6 ? ' weekend' : '');
+            span.style.left = x + 'px';
+            span.textContent = dowLetters[mondayFirstIdx];
+            lowerHeader.appendChild(span);
         }
-        // Quarter Day / Half Day / Year — no injection; Frappe default is fine
     } catch (e) {
-        // Silent fail — header labels are a nice-to-have, never break Gantt rendering
-        console.warn('[ProjectPlan] SVG header label injection failed:', e);
+        console.warn('[ProjectPlan] Header label injection failed:', e);
     }
 }
 

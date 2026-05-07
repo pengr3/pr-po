@@ -2598,30 +2598,40 @@
 /* Hide pane's vertical scrollbar — rail is the primary vertical scroll indicator (D-SCROLL) */
 .gantt-pane::-webkit-scrollbar { width: 0; }
 .gantt-pane::-webkit-scrollbar-track { background: transparent; }
+/* Hide gantt-container's vertical scrollbar — it is the actual scroll element; rail is indicator */
+#ganttPane .gantt-container::-webkit-scrollbar { width: 0; }
+#ganttPane .gantt-container::-webkit-scrollbar-track { background: transparent; }
 .gantt-pane .gantt-container {
     min-width: 100%;               /* Frappe SVG container fills available column width */
 }
 .gantt-pane #ganttPane { padding: 8px; }
 
 /* ========================================
-   PHASE 86.4 D-03 — SVG calendar header labels
-   Injected directly into Frappe's <svg> by renderGanttHeaderSvg()
-   so labels scroll with the timeline content.
+   PHASE 86.4 D-03 — HTML calendar header labels
+   Injected into Frappe's .lower-header div by renderGanttHeaderLabels()
+   so labels scroll with the timeline (header scrolls horizontally with .gantt-container).
    ======================================== */
 
-.gantt-pane { position: relative; } /* for potential absolutely-positioned overlays */
-
-/* SVG text labels: day-of-week (Day view) and week-range (Month view) */
-.gantt-header-svg-label {
-    font-size: 10px;
-    fill: #475569;       /* --gray-700 */
-    font-family: inherit;
-    pointer-events: none;
-    user-select: none;
+/* Positioning context for injected label spans */
+#ganttPane .lower-header {
+    position: relative;
+    overflow: hidden;
 }
 
-.gantt-header-svg-label.weekend {
-    fill: #94a3b8;       /* --gray-400 — lighter for Sat/Sun */
+/* HTML span labels: day-of-week (Day view: one per day; Week view: one per day within column) */
+.gantt-custom-label {
+    position: absolute;
+    bottom: 2px;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: #475569;      /* --gray-700 */
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.gantt-custom-label.weekend {
+    color: #94a3b8;      /* --gray-400 — lighter for Sat/Sun */
     font-style: italic;
 }
 
