@@ -558,6 +558,14 @@ async function handleGridCellBlur(taskId, col, rawValue) {
         if (t.parent_task_id && (col === 'start' || col === 'end' || col === 'duration')) {
             await recomputeParentDates(t.parent_task_id);
         }
+        // Phase 86.4 D-FS: for each newly added predecessor dep, auto-shift successor if needed
+        if (col === 'predecessors' && updateData.dependencies) {
+            const prevDeps = Array.isArray(t.dependencies) ? t.dependencies : [];
+            const newlyAdded = updateData.dependencies.filter(id => !prevDeps.includes(id));
+            for (const predId of newlyAdded) {
+                await applyFsAutoSchedule(taskId, predId);
+            }
+        }
     } catch (err) {
         console.error('[ProjectPlan] grid cell write failed:', err);
         showToast(err?.code === 'permission-denied'
@@ -1637,7 +1645,8 @@ function initGanttDragLink() {
                     dependencies: newDeps,
                     updated_at: serverTimestamp()
                 });
-                // onSnapshot → renderTaskGrid() updates Predecessors column automatically
+                // Phase 86.4 D-FS: auto-shift successor if it starts before predecessor ends
+                await applyFsAutoSchedule(toTaskId, fromTaskId);
             } catch (err) {
                 console.error('[ProjectPlan] drag-to-link write failed:', err);
                 showToast('Could not save dependency link.', 'error');
