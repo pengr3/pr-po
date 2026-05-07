@@ -1,47 +1,63 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-07T10:15:00Z",
+  "timestamp": "2026-05-08T03:15:00Z",
   "phase": "86.5",
-  "phase_name": "Gantt UI Polish 3 — Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry",
+  "phase_name": "Gantt UI Polish 3 — Header Alignment, Bar Drag-Resize, Back Button, Excel-Style Entry (+ UAT gap closures)",
   "phase_dir": ".planning/phases/86.5-gantt-ui-polish-3-header-drag-back-excel",
-  "plan": 0,
+  "plan": 8,
   "task": 0,
   "total_tasks": 0,
-  "status": "paused",
+  "status": "paused_awaiting_browser_uat",
   "completed_tasks": [
-    {"id": 1, "name": "Create 86.5-01-PLAN.md (CSS header alignment)", "status": "done", "commit": "8deb745"},
-    {"id": 2, "name": "Create 86.5-02-PLAN.md (back button + Excel entry)", "status": "done", "commit": "8deb745"},
-    {"id": 3, "name": "Create 86.5-03-PLAN.md (bar extend drag unification)", "status": "done", "commit": "8deb745"},
-    {"id": 4, "name": "Fix Plan 01 bug — add #ganttHeaderOverlay top:0 change", "status": "done", "commit": "uncommitted"},
-    {"id": 5, "name": "Update STATE.md to Ready to execute", "status": "done", "commit": "uncommitted"}
+    {"id": 1, "name": "Plan 01 — CSS header alignment (#ganttPane padding-top + #ganttHeaderOverlay top)", "status": "done", "commit": "693936a"},
+    {"id": 2, "name": "Plan 02 — Back link to project detail + Excel-style _focusNewRowAfterRender flag", "status": "done", "commit": "01ec8d2"},
+    {"id": 3, "name": "Plan 03 — Bar extend drag (rightward = extend, leftward initially canceled)", "status": "done", "commit": "c877b66"},
+    {"id": 4, "name": "Plan 04 — Bar reduce on leftward drag (signed daysDelta + clamp at start_date)", "status": "done", "commit": "a551031"},
+    {"id": 5, "name": "Plan 05 — Excel-style new task entry (drop showLoading + toast, optimistic append, local-state taskId)", "status": "done", "commit": "9879382"},
+    {"id": 6, "name": "Plan 06 — Leftward drag detect (route self-bar drops to resize, fixes Plan 04 unreachable bug)", "status": "done", "commit": "a6adf85"},
+    {"id": 7, "name": "Plan 07 — Suppress transient FS violation toast during drag-link write window", "status": "done", "commit": "c8be71f"},
+    {"id": 8, "name": "Plan 08 — Optimistic merge across snapshot wipes + focus/text preservation across renderTaskGrid", "status": "done", "commit": "ffaff9e"},
+    {"id": 9, "name": "VERIFICATION.md goal-backward report (after Plans 01-03)", "status": "done", "commit": "53c10a8"}
   ],
   "remaining_tasks": [
-    {"id": 6, "name": "Execute Phase 86.5 (all 3 plans)", "status": "not_started"}
+    {"id": 10, "name": "Browser UAT — 8 items: leftward shrink, rightward extend, bar-to-bar link, no transient FS toast, real FS toast still fires, rapid Enter row persistence, mid-typing snapshot survival, refresh persistence", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [
     {
-      "action": "Browser UAT after execution — verify header flush at multiple panel widths, bar extend gesture, back nav, Excel Enter",
-      "context": "No automated tests; all verification is manual in the browser via python -m http.server 8000",
+      "action": "Browser UAT in dev server (python -m http.server 8000) — see .continue-here.md punch list",
+      "context": "All verification is manual in the browser; no automated test harness for SVG drag/snapshot timing",
       "blocking": false
     }
   ],
   "decisions": [
     {
-      "decision": "Plan 01 must change BOTH #ganttPane padding-top AND #ganttHeaderOverlay top",
-      "rationale": "renderCustomGanttHeader() is still active (called at lines 1122 and 1138 of project-plan.js) and appends a position:absolute div with top:8px into #ganttPane. Removing padding-top without adjusting top:8px leaves the overlay 8px below SVG origin.",
+      "decision": "Append Plans 04+05 then 06+07+08 to Phase 86.5 (not new phase)",
+      "rationale": "User chose to keep related UAT in single phase (memory rule on parallel/sequential plan ownership). All gap closures touch project-plan.js and views.css from original 86.5 scope.",
       "phase": "86.5"
     },
     {
-      "decision": "xPerDay2 = (gantt.config.column_width || 45) / (gantt.config.step || 1) for bar-extend pixels-per-day",
-      "rationale": "Same formula used by Frappe internally; guarantees dragged pixels map to the same day-unit as the timeline header.",
+      "decision": "Plan 06 uses condition expansion (toWrapper.dataset.id === fromTaskId) instead of restructuring mouseup handler",
+      "rationale": "Surgical fix; existing resize block uses fromTaskId for geometry not toWrapper, so single-line condition change suffices",
+      "phase": "86.5"
+    },
+    {
+      "decision": "Plan 07 uses _suppressFsViolationToast flag with finally block; fingerprint update unconditional",
+      "rationale": "Snapshot listener fires between updateDoc(deps) and applyFsAutoSchedule; suppressing toast emission while keeping fingerprint baseline correct lets post-window legitimate violations toast normally",
+      "phase": "86.5"
+    },
+    {
+      "decision": "Plan 08 uses _pendingOptimistic Map (not flag) and finally cleanup",
+      "rationale": "Multiple in-flight writes can overlap during rapid Enter; a Map keyed by taskId is the only correct structure. finally guarantees cleanup on both success and failure.",
+      "phase": "86.5"
+    },
+    {
+      "decision": "Plan 08 _savedEmptyRow takes precedence over _focusNewRowAfterRender in renderTaskGrid",
+      "rationale": "If user has actual in-progress text in the empty row, preserving it is more important than auto-focusing post-Enter (which uses an empty input anyway)",
       "phase": "86.5"
     }
   ],
-  "uncommitted_files": [
-    ".planning/STATE.md",
-    ".planning/phases/86.5-gantt-ui-polish-3-header-drag-back-excel/86.5-01-PLAN.md"
-  ],
-  "next_action": "Run /gsd-execute-phase 86.5 to execute all 3 plans in wave order (01+02 parallel Wave 1, then 03 Wave 2)",
-  "context_notes": "Planning complete. The 3 plans are self-contained and ready. Plan 01 was corrected this session to include both CSS changes (#ganttPane padding-top removed AND #ganttHeaderOverlay top: 8px → top: 0). Execution should be straightforward — no design ambiguities remain. All 4 success criteria have clear implementation paths."
+  "uncommitted_files": [],
+  "next_action": "Browser UAT in dev server. Punch list in .continue-here.md. After all 8 items pass, finalize phase via gsd-verify-work or close out and move to next phase.",
+  "context_notes": "Phase 86.5 evolved across two UAT cycles: original 3 plans (01-03) shipped header alignment + back button + Excel flag + bar extend; UAT found 4 issues → plans 04+05 added; UAT found 3 issues → plans 06+07+08 added. All 8 plans now committed on v3.3. Outstanding work is purely browser-side validation. Two stale locked worktrees exist in .claude/worktrees/ from a failed Plan 02 spawn (worktree tooling spawned at stale base commit); they're benign but can be cleaned up via git worktree unlock + remove if desired."
 }
