@@ -592,67 +592,74 @@ async function handleGridCellBlur(taskId, col, rawValue) {
 }
 
 async function handleNewRowCommit(input) {
-    if (!input.value.trim()) return;          // re-entry guard: second call finds empty value → exits
+    if (!input.value.trim()) return;          // re-entry guard
     const name = input.value.trim();
-    input.value = '';                          // clear synchronously before first await
+    input.value = '';                          // clear synchronously before any async work
     if (!currentProject?.project_code) {
         showToast(`This project doesn't have a project code yet.`, 'warning');
         return;
     }
-    showLoading(true);
+
+    // Derive next task_id from local tasks array (no Firestore round-trip).
+    // Format mirrors generateTaskId(): TASK-{project_code}-{maxSeq+1}.
+    // Local state is kept fresh by onSnapshot; rapid consecutive Enters see each other's
+    // optimistic appends, so seq numbers stay monotonic without server queries.
+    const maxSeq = tasks.reduce((m, t) => {
+        if (typeof t.task_id !== 'string') return m;
+        const lastDash = t.task_id.lastIndexOf('-');
+        if (lastDash < 0) return m;
+        const n = parseInt(t.task_id.slice(lastDash + 1), 10);
+        return Number.isFinite(n) ? Math.max(m, n) : m;
+    }, 0);
+    const taskId = `TASK-${currentProject.project_code}-${maxSeq + 1}`;
+
+    const maxOrder = tasks.reduce((m, t) => Math.max(m, t.row_order ?? 0), 0);
+    const newRowOrder = maxOrder + 1;
+
+    // DEFECT-6: inherit parent from the last sorted task above; Phase 86.3 D-04/D-05: anchor on row above
+    const sortedForInherit = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+    const inheritedParentId = sortedForInherit[sortedForInherit.length - 1]?.parent_task_id ?? null;
+    const rowAbove = sortedForInherit[sortedForInherit.length - 1];
+    const anchorStart = rowAbove?.start_date || formatDateISO(new Date());
+
+    const docData = {
+        task_id: taskId,
+        project_id: currentProject.id,
+        project_code: currentProject.project_code,
+        parent_task_id: inheritedParentId,
+        name,
+        start_date: anchorStart,
+        end_date: anchorStart,
+        description: '',
+        progress: 0,
+        is_milestone: false,
+        dependencies: [],
+        assignees: [],
+        resources: '',
+        row_order: newRowOrder,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp()
+    };
+
+    // Optimistic local append — render now, write async. Use Date placeholders on the local copy
+    // since serverTimestamp() returns a sentinel that isn't a Date until snapshot reconciles.
+    const now = new Date();
+    const optimisticTask = { ...docData, created_at: now, updated_at: now };
+    tasks.push(optimisticTask);
+    renderTaskGrid();
+
     try {
-        // row_order: max existing + 1
-        const maxOrder = tasks.reduce((m, t) => Math.max(m, t.row_order ?? 0), 0);
-        const newRowOrder = maxOrder + 1;
-
-        // generateTaskId with retry (mirrors saveTaskFromModal lines 1082–1093)
-        let taskId;
-        const MAX_ID_RETRIES = 5;
-        for (let attempt = 0; attempt < MAX_ID_RETRIES; attempt++) {
-            const candidate = await generateTaskId(currentProject.project_code);
-            const existing = await getDoc(doc(db, 'project_tasks', candidate));
-            if (!existing.exists()) { taskId = candidate; break; }
-        }
-        if (!taskId) { showToast('Could not allocate a task id — please try again.', 'error'); return; }
-
-        // DEFECT-6 fix: new trailing row inherits parent from the last sorted task above it
-        const sortedForInherit = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
-        const inheritedParentId = sortedForInherit[sortedForInherit.length - 1]?.parent_task_id ?? null;
-
-        // Phase 86.3 D-05: anchor new task's start_date on the row immediately above (reuse sortedForInherit, no re-sort).
-        // Fallback to today if (a) tasks is empty OR (b) row above has no start_date. Phase 86.3 D-04: 1-day inclusive → end = start.
-        const rowAbove = sortedForInherit[sortedForInherit.length - 1];
-        const anchorStart = rowAbove?.start_date || formatDateISO(new Date());
-
-        const docData = {
-            task_id: taskId,
-            project_id: currentProject.id,
-            project_code: currentProject.project_code,
-            parent_task_id: inheritedParentId,
-            name,
-            // Phase 86.3 D-04/D-05: default 1-day bar anchored on row above (or today)
-            start_date: anchorStart,
-            end_date: anchorStart, // 1-day inclusive: addDays(anchorStart, 1-1) === anchorStart
-            description: '',
-            progress: 0,
-            is_milestone: false,
-            dependencies: [],
-            assignees: [],
-            resources: '',
-            row_order: newRowOrder,
-            created_at: serverTimestamp(),
-            updated_at: serverTimestamp()
-        };
         await setDoc(doc(db, 'project_tasks', taskId), docData);
-        showToast('Task created.', 'success');
-        // onSnapshot will fire → renderTaskGrid() + renderGantt()
+        // Snapshot will fire and replace optimistic entry with the server version (idempotent).
     } catch (err) {
         console.error('[ProjectPlan] handleNewRowCommit failed:', err);
+        // Roll back optimistic add
+        const idx = tasks.findIndex(t => t.task_id === taskId);
+        if (idx >= 0) tasks.splice(idx, 1);
+        renderTaskGrid();
         showToast(err?.code === 'permission-denied'
             ? `You don't have permission to add tasks on this project.`
             : 'Could not create task. Please try again.', 'error');
-    } finally {
-        showLoading(false);
     }
 }
 
