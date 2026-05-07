@@ -1813,6 +1813,52 @@ async function recomputeParentDates(parentTaskId, excludeIds = null) {
     }
 }
 
+// ---- Phase 86.4 D-FS: FS auto-scheduling ----
+
+// Phase 86.4 D-FS: FS auto-scheduling.
+// When a predecessor link is created, shift successor start to predecessorEnd + 1d
+// if successor.start_date <= predecessor.end_date (would violate FS constraint).
+// Only shifts the DIRECT successor — no cascade (A→B→C: B shifts, C does not auto-shift).
+// No-op if successor already starts after predecessor ends.
+async function applyFsAutoSchedule(successorId, predecessorId) {
+    const successor = tasks.find(t => t.task_id === successorId);
+    const predecessor = tasks.find(t => t.task_id === predecessorId);
+    if (!successor || !predecessor) return;
+    if (!predecessor.end_date || !successor.start_date) return;
+
+    // No-op if already scheduled correctly (successor starts after predecessor ends)
+    if (successor.start_date > predecessor.end_date) return;
+
+    // Compute new start = predecessorEnd + 1 day
+    const newStart = addDays(predecessor.end_date, 1);
+
+    // Preserve duration: compute current duration in days (end - start + 1), then recompute end
+    const curStartD = new Date(successor.start_date + 'T00:00:00');
+    const curEndD = new Date((successor.end_date || successor.start_date) + 'T00:00:00');
+    const durationDays = Math.max(1, Math.round((curEndD - curStartD) / 86400000) + 1);
+    const newEnd = addDays(newStart, durationDays - 1); // inclusive: 1d → same day
+
+    try {
+        await updateDoc(doc(db, 'project_tasks', successorId), {
+            start_date: newStart,
+            end_date: newEnd,
+            updated_at: serverTimestamp()
+        });
+        // Patch local tasks[] immediately so recomputeParentDates sees the updated values
+        const idx = tasks.findIndex(t => t.task_id === successorId);
+        if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
+        // Propagate to parent if the successor is a child task
+        if (successor.parent_task_id) {
+            await recomputeParentDates(successor.parent_task_id);
+        }
+    } catch (err) {
+        // Non-fatal: FS auto-scheduling is a convenience feature, not a data-integrity gate.
+        // If the write fails (e.g., permission-denied), the dependency is still saved; the user
+        // sees the FS-violation toast from checkAndToastFsViolations instead.
+        console.warn('[ProjectPlan] FS auto-schedule shift failed:', err);
+    }
+}
+
 // ---- Inline progress slider write helper (Plan 04 Task 4) ----
 
 async function editTaskProgress(taskId, valueRaw) {
