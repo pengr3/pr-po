@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Awaiting browser UAT
-stopped_at: Phase 86.5 executed — all 3 plans committed; VERIFICATION.md PASS code-side; browser UAT pending
-last_updated: "2026-05-07T13:45:00Z"
+stopped_at: Phase 86.5 — 5 of 5 plans executed (UAT gap closure 04+05 added & shipped); browser UAT pending for new behavior
+last_updated: "2026-05-07T14:30:00Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 45
-  completed_plans: 42
+  total_plans: 47
+  completed_plans: 44
   percent: 97
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 86.5
-Plan: 03 of 3 complete; VERIFICATION.md committed (53c10a8); browser UAT pending
+Plan: 05 of 5 complete (04 = bar reduce, 05 = Excel-style smoothness — UAT gap closure); browser UAT pending for new behavior
 
 ## Performance Metrics
 
