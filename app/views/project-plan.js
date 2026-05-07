@@ -312,8 +312,8 @@ function renderTaskGrid() {
         const parentStyle = isParent ? 'style="color:var(--gray-700,#475569);font-style:italic;"' : '';
 
         return `
-          <tr class="tg-row" data-task-id="${escapeHTML(t.task_id)}" draggable="true">
-            <td class="tg-rn">${rowNum}</td>
+          <tr class="tg-row" data-task-id="${escapeHTML(t.task_id)}">
+            <td class="tg-rn" draggable="true">${rowNum}</td>
             <td class="tg-name" style="padding-left:${indent}px;">
               <input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
                      data-task-id="${escapeHTML(t.task_id)}">
@@ -469,7 +469,6 @@ function bindGridEvents(container) {
         if (!input.classList.contains('tg-input')) return;
         if (input.dataset.taskId === '__new__') return; // handled by handleNewRowKeydown
         const col = input.dataset.col;
-        if (col !== 'duration' && col !== 'resources' && col !== 'predecessors') return; // Phase 86.3 D-09: Duration, Resources, Predecessors
         e.preventDefault();
         input.blur(); // triggers handleGridCellBlur via existing capture-phase blur listener
     };
@@ -1079,8 +1078,8 @@ function renderGantt() {
     // 8. Phase 86.3 D-01 — soft date floor scroll clamp (min(today, earliest task.start_date))
     installGanttScrollClamp();
 
-    // 9. Phase 86.3 D-03 — per-zoom calendar header overlay
-    renderGanttHeaderOverlay();
+    // Phase 86.3 D-03 overlay removed — DOM overlay approach broken (width: 100% clips on scroll).
+    // Reimplementation via SVG injection planned separately.
 }
 
 function setGanttZoom(mode) {
@@ -1093,7 +1092,7 @@ function setGanttZoom(mode) {
     renderTodayLine();
     applyFsViolationStyles();
     installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
-    renderGanttHeaderOverlay();          // Plan 05 — Phase 86.3 D-03
+    // renderGanttHeaderOverlay() removed — D-03 overlay approach replaced with SVG injection (planned)
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1291,7 +1290,7 @@ function installGanttScrollClamp() {
         }
     };
     _ganttScrollClampPane = pane;
-    pane.addEventListener('scroll', _ganttScrollClampHandler, { passive: true });
+    pane.addEventListener('scroll', _ganttScrollClampHandler);
 }
 
 // Phase 86.3 D-03: per-zoom calendar header overlay.
