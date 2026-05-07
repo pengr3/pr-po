@@ -1386,7 +1386,7 @@ function renderGanttHeaderSvg() {
     document.querySelectorAll('.gantt-week-lower-label').forEach(el => el.remove());
 
     try {
-        const mode = gantt.options.view_mode || 'Week';
+        const mode = gantt.config.view_mode || gantt.options.view_mode || 'Week';
 
         const startDate = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
         startDate.setHours(0, 0, 0, 0);
@@ -1441,64 +1441,50 @@ function renderGanttHeaderSvg() {
             }
 
         } else if (mode === 'Week') {
-            // Week view: inject into .lower-header HTML div so labels scroll with Frappe's header.
-            // Each Frappe week column = configColWidth px wide (140px default), covering Mon-Sun.
-            // Inject "D MMM YY" date label + M T W T F S S sub-row per column.
-            const lowerHeader = document.querySelector('#ganttPane .lower-header');
-            if (!lowerHeader) return; // Frappe not fully rendered yet
-
-            // Find first Monday on or after gantt_start
+            // Week view: inject week-range sub-labels as SVG text, left-aligned to each Monday.
+            // Replaces the old .lower-header DOM injection which landed in the bars area.
             const firstMonday = new Date(startDate);
             const mOffset = ((1 - firstMonday.getDay()) + 7) % 7;
             firstMonday.setDate(firstMonday.getDate() + mOffset);
             const totalDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
             const totalWeeks = Math.ceil(totalDays / 7);
-
-            // Outer wrapper positioned at the bottom of .lower-header
-            const wrapper = document.createElement('div');
-            wrapper.className = 'gantt-week-lower-label';
-            wrapper.style.cssText = 'position:absolute;bottom:2px;left:0;display:block;pointer-events:none;height:28px;';
+            let currentRunMonthW = -1;
 
             for (let w = 0; w < totalWeeks; w++) {
                 const monday = new Date(firstMonday);
                 monday.setDate(monday.getDate() + w * 7);
+                const sunday = new Date(monday);
+                sunday.setDate(sunday.getDate() + 6);
                 if (monday >= endDate) break;
 
+                const startDD = String(monday.getDate()).padStart(2, '0');
+                const startMMM = monthShort[monday.getMonth()];
+                const endDD = String(sunday.getDate()).padStart(2, '0');
+                const endMMM = monthShort[sunday.getMonth()];
+                let label;
+                if (monday.getMonth() === sunday.getMonth()) {
+                    if (monday.getMonth() !== currentRunMonthW) {
+                        label = `${startDD} ${startMMM} - ${endDD}`;
+                        currentRunMonthW = monday.getMonth();
+                    } else {
+                        label = `${startDD} - ${endDD}`;
+                    }
+                } else {
+                    label = `${startDD} - ${endDD} ${endMMM}`;
+                    currentRunMonthW = sunday.getMonth();
+                }
+
                 const dayDiffFromStart = Math.round((monday - startDate) / (1000 * 60 * 60 * 24));
-                const cellLeft = dayDiffFromStart * xPerDay;
+                const x = dayDiffFromStart * xPerDay + 2; // +2px margin, left-aligned to Monday
 
-                const dd = monday.getDate();
-                const mmm = monthShort[monday.getMonth()];
-                const yy = String(monday.getFullYear()).slice(2);
-                const dateLabel = `${dd} ${mmm} ${yy}`;
-
-                const dowLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-                const cell = document.createElement('div');
-                cell.style.cssText = `position:absolute;left:${cellLeft}px;width:${configColWidth}px;display:flex;flex-direction:column;align-items:center;`;
-
-                // Date label row
-                const dateSpan = document.createElement('span');
-                dateSpan.textContent = dateLabel;
-                dateSpan.style.cssText = 'font-size:10px;font-weight:600;white-space:nowrap;color:#1e293b;line-height:14px;';
-                cell.appendChild(dateSpan);
-
-                // DOW letters row
-                const dowRow = document.createElement('div');
-                dowRow.style.cssText = 'display:flex;width:100%;justify-content:space-around;';
-                dowLetters.forEach((letter, idx) => {
-                    const span = document.createElement('span');
-                    span.textContent = letter;
-                    span.style.cssText = `font-size:9px;color:${idx >= 5 ? '#94a3b8' : '#475569'};`;
-                    dowRow.appendChild(span);
-                });
-                cell.appendChild(dowRow);
-                wrapper.appendChild(cell);
+                const textEl = document.createElementNS(ns, 'text');
+                textEl.setAttribute('class', 'gantt-header-svg-label');
+                textEl.setAttribute('x', x);
+                textEl.setAttribute('y', labelY);
+                textEl.setAttribute('text-anchor', 'start');
+                textEl.textContent = label;
+                ganttSvg.appendChild(textEl);
             }
-
-            // .lower-header must be position:relative to anchor the absolute wrapper
-            lowerHeader.style.position = 'relative';
-            lowerHeader.appendChild(wrapper);
 
         } else if (mode === 'Month') {
             // Week-range sub-labels in the SVG lower header band.

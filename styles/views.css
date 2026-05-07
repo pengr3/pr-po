@@ -2590,10 +2590,14 @@
 }
 
 .gantt-pane {
-    overflow: auto;
+    overflow-x: auto;              /* horizontal scroll for timeline */
+    overflow-y: scroll;            /* vertical scroll for D-SCROLL sync (scrollTop must be settable) */
     background: #ffffff;
     min-width: 0;                  /* CSS grid child: prevents overflow past column boundary */
 }
+/* Hide pane's vertical scrollbar — rail is the primary vertical scroll indicator (D-SCROLL) */
+.gantt-pane::-webkit-scrollbar { width: 0; }
+.gantt-pane::-webkit-scrollbar-track { background: transparent; }
 .gantt-pane .gantt-container {
     min-width: 100%;               /* Frappe SVG container fills available column width */
 }
