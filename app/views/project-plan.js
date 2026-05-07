@@ -1400,8 +1400,13 @@ function renderGanttHeaderSvg() {
         // config.column_width = actual pixel width per column.
         const configStep = gantt.config.step || 1;
         const configColWidth = gantt.config.column_width || 45;
-        // xPerDay: pixels per calendar day (valid when config.unit === 'day').
-        const xPerDay = configColWidth / configStep;
+        // xPerDay: pixels per calendar day.
+        // Day/Week view: config.unit === 'day', step = days-per-column → correct division.
+        // Month view: config.unit === 'month', step = 1 (months) → dividing by 1 gives 120px/day
+        // (wrong). Approximate 30d/month instead so week-range labels land within the SVG viewport.
+        const xPerDay = (gantt.config.unit === 'day')
+            ? configColWidth / configStep
+            : configColWidth / 30; // Month view: ~30 days per column
 
         const ns = 'http://www.w3.org/2000/svg';
         const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
