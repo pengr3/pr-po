@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Ready to plan
-stopped_at: Completed 86.4-04-PLAN.md (D-03 SVG calendar header labels)
-last_updated: "2026-05-07T09:00:00Z"
+status: Ready to execute
+stopped_at: Phase 86.5 planned — 3 plans ready (01 CSS header alignment, 02 back+excel JS, 03 bar extend JS)
+last_updated: "2026-05-07T10:00:00Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 39
+  total_plans: 42
   completed_plans: 39
   percent: 97
 ---
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.4 — Gantt UAT Gap Closure
+**Current focus:** Phase 86.5 — Gantt UI Polish 3
 
 ## Current Position
 
-Phase: 86.4
-Plan: 04
+Phase: 86.5
+Plan: 03 (all 3 plans created, ready to execute)
 
 ## Performance Metrics
 
@@ -397,6 +397,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 (v4.0 phases planned 2026-04-28; insertions tracked here as they happen)
 
 - Phase 86.2 inserted after 86.1 (URGENT, 2026-05-06) — 8 Gantt UX defects found during UAT: row-bar misalignment, Back button nav, drag isolation bug (B moves C), interaction-only restrictions, monthly header format, smart indent inheritance on new row, delete-confirm modal for indented rows, resizable panel divider, full-width Gantt, Enter key commits Duration/Resources
+- Phase 86.5 inserted after 86.4 (URGENT, 2026-05-07) — 4 UX issues found after 86.4 UAT: panel header misalignment, bar drag-resize unification with predecessor dot, Back button wrong destination (goes to project list not detail page), Excel-style continuous task entry on Enter
 
 ### Quick Tasks Completed
 
@@ -417,4 +418,4 @@ Last activity: 2026-05-07
 Last session: 2026-05-07T09:00:00Z
 Stopped at: Completed 86.4-04-PLAN.md (D-03 SVG calendar header labels; Phase 86.4 complete)
 Resume file: None
-Next action: Phase 86.4 fully complete. Next: Phase 87 (Proposal Lifecycle) or follow-up UAT fix session for remaining scroll/label items.
+Next action: Phase 86.5 inserted. Run /gsd-plan-phase 86.5 to plan it.
