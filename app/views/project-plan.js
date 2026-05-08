@@ -1414,13 +1414,6 @@ function fixGanttContainerScroll() {
     container.style.height = Math.max(paneH - paddingV, 100) + 'px';
     container.style.overflowY = 'auto';
     container.style.overflowAnchor = 'none';
-    // Phase 86.5 scroll-height fix: the rail has one extra "Add Task" empty row (42px) at the
-    // bottom that the Frappe SVG does not have. Without this, rail.maxScrollTop exceeds
-    // ganttEl.maxScrollTop by 42px — at near-bottom positions the Gantt clamps while the rail
-    // keeps scrolling, producing bar/row misalignment proportional to scroll distance from bottom.
-    // Adding 42px padding-bottom to the scroll area equalises maxScrollTop on both sides so
-    // the direct 1:1 scrollTop transfer in bindScrollSync() is correct at ALL scroll positions.
-    container.style.paddingBottom = '42px';
 }
 
 // Phase 86.4 D-SCROLL: synchronized vertical scroll.
