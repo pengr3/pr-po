@@ -51,6 +51,14 @@ let _syncingScroll = false;
 // Phase 86.4 D-03 overlay: horizontal scroll sync for custom header
 let _overlayScrollHandler = null;
 
+// Phase 86.7 — phantom drag (suppress mid-drag Firestore writes and re-renders)
+let _ganttBarDragging = false;          // true while a Frappe bar drag gesture is in progress
+let _pendingDragWrite = null;           // { taskId, newStart, newEnd, parentId } — flushed on mouseup
+let _pendingProgressWrite = null;       // { taskId, progress } — flushed on mouseup
+let _ganttDragMousedownHandler = null;  // SVG mousedown — sets _ganttBarDragging
+let _ganttDragMouseupHandler = null;    // document mouseup — clears flag, flushes writes
+let _ganttDragSafetyTimer = null;       // 10 s auto-clear in case mouseup is missed
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
