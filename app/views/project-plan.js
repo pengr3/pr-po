@@ -1630,15 +1630,9 @@ function renderCustomGanttHeader() {
     if (!mountEl || !gantt) return;
     try {
         const mode = gantt.options.view_mode || 'Week';
-        // Frappe v1.2.2 config.header_height returns only the base option (≈50), not the actual
-        // rendered height (upper+lower+10 ≈ 85px). Measure the real bar start y from the SVG so
-        // the overlay covers the ENTIRE Frappe header — no exposed strip below it.
-        const ganttSvgForH = document.querySelector('#ganttPane svg');
-        const firstBarForH = ganttSvgForH?.querySelector('.bar-wrapper .bar');
-        let headerHeight = 85; // CSS-documented fallback: upper(45)+lower(30)+10
-        if (firstBarForH) {
-            try { headerHeight = Math.max(30, Math.round(firstBarForH.getBBox().y)); } catch (_) {}
-        }
+        // Bar rows start at header_height + padding/2 (Frappe compute_y(), index=0).
+        // Overlay must cover this exact height so no strip shows between header and first bar.
+        const headerHeight = (gantt.config.header_height || 85) + Math.round((gantt.options.padding || 18) / 2);
         const colWidth = gantt.config.column_width || (mode === 'Day' ? 45 : mode === 'Week' ? 140 : 120);
         const startDate = new Date(gantt.gantt_start); startDate.setHours(0, 0, 0, 0);
         const endDate   = new Date(gantt.gantt_end);   endDate.setHours(0, 0, 0, 0);
