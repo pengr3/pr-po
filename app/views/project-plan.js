@@ -1407,10 +1407,31 @@ function fixGanttContainerScroll() {
     const paneH = pane.clientHeight;
     if (paneH <= 0) return;
     const paddingV = 16; // #ganttPane padding-top(8) + padding-bottom(8)
+
+    // Phase 86.6 Plan 02 (Bug H1): always reset paddingBottom FIRST so each call
+    // starts fresh and the measured diff below is honest.
+    container.style.paddingBottom = '0px';
+
     container.style.marginTop = '0px';
     container.style.height = Math.max(paneH - paddingV, 100) + 'px';
     container.style.overflowY = 'auto';
     container.style.overflowAnchor = 'none';
+
+    // Phase 86.6 Plan 02 (Bug H1): equalize maxScrollTop between rail and container.
+    // Diagnostic showed rail.maxScrollTop=282, ganttEl.maxScrollTop=265, diff=17 → at max
+    // rail scroll the container clamps 17px lower and _syncingScroll blocks the reverse-sync,
+    // leaving bars permanently drifted above their rows. .gantt-container is box-sizing:
+    // border-box with 8px border, so adding paddingBottom keeps clientHeight unchanged while
+    // extending scrollHeight by exactly the same amount → maxScrollTop grows by `diff`.
+    const rail = document.getElementById('taskGridRail');
+    if (rail) {
+        const railMax = rail.scrollHeight - rail.clientHeight;
+        const containerMax = container.scrollHeight - container.clientHeight;
+        const diff = railMax - containerMax;
+        if (diff > 0) {
+            container.style.paddingBottom = diff + 'px';
+        }
+    }
 }
 
 // Phase 86.4 D-SCROLL: synchronized vertical scroll.
