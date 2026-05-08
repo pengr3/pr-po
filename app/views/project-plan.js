@@ -1,4 +1,4 @@
-/* ========================================
+﻿/* ========================================
    PROJECT PLAN VIEW (Phase 86)
    Full-screen split-pane: hierarchical task list (left) + Frappe Gantt (right).
    Standalone route #/projects/:code/plan. Projects-only this phase (D-04).
@@ -1324,6 +1324,7 @@ function setGanttZoom(mode) {
     renderCustomGanttHeader();
     fixGanttContainerScroll(); // re-constrain container after Frappe rebuilds SVG
     mountGanttBarDragGuard(); // Phase 86.7 — re-attach after Frappe SVG rebuild on zoom change
+    initGanttDragLink();     // re-override parent bar heights after Frappe SVG rebuild on zoom change
 }
 
 function handleGanttDateChange(task, start, end) {
