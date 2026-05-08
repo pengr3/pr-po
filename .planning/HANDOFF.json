@@ -1,27 +1,35 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-08T16:57:52Z",
+  "timestamp": "2026-05-08T20:00:00Z",
   "phase": "86.7-debug",
-  "phase_name": "Gantt bug fixes: phantom line + fast-typing duplication",
-  "status": "paused — needs browser UAT",
+  "phase_name": "Gantt phantom space between header and bars — fix in progress, overcorrected",
+  "status": "paused",
   "completed_tasks": [
-    {"commit": "31b5f73", "name": "JS SVG height override for parent bar; blur no longer commits __new__ row", "status": "done"},
-    {"commit": "063a195", "name": "Frappe v1.2.2 guard fix + stale focus timer cancellation", "status": "done"},
-    {"commit": "4c3ecc5", "name": "isConnected guard + class propagation", "status": "done"}
+    {"commit": "31b5f73", "name": "Bug 2 fix: Enter-only commit for __new__ row (no blur path)", "status": "done"},
+    {"commit": "063a195", "name": "Frappe v1.2.2 parent bar guard + stale focus timer cancellation", "status": "done"},
+    {"commit": "4c3ecc5", "name": "isConnected guard + parent-summary-bar class propagation", "status": "done"},
+    {"commit": "b428b79", "name": "initGanttDragLink called from setGanttZoom after SVG rebuild", "status": "done"},
+    {"commit": "8cb60f3", "name": "Overlay height formula fix attempt — OVERCORRECTED, broke left-pane alignment", "status": "in_progress", "progress": "Applied but wrong: overlay at 94px, left pane header still at 85px — misaligned"}
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "Browser UAT: parent bar shows 4px strip, no phantom line", "status": "not_started"},
-    {"id": 2, "name": "Browser UAT: rapid Enter entry produces no duplicate tasks", "status": "not_started"}
+    {"id": 1, "name": "Fix phantom space WITHOUT misaligning left pane — see blocking constraint below", "status": "not_started"},
+    {"id": 2, "name": "Browser UAT: verify gap gone AND left pane header aligns with Gantt header on all 3 zoom modes", "status": "not_started"}
+  ],
+  "blockers": [
+    {
+      "description": "Commit 8cb60f3 overcorrected — overlay height changed to 94px but left pane .tg-header CSS is still 85px, causing visible misalignment (left pane header shorter than Gantt header)",
+      "type": "technical",
+      "workaround": "Either: (A) also update .tg-header height to 94px in views.css, OR (B) find approach that covers the 9px gap without growing the overlay div (e.g. SVG rect at y=85-94, or set Frappe padding=0 so bars start at header_height)"
+    }
   ],
   "human_actions_pending": [
-    {"action": "UAT Bug 1: open project plan with parent task, verify thin charcoal strip (no phantom line)", "blocking": true},
-    {"action": "UAT Bug 2: type single-char task names rapidly with Enter, verify no duplicates", "blocking": true}
+    {"action": "Browser UAT after fix: check Day/Week/Month zoom — no gap, left pane header aligns with Gantt header", "blocking": true}
   ],
   "decisions": [
-    {"decision": "CSS height:4px removed; JS sets SVG height/y attributes in initGanttDragLink()", "rationale": "CSS height on SVG rect unreliable across browsers"},
-    {"decision": "Removed handleNewRowCommit from blur handler for __new__ — Enter-only commit", "rationale": "Blur fired spuriously on onSnapshot re-renders, causing duplicate tasks"}
+    {"decision": "Root cause of phantom space is confirmed: #ganttHeaderOverlay height (85px) < Frappe bar start y (header_height + padding/2 = 94px). The 9px gap shows SVG grid background.", "rationale": "Verified by reading Frappe v1.2.2 source: config.header_height = 85, padding default = 18, bar y = header_height + padding/2 = 94."},
+    {"decision": "views.css has uncommitted change: border-bottom added to #ganttHeaderOverlay. May or may not be needed depending on final fix approach.", "rationale": "Added by debug agent alongside height fix — evaluate whether to keep or revert."}
   ],
-  "uncommitted_files": [],
-  "next_action": "Browser UAT both bugs. If either still fails, run /gsd-debug with full symptom description.",
-  "context_notes": "Both root causes were deeper than 3 prior fix attempts. Phantom line = CSS vs SVG presentation attribute issue. Duplication = blur on __new__ row firing on wrong events."
+  "uncommitted_files": ["styles/views.css"],
+  "next_action": "Fix the phantom space + left pane alignment together. The simplest correct fix: update BOTH the overlay height (project-plan.js renderCustomGanttHeader, line 1635) AND the .tg-header CSS height (views.css) to the same computed value (94px), so left pane and Gantt header are the same height. Then commit both files together.",
+  "context_notes": "The phantom space was a 9px gap between the white overlay div (covering SVG date headers, height=85px) and the first bar row (Frappe places bars at y=94px). We've been chasing this as a line/element bug but it's a coverage gap. Previous fix (8cb60f3) correctly identified the formula but only fixed the Gantt side — left pane CSS was not updated to match."
 }
