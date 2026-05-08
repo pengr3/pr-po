@@ -491,7 +491,7 @@ function bindGridEvents(container) {
         const taskId = input.dataset.taskId;
         const col = input.dataset.col;
         if (!taskId || !col) return;
-        if (taskId === '__new__') { handleNewRowCommit(input); return; }
+        if (taskId === '__new__') return; // __new__ row commits only via Enter (handleNewRowKeydown), never on blur
         handleGridCellBlur(taskId, col, input.value.trim());
     };
     container.addEventListener('blur', _gridInputHandler, true); // capture phase for blur
@@ -1728,6 +1728,23 @@ function _bindOverlayScrollSync() {
 function initGanttDragLink() {
     const svg = document.querySelector('#ganttPane svg');
     if (!svg) return;
+
+    // Bug1 fix: CSS `height` on SVG <rect> does not reliably override the SVG `height` presentation
+    // attribute across browsers — bar rendered at full 24px with dark fill looked like a phantom line.
+    // Force the 4px strip geometry via SVG attributes unconditionally on every renderGantt() call.
+    svg.querySelectorAll('.bar-wrapper.parent-summary-bar').forEach(barWrapper => {
+        const bar = barWrapper.querySelector('.bar');
+        if (!bar) return;
+        const origH = parseFloat(bar.getAttribute('height') || '24');
+        const origY = parseFloat(bar.getAttribute('y') || '0');
+        const targetH = 4;
+        bar.setAttribute('height', String(targetH));
+        bar.setAttribute('y', String(origY + (origH - targetH) / 2));
+        barWrapper.querySelector('.bar-progress')?.setAttribute('display', 'none');
+        barWrapper.querySelector('.handle.left')?.setAttribute('display', 'none');
+        barWrapper.querySelector('.handle.right')?.setAttribute('display', 'none');
+        barWrapper.querySelector('.handle.progress')?.setAttribute('display', 'none');
+    });
 
     // Bind per-bar-wrapper handlers (mouseenter / mouseleave / mousedown)
     svg.querySelectorAll('.bar-wrapper').forEach(barWrapper => {

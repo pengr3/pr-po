@@ -2737,10 +2737,10 @@
 }
 
 /* Parent summary bar: thin charcoal strip; non-draggable */
+/* height/y forced via JS SVG attributes (initGanttDragLink) — CSS height on SVG <rect> */
+/* does not reliably override the SVG presentation attribute in all browsers.           */
 .gantt-container .bar-wrapper.parent-summary-bar .bar {
-    height: 4px;
     fill: #475569;
-    transform: translateY(10px);
 }
 .gantt-container .bar-wrapper.parent-summary-bar .bar-progress {
     display: none;
