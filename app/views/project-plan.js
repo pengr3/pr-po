@@ -680,6 +680,8 @@ async function handleNewRowCommit(input) {
     tasks.push(optimisticTask);
     _pendingOptimistic.set(taskId, optimisticTask); // Phase 86.5-08: survive snapshot wipes
     renderTaskGrid();
+    renderGantt();     // keep Gantt bar count in sync with grid row count after optimistic append
+    bindScrollSync();  // re-bind after Gantt re-render so scroll sync uses the correct SVG height
 
     try {
         await setDoc(doc(db, 'project_tasks', taskId), docData);
@@ -690,6 +692,7 @@ async function handleNewRowCommit(input) {
         const idx = tasks.findIndex(t => t.task_id === taskId);
         if (idx >= 0) tasks.splice(idx, 1);
         renderTaskGrid();
+        renderGantt();  // revert Gantt to match rolled-back grid
         showToast(err?.code === 'permission-denied'
             ? `You don't have permission to add tasks on this project.`
             : 'Could not create task. Please try again.', 'error');
