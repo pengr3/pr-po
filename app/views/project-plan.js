@@ -144,7 +144,7 @@ export async function init(activeTab = null, param = null) {
                     });
                 }
                 renderTaskGrid();
-                renderGantt();
+                if (!_ganttBarDragging) renderGantt(); // Phase 86.7: suppress mid-drag re-render
                 bindScrollSync(); // Phase 86.4 D-SCROLL
                 if (__snapshotCount > 0) checkAndToastFsViolations();
                 __snapshotCount++;
@@ -252,6 +252,19 @@ export async function destroy() {
     _syncScrollPaneHandler = null;
     _syncScrollGanttEl = null;
     _syncingScroll = false;
+    // Phase 86.7 phantom drag cleanup
+    if (_ganttDragMouseupHandler) document.removeEventListener('mouseup', _ganttDragMouseupHandler);
+    if (_ganttDragMousedownHandler) {
+        const svg = document.querySelector('#ganttPane svg');
+        if (svg) try { svg.removeEventListener('mousedown', _ganttDragMousedownHandler); } catch (e) { /* swallow */ }
+    }
+    clearTimeout(_ganttDragSafetyTimer);
+    _ganttBarDragging = false;
+    _pendingDragWrite = null;
+    _pendingProgressWrite = null;
+    _ganttDragMousedownHandler = null;
+    _ganttDragMouseupHandler = null;
+    _ganttDragSafetyTimer = null;
 }
 
 // ---- Resizable panel divider ----
@@ -1303,6 +1316,12 @@ function handleGanttDateChange(task, start, end) {
     const newEnd = formatDateISO(end);
     if (newStart === t.start_date && newEnd === t.end_date) return;
 
+    // Phase 86.7: defer write until mouseup — avoids mid-drag Firestore round-trips
+    if (_ganttBarDragging) {
+        _pendingDragWrite = { taskId: t.task_id, newStart, newEnd, parentId: t.parent_task_id || null };
+        return;
+    }
+
     updateDoc(doc(db, 'project_tasks', t.task_id), {
         start_date: newStart,
         end_date: newEnd,
@@ -1330,6 +1349,13 @@ function handleGanttProgressChange(task, progress) {
     if (!t) return;
     const newProgress = Math.max(0, Math.min(100, Math.round(progress)));
     if (newProgress === t.progress) return;
+
+    // Phase 86.7: defer write until mouseup
+    if (_ganttBarDragging) {
+        _pendingProgressWrite = { taskId: t.task_id, progress: newProgress };
+        return;
+    }
+
     updateDoc(doc(db, 'project_tasks', t.task_id), {
         progress: newProgress,
         updated_at: serverTimestamp()
