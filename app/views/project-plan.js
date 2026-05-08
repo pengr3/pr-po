@@ -1184,6 +1184,89 @@ function renderGantt() {
 
     // 10. Phase 86.4 D-SCROLL — constrain container height so it scrolls (not .gantt-pane)
     fixGanttContainerScroll();
+
+    // 11. Phase 86.7 — re-attach bar drag guard (Frappe rebuilds SVG on every refresh)
+    mountGanttBarDragGuard();
+}
+
+function mountGanttBarDragGuard() {
+    // Phase 86.7: attach SVG mousedown to detect bar drag start.
+    // Frappe rebuilds the SVG on every gantt.refresh() / new Gantt(), so we must
+    // re-attach the listener after every renderGantt() call.
+    const svg = document.querySelector('#ganttPane svg');
+    if (!svg) return;
+
+    // Remove previous SVG listener before re-attaching (Frappe rebuilt the SVG node).
+    if (_ganttDragMousedownHandler) {
+        svg.removeEventListener('mousedown', _ganttDragMousedownHandler);
+    }
+
+    _ganttDragMousedownHandler = function(e) {
+        if (!e.target.closest('.bar-wrapper')) return; // ignore clicks outside bars
+        _ganttBarDragging = true;
+        _pendingDragWrite = null;
+        _pendingProgressWrite = null;
+        // Safety: auto-clear after 10 s in case mouseup fires outside the document
+        clearTimeout(_ganttDragSafetyTimer);
+        _ganttDragSafetyTimer = setTimeout(() => {
+            _ganttBarDragging = false;
+            _pendingDragWrite = null;
+            _pendingProgressWrite = null;
+        }, 10000);
+    };
+    svg.addEventListener('mousedown', _ganttDragMousedownHandler);
+
+    // Document-level mouseup flushes the pending write exactly once per gesture.
+    // Remove old handler before re-attaching (idempotent across renderGantt calls).
+    if (_ganttDragMouseupHandler) {
+        document.removeEventListener('mouseup', _ganttDragMouseupHandler);
+    }
+
+    _ganttDragMouseupHandler = function() {
+        if (!_ganttBarDragging) return;
+        _ganttBarDragging = false;
+        clearTimeout(_ganttDragSafetyTimer);
+
+        // --- Flush pending date write ---
+        if (_pendingDragWrite) {
+            const { taskId, newStart, newEnd, parentId } = _pendingDragWrite;
+            _pendingDragWrite = null;
+            updateDoc(doc(db, 'project_tasks', taskId), {
+                start_date: newStart,
+                end_date: newEnd,
+                updated_at: serverTimestamp()
+            }).then(async () => {
+                if (parentId) {
+                    const idx = tasks.findIndex(x => x.task_id === taskId);
+                    if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
+                    await recomputeParentDates(parentId);
+                }
+            }).catch(err => {
+                console.error('[ProjectPlan] Phantom drag write failed:', err);
+                showToast(err?.code === 'permission-denied'
+                    ? `You don't have permission to edit tasks on this project.`
+                    : 'Could not save task. Please try again.', 'error');
+                renderGantt(); // revert bar to last known position
+            });
+        }
+
+        // --- Flush pending progress write ---
+        if (_pendingProgressWrite) {
+            const { taskId, progress } = _pendingProgressWrite;
+            _pendingProgressWrite = null;
+            updateDoc(doc(db, 'project_tasks', taskId), {
+                progress,
+                updated_at: serverTimestamp()
+            }).catch(err => {
+                console.error('[ProjectPlan] Phantom progress write failed:', err);
+                showToast(err?.code === 'permission-denied'
+                    ? `You don't have permission to edit tasks on this project.`
+                    : 'Could not save task. Please try again.', 'error');
+                renderGantt(); // revert
+            });
+        }
+    };
+    document.addEventListener('mouseup', _ganttDragMouseupHandler);
 }
 
 function setGanttZoom(mode) {
