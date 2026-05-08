@@ -1630,7 +1630,15 @@ function renderCustomGanttHeader() {
     if (!mountEl || !gantt) return;
     try {
         const mode = gantt.options.view_mode || 'Week';
-        const headerHeight = gantt.config.header_height || 50;
+        // Frappe v1.2.2 config.header_height returns only the base option (≈50), not the actual
+        // rendered height (upper+lower+10 ≈ 85px). Measure the real bar start y from the SVG so
+        // the overlay covers the ENTIRE Frappe header — no exposed strip below it.
+        const ganttSvgForH = document.querySelector('#ganttPane svg');
+        const firstBarForH = ganttSvgForH?.querySelector('.bar-wrapper .bar');
+        let headerHeight = 85; // CSS-documented fallback: upper(45)+lower(30)+10
+        if (firstBarForH) {
+            try { headerHeight = Math.max(30, Math.round(firstBarForH.getBBox().y)); } catch (_) {}
+        }
         const colWidth = gantt.config.column_width || (mode === 'Day' ? 45 : mode === 'Week' ? 140 : 120);
         const startDate = new Date(gantt.gantt_start); startDate.setHours(0, 0, 0, 0);
         const endDate   = new Date(gantt.gantt_end);   endDate.setHours(0, 0, 0, 0);
@@ -1730,13 +1738,12 @@ function initGanttDragLink() {
     const svg = document.querySelector('#ganttPane svg');
     if (!svg) return;
 
-    // Bug1 fix: Frappe v1.2.2 applies custom_class to the inner .bar <rect>, NOT to .bar-wrapper <g>.
-    // Querying '.bar-wrapper.parent-summary-bar' finds nothing on first run because class propagation
-    // happens in the second pass below. Query '.bar.parent-summary-bar' instead — that's where Frappe
-    // puts the class, so the height override fires correctly on every call including initial render.
-    svg.querySelectorAll('.bar.parent-summary-bar').forEach(bar => {
-        const barWrapper = bar.closest('.bar-wrapper');
-        if (!barWrapper) return;
+    // Bug1 fix: CSS `height` on SVG <rect> does not reliably override the SVG `height` presentation
+    // attribute across browsers — bar rendered at full 24px with dark fill looked like a phantom line.
+    // Force the 4px strip geometry via SVG attributes unconditionally on every renderGantt() call.
+    svg.querySelectorAll('.bar-wrapper.parent-summary-bar').forEach(barWrapper => {
+        const bar = barWrapper.querySelector('.bar');
+        if (!bar) return;
         const origH = parseFloat(bar.getAttribute('height') || '24');
         const origY = parseFloat(bar.getAttribute('y') || '0');
         const targetH = 4;
