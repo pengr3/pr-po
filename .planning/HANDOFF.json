@@ -1,63 +1,27 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-08T03:15:00Z",
-  "phase": "86.5",
-  "phase_name": "Gantt UI Polish 3 — Header Alignment, Bar Drag-Resize, Back Button, Excel-Style Entry (+ UAT gap closures)",
-  "phase_dir": ".planning/phases/86.5-gantt-ui-polish-3-header-drag-back-excel",
-  "plan": 8,
-  "task": 0,
-  "total_tasks": 0,
-  "status": "paused_awaiting_browser_uat",
+  "timestamp": "2026-05-08T16:57:52Z",
+  "phase": "86.7-debug",
+  "phase_name": "Gantt bug fixes: phantom line + fast-typing duplication",
+  "status": "paused — needs browser UAT",
   "completed_tasks": [
-    {"id": 1, "name": "Plan 01 — CSS header alignment (#ganttPane padding-top + #ganttHeaderOverlay top)", "status": "done", "commit": "693936a"},
-    {"id": 2, "name": "Plan 02 — Back link to project detail + Excel-style _focusNewRowAfterRender flag", "status": "done", "commit": "01ec8d2"},
-    {"id": 3, "name": "Plan 03 — Bar extend drag (rightward = extend, leftward initially canceled)", "status": "done", "commit": "c877b66"},
-    {"id": 4, "name": "Plan 04 — Bar reduce on leftward drag (signed daysDelta + clamp at start_date)", "status": "done", "commit": "a551031"},
-    {"id": 5, "name": "Plan 05 — Excel-style new task entry (drop showLoading + toast, optimistic append, local-state taskId)", "status": "done", "commit": "9879382"},
-    {"id": 6, "name": "Plan 06 — Leftward drag detect (route self-bar drops to resize, fixes Plan 04 unreachable bug)", "status": "done", "commit": "a6adf85"},
-    {"id": 7, "name": "Plan 07 — Suppress transient FS violation toast during drag-link write window", "status": "done", "commit": "c8be71f"},
-    {"id": 8, "name": "Plan 08 — Optimistic merge across snapshot wipes + focus/text preservation across renderTaskGrid", "status": "done", "commit": "ffaff9e"},
-    {"id": 9, "name": "VERIFICATION.md goal-backward report (after Plans 01-03)", "status": "done", "commit": "53c10a8"}
+    {"commit": "31b5f73", "name": "JS SVG height override for parent bar; blur no longer commits __new__ row", "status": "done"},
+    {"commit": "063a195", "name": "Frappe v1.2.2 guard fix + stale focus timer cancellation", "status": "done"},
+    {"commit": "4c3ecc5", "name": "isConnected guard + class propagation", "status": "done"}
   ],
   "remaining_tasks": [
-    {"id": 10, "name": "Browser UAT — 8 items: leftward shrink, rightward extend, bar-to-bar link, no transient FS toast, real FS toast still fires, rapid Enter row persistence, mid-typing snapshot survival, refresh persistence", "status": "not_started"}
+    {"id": 1, "name": "Browser UAT: parent bar shows 4px strip, no phantom line", "status": "not_started"},
+    {"id": 2, "name": "Browser UAT: rapid Enter entry produces no duplicate tasks", "status": "not_started"}
   ],
-  "blockers": [],
   "human_actions_pending": [
-    {
-      "action": "Browser UAT in dev server (python -m http.server 8000) — see .continue-here.md punch list",
-      "context": "All verification is manual in the browser; no automated test harness for SVG drag/snapshot timing",
-      "blocking": false
-    }
+    {"action": "UAT Bug 1: open project plan with parent task, verify thin charcoal strip (no phantom line)", "blocking": true},
+    {"action": "UAT Bug 2: type single-char task names rapidly with Enter, verify no duplicates", "blocking": true}
   ],
   "decisions": [
-    {
-      "decision": "Append Plans 04+05 then 06+07+08 to Phase 86.5 (not new phase)",
-      "rationale": "User chose to keep related UAT in single phase (memory rule on parallel/sequential plan ownership). All gap closures touch project-plan.js and views.css from original 86.5 scope.",
-      "phase": "86.5"
-    },
-    {
-      "decision": "Plan 06 uses condition expansion (toWrapper.dataset.id === fromTaskId) instead of restructuring mouseup handler",
-      "rationale": "Surgical fix; existing resize block uses fromTaskId for geometry not toWrapper, so single-line condition change suffices",
-      "phase": "86.5"
-    },
-    {
-      "decision": "Plan 07 uses _suppressFsViolationToast flag with finally block; fingerprint update unconditional",
-      "rationale": "Snapshot listener fires between updateDoc(deps) and applyFsAutoSchedule; suppressing toast emission while keeping fingerprint baseline correct lets post-window legitimate violations toast normally",
-      "phase": "86.5"
-    },
-    {
-      "decision": "Plan 08 uses _pendingOptimistic Map (not flag) and finally cleanup",
-      "rationale": "Multiple in-flight writes can overlap during rapid Enter; a Map keyed by taskId is the only correct structure. finally guarantees cleanup on both success and failure.",
-      "phase": "86.5"
-    },
-    {
-      "decision": "Plan 08 _savedEmptyRow takes precedence over _focusNewRowAfterRender in renderTaskGrid",
-      "rationale": "If user has actual in-progress text in the empty row, preserving it is more important than auto-focusing post-Enter (which uses an empty input anyway)",
-      "phase": "86.5"
-    }
+    {"decision": "CSS height:4px removed; JS sets SVG height/y attributes in initGanttDragLink()", "rationale": "CSS height on SVG rect unreliable across browsers"},
+    {"decision": "Removed handleNewRowCommit from blur handler for __new__ — Enter-only commit", "rationale": "Blur fired spuriously on onSnapshot re-renders, causing duplicate tasks"}
   ],
   "uncommitted_files": [],
-  "next_action": "Browser UAT in dev server. Punch list in .continue-here.md. After all 8 items pass, finalize phase via gsd-verify-work or close out and move to next phase.",
-  "context_notes": "Phase 86.5 evolved across two UAT cycles: original 3 plans (01-03) shipped header alignment + back button + Excel flag + bar extend; UAT found 4 issues → plans 04+05 added; UAT found 3 issues → plans 06+07+08 added. All 8 plans now committed on v3.3. Outstanding work is purely browser-side validation. Two stale locked worktrees exist in .claude/worktrees/ from a failed Plan 02 spawn (worktree tooling spawned at stale base commit); they're benign but can be cleaned up via git worktree unlock + remove if desired."
+  "next_action": "Browser UAT both bugs. If either still fails, run /gsd-debug with full symptom description.",
+  "context_notes": "Both root causes were deeper than 3 prior fix attempts. Phantom line = CSS vs SVG presentation attribute issue. Duplication = blur on __new__ row firing on wrong events."
 }

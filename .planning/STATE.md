@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Phase 86.7 complete — awaiting browser UAT for phantom drag
-stopped_at: Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handleGanttDateChange/handleGanttProgressChange, suppressed onSnapshot renderGantt() during drag, single mouseup flush.
-last_updated: "2026-05-08T06:08:00Z"
-last_activity: 2026-05-08
+stopped_at: context exhaustion at 75% (2026-05-08)
+last_updated: "2026-05-08T08:11:54.936Z"
+last_activity: "2026-05-08 - Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handlers, single mouseup flush."
 progress:
-  total_phases: 12
-  completed_phases: 8
-  total_plans: 50
-  completed_plans: 48
-  percent: 97
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 53
+  completed_plans: 51
+  percent: 96
 ---
 
 # Project State
@@ -422,7 +422,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-08 - Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handlers, single mouseup flush.
-Last session: 2026-05-08T06:08:00Z
-Stopped at: Completed Phase 86.7-01-PLAN.md
+Last session: 2026-05-08T08:11:54.923Z
+Stopped at: context exhaustion at 75% (2026-05-08)
 Resume file: None
 Next action: Browser UAT — drag a Gantt bar, verify no rubber-banding, single Firestore write on mouseup.
+| 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
