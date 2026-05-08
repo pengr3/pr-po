@@ -227,6 +227,8 @@
 - [x] **Phase 86.3: Gantt UX Polish 2 — Date Floor, Bar-Drag Row Lock, New-Task Defaults** (INSERTED) — Right-panel: lock leftmost date to today (no further left-scroll), investigate scroll jank, add day-of-week (M T W Th F S S) row to calendar header, prevent bars from changing rows when dragged horizontally (cross-row vertical drag removed; drop-on-bar still creates FS predecessor), remove stray middle-of-screen scrollbar. Left-panel: new task defaults to 1d duration so the bar renders immediately, new task stays on the row where it was inserted (no auto-resort by start date), Predecessors cell commits on Enter (completed 2026-05-06)
 - [x] **Phase 86.4: Gantt UAT Gap Closure** (INSERTED) — Fix 4 gaps found during Phase 86.3 UAT: (1) D-03 calendar header overlay reimplemented via SVG text injection (Day view M T W Th F S S row; Month view week-range sub-labels); (2) FS auto-scheduling — when a predecessor link is created the successor's start date auto-shifts to predecessor end+1d; (3) Start > End guard — editing Start past End clamps End to Start+1d to prevent Frappe "start can't be after end" error; (4) Synchronized vertical scroll — left rail and Gantt pane share a single scroll position so rows stay aligned on long task lists (4 plans) — completed 2026-05-07
 - [ ] **Phase 86.5: Gantt UI Polish 3 — Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry** (INSERTED) — (1) left and right panel headers flush-aligned despite divider; (2) unified bar interaction — hover dot initiates predecessor drag, right-extend without touching another bar extends task duration; (3) Back button navigates to project detail page (not project list); (4) Excel-style inline task entry — Enter commits row and opens new row immediately for continuous input
+- [x] **Phase 86.6: Gantt/Grid Vertical Alignment — Scroll Sync and Row-Height Parity** (INSERTED) — Measure-first fix for vertical misalignment between left task-grid rows and right Gantt SVG bars; spacer-div approach equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed 2026-05-08
+- [ ] **Phase 86.7: Gantt Phantom Drag — Smooth Bar Dragging Without Mid-Drag Firestore Writes** (INSERTED) — Suppress Firestore writes and snapshot-triggered re-renders during bar drag; commit only on mouseup; visual drag handled natively by Frappe with no interruption
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
 - [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
@@ -432,6 +434,34 @@ Plans:
 - [ ] 86.5-01-PLAN.md — CSS: remove top padding from .gantt-pane #ganttPane for header flush alignment (SC-1)
 - [ ] 86.5-02-PLAN.md — JS: back button fix to project detail + Excel-style Enter-focus flow (SC-3, SC-4)
 - [ ] 86.5-03-PLAN.md — JS: unified bar drag — empty-space rightward drop extends end_date (SC-2)
+**UI hint**: yes
+
+### Phase 86.6: Gantt/Grid Vertical Alignment — Measure-First Fix for Scroll Sync and Row-Height Parity (INSERTED)
+**Goal**: Permanently fix the vertical misalignment between left task-grid rows and right Gantt SVG bars. All previous quick-fix attempts (padding-bottom, renderGantt() after optimistic append) failed or regressed because they were based on assumptions rather than measured geometry. This phase takes a measure-first approach: instrument the layout in the browser, collect actual pixel values for all relevant dimensions, then derive and implement the correct fix.
+**Depends on**: Phase 86.5 (scroll sync architecture in place)
+**Requirements**: None mapped (INSERTED gap-closure phase)
+**Success Criteria** (what must be TRUE):
+  1. Left grid rows and right Gantt bars are vertically aligned at scrollTop=0 (initial load)
+  2. Alignment is maintained at all scroll positions, including the bottommost position
+  3. Alignment holds after adding tasks via Excel-style Enter entry (including optimistic rows)
+  4. Alignment holds after Firestore snapshot reconciles optimistic rows
+  5. Alignment holds with parent/summary tasks and tasks with multi-line content
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 86.7: Gantt Phantom Drag — Smooth Bar Dragging Without Mid-Drag Firestore Writes (INSERTED)
+**Goal**: Eliminate lag and rubber-banding during Gantt bar drag. Currently `on_date_change` fires during drag which triggers Firestore writes → `onSnapshot` → `renderGantt()` → `gantt.refresh()`, resetting the bar position mid-drag. This phase implements phantom drag: track drag state via `mousedown`/`mouseup` on bar handles, suppress Firestore writes and snapshot-triggered re-renders while dragging, and commit the final dates only on release.
+**Depends on**: Phase 86.6 (scroll sync and vertical alignment stable)
+**Requirements**: None mapped (INSERTED polish phase)
+**Success Criteria** (what must be TRUE):
+  1. Dragging a Gantt bar is visually smooth — no rubber-banding or position resets mid-drag
+  2. Firestore is written exactly once per drag gesture (on mouseup/release), not on every mousemove
+  3. Snapshot-triggered `renderGantt()` calls are suppressed while a drag is in progress
+  4. On release, the task's new start/end dates are committed to Firestore and the grid rail updates correctly
+  5. If the Firestore write fails, the bar reverts to its pre-drag position (existing error path preserved)
+  6. Progress-bar drag (horizontal scrub on bar) is equally smooth — same phantom pattern applied
+**Plans**: 1 plan
+  - [ ] 86.7-01-PLAN.md — Phantom drag: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handleGanttDateChange / handleGanttProgressChange, suppressed onSnapshot renderGantt(), destroy() cleanup
 **UI hint**: yes
 
 ### Phase 87: Proposal Lifecycle (with proposal-event notifications)
