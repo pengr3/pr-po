@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Awaiting browser diagnostic
-stopped_at: Phase 86.6 Plan 01 written — awaiting user to run diagnostic console script in browser and paste results so Plan 02 (the fix) can be written
-last_updated: "2026-05-08T04:30:00Z"
+status: Phase 86.7 complete — awaiting browser UAT for phantom drag
+stopped_at: Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handleGanttDateChange/handleGanttProgressChange, suppressed onSnapshot renderGantt() during drag, single mouseup flush.
+last_updated: "2026-05-08T06:08:00Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 12
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 50
-  completed_plans: 47
-  percent: 96
+  completed_plans: 48
+  percent: 97
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.6 — Gantt/Grid Vertical Alignment Fix (measure-first; planning required)
+**Current focus:** Phase 86.7 complete — Gantt Phantom Drag shipped. Awaiting browser UAT.
 
 ## Current Position
 
-Phase: 86.6
-Plan: 0 of TBD — not yet planned
+Phase: 86.7
+Plan: 1 of 1 — complete
 
 ## Performance Metrics
 
@@ -141,6 +141,10 @@ Plan: 0 of TBD — not yet planned
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.7-01]: mountGanttBarDragGuard() must be the last step in renderGantt() — Frappe rebuilds the SVG node on every gantt.refresh() so the SVG mousedown listener must re-attach after each call; idempotent: remove old then add new
+- [Phase 86.7-01]: _ganttBarDragging flag uses SVG mousedown (not Frappe on_date_change callback) to detect drag start before Frappe fires mid-gesture; .bar-wrapper guard prevents non-bar clicks from setting flag (T-86.7-03 mitigate)
+- [Phase 86.7-01]: Non-drag path in handleGanttDateChange (programmatic updateDoc without preceding bar mousedown) is unchanged — _ganttBarDragging=false means the existing .then()/.catch() path runs normally
+- [Phase 86.7-01]: destroy() removes document mouseup listener before nulling state — prevents orphaned phantom write after view destruction (T-86.7-04 mitigate); 10s safety timer auto-clears flag if browser loses focus mid-drag (T-86.7-02 mitigate)
 - [Phase 86.4-04]: renderGanttHeaderSvg uses SVG text injection (not DOM overlay) so labels scroll with the timeline — root cause of all 9 D-03 UAT failures was position:absolute DOM overlay that does not scroll with SVG content
 - [Phase 86.4-04]: infinite_padding: false is required in the Gantt constructor — Frappe's infinite-padding mode offsets all SVG x-coordinates by a large constant causing label misposition
 - [Phase 86.4-04]: gantt.config.step / gantt.config.column_width are the correct live Frappe runtime properties; gantt.options.step/column_width return undefined at runtime in v1.2.2
@@ -398,6 +402,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 - Phase 86.2 inserted after 86.1 (URGENT, 2026-05-06) — 8 Gantt UX defects found during UAT: row-bar misalignment, Back button nav, drag isolation bug (B moves C), interaction-only restrictions, monthly header format, smart indent inheritance on new row, delete-confirm modal for indented rows, resizable panel divider, full-width Gantt, Enter key commits Duration/Resources
 - Phase 86.5 inserted after 86.4 (URGENT, 2026-05-07) — 4 UX issues found after 86.4 UAT: panel header misalignment, bar drag-resize unification with predecessor dot, Back button wrong destination (goes to project list not detail page), Excel-style continuous task entry on Enter
+- Phase 86.6 inserted after 86.5 (URGENT, 2026-05-08) — Measure-first vertical alignment fix: spacer-div equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed same day
+- Phase 86.7 inserted after 86.6 (URGENT, 2026-05-08) — Phantom drag: suppress mid-drag Firestore writes and snapshot re-renders; commit only on mouseup for smooth lag-free bar dragging
 
 ### Quick Tasks Completed
 
@@ -415,8 +421,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-08 - Completed quick task 260508-g2p: Phase 86.6 Plan 02 Gantt/grid vertical alignment fix (Bug H2 .tg-locked nowrap, Bug H1 diff-based paddingBottom equalization)
-Last session: 2026-05-08T03:34:26Z
-Stopped at: Phase 86.6 Plan 02 executed — H2 CSS fix (48.5px → 42px parent rows) + H1 JS fix (17px bar drift at max scroll). Awaiting browser UAT.
+Last activity: 2026-05-08 - Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handlers, single mouseup flush.
+Last session: 2026-05-08T06:08:00Z
+Stopped at: Completed Phase 86.7-01-PLAN.md
 Resume file: None
-Next action: Phase 86.5 inserted. Run /gsd-plan-phase 86.5 to plan it.
+Next action: Browser UAT — drag a Gantt bar, verify no rubber-banding, single Firestore write on mouseup.
