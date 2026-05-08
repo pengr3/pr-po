@@ -1235,10 +1235,20 @@ function mountGanttBarDragGuard() {
         document.removeEventListener('mouseup', _ganttDragMouseupHandler);
     }
 
-    _ganttDragMouseupHandler = function() {
+    _ganttDragMouseupHandler = function(e) {
         if (!_ganttBarDragging) return;
         _ganttBarDragging = false;
         clearTimeout(_ganttDragSafetyTimer);
+
+        // If mouseup fires outside the Gantt pane, Frappe calculates dates from the
+        // out-of-bounds cursor position and may produce improbable values — revert instead.
+        const ganttPane = document.querySelector('#ganttPane');
+        if (ganttPane && !ganttPane.contains(e.target)) {
+            _pendingDragWrite = null;
+            _pendingProgressWrite = null;
+            renderGantt();
+            return;
+        }
 
         // --- Flush pending date write ---
         if (_pendingDragWrite) {
@@ -1317,9 +1327,13 @@ function handleGanttDateChange(task, start, end) {
     const newEnd = formatDateISO(end);
     if (newStart === t.start_date && newEnd === t.end_date) return;
 
-    // Phase 86.7: defer write until mouseup — avoids mid-drag Firestore round-trips
+    // Phase 86.7: defer write until mouseup — avoids mid-drag Firestore round-trips.
+    // Only store valid date ranges; improbable values (cursor outside timeline) stay null
+    // so the mouseup handler reverts the bar instead of flushing bad data.
     if (_ganttBarDragging) {
-        _pendingDragWrite = { taskId: t.task_id, newStart, newEnd, parentId: t.parent_task_id || null };
+        if (newStart && newEnd && newStart <= newEnd) {
+            _pendingDragWrite = { taskId: t.task_id, newStart, newEnd, parentId: t.parent_task_id || null };
+        }
         return;
     }
 
