@@ -24,6 +24,7 @@ let _gridContextMenuHandler = null; // Plan 02 hook (declare now, body added in 
 
 // Plan 04 — Gantt drag-to-link state
 let ganttDragState = null;       // { fromTaskId, svgLine } during drag-to-link, null otherwise
+let _ganttLinkDocMouseupHandler = null; // document mouseup — cancel drag-to-link if released outside SVG
 
 // Plan 02 — drag-and-drop state
 let _gridDragStartHandler = null;
@@ -33,6 +34,7 @@ let _gridDragEndHandler = null;
 let _draggedTaskId = null;        // currently-dragged task_id during drag
 let _gridKeydownHandler = null;   // keydown Enter handler for Duration/Resources cells (86.2)
 let _focusNewRowAfterRender = false; // Phase 86.5: Excel-style continuous entry
+let _focusRestoreTimer = null; // cancel stale focus-restoration across rapid re-renders
 
 // Plan 03 — resizable panel divider state
 let _resizeMouseMoveHandler = null;
@@ -209,6 +211,8 @@ export async function destroy() {
     _gridDragEndHandler = null;
     _gridKeydownHandler = null;
     _focusNewRowAfterRender = false; // Phase 86.5
+    clearTimeout(_focusRestoreTimer);
+    _focusRestoreTimer = null;
     _draggedTaskId = null;
     rowOrderCache = new Map();
     delete window.setGanttZoom;
@@ -265,6 +269,8 @@ export async function destroy() {
     _ganttDragMousedownHandler = null;
     _ganttDragMouseupHandler = null;
     _ganttDragSafetyTimer = null;
+    if (_ganttLinkDocMouseupHandler) document.removeEventListener('mouseup', _ganttLinkDocMouseupHandler);
+    _ganttLinkDocMouseupHandler = null;
 }
 
 // ---- Resizable panel divider ----
@@ -449,7 +455,9 @@ function renderTaskGrid() {
         const newRowInput = container.querySelector('.tg-empty-row .tg-name-input');
         if (newRowInput) {
             newRowInput.value = _savedEmptyRow.value;
-            setTimeout(() => {
+            if (_focusRestoreTimer) clearTimeout(_focusRestoreTimer);
+            _focusRestoreTimer = setTimeout(() => {
+                _focusRestoreTimer = null;
                 newRowInput.focus();
                 try { newRowInput.setSelectionRange(_savedEmptyRow.selectionStart, _savedEmptyRow.selectionEnd); } catch (e) { /* swallow */ }
             }, 0);
@@ -459,7 +467,10 @@ function renderTaskGrid() {
         // Phase 86.5: Excel-style continuous entry — auto-focus new row after commit (no in-progress text)
         _focusNewRowAfterRender = false;
         const newRowInput = container.querySelector('.tg-empty-row .tg-name-input');
-        if (newRowInput) setTimeout(() => newRowInput.focus(), 0);
+        if (newRowInput) {
+            if (_focusRestoreTimer) clearTimeout(_focusRestoreTimer);
+            _focusRestoreTimer = setTimeout(() => { _focusRestoreTimer = null; newRowInput.focus(); }, 0);
+        }
     }
 }
 
@@ -1738,9 +1749,9 @@ function initGanttDragLink() {
         barWrapper.addEventListener('mouseenter', () => {
             // D-07 parent lock — never show a handle on parent summary bars.
             // Bug1 fix (86.7): Frappe applies custom_class to the inner .bar element, not
-            // to .bar-wrapper. The old check (barWrapper.classList) was always false for
-            // parent bars, letting the handle circle leak through — the black dot artifact.
-            if (barWrapper.querySelector('.bar.parent-summary-bar')) return;
+            // Frappe v1.2.2 applies custom_class to barWrapper <g> directly, so checking
+            // barWrapper.classList is the correct and reliable guard for parent bars.
+            if (barWrapper.classList.contains('parent-summary-bar')) return;
             let handle = barWrapper.querySelector('.gantt-link-handle');
             if (!handle) {
                 const ns = 'http://www.w3.org/2000/svg';
@@ -1886,6 +1897,17 @@ function initGanttDragLink() {
             }
         });
     }
+
+    // Document-level mouseup: cancel drag-to-link if mouse released outside the SVG
+    if (_ganttLinkDocMouseupHandler) document.removeEventListener('mouseup', _ganttLinkDocMouseupHandler);
+    _ganttLinkDocMouseupHandler = function(e) {
+        if (!ganttDragState) return;
+        if (!svg.contains(e.target)) {
+            ganttDragState.svgLine.remove();
+            ganttDragState = null;
+        }
+    };
+    document.addEventListener('mouseup', _ganttLinkDocMouseupHandler);
 }
 
 function checkAndToastFsViolations() {
