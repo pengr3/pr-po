@@ -1294,6 +1294,7 @@ function setGanttZoom(mode) {
     installGanttScrollClamp(); // Phase 86.3 D-01 — recompute floor for new view_mode column_width
     renderCustomGanttHeader();
     fixGanttContainerScroll(); // re-constrain container after Frappe rebuilds SVG
+    mountGanttBarDragGuard(); // Phase 86.7 — re-attach after Frappe SVG rebuild on zoom change
 }
 
 function handleGanttDateChange(task, start, end) {
