@@ -413,8 +413,6 @@ function renderTaskGrid() {
         <td colspan="5"></td>
       </tr>`;
 
-    bindGridEvents(container);
-
     // Phase 86.5-08: capture empty-row input state before innerHTML replace
     let _savedEmptyRow = null;
     const _activeEl = document.activeElement;
@@ -439,6 +437,12 @@ function renderTaskGrid() {
         </tr></thead>
         <tbody id="taskGridBody">${rowsHtml}${emptyRow}</tbody>
       </table>`;
+
+    // Bug2 fix (86.7): bind grid events AFTER innerHTML replace, not before.
+    // bindGridEvents() before innerHTML triggered a capture-phase blur on the detached
+    // __new__ input, causing handleNewRowCommit to fire again with the old value — creating
+    // an infinite add-task loop. Moving it here ensures handlers attach to the fresh DOM.
+    bindGridEvents(container);
 
     // Phase 86.5-08: restore empty-row input state after innerHTML replace
     if (_savedEmptyRow) {
@@ -1720,8 +1724,11 @@ function initGanttDragLink() {
         if (!bar) return;
 
         barWrapper.addEventListener('mouseenter', () => {
-            // D-07 parent lock — never show a handle on parent summary bars
-            if (barWrapper.classList.contains('parent-summary-bar')) return;
+            // D-07 parent lock — never show a handle on parent summary bars.
+            // Bug1 fix (86.7): Frappe applies custom_class to the inner .bar element, not
+            // to .bar-wrapper. The old check (barWrapper.classList) was always false for
+            // parent bars, letting the handle circle leak through — the black dot artifact.
+            if (barWrapper.querySelector('.bar.parent-summary-bar')) return;
             let handle = barWrapper.querySelector('.gantt-link-handle');
             if (!handle) {
                 const ns = 'http://www.w3.org/2000/svg';
