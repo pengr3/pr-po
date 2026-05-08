@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Awaiting browser UAT
-stopped_at: Phase 86.5 — 8 of 8 plans executed (06 leftward drag fix, 07 FS toast race fix, 08 optimistic merge + focus preservation); browser UAT pending
-last_updated: "2026-05-08T03:00:00Z"
+status: Awaiting browser diagnostic
+stopped_at: Phase 86.6 Plan 01 written — awaiting user to run diagnostic console script in browser and paste results so Plan 02 (the fix) can be written
+last_updated: "2026-05-08T04:30:00Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 7
   total_plans: 50
   completed_plans: 47
-  percent: 97
+  percent: 96
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.5 — Gantt UI Polish 3 (executed; awaiting browser UAT)
+**Current focus:** Phase 86.6 — Gantt/Grid Vertical Alignment Fix (measure-first; planning required)
 
 ## Current Position
 
-Phase: 86.5
-Plan: 08 of 8 complete (06 leftward drag fix, 07 FS toast race fix, 08 optimistic merge + focus preservation); browser UAT pending
+Phase: 86.6
+Plan: 0 of TBD — not yet planned
 
 ## Performance Metrics
 
@@ -411,11 +411,12 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260408-ikv | Lock PO Document Details when active RFP exists | 2026-04-08 | f67d545 | Awaiting UAT | [260408-ikv-lock-po-document-details-when-active-rfp](.planning/quick/260408-ikv-lock-po-document-details-when-active-rfp/) |
 | 260408-j0d | Add MRF cancellation for requestors only (item-level, PR-linked items protected) | 2026-04-08 | da509aa, 1b99410 | Awaiting UAT | [260408-j0d-add-mrf-cancellation-for-requestors-only](.planning/quick/260408-j0d-add-mrf-cancellation-for-requestors-only/) |
 | 260430-a4b | Codeless projects/services with assigned personnel_user_ids should appear in MRF for operations_user and services_user | 2026-04-30 | 551125d | Verified | [260430-a4b-codeless-projects-mrf-personnel-filter](.planning/quick/260430-a4b-codeless-projects-mrf-personnel-filter/) |
+| 260508-g2p | Phase 86.6 Plan 02: Fix Gantt/grid vertical alignment — Bug H2 (.tg-locked nowrap+ellipsis, 42px row height) and Bug H1 (diff-based paddingBottom equalization in fixGanttContainerScroll, eliminates 17px bar drift at max scroll) | 2026-05-08 | c00a3fd, ef795c9 | Awaiting browser UAT | [260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a](.planning/quick/260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a/) |
 
 ## Session Continuity
 
-Last activity: 2026-05-07
-Last session: 2026-05-07T09:00:00Z
-Stopped at: Completed 86.4-04-PLAN.md (D-03 SVG calendar header labels; Phase 86.4 complete)
+Last activity: 2026-05-08 - Completed quick task 260508-g2p: Phase 86.6 Plan 02 Gantt/grid vertical alignment fix (Bug H2 .tg-locked nowrap, Bug H1 diff-based paddingBottom equalization)
+Last session: 2026-05-08T03:34:26Z
+Stopped at: Phase 86.6 Plan 02 executed — H2 CSS fix (48.5px → 42px parent rows) + H1 JS fix (17px bar drift at max scroll). Awaiting browser UAT.
 Resume file: None
 Next action: Phase 86.5 inserted. Run /gsd-plan-phase 86.5 to plan it.
