@@ -473,6 +473,10 @@ function bindGridEvents(container) {
     _gridInputHandler = function(e) {
         const input = e.target;
         if (!input.classList.contains('tg-input')) return;
+        // Reject spurious blur fired when innerHTML replaces the DOM while a node is focused.
+        // The OLD handler from the previous render is still on container during the replacement,
+        // so capture-phase blur reaches it even though the node is now detached.
+        if (!input.isConnected) return;
         const taskId = input.dataset.taskId;
         const col = input.dataset.col;
         if (!taskId || !col) return;
@@ -1722,6 +1726,14 @@ function initGanttDragLink() {
 
         const bar = barWrapper.querySelector('.bar');
         if (!bar) return;
+
+        // Frappe applies custom_class to the inner .bar, not to .bar-wrapper.
+        // Propagate it here so CSS rules targeting .bar-wrapper.parent-summary-bar
+        // (which hide .handle.left/.right/.progress) actually match and suppress
+        // the phantom resize/progress handles on parent bars.
+        if (bar.classList.contains('parent-summary-bar')) {
+            barWrapper.classList.add('parent-summary-bar');
+        }
 
         barWrapper.addEventListener('mouseenter', () => {
             // D-07 parent lock — never show a handle on parent summary bars.
