@@ -61,6 +61,11 @@ let _ganttDragMousedownHandler = null;  // SVG mousedown — sets _ganttBarDragg
 let _ganttDragMouseupHandler = null;    // document mouseup — clears flag, flushes writes
 let _ganttDragSafetyTimer = null;       // 10 s auto-clear in case mouseup is missed
 
+// Phase 86.8 — arrow right-click + selection state (Features 1 & 7)
+let _ganttArrowContextHandler = null; // SVG contextmenu listener — re-attached on every renderGantt
+let _ganttArrowMenuClickaway = null;  // document mousedown that dismisses the open menu
+let _selectedArrow = null;            // { fromId, toId, el } | null — used by Feature 7 keyboard Delete
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -168,6 +173,7 @@ export async function init(activeTab = null, param = null) {
         window.gridOutdentTask = gridOutdentTask;
         window.gridInsertRowAbove = gridInsertRowAbove;
         window.gridDeleteRow = gridDeleteRow;
+        window.removeArrowDependency = removeArrowDependency; // Phase 86.8 Feature 1+7
         initPanelResize();
     } finally {
         showLoading(false);
@@ -269,6 +275,17 @@ export async function destroy() {
     _ganttDragMousedownHandler = null;
     _ganttDragMouseupHandler = null;
     _ganttDragSafetyTimer = null;
+    // Phase 86.8 Feature 1 — arrow context menu cleanup
+    const _arrowSvg = document.querySelector('#ganttPane svg');
+    if (_ganttArrowContextHandler && _arrowSvg) {
+        try { _arrowSvg.removeEventListener('contextmenu', _ganttArrowContextHandler); } catch (e) { /* swallow */ }
+    }
+    if (_ganttArrowMenuClickaway) document.removeEventListener('mousedown', _ganttArrowMenuClickaway);
+    _ganttArrowContextHandler = null;
+    _ganttArrowMenuClickaway = null;
+    _selectedArrow = null;
+    document.querySelector('.gantt-arrow-menu')?.remove();
+    delete window.removeArrowDependency;
     if (_ganttLinkDocMouseupHandler) document.removeEventListener('mouseup', _ganttLinkDocMouseupHandler);
     _ganttLinkDocMouseupHandler = null;
 }
@@ -1203,6 +1220,15 @@ function renderGantt() {
     // 5. Apply FS-violation overlay (D-10)
     applyFsViolationStyles();
 
+    // 5b. Phase 86.8 Feature 1: tag SVG arrows with data-from / data-to so the contextmenu
+    // handler can identify the dependency edge without parsing the path's `d` string.
+    const _arrowSvg = document.querySelector('#ganttPane svg');
+    if (_arrowSvg) tagArrowsWithFromTo(_arrowSvg);
+
+    // 5c. Phase 86.8 Feature 1: re-attach the right-click handler. Frappe rebuilds the SVG node
+    // on every gantt.refresh(), so the listener must be re-attached after every renderGantt().
+    mountGanttArrowContextMenu();
+
     // 6. Today line + one-shot scroll-to-today
     renderTodayLine();
     if (!__ganttInitialScrollDone) {
@@ -1316,6 +1342,103 @@ function mountGanttBarDragGuard() {
     document.addEventListener('mouseup', _ganttDragMouseupHandler);
 }
 
+// Phase 86.8 Feature 1: register the SVG-level right-click handler that opens the
+// arrow-removal context menu. Idempotent: removes the previous listener before re-add
+// because Frappe rebuilds the SVG on every refresh and the listener must follow.
+function mountGanttArrowContextMenu() {
+    const svg = document.querySelector('#ganttPane svg');
+    if (!svg) return;
+    if (_ganttArrowContextHandler) {
+        try { svg.removeEventListener('contextmenu', _ganttArrowContextHandler); } catch (e) { /* swallow */ }
+    }
+    _ganttArrowContextHandler = function(e) {
+        const arrowEl = e.target.closest('.arrow');
+        if (!arrowEl) return; // not on an arrow — let the native menu fire
+        // Parent-summary arrows are pointer-events:none — guard belt-and-braces.
+        const cs = window.getComputedStyle(arrowEl);
+        if (cs.pointerEvents === 'none') return;
+        e.preventDefault();
+        const fromId = arrowEl.dataset.from;
+        const toId = arrowEl.dataset.to;
+        if (!fromId || !toId) {
+            showToast('Could not identify this dependency. Reload the project plan.', 'warning');
+            return;
+        }
+        const fromTask = tasks.find(x => x.task_id === fromId);
+        const toTask = tasks.find(x => x.task_id === toId);
+        if (!fromTask || !toTask) return;
+        showArrowContextMenu(e.clientX, e.clientY, fromTask, toTask, arrowEl);
+    };
+    svg.addEventListener('contextmenu', _ganttArrowContextHandler);
+}
+
+function showArrowContextMenu(x, y, fromTask, toTask, arrowEl) {
+    document.querySelector('.gantt-arrow-menu')?.remove();
+    if (_ganttArrowMenuClickaway) {
+        document.removeEventListener('mousedown', _ganttArrowMenuClickaway);
+        _ganttArrowMenuClickaway = null;
+    }
+    const truncate = (s, n) => (s && s.length > n) ? s.slice(0, n - 1) + '…' : (s || '');
+    const fromName = truncate(fromTask.name || fromTask.task_id, 30);
+    const toName = truncate(toTask.name || toTask.task_id, 30);
+
+    const menu = document.createElement('div');
+    menu.className = 'gantt-arrow-menu';
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.innerHTML =
+        `<div class="gantt-arrow-menu-item" title="Remove dependency">` +
+            `Remove dependency: ${escapeHTML(fromName)} → ${escapeHTML(toName)}` +
+        `</div>`;
+    document.body.appendChild(menu);
+
+    arrowEl.classList.add('tg-arrow-selected');
+
+    const item = menu.querySelector('.gantt-arrow-menu-item');
+    item.addEventListener('click', () => {
+        menu.remove();
+        if (_ganttArrowMenuClickaway) {
+            document.removeEventListener('mousedown', _ganttArrowMenuClickaway);
+            _ganttArrowMenuClickaway = null;
+        }
+        arrowEl.classList.remove('tg-arrow-selected');
+        removeArrowDependency(fromTask.task_id, toTask.task_id);
+    });
+
+    _ganttArrowMenuClickaway = function(ev) {
+        if (!menu.contains(ev.target)) {
+            menu.remove();
+            arrowEl.classList.remove('tg-arrow-selected');
+            document.removeEventListener('mousedown', _ganttArrowMenuClickaway);
+            _ganttArrowMenuClickaway = null;
+        }
+    };
+    // Defer attach so the same right-click that opened the menu doesn't immediately dismiss it.
+    setTimeout(() => {
+        if (_ganttArrowMenuClickaway) document.addEventListener('mousedown', _ganttArrowMenuClickaway);
+    }, 0);
+}
+
+async function removeArrowDependency(fromId, toId) {
+    const toTask = tasks.find(x => x.task_id === toId);
+    if (!toTask) return;
+    const cur = Array.isArray(toTask.dependencies) ? toTask.dependencies : [];
+    if (!cur.includes(fromId)) return; // already gone
+    const next = cur.filter(d => d !== fromId);
+    try {
+        await updateDoc(doc(db, 'project_tasks', toId), {
+            dependencies: next,
+            updated_at: serverTimestamp()
+        });
+        // onSnapshot fires renderGantt; arrow disappears naturally.
+    } catch (err) {
+        console.error('[ProjectPlan] removeArrowDependency failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to edit tasks on this project.`
+            : 'Could not remove dependency. Please try again.', 'error');
+    }
+}
+
 function setGanttZoom(mode) {
     if (!gantt || !mode) return;
     try { gantt.change_view_mode(mode); } catch (e) { return; }
@@ -1330,6 +1453,10 @@ function setGanttZoom(mode) {
     fixGanttContainerScroll(); // re-constrain container after Frappe rebuilds SVG
     mountGanttBarDragGuard(); // Phase 86.7 — re-attach after Frappe SVG rebuild on zoom change
     initGanttDragLink();     // re-override parent bar heights after Frappe SVG rebuild on zoom change
+    // Phase 86.8 Feature 1: re-tag arrows + re-attach context menu (Frappe rebuilds SVG on zoom).
+    const _zoomSvg = document.querySelector('#ganttPane svg');
+    if (_zoomSvg) tagArrowsWithFromTo(_zoomSvg);
+    mountGanttArrowContextMenu();
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1441,6 +1568,38 @@ function applyFsViolationStyles() {
     // violation classes and rely on the toast for UX until a Frappe patch lands.
     const arrows = document.querySelectorAll('#ganttPane .arrow');
     arrows.forEach(el => el.classList.remove('violation'));
+}
+
+// Phase 86.8 Feature 1: reverse-map arrow SVG paths to (fromTaskId, toTaskId) by coordinate
+// matching against bar-wrapper bounding boxes. Frappe v1.2.2 ships no arrow-id metadata; this
+// reverse-mapping is cheaper than forking Frappe and survives gantt.refresh() because we re-tag
+// on every renderGantt step 5b (Frappe rebuilds the SVG node on every refresh).
+function tagArrowsWithFromTo(svg) {
+    if (!svg) return;
+    const arrows = svg.querySelectorAll('.arrow');
+    if (arrows.length === 0) return;
+    const wrappers = [...svg.querySelectorAll('.bar-wrapper')].map(w => {
+        const bar = w.querySelector('.bar');
+        if (!bar) return null;
+        const r = bar.getBBox();
+        return { id: w.dataset.id, leftX: r.x, rightX: r.x + r.width, top: r.y, bottom: r.y + r.height };
+    }).filter(Boolean);
+    const TOL = 6;
+    arrows.forEach(path => {
+        let bbox;
+        try { bbox = path.getBBox(); } catch (e) { return; }
+        const startX = bbox.x;
+        const endX = bbox.x + bbox.width;
+        // Predecessor bar's right edge is near startX; arrow start y inside that bar's y-range.
+        const fromMatches = wrappers.filter(w => Math.abs(w.rightX - startX) <= TOL);
+        // Successor bar's left edge is near endX; arrow end y inside that bar's y-range.
+        const toMatches = wrappers.filter(w => Math.abs(w.leftX - endX) <= TOL);
+        if (fromMatches.length === 1 && toMatches.length === 1) {
+            path.dataset.from = fromMatches[0].id;
+            path.dataset.to = toMatches[0].id;
+        }
+        // Ambiguous matches: leave untagged — context menu shows "Could not identify" toast (T-86.8.1-01).
+    });
 }
 
 // Frappe v1.2.2 view_modes set config.unit ∈ {day, week, month, year} and config.step is a count of those units.

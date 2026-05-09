@@ -2588,6 +2588,29 @@
 .gantt-link-handle:hover { opacity: 1; }
 .gantt-rubber-band { pointer-events: none; }
 
+/* Phase 86.8 Feature 1 — arrow right-click context menu */
+.gantt-arrow-menu {
+    position: fixed;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 4px 0;
+    z-index: 10000;
+    min-width: 240px;
+    font-size: 0.875rem;
+}
+.gantt-arrow-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gantt-arrow-menu-item:hover { background: #fef2f2; color: #ef4444; }
+.gantt-container .arrow.tg-arrow-selected { stroke: #1a73e8; stroke-width: 2.5; }
+
 @media (max-width: 768px) {
     .task-grid-rail { display: none; }
 }
