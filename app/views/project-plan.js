@@ -1184,6 +1184,7 @@ function renderGantt() {
             view_mode: 'Week',
             bar_height: 24,
             bar_corner_radius: 3,
+            header_height: 67,                     // 86.7 fix: 67 + padding(18) = 85, matches .task-grid thead tr — eliminates phantom gap below overlay
             padding: 18,
             language: 'en',
             date_format: 'YYYY-MM-DD',
@@ -1630,9 +1631,10 @@ function renderCustomGanttHeader() {
     if (!mountEl || !gantt) return;
     try {
         const mode = gantt.options.view_mode || 'Week';
-        // Bar rows start at header_height + padding/2 (Frappe compute_y(), index=0).
-        // Overlay must cover this exact height so no strip shows between header and first bar.
-        const headerHeight = (gantt.config.header_height || 85) + Math.round((gantt.options.padding || 18) / 2);
+        // Overlay height locked to 85px to match .task-grid thead tr (left pane).
+        // Frappe constructor sets header_height:67 + padding:18 so first bar lands at y=85,
+        // making this overlay the exact correct cover with no exposed strip and no overpaint.
+        const headerHeight = 85;
         const colWidth = gantt.config.column_width || (mode === 'Day' ? 45 : mode === 'Week' ? 140 : 120);
         const startDate = new Date(gantt.gantt_start); startDate.setHours(0, 0, 0, 0);
         const endDate   = new Date(gantt.gantt_end);   endDate.setHours(0, 0, 0, 0);
