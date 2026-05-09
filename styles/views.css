@@ -2463,7 +2463,7 @@
 }
 
 .task-grid thead tr {
-    height: 85px;                                     /* aligns with Frappe header: upper(45) + lower(30) + 10 = 85px */
+    height: 94px;                                     /* GANTT-OVERLAY-PANE-PARITY: matches #ganttHeaderOverlay = config.header_height(85) + padding/2(9) = 94px = Frappe compute_y(index=0) for first bar */
 }
 
 .task-grid thead th {
