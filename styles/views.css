@@ -2626,6 +2626,10 @@
 .tg-collapse-toggle[data-collapsed="1"] { transform: rotate(-90deg); }
 .tg-collapse-toggle:hover { color: #1a73e8; }
 
+/* Phase 86.8 Feature 7 — selected row highlight (left-edge accent stripe) */
+.tg-row.tg-selected { background: #eff6ff; box-shadow: inset 2px 0 0 0 #1a73e8; }
+.tg-row.tg-selected:hover { background: #dbeafe; }
+
 @media (max-width: 768px) {
     .task-grid-rail { display: none; }
 }

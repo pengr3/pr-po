@@ -70,6 +70,12 @@ let _selectedArrow = null;            // { fromId, toId, el } | null — used by
 let _collapsedParents = new Set();    // task_ids whose subtree is hidden in left grid + Gantt
 let _gridCollapseHandler = null;      // delegated click handler on the rail — toggles collapse state
 
+// Phase 86.8 — Feature 7: keyboard shortcuts + row/arrow selection
+let _selectedTaskId = null;           // currently-selected row task_id (Delete + Up/Down + Enter)
+let _planKeydownHandler = null;       // window-level keydown listener
+let _ganttArrowClickHandler = null;   // SVG click → arrow selection
+let _gridRowClickHandler = null;      // delegated click on rail → row selection
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -179,6 +185,67 @@ export async function init(activeTab = null, param = null) {
         window.gridDeleteRow = gridDeleteRow;
         window.removeArrowDependency = removeArrowDependency; // Phase 86.8 Feature 1+7
         initPanelResize();
+
+        // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
+        // INPUT/TEXTAREA/SELECT short-circuit so typing inside a cell never gets hijacked.
+        if (_planKeydownHandler) document.removeEventListener('keydown', _planKeydownHandler);
+        _planKeydownHandler = function(event) {
+            if (!document.getElementById('planViewSurface')) return; // view not mounted
+            const ae = document.activeElement;
+            const aeTag = ae?.tagName;
+            if (aeTag === 'INPUT' || aeTag === 'TEXTAREA' || aeTag === 'SELECT') return;
+            switch (event.key) {
+                case 'Delete':
+                case 'Backspace': // Backspace included for Mac users whose Delete key produces 'Backspace'.
+                    if (_selectedArrow) {
+                        event.preventDefault();
+                        const { fromId, toId } = _selectedArrow;
+                        _selectedArrow = null;
+                        removeArrowDependency(fromId, toId);
+                    } else if (_selectedTaskId) {
+                        event.preventDefault();
+                        gridDeleteRow(_selectedTaskId);
+                    }
+                    break;
+                case 'ArrowDown':
+                case 'ArrowUp': {
+                    if (!_selectedTaskId) {
+                        const firstRow = document.querySelector('.tg-row:not(.tg-empty-row)');
+                        if (firstRow) {
+                            event.preventDefault();
+                            selectRow(firstRow.dataset.taskId);
+                        }
+                        break;
+                    }
+                    event.preventDefault();
+                    const visibleRows = [...document.querySelectorAll('.tg-row:not(.tg-empty-row)')];
+                    const idx = visibleRows.findIndex(r => r.dataset.taskId === _selectedTaskId);
+                    if (idx < 0) break;
+                    const nextIdx = event.key === 'ArrowDown' ? idx + 1 : idx - 1;
+                    if (nextIdx < 0 || nextIdx >= visibleRows.length) break;
+                    selectRow(visibleRows[nextIdx].dataset.taskId);
+                    // scrollIntoView is opt-in (block:'nearest') so we don't yank the user's view
+                    // when the row is already in view.
+                    visibleRows[nextIdx].scrollIntoView({ block: 'nearest' });
+                    break;
+                }
+                case 'Enter':
+                    if (_selectedTaskId) {
+                        const row = document.querySelector(`.tg-row[data-task-id="${CSS.escape(_selectedTaskId)}"]`);
+                        const firstInput = row?.querySelector('input.tg-input:not([disabled])');
+                        if (firstInput) {
+                            event.preventDefault();
+                            firstInput.focus();
+                            try { firstInput.select?.(); } catch (e) { /* swallow */ }
+                        }
+                    }
+                    break;
+                case 'Escape':
+                    clearSelection();
+                    break;
+            }
+        };
+        document.addEventListener('keydown', _planKeydownHandler);
     } finally {
         showLoading(false);
     }
@@ -293,6 +360,18 @@ export async function destroy() {
     _selectedArrow = null;
     document.querySelector('.gantt-arrow-menu')?.remove();
     delete window.removeArrowDependency;
+    // Phase 86.8 Feature 7 — keyboard + arrow-click + row-click cleanup
+    if (_planKeydownHandler) document.removeEventListener('keydown', _planKeydownHandler);
+    _planKeydownHandler = null;
+    if (_ganttArrowClickHandler && _arrowSvg) {
+        try { _arrowSvg.removeEventListener('click', _ganttArrowClickHandler); } catch (e) { /* swallow */ }
+    }
+    _ganttArrowClickHandler = null;
+    _selectedTaskId = null;
+    if (_gridRowClickHandler && gridContainer) {
+        gridContainer.removeEventListener('click', _gridRowClickHandler);
+    }
+    _gridRowClickHandler = null;
     if (_ganttLinkDocMouseupHandler) document.removeEventListener('mouseup', _ganttLinkDocMouseupHandler);
     _ganttLinkDocMouseupHandler = null;
 }
@@ -655,6 +734,21 @@ function bindGridEvents(container) {
         renderGantt();
     };
     container.addEventListener('click', _gridCollapseHandler);
+
+    // Phase 86.8 Feature 7 — delegated row click for keyboard selection. Skip clicks on inputs,
+    // selects, and the collapse toggle so existing affordances aren't hijacked.
+    if (_gridRowClickHandler) container.removeEventListener('click', _gridRowClickHandler);
+    _gridRowClickHandler = function(e) {
+        if (e.target.closest('.tg-collapse-toggle')) return;
+        const tag = e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+        const row = e.target.closest('.tg-row');
+        if (!row || row.classList.contains('tg-empty-row')) return;
+        const id = row.dataset.taskId;
+        if (!id || id === '__new__') return;
+        selectRow(id);
+    };
+    container.addEventListener('click', _gridRowClickHandler);
 }
 
 async function handleGridCellBlur(taskId, col, rawValue) {
@@ -1297,6 +1391,9 @@ function renderGantt() {
     // on every gantt.refresh(), so the listener must be re-attached after every renderGantt().
     mountGanttArrowContextMenu();
 
+    // 5d. Phase 86.8 Feature 7: re-attach the SVG click → arrow selection handler.
+    mountGanttArrowClickSelect();
+
     // 6. Today line + one-shot scroll-to-today
     renderTodayLine();
     if (!__ganttInitialScrollDone) {
@@ -1517,6 +1614,59 @@ function showArrowContextMenu(x, y, fromTask, toTask, arrowEl) {
     }, 0);
 }
 
+// Phase 86.8 Feature 7 — register an SVG click → arrow selection handler. Idempotent across
+// renderGantt() calls because Frappe rebuilds the SVG node on every refresh.
+function mountGanttArrowClickSelect() {
+    const svg = document.querySelector('#ganttPane svg');
+    if (!svg) return;
+    if (_ganttArrowClickHandler) {
+        try { svg.removeEventListener('click', _ganttArrowClickHandler); } catch (e) { /* swallow */ }
+    }
+    _ganttArrowClickHandler = function(e) {
+        const arrowEl = e.target.closest('.arrow');
+        if (!arrowEl) return;
+        const cs = window.getComputedStyle(arrowEl);
+        if (cs.pointerEvents === 'none') return;
+        const fromId = arrowEl.dataset.from;
+        const toId = arrowEl.dataset.to;
+        // Spoofing guard (T-86.8.1-05): only paths processed by tagArrowsWithFromTo() qualify.
+        if (!fromId || !toId) return;
+        selectArrow(fromId, toId, arrowEl);
+    };
+    svg.addEventListener('click', _ganttArrowClickHandler);
+}
+
+// Phase 86.8 Feature 7 — selection helpers (row vs arrow are mutually exclusive).
+function selectRow(taskId) {
+    _selectedTaskId = taskId;
+    if (_selectedArrow?.el) {
+        _selectedArrow.el.classList.remove('tg-arrow-selected');
+    }
+    _selectedArrow = null;
+    document.querySelectorAll('.tg-row.tg-selected').forEach(r => r.classList.remove('tg-selected'));
+    if (taskId) {
+        document.querySelector(`.tg-row[data-task-id="${CSS.escape(taskId)}"]`)?.classList.add('tg-selected');
+    }
+}
+
+function selectArrow(fromId, toId, el) {
+    if (_selectedArrow?.el && _selectedArrow.el !== el) {
+        _selectedArrow.el.classList.remove('tg-arrow-selected');
+    }
+    _selectedArrow = { fromId, toId, el };
+    el.classList.add('tg-arrow-selected');
+    // Single-target selection — clear row selection.
+    _selectedTaskId = null;
+    document.querySelectorAll('.tg-row.tg-selected').forEach(r => r.classList.remove('tg-selected'));
+}
+
+function clearSelection() {
+    _selectedTaskId = null;
+    if (_selectedArrow?.el) _selectedArrow.el.classList.remove('tg-arrow-selected');
+    _selectedArrow = null;
+    document.querySelectorAll('.tg-row.tg-selected').forEach(r => r.classList.remove('tg-selected'));
+}
+
 async function removeArrowDependency(fromId, toId) {
     const toTask = tasks.find(x => x.task_id === toId);
     if (!toTask) return;
@@ -1555,6 +1705,8 @@ function setGanttZoom(mode) {
     const _zoomSvg = document.querySelector('#ganttPane svg');
     if (_zoomSvg) tagArrowsWithFromTo(_zoomSvg);
     mountGanttArrowContextMenu();
+    // Phase 86.8 Feature 7: re-attach arrow click selection (Frappe rebuilds SVG on zoom).
+    mountGanttArrowClickSelect();
 }
 
 function handleGanttDateChange(task, start, end) {
