@@ -1438,6 +1438,15 @@ function applyFsViolationStyles() {
     arrows.forEach(el => el.classList.remove('violation'));
 }
 
+// Frappe v1.2.2 view_modes set config.unit ∈ {day, week, month, year} and config.step is a count of those units.
+// Day/Week use unit="day" so column_width/step gives px-per-day. Month/Year do not — convert via days-per-unit.
+function ganttXPerDay() {
+    if (!gantt || typeof gantt.config !== 'object') return 45;
+    const unitDays = { day: 1, week: 7, month: 30, year: 365 };
+    const daysPerColumn = (unitDays[gantt.config.unit] || 1) * (gantt.config.step || 1);
+    return (gantt.config.column_width || 45) / daysPerColumn;
+}
+
 function renderTodayLine() {
     const ganttSvg = document.querySelector('#ganttPane svg');
     if (!ganttSvg) return;
@@ -1452,12 +1461,7 @@ function renderTodayLine() {
         today.setHours(0, 0, 0, 0);
         startDate.setHours(0, 0, 0, 0);
         const dayDiff = Math.round((today - startDate) / (1000 * 60 * 60 * 24));
-        // Phase 86.4 fix: use gantt.config (not gantt.options) — Frappe v1.2.2 parses step into config.step
-        // (a number of units) and config.unit (e.g. 'day'). column_width is also only in config.
-        // For all day-unit views: xPerDay = config.column_width / config.step
-        const configStep = gantt.config.step || 1;
-        const configColWidth = gantt.config.column_width || 45;
-        const xPerDay = configColWidth / configStep;
+        const xPerDay = ganttXPerDay();
         const x = dayDiff * xPerDay;
         // Build SVG line element
         const ns = 'http://www.w3.org/2000/svg';
@@ -1482,10 +1486,7 @@ function scrollGanttToToday() {
         today.setHours(0, 0, 0, 0);
         startDate.setHours(0, 0, 0, 0);
         const dayDiff = Math.round((today - startDate) / (1000 * 60 * 60 * 24));
-        // Phase 86.4 fix: use gantt.config (not gantt.options) for correct column_width and step
-        const configStep = gantt.config.step || 1;
-        const configColWidth = gantt.config.column_width || 45;
-        const xPerDay = configColWidth / configStep;
+        const xPerDay = ganttXPerDay();
         const x = dayDiff * xPerDay;
         // Center today in the visible pane
         pane.scrollLeft = Math.max(0, x - pane.clientWidth / 2);
@@ -1513,10 +1514,7 @@ function computeGanttFloorX() {
         // Soft floor: min(today, earliest). Empty / future-only projects → today.
         const floorDate = (earliest && earliest < today) ? earliest : today;
         const dayDiff = Math.round((floorDate - startDate) / (1000 * 60 * 60 * 24));
-        // Phase 86.4 fix: use gantt.config for correct column_width and step
-        const configStep = gantt.config.step || 1;
-        const configColWidth = gantt.config.column_width || 45;
-        const xPerDay = configColWidth / configStep;
+        const xPerDay = ganttXPerDay();
         const floorX = Math.max(0, dayDiff * xPerDay);
         return floorX;
     } catch (e) {
@@ -1864,7 +1862,7 @@ function initGanttDragLink() {
                 pt2.x = e.clientX;
                 pt2.y = e.clientY;
                 const svgPt2 = pt2.matrixTransform(svg.getScreenCTM().inverse());
-                const xPerDay2 = (gantt.config.column_width || 45) / (gantt.config.step || 1);
+                const xPerDay2 = ganttXPerDay();
                 const daysDelta = Math.round((svgPt2.x - barRightX) / xPerDay2);
                 if (daysDelta === 0) return; // no meaningful change
                 let newEndDate = addDays(fromTask.end_date, daysDelta);
