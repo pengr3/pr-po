@@ -1185,6 +1185,11 @@ function renderGantt() {
             bar_height: 24,
             bar_corner_radius: 3,
             padding: 18,
+            // Phase 86.7 row-alignment fix: overrides default(30) so update_view_scale computes
+            // config.header_height = 39+45+10 = 94 — matches left-pane .task-grid thead tr (94px) and overlay (94px).
+            // Bar slot 0 then starts at y=94 instead of y=85, eliminating the constant 9px offset where
+            // left-pane row labels sat 9px below right-pane bars. See .planning/debug/gantt-row-vertical-misalign.md.
+            lower_header_height: 39,
             language: 'en',
             date_format: 'YYYY-MM-DD',
             popup: false,                          // DEFECT-4: suppress click-triggered popup
@@ -1628,9 +1633,11 @@ function renderCustomGanttHeader() {
     if (!mountEl || !gantt) return;
     try {
         const mode = gantt.options.view_mode || 'Week';
-        // Bar rows start at header_height + padding/2 (Frappe compute_y(), index=0).
-        // Overlay must cover this exact height so no strip shows between header and first bar.
-        const headerHeight = (gantt.config.header_height || 85) + Math.round((gantt.options.padding || 18) / 2);
+        // Phase 86.7 header-parity fix: overlay height = gantt.config.header_height (which we force to 94 via lower_header_height:39).
+        // Previously this formula added padding/2 (=9), producing a 103px overlay vs 94px left thead — visible ~9px header mismatch.
+        // The padding/2 zone is the bar-slot top padding INSIDE the body area (where Frappe paints row stripe 0); not part of the header.
+        // Both panes now share identical 94px header bands. See .planning/debug/gantt-row-vertical-misalign.md.
+        const headerHeight = gantt.config.header_height || 94;
         const colWidth = gantt.config.column_width || (mode === 'Day' ? 45 : mode === 'Week' ? 140 : 120);
         const startDate = new Date(gantt.gantt_start); startDate.setHours(0, 0, 0, 0);
         const endDate   = new Date(gantt.gantt_end);   endDate.setHours(0, 0, 0, 0);

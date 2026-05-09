@@ -2463,7 +2463,7 @@
 }
 
 .task-grid thead tr {
-    height: 94px;                                     /* GANTT-OVERLAY-PANE-PARITY: matches #ganttHeaderOverlay = config.header_height(85) + padding/2(9) = 94px = Frappe compute_y(index=0) for first bar */
+    height: 94px;                                     /* GANTT-OVERLAY-PANE-PARITY: matches #ganttHeaderOverlay AND gantt.config.header_height (forced to 94 via lower_header_height:39 in project-plan.js → 39+45+10=94). Right-pane bar slot 0 top y = config.header_height = 94, so left thead bottom = right slot 0 top → row labels and bars align by both top edge and center. */
 }
 
 .task-grid thead th {
