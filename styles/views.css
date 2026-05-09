@@ -2611,6 +2611,21 @@
 .gantt-arrow-menu-item:hover { background: #fef2f2; color: #ef4444; }
 .gantt-container .arrow.tg-arrow-selected { stroke: #1a73e8; stroke-width: 2.5; }
 
+/* Phase 86.8 Feature 2 — collapsible parent toggle */
+.tg-collapse-toggle {
+    display: inline-block;
+    width: 14px;
+    margin-right: 4px;
+    font-size: 11px;
+    color: #64748b;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s ease;
+    text-align: center;
+}
+.tg-collapse-toggle[data-collapsed="1"] { transform: rotate(-90deg); }
+.tg-collapse-toggle:hover { color: #1a73e8; }
+
 @media (max-width: 768px) {
     .task-grid-rail { display: none; }
 }

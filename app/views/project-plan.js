@@ -66,6 +66,10 @@ let _ganttArrowContextHandler = null; // SVG contextmenu listener — re-attache
 let _ganttArrowMenuClickaway = null;  // document mousedown that dismisses the open menu
 let _selectedArrow = null;            // { fromId, toId, el } | null — used by Feature 7 keyboard Delete
 
+// Phase 86.8 — Feature 2: collapsible parents (in-memory only — D-2 deferral)
+let _collapsedParents = new Set();    // task_ids whose subtree is hidden in left grid + Gantt
+let _gridCollapseHandler = null;      // delegated click handler on the rail — toggles collapse state
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -207,7 +211,10 @@ export async function destroy() {
         if (_gridDropHandler) gridContainer.removeEventListener('drop', _gridDropHandler);
         if (_gridDragEndHandler) gridContainer.removeEventListener('dragend', _gridDragEndHandler);
         if (_gridKeydownHandler) gridContainer.removeEventListener('keydown', _gridKeydownHandler);
+        if (_gridCollapseHandler) gridContainer.removeEventListener('click', _gridCollapseHandler);
     }
+    _collapsedParents = new Set();
+    _gridCollapseHandler = null;
     _gridInputHandler = null;
     _gridChangeHandler = null;
     _gridContextMenuHandler = null;
@@ -333,6 +340,35 @@ function isDescendant(candidateId, ancestorId) {
     return false;
 }
 
+// Phase 86.8 Feature 2 + 3 — DFS collect of every task_id in the subtree rooted at parentId
+// (excluding parentId itself). Reads from the truth-set tasks[], not visibleTasks.
+function getDescendantIds(parentId) {
+    const childrenByParent = new Map();
+    tasks.forEach(t => {
+        if (!t.parent_task_id) return;
+        if (!childrenByParent.has(t.parent_task_id)) childrenByParent.set(t.parent_task_id, []);
+        childrenByParent.get(t.parent_task_id).push(t.task_id);
+    });
+    const out = [];
+    function walk(id) {
+        const kids = childrenByParent.get(id) || [];
+        kids.forEach(k => { out.push(k); walk(k); });
+    }
+    walk(parentId);
+    return out;
+}
+
+// Phase 86.8 Feature 2 — true if any ancestor of t is in _collapsedParents.
+function isHiddenByCollapse(t) {
+    if (_collapsedParents.size === 0 || !t) return false;
+    let cur = tasks.find(x => x.task_id === t.parent_task_id);
+    while (cur) {
+        if (_collapsedParents.has(cur.task_id)) return true;
+        cur = tasks.find(x => x.task_id === cur.parent_task_id);
+    }
+    return false;
+}
+
 function renderTaskGrid() {
     const container = document.getElementById('taskGridRail');
     if (!container) return;
@@ -381,7 +417,11 @@ function renderTaskGrid() {
 
     const isParentSet = new Set(tasks.filter(t => t.parent_task_id).map(t => t.parent_task_id));
 
-    const rowsHtml = sorted.map(t => {
+    // Phase 86.8 Feature 2: filter out rows whose ancestor chain includes a collapsed parent.
+    // The toggle itself stays visible — only descendants disappear.
+    const visibleSorted = sorted.filter(t => !isHiddenByCollapse(t));
+
+    const rowsHtml = visibleSorted.map(t => {
         const rowNum = rowOrderCache.get(t.task_id);
         const isParent = isParentSet.has(t.task_id);
         const depth = computeDepth(t.task_id);
@@ -391,12 +431,15 @@ function renderTaskGrid() {
 
         const parentLockAttr = isParent ? ' data-parent-locked="1"' : '';
         const parentStyle = isParent ? 'style="color:var(--gray-700,#475569);font-style:italic;"' : '';
+        const collapseToggle = isParent
+            ? `<span class="tg-collapse-toggle" data-task-id="${escapeHTML(t.task_id)}" data-collapsed="${_collapsedParents.has(t.task_id) ? '1' : '0'}">▼</span>`
+            : '';
 
         return `
           <tr class="tg-row" data-task-id="${escapeHTML(t.task_id)}">
             <td class="tg-rn" draggable="true">${rowNum}</td>
             <td class="tg-name" style="padding-left:${indent}px;">
-              <input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
+              ${collapseToggle}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
                      data-task-id="${escapeHTML(t.task_id)}">
             </td>
             <td class="tg-dur"${parentLockAttr}>
@@ -596,6 +639,22 @@ function bindGridEvents(container) {
         input.blur(); // triggers handleGridCellBlur via existing capture-phase blur listener
     };
     container.addEventListener('keydown', _gridKeydownHandler);
+
+    // Phase 86.8 Feature 2 — delegated click handler for collapse toggles (single source of truth:
+    // both rail and Gantt re-render together so vertical row pitch stays consistent).
+    if (_gridCollapseHandler) container.removeEventListener('click', _gridCollapseHandler);
+    _gridCollapseHandler = function(e) {
+        const toggle = e.target.closest('.tg-collapse-toggle');
+        if (!toggle) return;
+        e.stopPropagation();
+        const id = toggle.dataset.taskId;
+        if (!id) return;
+        if (_collapsedParents.has(id)) _collapsedParents.delete(id);
+        else _collapsedParents.add(id);
+        renderTaskGrid();
+        renderGantt();
+    };
+    container.addEventListener('click', _gridCollapseHandler);
 }
 
 async function handleGridCellBlur(taskId, col, rawValue) {
@@ -1183,6 +1242,15 @@ function renderGantt() {
     }
     walk('__root__');
 
+    // Phase 86.8 Feature 2: collapse hides bars but parents still compute envelopes from the full
+    // truth-set above (childrenByParent / getEnvelope) so collapse never changes saved dates.
+    if (_collapsedParents.size > 0) {
+        for (let i = frappeTasks.length - 1; i >= 0; i--) {
+            const t = tasks.find(x => x.task_id === frappeTasks[i].id);
+            if (t && isHiddenByCollapse(t)) frappeTasks.splice(i, 1);
+        }
+    }
+
     if (frappeTasks.length === 0) {
         mountEl.innerHTML = '';
         gantt = null; // BloomFilter-guard: reset stale instance so next snapshot rebuilds clean
@@ -1301,26 +1369,56 @@ function mountGanttBarDragGuard() {
         }
 
         // --- Flush pending date write ---
+        // Two shapes: single-task (Phase 86.7) or { parentDrag: true, childUpdates[] } (Phase 86.8 Feature 3).
         if (_pendingDragWrite) {
-            const { taskId, newStart, newEnd, parentId } = _pendingDragWrite;
-            _pendingDragWrite = null;
-            updateDoc(doc(db, 'project_tasks', taskId), {
-                start_date: newStart,
-                end_date: newEnd,
-                updated_at: serverTimestamp()
-            }).then(async () => {
-                if (parentId) {
-                    const idx = tasks.findIndex(x => x.task_id === taskId);
-                    if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
-                    await recomputeParentDates(parentId);
-                }
-            }).catch(err => {
-                console.error('[ProjectPlan] Phantom drag write failed:', err);
-                showToast(err?.code === 'permission-denied'
-                    ? `You don't have permission to edit tasks on this project.`
-                    : 'Could not save task. Please try again.', 'error');
-                renderGantt(); // revert bar to last known position
-            });
+            if (_pendingDragWrite.parentDrag) {
+                // parentDrag branch — cascade write: every descendant shifts by the same delta.
+                const { taskId, childUpdates, parentId } = _pendingDragWrite;
+                _pendingDragWrite = null;
+                if (!childUpdates || childUpdates.length === 0) return;
+                const batch = writeBatch(db);
+                childUpdates.forEach(u => {
+                    batch.update(doc(db, 'project_tasks', u.taskId), {
+                        start_date: u.newStart,
+                        end_date: u.newEnd,
+                        updated_at: serverTimestamp()
+                    });
+                });
+                batch.commit().then(async () => {
+                    childUpdates.forEach(u => {
+                        const idx = tasks.findIndex(x => x.task_id === u.taskId);
+                        if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: u.newStart, end_date: u.newEnd };
+                    });
+                    await recomputeParentDates(taskId);
+                    if (parentId) await recomputeParentDates(parentId);
+                }).catch(err => {
+                    console.error('[ProjectPlan] Parent drag batch write failed:', err);
+                    showToast(err?.code === 'permission-denied'
+                        ? `You don't have permission to edit tasks on this project.`
+                        : 'Could not move task subtree.', 'error');
+                    renderGantt();
+                });
+            } else {
+                const { taskId, newStart, newEnd, parentId } = _pendingDragWrite;
+                _pendingDragWrite = null;
+                updateDoc(doc(db, 'project_tasks', taskId), {
+                    start_date: newStart,
+                    end_date: newEnd,
+                    updated_at: serverTimestamp()
+                }).then(async () => {
+                    if (parentId) {
+                        const idx = tasks.findIndex(x => x.task_id === taskId);
+                        if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
+                        await recomputeParentDates(parentId);
+                    }
+                }).catch(err => {
+                    console.error('[ProjectPlan] Phantom drag write failed:', err);
+                    showToast(err?.code === 'permission-denied'
+                        ? `You don't have permission to edit tasks on this project.`
+                        : 'Could not save task. Please try again.', 'error');
+                    renderGantt(); // revert bar to last known position
+                });
+            }
         }
 
         // --- Flush pending progress write ---
@@ -1464,14 +1562,43 @@ function handleGanttDateChange(task, start, end) {
     const t = tasks.find(x => x.task_id === task.id);
     if (!t) return;
 
-    // Defense-in-depth: parent bars MUST NOT be draggable (D-11).
-    // CSS pointer-events: none on .parent-summary-bar handles is the primary block;
-    // this is a server-rules + JS double-check.
+    // Phase 86.8 Feature 3: parent drag now cascades to descendants (replaces the old reject path).
+    // Phase 86.7 phantom-drag pattern: defer write, flush on mouseup as a single writeBatch.
     const isParent = tasks.some(x => x.parent_task_id === t.task_id);
     if (isParent) {
-        showToast('Parent task dates are computed from subtasks. Edit subtask dates instead.', 'warning');
-        // Force re-render to revert any optimistic move
-        renderGantt();
+        const newStart = formatDateISO(start);
+        const newEnd = formatDateISO(end);
+        if (!newStart || !newEnd || newStart > newEnd) return;
+        const descendantIds = getDescendantIds(t.task_id);
+        const descendants = descendantIds.map(id => tasks.find(x => x.task_id === id)).filter(Boolean);
+        if (descendants.length === 0) return;
+        // Parent dates are envelope-computed (D-11); reading t.start_date can be stale during
+        // in-flight snapshots — derive daysDelta from the descendants' true minimum start.
+        const curEnvStart = descendants.reduce((m, d) => {
+            if (!d.start_date) return m;
+            return (m && m < d.start_date) ? m : d.start_date;
+        }, null);
+        if (!curEnvStart) return;
+        const dayMs = 86400000;
+        const daysDelta = Math.round((new Date(newStart + 'T00:00:00') - new Date(curEnvStart + 'T00:00:00')) / dayMs);
+        if (daysDelta === 0) return;
+        if (_ganttBarDragging) {
+            // writeBatch caps at 500 ops; subtrees > 450 children would overflow but real plans
+            // don't reach that — accept the limit and leave a single batch for now (T-86.8.1-08).
+            const childUpdates = descendants
+                .filter(d => d.start_date && d.end_date)
+                .map(d => ({
+                    taskId: d.task_id,
+                    newStart: addDays(d.start_date, daysDelta),
+                    newEnd:   addDays(d.end_date,   daysDelta)
+                }));
+            _pendingDragWrite = {
+                taskId: t.task_id,
+                parentDrag: true,
+                childUpdates,
+                parentId: t.parent_task_id || null
+            };
+        }
         return;
     }
 
