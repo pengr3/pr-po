@@ -120,7 +120,7 @@ export function render(activeTab = null, param = null) {
                     <button type="button" class="zoom-pill active" data-zoom="Week" onclick="window.setGanttZoom('Week')">Week</button>
                     <button type="button" class="zoom-pill" data-zoom="Month" onclick="window.setGanttZoom('Month')">Month</button>
                 </div>
-                <label class="plan-toolbar-toggle" title="Highlight critical path tasks in red">
+                <label class="plan-toolbar-toggle" title="Critical path&#10;&#10;The longest dependency chain that drives the project finish date. Slip any task on it and the project slips.&#10;&#10;A task qualifies when:&#10;  1. It has zero schedule slack (no buffer), AND&#10;  2. At least one neighbor is also zero-slack with a tight dependency edge (predecessor finishes the day before this task starts).&#10;&#10;Isolated tasks with no dependencies are never on the critical path.">
                     <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
                     <span>Critical path</span>
                 </label>
