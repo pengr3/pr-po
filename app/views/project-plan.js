@@ -64,6 +64,11 @@ let _ganttDragSafetyTimer = null;       // 10 s auto-clear in case mouseup is mi
 // strict numeric equality on internal _start; for parent/summary bars whose dates are envelope-derived
 // the equality check intermittently swallows the event). Capture the gesture at the DOM layer instead.
 let _parentDragInfo = null;             // { taskId, mouseDownX } | null — set on mousedown of a parent bar
+// Phase 86.8 chain-drag fix — Frappe v1.2.2 cascades date_change events to dependent successors
+// (move_dependencies defaults to true). With multiple events arriving in one gesture, _pendingDragWrite
+// would be overwritten and only the LAST cascaded task got flushed. Capture the user-initiated taskId
+// at mousedown and ignore on_date_change events for any other task during the gesture.
+let _dragInitiatorTaskId = null;        // task_id of the bar the user actually grabbed; null outside a drag
 
 // Phase 86.8 — arrow right-click + selection state (Features 1 & 7)
 let _ganttArrowContextHandler = null; // SVG contextmenu listener — re-attached on every renderGantt
@@ -409,6 +414,7 @@ export async function destroy() {
     _ganttDragMouseupHandler = null;
     _ganttDragSafetyTimer = null;
     _parentDragInfo = null;
+    _dragInitiatorTaskId = null;
     // Phase 86.8 Feature 1 — arrow context menu cleanup
     const _arrowSvg = document.querySelector('#ganttPane svg');
     if (_ganttArrowContextHandler && _arrowSvg) {
@@ -1650,6 +1656,10 @@ function mountGanttBarDragGuard() {
         _pendingDragWrite = null;
         _pendingProgressWrite = null;
         _parentDragInfo = null;
+        // Phase 86.8 chain-drag fix: record the taskId the user grabbed so handleGanttDateChange
+        // can filter out cascaded date_change events Frappe fires for dependent successors
+        // (see .planning/debug/gantt-chain-drag-wrong-task.md).
+        _dragInitiatorTaskId = wrapper.dataset.id || null;
         // Phase 86.8 Feature 3 fix: capture parent-bar drag at the DOM layer rather than via
         // Frappe's on_date_change. Frappe's date_changed gates on Number(_start) !== Number(new),
         // which silently no-ops for parent/summary bars whose internal _start is already
@@ -1665,6 +1675,7 @@ function mountGanttBarDragGuard() {
             _pendingDragWrite = null;
             _pendingProgressWrite = null;
             _parentDragInfo = null;
+            _dragInitiatorTaskId = null;
         }, 10000);
     };
     svg.addEventListener('mousedown', _ganttDragMousedownHandler);
@@ -1687,6 +1698,7 @@ function mountGanttBarDragGuard() {
             _pendingDragWrite = null;
             _pendingProgressWrite = null;
             _parentDragInfo = null;
+            _dragInitiatorTaskId = null;
             renderGantt();
             return;
         }
@@ -1785,6 +1797,10 @@ function mountGanttBarDragGuard() {
                 renderGantt(); // revert
             });
         }
+
+        // Phase 86.8 chain-drag fix: clear initiator at end of gesture so subsequent
+        // (non-drag) on_date_change calls take the immediate-write path.
+        _dragInitiatorTaskId = null;
     };
     document.addEventListener('mouseup', _ganttDragMouseupHandler);
 }
@@ -1979,6 +1995,12 @@ function handleGanttDateChange(task, start, end) {
     // remain envelope-computed and recomputeParentDates is called after the cascade commit.
     const isParent = tasks.some(x => x.parent_task_id === t.task_id);
     if (isParent) return;
+
+    // Phase 86.8 chain-drag fix: Frappe v1.2.2 fires on_date_change for every task in the
+    // dependent chain on mouseup (move_dependencies default = true). Without this guard the last
+    // cascaded successor overwrites _pendingDragWrite and the user-dragged task never gets saved.
+    // See .planning/debug/gantt-chain-drag-wrong-task.md.
+    if (_ganttBarDragging && _dragInitiatorTaskId && t.task_id !== _dragInitiatorTaskId) return;
 
     const newStart = formatDateISO(start);
     const newEnd = formatDateISO(end);
