@@ -509,6 +509,26 @@ function isHiddenByCollapse(t) {
     return false;
 }
 
+// Phase 86.8 Feature 5 — parent-progress rollup (weighted average by leaf duration in days).
+// CONTEXT D-task-rollup: never persisted — recomputed each render. Recursing into nested
+// parents lets multi-level hierarchies aggregate correctly (a parent of parents averages
+// the rolled-up sub-parent values, weighted by their own envelope durations).
+function computeWeightedProgress(parentId) {
+    const kids = tasks.filter(t => t.parent_task_id === parentId);
+    if (kids.length === 0) return 0;
+    let totalDays = 0, weightedSum = 0;
+    kids.forEach(k => {
+        const isKidParent = tasks.some(x => x.parent_task_id === k.task_id);
+        const kidProgress = isKidParent ? computeWeightedProgress(k.task_id) : (k.progress ?? 0);
+        const sd = k.start_date, ed = k.end_date;
+        if (!sd || !ed) return;
+        const dur = Math.max(1, Math.round((new Date(ed + 'T00:00:00') - new Date(sd + 'T00:00:00')) / 86400000) + 1);
+        totalDays += dur;
+        weightedSum += dur * kidProgress;
+    });
+    return totalDays > 0 ? Math.round(weightedSum / totalDays) : 0;
+}
+
 function renderTaskGrid() {
     const container = document.getElementById('taskGridRail');
     if (!container) return;
@@ -531,6 +551,7 @@ function renderTaskGrid() {
                 <th class="tg-dur">Duration</th>
                 <th class="tg-date">Start</th>
                 <th class="tg-date">End</th>
+                <th class="tg-progress">Progress</th>
                 <th class="tg-pred">Predecessors</th>
                 <th class="tg-res">Resources</th>
               </tr></thead>
@@ -538,7 +559,7 @@ function renderTaskGrid() {
                 <tr class="tg-empty-row" data-task-id="__new__">
                   <td class="tg-rn"></td>
                   <td class="tg-name"><input class="tg-input tg-name-input" placeholder="Add task..." data-col="name" data-task-id="__new__" onkeydown="window.handleNewRowKeydown(event)"></td>
-                  <td colspan="5"></td>
+                  <td colspan="6"></td>
                 </tr>
               </tbody>
             </table>`;
@@ -570,6 +591,10 @@ function renderTaskGrid() {
         const indent = depth * 16;
         const predStr = depsByTarget.get(t.task_id) || '';
         const durStr = computeDurationDisplay(t.start_date, t.end_date);
+        // Phase 86.8 Feature 5: parent rows show weighted-average rollup (read-only); leaf
+        // rows show their own progress (editable). Rollup is recomputed each render and
+        // never persisted — only leaf-bound writes touch Firestore (handleGridCellBlur).
+        const rolledUp = isParent ? computeWeightedProgress(t.task_id) : (t.progress ?? 0);
 
         const parentLockAttr = isParent ? ' data-parent-locked="1"' : '';
         const parentStyle = isParent ? 'style="color:var(--gray-700,#475569);font-style:italic;"' : '';
@@ -602,6 +627,12 @@ function renderTaskGrid() {
                 : `<input class="tg-input tg-date-input" type="date" value="${escapeHTML(t.end_date || '')}"
                           data-col="end" data-task-id="${escapeHTML(t.task_id)}">`}
             </td>
+            <td class="tg-progress"${parentLockAttr}>
+              ${isParent
+                ? `<span class="tg-locked" ${parentStyle} title="Weighted average of children (by leaf duration).">${rolledUp}%</span>`
+                : `<input class="tg-input tg-progress-input" type="number" min="0" max="100" step="1"
+                          value="${rolledUp}" data-col="progress" data-task-id="${escapeHTML(t.task_id)}">`}
+            </td>
             <td class="tg-pred">
               <input class="tg-input tg-pred-input" value="${escapeHTML(predStr)}" data-col="predecessors"
                      data-task-id="${escapeHTML(t.task_id)}">
@@ -618,7 +649,7 @@ function renderTaskGrid() {
       <tr class="tg-row tg-empty-row" data-task-id="__new__">
         <td class="tg-rn"></td>
         <td class="tg-name"><input class="tg-input tg-name-input" placeholder="Add task..." data-col="name" data-task-id="__new__" onkeydown="window.handleNewRowKeydown(event)"></td>
-        <td colspan="5"></td>
+        <td colspan="6"></td>
       </tr>`;
 
     // Phase 86.5-08: capture empty-row input state before innerHTML replace
@@ -640,6 +671,7 @@ function renderTaskGrid() {
           <th class="tg-dur">Duration</th>
           <th class="tg-date">Start</th>
           <th class="tg-date">End</th>
+          <th class="tg-progress">Progress</th>
           <th class="tg-pred">Predecessors</th>
           <th class="tg-res">Resources</th>
         </tr></thead>
@@ -867,6 +899,15 @@ async function handleGridCellBlur(taskId, col, rawValue) {
         const res = rawValue;
         if (res === (t.resources ?? '')) return;
         updateData = { resources: res, updated_at: serverTimestamp() };
+    } else if (col === 'progress') {
+        // Phase 86.8 Feature 5: leaf-only progress write. Parent progress is rolled up
+        // (computeWeightedProgress) and never persisted. Number.isFinite gate (T-86.8.2-07)
+        // rejects non-numeric pasted strings silently; clamp 0-100 (T-86.8.2-01).
+        const parsed = Number(rawValue);
+        if (!Number.isFinite(parsed)) return;
+        const clamped = Math.max(0, Math.min(100, Math.round(parsed)));
+        if (clamped === (t.progress ?? 0)) return;
+        updateData = { progress: clamped, updated_at: serverTimestamp() };
     }
 
     if (!updateData) return;
@@ -1373,12 +1414,20 @@ function renderGantt() {
         if (t.is_milestone) customClass = 'milestone-marker';
         else if (isParent) customClass = 'parent-summary-bar';
 
+        // Phase 86.8 Feature 5: parents pass the weighted rollup; leaves pass their own progress.
+        // Frappe paints .bar-progress from this number; for parents the visual is suppressed by
+        // existing CSS (.parent-summary-bar .bar-progress { display: none }) — the rollup value
+        // is still useful for any future parent visualization without changing this code path.
+        const progressForFrappe = isParent
+            ? computeWeightedProgress(t.task_id)
+            : (typeof t.progress === 'number' ? t.progress : 0);
+
         frappeTasks.push({
             id: t.task_id,
             name: t.name || '(unnamed)',
             start: start,
             end: end,
-            progress: typeof t.progress === 'number' ? t.progress : 0,
+            progress: progressForFrappe,
             dependencies: depsArr.join(','),
             custom_class: customClass
         });

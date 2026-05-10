@@ -2632,6 +2632,13 @@
 .tg-row.tg-selected { background: #eff6ff; box-shadow: inset 2px 0 0 0 #1a73e8; }
 .tg-row.tg-selected:hover { background: #dbeafe; }
 
+/* Phase 86.8 Feature 5 — Progress column (between End and Predecessors). */
+/* Compact column: 80px wide, centered. Number input is narrower than full cell so the % */
+/* sign in the parent-rollup span doesn't crowd against the right border. */
+.tg-progress { width: 80px; text-align: center; }
+.tg-progress .tg-input { width: 60px; padding: 2px 4px; text-align: center; }
+.tg-progress .tg-locked { font-size: 0.8rem; }
+
 @media (max-width: 768px) {
     .task-grid-rail { display: none; }
 }
