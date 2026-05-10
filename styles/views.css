@@ -2639,6 +2639,45 @@
 .tg-progress .tg-input { width: 60px; padding: 2px 4px; text-align: center; }
 .tg-progress .tg-locked { font-size: 0.8rem; }
 
+/* Phase 86.8 Feature 6 — search/filter bar (sticky above the grid). */
+.tg-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fafafa;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+.tg-search-input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    outline: none;
+    min-width: 0;
+}
+.tg-search-input:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+}
+.tg-search-clear {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: #94a3b8;
+    padding: 0 6px;
+    line-height: 1;
+}
+.tg-search-clear:hover { color: #ef4444; }
+/* Three-rule visibility (D-Q6): parents kept around because a descendant matched are greyed. */
+.tg-row.tg-row-context { opacity: 0.55; }
+.tg-row.tg-row-context:hover { opacity: 0.85; }
+
 @media (max-width: 768px) {
     .task-grid-rail { display: none; }
 }

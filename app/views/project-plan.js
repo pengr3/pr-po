@@ -529,6 +529,40 @@ function computeWeightedProgress(parentId) {
     return totalDays > 0 ? Math.round(weightedSum / totalDays) : 0;
 }
 
+// Phase 86.8 Feature 6 — search/filter predicates.
+// matchesSearch: case-insensitive substring match on task name. Empty query → match all.
+// getVisibleByFilter: three-rule visibility per CONTEXT D-Q6:
+//   (1) direct match → visible (full color)
+//   (2) any descendant matches → visible AS CONTEXT (greyed via tg-row-context)
+//   (3) any ancestor matches → visible (full color, child kept for context)
+// Returns { visible, isContextOnly }. Empty query short-circuits to visible (not context).
+function matchesSearch(t) {
+    if (!_searchQuery) return true;
+    return (t?.name || '').toLowerCase().includes(_searchQuery);
+}
+function getVisibleByFilter(t) {
+    if (!_searchQuery) return { visible: true, isContextOnly: false };
+    if (!t) return { visible: false, isContextOnly: false };
+    if (matchesSearch(t)) return { visible: true, isContextOnly: false };
+    // Descendant match → keep parent visible, greyed (context-only).
+    const descendants = getDescendantIds(t.task_id);
+    if (descendants.some(id => {
+        const d = tasks.find(x => x.task_id === id);
+        return d && matchesSearch(d);
+    })) {
+        return { visible: true, isContextOnly: true };
+    }
+    // Ancestor match → keep child visible (full color, ancestor's subtree shown for context).
+    let cur = tasks.find(x => x.task_id === t.parent_task_id);
+    let guard = 0;
+    while (cur && guard < 64) {
+        if (matchesSearch(cur)) return { visible: true, isContextOnly: false };
+        cur = tasks.find(x => x.task_id === cur.parent_task_id);
+        guard++;
+    }
+    return { visible: false, isContextOnly: false };
+}
+
 function renderTaskGrid() {
     const container = document.getElementById('taskGridRail');
     if (!container) return;
@@ -542,8 +576,24 @@ function renderTaskGrid() {
     rowOrderCache = new Map();
     sorted.forEach((t, i) => rowOrderCache.set(t.task_id, i + 1));
 
+    // Phase 86.8 Feature 6: capture caret state on the search input BEFORE innerHTML wipe.
+    // Mirrors the empty-row pattern (Phase 86.5-08) — without this, every keystroke loses
+    // the cursor because innerHTML detaches the focused node.
+    let _savedSearch = null;
+    const _activeElForSearch = document.activeElement;
+    if (_activeElForSearch && _activeElForSearch.classList?.contains('tg-search-input')) {
+        _savedSearch = {
+            selectionStart: _activeElForSearch.selectionStart,
+            selectionEnd: _activeElForSearch.selectionEnd
+        };
+    }
+
     if (sorted.length === 0) {
         container.innerHTML = `
+            <div class="tg-search-bar">
+              <input type="search" class="tg-search-input" placeholder="Search tasks..." value="${escapeHTML(_searchQuery)}">
+              <button class="tg-search-clear" title="Clear search" type="button" ${_searchQuery ? '' : 'style="display:none"'}>×</button>
+            </div>
             <table class="task-grid">
               <thead><tr>
                 <th class="tg-rn">#</th>
@@ -564,6 +614,14 @@ function renderTaskGrid() {
               </tbody>
             </table>`;
         bindGridEvents(container);
+        // Restore search-input caret if it was focused before innerHTML.
+        if (_savedSearch) {
+            const newSearch = container.querySelector('.tg-search-input');
+            if (newSearch) {
+                newSearch.focus();
+                try { newSearch.setSelectionRange(_savedSearch.selectionStart, _savedSearch.selectionEnd); } catch (e) { /* swallow */ }
+            }
+        }
         return;
     }
 
@@ -580,9 +638,13 @@ function renderTaskGrid() {
 
     const isParentSet = new Set(tasks.filter(t => t.parent_task_id).map(t => t.parent_task_id));
 
-    // Phase 86.8 Feature 2: filter out rows whose ancestor chain includes a collapsed parent.
-    // The toggle itself stays visible — only descendants disappear.
-    const visibleSorted = sorted.filter(t => !isHiddenByCollapse(t));
+    // Phase 86.8 Feature 2 + 6: filter out rows hidden by collapse OR by search.
+    // Predicates COMPOSE: a row is rendered iff !isHiddenByCollapse AND getVisibleByFilter.visible.
+    // The toggle itself stays visible — only descendants disappear from the rail.
+    const visibleSorted = sorted.filter(t => {
+        if (isHiddenByCollapse(t)) return false;
+        return getVisibleByFilter(t).visible;
+    });
 
     const rowsHtml = visibleSorted.map(t => {
         const rowNum = rowOrderCache.get(t.task_id);
@@ -595,6 +657,10 @@ function renderTaskGrid() {
         // rows show their own progress (editable). Rollup is recomputed each render and
         // never persisted — only leaf-bound writes touch Firestore (handleGridCellBlur).
         const rolledUp = isParent ? computeWeightedProgress(t.task_id) : (t.progress ?? 0);
+        // Phase 86.8 Feature 6: tg-row-context greys parents kept around because a descendant
+        // matched the search (rule 2). Direct + ancestor matches render at full opacity.
+        const filterMeta = getVisibleByFilter(t);
+        const contextClass = filterMeta.isContextOnly ? ' tg-row-context' : '';
 
         const parentLockAttr = isParent ? ' data-parent-locked="1"' : '';
         const parentStyle = isParent ? 'style="color:var(--gray-700,#475569);font-style:italic;"' : '';
@@ -603,7 +669,7 @@ function renderTaskGrid() {
             : '';
 
         return `
-          <tr class="tg-row" data-task-id="${escapeHTML(t.task_id)}">
+          <tr class="tg-row${contextClass}" data-task-id="${escapeHTML(t.task_id)}">
             <td class="tg-rn" draggable="true">${rowNum}</td>
             <td class="tg-name" style="padding-left:${indent}px;">
               ${collapseToggle}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
@@ -664,6 +730,10 @@ function renderTaskGrid() {
     }
 
     container.innerHTML = `
+      <div class="tg-search-bar">
+        <input type="search" class="tg-search-input" placeholder="Search tasks..." value="${escapeHTML(_searchQuery)}">
+        <button class="tg-search-clear" title="Clear search" type="button" ${_searchQuery ? '' : 'style="display:none"'}>×</button>
+      </div>
       <table class="task-grid">
         <thead><tr>
           <th class="tg-rn">#</th>
@@ -683,6 +753,17 @@ function renderTaskGrid() {
     // __new__ input, causing handleNewRowCommit to fire again with the old value — creating
     // an infinite add-task loop. Moving it here ensures handlers attach to the fresh DOM.
     bindGridEvents(container);
+
+    // Phase 86.8 Feature 6: restore search-input caret if it was focused before innerHTML.
+    // Mirrors the empty-row restore (Phase 86.5-08). Without this every keystroke on a fast
+    // typist drops the cursor.
+    if (_savedSearch) {
+        const newSearch = container.querySelector('.tg-search-input');
+        if (newSearch) {
+            newSearch.focus();
+            try { newSearch.setSelectionRange(_savedSearch.selectionStart, _savedSearch.selectionEnd); } catch (e) { /* swallow */ }
+        }
+    }
 
     // Phase 86.5-08: restore empty-row input state after innerHTML replace
     if (_savedEmptyRow) {
@@ -844,6 +925,33 @@ function bindGridEvents(container) {
         selectRow(id);
     };
     container.addEventListener('click', _gridRowClickHandler);
+
+    // Phase 86.8 Feature 6 — search input + clear button.
+    // input fires on every keystroke; for plan-sized lists (<500 tasks per CONTEXT scope)
+    // immediate re-render is acceptable. Caret survives via _savedSearch capture/restore in
+    // renderTaskGrid (mirrors Phase 86.5-08 empty-row pattern).
+    const searchInput = container.querySelector('.tg-search-input');
+    const clearBtn = container.querySelector('.tg-search-clear');
+    if (searchInput) {
+        if (_searchInputHandler) {
+            try { searchInput.removeEventListener('input', _searchInputHandler); } catch (e) { /* swallow */ }
+        }
+        _searchInputHandler = function(e) {
+            _searchQuery = (e.target.value || '').trim().toLowerCase();
+            renderTaskGrid();
+            renderGantt();
+        };
+        searchInput.addEventListener('input', _searchInputHandler);
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            _searchQuery = '';
+            renderTaskGrid();
+            renderGantt();
+            // Re-focus the search input post re-render so user can immediately type a new query.
+            setTimeout(() => container.querySelector('.tg-search-input')?.focus(), 0);
+        });
+    }
 }
 
 async function handleGridCellBlur(taskId, col, rawValue) {
@@ -1453,14 +1561,21 @@ function renderGantt() {
     // must see every task or the chain breaks the moment a critical leaf is collapsed.
     _criticalPathSet = computeCriticalPath(tasks.slice());
 
-    // Phase 86.8 Feature 2: collapse hides bars but parents still compute envelopes from the full
-    // truth-set above (childrenByParent / getEnvelope) so collapse never changes saved dates.
-    if (_collapsedParents.size > 0) {
-        for (let i = frappeTasks.length - 1; i >= 0; i--) {
-            const t = tasks.find(x => x.task_id === frappeTasks[i].id);
-            if (t && isHiddenByCollapse(t)) frappeTasks.splice(i, 1);
-        }
-    }
+    // Phase 86.8 Feature 2 + 6: collapse hides bars; search further hides non-matching rows.
+    // Parents still compute envelopes from the full truth-set above (childrenByParent /
+    // getEnvelope) so collapse + search never change saved dates. Predicates COMPOSE: a bar is
+    // rendered iff !isHiddenByCollapse AND getVisibleByFilter(t).visible. Empty search short-
+    // circuits getVisibleByFilter to true so this loop is a no-op when neither filter is active.
+    const filteredFrappeTasks = frappeTasks.filter(ft => {
+        const t = tasks.find(x => x.task_id === ft.id);
+        if (!t) return true;
+        if (isHiddenByCollapse(t)) return false;
+        return getVisibleByFilter(t).visible;
+    });
+    // Replace in place so the rest of renderGantt continues to operate on `frappeTasks`
+    // (refresh, init, scroll-clamp etc. all read from this same array).
+    frappeTasks.length = 0;
+    Array.prototype.push.apply(frappeTasks, filteredFrappeTasks);
 
     if (frappeTasks.length === 0) {
         mountEl.innerHTML = '';
