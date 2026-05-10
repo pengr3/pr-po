@@ -1589,6 +1589,13 @@ function renderGantt() {
             date_format: 'YYYY-MM-DD',
             popup: false,                          // DEFECT-4: suppress click-triggered popup
             infinite_padding: false,               // Phase 86.4 fix: prevent render() on mousewheel (breaks drag save + wipes injected SVG labels)
+            // Phase 86.8 chain-drag UX: Frappe's default cascade (`move_dependencies: true`)
+            // visually slides every transitive successor along with the dragged bar, even though
+            // we now persist only the user-targeted task (_dragInitiatorTaskId guard). Users
+            // perceived the live successor motion as "phantom movement." Disable the visual
+            // cascade so only the bar the user grabbed moves on screen; FS-constraint
+            // violations are still flagged after commit by applyFsViolationStyles().
+            move_dependencies: false,
             on_date_change: handleGanttDateChange,
             on_progress_change: handleGanttProgressChange,
             on_click: handleGanttBarClick
