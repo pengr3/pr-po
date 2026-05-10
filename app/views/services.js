@@ -8,6 +8,7 @@
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
 import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
+import { createEngagement } from '../engagement-create.js';
 import { skeletonTableRows } from '../components.js';
 import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
 
@@ -712,48 +713,23 @@ async function addService() {
     showLoading(true);
 
     try {
-        // Generate service code (requires client_code for shared CLMC sequence)
-        const service_code = await generateServiceCode(clientCode);
-
-        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-        const newUserNames = selectedPersonnel.map(u => u.name);
-
-        const docRef = await addDoc(collection(db, 'services'), {
-            service_code,
-            service_name,
-            service_type,        // 'one-time' | 'recurring'
-            client_id: clientId,
-            client_code: clientCode,  // REQUIRED: for generateServiceCode range query
-            project_status,
-            budget,
-            contract_cost,
-            personnel_user_ids: newUserIds,
-            personnel_names: newUserNames,
+        // Phase 88-01: shared engagement-create helper (D-04)
+        await createEngagement({
+            type: service_type,
+            clientId,
+            clientCode,
+            name: service_name,
             location: location || null,
-            personnel_user_id: null,
-            personnel_name: null,
-            personnel: null,
-            active: true,
-            created_at: new Date().toISOString(),
-            collection_tranches: finalTranches  // Phase 85 D-09: always-written, [] if user provided no tranche data
+            projectStatus: project_status,
+            budget,
+            contractCost: contract_cost,
+            personnel: selectedPersonnel,
+            collectionTranches: finalTranches,
+            onAfterCreate: ({ code }) => {
+                syncServicePersonnelToAssignments(code, [], selectedPersonnel.map(u => u.id).filter(Boolean))
+                    .catch(err => console.error('[Services] Assignment sync failed:', err));
+            }
         });
-
-        // Record creation in edit history (fire-and-forget)
-        recordEditHistory(docRef.id, 'create', [
-            { field: 'service_name', old_value: null, new_value: service_name },
-            { field: 'service_type', old_value: null, new_value: service_type },
-            { field: 'client', old_value: null, new_value: clientCode },
-            ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
-            { field: 'project_status', old_value: null, new_value: project_status },
-            ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
-            ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
-            ...(newUserNames.length > 0 ? [{ field: 'personnel', old_value: null, new_value: newUserNames.join(', ') }] : []),
-            ...(tranchesProvided ? [{ field: 'collection_tranches', old_value: null, new_value: JSON.stringify(finalTranches) }] : [])
-        ], 'services').catch(err => console.error('[EditHistory] addService failed:', err));
-
-        // Sync personnel to service assignments (fire-and-forget)
-        syncServicePersonnelToAssignments(service_code, [], newUserIds)
-            .catch(err => console.error('[Services] Assignment sync failed:', err));
 
         showToast(`Service "${service_name}" created successfully!`, 'success');
         toggleAddServiceForm();
