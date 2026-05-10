@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 87 context captured (CLMC scope: not an authoring platform — link/file attach, no version history). Sequencing locked: Phase 88 ships before 87 because the proposal dashboard mounts inside the Mgmt Tab. Next: `/gsd-discuss-phase 88`.
+**Current focus:** Phase 87 + 88 contexts captured. Phase 88 ships first ("Proposals" tab — renamed from Management — between Finance and Admin, inline Create Engagement form via shared `app/engagement-create.js` helper, default project_status="Draft"). Phase 87 plugs proposal dashboard into the same tab afterward. Phase 89 (approval queue) is the third section. Next: `/gsd-plan-phase 88`.
 
 ## Current Position
 
