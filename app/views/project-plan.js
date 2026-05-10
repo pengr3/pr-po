@@ -92,7 +92,8 @@ let _showCriticalPath = true;        // toolbar checkbox state — toggleCritica
 // Three-rule visibility (per CONTEXT D-Q6) composes with _collapsedParents — a task is
 // shown iff it passes BOTH the search filter AND is not hidden by an ancestor's collapse.
 let _searchQuery = '';                // current search query (lowercased); '' = no filter
-let _searchInputHandler = null;       // input event handler on the search box
+let _searchInputHandler = null;       // input event handler on the search box (toolbar-bound)
+let _searchClearHandler = null;       // click handler on the clear button (toolbar-bound)
 
 // ---- Lifecycle ----
 
@@ -118,7 +119,13 @@ export function render(activeTab = null, param = null) {
                     <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
                     <span>Critical path</span>
                 </label>
-                <!-- No Filters button (D-Q2: filter panel removed in 86.1) -->
+                <!-- Phase 86.8 Feature 6 — search lives in the toolbar so it doesn't push grid
+                     headers down and break left/right vertical alignment. Bound once in init(),
+                     not re-rendered by renderTaskGrid, so caret state survives every keystroke. -->
+                <div class="plan-toolbar-search">
+                    <input type="search" class="tg-search-input" placeholder="Search tasks..." aria-label="Search tasks">
+                    <button class="tg-search-clear" title="Clear search" type="button" style="display:none">×</button>
+                </div>
             </div>
             <div class="plan-split-pane" id="planSplitPane">
                 <div class="task-grid-rail" id="taskGridRail" aria-label="Task grid">
@@ -269,6 +276,35 @@ export async function init(activeTab = null, param = null) {
             }
         };
         document.addEventListener('keydown', _planKeydownHandler);
+
+        // Phase 86.8 Feature 6 — bind toolbar search input ONCE. The toolbar is rendered by
+        // render() and not touched by renderTaskGrid, so handlers persist across grid
+        // re-renders and the caret never drops between keystrokes.
+        const searchInput = document.querySelector('.tg-search-input');
+        const clearBtn = document.querySelector('.tg-search-clear');
+        if (searchInput) {
+            if (_searchInputHandler) {
+                try { searchInput.removeEventListener('input', _searchInputHandler); } catch (e) { /* swallow */ }
+            }
+            _searchInputHandler = function(e) {
+                _searchQuery = (e.target.value || '').trim().toLowerCase();
+                if (clearBtn) clearBtn.style.display = _searchQuery ? '' : 'none';
+                renderTaskGrid();
+                renderGantt();
+            };
+            searchInput.addEventListener('input', _searchInputHandler);
+        }
+        if (clearBtn) {
+            _searchClearHandler = function() {
+                _searchQuery = '';
+                if (searchInput) searchInput.value = '';
+                clearBtn.style.display = 'none';
+                renderTaskGrid();
+                renderGantt();
+                searchInput?.focus();
+            };
+            clearBtn.addEventListener('click', _searchClearHandler);
+        }
     } finally {
         showLoading(false);
     }
@@ -402,13 +438,18 @@ export async function destroy() {
     _criticalPathSet = new Set();
     _showCriticalPath = true;
     delete window.toggleCriticalPath;
-    // Phase 86.8 Feature 6 — search/filter cleanup
+    // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
-    if (_searchInputHandler) {
-        const _searchInput = document.querySelector('.tg-search-input');
-        if (_searchInput) try { _searchInput.removeEventListener('input', _searchInputHandler); } catch (e) { /* swallow */ }
+    const _searchInputForCleanup = document.querySelector('.tg-search-input');
+    if (_searchInputHandler && _searchInputForCleanup) {
+        try { _searchInputForCleanup.removeEventListener('input', _searchInputHandler); } catch (e) { /* swallow */ }
     }
     _searchInputHandler = null;
+    const _searchClearForCleanup = document.querySelector('.tg-search-clear');
+    if (_searchClearHandler && _searchClearForCleanup) {
+        try { _searchClearForCleanup.removeEventListener('click', _searchClearHandler); } catch (e) { /* swallow */ }
+    }
+    _searchClearHandler = null;
 }
 
 // ---- Resizable panel divider ----
@@ -576,24 +617,8 @@ function renderTaskGrid() {
     rowOrderCache = new Map();
     sorted.forEach((t, i) => rowOrderCache.set(t.task_id, i + 1));
 
-    // Phase 86.8 Feature 6: capture caret state on the search input BEFORE innerHTML wipe.
-    // Mirrors the empty-row pattern (Phase 86.5-08) — without this, every keystroke loses
-    // the cursor because innerHTML detaches the focused node.
-    let _savedSearch = null;
-    const _activeElForSearch = document.activeElement;
-    if (_activeElForSearch && _activeElForSearch.classList?.contains('tg-search-input')) {
-        _savedSearch = {
-            selectionStart: _activeElForSearch.selectionStart,
-            selectionEnd: _activeElForSearch.selectionEnd
-        };
-    }
-
     if (sorted.length === 0) {
         container.innerHTML = `
-            <div class="tg-search-bar">
-              <input type="search" class="tg-search-input" placeholder="Search tasks..." value="${escapeHTML(_searchQuery)}">
-              <button class="tg-search-clear" title="Clear search" type="button" ${_searchQuery ? '' : 'style="display:none"'}>×</button>
-            </div>
             <table class="task-grid">
               <thead><tr>
                 <th class="tg-rn">#</th>
@@ -614,14 +639,6 @@ function renderTaskGrid() {
               </tbody>
             </table>`;
         bindGridEvents(container);
-        // Restore search-input caret if it was focused before innerHTML.
-        if (_savedSearch) {
-            const newSearch = container.querySelector('.tg-search-input');
-            if (newSearch) {
-                newSearch.focus();
-                try { newSearch.setSelectionRange(_savedSearch.selectionStart, _savedSearch.selectionEnd); } catch (e) { /* swallow */ }
-            }
-        }
         return;
     }
 
@@ -730,10 +747,6 @@ function renderTaskGrid() {
     }
 
     container.innerHTML = `
-      <div class="tg-search-bar">
-        <input type="search" class="tg-search-input" placeholder="Search tasks..." value="${escapeHTML(_searchQuery)}">
-        <button class="tg-search-clear" title="Clear search" type="button" ${_searchQuery ? '' : 'style="display:none"'}>×</button>
-      </div>
       <table class="task-grid">
         <thead><tr>
           <th class="tg-rn">#</th>
@@ -753,17 +766,6 @@ function renderTaskGrid() {
     // __new__ input, causing handleNewRowCommit to fire again with the old value — creating
     // an infinite add-task loop. Moving it here ensures handlers attach to the fresh DOM.
     bindGridEvents(container);
-
-    // Phase 86.8 Feature 6: restore search-input caret if it was focused before innerHTML.
-    // Mirrors the empty-row restore (Phase 86.5-08). Without this every keystroke on a fast
-    // typist drops the cursor.
-    if (_savedSearch) {
-        const newSearch = container.querySelector('.tg-search-input');
-        if (newSearch) {
-            newSearch.focus();
-            try { newSearch.setSelectionRange(_savedSearch.selectionStart, _savedSearch.selectionEnd); } catch (e) { /* swallow */ }
-        }
-    }
 
     // Phase 86.5-08: restore empty-row input state after innerHTML replace
     if (_savedEmptyRow) {
@@ -926,32 +928,8 @@ function bindGridEvents(container) {
     };
     container.addEventListener('click', _gridRowClickHandler);
 
-    // Phase 86.8 Feature 6 — search input + clear button.
-    // input fires on every keystroke; for plan-sized lists (<500 tasks per CONTEXT scope)
-    // immediate re-render is acceptable. Caret survives via _savedSearch capture/restore in
-    // renderTaskGrid (mirrors Phase 86.5-08 empty-row pattern).
-    const searchInput = container.querySelector('.tg-search-input');
-    const clearBtn = container.querySelector('.tg-search-clear');
-    if (searchInput) {
-        if (_searchInputHandler) {
-            try { searchInput.removeEventListener('input', _searchInputHandler); } catch (e) { /* swallow */ }
-        }
-        _searchInputHandler = function(e) {
-            _searchQuery = (e.target.value || '').trim().toLowerCase();
-            renderTaskGrid();
-            renderGantt();
-        };
-        searchInput.addEventListener('input', _searchInputHandler);
-    }
-    if (clearBtn) {
-        clearBtn.addEventListener('click', () => {
-            _searchQuery = '';
-            renderTaskGrid();
-            renderGantt();
-            // Re-focus the search input post re-render so user can immediately type a new query.
-            setTimeout(() => container.querySelector('.tg-search-input')?.focus(), 0);
-        });
-    }
+    // Phase 86.8 Feature 6 — search input lives in the toolbar (rendered once by render(), not
+    // re-rendered by renderTaskGrid). Bound once in init(). Don't rebind here.
 }
 
 async function handleGridCellBlur(taskId, col, rawValue) {
@@ -2219,11 +2197,32 @@ function computeCriticalPath(taskList) {
         iter++;
     }
 
-    // Critical = slack === 0 (latest_start - earliest_start === 0) AND duration ≥ 1.
+    // A "critical path" requires actual edges. Without dependencies there is no path —
+    // just isolated tasks that happen to end at the project end. Per UAT 2026-05-09:
+    // flagging those as critical confused users ("something appeared red without a
+    // dependency mapped onto it"). Compute critical edges first; a task is on the
+    // critical path iff it is an endpoint of at least one critical edge.
+    //
+    // Critical edge (a → b): both endpoints slack === 0 AND a.ef + 1 === b.es
+    // (i.e., a is the binding predecessor that determines b's earliest start).
+    const slackZero = new Set();
+    leaves.forEach(t => {
+        const n = node.get(t.task_id);
+        if (n.dur >= 1 && (n.ls - n.es) === 0) slackZero.add(t.task_id);
+    });
     const out = new Set();
     leaves.forEach(t => {
         const n = node.get(t.task_id);
-        if (n.dur >= 1 && (n.ls - n.es) === 0) out.add(t.task_id);
+        if (!slackZero.has(t.task_id)) return;
+        n.deps.forEach(d => {
+            if (!slackZero.has(d)) return;
+            const dn = node.get(d);
+            if (!dn) return;
+            if (dn.ef + 1 === n.es) {
+                out.add(d);
+                out.add(t.task_id);
+            }
+        });
     });
     return out;
 }
