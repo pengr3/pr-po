@@ -343,6 +343,18 @@
   - [x] 86-05-PLAN.md — Filter panel + project-detail summary card + weighted rollup (PM-07, PM-09) — completed 2026-05-05
 **UI hint**: yes
 
+### Phase 86.8: Gantt UX expansion: arrow right-click to remove predecessor, collapsible parent tasks with drag-parent-moves-children, critical-path highlight, progress percent per bar, task search/filter bar, and keyboard shortcuts (Delete to remove) (INSERTED) ✅
+
+**Goal:** Bundle 7 Gantt UX features into the project-plan view — interactive cluster (arrow right-click remove, collapsible parents w/ drag-parent-moves-children, keyboard shortcuts) and analytical cluster (critical-path highlight, per-bar progress %, task search/filter) — all landing in app/views/project-plan.js + styles/views.css with a single new schemaless field (progress) on project_tasks.
+**Requirements**: GANTT-UX-ARROW-RIGHTCLICK, GANTT-UX-COLLAPSE-PARENTS, GANTT-UX-DRAG-PARENT-MOVES-CHILDREN, GANTT-UX-KEYBOARD-SHORTCUTS, GANTT-UX-CRITICAL-PATH, GANTT-UX-PROGRESS-PERCENT, GANTT-UX-SEARCH-FILTER (INSERTED phase — no REQUIREMENTS.md IDs)
+**Depends on:** Phase 86.7 (phantom-drag pattern reused by drag-parent-moves-children)
+**Plans:** 2 plans
+**Completed:** 2026-05-11
+
+Plans:
+- [x] 86.8-01-PLAN.md — Interactive UX cluster: arrow right-click remove, collapsible parents, drag-parent-moves-children, keyboard shortcuts (Delete/Up/Down/Enter/Escape) — completed 2026-05-10 (UAT defect fixes for arrow click target + grid hierarchy + parent-drag mouse-delta cascade folded in)
+- [x] 86.8-02-PLAN.md — Analytical/schema cluster: critical-path highlight, progress % column + Frappe-native fill, task search/filter bar — completed 2026-05-11 (UAT defect fixes for search relocation, chain-only critical path, chain-drag wrong-task, phantom successor cascade folded in)
+
 ### Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking
 **Goal**: Replace the modal-based task editor from Phase 86 with a ProjectLibre-style inline spreadsheet grid synchronized with the Frappe Gantt — users edit task data directly in the grid rows without opening any modal, and can create predecessor dependencies by dragging from one Gantt bar to another.
 **Depends on**: Phase 86 (Frappe Gantt + project_tasks collection + Security Rules already deployed)

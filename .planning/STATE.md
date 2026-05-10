@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 86.7 complete — awaiting browser UAT for phantom drag
-stopped_at: context exhaustion at 75% (2026-05-08)
-last_updated: "2026-05-08T08:11:54.936Z"
-last_activity: "2026-05-08 - Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handlers, single mouseup flush."
+status: Phase 86.8 complete — Gantt UX expansion shipped (7 features, 2 plans, all UATs approved)
+stopped_at: null
+last_updated: "2026-05-11T00:00:00.000Z"
+last_activity: "2026-05-11 - Phase 86.8 complete. 7 features shipped: arrow right-click remove predecessor, collapsible parents, drag-parent-moves-children, keyboard shortcuts, critical path (chain-only), progress % column, search/filter (toolbar). UAT defects all fixed: arrow tagging coord bug, parent-drag cascade via direct mouse delta, click target on path not layer, grid hierarchy depth-first walk, search relocated to toolbar, chain-drag wrong-task via _dragInitiatorTaskId guard, phantom successor cascade via move_dependencies:false."
 progress:
-  total_phases: 15
-  completed_phases: 10
+  total_phases: 16
+  completed_phases: 11
   total_plans: 53
-  completed_plans: 51
-  percent: 96
+  completed_plans: 53
+  percent: 100
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.7 complete — Gantt Phantom Drag shipped. Awaiting browser UAT.
+**Current focus:** Phase 86.8 complete — Gantt UX expansion (7 features) shipped + UAT defects fixed. Ready for next phase.
 
 ## Current Position
 
-Phase: 86.7
-Plan: 1 of 1 — complete
+Phase: 86.8 — complete
+Plan: 2 of 2 — complete (UATs approved, defect fixes shipped)
 
 ## Performance Metrics
 
@@ -404,6 +404,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 86.5 inserted after 86.4 (URGENT, 2026-05-07) — 4 UX issues found after 86.4 UAT: panel header misalignment, bar drag-resize unification with predecessor dot, Back button wrong destination (goes to project list not detail page), Excel-style continuous task entry on Enter
 - Phase 86.6 inserted after 86.5 (URGENT, 2026-05-08) — Measure-first vertical alignment fix: spacer-div equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed same day
 - Phase 86.7 inserted after 86.6 (URGENT, 2026-05-08) — Phantom drag: suppress mid-drag Firestore writes and snapshot re-renders; commit only on mouseup for smooth lag-free bar dragging
+- Phase 86.8 inserted after 86.7 (URGENT, 2026-05-09) — Gantt UX expansion bundle: (1) right-click arrow → remove predecessor, (2) collapsible parent tasks with (-)/(+) toggle, (3) drag-parent-moves-children, (4) critical-path highlight, (5) progress % per bar, (6) task search/filter bar, (7) keyboard shortcuts (Delete to remove)
 
 ### Quick Tasks Completed
 
