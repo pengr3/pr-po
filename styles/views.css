@@ -2609,7 +2609,9 @@
     text-overflow: ellipsis;
 }
 .gantt-arrow-menu-item:hover { background: #fef2f2; color: #ef4444; }
-.gantt-container .arrow.tg-arrow-selected { stroke: #1a73e8; stroke-width: 2.5; }
+/* Frappe v1.2.2 layers all arrow <path> elements under a single <g class="arrow">; the
+   paths themselves have no class, so we target by tag + class on the path directly. */
+.gantt-container g.arrow path.tg-arrow-selected { stroke: #1a73e8; stroke-width: 2.5; }
 
 /* Phase 86.8 Feature 2 — collapsible parent toggle */
 .tg-collapse-toggle {

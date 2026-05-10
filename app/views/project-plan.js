@@ -442,6 +442,32 @@ function getDescendantIds(parentId) {
     return out;
 }
 
+// Phase 86.8 fix — render the left grid in the same depth-first hierarchical order the Gantt
+// uses (renderGantt's `walk('__root__')`). Grid had been a flat sort by row_order, which
+// silently misaligns from the Gantt the moment row_order doesn't track tree order — e.g.,
+// when a second parent's children get higher row_order numbers than another parent's
+// children, the Gantt walks the parents in tree order while the grid interleaves the
+// subtrees. Result: row N on the left no longer corresponds to bar N on the right.
+function flattenTreeDepthFirst(taskList) {
+    const childrenByParent = new Map();
+    taskList.forEach(t => {
+        const k = t.parent_task_id || '__root__';
+        if (!childrenByParent.has(k)) childrenByParent.set(k, []);
+        childrenByParent.get(k).push(t);
+    });
+    const out = [];
+    function walk(parentKey) {
+        const kids = (childrenByParent.get(parentKey) || []).slice()
+            .sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+        kids.forEach(t => {
+            out.push(t);
+            if (childrenByParent.has(t.task_id)) walk(t.task_id);
+        });
+    }
+    walk('__root__');
+    return out;
+}
+
 // Phase 86.8 Feature 2 — true if any ancestor of t is in _collapsedParents.
 function isHiddenByCollapse(t) {
     if (_collapsedParents.size === 0 || !t) return false;
@@ -457,8 +483,10 @@ function renderTaskGrid() {
     const container = document.getElementById('taskGridRail');
     if (!container) return;
 
-    // Sort by row_order asc. Tasks without row_order get Infinity (sort to bottom).
-    const sorted = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+    // Depth-first hierarchical walk — same algorithm renderGantt uses for frappeTasks.
+    // Siblings are sorted by row_order asc, but parents always precede their subtrees so the
+    // grid stays in lockstep with the Gantt regardless of how row_order is assigned.
+    const sorted = flattenTreeDepthFirst(tasks);
 
     // Rebuild stable row-number cache (task_id -> 1-based row#)
     rowOrderCache = new Map();
@@ -1590,8 +1618,12 @@ function mountGanttArrowContextMenu() {
         try { svg.removeEventListener('contextmenu', _ganttArrowContextHandler); } catch (e) { /* swallow */ }
     }
     _ganttArrowContextHandler = function(e) {
-        const arrowEl = e.target.closest('.arrow');
-        if (!arrowEl) return; // not on an arrow — let the native menu fire
+        // Frappe v1.2.2 layers all arrow paths under a single <g class="arrow"> (source:
+        // `this.layers.arrow.appendChild(r.element)`). The individual <path> arrows have NO
+        // class, so `e.target.closest('.arrow')` returns the LAYER, not the path — and the
+        // layer carries no data-from/data-to. Walk to the path explicitly.
+        const arrowEl = findArrowPath(e.target);
+        if (!arrowEl) return; // not on an arrow path — let the native menu fire
         // Parent-summary arrows are pointer-events:none — guard belt-and-braces.
         const cs = window.getComputedStyle(arrowEl);
         if (cs.pointerEvents === 'none') return;
@@ -1665,7 +1697,7 @@ function mountGanttArrowClickSelect() {
         try { svg.removeEventListener('click', _ganttArrowClickHandler); } catch (e) { /* swallow */ }
     }
     _ganttArrowClickHandler = function(e) {
-        const arrowEl = e.target.closest('.arrow');
+        const arrowEl = findArrowPath(e.target);
         if (!arrowEl) return;
         const cs = window.getComputedStyle(arrowEl);
         if (cs.pointerEvents === 'none') return;
@@ -1886,6 +1918,17 @@ function tagArrowsWithFromTo(_unusedSvg) {
             try { el.dataset.to = toId; } catch (e) { /* swallow */ }
         }
     });
+}
+
+// Phase 86.8 Feature 1 — resolve an arbitrary mouse event target to the actual arrow <path>.
+// Frappe v1.2.2 puts every arrow path under one <g class="arrow"> layer (source:
+// `this.layers.arrow.appendChild(r.element)`); the path itself carries no class. So
+// e.target.closest('.arrow') from a path click returns the layer <g>, which has no
+// data-from/data-to. The path is identified by being a <path> descendant of g.arrow.
+function findArrowPath(target) {
+    if (!target || target.tagName?.toLowerCase() !== 'path') return null;
+    if (!target.closest('g.arrow')) return null;
+    return target;
 }
 
 // Read (fromId, toId) for an arrow path element, preferring DOM attributes but falling back
