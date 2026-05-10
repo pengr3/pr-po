@@ -2808,6 +2808,28 @@
     stroke-width: 2;
 }
 
+/* Phase 86.8 Feature 4 — critical-path highlight (red bars + red arrows). */
+/* Leaf bars: bright red. Parent-summary bars (when their subtree contains a critical leaf): */
+/* a darker red so they read as a roll-up indicator. */
+.gantt-container .bar-wrapper.critical .bar { fill: #ef4444; }
+.gantt-container .bar-wrapper.critical.parent-summary-bar .bar { fill: #b91c1c; }
+/* Frappe v1.2.2 layers all arrow <path> elements under <g class="arrow">; .critical sits */
+/* on the path itself (not the layer group), matching how applyCriticalPathStyles tags it. */
+.gantt-container g.arrow path.critical { stroke: #ef4444; stroke-width: 2; }
+
+/* Toolbar checkbox for critical-path toggle (sits to the right of the zoom pill group). */
+.plan-toolbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+    margin-left: 12px;
+}
+.plan-toolbar-toggle input { cursor: pointer; }
+
 /* ========================================
    PHASE 86 — PROJECT PLAN SUMMARY CARD (project-detail.js)
    ======================================== */

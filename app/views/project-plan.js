@@ -80,6 +80,20 @@ let _planKeydownHandler = null;       // window-level keydown listener
 let _ganttArrowClickHandler = null;   // SVG click → arrow selection
 let _gridRowClickHandler = null;      // delegated click on rail → row selection
 
+// Phase 86.8 — Feature 4: critical-path highlight (CPM forward+backward pass)
+// _criticalPathSet is recomputed on every renderGantt() from the truth-set tasks[],
+// independent of search/collapse filters so the math is never blinkered by what's visible.
+// _showCriticalPath defaults ON per CONTEXT.md.
+let _criticalPathSet = new Set();    // task_ids on the critical path (slack === 0)
+let _showCriticalPath = true;        // toolbar checkbox state — toggleCriticalPath flips this
+
+// Phase 86.8 — Feature 6: task search/filter bar
+// _searchQuery is the current case-insensitive substring query ('' = no filter).
+// Three-rule visibility (per CONTEXT D-Q6) composes with _collapsedParents — a task is
+// shown iff it passes BOTH the search filter AND is not hidden by an ancestor's collapse.
+let _searchQuery = '';                // current search query (lowercased); '' = no filter
+let _searchInputHandler = null;       // input event handler on the search box
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
@@ -100,6 +114,10 @@ export function render(activeTab = null, param = null) {
                     <button type="button" class="zoom-pill active" data-zoom="Week" onclick="window.setGanttZoom('Week')">Week</button>
                     <button type="button" class="zoom-pill" data-zoom="Month" onclick="window.setGanttZoom('Month')">Month</button>
                 </div>
+                <label class="plan-toolbar-toggle" title="Highlight critical path tasks in red">
+                    <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
+                    <span>Critical path</span>
+                </label>
                 <!-- No Filters button (D-Q2: filter panel removed in 86.1) -->
             </div>
             <div class="plan-split-pane" id="planSplitPane">
@@ -188,6 +206,7 @@ export async function init(activeTab = null, param = null) {
         window.gridInsertRowAbove = gridInsertRowAbove;
         window.gridDeleteRow = gridDeleteRow;
         window.removeArrowDependency = removeArrowDependency; // Phase 86.8 Feature 1+7
+        window.toggleCriticalPath = toggleCriticalPath; // Phase 86.8 Feature 4
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -379,6 +398,17 @@ export async function destroy() {
     _gridRowClickHandler = null;
     if (_ganttLinkDocMouseupHandler) document.removeEventListener('mouseup', _ganttLinkDocMouseupHandler);
     _ganttLinkDocMouseupHandler = null;
+    // Phase 86.8 Feature 4 — critical-path cleanup
+    _criticalPathSet = new Set();
+    _showCriticalPath = true;
+    delete window.toggleCriticalPath;
+    // Phase 86.8 Feature 6 — search/filter cleanup
+    _searchQuery = '';
+    if (_searchInputHandler) {
+        const _searchInput = document.querySelector('.tg-search-input');
+        if (_searchInput) try { _searchInput.removeEventListener('input', _searchInputHandler); } catch (e) { /* swallow */ }
+    }
+    _searchInputHandler = null;
 }
 
 // ---- Resizable panel divider ----
@@ -1369,6 +1399,11 @@ function renderGantt() {
     }
     walk('__root__');
 
+    // Phase 86.8 Feature 4: recompute critical path from the full truth-set (NOT visibleTasks
+    // or post-collapse list). Collapse and search are visual filters; the schedule math
+    // must see every task or the chain breaks the moment a critical leaf is collapsed.
+    _criticalPathSet = computeCriticalPath(tasks.slice());
+
     // Phase 86.8 Feature 2: collapse hides bars but parents still compute envelopes from the full
     // truth-set above (childrenByParent / getEnvelope) so collapse never changes saved dates.
     if (_collapsedParents.size > 0) {
@@ -1426,6 +1461,10 @@ function renderGantt() {
 
     // 5d. Phase 86.8 Feature 7: re-attach the SVG click → arrow selection handler.
     mountGanttArrowClickSelect();
+
+    // 5e. Phase 86.8 Feature 4: apply the .critical class to bars + arrows.
+    // Runs AFTER tagArrowsWithFromTo (5b) so arrow data-from/data-to is fresh.
+    applyCriticalPathStyles();
 
     // 6. Today line + one-shot scroll-to-today
     renderTodayLine();
@@ -1780,6 +1819,8 @@ function setGanttZoom(mode) {
     mountGanttArrowContextMenu();
     // Phase 86.8 Feature 7: re-attach arrow click selection (Frappe rebuilds SVG on zoom).
     mountGanttArrowClickSelect();
+    // Phase 86.8 Feature 4: re-apply critical-path highlight (Frappe rebuilds SVG on zoom).
+    applyCriticalPathStyles();
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -1890,6 +1931,188 @@ function applyFsViolationStyles() {
     // violation classes and rely on the toast for UX until a Frappe patch lands.
     const arrows = document.querySelectorAll('#ganttPane .arrow');
     arrows.forEach(el => el.classList.remove('violation'));
+}
+
+// Phase 86.8 Feature 4 — Critical Path Method (CPM) forward + backward pass.
+// Returns Set<task_id> of leaf tasks where slack === 0 (i.e. on the longest dependency
+// chain ending at the latest task end-date).
+//
+// CPM ignores parent tasks because parent dates are envelope-computed (D-11). Including
+// them would duplicate critical-path edges through every parent. Parents inherit critical
+// visual state from any critical descendant during the DOM tag pass (applyCriticalPathStyles).
+//
+// Implementation: repeated-pass forward fill until stable (real plans are <1000 tasks, so
+// the O(N^2) cost is dominated by anything else). Cycle protection via iteration cap.
+function computeCriticalPath(taskList) {
+    if (!Array.isArray(taskList) || taskList.length === 0) return new Set();
+    const dayMs = 86400000;
+    const dayIndex = (iso) => Math.round(new Date(iso + 'T00:00:00').getTime() / dayMs);
+
+    // Build leaf-only working set. parent_task_id-aware: a task is a parent iff some other
+    // task lists it as parent_task_id. Skip parents entirely.
+    const isParent = new Set();
+    taskList.forEach(t => { if (t.parent_task_id) isParent.add(t.parent_task_id); });
+    const leaves = taskList.filter(t => !isParent.has(t.task_id) && t.start_date && t.end_date);
+    if (leaves.length === 0) return new Set();
+
+    // For each leaf, build deps that point to OTHER LEAVES only. Predecessors that are
+    // parents are translated to "no constraint" — we don't follow envelopes through CPM.
+    const leafIds = new Set(leaves.map(l => l.task_id));
+    const node = new Map(); // task_id -> { dur, deps[], es, ef, ls, lf }
+    leaves.forEach(t => {
+        const dur = Math.max(1, dayIndex(t.end_date) - dayIndex(t.start_date) + 1);
+        const deps = Array.isArray(t.dependencies)
+            ? t.dependencies.filter(d => leafIds.has(d))
+            : [];
+        node.set(t.task_id, { dur, deps, taskStart: dayIndex(t.start_date), es: 0, ef: 0, ls: 0, lf: 0 });
+    });
+
+    // ---- Forward pass: earliest_start = max(predecessor.ef + 1) or task's own start_date if no deps. ----
+    // Repeat until stable (or iteration cap = leaves.length+1 — covers the longest chain).
+    leaves.forEach(t => {
+        const n = node.get(t.task_id);
+        // If no deps, anchor on the task's recorded start_date so disconnected components keep
+        // their natural offsets in the day-index space.
+        if (n.deps.length === 0) {
+            n.es = n.taskStart;
+            n.ef = n.es + n.dur - 1;
+        } else {
+            n.es = n.taskStart; // initial seed
+            n.ef = n.es + n.dur - 1;
+        }
+    });
+    const cap = leaves.length + 1;
+    let changed = true;
+    let iter = 0;
+    while (changed && iter < cap) {
+        changed = false;
+        leaves.forEach(t => {
+            const n = node.get(t.task_id);
+            if (n.deps.length === 0) return;
+            let maxPredEf = -Infinity;
+            n.deps.forEach(d => {
+                const dn = node.get(d);
+                if (dn) maxPredEf = Math.max(maxPredEf, dn.ef);
+            });
+            if (maxPredEf === -Infinity) return;
+            const newEs = Math.max(n.taskStart, maxPredEf + 1);
+            const newEf = newEs + n.dur - 1;
+            if (newEs !== n.es || newEf !== n.ef) {
+                n.es = newEs;
+                n.ef = newEf;
+                changed = true;
+            }
+        });
+        iter++;
+    }
+    if (iter >= cap && changed) {
+        // Cycle protection: if we still see changes at the cap, the dep graph has a cycle
+        // (already toasted by detectDependencyCycle). Bail out to avoid infinite loop.
+        console.warn('[ProjectPlan] computeCriticalPath: dependency cycle detected, returning empty set');
+        return new Set();
+    }
+
+    // ---- Backward pass: latest_finish from project_end. ----
+    // project_end = max(ef across all leaves). For a leaf with no successors, lf = project_end.
+    let projectEnd = -Infinity;
+    leaves.forEach(t => { projectEnd = Math.max(projectEnd, node.get(t.task_id).ef); });
+    if (projectEnd === -Infinity) return new Set();
+    // successors map
+    const successors = new Map(); // taskId -> Set<successorId>
+    leaves.forEach(t => {
+        const n = node.get(t.task_id);
+        n.deps.forEach(d => {
+            if (!successors.has(d)) successors.set(d, new Set());
+            successors.get(d).add(t.task_id);
+        });
+    });
+    leaves.forEach(t => {
+        const n = node.get(t.task_id);
+        n.lf = projectEnd;
+        n.ls = n.lf - n.dur + 1;
+    });
+    iter = 0; changed = true;
+    while (changed && iter < cap) {
+        changed = false;
+        leaves.forEach(t => {
+            const n = node.get(t.task_id);
+            const succs = successors.get(t.task_id);
+            if (!succs || succs.size === 0) return;
+            let minSuccLs = Infinity;
+            succs.forEach(s => {
+                const sn = node.get(s);
+                if (sn) minSuccLs = Math.min(minSuccLs, sn.ls);
+            });
+            if (minSuccLs === Infinity) return;
+            const newLf = minSuccLs - 1;
+            const newLs = newLf - n.dur + 1;
+            if (newLf !== n.lf || newLs !== n.ls) {
+                n.lf = newLf;
+                n.ls = newLs;
+                changed = true;
+            }
+        });
+        iter++;
+    }
+
+    // Critical = slack === 0 (latest_start - earliest_start === 0) AND duration ≥ 1.
+    const out = new Set();
+    leaves.forEach(t => {
+        const n = node.get(t.task_id);
+        if (n.dur >= 1 && (n.ls - n.es) === 0) out.add(t.task_id);
+    });
+    return out;
+}
+
+// Phase 86.8 Feature 4 — apply / clear .critical class on bars + arrows after Frappe rebuilds SVG.
+// Called from renderGantt() right after tagArrowsWithFromTo() so arrow data-from/data-to is fresh.
+function applyCriticalPathStyles() {
+    const svg = document.querySelector('#ganttPane svg');
+    if (!svg) return;
+    // Always clear previous run first — toggle OFF / search / collapse / zoom must start clean.
+    svg.querySelectorAll('.bar-wrapper.critical').forEach(el => el.classList.remove('critical'));
+    // Frappe puts every arrow path under one <g class="arrow"> layer; the paths themselves
+    // carry no class. Iterate the paths directly (gantt.arrows[].element) instead of '.arrow'
+    // (which would only match the layer group).
+    if (gantt && Array.isArray(gantt.arrows)) {
+        gantt.arrows.forEach(a => { if (a?.element) a.element.classList.remove('critical'); });
+    }
+    if (!_showCriticalPath || _criticalPathSet.size === 0) return;
+    // Bars — leaf tasks that landed on the critical path.
+    _criticalPathSet.forEach(taskId => {
+        const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(taskId)}"]`);
+        if (wrapper) wrapper.classList.add('critical');
+    });
+    // Parent visual cue — a critical leaf inside a collapsed subtree must still flag the
+    // parent so the user notices the schedule risk before expanding.
+    tasks.forEach(t => {
+        const isParent = tasks.some(x => x.parent_task_id === t.task_id);
+        if (!isParent) return;
+        const hasCriticalDescendant = getDescendantIds(t.task_id).some(id => _criticalPathSet.has(id));
+        if (hasCriticalDescendant) {
+            const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.task_id)}"]`);
+            if (wrapper) wrapper.classList.add('critical');
+        }
+    });
+    // Arrows — tagArrowsWithFromTo (Plan 01) sets data-from/data-to on each arrow path.
+    // An arrow is critical iff both endpoints are. Untagged arrows stay default-styled — fail-soft.
+    if (gantt && Array.isArray(gantt.arrows)) {
+        gantt.arrows.forEach(arrow => {
+            const el = arrow?.element;
+            if (!el) return;
+            const from = el.getAttribute('data-from') || el.dataset?.from;
+            const to = el.getAttribute('data-to') || el.dataset?.to;
+            if (from && to && _criticalPathSet.has(from) && _criticalPathSet.has(to)) {
+                el.classList.add('critical');
+            }
+        });
+    }
+}
+
+// Phase 86.8 Feature 4 — toolbar checkbox handler.
+function toggleCriticalPath(checked) {
+    _showCriticalPath = !!checked;
+    applyCriticalPathStyles();
 }
 
 // Phase 86.8 Feature 1: tag arrow SVG paths with data-from / data-to so right-click and
