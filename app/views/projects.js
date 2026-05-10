@@ -6,6 +6,7 @@
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
 import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
+import { createEngagement } from '../engagement-create.js';
 import { skeletonTableRows } from '../components.js';
 import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
 
@@ -674,48 +675,26 @@ async function addProject() {
     showLoading(true);
 
     try {
-        // Generate project code
-        // Phase 78 D-04: defer project_code generation until a client is later assigned
-        const project_code = clientCode ? await generateProjectCode(clientCode) : null;
-
-        const docRef = await addDoc(collection(db, 'projects'), {
-            project_code: project_code || null,
-            project_name,
-            client_id: clientId || null,
-            client_code: clientCode || null,
-            project_status,
-            budget,
-            contract_cost,
-            personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
-            personnel_names: selectedPersonnel.map(u => u.name),
+        // Phase 88-01: shared engagement-create helper (D-04)
+        const { code: project_code } = await createEngagement({
+            type: 'project',
+            clientId: clientId || null,
+            clientCode: clientCode || null,
+            name: project_name,
             location: location || null,
-            personnel_user_id: null,
-            personnel_name: null,
-            personnel: null,
-            active: true,
-            created_at: new Date().toISOString(),
-            collection_tranches: finalTranches  // Phase 85 D-09: always-written, [] if user provided no tranche data
+            projectStatus: project_status,
+            budget,
+            contractCost: contract_cost,
+            personnel: selectedPersonnel,
+            collectionTranches: finalTranches,
+            onAfterCreate: ({ code }) => {
+                // Phase 78 D-04: skip personnel sync when project_code is null (clientless project)
+                if (code) {
+                    syncPersonnelToAssignments(code, [], selectedPersonnel.map(u => u.id).filter(Boolean))
+                        .catch(err => console.error('[Projects] Assignment sync failed:', err));
+                }
+            }
         });
-
-        // Record creation in edit history (fire-and-forget)
-        recordEditHistory(docRef.id, 'create', [
-            { field: 'project_name', old_value: null, new_value: project_name },
-            { field: 'client', old_value: null, new_value: clientCode || null },
-            ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
-            { field: 'project_status', old_value: null, new_value: project_status },
-            ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
-            ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
-            ...(selectedPersonnel.length > 0 ? [{ field: 'personnel', old_value: null, new_value: selectedPersonnel.map(u => u.name).join(', ') }] : []),
-            ...(tranchesProvided ? [{ field: 'collection_tranches', old_value: null, new_value: JSON.stringify(finalTranches) }] : [])
-        ]).catch(err => console.error('[EditHistory] addProject failed:', err));
-
-        // Sync personnel to user assignments (fire-and-forget)
-        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-        // Phase 78 D-04: skip personnel-to-assignments sync when project_code is null (clientless project) — sync runs on code issuance instead
-        if (project_code) {
-            syncPersonnelToAssignments(project_code, [], newUserIds)
-                .catch(err => console.error('[Projects] Assignment sync failed:', err));
-        }
 
         showToast(`Project "${project_name}" created successfully${project_code ? '' : ' (no code yet — assign a client to issue code)'}!`, 'success');
         toggleAddProjectForm();
