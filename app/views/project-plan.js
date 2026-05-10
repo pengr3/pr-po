@@ -1596,8 +1596,7 @@ function mountGanttArrowContextMenu() {
         const cs = window.getComputedStyle(arrowEl);
         if (cs.pointerEvents === 'none') return;
         e.preventDefault();
-        const fromId = arrowEl.dataset.from;
-        const toId = arrowEl.dataset.to;
+        const { fromId, toId } = getArrowFromTo(arrowEl);
         if (!fromId || !toId) {
             showToast('Could not identify this dependency. Reload the project plan.', 'warning');
             return;
@@ -1670,9 +1669,8 @@ function mountGanttArrowClickSelect() {
         if (!arrowEl) return;
         const cs = window.getComputedStyle(arrowEl);
         if (cs.pointerEvents === 'none') return;
-        const fromId = arrowEl.dataset.from;
-        const toId = arrowEl.dataset.to;
-        // Spoofing guard (T-86.8.1-05): only paths processed by tagArrowsWithFromTo() qualify.
+        const { fromId, toId } = getArrowFromTo(arrowEl);
+        // Spoofing guard (T-86.8.1-05): only paths Frappe knows about qualify.
         if (!fromId || !toId) return;
         selectArrow(fromId, toId, arrowEl);
     };
@@ -1862,50 +1860,49 @@ function applyFsViolationStyles() {
     arrows.forEach(el => el.classList.remove('violation'));
 }
 
-// Phase 86.8 Feature 1: reverse-map arrow SVG paths to (fromTaskId, toTaskId) by coordinate
-// matching against bar-wrapper bounding rects. Frappe v1.2.2 ships no arrow-id metadata; this
-// reverse-mapping is cheaper than forking Frappe and survives gantt.refresh() because we re-tag
-// on every renderGantt step 5b (Frappe rebuilds the SVG node on every refresh).
+// Phase 86.8 Feature 1: tag arrow SVG paths with data-from / data-to so right-click and
+// click handlers can identify the dependency edge. Frappe v1.2.2's Arrow.draw() already
+// sets these attributes natively, but in practice arrowEl.dataset.from has been observed
+// empty in some browsers — likely due to SVGElement.dataset not reading hyphenated
+// attributes consistently. Re-tag from gantt.arrows (Frappe's own array of Arrow
+// instances) on every renderGantt because we control the timing and use both setAttribute
+// AND dataset assignment so any reader works.
 //
-// Use getBoundingClientRect() not getBBox(): Frappe wraps each bar in a <g class="bar-wrapper"
-// transform="translate(X,Y)"> and the inner <rect class="bar"> has x="0" in its own coord system.
-// getBBox() ignores ancestor transforms, so every bar reported the same near-zero x and matches
-// failed silently. getBoundingClientRect() returns viewport pixels with all transforms applied,
-// putting both arrow path and bars in the same coordinate frame.
-function tagArrowsWithFromTo(svg) {
-    if (!svg) return;
-    const arrows = svg.querySelectorAll('.arrow');
-    if (arrows.length === 0) return;
-    const wrappers = [...svg.querySelectorAll('.bar-wrapper')].map(w => {
-        const bar = w.querySelector('.bar');
-        if (!bar) return null;
-        const r = bar.getBoundingClientRect();
-        return { id: w.dataset.id, leftX: r.left, rightX: r.right, top: r.top, bottom: r.bottom };
-    }).filter(Boolean);
-    const TOL = 8; // viewport pixels — slightly larger because Frappe rounds bar x to integer
-    arrows.forEach(path => {
-        let bbox;
-        try { bbox = path.getBoundingClientRect(); } catch (e) { return; }
-        const startX = bbox.left;
-        const endX = bbox.right;
-        // Predecessor bar's right edge is near the arrow's left edge.
-        const fromMatches = wrappers.filter(w => Math.abs(w.rightX - startX) <= TOL);
-        // Successor bar's left edge is near the arrow's right edge.
-        const toMatches = wrappers.filter(w => Math.abs(w.leftX - endX) <= TOL);
-        // If multiple bars share an x-edge (same row_order or stacked dates), pick the bar whose
-        // y-range overlaps the arrow's y-range — disambiguates dependencies running at the same x.
-        const pickByY = (cands, targetTop, targetBottom) => {
-            if (cands.length <= 1) return cands;
-            return cands.filter(w => !(w.bottom < targetTop || w.top > targetBottom));
-        };
-        const from = pickByY(fromMatches, bbox.top, bbox.bottom);
-        const to = pickByY(toMatches, bbox.top, bbox.bottom);
-        if (from.length === 1 && to.length === 1) {
-            path.dataset.from = from[0].id;
-            path.dataset.to = to[0].id;
+// gantt.arrows is the authoritative source: each Arrow has from_task / to_task pointing
+// to the Bar whose .task.id is our task_id (we pass {id: t.task_id} to frappeTasks).
+function tagArrowsWithFromTo(_unusedSvg) {
+    if (!gantt || !Array.isArray(gantt.arrows)) return;
+    gantt.arrows.forEach(arrow => {
+        const el = arrow?.element;
+        if (!el) return;
+        const fromId = arrow.from_task?.task?.id;
+        const toId = arrow.to_task?.task?.id;
+        if (fromId) {
+            el.setAttribute('data-from', fromId);
+            try { el.dataset.from = fromId; } catch (e) { /* SVG dataset readonly — ignore */ }
         }
-        // Ambiguous matches: leave untagged — context menu shows "Could not identify" toast (T-86.8.1-01).
+        if (toId) {
+            el.setAttribute('data-to', toId);
+            try { el.dataset.to = toId; } catch (e) { /* swallow */ }
+        }
     });
+}
+
+// Read (fromId, toId) for an arrow path element, preferring DOM attributes but falling back
+// to gantt.arrows lookup by element identity. Single source of truth for any handler that
+// needs to identify a dependency edge.
+function getArrowFromTo(arrowEl) {
+    if (!arrowEl) return { fromId: null, toId: null };
+    let fromId = arrowEl.getAttribute('data-from') || arrowEl.dataset?.from || null;
+    let toId = arrowEl.getAttribute('data-to') || arrowEl.dataset?.to || null;
+    if ((!fromId || !toId) && gantt && Array.isArray(gantt.arrows)) {
+        const match = gantt.arrows.find(a => a?.element === arrowEl);
+        if (match) {
+            fromId = fromId || match.from_task?.task?.id || null;
+            toId = toId || match.to_task?.task?.id || null;
+        }
+    }
+    return { fromId, toId };
 }
 
 // Frappe v1.2.2 view_modes set config.unit ∈ {day, week, month, year} and config.step is a count of those units.
