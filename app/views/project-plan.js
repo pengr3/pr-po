@@ -60,6 +60,10 @@ let _pendingProgressWrite = null;       // { taskId, progress } — flushed on m
 let _ganttDragMousedownHandler = null;  // SVG mousedown — sets _ganttBarDragging
 let _ganttDragMouseupHandler = null;    // document mouseup — clears flag, flushes writes
 let _ganttDragSafetyTimer = null;       // 10 s auto-clear in case mouseup is missed
+// Phase 86.8 Feature 3 fix — direct parent drag detection (Frappe v1.2.2 on_date_change is gated by
+// strict numeric equality on internal _start; for parent/summary bars whose dates are envelope-derived
+// the equality check intermittently swallows the event). Capture the gesture at the DOM layer instead.
+let _parentDragInfo = null;             // { taskId, mouseDownX } | null — set on mousedown of a parent bar
 
 // Phase 86.8 — arrow right-click + selection state (Features 1 & 7)
 let _ganttArrowContextHandler = null; // SVG contextmenu listener — re-attached on every renderGantt
@@ -349,6 +353,7 @@ export async function destroy() {
     _ganttDragMousedownHandler = null;
     _ganttDragMouseupHandler = null;
     _ganttDragSafetyTimer = null;
+    _parentDragInfo = null;
     // Phase 86.8 Feature 1 — arrow context menu cleanup
     const _arrowSvg = document.querySelector('#ganttPane svg');
     if (_ganttArrowContextHandler && _arrowSvg) {
@@ -1430,16 +1435,27 @@ function mountGanttBarDragGuard() {
     }
 
     _ganttDragMousedownHandler = function(e) {
-        if (!e.target.closest('.bar-wrapper')) return; // ignore clicks outside bars
+        const wrapper = e.target.closest('.bar-wrapper');
+        if (!wrapper) return; // ignore clicks outside bars
         _ganttBarDragging = true;
         _pendingDragWrite = null;
         _pendingProgressWrite = null;
+        _parentDragInfo = null;
+        // Phase 86.8 Feature 3 fix: capture parent-bar drag at the DOM layer rather than via
+        // Frappe's on_date_change. Frappe's date_changed gates on Number(_start) !== Number(new),
+        // which silently no-ops for parent/summary bars whose internal _start is already
+        // envelope-derived from children — so the cascade callback never reached our handler.
+        if (wrapper.classList.contains('parent-summary-bar')) {
+            const taskId = wrapper.dataset.id;
+            if (taskId) _parentDragInfo = { taskId, mouseDownX: e.clientX };
+        }
         // Safety: auto-clear after 10 s in case mouseup fires outside the document
         clearTimeout(_ganttDragSafetyTimer);
         _ganttDragSafetyTimer = setTimeout(() => {
             _ganttBarDragging = false;
             _pendingDragWrite = null;
             _pendingProgressWrite = null;
+            _parentDragInfo = null;
         }, 10000);
     };
     svg.addEventListener('mousedown', _ganttDragMousedownHandler);
@@ -1461,61 +1477,88 @@ function mountGanttBarDragGuard() {
         if (ganttPane && !ganttPane.contains(e.target)) {
             _pendingDragWrite = null;
             _pendingProgressWrite = null;
+            _parentDragInfo = null;
             renderGantt();
             return;
         }
 
-        // --- Flush pending date write ---
-        // Two shapes: single-task (Phase 86.7) or { parentDrag: true, childUpdates[] } (Phase 86.8 Feature 3).
-        if (_pendingDragWrite) {
-            if (_pendingDragWrite.parentDrag) {
-                // parentDrag branch — cascade write: every descendant shifts by the same delta.
-                const { taskId, childUpdates, parentId } = _pendingDragWrite;
-                _pendingDragWrite = null;
-                if (!childUpdates || childUpdates.length === 0) return;
-                const batch = writeBatch(db);
-                childUpdates.forEach(u => {
-                    batch.update(doc(db, 'project_tasks', u.taskId), {
-                        start_date: u.newStart,
-                        end_date: u.newEnd,
-                        updated_at: serverTimestamp()
-                    });
-                });
-                batch.commit().then(async () => {
-                    childUpdates.forEach(u => {
-                        const idx = tasks.findIndex(x => x.task_id === u.taskId);
-                        if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: u.newStart, end_date: u.newEnd };
-                    });
-                    await recomputeParentDates(taskId);
-                    if (parentId) await recomputeParentDates(parentId);
-                }).catch(err => {
-                    console.error('[ProjectPlan] Parent drag batch write failed:', err);
-                    showToast(err?.code === 'permission-denied'
-                        ? `You don't have permission to edit tasks on this project.`
-                        : 'Could not move task subtree.', 'error');
-                    renderGantt();
-                });
-            } else {
-                const { taskId, newStart, newEnd, parentId } = _pendingDragWrite;
-                _pendingDragWrite = null;
-                updateDoc(doc(db, 'project_tasks', taskId), {
-                    start_date: newStart,
-                    end_date: newEnd,
-                    updated_at: serverTimestamp()
-                }).then(async () => {
-                    if (parentId) {
-                        const idx = tasks.findIndex(x => x.task_id === taskId);
-                        if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
-                        await recomputeParentDates(parentId);
-                    }
-                }).catch(err => {
-                    console.error('[ProjectPlan] Phantom drag write failed:', err);
-                    showToast(err?.code === 'permission-denied'
-                        ? `You don't have permission to edit tasks on this project.`
-                        : 'Could not save task. Please try again.', 'error');
-                    renderGantt(); // revert bar to last known position
-                });
+        // --- Phase 86.8 Feature 3: parent drag cascade (direct mouse delta) ---
+        // Computed from mousedown→mouseup pixel delta, not Frappe's callback. Robust against the
+        // strict-equality short-circuit in Frappe v1.2.2 date_changed for envelope-derived parents.
+        if (_parentDragInfo) {
+            const { taskId, mouseDownX } = _parentDragInfo;
+            _parentDragInfo = null;
+            // Discard the on_date_change parent stash if any (legacy path); cascade is authoritative here.
+            if (_pendingDragWrite && _pendingDragWrite.parentDrag) _pendingDragWrite = null;
+            const pixelDelta = e.clientX - mouseDownX;
+            const xPerDay = ganttXPerDay() || 1;
+            const daysDelta = Math.round(pixelDelta / xPerDay);
+            if (daysDelta === 0) {
+                renderGantt(); // revert any local Frappe shift below the day-rounding threshold
+                return;
             }
+            const descendantIds = getDescendantIds(taskId);
+            const descendants = descendantIds.map(id => tasks.find(x => x.task_id === id)).filter(Boolean);
+            const childUpdates = descendants
+                .filter(d => d.start_date && d.end_date)
+                .map(d => ({
+                    taskId: d.task_id,
+                    newStart: addDays(d.start_date, daysDelta),
+                    newEnd: addDays(d.end_date, daysDelta)
+                }));
+            if (childUpdates.length === 0) {
+                renderGantt();
+                return;
+            }
+            // writeBatch caps at 500 ops; subtrees > 450 children would overflow but real plans
+            // don't reach that — accept the limit and leave a single batch (T-86.8.1-08).
+            const batch = writeBatch(db);
+            childUpdates.forEach(u => {
+                batch.update(doc(db, 'project_tasks', u.taskId), {
+                    start_date: u.newStart,
+                    end_date: u.newEnd,
+                    updated_at: serverTimestamp()
+                });
+            });
+            batch.commit().then(async () => {
+                childUpdates.forEach(u => {
+                    const idx = tasks.findIndex(x => x.task_id === u.taskId);
+                    if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: u.newStart, end_date: u.newEnd };
+                });
+                await recomputeParentDates(taskId);
+                const parent = tasks.find(x => x.task_id === taskId);
+                if (parent?.parent_task_id) await recomputeParentDates(parent.parent_task_id);
+            }).catch(err => {
+                console.error('[ProjectPlan] Parent drag batch write failed:', err);
+                showToast(err?.code === 'permission-denied'
+                    ? `You don't have permission to edit tasks on this project.`
+                    : 'Could not move task subtree.', 'error');
+                renderGantt();
+            });
+            return; // single-task path doesn't apply to a parent gesture
+        }
+
+        // --- Flush pending single-task date write (Phase 86.7) ---
+        if (_pendingDragWrite) {
+            const { taskId, newStart, newEnd, parentId } = _pendingDragWrite;
+            _pendingDragWrite = null;
+            updateDoc(doc(db, 'project_tasks', taskId), {
+                start_date: newStart,
+                end_date: newEnd,
+                updated_at: serverTimestamp()
+            }).then(async () => {
+                if (parentId) {
+                    const idx = tasks.findIndex(x => x.task_id === taskId);
+                    if (idx >= 0) tasks[idx] = { ...tasks[idx], start_date: newStart, end_date: newEnd };
+                    await recomputeParentDates(parentId);
+                }
+            }).catch(err => {
+                console.error('[ProjectPlan] Phantom drag write failed:', err);
+                showToast(err?.code === 'permission-denied'
+                    ? `You don't have permission to edit tasks on this project.`
+                    : 'Could not save task. Please try again.', 'error');
+                renderGantt(); // revert bar to last known position
+            });
         }
 
         // --- Flush pending progress write ---
@@ -1714,45 +1757,15 @@ function handleGanttDateChange(task, start, end) {
     const t = tasks.find(x => x.task_id === task.id);
     if (!t) return;
 
-    // Phase 86.8 Feature 3: parent drag now cascades to descendants (replaces the old reject path).
-    // Phase 86.7 phantom-drag pattern: defer write, flush on mouseup as a single writeBatch.
+    // Phase 86.8 Feature 3: parent drag is detected at the DOM layer (mountGanttBarDragGuard
+    // mousedown sets _parentDragInfo; mouseup runs the cascade writeBatch). Frappe v1.2.2's
+    // on_date_change is unreliable for parent/summary bars because date_changed gates on a
+    // strict numeric equality check that silently no-ops when the parent's _start matches the
+    // envelope it was rendered from. Returning here ensures that even if Frappe DOES fire
+    // on_date_change for a parent we don't write the parent's date directly — parent dates
+    // remain envelope-computed and recomputeParentDates is called after the cascade commit.
     const isParent = tasks.some(x => x.parent_task_id === t.task_id);
-    if (isParent) {
-        const newStart = formatDateISO(start);
-        const newEnd = formatDateISO(end);
-        if (!newStart || !newEnd || newStart > newEnd) return;
-        const descendantIds = getDescendantIds(t.task_id);
-        const descendants = descendantIds.map(id => tasks.find(x => x.task_id === id)).filter(Boolean);
-        if (descendants.length === 0) return;
-        // Parent dates are envelope-computed (D-11); reading t.start_date can be stale during
-        // in-flight snapshots — derive daysDelta from the descendants' true minimum start.
-        const curEnvStart = descendants.reduce((m, d) => {
-            if (!d.start_date) return m;
-            return (m && m < d.start_date) ? m : d.start_date;
-        }, null);
-        if (!curEnvStart) return;
-        const dayMs = 86400000;
-        const daysDelta = Math.round((new Date(newStart + 'T00:00:00') - new Date(curEnvStart + 'T00:00:00')) / dayMs);
-        if (daysDelta === 0) return;
-        if (_ganttBarDragging) {
-            // writeBatch caps at 500 ops; subtrees > 450 children would overflow but real plans
-            // don't reach that — accept the limit and leave a single batch for now (T-86.8.1-08).
-            const childUpdates = descendants
-                .filter(d => d.start_date && d.end_date)
-                .map(d => ({
-                    taskId: d.task_id,
-                    newStart: addDays(d.start_date, daysDelta),
-                    newEnd:   addDays(d.end_date,   daysDelta)
-                }));
-            _pendingDragWrite = {
-                taskId: t.task_id,
-                parentDrag: true,
-                childUpdates,
-                parentId: t.parent_task_id || null
-            };
-        }
-        return;
-    }
+    if (isParent) return;
 
     const newStart = formatDateISO(start);
     const newEnd = formatDateISO(end);
@@ -1850,9 +1863,15 @@ function applyFsViolationStyles() {
 }
 
 // Phase 86.8 Feature 1: reverse-map arrow SVG paths to (fromTaskId, toTaskId) by coordinate
-// matching against bar-wrapper bounding boxes. Frappe v1.2.2 ships no arrow-id metadata; this
+// matching against bar-wrapper bounding rects. Frappe v1.2.2 ships no arrow-id metadata; this
 // reverse-mapping is cheaper than forking Frappe and survives gantt.refresh() because we re-tag
 // on every renderGantt step 5b (Frappe rebuilds the SVG node on every refresh).
+//
+// Use getBoundingClientRect() not getBBox(): Frappe wraps each bar in a <g class="bar-wrapper"
+// transform="translate(X,Y)"> and the inner <rect class="bar"> has x="0" in its own coord system.
+// getBBox() ignores ancestor transforms, so every bar reported the same near-zero x and matches
+// failed silently. getBoundingClientRect() returns viewport pixels with all transforms applied,
+// putting both arrow path and bars in the same coordinate frame.
 function tagArrowsWithFromTo(svg) {
     if (!svg) return;
     const arrows = svg.querySelectorAll('.arrow');
@@ -1860,22 +1879,30 @@ function tagArrowsWithFromTo(svg) {
     const wrappers = [...svg.querySelectorAll('.bar-wrapper')].map(w => {
         const bar = w.querySelector('.bar');
         if (!bar) return null;
-        const r = bar.getBBox();
-        return { id: w.dataset.id, leftX: r.x, rightX: r.x + r.width, top: r.y, bottom: r.y + r.height };
+        const r = bar.getBoundingClientRect();
+        return { id: w.dataset.id, leftX: r.left, rightX: r.right, top: r.top, bottom: r.bottom };
     }).filter(Boolean);
-    const TOL = 6;
+    const TOL = 8; // viewport pixels — slightly larger because Frappe rounds bar x to integer
     arrows.forEach(path => {
         let bbox;
-        try { bbox = path.getBBox(); } catch (e) { return; }
-        const startX = bbox.x;
-        const endX = bbox.x + bbox.width;
-        // Predecessor bar's right edge is near startX; arrow start y inside that bar's y-range.
+        try { bbox = path.getBoundingClientRect(); } catch (e) { return; }
+        const startX = bbox.left;
+        const endX = bbox.right;
+        // Predecessor bar's right edge is near the arrow's left edge.
         const fromMatches = wrappers.filter(w => Math.abs(w.rightX - startX) <= TOL);
-        // Successor bar's left edge is near endX; arrow end y inside that bar's y-range.
+        // Successor bar's left edge is near the arrow's right edge.
         const toMatches = wrappers.filter(w => Math.abs(w.leftX - endX) <= TOL);
-        if (fromMatches.length === 1 && toMatches.length === 1) {
-            path.dataset.from = fromMatches[0].id;
-            path.dataset.to = toMatches[0].id;
+        // If multiple bars share an x-edge (same row_order or stacked dates), pick the bar whose
+        // y-range overlaps the arrow's y-range — disambiguates dependencies running at the same x.
+        const pickByY = (cands, targetTop, targetBottom) => {
+            if (cands.length <= 1) return cands;
+            return cands.filter(w => !(w.bottom < targetTop || w.top > targetBottom));
+        };
+        const from = pickByY(fromMatches, bbox.top, bbox.bottom);
+        const to = pickByY(toMatches, bbox.top, bbox.bottom);
+        if (from.length === 1 && to.length === 1) {
+            path.dataset.from = from[0].id;
+            path.dataset.to = to[0].id;
         }
         // Ambiguous matches: leave untagged — context menu shows "Could not identify" toast (T-86.8.1-01).
     });
