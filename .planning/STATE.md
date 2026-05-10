@@ -11,7 +11,7 @@ progress:
   completed_phases: 11
   total_plans: 53
   completed_plans: 53
-  percent: 100
+  percent: 98
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 86.8 complete — Gantt UX expansion (7 features) shipped + UAT defects fixed. Ready for next phase.
+**Current focus:** Phase 86.8 complete — Gantt UX expansion (7 features) shipped + UAT defects fixed. Pending v4.0 phases: 87 (Proposal Lifecycle), 88 (Management Tab Shell + Create Engagement), 89 (Management Tab — Proposal Approval Queue).
 
 ## Current Position
 
