@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87 executing — Plan 4 of 5 complete
-stopped_at: ""
-last_updated: "2026-05-11T08:05:00Z"
-last_activity: "2026-05-11 - Phase 87 Plan 04 complete: attachment widget shipped — link/file upload via Firebase Storage, ATTACHMENT_REPLACED audit entries, Replace/Remove with micro-confirm. proposals.js now 2041 lines."
+status: Phase 87 executing — Plan 5 of 5 code complete; awaiting UAT checkpoint (Task 4)
+stopped_at: "Phase 87 Plan 05 Task 4 — UAT checkpoint:human-verify (user must run browser UAT on dev Firebase)"
+last_updated: "2026-05-11T08:20:00Z"
+last_activity: "2026-05-11 - Phase 87 Plan 05 code complete: comms log inline Add Entry form with per-entry optional attachment uploaded to proposals/{docId}/comms/{entryId}.{ext}. proposals.js now 2307 lines. All stubs replaced. Awaiting UAT."
 progress:
   total_phases: 16
   completed_phases: 12
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 87-proposal-lifecycle — executing
-Plan: 3 of 5 complete — 2026-05-11
+Plan: 5 of 5 code complete (Plans 01-05 all shipped) — awaiting UAT — 2026-05-11
 
 ## Performance Metrics
 
@@ -138,6 +138,7 @@ Plan: 3 of 5 complete — 2026-05-11
 | Phase 87 P02 | 7 | 4 tasks | 1 files |
 | Phase 87 P03 | 25 | 4 tasks | 1 files |
 | Phase 87 P04 | 3 | 3 tasks | 1 files |
+| Phase 87 P05 | 10 | 3 tasks + UAT pending | 1 files |
 
 ## Accumulated Context
 
@@ -357,6 +358,13 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 87-04]: ATTACHMENT_REPLACED audit entry written on first-attach, replace, and remove per D-03; remove path adds comment='Attachment removed.' to disambiguate from swap in audit timeline
 - [Phase 87-04]: _openProposalAttachmentReplace uses outerHTML swap with synthetic attachment_kind=null proposal — no modal re-open needed; same re-render pattern as _refreshDetailModalAfterTransition
 - [Phase 87-04]: No version history per PROP-06 scope correction — single replaceable attachment, no /v1 /v2 path segments; uploadBytes overwrites at same path for same extension
+- [Phase 87-05]: comms_log array uses spread [...existing, newEntry] not arrayUnion — same Pitfall 7 invariant as audit_log; logged_at uses new Date().toISOString() (not serverTimestamp — array element constraint)
+- [Phase 87-05]: logged_by_name denormalized on each comms entry (beyond D-04 spec) — written at creation time so display doesn't require a users lookup; actor info sourced from window.getCurrentUser() same as audit_log
+- [Phase 87-05]: Comms log None radio is the default for attachment (vs Plan 04 where Link was default) — per-entry attachment is optional per D-07; Plan 04 main attachment assumes attaching is typical
+- [Phase 87-05]: ISO 8601 string localeCompare for newest-first comms sort — ISO 8601 strings sort lexically same as chronologically; no Date parsing needed
+- [Phase 87-05]: Optimistic modal re-render on saveCommsEntry: if onSnapshot hasn't updated proposalsData yet, manually inject new entry before re-rendering modal (same setTimeout(0) pattern as _refreshDetailModalAfterTransition)
+- [Phase 87-05]: _stubP05 window assignment callers removed from init(); function definition left as dead code — same pattern as _stubP03/_stubP04; zero callers remain
+- [Phase 87-05]: Phase 87 PROP-08 complete; all 13 phase requirements code-shipped (PROP-01..PROP-11 + NOTIF-09 + NOTIF-10); awaiting UAT
 - [Phase 87-01]: Storage rules use request.auth != null (not role check) — Firestore rules on proposals/{id} are primary gate; accepted risk T-87.1-04; mirrors invitation_codes accepted-risk pattern. Deploy both rules files before Plan 02.
 - [Phase 87-01]: generateProposalId() thin wrapper over generateSequentialId('proposals', 'PROP') — reads proposal_id field from docs, returns PROP-YYYY-NNN; re-exported from utils.js for downstream plan convenience
 - [Phase 87-02]: audit_log CREATED entry uses new Date().toISOString() for ts field — Firestore rejects serverTimestamp() sentinels inside array elements; doc-level created_at uses serverTimestamp() as authoritative anchor (T-87.2-06 accepted)
@@ -442,9 +450,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 87 Plan 04 complete. Attachment widget shipped — link/file upload via Firebase Storage, ATTACHMENT_REPLACED audit entries, Replace/Remove with micro-confirm. proposals.js now 2041 lines.
-Last session: 2026-05-11T08:05:00Z
-Stopped at: Phase 87 Plan 04 complete — continue with Plan 05 (comms log: toggleAddCommsForm + saveCommsEntry)
+Last activity: 2026-05-11 - Phase 87 Plan 05 code complete. Comms log inline Add Entry form with per-entry optional attachment shipped. proposals.js now 2307 lines. All stubs replaced. UAT checkpoint pending.
+Last session: 2026-05-11T08:20:00Z
+Stopped at: Phase 87 Plan 05 Task 4 — checkpoint:human-verify — user must run browser UAT (scenarios A-J) on dev Firebase; signal "approved" to close Phase 87
 Resume file: None
-Next action: Execute Phase 87 Plan 04 (attachments — Firebase Storage upload + replace + delete for proposal main attachment)
+Next action: After UAT approval — create 87-SUMMARY.md (phase-level), update ROADMAP.md, mark PROP-08 + all Phase 87 requirements complete, close Phase 87
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
