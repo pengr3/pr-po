@@ -368,8 +368,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 86.9-01-PLAN.md -- Curtain divider: CSS + JS rewrite (position:absolute overlay, _paneDividerPct, initPanelResize rewrite)
-- [ ] 86.9-02-PLAN.md -- PDF Export: Export button + exportGanttPDF() + @media print CSS
+- [x] 86.9-01-PLAN.md -- Curtain divider: CSS + JS rewrite (position:absolute overlay, _paneDividerPct, initPanelResize rewrite) — completed 2026-05-11
+- [~] 86.9-02-PLAN.md -- PDF Export: Export button + exportGanttPDF() + @media print CSS — code-complete 2026-05-11, awaiting UAT
 
 **Success Criteria** (what must be TRUE):
   1. Dragging the panel divider no longer collapses or hides task-grid columns — the grid DOM stays in place; the right Gantt panel overlaps it via CSS (overflow: hidden + absolute/relative positioning) creating a curtain effect
