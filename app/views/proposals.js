@@ -482,6 +482,11 @@ export async function init(activeTab = null, param = null) {
     // Phase 87 Plan 05 — comms log handlers (real implementations):
     window.toggleAddCommsForm           = toggleAddCommsForm;
     window.saveCommsEntry               = saveCommsEntry;
+    // Phase 89 queue window functions:
+    window.queueOpenApproveModal = queueOpenApproveModal;
+    window.queueOpenRejectModal = queueOpenRejectModal;
+    window.queueConfirmAction = queueConfirmAction;
+    window.queueCancelModal = queueCancelModal;
 
     // Clients listener: populates the client picker.
     const clientsListener = onSnapshot(
@@ -525,6 +530,7 @@ export async function init(activeTab = null, param = null) {
                 proposalsData = [];
                 snapshot.forEach(d => proposalsData.push({ id: d.id, ...d.data() }));
                 renderProposalDashboard();
+                renderApprovalQueue();
             },
             (err) => console.error('[Proposals] proposals listener error:', err)
         );
@@ -601,6 +607,12 @@ export async function destroy() {
     delete window._openProposalAttachmentRemoveConfirm;
     delete window.toggleAddCommsForm;
     delete window.saveCommsEntry;
+
+    // --- Phase 89 queue window function cleanup ---
+    delete window.queueOpenApproveModal;
+    delete window.queueOpenRejectModal;
+    delete window.queueConfirmAction;
+    delete window.queueCancelModal;
 
     // --- Phase 87 module state reset (Plan 02) ---
     proposalsData = [];
@@ -1703,6 +1715,247 @@ async function submitProposalApproval(proposalDocId, mode) {
         _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: newStatus });
     } catch (err) {
         console.error('[Proposals] submitProposalApproval failed:', err);
+        showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================================
+// PHASE 89 — Proposal Approval Queue
+// MGMT-03: queue section showing pending_internal proposals oldest-first
+// MGMT-04: approve/reject from queue via mini-modal → _applyProposalStateTransition
+// ============================================================
+
+/**
+ * Render the Proposal Approval Queue into #proposal-queue-mount.
+ * Called by the proposals onSnapshot listener alongside renderProposalDashboard().
+ * Filters proposalsData for status === 'pending_internal', sorts oldest-first.
+ */
+function renderApprovalQueue() {
+    const mount = document.getElementById('proposal-queue-mount');
+    if (!mount) return;
+
+    const pending = proposalsData
+        .filter(p => p.status === 'pending_internal')
+        .sort((a, b) => {
+            const tsA = a.current_status_since?.toMillis?.() ?? a.current_status_since?.seconds * 1000 ?? 0;
+            const tsB = b.current_status_since?.toMillis?.() ?? b.current_status_since?.seconds * 1000 ?? 0;
+            return tsA - tsB; // oldest first
+        });
+
+    mount.style.display = '';
+
+    if (pending.length === 0) {
+        mount.innerHTML = `
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                    <h3 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #1e293b;">Proposal Approval Queue</h3>
+                    <p style="color: #64748b; margin: 0; font-size: 0.9375rem;">No proposals awaiting approval.</p>
+                </div>
+            </div>`;
+        return;
+    }
+
+    const rows = pending.map(p => {
+        const submittedEntry = (p.audit_log || []).find(e => e.action === 'SUBMITTED');
+        const submitterName = submittedEntry?.actor_name || p.created_by_name || '—';
+        const projectLabel = [p.project_code, p.project_name].filter(Boolean).join(' — ') || '—';
+        const amount = typeof p.amount === 'number' ? formatCurrency(p.amount) : '—';
+        const ageDays = getAgeInStageDays(p);
+        const ageLabel = ageDays < 1 ? 'Today' : ageDays === 1 ? '1 day' : `${ageDays} days`;
+        const ageStyle = isOverdueInStage(p)
+            ? 'color:#856404;font-size:13px;font-weight:500;'
+            : 'color:#64748b;font-size:13px;';
+
+        return `
+            <tr>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+                    <div style="font-weight: 600; color: #1e293b; font-size: 0.9375rem;">${escapeHTML(p.title || '—')}</div>
+                    <div style="color: #64748b; font-size: 0.8125rem; margin-top: 2px;">${escapeHTML(projectLabel)}</div>
+                </td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(submitterName)}</td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(amount)}</td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+                    <span style="${ageStyle}">${escapeHTML(ageLabel)}</span>
+                </td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap;">
+                    <button class="btn btn-success" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem; margin-right: 6px;"
+                            onclick="window.queueOpenApproveModal('${escapeHTML(p.id)}')">Approve</button>
+                    <button class="btn btn-danger" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem;"
+                            onclick="window.queueOpenRejectModal('${escapeHTML(p.id)}')">Reject</button>
+                </td>
+            </tr>`;
+    }).join('');
+
+    mount.innerHTML = `
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-body" style="padding: 0;">
+                <div style="padding: 1.25rem 1.5rem 0.75rem 1.5rem; border-bottom: 1px solid #e5e7eb;">
+                    <h3 style="margin: 0; font-size: 1.05rem; color: #1e293b;">
+                        Proposal Approval Queue
+                        <span style="font-size: 0.8125rem; font-weight: 400; color: #64748b; margin-left: 0.5rem;">${pending.length} awaiting</span>
+                    </h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Proposal</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Submitted By</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Amount</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Age in Stage</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * Open the queue approve mini-modal for a proposal.
+ * Mini-modal ID: proposal-queue-action-modal (distinct from Phase 87 modal IDs).
+ */
+function queueOpenApproveModal(proposalDocId) {
+    _openQueueActionModal(proposalDocId, 'approve');
+}
+
+/**
+ * Open the queue reject mini-modal for a proposal.
+ */
+function queueOpenRejectModal(proposalDocId) {
+    _openQueueActionModal(proposalDocId, 'reject');
+}
+
+function _openQueueActionModal(proposalDocId, mode) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_internal') {
+        showToast('This proposal is no longer pending approval.', 'error');
+        renderApprovalQueue();
+        return;
+    }
+
+    const existing = document.getElementById('proposal-queue-action-modal');
+    if (existing) existing.remove();
+
+    const isApprove = mode === 'approve';
+    const heading = isApprove ? 'Approve Proposal' : 'Reject Proposal';
+    const bodyText = isApprove
+        ? "Approving will advance the project status to 'Proposal Under Client Review'. This action is recorded in the audit trail."
+        : "Rejecting will move the proposal back to 'For Revision'. The submitter will be notified.";
+    const label = isApprove ? 'Approval Notes' : 'Rejection Reason';
+    const placeholder = isApprove ? 'Describe your review decision...' : 'Explain what needs to be changed...';
+    const confirmLabel = isApprove ? 'Confirm Approval' : 'Confirm Rejection';
+    const confirmClass = isApprove ? 'btn-success' : 'btn-danger';
+
+    const html = `
+    <div id="proposal-queue-action-modal" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${escapeHTML(heading)}</h2>
+                <button class="modal-close" aria-label="Close" onclick="window.queueCancelModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 0.75rem 0;">
+                    <strong>${escapeHTML(proposal.title || '—')}</strong>
+                </p>
+                <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 1rem 0;">${escapeHTML(bodyText)}</p>
+                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">
+                    ${escapeHTML(label)} <span style="color:#ef4444;">*</span>
+                </label>
+                <textarea id="queueActionComment" rows="4"
+                    placeholder="${escapeHTML(placeholder)}"
+                    style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                <div id="queueActionCommentError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="window.queueCancelModal()">Cancel</button>
+                <button class="btn ${confirmClass}" onclick="window.queueConfirmAction('${escapeHTML(proposalDocId)}', '${mode}')">${escapeHTML(confirmLabel)}</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * Dismiss the queue mini-modal without taking action.
+ */
+function queueCancelModal() {
+    const modal = document.getElementById('proposal-queue-action-modal');
+    if (modal) modal.remove();
+}
+
+/**
+ * Handle confirm from the queue mini-modal.
+ * Validates comment (min 10 chars), calls _applyProposalStateTransition,
+ * fires NOTIF-10 (same pattern as submitProposalApproval lines 1682-1698),
+ * then re-renders the queue.
+ */
+async function queueConfirmAction(proposalDocId, mode) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_internal') {
+        showToast('Proposal status changed. Please reload.', 'error');
+        queueCancelModal();
+        return;
+    }
+
+    const commentEl = document.getElementById('queueActionComment');
+    const errEl = document.getElementById('queueActionCommentError');
+    const comment = (commentEl?.value || '').trim();
+    const fieldLabel = (mode === 'approve') ? 'Approval Notes' : 'Rejection Reason';
+    if (comment.length < 10) {
+        if (errEl) {
+            errEl.textContent = `${fieldLabel} is required (minimum 10 characters).`;
+            errEl.style.display = 'block';
+        }
+        return;
+    }
+
+    const newStatus = (mode === 'approve') ? 'pending_client' : 'for_revision';
+    const newProjectStatus = (mode === 'approve') ? 'Proposal Under Client Review' : 'For Revision';
+    const auditAction = (mode === 'approve') ? 'APPROVED' : 'REJECTED';
+    const successToast = (mode === 'approve')
+        ? 'Proposal approved. Project status updated.'
+        : 'Proposal rejected. Submitter has been notified.';
+
+    showLoading(true);
+    try {
+        await _applyProposalStateTransition({
+            proposal,
+            newStatus,
+            newProjectStatus,
+            auditAction,
+            auditComment: comment
+        });
+
+        // NOTIF-10 — notify proposal submitter of decision (mirrors submitProposalApproval lines 1682-1698)
+        try {
+            if (proposal.created_by) {
+                const actionVerb = (mode === 'approve') ? 'approved' : 'rejected';
+                const excerpt = comment.length > 60 ? comment.slice(0, 60) + '…' : comment;
+                await createNotification({
+                    user_id: proposal.created_by,
+                    type: NOTIFICATION_TYPES.PROPOSAL_DECIDED,
+                    message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
+                    link: `#/proposals?id=${proposal.proposal_id}`,
+                    source_collection: 'proposals',
+                    source_id: proposal.proposal_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Proposals] NOTIF-10 failed (queue):', notifErr);
+        }
+
+        queueCancelModal();
+        showToast(successToast, 'success');
+        renderApprovalQueue();
+    } catch (err) {
+        console.error('[Proposals] queueConfirmAction failed:', err);
         showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
     } finally {
         showLoading(false);
