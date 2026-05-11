@@ -1799,3 +1799,237 @@ async function submitClientApproved(proposalDocId) {
         showLoading(false);
     }
 }
+
+// ============================================================
+// PHASE 87 — Attachment widget action handlers (Plan 04)
+// ============================================================
+
+/**
+ * Radio-toggle helper: switch between Paste-a-link and Upload-a-file inputs.
+ */
+function _switchProposalAttachmentKind(proposalDocId, kind) {
+    const linkInput = document.getElementById('proposalAttachmentLinkInput');
+    const fileInput = document.getElementById('proposalAttachmentFileInput');
+    const err = document.getElementById('proposalAttachmentError');
+    if (linkInput) linkInput.style.display = (kind === 'link') ? 'block' : 'none';
+    if (fileInput) fileInput.style.display = (kind === 'file') ? 'block' : 'none';
+    if (err) { err.textContent = ''; err.style.display = 'none'; }
+}
+
+/**
+ * Show the Remove micro-confirm panel inline in the widget.
+ */
+function _openProposalAttachmentRemoveConfirm(proposalDocId) {
+    const panel = document.getElementById('proposalAttachmentRemoveConfirm');
+    if (panel) panel.style.display = 'block';
+}
+
+/**
+ * Replace flow: re-render the attachment widget in State A (no attachment) in place.
+ * The actual swap happens on Save Attachment via saveProposalAttachment.
+ * Reads proposalsData for the freshest doc and renders State A.
+ */
+function _openProposalAttachmentReplace(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) return;
+    // Build a synthetic "no attachment" proposal for State A render
+    const proposalForStateA = { ...proposal, attachment_kind: null };
+    const widget = document.getElementById('proposalAttachmentWidget');
+    if (widget) {
+        widget.outerHTML = buildAttachmentSection(proposalForStateA);
+    }
+}
+
+/**
+ * Save attachment — handles both first-attach and Replace flows.
+ * For file uploads: uploads to proposals/{docId}/attachment.<ext> then writes Firestore doc.
+ * If a previous file attachment exists, the new uploadBytes overwrites it at the same path.
+ * If the previous attachment had a DIFFERENT extension, we additionally delete the old object.
+ * Writes ATTACHMENT_REPLACED audit entry on success.
+ */
+async function saveProposalAttachment(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+
+    const kindRadio = document.querySelector(`input[name="proposalAttachKind-${proposalDocId}"]:checked`);
+    const kind = kindRadio?.value || 'link';
+    const errEl = document.getElementById('proposalAttachmentError');
+    const setError = (msg) => {
+        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    };
+    const clearError = () => {
+        if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+    };
+    clearError();
+
+    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const actorUid = currentUser?.uid ?? null;
+    const actorName = currentUser?.full_name || 'Unknown';
+
+    let newAttachmentFields = null;
+    let oldPathToDelete = null; // set when kind change requires deleting prior file
+
+    showLoading(true);
+    try {
+        if (kind === 'link') {
+            const urlInput = document.getElementById('proposalAttachmentUrl');
+            const url = (urlInput?.value || '').trim();
+            if (!url) {
+                setError('Please enter a URL.');
+                showLoading(false);
+                return;
+            }
+            // Light URL validation — accept anything that starts with http(s)://
+            if (!/^https?:\/\//i.test(url)) {
+                setError('URL must start with http:// or https://');
+                showLoading(false);
+                return;
+            }
+            // If previous attachment was a file, schedule its storage object for deletion (non-fatal).
+            if (proposal.attachment_kind === 'file' && proposal.attachment_storage_path) {
+                oldPathToDelete = proposal.attachment_storage_path;
+            }
+            newAttachmentFields = {
+                attachment_kind: 'link',
+                attachment_url: url,
+                attachment_storage_path: null,
+                attachment_filename: null
+            };
+        } else if (kind === 'file') {
+            const fileInput = document.getElementById('proposalAttachmentFile');
+            const file = fileInput?.files?.[0];
+            if (!file) {
+                setError('Please select a file.');
+                showLoading(false);
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
+                showLoading(false);
+                return;
+            }
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const allowedExt = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+            if (!allowedExt.includes(ext)) {
+                setError('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.');
+                showLoading(false);
+                return;
+            }
+            const storagePath = `proposals/${proposalDocId}/attachment.${ext}`;
+            const storageRef = ref(storage, storagePath);
+            const uploadResult = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+
+            // If previous attachment was a file with a DIFFERENT extension, queue old object delete.
+            if (proposal.attachment_kind === 'file'
+                && proposal.attachment_storage_path
+                && proposal.attachment_storage_path !== storagePath) {
+                oldPathToDelete = proposal.attachment_storage_path;
+            }
+            newAttachmentFields = {
+                attachment_kind: 'file',
+                attachment_url: downloadURL,
+                attachment_storage_path: storagePath,
+                attachment_filename: file.name
+            };
+        } else {
+            setError('Select a kind: Paste a link or Upload a file.');
+            showLoading(false);
+            return;
+        }
+
+        // Build ATTACHMENT_REPLACED audit entry (D-03 invariant — every change writes one)
+        const newAuditEntry = {
+            entry_id: cryptoRandomUuid(),
+            ts: new Date().toISOString(),
+            actor_id: actorUid,
+            actor_name: actorName,
+            action: 'ATTACHMENT_REPLACED',
+            comment: null
+        };
+
+        await updateDoc(doc(db, 'proposals', proposalDocId), {
+            ...newAttachmentFields,
+            audit_log: [...(proposal.audit_log || []), newAuditEntry],
+            updated_at: serverTimestamp()
+        });
+
+        // Best-effort delete of the old storage object (non-fatal — Firestore is the source of truth)
+        if (oldPathToDelete) {
+            try {
+                await deleteObject(ref(storage, oldPathToDelete));
+            } catch (delErr) {
+                console.error('[Proposals] deleteObject(old attachment) failed:', delErr);
+            }
+        }
+
+        showToast('Attachment saved.', 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {}, newAttachmentFields);
+    } catch (err) {
+        console.error('[Proposals] saveProposalAttachment failed:', err);
+        showToast(err?.message || 'Failed to save attachment. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Remove the current attachment.
+ * Writes Firestore: attachment_* fields → null + ATTACHMENT_REPLACED audit entry.
+ * Best-effort deleteObject on the prior storage path (if the previous attachment was a file).
+ */
+async function removeProposalAttachment(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (!proposal.attachment_kind) {
+        // Nothing to remove — guard against repeated clicks
+        const panel = document.getElementById('proposalAttachmentRemoveConfirm');
+        if (panel) panel.style.display = 'none';
+        return;
+    }
+
+    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const actorUid = currentUser?.uid ?? null;
+    const actorName = currentUser?.full_name || 'Unknown';
+
+    const wasFile = proposal.attachment_kind === 'file';
+    const oldStoragePath = proposal.attachment_storage_path || null;
+
+    showLoading(true);
+    try {
+        const newAuditEntry = {
+            entry_id: cryptoRandomUuid(),
+            ts: new Date().toISOString(),
+            actor_id: actorUid,
+            actor_name: actorName,
+            action: 'ATTACHMENT_REPLACED',
+            comment: 'Attachment removed.'
+        };
+        const cleared = {
+            attachment_kind: null,
+            attachment_url: null,
+            attachment_storage_path: null,
+            attachment_filename: null
+        };
+        await updateDoc(doc(db, 'proposals', proposalDocId), {
+            ...cleared,
+            audit_log: [...(proposal.audit_log || []), newAuditEntry],
+            updated_at: serverTimestamp()
+        });
+        // Non-fatal storage cleanup
+        if (wasFile && oldStoragePath) {
+            try {
+                await deleteObject(ref(storage, oldStoragePath));
+            } catch (delErr) {
+                console.error('[Proposals] deleteObject(removed attachment) failed:', delErr);
+            }
+        }
+        showToast('Attachment removed.', 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {}, cleared);
+    } catch (err) {
+        console.error('[Proposals] removeProposalAttachment failed:', err);
+        showToast(err?.message || 'Failed to remove attachment. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
