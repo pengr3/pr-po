@@ -443,6 +443,11 @@ export async function init(activeTab = null, param = null) {
     window.proposalShowPersonnelDropdown = proposalShowPersonnelDropdown;
     window.proposalFilterPersonnelDropdown = proposalFilterPersonnelDropdown;
 
+    // Phase 87: activate proposal dashboard mount point.
+    // The dashboard content is injected by Plan 02 in renderProposalDashboard().
+    const mount = document.getElementById('proposal-dashboard-mount');
+    if (mount) mount.style.display = 'block';
+
     // Clients listener: populates the client picker.
     const clientsListener = onSnapshot(
         query(collection(db, 'clients'), where('active', '==', true)),
