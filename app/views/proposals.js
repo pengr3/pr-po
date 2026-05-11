@@ -16,7 +16,7 @@
    ======================================== */
 
 import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp, writeBatch } from '../firebase.js';
-import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
+
 import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
 import { createEngagement } from '../engagement-create.js';
 import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
@@ -477,13 +477,11 @@ export async function init(activeTab = null, param = null) {
     // Phase 87 Plan 04 — attachment widget handlers (real implementations):
     window.saveProposalAttachment           = saveProposalAttachment;
     window.removeProposalAttachment         = removeProposalAttachment;
-    window._switchProposalAttachmentKind    = _switchProposalAttachmentKind;
     window._openProposalAttachmentReplace   = _openProposalAttachmentReplace;
     window._openProposalAttachmentRemoveConfirm = _openProposalAttachmentRemoveConfirm;
     // Phase 87 Plan 05 — comms log handlers (real implementations):
     window.toggleAddCommsForm           = toggleAddCommsForm;
     window.saveCommsEntry               = saveCommsEntry;
-    window._switchCommsAttachmentKind   = _switchCommsAttachmentKind;
 
     // Clients listener: populates the client picker.
     const clientsListener = onSnapshot(
@@ -599,12 +597,10 @@ export async function destroy() {
     delete window.submitMarkSentToClient;
     delete window.saveProposalAttachment;
     delete window.removeProposalAttachment;
-    delete window._switchProposalAttachmentKind;
     delete window._openProposalAttachmentReplace;
     delete window._openProposalAttachmentRemoveConfirm;
     delete window.toggleAddCommsForm;
     delete window.saveCommsEntry;
-    delete window._switchCommsAttachmentKind;
 
     // --- Phase 87 module state reset (Plan 02) ---
     proposalsData = [];
@@ -1011,27 +1007,10 @@ function buildAttachmentSection(proposal) {
     return `
         <div id="proposalAttachmentWidget" style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
             <div style="font-size:13px;color:#64748b;margin-bottom:8px;">Attachment</div>
-            <div style="display:flex;gap:1.25rem;margin-bottom:8px;">
-                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
-                    <input type="radio" name="proposalAttachKind-${docId}" value="link" checked
-                           onchange="window._switchProposalAttachmentKind('${docId}', 'link')">
-                    Paste a link
-                </label>
-                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
-                    <input type="radio" name="proposalAttachKind-${docId}" value="file"
-                           onchange="window._switchProposalAttachmentKind('${docId}', 'file')">
-                    Upload a file
-                </label>
-            </div>
             <div id="proposalAttachmentLinkInput" style="margin-bottom:8px;">
                 <input type="url" id="proposalAttachmentUrl"
                        placeholder="https://drive.google.com/..."
                        style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
-            </div>
-            <div id="proposalAttachmentFileInput" style="display:none;margin-bottom:8px;">
-                <input type="file" id="proposalAttachmentFile"
-                       accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg"
-                       style="font-size:0.9375rem;">
             </div>
             <div id="proposalAttachmentError" style="display:none;color:#ea4335;font-size:13px;margin-bottom:8px;"></div>
             <button class="btn btn-sm btn-outline" onclick="window.saveProposalAttachment('${docId}')">Save Attachment</button>
@@ -1124,25 +1103,8 @@ function buildCommsLogSection(proposal) {
                 </div>
                 <div style="margin-bottom:8px;">
                     <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Attachment <span style="color:#64748b;font-weight:400;">(optional)</span></label>
-                    <div style="display:flex;gap:1rem;margin-bottom:6px;">
-                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
-                            <input type="radio" name="proposalCommsAttachKind" value="none" checked onchange="window._switchCommsAttachmentKind('none')">
-                            None
-                        </label>
-                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
-                            <input type="radio" name="proposalCommsAttachKind" value="link" onchange="window._switchCommsAttachmentKind('link')">
-                            Paste a link
-                        </label>
-                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
-                            <input type="radio" name="proposalCommsAttachKind" value="file" onchange="window._switchCommsAttachmentKind('file')">
-                            Upload a file
-                        </label>
-                    </div>
-                    <div id="proposalCommsLinkInput" style="display:none;margin-bottom:6px;">
-                        <input type="url" id="proposalCommsAttachmentUrl" placeholder="https://..." style="width:100%;padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
-                    </div>
-                    <div id="proposalCommsFileInput" style="display:none;margin-bottom:6px;">
-                        <input type="file" id="proposalCommsAttachmentFile" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="font-size:0.9375rem;">
+                    <div style="margin-bottom:6px;">
+                        <input type="url" id="proposalCommsAttachmentUrl" placeholder="https://... (optional)" style="width:100%;padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
                     </div>
                 </div>
                 <div id="proposalCommsError" style="display:none;color:#ea4335;font-size:13px;margin-bottom:8px;"></div>
@@ -1900,18 +1862,6 @@ async function submitClientApproved(proposalDocId) {
 // ============================================================
 
 /**
- * Radio-toggle helper: switch between Paste-a-link and Upload-a-file inputs.
- */
-function _switchProposalAttachmentKind(proposalDocId, kind) {
-    const linkInput = document.getElementById('proposalAttachmentLinkInput');
-    const fileInput = document.getElementById('proposalAttachmentFileInput');
-    const err = document.getElementById('proposalAttachmentError');
-    if (linkInput) linkInput.style.display = (kind === 'link') ? 'block' : 'none';
-    if (fileInput) fileInput.style.display = (kind === 'file') ? 'block' : 'none';
-    if (err) { err.textContent = ''; err.style.display = 'none'; }
-}
-
-/**
  * Show the Remove micro-confirm panel inline in the widget.
  */
 function _openProposalAttachmentRemoveConfirm(proposalDocId) {
@@ -1936,18 +1886,13 @@ function _openProposalAttachmentReplace(proposalDocId) {
 }
 
 /**
- * Save attachment — handles both first-attach and Replace flows.
- * For file uploads: uploads to proposals/{docId}/attachment.<ext> then writes Firestore doc.
- * If a previous file attachment exists, the new uploadBytes overwrites it at the same path.
- * If the previous attachment had a DIFFERENT extension, we additionally delete the old object.
+ * Save attachment — link-only (file upload removed; no Firebase Storage required).
  * Writes ATTACHMENT_REPLACED audit entry on success.
  */
 async function saveProposalAttachment(proposalDocId) {
     const proposal = proposalsData.find(p => p.id === proposalDocId);
     if (!proposal) { showToast('Proposal not found.', 'error'); return; }
 
-    const kindRadio = document.querySelector(`input[name="proposalAttachKind-${proposalDocId}"]:checked`);
-    const kind = kindRadio?.value || 'link';
     const errEl = document.getElementById('proposalAttachmentError');
     const setError = (msg) => {
         if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
@@ -1957,83 +1902,30 @@ async function saveProposalAttachment(proposalDocId) {
     };
     clearError();
 
+    const urlInput = document.getElementById('proposalAttachmentUrl');
+    const url = (urlInput?.value || '').trim();
+    if (!url) {
+        setError('Please enter a URL.');
+        return;
+    }
+    if (!/^https?:\/\//i.test(url)) {
+        setError('URL must start with http:// or https://');
+        return;
+    }
+
     const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
     const actorUid = currentUser?.uid ?? null;
     const actorName = currentUser?.full_name || 'Unknown';
 
-    let newAttachmentFields = null;
-    let oldPathToDelete = null; // set when kind change requires deleting prior file
+    const newAttachmentFields = {
+        attachment_kind: 'link',
+        attachment_url: url,
+        attachment_storage_path: null,
+        attachment_filename: null
+    };
 
     showLoading(true);
     try {
-        if (kind === 'link') {
-            const urlInput = document.getElementById('proposalAttachmentUrl');
-            const url = (urlInput?.value || '').trim();
-            if (!url) {
-                setError('Please enter a URL.');
-                showLoading(false);
-                return;
-            }
-            // Light URL validation — accept anything that starts with http(s)://
-            if (!/^https?:\/\//i.test(url)) {
-                setError('URL must start with http:// or https://');
-                showLoading(false);
-                return;
-            }
-            // If previous attachment was a file, schedule its storage object for deletion (non-fatal).
-            if (proposal.attachment_kind === 'file' && proposal.attachment_storage_path) {
-                oldPathToDelete = proposal.attachment_storage_path;
-            }
-            newAttachmentFields = {
-                attachment_kind: 'link',
-                attachment_url: url,
-                attachment_storage_path: null,
-                attachment_filename: null
-            };
-        } else if (kind === 'file') {
-            const fileInput = document.getElementById('proposalAttachmentFile');
-            const file = fileInput?.files?.[0];
-            if (!file) {
-                setError('Please select a file.');
-                showLoading(false);
-                return;
-            }
-            if (file.size > 10 * 1024 * 1024) {
-                showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
-                showLoading(false);
-                return;
-            }
-            const ext = (file.name.split('.').pop() || '').toLowerCase();
-            const allowedExt = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
-            if (!allowedExt.includes(ext)) {
-                setError('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.');
-                showLoading(false);
-                return;
-            }
-            const storagePath = `proposals/${proposalDocId}/attachment.${ext}`;
-            const storageRef = ref(storage, storagePath);
-            const uploadResult = await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(uploadResult.ref);
-
-            // If previous attachment was a file with a DIFFERENT extension, queue old object delete.
-            if (proposal.attachment_kind === 'file'
-                && proposal.attachment_storage_path
-                && proposal.attachment_storage_path !== storagePath) {
-                oldPathToDelete = proposal.attachment_storage_path;
-            }
-            newAttachmentFields = {
-                attachment_kind: 'file',
-                attachment_url: downloadURL,
-                attachment_storage_path: storagePath,
-                attachment_filename: file.name
-            };
-        } else {
-            setError('Select a kind: Paste a link or Upload a file.');
-            showLoading(false);
-            return;
-        }
-
-        // Build ATTACHMENT_REPLACED audit entry (D-03 invariant — every change writes one)
         const newAuditEntry = {
             entry_id: cryptoRandomUuid(),
             ts: new Date().toISOString(),
@@ -2049,15 +1941,6 @@ async function saveProposalAttachment(proposalDocId) {
             updated_at: serverTimestamp()
         });
 
-        // Best-effort delete of the old storage object (non-fatal — Firestore is the source of truth)
-        if (oldPathToDelete) {
-            try {
-                await deleteObject(ref(storage, oldPathToDelete));
-            } catch (delErr) {
-                console.error('[Proposals] deleteObject(old attachment) failed:', delErr);
-            }
-        }
-
         showToast('Attachment saved.', 'success');
         _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {}, newAttachmentFields);
     } catch (err) {
@@ -2071,13 +1954,11 @@ async function saveProposalAttachment(proposalDocId) {
 /**
  * Remove the current attachment.
  * Writes Firestore: attachment_* fields → null + ATTACHMENT_REPLACED audit entry.
- * Best-effort deleteObject on the prior storage path (if the previous attachment was a file).
  */
 async function removeProposalAttachment(proposalDocId) {
     const proposal = proposalsData.find(p => p.id === proposalDocId);
     if (!proposal) { showToast('Proposal not found.', 'error'); return; }
     if (!proposal.attachment_kind) {
-        // Nothing to remove — guard against repeated clicks
         const panel = document.getElementById('proposalAttachmentRemoveConfirm');
         if (panel) panel.style.display = 'none';
         return;
@@ -2086,9 +1967,6 @@ async function removeProposalAttachment(proposalDocId) {
     const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
     const actorUid = currentUser?.uid ?? null;
     const actorName = currentUser?.full_name || 'Unknown';
-
-    const wasFile = proposal.attachment_kind === 'file';
-    const oldStoragePath = proposal.attachment_storage_path || null;
 
     showLoading(true);
     try {
@@ -2111,14 +1989,6 @@ async function removeProposalAttachment(proposalDocId) {
             audit_log: [...(proposal.audit_log || []), newAuditEntry],
             updated_at: serverTimestamp()
         });
-        // Non-fatal storage cleanup
-        if (wasFile && oldStoragePath) {
-            try {
-                await deleteObject(ref(storage, oldStoragePath));
-            } catch (delErr) {
-                console.error('[Proposals] deleteObject(removed attachment) failed:', delErr);
-            }
-        }
         showToast('Attachment removed.', 'success');
         _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {}, cleared);
     } catch (err) {
@@ -2145,29 +2015,12 @@ function toggleAddCommsForm(proposalDocId) {
     if (isOpen) {
         form.style.display = 'none';
         btn.textContent = '+ Add Entry';
-        // Reset radio + hide both attachment inputs
-        const noneRadio = document.querySelector('input[name="proposalCommsAttachKind"][value="none"]');
-        if (noneRadio) noneRadio.checked = true;
-        const linkBox = document.getElementById('proposalCommsLinkInput');
-        const fileBox = document.getElementById('proposalCommsFileInput');
-        if (linkBox) linkBox.style.display = 'none';
-        if (fileBox) fileBox.style.display = 'none';
+        const urlInput = document.getElementById('proposalCommsAttachmentUrl');
+        if (urlInput) urlInput.value = '';
     } else {
         form.style.display = 'block';
         btn.textContent = 'Cancel';
     }
-}
-
-/**
- * Show/hide the URL vs file input based on the chosen attachment kind radio.
- */
-function _switchCommsAttachmentKind(kind) {
-    const linkBox = document.getElementById('proposalCommsLinkInput');
-    const fileBox = document.getElementById('proposalCommsFileInput');
-    const err = document.getElementById('proposalCommsError');
-    if (linkBox) linkBox.style.display = (kind === 'link') ? 'block' : 'none';
-    if (fileBox) fileBox.style.display = (kind === 'file') ? 'block' : 'none';
-    if (err) { err.textContent = ''; err.style.display = 'none'; }
 }
 
 /**
@@ -2193,7 +2046,6 @@ async function saveCommsEntry(proposalDocId) {
     const date = (document.getElementById('proposalCommsDate')?.value || '').trim();
     const type = document.getElementById('proposalCommsType')?.value || '';
     const description = (document.getElementById('proposalCommsDescription')?.value || '').trim();
-    const kind = document.querySelector('input[name="proposalCommsAttachKind"]:checked')?.value || 'none';
 
     if (!date) { setError('Date is required.'); return; }
     if (!type || !['sent', 'feedback_received', 'revision_requested'].includes(type)) {
@@ -2207,6 +2059,7 @@ async function saveCommsEntry(proposalDocId) {
     const actorName = currentUser?.full_name || 'Unknown';
 
     const entryId = cryptoRandomUuid();
+    const rawUrl = (document.getElementById('proposalCommsAttachmentUrl')?.value || '').trim();
     let attachmentFields = {
         attachment_kind: null,
         attachment_url: null,
@@ -2216,48 +2069,20 @@ async function saveCommsEntry(proposalDocId) {
 
     showLoading(true);
     try {
-        if (kind === 'link') {
-            const url = (document.getElementById('proposalCommsAttachmentUrl')?.value || '').trim();
-            if (!url) { setError('Please enter a URL.'); showLoading(false); return; }
-            if (!/^https?:\/\//i.test(url)) {
+        if (rawUrl) {
+            if (!/^https?:\/\//i.test(rawUrl)) {
                 setError('URL must start with http:// or https://');
                 showLoading(false);
                 return;
             }
             attachmentFields = {
                 attachment_kind: 'link',
-                attachment_url: url,
+                attachment_url: rawUrl,
                 attachment_storage_path: null,
                 attachment_filename: null
             };
-        } else if (kind === 'file') {
-            const fileEl = document.getElementById('proposalCommsAttachmentFile');
-            const file = fileEl?.files?.[0];
-            if (!file) { setError('Please select a file.'); showLoading(false); return; }
-            if (file.size > 10 * 1024 * 1024) {
-                showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
-                showLoading(false);
-                return;
-            }
-            const ext = (file.name.split('.').pop() || '').toLowerCase();
-            const allowedExt = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
-            if (!allowedExt.includes(ext)) {
-                setError('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.');
-                showLoading(false);
-                return;
-            }
-            const storagePath = `proposals/${proposalDocId}/comms/${entryId}.${ext}`;
-            const storageRef = ref(storage, storagePath);
-            const uploadResult = await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(uploadResult.ref);
-            attachmentFields = {
-                attachment_kind: 'file',
-                attachment_url: downloadURL,
-                attachment_storage_path: storagePath,
-                attachment_filename: file.name
-            };
         }
-        // kind === 'none' falls through with attachmentFields = all nulls
+        // no URL → attachmentFields stays all-null (no attachment)
 
         const newEntry = {
             entry_id: entryId,
