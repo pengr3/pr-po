@@ -515,7 +515,7 @@ Plans:
   1. Management tab shows a "Proposal Approval Queue" section listing all proposals currently awaiting internal approval, sorted oldest-first
   2. Super Admin can approve or reject proposals (with mandatory comments) directly from the queue, with the same audit-trail and project-status-advancement behavior as in Phase 87 — no duplicated approval logic
 **Plans**: 1 plan
-  - [ ] 89-01-PLAN.md — Proposal Approval Queue: renderApprovalQueue(), queue mini-modal, approve/reject wired to _applyProposalStateTransition (MGMT-03, MGMT-04)
+  - [~] 89-01-PLAN.md — Proposal Approval Queue: renderApprovalQueue(), queue mini-modal, approve/reject wired to _applyProposalStateTransition (MGMT-03, MGMT-04) — code committed ea73c5e, awaiting UAT
 **UI hint**: yes
 
 ## Progress
