@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87 executing — Plan 2 of 5 complete
+status: Phase 87 executing — Plan 3 of 5 complete
 stopped_at: ""
-last_updated: "2026-05-11T06:28:00Z"
-last_activity: "2026-05-11 - Phase 87 Plan 02 complete: Proposal Dashboard + Create/Edit modal + Detail modal with audit trail rendering shipped. 1276-line proposals.js."
+last_updated: "2026-05-11T08:00:00Z"
+last_activity: "2026-05-11 - Phase 87 Plan 03 complete: proposal lifecycle state-machine wired — Submit/Approve/Reject/Sent/ClientApproved/Loss all use writeBatch+audit_log+project-status; NOTIF-09/NOTIF-10 fire-and-forget. proposals.js now 1739 lines."
 progress:
   total_phases: 16
   completed_phases: 12
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 87-proposal-lifecycle — executing
-Plan: 2 of 5 complete — 2026-05-11
+Plan: 3 of 5 complete — 2026-05-11
 
 ## Performance Metrics
 
@@ -136,6 +136,7 @@ Plan: 2 of 5 complete — 2026-05-11
 | Phase 86.4 P04 | ~90min + debug | 2 tasks + debug | 2 files |
 | Phase 87 P01 | 3 | 4 tasks | 6 files |
 | Phase 87 P02 | 7 | 4 tasks | 1 files |
+| Phase 87 P03 | 25 | 4 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -344,6 +345,12 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 84.1-03]: UAT scaffold (.planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md) committed separately as `test(84.1)` per parent's suggested commit pattern — pre-populated with 15 tests (7 new-requirement + 8 regression) all marked `[pending]`; frontmatter records `environment: dev Firebase project` (NOT production clmc-procurement) per Phase 53.1 dev-environment introduction
 - [Phase 84.1-03]: Phase closure gated on human UAT execution per autonomous=false plan contract — checkpoint:human-verify task in 84.1-03-PLAN.md awaits user-driven verification of all 7 new triggers + 8 regression tests against the dev Firebase environment before Phase 84.1 can be marked complete
 - [Phase 84.1-01 RETROACTIVE 2026-05-02]: Plan 01 Task 3 was originally SKIPPED by the executor with the incorrect note "Task 3 belongs to plan 02" — that was wrong per 84.1-01-PLAN.md lines 398–535. Retroactive fix commit f5d9940 wires all five finance.js notification blocks (NOTIF-15 PR Approved + Rejected, NOTIF-17 TR Approved + Rejected, NOTIF-16 RFP Fully Paid) plus the missing `import { createNotification, NOTIFICATION_TYPES } from '../notifications.js'` line. All blocks use isolated try/catch + creator-UID null-guard per D-03. Untouched: po_creator_user_id stamp from Task 1, Plan 02/03 deliverables, firestore.rules. 84.1-01-SUMMARY.md amended with a "Retroactive Fix (2026-05-02)" section documenting the gap, the fix, and the root-cause note (future executors must not silently move tasks between sibling plans). Phase-level requirements list NOTIF-15/NOTIF-16/NOTIF-17 are now actually shipped at the code layer; UAT-layer verification still pending per Plan 03's checkpoint:human-verify gate.
+- [Phase 87-03]: _applyProposalStateTransition() centralizes writeBatch + audit_log spread + serverTimestamp for all 6 proposal state transitions; Mark Sent to Client passes newStatus=null + newProjectStatus=null to write audit-only (no status or project doc change)
+- [Phase 87-03]: audit_log array uses spread [...existing, newEntry] not arrayUnion — Firestore rejects serverTimestamp() sentinels inside array elements; ts field uses new Date().toISOString() per Pitfall 7
+- [Phase 87-03]: NOTIF-09 (submit fan-out) and NOTIF-10 (approve/reject single-recipient) each wrapped in isolated try/catch — notification failure cannot block state transition (D-09 + Phase 83 D-13)
+- [Phase 87-03]: Loss reason (D-06): persisted as proposal.loss_reason AND mirrored to LOSS_RECORDED audit comment in same writeBatch — cannot drift; submitLoss validates 10-char minimum
+- [Phase 87-03]: 'Client Approved' is the canonical project_status target (not 'For Mobilization') per 87-RESEARCH.md verification; 'For Mobilization' is a separate downstream manual action
+- [Phase 87-03]: All 9 Plan 03 stubs in init() replaced with real function references via direct window assignment; _stubP03() function definition remains as dead code (harmless, no callers)
 - [Phase 87-01]: Storage rules use request.auth != null (not role check) — Firestore rules on proposals/{id} are primary gate; accepted risk T-87.1-04; mirrors invitation_codes accepted-risk pattern. Deploy both rules files before Plan 02.
 - [Phase 87-01]: generateProposalId() thin wrapper over generateSequentialId('proposals', 'PROP') — reads proposal_id field from docs, returns PROP-YYYY-NNN; re-exported from utils.js for downstream plan convenience
 - [Phase 87-02]: audit_log CREATED entry uses new Date().toISOString() for ts field — Firestore rejects serverTimestamp() sentinels inside array elements; doc-level created_at uses serverTimestamp() as authoritative anchor (T-87.2-06 accepted)
@@ -429,9 +436,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 87 Plan 02 complete. Proposal Dashboard + Create/Edit Proposal modal + Detail modal with audit trail. proposals.js now 1276 lines.
-Last session: 2026-05-11T06:28:00Z
-Stopped at: Phase 87 Plan 02 complete — continue with Plan 03 (state transitions: submit/approve/reject/sent/client-approved/loss writeBatch logic)
+Last activity: 2026-05-11 - Phase 87 Plan 03 complete. Proposal lifecycle state-machine wired. proposals.js now 1739 lines.
+Last session: 2026-05-11T08:00:00Z
+Stopped at: Phase 87 Plan 03 complete — continue with Plan 04 (attachments: Firebase Storage upload/replace/delete)
 Resume file: None
-Next action: Execute Phase 87 Plan 02 (proposal dashboard + CRUD). IMPORTANT: Deploy rules first — firebase deploy --only firestore:rules && firebase deploy --only storage
+Next action: Execute Phase 87 Plan 04 (attachments — Firebase Storage upload + replace + delete for proposal main attachment)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
