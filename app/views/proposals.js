@@ -474,9 +474,12 @@ export async function init(activeTab = null, param = null) {
     window.openClientApprovedModal   = openClientApprovedModal;
     window.submitClientApproved      = submitClientApproved;
     window.submitMarkSentToClient    = submitMarkSentToClient;
-    // Plan 04 will overwrite these stubs with real Firebase Storage logic:
-    window.saveProposalAttachment    = _stubP04('Save Attachment');
-    window.removeProposalAttachment  = _stubP04('Remove Attachment');
+    // Phase 87 Plan 04 — attachment widget handlers (real implementations):
+    window.saveProposalAttachment           = saveProposalAttachment;
+    window.removeProposalAttachment         = removeProposalAttachment;
+    window._switchProposalAttachmentKind    = _switchProposalAttachmentKind;
+    window._openProposalAttachmentReplace   = _openProposalAttachmentReplace;
+    window._openProposalAttachmentRemoveConfirm = _openProposalAttachmentRemoveConfirm;
     // Plan 05 will overwrite these stubs with real comms-log writes:
     window.toggleAddCommsForm        = _stubP05('Add Comms Entry');
     window.saveCommsEntry            = _stubP05('Save Comms Entry');
@@ -595,6 +598,9 @@ export async function destroy() {
     delete window.submitMarkSentToClient;
     delete window.saveProposalAttachment;
     delete window.removeProposalAttachment;
+    delete window._switchProposalAttachmentKind;
+    delete window._openProposalAttachmentReplace;
+    delete window._openProposalAttachmentRemoveConfirm;
     delete window.toggleAddCommsForm;
     delete window.saveCommsEntry;
 
