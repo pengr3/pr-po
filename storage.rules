@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // =============================================
+    // proposals storage paths (Phase 87 — D-10, D-03, D-07)
+    // =============================================
+    // ACCEPTED RISK: Firebase Storage rules cannot call getUserData() with the
+    // same syntax as Firestore rules (no firestore.get() equivalent in Storage
+    // rules v2 without custom claims, which this project does not use).
+    //
+    // Primary security control is the Firestore Security Rules on
+    // proposals/{proposalId} which must exist before any Storage write path is
+    // used by the UI. Storage rules provide a minimum authentication gate only.
+    //
+    // Mirrors the invitation_codes accepted-risk pattern in firestore.rules
+    // lines 171-195.
+    //
+    // Paths:
+    //   proposals/{proposalId}/attachment.{ext}         — main proposal attachment
+    //   proposals/{proposalId}/comms/{entryId}.{ext}    — per-comms-entry attachments
+    match /proposals/{proposalId}/{allPaths=**} {
+      // Read: any authenticated user
+      allow read: if request.auth != null;
+
+      // Write: any authenticated user (Firestore rules are the primary gate)
+      // ACCEPTED RISK: cannot enforce operations_admin/super_admin role here
+      // without custom claims (which this project does not use).
+      allow write: if request.auth != null;
+    }
+  }
+}

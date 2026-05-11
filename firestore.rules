@@ -531,6 +531,39 @@ service cloud.firestore {
     }
 
     // =============================================
+    // proposals collection (Phase 87 — PROP-11, D-10)
+    // =============================================
+    // Proposal lifecycle docs. audit_log + comms_log are embedded arrays
+    // (D-04 — no subcollections). Schema (D-02):
+    //   proposal_id (e.g. PROP-2026-001), project_id, project_code,
+    //   title, description, amount, target_client_id, target_client_name,
+    //   status (draft|pending_internal|pending_client|for_revision|client_approved|loss),
+    //   attachment_kind, attachment_url, attachment_storage_path, attachment_filename,
+    //   audit_log[], comms_log[], loss_reason, current_status_since,
+    //   created_by, created_at, updated_at.
+    //
+    // Approver gate (D-05): create/update/delete limited to super_admin and
+    // operations_admin. Field-level immutability on update: created_at + created_by
+    // (mirrors notifications block immutability pattern lines 560-567).
+    match /proposals/{proposalId} {
+      // Read: any active user (Operations Admin / Super Admin approve; all staff view)
+      allow read: if isActiveUser();
+
+      // Create: super_admin, operations_admin only — created_by pinned to caller
+      allow create: if hasRole(['super_admin', 'operations_admin'])
+        && request.resource.data.created_by == request.auth.uid;
+
+      // Update: super_admin, operations_admin only
+      // created_at and created_by immutable post-create (mirror notifications block)
+      allow update: if hasRole(['super_admin', 'operations_admin'])
+        && request.resource.data.created_by == resource.data.created_by
+        && request.resource.data.created_at == resource.data.created_at;
+
+      // Delete: super_admin only — proposals are not normally deleted
+      allow delete: if isRole('super_admin');
+    }
+
+    // =============================================
     // notifications collection (Phase 83 — NOTIF-13)
     // =============================================
     // Per-user in-app notifications. Each user only touches their own.
