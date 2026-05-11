@@ -1367,3 +1367,89 @@ function _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, status
         }
     }, 0);
 }
+
+// ============================================================
+// PHASE 87 — Transition: Submit for Internal Approval (Plan 03)
+//   Source statuses:  draft, for_revision
+//   Target status:    pending_internal
+//   Project status:   Proposal for Internal Approval
+//   Notification:     NOTIF-09 fan-out to super_admin + operations_admin
+// ============================================================
+async function submitProposalForApproval(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (!['draft', 'for_revision'].includes(proposal.status)) {
+        showToast('Cannot submit a proposal that is not in Draft or For Revision.', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const newAuditEntry = await _applyProposalStateTransition({
+            proposal,
+            newStatus: 'pending_internal',
+            newProjectStatus: 'Proposal for Internal Approval',
+            auditAction: 'SUBMITTED',
+            auditComment: null
+        });
+
+        // NOTIF-09 — fan-out to all approvers (D-09 message + link format)
+        try {
+            const actor = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+            const actorName = actor?.full_name || 'Unknown';
+            await createNotificationForRoles({
+                roles: ['super_admin', 'operations_admin'],
+                type: NOTIFICATION_TYPES.PROPOSAL_SUBMITTED,
+                message: `Proposal ${proposal.title} submitted for approval by ${actorName}`,
+                link: `#/proposals?id=${proposal.proposal_id}`,
+                source_collection: 'proposals',
+                source_id: proposal.proposal_id,
+                excludeActor: true
+            });
+        } catch (notifErr) {
+            console.error('[Proposals] NOTIF-09 failed:', notifErr);
+        }
+
+        showToast('Proposal submitted for internal approval. Approvers have been notified.', 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: 'pending_internal' });
+    } catch (err) {
+        console.error('[Proposals] submitProposalForApproval failed:', err);
+        showToast(err?.message || 'Failed to submit proposal. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================================
+// PHASE 87 — Transition: Mark Sent to Client (Plan 03)
+//   Source statuses:  pending_client
+//   Target status:    pending_client (idempotent — audit only)
+//   Project status:   (no change — D-08 explicit)
+//   Notification:     none (internal bookkeeping)
+// ============================================================
+async function submitMarkSentToClient(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_client') {
+        showToast('Mark Sent to Client is only available after the proposal is approved internally.', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const newAuditEntry = await _applyProposalStateTransition({
+            proposal,
+            newStatus: null,                  // stay in pending_client
+            newProjectStatus: null,           // no project status change
+            auditAction: 'SENT_TO_CLIENT',
+            auditComment: null
+        });
+        showToast('Marked as sent to client.', 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {});
+    } catch (err) {
+        console.error('[Proposals] submitMarkSentToClient failed:', err);
+        showToast(err?.message || 'Failed to mark as sent. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
