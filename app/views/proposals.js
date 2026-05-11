@@ -281,6 +281,7 @@ function handleEngagementTypeChange(type) {
     if (type === 'project') {
         // Client is optional for projects (Phase 78 D-04 clientless-creation pattern).
         clientLabel.textContent = '(optional — clientless project allowed)';
+        clientLabel.style.color = '';
 
         // Restore the none/clientless option if not already there.
         if (!clientSelect.querySelector('option[value=""]')) {

@@ -2249,7 +2249,10 @@ async function loadServicesForNewMRF() {
         const snapshot = await getDocs(q);
         cachedServicesForNewMRF = [];
         snapshot.forEach(docSnap => {
-            cachedServicesForNewMRF.push({ id: docSnap.id, ...docSnap.data() });
+            const data = docSnap.data();
+            // Phase 88 D-05 — Draft services are pre-proposal; not eligible for MRF operations.
+            if (data.project_status === 'Draft') return;
+            cachedServicesForNewMRF.push({ id: docSnap.id, ...data });
         });
         // Sort alphabetically A-Z by service code
         cachedServicesForNewMRF.sort((a, b) => (a.service_code || '').localeCompare(b.service_code || ''));
