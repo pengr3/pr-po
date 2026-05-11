@@ -7,6 +7,7 @@ import { db, collection, query, where, onSnapshot } from '../firebase.js';
 
 // Unified status list — canonical source: app/views/projects.js (Phase 81 D-02)
 const UNIFIED_STATUS_OPTIONS = [
+    'Draft',  // Phase 88 D-05 — pre-proposal stage; ensures Draft bucket appears in Home charts.
     'For Inspection',
     'For Proposal',
     'Proposal for Internal Approval',
@@ -47,6 +48,7 @@ const HIGHLIGHTED_STATUS_COLORS = {
     'On-going':                    'rgba(26, 115, 232, 0.55)'   // shared brand hue
 };
 const MONOCHROMATIC_STATUS_COLORS = {
+    'Draft':                          'rgba(107, 114, 128, 0.50)',  // Phase 88 MED-3 — gray-neutral for pre-proposal stage.
     'Proposal for Internal Approval': 'rgba(148, 163, 184, 0.38)',
     'For Revision':                   'rgba(148, 163, 184, 0.50)',
     'Client Approved':                'rgba(148, 163, 184, 0.60)',

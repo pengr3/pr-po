@@ -32,8 +32,9 @@ let sortDirection = 'desc';     // Most recent first
 // Module-level active tab - persists across re-renders
 let currentActiveTab = 'services';
 
-// Unified status options (10 values — replaces separate internal + project status)
+// Unified status options (11 values since Phase 88 D-05 added Draft)
 const UNIFIED_STATUS_OPTIONS = [
+    'Draft',  // Phase 88 D-05 — pre-proposal stage; engagements created from the Proposals tab default here.
     'For Inspection',
     'For Proposal',
     'Proposal for Internal Approval',

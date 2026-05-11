@@ -1113,7 +1113,10 @@ function loadProjects() {
             // Cache projects for re-population on assignment change
             cachedProjects = [];
             snapshot.forEach(doc => {
-                cachedProjects.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Phase 88 D-05 — Draft projects cannot accept MRFs.
+                if (data.project_status === 'Draft') return;
+                cachedProjects.push({ id: doc.id, ...data });
             });
 
             // Sort alphabetically A-Z by project code
@@ -1165,7 +1168,10 @@ function loadServices() {
         servicesListener = onSnapshot(q, (snapshot) => {
             cachedServices = [];
             snapshot.forEach(doc => {
-                cachedServices.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Phase 88 D-05 — Draft services cannot accept MRFs.
+                if (data.project_status === 'Draft') return;
+                cachedServices.push({ id: doc.id, ...data });
             });
 
             // Sort alphabetically A-Z by service code

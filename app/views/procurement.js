@@ -2272,7 +2272,10 @@ async function loadProjects() {
         const listener = onSnapshot(q, (snapshot) => {
             projectsData = [];
             snapshot.forEach(doc => {
-                projectsData.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Phase 88 D-05 — Draft projects are pre-proposal; not eligible for MRF/PR/PO operations.
+                if (data.project_status === 'Draft') return;
+                projectsData.push({ id: doc.id, ...data });
             });
 
             // Sort alphabetically A-Z by project code

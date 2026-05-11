@@ -29,6 +29,7 @@ let sortDirection = 'desc';     // Most recent first (PROJ-15)
 
 // Status options
 const UNIFIED_STATUS_OPTIONS = [
+    'Draft',  // Phase 88 D-05 — pre-proposal stage; engagements created from the Proposals tab default here.
     'For Inspection',
     'For Proposal',
     'Proposal for Internal Approval',

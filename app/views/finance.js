@@ -3596,6 +3596,9 @@ async function refreshProjectExpenses(forceRefresh = false) {
         const projectPromises = projectsSnapshot.docs.map(async (projectDoc) => {
             const project = projectDoc.data();
 
+            // Phase 88 D-05 — Draft projects are pre-proposal; exclude from Finance Project List.
+            if (project.project_status === 'Draft') return null;
+
             // Run PO and TR aggregation in parallel for each project
             const [posAgg, trAgg] = await Promise.all([
                 getAggregateFromServer(
@@ -3624,7 +3627,8 @@ async function refreshProjectExpenses(forceRefresh = false) {
             };
         });
 
-        projectExpenses = await Promise.all(projectPromises);
+        // .filter(Boolean) removes the null entries returned for Draft projects (Phase 88 D-05 / MED-1).
+        projectExpenses = (await Promise.all(projectPromises)).filter(Boolean);
 
         // Sort: active projects A-Z first, then inactive A-Z
         projectExpenses.sort((a, b) => {
