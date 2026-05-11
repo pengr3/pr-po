@@ -3,6 +3,10 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "storage": {
+    "rules": "storage.rules",
+    "bucket": "clmc-procurement-dev.appspot.com"
+  },
   "emulators": {
     "firestore": {
       "port": 8080
