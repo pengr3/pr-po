@@ -447,6 +447,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260408-j0d | Add MRF cancellation for requestors only (item-level, PR-linked items protected) | 2026-04-08 | da509aa, 1b99410 | Awaiting UAT | [260408-j0d-add-mrf-cancellation-for-requestors-only](.planning/quick/260408-j0d-add-mrf-cancellation-for-requestors-only/) |
 | 260430-a4b | Codeless projects/services with assigned personnel_user_ids should appear in MRF for operations_user and services_user | 2026-04-30 | 551125d | Verified | [260430-a4b-codeless-projects-mrf-personnel-filter](.planning/quick/260430-a4b-codeless-projects-mrf-personnel-filter/) |
 | 260508-g2p | Phase 86.6 Plan 02: Fix Gantt/grid vertical alignment — Bug H2 (.tg-locked nowrap+ellipsis, 42px row height) and Bug H1 (diff-based paddingBottom equalization in fixGanttContainerScroll, eliminates 17px bar drift at max scroll) | 2026-05-08 | c00a3fd, ef795c9 | Awaiting browser UAT | [260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a](.planning/quick/260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a/) |
+| 260511-k4f | Strip Firebase Storage file upload — link-only attachments in proposal + comms widgets | 2026-05-11 | 9eec78f | Verified | [260511-k4f-strip-file-upload-link-only-proposals](.planning/quick/260511-k4f-strip-file-upload-link-only-proposals/) |
 
 ## Session Continuity
 
