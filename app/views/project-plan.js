@@ -3087,12 +3087,13 @@ async function applyFsAutoSchedule(successorId, predecessorId) {
 // ---- PDF Export (Plan 02 Task 1) ----
 
 function exportGanttPDF() {
+    document.getElementById('gantt-print-frame')?.remove();
     const dateStr = new Date().toLocaleString();
     const projectName = currentProject?.project_name || projectCode || 'Project';
 
     // Build task summary table rows — all tasks, sorted by existing tasks[] order (onSnapshot order)
     const tableRows = tasks.map(t => {
-        const name = escapeHTML(t.task_name || '(unnamed)');
+        const name = escapeHTML(t.name || '(unnamed)');
         const progress = t.progress ?? 0;
         const start = t.start_date || '—';
         const end = t.end_date || '—';

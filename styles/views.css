@@ -2685,11 +2685,6 @@
 .tg-row.tg-row-context { opacity: 0.55; }
 .tg-row.tg-row-context:hover { opacity: 0.85; }
 
-@media (max-width: 768px) {
-    /* Phase 86.9: On mobile, show only the task grid (single-pane). Rail resets to fill the screen. */
-    .task-grid-rail { display: none; }
-    /* Note: the second mobile block below handles .gantt-pane display:none */
-}
 
 .gantt-pane {
     /* Phase 86.9: Absolute overlay — slides left/right over the task-grid-rail like a curtain.
