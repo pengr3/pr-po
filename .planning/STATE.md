@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 89 complete — verified 2026-05-11. Only Phase 86.5 remains for v4.0.
-stopped_at: ""
-last_updated: "2026-05-11T00:00:00Z"
-last_activity: "2026-05-11 - Phase 89 (Proposal Approval Queue) complete. MGMT-03 + MGMT-04 satisfied. 9/9 automated checks + UAT passed. Next: Phase 86.5 (Gantt UI Polish 3)."
+status: Phase 86.9 Plan 01 complete — 2026-05-11. Curtain divider shipped. Phase 86.9 Plan 02 (PDF Export) and Phase 86.5 remain for v4.0.
+stopped_at: 86.9-01 complete (2026-05-11)
+last_updated: "2026-05-11T10:34:11Z"
+last_activity: 2026-05-11 - Phase 86.9 Plan 01 complete. Curtain divider: initPanelResize() rewritten, split-pane CSS converted from grid to absolute overlay.
 progress:
-  total_phases: 16
-  completed_phases: 15
-  total_plans: 63
-  completed_plans: 63
-  percent: 99
+  total_phases: 17
+  completed_phases: 14
+  total_plans: 65
+  completed_plans: 62
+  percent: 83
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 87 complete. Phase 89 (Proposal Approval Queue — oldest-first approve/reject queue inside Mgmt Tab) is next. Depends on Phase 87 (proposal infra ✅) and Phase 88 (Mgmt Tab shell ✅).
+**Current focus:** Phase 89 complete. Two Gantt phases remain: Phase 86.5 (Gantt UI Polish 3) and newly inserted Phase 86.9 (Curtain Divider + PDF Report Export).
 
 ## Current Position
 
-Phase: 89-proposals-tab-approval-queue — COMPLETE 2026-05-11
-Next: Phase 86.5 — Gantt UI Polish 3 (only remaining v4.0 phase)
+Phase: 86.9-gantt-curtain-divider-pdf-export Plan 01 — COMPLETE 2026-05-11
+Next: Phase 86.9 Plan 02 — PDF Export (exportGanttPDF() + toolbar button) or Phase 86.5 — Gantt UI Polish 3
 
 ## Performance Metrics
 
@@ -140,6 +140,7 @@ Next: Phase 86.5 — Gantt UI Polish 3 (only remaining v4.0 phase)
 | Phase 87 P04 | 3 | 3 tasks | 1 files |
 | Phase 87 P05 | 10 | 3 tasks + UAT passed | 1 files |
 | Phase 89 P01 | ~20 | 2 tasks + UAT passed | 1 files |
+| Phase 86.9 P01 | ~15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,10 @@ Next: Phase 86.5 — Gantt UI Polish 3 (only remaining v4.0 phase)
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 86.9-01]: Curtain approach keeps .task-grid-rail at flex:0 0 100%/min-width:100% at all times; .gantt-pane is position:absolute overlay. No column shrink on drag — initPanelResize() now mutates ganttPane.style.left not gridTemplateColumns
+- [Phase 86.9-01]: _paneDividerPct = 35 is the default position applied on every initPanelResize() call, reset in destroy() for clean re-entry
+- [Phase 86.9-01]: divider.style.left = calc(pct% - 2px) centers the 4px divider bar on the panel boundary — 2px offset aligns divider visually with the gantt-pane left edge
+- [Phase 86.9-01]: .plan-split-pane uses display:flex (not display:grid) — .task-grid-rail fills flex container as floor, .gantt-pane overlaps absolutely
 - [Phase 86.7-01]: mountGanttBarDragGuard() must be the last step in renderGantt() — Frappe rebuilds the SVG node on every gantt.refresh() so the SVG mousedown listener must re-attach after each call; idempotent: remove old then add new
 - [Phase 86.7-01]: _ganttBarDragging flag uses SVG mousedown (not Frappe on_date_change callback) to detect drag start before Frappe fires mid-gesture; .bar-wrapper guard prevents non-bar clicks from setting flag (T-86.7-03 mitigate)
 - [Phase 86.7-01]: Non-drag path in handleGanttDateChange (programmatic updateDoc without preceding bar mousedown) is unchanged — _ganttBarDragging=false means the existing .then()/.catch() path runs normally
@@ -452,9 +457,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 89 Plan 01 UAT approved. Proposal Approval Queue live and verified. Phase 89 complete.
-Last session: 2026-05-11T00:00:00Z
-Stopped at: "Phase 89 complete — all plans done"
+Last activity: 2026-05-11 - Phase 86.9 Plan 01 complete. Curtain divider shipped: initPanelResize() rewritten, split-pane CSS converted from grid to absolute overlay. GANTT-UX-CURTAIN-DIVIDER satisfied.
+Last session: 2026-05-11T10:34:11Z
+Stopped at: 86.9-01 complete — awaiting UAT or continuation to 86.9-02 PDF Export
 Resume file: None
 Next action: Phase 86.5 — Gantt UI Polish 3 (Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
