@@ -455,6 +455,30 @@ export async function init(activeTab = null, param = null) {
     const mount = document.getElementById('proposal-dashboard-mount');
     if (mount) mount.style.display = 'block';
 
+    // --- Phase 87 window functions (Plan 02) ---
+    window.openProposalDetail        = openProposalDetail;
+    window.closeProposalDetailModal  = closeProposalDetailModal;
+    window.openCreateProposalModal   = openCreateProposalModal;
+    window.openEditProposalModal     = openEditProposalModal;
+    window.closeCreateProposalModal  = closeCreateProposalModal;
+    window.saveProposal              = saveProposal;
+    // Plan 03 will overwrite these stubs with real writeBatch implementations:
+    window.submitProposalForApproval = _stubP03('Submit for Internal Approval');
+    window.openApproveModal          = _stubP03('Approve Proposal');
+    window.openRejectModal           = _stubP03('Reject Proposal');
+    window.submitProposalApproval    = _stubP03('Submit Approval/Rejection');
+    window.openLossModal             = _stubP03('Mark as Loss');
+    window.submitLoss                = _stubP03('Submit Loss');
+    window.openClientApprovedModal   = _stubP03('Client Approved');
+    window.submitClientApproved      = _stubP03('Submit Client Approved');
+    window.submitMarkSentToClient    = _stubP03('Mark Sent to Client');
+    // Plan 04 will overwrite these stubs with real Firebase Storage logic:
+    window.saveProposalAttachment    = _stubP04('Save Attachment');
+    window.removeProposalAttachment  = _stubP04('Remove Attachment');
+    // Plan 05 will overwrite these stubs with real comms-log writes:
+    window.toggleAddCommsForm        = _stubP05('Add Comms Entry');
+    window.saveCommsEntry            = _stubP05('Save Comms Entry');
+
     // Clients listener: populates the client picker.
     const clientsListener = onSnapshot(
         query(collection(db, 'clients'), where('active', '==', true)),
@@ -550,6 +574,34 @@ export async function destroy() {
     usersData = [];
     selectedPersonnel = [];
     currentEngagementType = 'project';
+
+    // --- Phase 87 window function cleanup (Plan 02) ---
+    delete window.openProposalDetail;
+    delete window.closeProposalDetailModal;
+    delete window.openCreateProposalModal;
+    delete window.openEditProposalModal;
+    delete window.closeCreateProposalModal;
+    delete window.saveProposal;
+    delete window.submitProposalForApproval;
+    delete window.openApproveModal;
+    delete window.openRejectModal;
+    delete window.submitProposalApproval;
+    delete window.openLossModal;
+    delete window.submitLoss;
+    delete window.openClientApprovedModal;
+    delete window.submitClientApproved;
+    delete window.submitMarkSentToClient;
+    delete window.saveProposalAttachment;
+    delete window.removeProposalAttachment;
+    delete window.toggleAddCommsForm;
+    delete window.saveCommsEntry;
+
+    // --- Phase 87 module state reset (Plan 02) ---
+    proposalsData = [];
+    projectsData = [];
+    currentProposal = null;
+    createModalMode = 'create';
+    createModalEditingId = null;
 }
 
 // ============================================================
