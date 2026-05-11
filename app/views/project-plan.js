@@ -40,6 +40,7 @@ let _focusRestoreTimer = null; // cancel stale focus-restoration across rapid re
 let _resizeMouseMoveHandler = null;
 let _resizeMouseUpHandler = null;
 let _resizeDragging = false;
+let _paneDividerPct = 35; // Phase 86.9: curtain divider default position (percent)
 
 // Phase 86.3 D-01: scroll-clamp handler for soft date floor (min(today, earliest task.start_date))
 let _ganttScrollClampHandler = null;
@@ -376,6 +377,7 @@ export async function destroy() {
     _resizeMouseMoveHandler = null;
     _resizeMouseUpHandler   = null;
     _resizeDragging = false;
+    _paneDividerPct = 35; // Phase 86.9: reset curtain divider to default on destroy
     // Phase 86.3 D-01: scroll-clamp cleanup
     if (_ganttScrollClampHandler && _ganttScrollClampPane) {
         try { _ganttScrollClampPane.removeEventListener('scroll', _ganttScrollClampHandler); } catch (e) { /* swallow */ }
@@ -461,9 +463,16 @@ export async function destroy() {
 // ---- Resizable panel divider ----
 
 function initPanelResize() {
+    // Phase 86.9: Curtain/overlay approach — Gantt pane slides as absolute overlay;
+    // task-grid-rail stays at full width at all times (never shrinks).
     const divider = document.getElementById('planDivider');
     const splitPane = document.getElementById('planSplitPane');
-    if (!divider || !splitPane) return;
+    const ganttPane = document.querySelector('.gantt-pane');
+    if (!divider || !splitPane || !ganttPane) return;
+
+    // Apply initial curtain position from module-scope state
+    ganttPane.style.left = _paneDividerPct + '%';
+    divider.style.left = 'calc(' + _paneDividerPct + '% - 2px)';
 
     divider.addEventListener('mousedown', (e) => {
         _resizeDragging = true;
@@ -475,7 +484,9 @@ function initPanelResize() {
         if (!_resizeDragging) return;
         const rect = splitPane.getBoundingClientRect();
         const pct = Math.max(15, Math.min(75, ((e.clientX - rect.left) / rect.width) * 100));
-        splitPane.style.gridTemplateColumns = pct.toFixed(1) + '% 4px 1fr';
+        _paneDividerPct = pct;
+        ganttPane.style.left = pct.toFixed(1) + '%';
+        divider.style.left = 'calc(' + pct.toFixed(1) + '% - 2px)';
     };
 
     _resizeMouseUpHandler = function() {
