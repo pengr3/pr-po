@@ -135,7 +135,7 @@ function parseHash() {
         return { path: '/', tab: null, subpath: null };
     }
 
-    const path = '/' + parts[0];
+    const path = '/' + parts[0].split('?')[0];
     const tab = parts[1] || null;
     const subpath = parts[2] || null;
 
