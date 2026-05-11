@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 86.9 Plan 02 code-complete — 2026-05-11. PDF Export (exportGanttPDF + toolbar button + @media print) shipped. Awaiting UAT checkpoint. Phase 86.5 remains for v4.0.
-stopped_at: 86.9-02 automated tasks complete — awaiting UAT (checkpoint:human-verify)
-last_updated: "2026-05-11T10:50:00Z"
-last_activity: "2026-05-11 - Phase 86.9 Plan 02 code-complete. exportGanttPDF() added, Export button in toolbar, @media print CSS in views.css. GANTT-UX-PDF-EXPORT code-complete, pending UAT."
+status: Phase 86.9 complete — 2026-05-11. Both plans done: curtain divider (Plan 01) + PDF Export UAT approved (Plan 02). Phase 86.5 remains for v4.0.
+stopped_at: 86.9-02 complete — UAT approved, plan closed
+last_updated: "2026-05-11T11:05:00Z"
+last_activity: "2026-05-11 - Phase 86.9 Plan 02 UAT approved. exportGanttPDF() + Export button + @media print CSS UAT-verified. GANTT-UX-PDF-EXPORT requirement satisfied. Phase 86.9 fully complete."
 progress:
   total_phases: 18
   completed_phases: 15
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.9-gantt-curtain-divider-pdf-export Plan 02 — CODE-COMPLETE 2026-05-11 (awaiting UAT checkpoint)
-Next: Phase 86.9 Plan 02 UAT approval → then Phase 86.5 — Gantt UI Polish 3
+Phase: 86.9-gantt-curtain-divider-pdf-export Plan 02 — COMPLETE 2026-05-11 (UAT approved)
+Next: Phase 86.5 — Gantt UI Polish 3
 
 ## Performance Metrics
 
@@ -141,7 +141,7 @@ Next: Phase 86.9 Plan 02 UAT approval → then Phase 86.5 — Gantt UI Polish 3
 | Phase 87 P05 | 10 | 3 tasks + UAT passed | 1 files |
 | Phase 89 P01 | ~20 | 2 tasks + UAT passed | 1 files |
 | Phase 86.9 P01 | ~15 | 2 tasks | 2 files |
-| Phase 86.9 P02 | ~10 | 2 tasks + UAT pending | 2 files |
+| Phase 86.9 P02 | ~10 | 2 tasks + UAT approved | 2 files |
 
 ## Accumulated Context
 
@@ -458,9 +458,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 86.9 Plan 02 code-complete. PDF Export: exportGanttPDF() added to project-plan.js; Export button in toolbar; .plan-export-btn + @media print CSS in views.css. Awaiting UAT.
-Last session: 2026-05-11T10:50:00Z
-Stopped at: 86.9-02 automated tasks complete — checkpoint:human-verify pending (Task 3 UAT)
+Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
+Last session: 2026-05-11T11:05:00Z
+Stopped at: Completed 86.9-02-PLAN.md
 Resume file: None
-Next action: UAT: Start dev server, navigate to a project plan, click Export, verify print dialog with header + Gantt + task summary table
+Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
