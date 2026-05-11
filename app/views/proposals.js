@@ -962,3 +962,263 @@ function closeProposalDetailModal() {
     if (el) el.remove();
     currentProposal = null;
 }
+
+// ============================================================
+// PHASE 87 — Create / Edit Proposal modal (Plan 02)
+// ============================================================
+
+function openCreateProposalModal() {
+    createModalMode = 'create';
+    createModalEditingId = null;
+    showCreateModal(null);
+}
+
+function openEditProposalModal(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) {
+        showToast('Proposal not found.', 'error');
+        return;
+    }
+    createModalMode = 'edit';
+    createModalEditingId = proposalDocId;
+    showCreateModal(proposal);
+}
+
+function showCreateModal(existing) {
+    const existingEl = document.getElementById('proposalCreateModal');
+    if (existingEl) existingEl.remove();
+
+    const isEdit = createModalMode === 'edit';
+    const heading = isEdit ? 'Edit Proposal' : 'New Proposal';
+    const ctaLabel = isEdit ? 'Save Changes' : 'Save Proposal';
+
+    const titleVal = isEdit ? escapeHTML(existing?.title || '') : '';
+    const descVal = isEdit ? escapeHTML(existing?.description || '') : '';
+    const amountVal = (isEdit && existing?.amount != null) ? String(existing.amount) : '';
+    const currentProjectId = isEdit ? (existing?.project_id || '') : '';
+    const currentClientId = isEdit ? (existing?.target_client_id || '') : '';
+
+    // Build project <option> list from projectsData (active, non-Draft only — populated by Task 1 listener)
+    const projectOptions = projectsData.map(p => {
+        const sel = (p.id === currentProjectId) ? 'selected' : '';
+        const label = p.project_code
+            ? `${escapeHTML(p.project_code)} — ${escapeHTML(p.project_name || '')}`
+            : escapeHTML(p.project_name || '');
+        return `<option value="${escapeHTML(p.id)}" data-code="${escapeHTML(p.project_code || '')}" data-name="${escapeHTML(p.project_name || '')}" ${sel}>${label}</option>`;
+    }).join('');
+
+    // Build client <option> list from clientsData (Phase 88 listener already populates this)
+    const clientOptions = clientsData.map(c => {
+        const sel = (c.id === currentClientId) ? 'selected' : '';
+        const label = c.client_code
+            ? `${escapeHTML(c.client_code)} — ${escapeHTML(c.client_name || '')}`
+            : escapeHTML(c.client_name || '');
+        return `<option value="${escapeHTML(c.id)}" data-name="${escapeHTML(c.client_name || '')}" ${sel}>${label}</option>`;
+    }).join('');
+
+    const html = `
+    <div id="proposalCreateModal" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:640px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${heading}</h2>
+                <button class="modal-close" aria-label="Close" onclick="window.closeCreateProposalModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Title <span style="color:#ef4444;">*</span></label>
+                    <input type="text" id="proposalCreateTitle" placeholder="Brief proposal title" value="${titleVal}" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
+                    <div id="proposalCreateTitleError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Project <span style="color:#ef4444;">*</span></label>
+                    <select id="proposalCreateProject" ${isEdit ? 'disabled' : ''} style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;background:white;">
+                        <option value="">— Select a project —</option>
+                        ${projectOptions}
+                    </select>
+                    <div id="proposalCreateProjectError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+                    ${isEdit ? '<div style="font-size:12px;color:#64748b;margin-top:4px;">Project link cannot be changed after creation.</div>' : ''}
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Target Client <span style="color:#64748b;font-weight:400;">(optional)</span></label>
+                    <select id="proposalCreateClient" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;background:white;">
+                        <option value="">(none)</option>
+                        ${clientOptions}
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Description</label>
+                    <textarea id="proposalCreateDescription" rows="4" placeholder="Describe the scope and deliverables" style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;">${descVal}</textarea>
+                </div>
+                <div>
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Amount (PHP)</label>
+                    <input type="number" id="proposalCreateAmount" min="0" step="0.01" placeholder="0.00" value="${amountVal}" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
+                    <div id="proposalCreateAmountError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="window.closeCreateProposalModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.saveProposal()">${ctaLabel}</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeCreateProposalModal() {
+    const el = document.getElementById('proposalCreateModal');
+    if (el) el.remove();
+    createModalMode = 'create';
+    createModalEditingId = null;
+}
+
+async function saveProposal() {
+    // Validation: read DOM values + show inline errors
+    const titleEl = document.getElementById('proposalCreateTitle');
+    const projectEl = document.getElementById('proposalCreateProject');
+    const clientEl = document.getElementById('proposalCreateClient');
+    const descEl = document.getElementById('proposalCreateDescription');
+    const amountEl = document.getElementById('proposalCreateAmount');
+
+    const title = (titleEl?.value || '').trim();
+    const projectId = projectEl?.value || '';
+    const clientId = clientEl?.value || '';
+    const description = (descEl?.value || '').trim();
+    const amountRaw = amountEl?.value;
+    const amount = (amountRaw !== '' && amountRaw != null) ? parseFloat(amountRaw) : null;
+
+    // Clear previous inline errors
+    ['proposalCreateTitleError', 'proposalCreateProjectError', 'proposalCreateAmountError'].forEach(id => {
+        const e = document.getElementById(id);
+        if (e) { e.textContent = ''; e.style.display = 'none'; }
+    });
+
+    let hasError = false;
+    if (!title) {
+        const e = document.getElementById('proposalCreateTitleError');
+        if (e) { e.textContent = 'Proposal title is required.'; e.style.display = 'block'; }
+        hasError = true;
+    }
+    if (!projectId) {
+        const e = document.getElementById('proposalCreateProjectError');
+        if (e) { e.textContent = 'Please select a project for this proposal.'; e.style.display = 'block'; }
+        hasError = true;
+    }
+    if (amount != null && (isNaN(amount) || amount < 0)) {
+        const e = document.getElementById('proposalCreateAmountError');
+        if (e) { e.textContent = 'Amount must be a positive number if provided.'; e.style.display = 'block'; }
+        hasError = true;
+    }
+    if (hasError) return;
+
+    // Resolve denormalized fields from in-memory data
+    const project = projectsData.find(p => p.id === projectId);
+    const projectCode = project?.project_code || null;
+    const client = clientId ? clientsData.find(c => c.id === clientId) : null;
+    const clientName = client?.client_name || null;
+
+    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const actorUid = currentUser?.uid ?? null;
+    const actorName = currentUser?.full_name || 'Unknown';
+
+    showLoading(true);
+    try {
+        if (createModalMode === 'edit' && createModalEditingId) {
+            // EDIT mode: update title/description/amount/target_client_id/target_client_name only.
+            // D-04: metadata edits do NOT append to audit_log (only lifecycle actions do).
+            // Project link is immutable post-create (UI disables the dropdown).
+            await updateDoc(doc(db, 'proposals', createModalEditingId), {
+                title,
+                description: description || '',
+                amount: (amount != null) ? amount : null,
+                target_client_id: clientId || null,
+                target_client_name: clientName,
+                updated_at: serverTimestamp()
+            });
+            closeCreateProposalModal();
+            // Refresh detail modal if open
+            if (currentProposal && currentProposal.id === createModalEditingId) {
+                const refreshed = proposalsData.find(p => p.id === createModalEditingId);
+                if (refreshed) {
+                    currentProposal = refreshed;
+                    // Re-render modal HTML in place
+                    const existing = document.getElementById('proposalDetailModal');
+                    if (existing) {
+                        existing.remove();
+                        document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(currentProposal));
+                    }
+                }
+            }
+            showToast('Proposal updated.', 'success');
+        } else {
+            // CREATE mode: mint PROP ID, build full doc, write to Firestore.
+            const proposalId = await generateProposalId();
+            const createdAuditEntry = {
+                entry_id: cryptoRandomUuid(),
+                ts: new Date().toISOString(), // ISO string — serverTimestamp() sentinel not allowed inside array elements
+                actor_id: actorUid,
+                actor_name: actorName,
+                action: 'CREATED',
+                comment: null
+            };
+            const docPayload = {
+                proposal_id: proposalId,
+                project_id: projectId,
+                project_code: projectCode,
+                title,
+                description: description || '',
+                amount: (amount != null) ? amount : null,
+                target_client_id: clientId || null,
+                target_client_name: clientName,
+                status: 'draft',
+                attachment_kind: null,
+                attachment_url: null,
+                attachment_storage_path: null,
+                attachment_filename: null,
+                audit_log: [createdAuditEntry],
+                comms_log: [],
+                loss_reason: null,
+                current_status_since: serverTimestamp(),
+                created_by: actorUid,  // PROP-11 firestore.rules requires == request.auth.uid
+                created_at: serverTimestamp(),
+                updated_at: serverTimestamp()
+            };
+            await addDoc(collection(db, 'proposals'), docPayload);
+            closeCreateProposalModal();
+            showToast(`Proposal ${proposalId} created.`, 'success');
+        }
+    } catch (err) {
+        console.error('[Proposals] saveProposal failed:', err);
+        showToast(err?.message || 'Failed to save. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
+ * Generate a UUID for audit_log entry_id.
+ * Prefers crypto.randomUUID() (modern browsers); falls back to a simple pseudo-UUID.
+ */
+function cryptoRandomUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Fallback for older runtimes — sufficient uniqueness for audit entry IDs
+    return 'p87-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
+
+// ============================================================
+// PHASE 87 — Stub window functions for Plans 03 / 04 / 05
+// These render the toast 'Coming in Plan {N}' so users can click action buttons
+// in the detail modal without runtime errors. Plans 03/04/05 OVERWRITE these
+// via direct window assignment in their init() additions.
+// ============================================================
+
+function _stubP03(label) {
+    return () => showToast(`${label} — wiring ships in Plan 03 (state transitions).`, 'info');
+}
+function _stubP04(label) {
+    return () => showToast(`${label} — wiring ships in Plan 04 (attachments).`, 'info');
+}
+function _stubP05(label) {
+    return () => showToast(`${label} — wiring ships in Plan 05 (comms log).`, 'info');
+}
