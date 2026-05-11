@@ -2419,18 +2419,27 @@
 }
 
 .plan-split-pane {
-    display: grid;
-    grid-template-columns: 35% 4px 1fr;
+    /* Phase 86.9: Curtain layout — rail is floor at full width; gantt-pane overlaps as absolute */
+    position: relative;
+    overflow: hidden;
+    display: flex;
     flex: 1 1 auto;
     min-height: 0;
     border-top: 1px solid var(--gray-200, #dadce0);
 }
 
 .plan-divider {
-    background: var(--gray-200, #dadce0);
+    /* Phase 86.9: Absolute overlay — JS sets style.left on drag; z-index:20 ensures it's always clickable above gantt-pane */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(35% - 2px);
+    width: 4px;
+    z-index: 20;
     cursor: col-resize;
     user-select: none;
     transition: background 0.15s;
+    background: var(--gray-200, #dadce0);
 }
 .plan-divider:hover,
 .plan-divider.dragging {
@@ -2443,13 +2452,14 @@
    ======================================== */
 
 .task-grid-rail {
-    /* Phase 86.3 D-10: kill stray horizontal scrollbar (Candidate A — .task-grid min-width: 640px > narrow rail width).
-       At default 35% split on a 1440px viewport (~504px rail), the 640px min-width forced a stray horizontal scrollbar
-       at the bottom of the left rail (appearing mid-screen, just left of the divider).
-       Vertical scroll preserved for many-tasks projects.
-       NOTE: Diagnosis assumption per CONTEXT.md D-10 batch-authorization — user verifies in morning UAT. */
+    /* Phase 86.9: Rail fills full container width as the "floor" element; gantt-pane overlaps it as an absolute overlay.
+       Phase 86.3 D-10: overflow-x:hidden kills stray horizontal scrollbar (640px .task-grid min-width on narrow rail).
+       D-SCROLL (86.4): overflow-y:auto needed for synchronized vertical scroll. */
+    position: relative;
+    flex: 0 0 100%;
+    min-width: 100%;
     overflow-x: hidden;
-    overflow-y: auto;      /* D-SCROLL (86.4): needed for synchronized vertical scroll */
+    overflow-y: auto;
     background: #ffffff;
     border-right: 1px solid var(--gray-200, #dadce0);
 }
@@ -2676,14 +2686,24 @@
 .tg-row.tg-row-context:hover { opacity: 0.85; }
 
 @media (max-width: 768px) {
+    /* Phase 86.9: On mobile, show only the task grid (single-pane). Rail resets to fill the screen. */
     .task-grid-rail { display: none; }
+    /* Note: the second mobile block below handles .gantt-pane display:none */
 }
 
 .gantt-pane {
+    /* Phase 86.9: Absolute overlay — slides left/right over the task-grid-rail like a curtain.
+       JS sets style.left on drag; CSS provides the 35% default position.
+       z-index:10 paints over the covered portion of the grid; divider is z-index:20. */
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 35%;
+    z-index: 10;
     overflow-x: auto;              /* horizontal scroll for timeline (clamp watches scrollLeft) */
     overflow-y: hidden;            /* vertical scroll handled by .gantt-container (fixGanttContainerScroll) */
     background: #ffffff;
-    min-width: 0;                  /* CSS grid child: prevents overflow past column boundary */
 }
 /* Hide gantt-container's vertical scrollbar — it is the actual scroll element; rail is indicator */
 #ganttPane .gantt-container::-webkit-scrollbar { width: 0; }
@@ -2796,8 +2816,9 @@
 .gantt-container { background: #ffffff; }
 
 @media (max-width: 768px) {
-    .plan-split-pane { grid-template-columns: 1fr; }
+    /* Phase 86.9: Curtain mobile — gantt-pane hidden, task-grid-rail fills screen */
     .gantt-pane { display: none; }
+    .task-grid-rail { position: relative; flex: 1 1 auto; min-width: 0; }
 }
 
 /* ========================================
