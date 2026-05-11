@@ -3141,6 +3141,8 @@ function exportGanttPDF() {
             </table>
         </div>
     `;
+    // [Phase 86.9 Plan 03] D2 — #ganttHeaderOverlay (Phase 86.7) re-anchors when re-parented and duplicates the header row in print
+    frame.querySelectorAll('#ganttHeaderOverlay').forEach(el => el.remove());
     document.body.appendChild(frame);
 
     showToast('Opening print dialog — choose "Save as PDF" to download.', 'info');

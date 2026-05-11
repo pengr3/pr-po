@@ -2970,6 +2970,8 @@
 }
 
 @media print {
+    /* [Phase 86.9 Plan 03] D2 — Gantt charts need landscape; default portrait collapses the timeline */
+    @page { size: landscape; margin: 0.4in; }
     /* Hide everything except the #gantt-print-frame */
     body > *:not(#gantt-print-frame) { display: none !important; }
     #gantt-print-frame { display: block !important; }
@@ -2998,15 +3000,21 @@
         border-bottom: 1px solid #e2e8f0;
         padding-bottom: 4px;
     }
-    /* Gantt snapshot: scale to fit page width */
+    /* Gantt snapshot: do NOT clip — show the full chart, page-break after */
     .gantt-print-snapshot {
         width: 100%;
-        overflow: hidden;
+        overflow: visible;          /* [Phase 86.9 Plan 03] D2 — was hidden; clipped chart to scroll viewport */
         transform-origin: top left;
         page-break-after: always;
     }
-    /* SVG inside snapshot: fit width */
-    .gantt-print-snapshot svg { max-width: 100%; height: auto; }
+    /* [Phase 86.9 Plan 03] D2 — defeat inner overflow/transform set by Frappe + curtain layout */
+    .gantt-print-snapshot .gantt-container {
+        overflow: visible !important;
+        width: auto !important;
+        transform: none !important;
+    }
+    /* SVG inside snapshot: use natural width */
+    .gantt-print-snapshot svg { max-width: none; height: auto; }
 
     /* Summary table */
     .pdf-summary-table {
