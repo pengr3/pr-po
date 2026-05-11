@@ -15,9 +15,10 @@
    across projects.js, services.js, and this file. Future cleanup: extract to app/picker-personnel.js.
    ======================================== */
 
-import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp } from '../firebase.js';
+import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp, writeBatch } from '../firebase.js';
 import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
 import { createEngagement } from '../engagement-create.js';
+import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ----------------------------------------
 // Module state
@@ -1273,4 +1274,96 @@ function _stubP04(label) {
 }
 function _stubP05(label) {
     return () => showToast(`${label} — wiring ships in Plan 05 (comms log).`, 'info');
+}
+
+// ============================================================
+// PHASE 87 — Shared state-transition helper (Plan 03)
+// ============================================================
+
+/**
+ * Apply a proposal state transition atomically.
+ * Writes ONE writeBatch covering proposal doc + (optionally) project doc.
+ * Caller fires notifications AFTER batch.commit() in fire-and-forget try/catch.
+ *
+ * @param {object} args
+ * @param {object} args.proposal               - current proposal (with .id, .status, .audit_log, .project_id)
+ * @param {string|null} args.newStatus         - new proposal.status, or null for audit-only (e.g. Mark Sent to Client)
+ * @param {string|null} args.newProjectStatus  - new project.project_status, or null to skip project doc write
+ * @param {string} args.auditAction            - 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'SENT_TO_CLIENT' | 'CLIENT_APPROVED' | 'LOSS_RECORDED'
+ * @param {string|null} args.auditComment      - comment text or null
+ * @param {object} [args.extraProposalFields]  - extra top-level fields (e.g. {loss_reason: 'xyz'})
+ * @returns {Promise<object>} the new audit entry written
+ */
+async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields }) {
+    if (!proposal || !proposal.id) throw new Error('_applyProposalStateTransition: proposal with id required');
+    if (!auditAction) throw new Error('_applyProposalStateTransition: auditAction required');
+
+    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const actorUid = currentUser?.uid ?? null;
+    const actorName = currentUser?.full_name || 'Unknown';
+
+    const newAuditEntry = {
+        entry_id: cryptoRandomUuid(),
+        ts: new Date().toISOString(),  // ISO string — serverTimestamp() sentinel cannot live inside array elements
+        actor_id: actorUid,
+        actor_name: actorName,
+        action: auditAction,
+        comment: auditComment || null
+    };
+
+    const proposalPayload = {
+        audit_log: [...(proposal.audit_log || []), newAuditEntry],
+        updated_at: serverTimestamp()
+    };
+    // Only mutate status + current_status_since when newStatus is explicit AND differs from current.
+    // Mark Sent to Client uses newStatus=null because it stays in pending_client.
+    if (newStatus && newStatus !== proposal.status) {
+        proposalPayload.status = newStatus;
+        proposalPayload.current_status_since = serverTimestamp();
+    }
+    // Merge extras (loss_reason, etc.)
+    if (extraProposalFields && typeof extraProposalFields === 'object') {
+        Object.assign(proposalPayload, extraProposalFields);
+    }
+
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'proposals', proposal.id), proposalPayload);
+
+    // Project doc update only when transition explicitly maps to a project_status change.
+    if (newProjectStatus && proposal.project_id) {
+        batch.update(doc(db, 'projects', proposal.project_id), {
+            project_status: newProjectStatus,
+            updated_at: new Date().toISOString()  // projects collection convention (project-detail.js line 804)
+        });
+    }
+
+    await batch.commit();
+    return newAuditEntry;
+}
+
+/**
+ * After a state transition succeeds, re-render the detail modal (if open) with
+ * the new audit entry + updated action buttons. onSnapshot will catch up; we
+ * optimistically merge here for immediate user feedback.
+ */
+function _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, statusUpdate, extraUpdates) {
+    setTimeout(() => {
+        let proposal = proposalsData.find(p => p.id === proposalDocId);
+        if (!proposal) return;
+        const hasOurEntry = (proposal.audit_log || []).some(e => e.entry_id === newAuditEntry.entry_id);
+        if (!hasOurEntry) {
+            proposal = {
+                ...proposal,
+                ...statusUpdate,
+                ...(extraUpdates || {}),
+                audit_log: [...(proposal.audit_log || []), newAuditEntry]
+            };
+        }
+        currentProposal = proposal;
+        const existing = document.getElementById('proposalDetailModal');
+        if (existing) {
+            existing.remove();
+            document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(proposal));
+        }
+    }, 0);
 }
