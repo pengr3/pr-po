@@ -1038,29 +1038,116 @@ function buildAttachmentSection(proposal) {
 }
 
 /** Placeholder for Plan 05 — comms log + inline add form. Renders entries read-only. */
+// ============================================================
+// PHASE 87 — Comms Log rendering (Plan 05)
+// ============================================================
+
+const COMMS_TYPE_META = {
+    sent:               { label: 'Sent',                cls: 'badge-primary' },
+    feedback_received:  { label: 'Feedback Received',   cls: 'status-badge pending' },
+    revision_requested: { label: 'Revision Requested',  cls: 'status-badge rejected' }
+};
+
+function _renderCommsTypeBadge(type) {
+    const meta = COMMS_TYPE_META[type] || { label: type || '—', cls: 'badge-secondary' };
+    return `<span class="${meta.cls}" style="font-size:12px;padding:2px 8px;border-radius:4px;">${escapeHTML(meta.label)}</span>`;
+}
+
+function _renderCommsEntry(entry) {
+    const dateLabel = entry.date || '—';
+    const descSafe = escapeHTML(entry.description || '');
+    // Attachment display
+    let attachmentHtml = '';
+    if (entry.attachment_kind === 'link' && entry.attachment_url) {
+        let dom = 'View link';
+        try { dom = new URL(entry.attachment_url).hostname; } catch {}
+        attachmentHtml = `<div style="font-size:13px;margin-top:4px;"><a href="${escapeHTML(entry.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">${escapeHTML(dom)}</a></div>`;
+    } else if (entry.attachment_kind === 'file' && entry.attachment_url) {
+        attachmentHtml = `<div style="font-size:13px;margin-top:4px;"><a href="${escapeHTML(entry.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">${escapeHTML(entry.attachment_filename || 'Download file')}</a></div>`;
+    }
+    return `
+        <div style="padding:10px 0;border-bottom:1px solid #f1f5f9;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
+                <div>
+                    <span style="font-size:13px;color:#475569;">${escapeHTML(dateLabel)}</span>
+                    <span style="margin:0 8px;color:#cbd5e1;">·</span>
+                    ${_renderCommsTypeBadge(entry.type)}
+                </div>
+                <div style="font-size:13px;color:#64748b;text-align:right;">by ${escapeHTML(entry.actor_name || entry.logged_by_name || '—')}</div>
+            </div>
+            <div style="font-size:14px;color:#1e293b;line-height:1.5;white-space:pre-wrap;">${descSafe}</div>
+            ${attachmentHtml}
+        </div>
+    `;
+}
+
 function buildCommsLogSection(proposal) {
     const entries = (proposal.comms_log || []).slice().sort((a, b) => {
-        const ad = a.logged_at?.toMillis ? a.logged_at.toMillis() : (a.logged_at?.seconds * 1000 || 0);
-        const bd = b.logged_at?.toMillis ? b.logged_at.toMillis() : (b.logged_at?.seconds * 1000 || 0);
-        return bd - ad;
+        // Newest first by logged_at ISO string (string compare is correct for ISO 8601)
+        const ad = (typeof a.logged_at === 'string') ? a.logged_at : (a.logged_at?.toDate?.()?.toISOString?.() || '');
+        const bd = (typeof b.logged_at === 'string') ? b.logged_at : (b.logged_at?.toDate?.()?.toISOString?.() || '');
+        return bd.localeCompare(ad);
     });
-    const items = entries.length === 0
-        ? `<div style="font-size:13px;color:#64748b;">No communications logged yet. Use + Add Entry to record client contact.</div>`
-        : entries.map(e => `
-            <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
-                <div style="font-size:13px;color:#475569;">${escapeHTML(e.date || '')} · ${escapeHTML(e.type || '')}</div>
-                <div style="font-size:14px;color:#1e293b;margin-top:2px;">${escapeHTML(e.description || '')}</div>
-            </div>
-        `).join('');
+    const entriesHtml = entries.length === 0
+        ? `<div style="font-size:13px;color:#64748b;padding:8px 0;">No communications logged yet. Use + Add Entry to record client contact.</div>`
+        : entries.map(e => _renderCommsEntry(e)).join('');
+
+    const docId = escapeHTML(proposal.id);
+    const today = new Date().toISOString().slice(0, 10);
+
     return `
         <div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
                 <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0;">Client Communications</h3>
-                <button class="btn btn-sm btn-outline" onclick="window.toggleAddCommsForm('${escapeHTML(proposal.id)}')">+ Add Entry</button>
+                <button id="proposalCommsAddBtn" class="btn btn-sm btn-outline" onclick="window.toggleAddCommsForm('${docId}')">+ Add Entry</button>
             </div>
-            ${items}
-            <div id="commsLogAddForm-${escapeHTML(proposal.id)}" style="display:none;margin-top:1rem;">
-                <div style="font-size:12px;color:#94a3b8;">Add Entry form ships in Plan 05.</div>
+            ${entriesHtml}
+            <!-- Inline Add Entry form (collapsed by default) -->
+            <div id="proposalCommsAddForm" style="display:none;margin-top:1rem;border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;">
+                <div style="margin-bottom:8px;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Date <span style="color:#ef4444;">*</span></label>
+                    <input type="date" id="proposalCommsDate" value="${today}" style="padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Type <span style="color:#ef4444;">*</span></label>
+                    <select id="proposalCommsType" style="width:100%;padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;background:white;">
+                        <option value="sent">Sent</option>
+                        <option value="feedback_received">Feedback Received</option>
+                        <option value="revision_requested">Revision Requested</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Description <span style="color:#ef4444;">*</span></label>
+                    <textarea id="proposalCommsDescription" rows="3" placeholder="Describe the communication..." style="width:100%;min-height:64px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                </div>
+                <div style="margin-bottom:8px;">
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Attachment <span style="color:#64748b;font-weight:400;">(optional)</span></label>
+                    <div style="display:flex;gap:1rem;margin-bottom:6px;">
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
+                            <input type="radio" name="proposalCommsAttachKind" value="none" checked onchange="window._switchCommsAttachmentKind('none')">
+                            None
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
+                            <input type="radio" name="proposalCommsAttachKind" value="link" onchange="window._switchCommsAttachmentKind('link')">
+                            Paste a link
+                        </label>
+                        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
+                            <input type="radio" name="proposalCommsAttachKind" value="file" onchange="window._switchCommsAttachmentKind('file')">
+                            Upload a file
+                        </label>
+                    </div>
+                    <div id="proposalCommsLinkInput" style="display:none;margin-bottom:6px;">
+                        <input type="url" id="proposalCommsAttachmentUrl" placeholder="https://..." style="width:100%;padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
+                    </div>
+                    <div id="proposalCommsFileInput" style="display:none;margin-bottom:6px;">
+                        <input type="file" id="proposalCommsAttachmentFile" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="font-size:0.9375rem;">
+                    </div>
+                </div>
+                <div id="proposalCommsError" style="display:none;color:#ea4335;font-size:13px;margin-bottom:8px;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:6px;">
+                    <button class="btn btn-sm btn-outline" onclick="window.toggleAddCommsForm('${docId}')">Cancel</button>
+                    <button class="btn btn-sm btn-primary" onclick="window.saveCommsEntry('${docId}')">Add Entry</button>
+                </div>
             </div>
         </div>
     `;
