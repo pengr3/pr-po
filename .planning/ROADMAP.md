@@ -230,7 +230,7 @@
 - [x] **Phase 86.6: Gantt/Grid Vertical Alignment — Scroll Sync and Row-Height Parity** (INSERTED) — Measure-first fix for vertical misalignment between left task-grid rows and right Gantt SVG bars; spacer-div approach equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed 2026-05-08
 - [x] **Phase 86.7: Gantt Phantom Drag — Smooth Bar Dragging Without Mid-Drag Firestore Writes** (INSERTED) — Suppress Firestore writes and snapshot-triggered re-renders during bar drag; commit only on mouseup; visual drag handled natively by Frappe with no interruption — completed 2026-05-08
 - [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
-- [ ] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring)
+- [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
 
 ## Phase Details
@@ -541,7 +541,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 86.3 | v4.0 | 5/5 | Complete | 2026-05-06 |
 | 86.4 | v4.0 | 4/4 | Complete | 2026-05-07 |
 | 87 | v4.0 | 0/TBD | Not started | - |
-| 88 | v4.0 | 0/TBD | Not started | - |
+| 88 | v4.0 | 2/2 | Complete | 2026-05-11 |
 | 89 | v4.0 | 0/TBD | Not started | - |
 
 ### Carry-overs (deferred to v4.1+)
