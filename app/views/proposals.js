@@ -480,9 +480,10 @@ export async function init(activeTab = null, param = null) {
     window._switchProposalAttachmentKind    = _switchProposalAttachmentKind;
     window._openProposalAttachmentReplace   = _openProposalAttachmentReplace;
     window._openProposalAttachmentRemoveConfirm = _openProposalAttachmentRemoveConfirm;
-    // Plan 05 will overwrite these stubs with real comms-log writes:
-    window.toggleAddCommsForm        = _stubP05('Add Comms Entry');
-    window.saveCommsEntry            = _stubP05('Save Comms Entry');
+    // Phase 87 Plan 05 — comms log handlers (real implementations):
+    window.toggleAddCommsForm           = toggleAddCommsForm;
+    window.saveCommsEntry               = saveCommsEntry;
+    window._switchCommsAttachmentKind   = _switchCommsAttachmentKind;
 
     // Clients listener: populates the client picker.
     const clientsListener = onSnapshot(
@@ -603,6 +604,7 @@ export async function destroy() {
     delete window._openProposalAttachmentRemoveConfirm;
     delete window.toggleAddCommsForm;
     delete window.saveCommsEntry;
+    delete window._switchCommsAttachmentKind;
 
     // --- Phase 87 module state reset (Plan 02) ---
     proposalsData = [];
