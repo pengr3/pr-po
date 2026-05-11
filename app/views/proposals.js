@@ -2126,3 +2126,180 @@ async function removeProposalAttachment(proposalDocId) {
         showLoading(false);
     }
 }
+
+// ============================================================
+// PHASE 87 — Comms Log action handlers (Plan 05)
+// ============================================================
+
+/**
+ * Toggle the inline Add Entry form open/closed.
+ * Button label flips between '+ Add Entry' and 'Cancel'.
+ */
+function toggleAddCommsForm(proposalDocId) {
+    const form = document.getElementById('proposalCommsAddForm');
+    const btn = document.getElementById('proposalCommsAddBtn');
+    if (!form || !btn) return;
+    const isOpen = form.style.display === 'block';
+    if (isOpen) {
+        form.style.display = 'none';
+        btn.textContent = '+ Add Entry';
+        // Reset radio + hide both attachment inputs
+        const noneRadio = document.querySelector('input[name="proposalCommsAttachKind"][value="none"]');
+        if (noneRadio) noneRadio.checked = true;
+        const linkBox = document.getElementById('proposalCommsLinkInput');
+        const fileBox = document.getElementById('proposalCommsFileInput');
+        if (linkBox) linkBox.style.display = 'none';
+        if (fileBox) fileBox.style.display = 'none';
+    } else {
+        form.style.display = 'block';
+        btn.textContent = 'Cancel';
+    }
+}
+
+/**
+ * Show/hide the URL vs file input based on the chosen attachment kind radio.
+ */
+function _switchCommsAttachmentKind(kind) {
+    const linkBox = document.getElementById('proposalCommsLinkInput');
+    const fileBox = document.getElementById('proposalCommsFileInput');
+    const err = document.getElementById('proposalCommsError');
+    if (linkBox) linkBox.style.display = (kind === 'link') ? 'block' : 'none';
+    if (fileBox) fileBox.style.display = (kind === 'file') ? 'block' : 'none';
+    if (err) { err.textContent = ''; err.style.display = 'none'; }
+}
+
+/**
+ * Save a new comms log entry.
+ * - Validates Date / Type / Description / Attachment.
+ * - If file attachment: uploads to proposals/{proposalDocId}/comms/{entry_id}.{ext}.
+ * - Writes the proposal doc with comms_log spread + new entry + updated_at.
+ * - APPEND-ONLY: no edit, no delete.
+ */
+async function saveCommsEntry(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+
+    const errEl = document.getElementById('proposalCommsError');
+    const setError = (msg) => {
+        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+    };
+    const clearError = () => {
+        if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+    };
+    clearError();
+
+    const date = (document.getElementById('proposalCommsDate')?.value || '').trim();
+    const type = document.getElementById('proposalCommsType')?.value || '';
+    const description = (document.getElementById('proposalCommsDescription')?.value || '').trim();
+    const kind = document.querySelector('input[name="proposalCommsAttachKind"]:checked')?.value || 'none';
+
+    if (!date) { setError('Date is required.'); return; }
+    if (!type || !['sent', 'feedback_received', 'revision_requested'].includes(type)) {
+        setError('Please choose a Type.');
+        return;
+    }
+    if (!description) { setError('Description is required.'); return; }
+
+    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const actorUid = currentUser?.uid ?? null;
+    const actorName = currentUser?.full_name || 'Unknown';
+
+    const entryId = cryptoRandomUuid();
+    let attachmentFields = {
+        attachment_kind: null,
+        attachment_url: null,
+        attachment_storage_path: null,
+        attachment_filename: null
+    };
+
+    showLoading(true);
+    try {
+        if (kind === 'link') {
+            const url = (document.getElementById('proposalCommsAttachmentUrl')?.value || '').trim();
+            if (!url) { setError('Please enter a URL.'); showLoading(false); return; }
+            if (!/^https?:\/\//i.test(url)) {
+                setError('URL must start with http:// or https://');
+                showLoading(false);
+                return;
+            }
+            attachmentFields = {
+                attachment_kind: 'link',
+                attachment_url: url,
+                attachment_storage_path: null,
+                attachment_filename: null
+            };
+        } else if (kind === 'file') {
+            const fileEl = document.getElementById('proposalCommsAttachmentFile');
+            const file = fileEl?.files?.[0];
+            if (!file) { setError('Please select a file.'); showLoading(false); return; }
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
+                showLoading(false);
+                return;
+            }
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            const allowedExt = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+            if (!allowedExt.includes(ext)) {
+                setError('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.');
+                showLoading(false);
+                return;
+            }
+            const storagePath = `proposals/${proposalDocId}/comms/${entryId}.${ext}`;
+            const storageRef = ref(storage, storagePath);
+            const uploadResult = await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+            attachmentFields = {
+                attachment_kind: 'file',
+                attachment_url: downloadURL,
+                attachment_storage_path: storagePath,
+                attachment_filename: file.name
+            };
+        }
+        // kind === 'none' falls through with attachmentFields = all nulls
+
+        const newEntry = {
+            entry_id: entryId,
+            date,                 // 'YYYY-MM-DD'
+            type,
+            description,
+            ...attachmentFields,
+            logged_by: actorUid,
+            logged_by_name: actorName,  // denormalized for display
+            logged_at: new Date().toISOString()
+        };
+
+        await updateDoc(doc(db, 'proposals', proposalDocId), {
+            comms_log: [...(proposal.comms_log || []), newEntry],
+            updated_at: serverTimestamp()
+        });
+
+        showToast('Communication entry added.', 'success');
+        // Collapse the form
+        const form = document.getElementById('proposalCommsAddForm');
+        const btn = document.getElementById('proposalCommsAddBtn');
+        if (form) form.style.display = 'none';
+        if (btn) btn.textContent = '+ Add Entry';
+
+        // Re-render the detail modal with the new entry
+        setTimeout(() => {
+            const refreshed = proposalsData.find(p => p.id === proposalDocId);
+            if (!refreshed) return;
+            // Optimistic merge if onSnapshot hasn't yet caught up
+            const hasOurEntry = (refreshed.comms_log || []).some(e => e.entry_id === entryId);
+            const updated = hasOurEntry
+                ? refreshed
+                : { ...refreshed, comms_log: [...(refreshed.comms_log || []), newEntry] };
+            currentProposal = updated;
+            const existing = document.getElementById('proposalDetailModal');
+            if (existing) {
+                existing.remove();
+                document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(updated));
+            }
+        }, 0);
+    } catch (err) {
+        console.error('[Proposals] saveCommsEntry failed:', err);
+        showToast(err?.message || 'Failed to save communication entry. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
