@@ -121,6 +121,7 @@ export function render(activeTab = null, param = null) {
                     <button type="button" class="zoom-pill active" data-zoom="Week" onclick="window.setGanttZoom('Week')">Week</button>
                     <button type="button" class="zoom-pill" data-zoom="Month" onclick="window.setGanttZoom('Month')">Month</button>
                 </div>
+                <button type="button" class="plan-export-btn" onclick="window.exportGanttPDF()" title="Export Gantt as PDF">Export</button>
                 <label class="plan-toolbar-toggle" title="Critical path&#10;&#10;The longest dependency chain that drives the project finish date. Slip any task on it and the project slips.&#10;&#10;A task qualifies when:&#10;  1. It has zero schedule slack (no buffer), AND&#10;  2. At least one neighbor is also zero-slack with a tight dependency edge (predecessor finishes the day before this task starts).&#10;&#10;Isolated tasks with no dependencies are never on the critical path.">
                     <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
                     <span>Critical path</span>
@@ -220,6 +221,7 @@ export async function init(activeTab = null, param = null) {
         window.gridDeleteRow = gridDeleteRow;
         window.removeArrowDependency = removeArrowDependency; // Phase 86.8 Feature 1+7
         window.toggleCriticalPath = toggleCriticalPath; // Phase 86.8 Feature 4
+        window.exportGanttPDF = exportGanttPDF; // Phase 86.9 PDF Export
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -446,6 +448,7 @@ export async function destroy() {
     _criticalPathSet = new Set();
     _showCriticalPath = true;
     delete window.toggleCriticalPath;
+    delete window.exportGanttPDF; // Phase 86.9 PDF Export
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -3079,6 +3082,71 @@ async function applyFsAutoSchedule(successorId, predecessorId) {
         // sees the FS-violation toast from checkAndToastFsViolations instead.
         console.warn('[ProjectPlan] FS auto-schedule shift failed:', err);
     }
+}
+
+// ---- PDF Export (Plan 02 Task 1) ----
+
+function exportGanttPDF() {
+    const dateStr = new Date().toLocaleString();
+    const projectName = currentProject?.project_name || projectCode || 'Project';
+
+    // Build task summary table rows — all tasks, sorted by existing tasks[] order (onSnapshot order)
+    const tableRows = tasks.map(t => {
+        const name = escapeHTML(t.task_name || '(unnamed)');
+        const progress = t.progress ?? 0;
+        const start = t.start_date || '—';
+        const end = t.end_date || '—';
+        const status = progress >= 100 ? 'Complete' : progress > 0 ? 'In Progress' : 'Not Started';
+        const indent = t.parent_task_id ? 'style="padding-left:20px;"' : '';
+        return `<tr>
+            <td ${indent}>${name}</td>
+            <td>${progress}%</td>
+            <td>${start}</td>
+            <td>${end}</td>
+            <td>${status}</td>
+        </tr>`;
+    }).join('');
+
+    // Capture Gantt viewport snapshot
+    const ganttEl = document.getElementById('ganttPane');
+    const ganttHtml = ganttEl ? ganttEl.innerHTML : '<p>(No Gantt chart visible)</p>';
+
+    const frame = document.createElement('div');
+    frame.id = 'gantt-print-frame';
+    frame.innerHTML = `
+        <div class="pdf-header">
+            <h2>${escapeHTML(projectName)} — Project Plan</h2>
+            <p>Exported: ${dateStr}</p>
+        </div>
+        <div class="pdf-gantt-section">
+            <h3>Gantt Chart</h3>
+            <div class="gantt-print-snapshot" style="pointer-events:none">${ganttHtml}</div>
+        </div>
+        <div class="pdf-table-section">
+            <h3>Task Completion Summary</h3>
+            <table class="pdf-summary-table">
+                <thead>
+                    <tr>
+                        <th>Task Name</th>
+                        <th>Progress</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+    document.body.appendChild(frame);
+
+    showToast('Opening print dialog — choose "Save as PDF" to download.', 'info');
+    window.print();
+
+    // Remove the #gantt-print-frame after print dialog opens (800ms gives dialog time to render)
+    setTimeout(() => { frame.remove(); }, 800);
 }
 
 // ---- Inline progress slider write helper (Plan 04 Task 4) ----
