@@ -229,6 +229,8 @@
 - [ ] **Phase 86.5: Gantt UI Polish 3 — Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry** (INSERTED) — (1) left and right panel headers flush-aligned despite divider; (2) unified bar interaction — hover dot initiates predecessor drag, right-extend without touching another bar extends task duration; (3) Back button navigates to project detail page (not project list); (4) Excel-style inline task entry — Enter commits row and opens new row immediately for continuous input
 - [x] **Phase 86.6: Gantt/Grid Vertical Alignment — Scroll Sync and Row-Height Parity** (INSERTED) — Measure-first fix for vertical misalignment between left task-grid rows and right Gantt SVG bars; spacer-div approach equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed 2026-05-08
 - [x] **Phase 86.7: Gantt Phantom Drag — Smooth Bar Dragging Without Mid-Drag Firestore Writes** (INSERTED) — Suppress Firestore writes and snapshot-triggered re-renders during bar drag; commit only on mouseup; visual drag handled natively by Frappe with no interruption — completed 2026-05-08
+- [x] **Phase 86.8: Gantt UX Expansion — Predecessor Arrow Removal, Collapsible Parents, Critical Path, Progress %, Search/Filter, Keyboard Shortcuts** (INSERTED) — Arrow right-click removes predecessor; collapsible parent tasks with drag-parent-moves-children; critical-path highlight; per-bar progress % + Frappe fill; task search/filter bar; keyboard shortcuts (Delete/Up/Down/Enter/Escape) — completed 2026-05-11 (2 plans)
+- [ ] **Phase 86.9: Gantt Curtain Divider + PDF Report Export** (INSERTED) — (1) Curtain-style resizable divider: left task-grid is CSS-fixed and the right panel/divider slides over it as a clipping overlay (no column collapse/hide); (2) Export button aligned with Day/Week/Month zoom toolbar — downloads a prototype PDF report containing the Gantt chart snapshot and task completion summary table
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred — Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions — completed 2026-05-11
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
@@ -355,6 +357,24 @@ Plans:
 - [x] 86.8-01-PLAN.md — Interactive UX cluster: arrow right-click remove, collapsible parents, drag-parent-moves-children, keyboard shortcuts (Delete/Up/Down/Enter/Escape) — completed 2026-05-10 (UAT defect fixes for arrow click target + grid hierarchy + parent-drag mouse-delta cascade folded in)
 - [x] 86.8-02-PLAN.md — Analytical/schema cluster: critical-path highlight, progress % column + Frappe-native fill, task search/filter bar — completed 2026-05-11 (UAT defect fixes for search relocation, chain-only critical path, chain-drag wrong-task, phantom successor cascade folded in)
 
+### Phase 86.9: Gantt Curtain Divider + PDF Report Export (INSERTED)
+
+**Goal**: Two Gantt UX improvements for project-plan.js: (1) replace the current collapse/hide divider behaviour with a curtain-style overlay — the left task-grid is CSS-fixed and the right Gantt panel slides over it as a clipping mask so columns are covered rather than collapsed; (2) add a PDF Export button aligned with the Day/Week/Month zoom toolbar that downloads a prototype report containing the Gantt chart snapshot and a task completion summary table.
+**Requirements**: GANTT-UX-CURTAIN-DIVIDER, GANTT-UX-PDF-EXPORT (INSERTED phase — no REQUIREMENTS.md IDs)
+**Depends on**: Phase 86.8 (stable grid + Gantt layout)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 86.9-01-PLAN.md -- Curtain divider: CSS + JS rewrite (position:absolute overlay, _paneDividerPct, initPanelResize rewrite)
+- [ ] 86.9-02-PLAN.md -- PDF Export: Export button + exportGanttPDF() + @media print CSS
+
+**Success Criteria** (what must be TRUE):
+  1. Dragging the panel divider no longer collapses or hides task-grid columns — the grid DOM stays in place; the right Gantt panel overlaps it via CSS (overflow: hidden + absolute/relative positioning) creating a curtain effect
+  2. At any divider position the task-grid rows remain fully interactive (click, edit, drag) in the visible/uncovered portion
+  3. An **Export** button appears in the Gantt toolbar row, visually grouped with the Day / Week / Month zoom buttons
+  4. Clicking Export downloads a PDF file (prototype) containing: (a) a visual snapshot of the current Gantt chart viewport, and (b) a task completion summary table listing task name, progress %, start date, end date, and status
+  5. The PDF header includes the project name and export date/time
+
 ### Phase 86.1: Inline Grid Editor + Gantt Predecessor Linking
 **Goal**: Replace the modal-based task editor from Phase 86 with a ProjectLibre-style inline spreadsheet grid synchronized with the Frappe Gantt — users edit task data directly in the grid rows without opening any modal, and can create predecessor dependencies by dragging from one Gantt bar to another.
 **Depends on**: Phase 86 (Frappe Gantt + project_tasks collection + Security Rules already deployed)
@@ -458,7 +478,11 @@ Plans:
   3. Alignment holds after adding tasks via Excel-style Enter entry (including optimistic rows)
   4. Alignment holds after Firestore snapshot reconciles optimistic rows
   5. Alignment holds with parent/summary tasks and tasks with multi-line content
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 86.9-01-PLAN.md -- Curtain divider: CSS + JS rewrite (position:absolute overlay, _paneDividerPct, initPanelResize rewrite)
+- [ ] 86.9-02-PLAN.md -- PDF Export: Export button + exportGanttPDF() + @media print CSS
 **UI hint**: yes
 
 ### Phase 86.7: Gantt Phantom Drag — Smooth Bar Dragging Without Mid-Drag Firestore Writes (INSERTED)
@@ -504,7 +528,11 @@ Plans:
   2. Super Admin can open a "Create Engagement" form that captures engagement type (project / one-time service / recurring service), client (optional, supports clientless creation), name, budget, contract cost, and initial assigned personnel
   3. Submitting the form writes the new record to the correct collection — `projects` for project type, `services` for one-time/recurring service types — following existing schema and code-generation conventions
   4. Firebase Security Rules deny all Management Tab back-end operations (create-engagement writes) for non-super_admin users — verified by direct Firestore call from a non-admin session
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 86.9-01-PLAN.md -- Curtain divider: CSS + JS rewrite (position:absolute overlay, _paneDividerPct, initPanelResize rewrite)
+- [ ] 86.9-02-PLAN.md -- PDF Export: Export button + exportGanttPDF() + @media print CSS
 **UI hint**: yes
 
 ### Phase 89: Management Tab — Proposal Approval Queue
