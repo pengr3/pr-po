@@ -21,8 +21,9 @@ const routePermissionMap = {
     // Every active user has access to notifications — no role gate needed.
     // Maps to 'dashboard' (same neutral key as '/') so the existing auth+active check applies.
     '/notifications': 'dashboard',
-    // Phase 88 D-02 — Proposals tab is super_admin-only; hard-gated in navigate() below.
-    '/proposals': 'proposals'
+    // Phase 88 D-02 — /proposals is NOT in the permission-template system; it uses a
+    // hard super_admin gate in navigate() below. Omitting it here prevents the template
+    // lookup from returning false (no template exists yet) and blocking super_admin.
 };
 
 // Routes that don't require permission checks (auth routes)
