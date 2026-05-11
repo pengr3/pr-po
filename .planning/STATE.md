@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87 executing — Plan 3 of 5 complete
+status: Phase 87 executing — Plan 4 of 5 complete
 stopped_at: ""
-last_updated: "2026-05-11T08:00:00Z"
-last_activity: "2026-05-11 - Phase 87 Plan 03 complete: proposal lifecycle state-machine wired — Submit/Approve/Reject/Sent/ClientApproved/Loss all use writeBatch+audit_log+project-status; NOTIF-09/NOTIF-10 fire-and-forget. proposals.js now 1739 lines."
+last_updated: "2026-05-11T08:05:00Z"
+last_activity: "2026-05-11 - Phase 87 Plan 04 complete: attachment widget shipped — link/file upload via Firebase Storage, ATTACHMENT_REPLACED audit entries, Replace/Remove with micro-confirm. proposals.js now 2041 lines."
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 62
-  completed_plans: 57
-  percent: 92
+  completed_plans: 58
+  percent: 94
 ---
 
 # Project State
@@ -137,6 +137,7 @@ Plan: 3 of 5 complete — 2026-05-11
 | Phase 87 P01 | 3 | 4 tasks | 6 files |
 | Phase 87 P02 | 7 | 4 tasks | 1 files |
 | Phase 87 P03 | 25 | 4 tasks | 1 files |
+| Phase 87 P04 | 3 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -351,6 +352,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 87-03]: Loss reason (D-06): persisted as proposal.loss_reason AND mirrored to LOSS_RECORDED audit comment in same writeBatch — cannot drift; submitLoss validates 10-char minimum
 - [Phase 87-03]: 'Client Approved' is the canonical project_status target (not 'For Mobilization') per 87-RESEARCH.md verification; 'For Mobilization' is a separate downstream manual action
 - [Phase 87-03]: All 9 Plan 03 stubs in init() replaced with real function references via direct window assignment; _stubP03() function definition remains as dead code (harmless, no callers)
+- [Phase 87-04]: saveProposalAttachment deletes old storage object only when kind changes file→link OR extension changes; same-extension overwrites silently via uploadBytes default (no explicit delete needed)
+- [Phase 87-04]: deleteObject failure is non-fatal in both save and remove paths — console.error only, Firestore doc update is the source of truth (Pitfall 3)
+- [Phase 87-04]: ATTACHMENT_REPLACED audit entry written on first-attach, replace, and remove per D-03; remove path adds comment='Attachment removed.' to disambiguate from swap in audit timeline
+- [Phase 87-04]: _openProposalAttachmentReplace uses outerHTML swap with synthetic attachment_kind=null proposal — no modal re-open needed; same re-render pattern as _refreshDetailModalAfterTransition
+- [Phase 87-04]: No version history per PROP-06 scope correction — single replaceable attachment, no /v1 /v2 path segments; uploadBytes overwrites at same path for same extension
 - [Phase 87-01]: Storage rules use request.auth != null (not role check) — Firestore rules on proposals/{id} are primary gate; accepted risk T-87.1-04; mirrors invitation_codes accepted-risk pattern. Deploy both rules files before Plan 02.
 - [Phase 87-01]: generateProposalId() thin wrapper over generateSequentialId('proposals', 'PROP') — reads proposal_id field from docs, returns PROP-YYYY-NNN; re-exported from utils.js for downstream plan convenience
 - [Phase 87-02]: audit_log CREATED entry uses new Date().toISOString() for ts field — Firestore rejects serverTimestamp() sentinels inside array elements; doc-level created_at uses serverTimestamp() as authoritative anchor (T-87.2-06 accepted)
@@ -436,9 +442,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 87 Plan 03 complete. Proposal lifecycle state-machine wired. proposals.js now 1739 lines.
-Last session: 2026-05-11T08:00:00Z
-Stopped at: Phase 87 Plan 03 complete — continue with Plan 04 (attachments: Firebase Storage upload/replace/delete)
+Last activity: 2026-05-11 - Phase 87 Plan 04 complete. Attachment widget shipped — link/file upload via Firebase Storage, ATTACHMENT_REPLACED audit entries, Replace/Remove with micro-confirm. proposals.js now 2041 lines.
+Last session: 2026-05-11T08:05:00Z
+Stopped at: Phase 87 Plan 04 complete — continue with Plan 05 (comms log: toggleAddCommsForm + saveCommsEntry)
 Resume file: None
 Next action: Execute Phase 87 Plan 04 (attachments — Firebase Storage upload + replace + delete for proposal main attachment)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
