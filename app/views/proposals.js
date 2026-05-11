@@ -463,16 +463,16 @@ export async function init(activeTab = null, param = null) {
     window.openEditProposalModal     = openEditProposalModal;
     window.closeCreateProposalModal  = closeCreateProposalModal;
     window.saveProposal              = saveProposal;
-    // Plan 03 will overwrite these stubs with real writeBatch implementations:
-    window.submitProposalForApproval = _stubP03('Submit for Internal Approval');
-    window.openApproveModal          = _stubP03('Approve Proposal');
-    window.openRejectModal           = _stubP03('Reject Proposal');
-    window.submitProposalApproval    = _stubP03('Submit Approval/Rejection');
-    window.openLossModal             = _stubP03('Mark as Loss');
-    window.submitLoss                = _stubP03('Submit Loss');
-    window.openClientApprovedModal   = _stubP03('Client Approved');
-    window.submitClientApproved      = _stubP03('Submit Client Approved');
-    window.submitMarkSentToClient    = _stubP03('Mark Sent to Client');
+    // Phase 87 Plan 03 — state-transition handlers (real implementations):
+    window.submitProposalForApproval = submitProposalForApproval;
+    window.openApproveModal          = openApproveModal;
+    window.openRejectModal           = openRejectModal;
+    window.submitProposalApproval    = submitProposalApproval;
+    window.openLossModal             = openLossModal;
+    window.submitLoss                = submitLoss;
+    window.openClientApprovedModal   = openClientApprovedModal;
+    window.submitClientApproved      = submitClientApproved;
+    window.submitMarkSentToClient    = submitMarkSentToClient;
     // Plan 04 will overwrite these stubs with real Firebase Storage logic:
     window.saveProposalAttachment    = _stubP04('Save Attachment');
     window.removeProposalAttachment  = _stubP04('Remove Attachment');
@@ -1585,6 +1585,154 @@ async function submitProposalApproval(proposalDocId, mode) {
     } catch (err) {
         console.error('[Proposals] submitProposalApproval failed:', err);
         showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================================
+// PHASE 87 — Mark Loss sub-modal (Plan 03)
+//   Source statuses:  any active (D-08 — "any active proposal")
+//   Target status:    loss
+//   Project status:   Loss
+//   Notification:     none (deferred per CONTEXT — could add later)
+//   Loss reason:      required free text, persisted on proposal.loss_reason
+//                     AND mirrored to LOSS_RECORDED audit entry's comment (D-06)
+// ============================================================
+function openLossModal(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (['client_approved', 'loss'].includes(proposal.status)) {
+        showToast('Cannot mark a final-state proposal as Loss.', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('proposalLossModal');
+    if (existing) existing.remove();
+
+    const html = `
+    <div id="proposalLossModal" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Mark as Loss</h2>
+                <button class="modal-close" aria-label="Close" onclick="document.getElementById('proposalLossModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">This will permanently mark the proposal as lost and advance the project status to "Loss". This action cannot be undone.</p>
+                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Loss Reason <span style="color:#ef4444;">*</span></label>
+                <textarea id="proposalLossReason" rows="3" placeholder="Describe why this proposal was lost (client decision, budget, competitor, etc.)" style="width:100%;min-height:96px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                <div id="proposalLossReasonError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('proposalLossModal').remove()">Cancel</button>
+                <button class="btn btn-danger" onclick="window.submitLoss('${escapeHTML(proposalDocId)}')">Confirm Loss</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitLoss(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+
+    const reasonEl = document.getElementById('proposalLossReason');
+    const errEl = document.getElementById('proposalLossReasonError');
+    const reason = (reasonEl?.value || '').trim();
+    if (reason.length < 10) {
+        if (errEl) {
+            errEl.textContent = 'Loss Reason is required (minimum 10 characters).';
+            errEl.style.display = 'block';
+        }
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const newAuditEntry = await _applyProposalStateTransition({
+            proposal,
+            newStatus: 'loss',
+            newProjectStatus: 'Loss',
+            auditAction: 'LOSS_RECORDED',
+            auditComment: reason,         // D-06: mirror loss_reason into audit comment
+            extraProposalFields: { loss_reason: reason }
+        });
+
+        const sub = document.getElementById('proposalLossModal');
+        if (sub) sub.remove();
+        showToast('Proposal marked as Loss. Project status updated.', 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: 'loss' }, { loss_reason: reason });
+    } catch (err) {
+        console.error('[Proposals] submitLoss failed:', err);
+        showToast(err?.message || 'Failed to record loss. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================================
+// PHASE 87 — Client Approved sub-modal (Plan 03)
+//   Source statuses:  pending_client
+//   Target status:    client_approved
+//   Project status:   Client Approved  (per 87-RESEARCH.md verified canonical string;
+//                     'For Mobilization' is a separate downstream manual action)
+//   Notification:     none (positive final state — no submitter notify needed)
+// ============================================================
+function openClientApprovedModal(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_client') {
+        showToast('Client Approved is only available after a proposal is pending client review.', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('proposalClientApprovedModal');
+    if (existing) existing.remove();
+
+    const html = `
+    <div id="proposalClientApprovedModal" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Mark as Client Approved</h2>
+                <button class="modal-close" aria-label="Close" onclick="document.getElementById('proposalClientApprovedModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p style="color:#475569;margin:0;font-size:14px;line-height:1.5;">This will advance the project status to "Client Approved". The proposal lifecycle is complete.</p>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('proposalClientApprovedModal').remove()">Cancel</button>
+                <button class="btn btn-success" onclick="window.submitClientApproved('${escapeHTML(proposalDocId)}')">Confirm Client Approval</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitClientApproved(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_client') {
+        showToast('Proposal status changed. Please reload.', 'error');
+        return;
+    }
+
+    showLoading(true);
+    try {
+        const newAuditEntry = await _applyProposalStateTransition({
+            proposal,
+            newStatus: 'client_approved',
+            newProjectStatus: 'Client Approved',
+            auditAction: 'CLIENT_APPROVED',
+            auditComment: null
+        });
+
+        const sub = document.getElementById('proposalClientApprovedModal');
+        if (sub) sub.remove();
+        showToast('Proposal marked Client Approved. Project status updated.', 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: 'client_approved' });
+    } catch (err) {
+        console.error('[Proposals] submitClientApproved failed:', err);
+        showToast(err?.message || 'Failed to mark Client Approved. Please try again.', 'error');
     } finally {
         showLoading(false);
     }
