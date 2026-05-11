@@ -15,8 +15,8 @@
    across projects.js, services.js, and this file. Future cleanup: extract to app/picker-personnel.js.
    ======================================== */
 
-import { db, collection, onSnapshot, query, where } from '../firebase.js';
-import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML } from '../utils.js';
+import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp } from '../firebase.js';
+import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
 import { createEngagement } from '../engagement-create.js';
 
 // ----------------------------------------
@@ -27,6 +27,13 @@ let usersData = [];
 let selectedPersonnel = []; // [{ id, name }]
 let listeners = [];
 let currentEngagementType = 'project'; // 'project' | 'one-time' | 'recurring'
+
+// --- Phase 87 module state (Plan 02) ---
+let proposalsData = [];      // all proposal docs from onSnapshot — sorted/grouped at render time
+let projectsData = [];       // active projects for Create/Edit Proposal dropdown (Open Question 3)
+let currentProposal = null;  // currently-open proposal in the detail modal (null when modal closed)
+let createModalMode = 'create'; // 'create' | 'edit' — set when modal opens; read by saveProposal()
+let createModalEditingId = null; // Firestore doc ID when in edit mode; null when create
 
 // ----------------------------------------
 // render()
@@ -480,6 +487,46 @@ export async function init(activeTab = null, param = null) {
         (err) => console.error('[Proposals] Users listener error:', err)
     );
     listeners.push(usersListener);
+
+        // --- Phase 87 listeners (Plan 02) ---
+
+        // Proposals listener — real-time dashboard updates (D-10: any active user can read)
+        const proposalsListener = onSnapshot(
+            collection(db, 'proposals'),
+            (snapshot) => {
+                proposalsData = [];
+                snapshot.forEach(d => proposalsData.push({ id: d.id, ...d.data() }));
+                renderProposalDashboard();
+            },
+            (err) => console.error('[Proposals] proposals listener error:', err)
+        );
+        listeners.push(proposalsListener);
+
+        // Projects listener — populates the Create/Edit Proposal modal project dropdown.
+        // Filter to status=='active' projects only (mirrors mrf-form.js loadProjects pattern).
+        // NOTE: 'status' here refers to the 'active'/'inactive' boolean-equivalent flag
+        // on projects docs, NOT 'project_status'. If the field is different in this
+        // codebase, the executor must read app/views/mrf-form.js for the canonical query.
+        const projectsListener = onSnapshot(
+            collection(db, 'projects'),
+            (snapshot) => {
+                projectsData = [];
+                snapshot.forEach(d => {
+                    const data = { id: d.id, ...d.data() };
+                    // Filter Draft + inactive projects out of the Create Proposal dropdown.
+                    // Draft is hidden because a proposal must be linked to a real project.
+                    // Inactive is hidden for the same reason. Match Phase 88-02 procurement.js filter pattern.
+                    if (data.project_status === 'Draft') return;
+                    if (data.active === false) return;
+                    projectsData.push(data);
+                });
+                projectsData.sort((a, b) =>
+                    (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || '')
+                );
+            },
+            (err) => console.error('[Proposals] projects listener error:', err)
+        );
+        listeners.push(projectsListener);
 }
 
 // ----------------------------------------
