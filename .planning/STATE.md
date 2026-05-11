@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87 executing — Plan 1 of 5 complete
+status: Phase 87 executing — Plan 2 of 5 complete
 stopped_at: ""
-last_updated: "2026-05-11T06:18:19Z"
-last_activity: "2026-05-11 - Phase 87 Plan 01 complete: Firebase Storage SDK added, proposals Firestore rules + storage.rules created, generateProposalId helper added, mount div activated."
+last_updated: "2026-05-11T06:28:00Z"
+last_activity: "2026-05-11 - Phase 87 Plan 02 complete: Proposal Dashboard + Create/Edit modal + Detail modal with audit trail rendering shipped. 1276-line proposals.js."
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 62
-  completed_plans: 56
-  percent: 90
+  completed_plans: 57
+  percent: 92
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 87-proposal-lifecycle — executing
-Plan: 1 of 5 complete — 2026-05-11
+Plan: 2 of 5 complete — 2026-05-11
 
 ## Performance Metrics
 
@@ -135,6 +135,7 @@ Plan: 1 of 5 complete — 2026-05-11
 | Phase 86.4 P03 | <2 | 2 tasks | 1 file |
 | Phase 86.4 P04 | ~90min + debug | 2 tasks + debug | 2 files |
 | Phase 87 P01 | 3 | 4 tasks | 6 files |
+| Phase 87 P02 | 7 | 4 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -345,6 +346,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 84.1-01 RETROACTIVE 2026-05-02]: Plan 01 Task 3 was originally SKIPPED by the executor with the incorrect note "Task 3 belongs to plan 02" — that was wrong per 84.1-01-PLAN.md lines 398–535. Retroactive fix commit f5d9940 wires all five finance.js notification blocks (NOTIF-15 PR Approved + Rejected, NOTIF-17 TR Approved + Rejected, NOTIF-16 RFP Fully Paid) plus the missing `import { createNotification, NOTIFICATION_TYPES } from '../notifications.js'` line. All blocks use isolated try/catch + creator-UID null-guard per D-03. Untouched: po_creator_user_id stamp from Task 1, Plan 02/03 deliverables, firestore.rules. 84.1-01-SUMMARY.md amended with a "Retroactive Fix (2026-05-02)" section documenting the gap, the fix, and the root-cause note (future executors must not silently move tasks between sibling plans). Phase-level requirements list NOTIF-15/NOTIF-16/NOTIF-17 are now actually shipped at the code layer; UAT-layer verification still pending per Plan 03's checkpoint:human-verify gate.
 - [Phase 87-01]: Storage rules use request.auth != null (not role check) — Firestore rules on proposals/{id} are primary gate; accepted risk T-87.1-04; mirrors invitation_codes accepted-risk pattern. Deploy both rules files before Plan 02.
 - [Phase 87-01]: generateProposalId() thin wrapper over generateSequentialId('proposals', 'PROP') — reads proposal_id field from docs, returns PROP-YYYY-NNN; re-exported from utils.js for downstream plan convenience
+- [Phase 87-02]: audit_log CREATED entry uses new Date().toISOString() for ts field — Firestore rejects serverTimestamp() sentinels inside array elements; doc-level created_at uses serverTimestamp() as authoritative anchor (T-87.2-06 accepted)
+- [Phase 87-02]: Edit mode updateDoc omits audit_log entirely — D-04: metadata edits do not append to audit trail (only lifecycle actions do); project_id also absent from edit payload (immutable post-create)
+- [Phase 87-02]: Stub-bridge pattern — Plan 02 registers 13 toast-no-op stubs for Plans 03/04/05 window functions; Plans 03/04/05 overwrite via direct assignment in their init() additions (no guard needed)
 - [Phase 85-08]: Inline deriveCollectibleStatus inside showExpenseBreakdownModal — duplicate (not import) of Plan 05's helper to avoid circular dependency between expense-modal.js (the shared module) and finance.js (a consumer view). Same anti-circular-import pattern as Phase 71's inline derive*ForPO/TR/DeliveryFee. If/when a 3rd consumer of this exact derivation appears, lift to app/coll-status.js.
 - [Phase 85-08]: Project mode collectibles fetch does an extra projects-by-name lookup (3rd lookup of the project doc inside one modal-open) to extract project_code — mirrors the existing RFP-fetch pattern at lines 47-74 rather than refactoring the call sites to share one lookup. Acceptable cost for user-action-driven modal; flagged in SUMMARY for a future caching pass if latency becomes an issue.
 - [Phase 85-08]: Inner-loop variable renamed from totalPaid to totalPaidColl to avoid shadowing the outer-scope let totalPaid (used for RFP-payable accumulation at line 70). Pure cosmetic, no behavior change; the only sub-line refinement applied vs. the plan's reference snippet.
@@ -425,9 +429,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 87 Plan 01 complete. Storage SDK + Firestore/Storage rules + proposal-id.js + mount activation shipped.
-Last session: 2026-05-11T06:18:19Z
-Stopped at: Phase 87 Plan 01 complete — continue with Plan 02
+Last activity: 2026-05-11 - Phase 87 Plan 02 complete. Proposal Dashboard + Create/Edit Proposal modal + Detail modal with audit trail. proposals.js now 1276 lines.
+Last session: 2026-05-11T06:28:00Z
+Stopped at: Phase 87 Plan 02 complete — continue with Plan 03 (state transitions: submit/approve/reject/sent/client-approved/loss writeBatch logic)
 Resume file: None
 Next action: Execute Phase 87 Plan 02 (proposal dashboard + CRUD). IMPORTANT: Deploy rules first — firebase deploy --only firestore:rules && firebase deploy --only storage
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
