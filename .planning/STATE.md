@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87 executing — Plan 5 of 5 code complete; awaiting UAT checkpoint (Task 4)
-stopped_at: "Phase 87 Plan 05 Task 4 — UAT checkpoint:human-verify (user must run browser UAT on dev Firebase)"
-last_updated: "2026-05-11T08:20:00Z"
-last_activity: "2026-05-11 - Phase 87 Plan 05 code complete: comms log inline Add Entry form with per-entry optional attachment uploaded to proposals/{docId}/comms/{entryId}.{ext}. proposals.js now 2307 lines. All stubs replaced. Awaiting UAT."
+status: Phase 87 complete — ready for Phase 89 (Proposal Approval Queue)
+stopped_at: ""
+last_updated: "2026-05-11T00:00:00Z"
+last_activity: "2026-05-11 - Phase 87 UAT passed (all 10 scenarios A-J). Two bugs fixed during UAT: hasTabAccess(undefined) blocking /proposals route + parseHash() stripping query string from notification deep-links. Phase closed."
 progress:
   total_phases: 16
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 62
-  completed_plans: 58
-  percent: 94
+  completed_plans: 62
+  percent: 100
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 87 planned (5 plans). Extends `app/views/proposals.js` with proposal dashboard mounted at `#proposal-dashboard-mount`. Wave 1 adds Firebase Storage SDK + rules; Waves 2-4 add dashboard, CRUD, approval workflow, attachments, and comms log. Phase 89 (approval queue) follows after Phase 87 ships.
+**Current focus:** Phase 87 complete. Phase 89 (Proposal Approval Queue — oldest-first approve/reject queue inside Mgmt Tab) is next. Depends on Phase 87 (proposal infra ✅) and Phase 88 (Mgmt Tab shell ✅).
 
 ## Current Position
 
-Phase: 87-proposal-lifecycle — executing
-Plan: 5 of 5 code complete (Plans 01-05 all shipped) — awaiting UAT — 2026-05-11
+Phase: 87-proposal-lifecycle — COMPLETE 2026-05-11
+Next: Phase 89 — Management Tab Proposal Approval Queue
 
 ## Performance Metrics
 
@@ -138,7 +138,7 @@ Plan: 5 of 5 code complete (Plans 01-05 all shipped) — awaiting UAT — 2026-0
 | Phase 87 P02 | 7 | 4 tasks | 1 files |
 | Phase 87 P03 | 25 | 4 tasks | 1 files |
 | Phase 87 P04 | 3 | 3 tasks | 1 files |
-| Phase 87 P05 | 10 | 3 tasks + UAT pending | 1 files |
+| Phase 87 P05 | 10 | 3 tasks + UAT passed | 1 files |
 
 ## Accumulated Context
 
@@ -451,9 +451,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 87 Plan 05 code complete. Comms log inline Add Entry form with per-entry optional attachment shipped. proposals.js now 2307 lines. All stubs replaced. UAT checkpoint pending.
-Last session: 2026-05-11T08:20:00Z
-Stopped at: Phase 87 Plan 05 Task 4 — checkpoint:human-verify — user must run browser UAT (scenarios A-J) on dev Firebase; signal "approved" to close Phase 87
+Last activity: 2026-05-11 - Phase 87 UAT passed (all 10 scenarios A-J). Phase closed. Two bugs fixed during UAT: hasTabAccess(undefined) blocking /proposals + parseHash() query-string stripping for notification deep-links.
+Last session: 2026-05-11T00:00:00Z
+Stopped at: ""
 Resume file: None
-Next action: After UAT approval — create 87-SUMMARY.md (phase-level), update ROADMAP.md, mark PROP-08 + all Phase 87 requirements complete, close Phase 87
+Next action: Phase 89 — Management Tab Proposal Approval Queue (discuss → plan → execute)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |

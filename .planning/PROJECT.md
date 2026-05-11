@@ -601,4 +601,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-28 — v4.0 milestone started: Procurement → Full Management Portal. Adds native Gantt-based Project Management, in-app Notifications, manual Collectibles Tracking, full Proposal lifecycle (approval workflow + doc versioning + dashboard + client log), and Super-Admin-only Management Tab (proposal approvals + project/service creation hub). Major version bump; phases continue from 83.*
+*Last updated: 2026-05-11 — Phase 87 (Proposal Lifecycle) complete. All 13 requirements shipped (PROP-01..PROP-11, NOTIF-09, NOTIF-10). File upload deferred (Blaze upgrade required); link-only attachments in production. Two UAT bugs fixed: hasTabAccess(undefined) router gate + parseHash() notification deep-link. Phase 89 (Proposal Approval Queue) is next.*
