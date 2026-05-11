@@ -16,6 +16,7 @@
    ======================================== */
 
 import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp, writeBatch } from '../firebase.js';
+import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
 import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
 import { createEngagement } from '../engagement-create.js';
 import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
@@ -957,14 +958,75 @@ function buildProposalDetailsBlock(proposal) {
     `;
 }
 
-/** Placeholder for Plan 04 — attachment widget. Renders a disabled placeholder. */
 function buildAttachmentSection(proposal) {
     const has = !!(proposal.attachment_kind);
+    const docId = escapeHTML(proposal.id);
+
+    if (has) {
+        // State B — attachment exists
+        const isLink = proposal.attachment_kind === 'link';
+        const url = proposal.attachment_url || '';
+        const filename = proposal.attachment_filename || '';
+        let displayLabel = '';
+        if (isLink) {
+            try {
+                displayLabel = new URL(url).hostname;
+            } catch {
+                displayLabel = 'View link';
+            }
+        } else {
+            displayLabel = filename || 'Download file';
+        }
+        const linkLabel = isLink ? 'Attached link' : 'Attached file';
+        return `
+            <div id="proposalAttachmentWidget" style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
+                <div style="font-size:13px;color:#64748b;margin-bottom:6px;">${escapeHTML(linkLabel)}</div>
+                <div style="font-size:14px;color:#1e293b;margin-bottom:8px;">
+                    <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">${escapeHTML(displayLabel)}</a>
+                </div>
+                <div id="proposalAttachmentActions" style="display:flex;gap:8px;">
+                    <button class="btn btn-sm btn-outline" onclick="window._openProposalAttachmentReplace('${docId}')">Replace</button>
+                    <button class="btn btn-sm" style="color:#ea4335;border:1px solid #ea4335;background:white;" onclick="window._openProposalAttachmentRemoveConfirm('${docId}')">Remove</button>
+                </div>
+                <div id="proposalAttachmentRemoveConfirm" style="display:none;margin-top:8px;padding:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;">
+                    <div style="font-size:13px;color:#1e293b;margin-bottom:6px;">Remove this attachment? This cannot be undone.</div>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-sm btn-danger" onclick="window.removeProposalAttachment('${docId}')">Yes, remove</button>
+                        <button class="btn btn-sm btn-outline" onclick="document.getElementById('proposalAttachmentRemoveConfirm').style.display='none';">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // State A — no attachment yet (also used for Replace mode via _openProposalAttachmentReplace)
     return `
-        <div style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
-            <div style="font-size:13px;color:#64748b;margin-bottom:6px;">Attachment</div>
-            <div style="font-size:14px;color:#1e293b;">${has ? escapeHTML(proposal.attachment_filename || 'Attached') : 'No attachment'}</div>
-            <div style="font-size:12px;color:#94a3b8;margin-top:6px;">Attachment widget ships in Plan 04.</div>
+        <div id="proposalAttachmentWidget" style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
+            <div style="font-size:13px;color:#64748b;margin-bottom:8px;">Attachment</div>
+            <div style="display:flex;gap:1.25rem;margin-bottom:8px;">
+                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
+                    <input type="radio" name="proposalAttachKind-${docId}" value="link" checked
+                           onchange="window._switchProposalAttachmentKind('${docId}', 'link')">
+                    Paste a link
+                </label>
+                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9375rem;">
+                    <input type="radio" name="proposalAttachKind-${docId}" value="file"
+                           onchange="window._switchProposalAttachmentKind('${docId}', 'file')">
+                    Upload a file
+                </label>
+            </div>
+            <div id="proposalAttachmentLinkInput" style="margin-bottom:8px;">
+                <input type="url" id="proposalAttachmentUrl"
+                       placeholder="https://drive.google.com/..."
+                       style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
+            </div>
+            <div id="proposalAttachmentFileInput" style="display:none;margin-bottom:8px;">
+                <input type="file" id="proposalAttachmentFile"
+                       accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg"
+                       style="font-size:0.9375rem;">
+            </div>
+            <div id="proposalAttachmentError" style="display:none;color:#ea4335;font-size:13px;margin-bottom:8px;"></div>
+            <button class="btn btn-sm btn-outline" onclick="window.saveProposalAttachment('${docId}')">Save Attachment</button>
         </div>
     `;
 }
