@@ -1,46 +1,43 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-11T00:32:17Z",
-  "phase": "88",
-  "phase_name": "Proposals Tab Shell + Create Engagement (renamed from Management)",
-  "phase_dir": ".planning/phases/88-management-tab-shell-create-engagement",
-  "plan": 1,
-  "task": 4,
-  "total_tasks": 8,
+  "timestamp": "2026-05-11T13:45:00Z",
+  "phase": "86.9",
+  "phase_name": "Gantt Curtain Divider + PDF Export (UAT-reopen Plan 03)",
+  "phase_dir": ".planning/phases/86.9-gantt-curtain-divider-pdf-export",
+  "plan": 3,
+  "task": 3,
+  "total_tasks": 3,
   "status": "paused_at_uat_checkpoint",
   "completed_tasks": [
-    { "id": "88-01-T1", "name": "Extract app/engagement-create.js helper", "status": "done", "commit": "ca3c9d9" },
-    { "id": "88-01-T2", "name": "projects.js delegates to createEngagement (refactor)", "status": "done", "commit": "688f647" },
-    { "id": "88-01-T3", "name": "services.js delegates to createEngagement (refactor)", "status": "done", "commit": "3005188" },
-    { "id": "88-01-SUMMARY", "name": "Write 88-01-SUMMARY.md", "status": "done", "commit": "8c8f9ec" }
+    { "id": "86.9-03-T1", "name": ".tg-locked padding 4px to 2px (D1 row-alignment fix)", "status": "done", "commit": "5c00e1f" },
+    { "id": "86.9-03-T2", "name": "PDF export landscape + full-width chart + drop duplicate overlay (D2 bundle)", "status": "done", "commit": "5b6a833" },
+    { "id": "86.9-03-T3-PARTIAL", "name": "Reopen UAT file: flip status, reopen Tests 1+4, add Tests 5+6 pending", "status": "done", "commit": "bb19e19" }
   ],
   "remaining_tasks": [
-    { "id": "88-01-T4", "name": "Browser UAT for Plan 88-01 refactor (5 flows: project create, clientless project, service create, edit existing, console clean)", "status": "in_progress_awaiting_user" },
-    { "id": "88-02-T1", "name": "Add Proposals nav link + #/proposals route + role gate (index.html + app/auth.js + app/router.js)", "status": "not_started" },
-    { "id": "88-02-T2", "name": "Create app/views/proposals.js with inline New Engagement form (calls createEngagement w/ projectStatus='Draft')", "status": "not_started" },
-    { "id": "88-02-T3", "name": "Draft consumer audit: procurement, mrf-form, finance, home (filter Draft from operational lists; add Draft palette entry to home.js)", "status": "not_started" },
-    { "id": "88-02-T4", "name": "Browser UAT for Plan 88-02", "status": "not_started" },
-    { "id": "PHASE-CLOSE", "name": "Update STATE.md + ROADMAP.md to mark Phase 88 complete; rename Phase 89 stub from 'Management Tab' to 'Proposals Tab'", "status": "not_started" }
+    { "id": "86.9-03-T3-VERIFY", "name": "Human browser UAT for D1 (diagnostic re-run) + D2 (Export click)", "status": "awaiting_user" },
+    { "id": "86.9-03-SUMMARY", "name": "Write 86.9-03-SUMMARY.md after user signoff (executor resumes via SendMessage to agent ad515002c942a3d1a)", "status": "not_started" },
+    { "id": "86.9-CLOSE", "name": "Re-close 86.9-HUMAN-UAT.md (in_progress -> resolved) + update STATE.md after UAT approved", "status": "not_started" },
+    { "id": "DEBUG-CLEANUP", "name": "Delete project-root debug-diag-86.9.js after UAT closes (kept for post-fix verification per user choice)", "status": "not_started" }
   ],
   "blockers": [
-    { "description": "Plan 88-01 UAT not yet performed — user paused before browser verification", "type": "human_action", "workaround": "On resume: run UAT first OR auto-approve if user signals refactor is byte-equivalent" }
+    { "description": "Plan 03 UAT browser verification not yet performed by user", "type": "human_action", "workaround": "Diagnostic snippet ready at project root; resume signal is 'approved' once D1 and D2 verify clean" }
   ],
   "human_actions_pending": [
-    { "action": "Plan 88-01 UAT in browser", "context": "5 flows listed in .continue-here.md; refactor is pure (no behavior change expected) so quick smoke-test should suffice", "blocking": true }
+    { "action": "Hard-refresh project plan page (Ctrl+Shift+R) then run debug-diag-86.9.js to confirm all rows render at 42px and offsets within +/-1px", "context": "D1 fix verification; bypass CSS cache to avoid stale 4px padding", "blocking": true },
+    { "action": "Click Export on project plan, confirm landscape orientation + full-width chart + single header row in print preview", "context": "D2 fix verification", "blocking": true }
   ],
   "decisions": [
-    { "decision": "Phase 88 ships before Phase 87 per CONTEXT D-01", "rationale": "PROP-10 dashboard mounts inside the Proposals tab; tab must exist first", "phase": "87+88" },
-    { "decision": "Tab renamed 'Management' to 'Proposals' per user during /gsd-discuss-phase 88", "rationale": "Long-term shape fits — Phase 87 dashboard + Phase 89 queue are the heavyweight features; MGMT-* IDs retained for traceability", "phase": "88" },
-    { "decision": "Nav placement between Finance and Admin (D-02)", "rationale": "Super Admin only; matches existing top-nav order", "phase": "88" },
-    { "decision": "Inline form pattern on Proposals tab; locked section ordering: New Engagement -> [89 queue] -> [87 dashboard] (D-03)", "rationale": "One scrollable surface; downstream phases add sections, not nested routes", "phase": "88" },
-    { "decision": "Extract shared app/engagement-create.js helper; refactor projects.js + services.js call sites in same plan (D-04)", "rationale": "Avoid orphan-ownership drift between Proposals-tab form and existing create flows", "phase": "88-01" },
-    { "decision": "Default project_status = 'Draft' for engagements created from Proposals tab (D-05); existing project/service forms keep user-picked status", "rationale": "Pre-proposal state; Phase 87 lifecycle advances from Draft", "phase": "88+87" },
-    { "decision": "CLMC is not an authoring platform (CONTEXT 87 D-03)", "rationale": "User clarified during /gsd-discuss-phase 87: proposals attach links/files for review, NOT in-house authoring. PROP-06 versioning out-of-scope. Saved to user memory at project_clmc_not_authoring_platform.md", "phase": "87" },
-    { "decision": "Plan-checker WARN to PASS via supersedes_from_plan_review block in 88-02-PLAN.md", "rationale": "5 fixes folded: HIGH-1 (utils.js import path), HIGH-2 (UAT MGMT-07 role), MED-1 (finance.js filter pointer + lock to filter-only), MED-2 (drop dead .status-badge.draft), MED-3 (home.js Draft palette entry)", "phase": "88-02" }
+    { "decision": "Reopen Phase 86.9 with Plan 03 rather than open a separate Phase 86.10", "rationale": "User chose 'Reopen 86.9 + Plan 03' option; cleanest paper trail when UAT defects surface immediately after phase closure", "phase": "86.9" },
+    { "decision": "D1 root cause confirmed empirically via debug-diag-86.9.js (browser-injected) before any code changed", "rationale": "Per user feedback 'Root cause first' — Frappe compute_y hypothesis (9px within-row offset) was refuted; real cause is .tg-locked rendering at 27.5px stretching parent rows to 45.5px instead of 42px", "phase": "86.9-03" },
+    { "decision": "Single-property CSS edit for D1 (.tg-locked padding 4px 6px -> 2px 6px)", "rationale": "Drops span rendered height from 27.5px to ~23px matching .tg-input; surgical fix, no refactor", "phase": "86.9-03" },
+    { "decision": "D2 fix bundled into one commit (3 CSS edits + 1 JS line)", "rationale": "All three changes address the same defect symptom (broken PDF); atomic commit keeps the fix coherent", "phase": "86.9-03" },
+    { "decision": "Keep debug-diag-86.9.js at project root until UAT closes", "rationale": "User chose 'Keep until UAT closes' so post-fix verification can re-run the same diagnostic without recreating it", "phase": "86.9-03" },
+    { "decision": "Requirement IDs GANTT-UX-ROW-ALIGN and GANTT-UX-PDF-EXPORT-FIX left out of ROADMAP.md", "rationale": "User chose 'Leave as-is — UAT closure'; reopen-style remediation IDs don't need roadmap entries", "phase": "86.9-03" }
   ],
   "uncommitted_files": [
-    ".claude/worktrees/ (untracked — orphan executor worktrees from earlier sessions; harmless)"
+    "debug-diag-86.9.js (untracked, kept intentionally at project root for post-fix verification)",
+    ".claude/worktrees/ (untracked — harmless executor worktree leftovers from earlier sessions)"
   ],
-  "next_action": "Resume Plan 88-01 UAT: ask user via AskUserQuestion whether the 5 flows verified clean, or whether to skip UAT and proceed to Plan 88-02. If approved: spawn gsd-executor for Plan 88-02 (Wave 2) following the supersedes_from_plan_review block in 88-02-PLAN.md.",
-  "context_notes": "Auto mode was active this session. Shipped Phase 86.8 (16 commits, 7 Gantt UX features + UAT defect fixes), captured CONTEXT for Phase 87 (proposal lifecycle — blocked on 88), captured CONTEXT for Phase 88 (proposals tab — renamed from Management), drafted + reviewed + corrected Phase 88 plans, executed Plan 88-01 (refactor). Paused at Plan 88-01 UAT checkpoint. Branch v3.3 has ~25 commits ahead of main; no PR opened yet (user has not requested ship-to-remote)."
+  "next_action": "On resume: ask user via AskUserQuestion whether D1 and D2 verified clean in browser. If approved -> SendMessage to executor agent ad515002c942a3d1a with 'approved' so it writes 86.9-03-SUMMARY.md, then re-close 86.9-HUMAN-UAT.md, update STATE.md to mark Phase 86.9 complete again, delete debug-diag-86.9.js. If issues found -> root-cause-first diagnosis, do NOT paper over.",
+  "context_notes": "Phase 86.9 was marked complete 2026-05-11 (commit 129897a) then reopened same-day after user found two visual defects during UAT: (D1) row misalignment in curtain layout; (D2) broken PDF export (portrait, clipped chart, duplicate header). Spawned gsd-debugger then user ran in-browser diagnostic to confirm D1 root cause empirically. Root cause documented in .planning/debug/86.9-row-misalign-DEBUG.md. Spawned gsd-planner -> 86.9-03-PLAN.md. Spawned gsd-plan-checker -> PASS with 2 LOW nits. Spawned gsd-executor -> 3 commits landed, stopped at UAT checkpoint. Awaiting user browser verification. Resume signal is literally 'approved' so SendMessage to executor agent ad515002c942a3d1a can resume."
 }
