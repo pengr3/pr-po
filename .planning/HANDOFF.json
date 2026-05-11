@@ -1,35 +1,46 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-08T20:00:00Z",
-  "phase": "86.7-debug",
-  "phase_name": "Gantt phantom space between header and bars — fix in progress, overcorrected",
-  "status": "paused",
+  "timestamp": "2026-05-11T00:32:17Z",
+  "phase": "88",
+  "phase_name": "Proposals Tab Shell + Create Engagement (renamed from Management)",
+  "phase_dir": ".planning/phases/88-management-tab-shell-create-engagement",
+  "plan": 1,
+  "task": 4,
+  "total_tasks": 8,
+  "status": "paused_at_uat_checkpoint",
   "completed_tasks": [
-    {"commit": "31b5f73", "name": "Bug 2 fix: Enter-only commit for __new__ row (no blur path)", "status": "done"},
-    {"commit": "063a195", "name": "Frappe v1.2.2 parent bar guard + stale focus timer cancellation", "status": "done"},
-    {"commit": "4c3ecc5", "name": "isConnected guard + parent-summary-bar class propagation", "status": "done"},
-    {"commit": "b428b79", "name": "initGanttDragLink called from setGanttZoom after SVG rebuild", "status": "done"},
-    {"commit": "8cb60f3", "name": "Overlay height formula fix attempt — OVERCORRECTED, broke left-pane alignment", "status": "in_progress", "progress": "Applied but wrong: overlay at 94px, left pane header still at 85px — misaligned"}
+    { "id": "88-01-T1", "name": "Extract app/engagement-create.js helper", "status": "done", "commit": "ca3c9d9" },
+    { "id": "88-01-T2", "name": "projects.js delegates to createEngagement (refactor)", "status": "done", "commit": "688f647" },
+    { "id": "88-01-T3", "name": "services.js delegates to createEngagement (refactor)", "status": "done", "commit": "3005188" },
+    { "id": "88-01-SUMMARY", "name": "Write 88-01-SUMMARY.md", "status": "done", "commit": "8c8f9ec" }
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "Fix phantom space WITHOUT misaligning left pane — see blocking constraint below", "status": "not_started"},
-    {"id": 2, "name": "Browser UAT: verify gap gone AND left pane header aligns with Gantt header on all 3 zoom modes", "status": "not_started"}
+    { "id": "88-01-T4", "name": "Browser UAT for Plan 88-01 refactor (5 flows: project create, clientless project, service create, edit existing, console clean)", "status": "in_progress_awaiting_user" },
+    { "id": "88-02-T1", "name": "Add Proposals nav link + #/proposals route + role gate (index.html + app/auth.js + app/router.js)", "status": "not_started" },
+    { "id": "88-02-T2", "name": "Create app/views/proposals.js with inline New Engagement form (calls createEngagement w/ projectStatus='Draft')", "status": "not_started" },
+    { "id": "88-02-T3", "name": "Draft consumer audit: procurement, mrf-form, finance, home (filter Draft from operational lists; add Draft palette entry to home.js)", "status": "not_started" },
+    { "id": "88-02-T4", "name": "Browser UAT for Plan 88-02", "status": "not_started" },
+    { "id": "PHASE-CLOSE", "name": "Update STATE.md + ROADMAP.md to mark Phase 88 complete; rename Phase 89 stub from 'Management Tab' to 'Proposals Tab'", "status": "not_started" }
   ],
   "blockers": [
-    {
-      "description": "Commit 8cb60f3 overcorrected — overlay height changed to 94px but left pane .tg-header CSS is still 85px, causing visible misalignment (left pane header shorter than Gantt header)",
-      "type": "technical",
-      "workaround": "Either: (A) also update .tg-header height to 94px in views.css, OR (B) find approach that covers the 9px gap without growing the overlay div (e.g. SVG rect at y=85-94, or set Frappe padding=0 so bars start at header_height)"
-    }
+    { "description": "Plan 88-01 UAT not yet performed — user paused before browser verification", "type": "human_action", "workaround": "On resume: run UAT first OR auto-approve if user signals refactor is byte-equivalent" }
   ],
   "human_actions_pending": [
-    {"action": "Browser UAT after fix: check Day/Week/Month zoom — no gap, left pane header aligns with Gantt header", "blocking": true}
+    { "action": "Plan 88-01 UAT in browser", "context": "5 flows listed in .continue-here.md; refactor is pure (no behavior change expected) so quick smoke-test should suffice", "blocking": true }
   ],
   "decisions": [
-    {"decision": "Root cause of phantom space is confirmed: #ganttHeaderOverlay height (85px) < Frappe bar start y (header_height + padding/2 = 94px). The 9px gap shows SVG grid background.", "rationale": "Verified by reading Frappe v1.2.2 source: config.header_height = 85, padding default = 18, bar y = header_height + padding/2 = 94."},
-    {"decision": "views.css has uncommitted change: border-bottom added to #ganttHeaderOverlay. May or may not be needed depending on final fix approach.", "rationale": "Added by debug agent alongside height fix — evaluate whether to keep or revert."}
+    { "decision": "Phase 88 ships before Phase 87 per CONTEXT D-01", "rationale": "PROP-10 dashboard mounts inside the Proposals tab; tab must exist first", "phase": "87+88" },
+    { "decision": "Tab renamed 'Management' to 'Proposals' per user during /gsd-discuss-phase 88", "rationale": "Long-term shape fits — Phase 87 dashboard + Phase 89 queue are the heavyweight features; MGMT-* IDs retained for traceability", "phase": "88" },
+    { "decision": "Nav placement between Finance and Admin (D-02)", "rationale": "Super Admin only; matches existing top-nav order", "phase": "88" },
+    { "decision": "Inline form pattern on Proposals tab; locked section ordering: New Engagement -> [89 queue] -> [87 dashboard] (D-03)", "rationale": "One scrollable surface; downstream phases add sections, not nested routes", "phase": "88" },
+    { "decision": "Extract shared app/engagement-create.js helper; refactor projects.js + services.js call sites in same plan (D-04)", "rationale": "Avoid orphan-ownership drift between Proposals-tab form and existing create flows", "phase": "88-01" },
+    { "decision": "Default project_status = 'Draft' for engagements created from Proposals tab (D-05); existing project/service forms keep user-picked status", "rationale": "Pre-proposal state; Phase 87 lifecycle advances from Draft", "phase": "88+87" },
+    { "decision": "CLMC is not an authoring platform (CONTEXT 87 D-03)", "rationale": "User clarified during /gsd-discuss-phase 87: proposals attach links/files for review, NOT in-house authoring. PROP-06 versioning out-of-scope. Saved to user memory at project_clmc_not_authoring_platform.md", "phase": "87" },
+    { "decision": "Plan-checker WARN to PASS via supersedes_from_plan_review block in 88-02-PLAN.md", "rationale": "5 fixes folded: HIGH-1 (utils.js import path), HIGH-2 (UAT MGMT-07 role), MED-1 (finance.js filter pointer + lock to filter-only), MED-2 (drop dead .status-badge.draft), MED-3 (home.js Draft palette entry)", "phase": "88-02" }
   ],
-  "uncommitted_files": ["styles/views.css"],
-  "next_action": "Fix the phantom space + left pane alignment together. The simplest correct fix: update BOTH the overlay height (project-plan.js renderCustomGanttHeader, line 1635) AND the .tg-header CSS height (views.css) to the same computed value (94px), so left pane and Gantt header are the same height. Then commit both files together.",
-  "context_notes": "The phantom space was a 9px gap between the white overlay div (covering SVG date headers, height=85px) and the first bar row (Frappe places bars at y=94px). We've been chasing this as a line/element bug but it's a coverage gap. Previous fix (8cb60f3) correctly identified the formula but only fixed the Gantt side — left pane CSS was not updated to match."
+  "uncommitted_files": [
+    ".claude/worktrees/ (untracked — orphan executor worktrees from earlier sessions; harmless)"
+  ],
+  "next_action": "Resume Plan 88-01 UAT: ask user via AskUserQuestion whether the 5 flows verified clean, or whether to skip UAT and proceed to Plan 88-02. If approved: spawn gsd-executor for Plan 88-02 (Wave 2) following the supersedes_from_plan_review block in 88-02-PLAN.md.",
+  "context_notes": "Auto mode was active this session. Shipped Phase 86.8 (16 commits, 7 Gantt UX features + UAT defect fixes), captured CONTEXT for Phase 87 (proposal lifecycle — blocked on 88), captured CONTEXT for Phase 88 (proposals tab — renamed from Management), drafted + reviewed + corrected Phase 88 plans, executed Plan 88-01 (refactor). Paused at Plan 88-01 UAT checkpoint. Branch v3.3 has ~25 commits ahead of main; no PR opened yet (user has not requested ship-to-remote)."
 }
