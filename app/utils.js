@@ -812,3 +812,6 @@ export function downloadCSV(headers, rows, filename) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 }
+
+// Phase 87: re-export proposal ID generator for convenience (defined in app/proposal-id.js)
+export { generateProposalId } from './proposal-id.js';
