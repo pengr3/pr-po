@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 88 complete — Phase 89 or 87 next
+status: Phase 87 executing — Plan 1 of 5 complete
 stopped_at: ""
-last_updated: "2026-05-11T00:00:00.000Z"
-last_activity: "2026-05-11 - Phase 88 complete. Proposals tab shipped: /proposals route (super_admin only), app/views/proposals.js New Engagement form, createEngagement helper, Draft status across 6 consumer views. 2/2 plans done, code review fixes applied, UAT approved."
+last_updated: "2026-05-11T06:18:19Z"
+last_activity: "2026-05-11 - Phase 87 Plan 01 complete: Firebase Storage SDK added, proposals Firestore rules + storage.rules created, generateProposalId helper added, mount div activated."
 progress:
   total_phases: 16
-  completed_phases: 11
-  total_plans: 53
-  completed_plans: 53
-  percent: 98
+  completed_phases: 12
+  total_plans: 62
+  completed_plans: 56
+  percent: 90
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 87 + 88 contexts captured. Phase 88 ships first ("Proposals" tab — renamed from Management — between Finance and Admin, inline Create Engagement form via shared `app/engagement-create.js` helper, default project_status="Draft"). Phase 87 plugs proposal dashboard into the same tab afterward. Phase 89 (approval queue) is the third section. Next: `/gsd-plan-phase 88`.
+**Current focus:** Phase 87 planned (5 plans). Extends `app/views/proposals.js` with proposal dashboard mounted at `#proposal-dashboard-mount`. Wave 1 adds Firebase Storage SDK + rules; Waves 2-4 add dashboard, CRUD, approval workflow, attachments, and comms log. Phase 89 (approval queue) follows after Phase 87 ships.
 
 ## Current Position
 
-Phase: 88-management-tab-shell-create-engagement — in progress
-Plan: 2 of 2 — Tasks 1-3 complete, Task 4 (UAT checkpoint) awaiting user
+Phase: 87-proposal-lifecycle — executing
+Plan: 1 of 5 complete — 2026-05-11
 
 ## Performance Metrics
 
@@ -134,6 +134,7 @@ Plan: 2 of 2 — Tasks 1-3 complete, Task 4 (UAT checkpoint) awaiting user
 | Phase 86.4 P02 | <2 | 2 tasks | 2 files |
 | Phase 86.4 P03 | <2 | 2 tasks | 1 file |
 | Phase 86.4 P04 | ~90min + debug | 2 tasks + debug | 2 files |
+| Phase 87 P01 | 3 | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -342,6 +343,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 84.1-03]: UAT scaffold (.planning/phases/84.1-procurement-notifications-trigger-enhancements/84.1-UAT.md) committed separately as `test(84.1)` per parent's suggested commit pattern — pre-populated with 15 tests (7 new-requirement + 8 regression) all marked `[pending]`; frontmatter records `environment: dev Firebase project` (NOT production clmc-procurement) per Phase 53.1 dev-environment introduction
 - [Phase 84.1-03]: Phase closure gated on human UAT execution per autonomous=false plan contract — checkpoint:human-verify task in 84.1-03-PLAN.md awaits user-driven verification of all 7 new triggers + 8 regression tests against the dev Firebase environment before Phase 84.1 can be marked complete
 - [Phase 84.1-01 RETROACTIVE 2026-05-02]: Plan 01 Task 3 was originally SKIPPED by the executor with the incorrect note "Task 3 belongs to plan 02" — that was wrong per 84.1-01-PLAN.md lines 398–535. Retroactive fix commit f5d9940 wires all five finance.js notification blocks (NOTIF-15 PR Approved + Rejected, NOTIF-17 TR Approved + Rejected, NOTIF-16 RFP Fully Paid) plus the missing `import { createNotification, NOTIFICATION_TYPES } from '../notifications.js'` line. All blocks use isolated try/catch + creator-UID null-guard per D-03. Untouched: po_creator_user_id stamp from Task 1, Plan 02/03 deliverables, firestore.rules. 84.1-01-SUMMARY.md amended with a "Retroactive Fix (2026-05-02)" section documenting the gap, the fix, and the root-cause note (future executors must not silently move tasks between sibling plans). Phase-level requirements list NOTIF-15/NOTIF-16/NOTIF-17 are now actually shipped at the code layer; UAT-layer verification still pending per Plan 03's checkpoint:human-verify gate.
+- [Phase 87-01]: Storage rules use request.auth != null (not role check) — Firestore rules on proposals/{id} are primary gate; accepted risk T-87.1-04; mirrors invitation_codes accepted-risk pattern. Deploy both rules files before Plan 02.
+- [Phase 87-01]: generateProposalId() thin wrapper over generateSequentialId('proposals', 'PROP') — reads proposal_id field from docs, returns PROP-YYYY-NNN; re-exported from utils.js for downstream plan convenience
 - [Phase 85-08]: Inline deriveCollectibleStatus inside showExpenseBreakdownModal — duplicate (not import) of Plan 05's helper to avoid circular dependency between expense-modal.js (the shared module) and finance.js (a consumer view). Same anti-circular-import pattern as Phase 71's inline derive*ForPO/TR/DeliveryFee. If/when a 3rd consumer of this exact derivation appears, lift to app/coll-status.js.
 - [Phase 85-08]: Project mode collectibles fetch does an extra projects-by-name lookup (3rd lookup of the project doc inside one modal-open) to extract project_code — mirrors the existing RFP-fetch pattern at lines 47-74 rather than refactoring the call sites to share one lookup. Acceptable cost for user-action-driven modal; flagged in SUMMARY for a future caching pass if latency becomes an issue.
 - [Phase 85-08]: Inner-loop variable renamed from totalPaid to totalPaidColl to avoid shadowing the outer-scope let totalPaid (used for RFP-payable accumulation at line 70). Pure cosmetic, no behavior change; the only sub-line refinement applied vs. the plan's reference snippet.
@@ -422,9 +425,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-08 - Phase 86.7 Plan 01 complete. Phantom drag shipped: _ganttBarDragging flag, mountGanttBarDragGuard(), gated handlers, single mouseup flush.
-Last session: 2026-05-08T08:11:54.923Z
-Stopped at: context exhaustion at 75% (2026-05-08)
+Last activity: 2026-05-11 - Phase 87 Plan 01 complete. Storage SDK + Firestore/Storage rules + proposal-id.js + mount activation shipped.
+Last session: 2026-05-11T06:18:19Z
+Stopped at: Phase 87 Plan 01 complete — continue with Plan 02
 Resume file: None
-Next action: Browser UAT — drag a Gantt bar, verify no rubber-banding, single Firestore write on mouseup.
+Next action: Execute Phase 87 Plan 02 (proposal dashboard + CRUD). IMPORTANT: Deploy rules first — firebase deploy --only firestore:rules && firebase deploy --only storage
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |

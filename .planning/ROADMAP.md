@@ -229,7 +229,7 @@
 - [ ] **Phase 86.5: Gantt UI Polish 3 — Panel Header Alignment, Bar Drag-Resize Unification, Back Button Fix, Excel-Style Task Entry** (INSERTED) — (1) left and right panel headers flush-aligned despite divider; (2) unified bar interaction — hover dot initiates predecessor drag, right-extend without touching another bar extends task duration; (3) Back button navigates to project detail page (not project list); (4) Excel-style inline task entry — Enter commits row and opens new row immediately for continuous input
 - [x] **Phase 86.6: Gantt/Grid Vertical Alignment — Scroll Sync and Row-Height Parity** (INSERTED) — Measure-first fix for vertical misalignment between left task-grid rows and right Gantt SVG bars; spacer-div approach equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed 2026-05-08
 - [x] **Phase 86.7: Gantt Phantom Drag — Smooth Bar Dragging Without Mid-Drag Firestore Writes** (INSERTED) — Suppress Firestore writes and snapshot-triggered re-renders during bar drag; commit only on mouseup; visual drag handled natively by Frappe with no interruption — completed 2026-05-08
-- [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions
+- [ ] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, document upload + versioning to Firebase Storage, client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions (1/5 plans complete — Plan 01: Storage SDK + Firestore/Storage rules + proposal-id.js + mount activation)
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [ ] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context)
 
@@ -487,7 +487,12 @@ Plans:
   4. User can mark a proposal as sent to client (with date), log client communications (date, type, description, optional attachment), and mark Client Approved (advances project to "Client Approved" / "For Mobilization") or Loss (advances project to "Loss")
   5. Designated approvers receive a notification when a proposal is submitted for internal approval; the proposal submitter receives a notification when the approval status changes (approved/rejected)
   6. User can view all proposals grouped by stage in a dedicated dashboard inside the Management Tab, with age-in-stage indicators highlighting items that need attention
-**Plans**: TBD
+**Plans**: 5 plans (planned 2026-05-11)
+  - [ ] 87-01-PLAN.md — Firebase Storage SDK setup + firestore.rules `proposals` block + storage.rules + generateProposalId helper + mount activation (PROP-11) — Wave 1
+  - [ ] 87-02-PLAN.md — Proposal Dashboard + Create/Edit modal + Detail modal shell with audit trail render (PROP-01, PROP-02, PROP-10, PROP-04 read side) — Wave 2
+  - [ ] 87-03-PLAN.md — State transitions: Submit/Approve/Reject/Sent/Client Approved/Loss with writeBatch atomicity + NOTIF-09/NOTIF-10 (PROP-03, PROP-04 write side, PROP-07, PROP-11, NOTIF-09, NOTIF-10) — Wave 3
+  - [ ] 87-04-PLAN.md — Attachment widget: link OR single replaceable file via Firebase Storage (PROP-05, PROP-06 scoped — no version history) — Wave 3
+  - [ ] 87-05-PLAN.md — Comms Log inline Add Entry form with optional per-entry attachment + end-of-phase UAT checkpoint (PROP-08) — Wave 4
 **UI hint**: yes
 
 ### Phase 88: Management Tab Shell + Create Engagement
@@ -540,7 +545,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 86.2 | v4.0 | 3/3 | Complete | 2026-05-06 |
 | 86.3 | v4.0 | 5/5 | Complete | 2026-05-06 |
 | 86.4 | v4.0 | 4/4 | Complete | 2026-05-07 |
-| 87 | v4.0 | 0/TBD | Not started | - |
+| 87 | v4.0 | 0/5 | Planned (5 plans, planning 2026-05-11) | - |
 | 88 | v4.0 | 2/2 | Complete | 2026-05-11 |
 | 89 | v4.0 | 0/TBD | Not started | - |
 
