@@ -2535,7 +2535,7 @@
 
 .tg-locked {
     display: block;
-    padding: 4px 6px;
+    padding: 2px 6px; /* [Phase 86.9 Plan 03] D1 — keep parent rows at 42px to match Frappe slots */
     color: var(--gray-700, #475569);
     font-style: italic;
     font-size: 13px;
