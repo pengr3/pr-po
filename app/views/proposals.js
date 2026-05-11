@@ -551,3 +551,414 @@ export async function destroy() {
     selectedPersonnel = [];
     currentEngagementType = 'project';
 }
+
+// ============================================================
+// PHASE 87 — Proposal Dashboard rendering (Plan 02)
+// ============================================================
+
+/**
+ * Status → badge metadata mapping (UI-SPEC Color section).
+ */
+function getProposalStatusBadge(status) {
+    const map = {
+        draft:            { cls: 'badge-secondary',                       label: 'Draft' },
+        pending_internal: { cls: 'status-badge pending',                  label: 'Pending Internal Approval' },
+        pending_client:   { cls: 'status-badge procuring',                label: 'Pending Client Review' },
+        for_revision:     { cls: 'status-badge rejected',                 label: 'For Revision' },
+        client_approved:  { cls: 'status-badge delivered',                label: 'Client Approved' },
+        loss:             { cls: 'status-badge rejected',                 label: 'Loss', extra: 'opacity:0.7;' }
+    };
+    const m = map[status] || { cls: 'badge-secondary', label: status || '—' };
+    return `<span class="${m.cls}"${m.extra ? ` style="${m.extra}"` : ''}>${escapeHTML(m.label)}</span>`;
+}
+
+/**
+ * Days since the proposal entered its current status.
+ * Reads current_status_since (Firestore Timestamp) — set on every transition by Plan 03.
+ */
+function getAgeInStageDays(proposal) {
+    const ts = proposal.current_status_since || proposal.created_at;
+    if (!ts) return 0;
+    let ms;
+    if (ts.toMillis) ms = ts.toMillis();
+    else if (ts.seconds != null) ms = ts.seconds * 1000;
+    else if (typeof ts === 'string') ms = Date.parse(ts);
+    else return 0;
+    return Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24));
+}
+
+function isOverdueInStage(proposal) {
+    const THRESHOLD_DAYS = 7;
+    return ['pending_internal', 'pending_client'].includes(proposal.status)
+        && getAgeInStageDays(proposal) > THRESHOLD_DAYS;
+}
+
+function renderAgeBadge(proposal) {
+    const days = getAgeInStageDays(proposal);
+    const label = days === 1 ? '1 day' : `${days} days`;
+    if (isOverdueInStage(proposal)) {
+        return `<span style="color:#856404;font-size:13px;">${escapeHTML(label)} — needs attention</span>`;
+    }
+    return `<span style="color:#64748b;font-size:13px;">${escapeHTML(label)}</span>`;
+}
+
+/**
+ * Render the entire Proposal Dashboard into #proposal-dashboard-mount.
+ * Called by the proposals onSnapshot listener whenever proposalsData changes.
+ */
+function renderProposalDashboard() {
+    const mount = document.getElementById('proposal-dashboard-mount');
+    if (!mount) return;
+
+    // Stage groups in UI-SPEC order
+    const STAGE_ORDER = [
+        { key: 'pending_internal', label: 'Pending Internal Approval' },
+        { key: 'pending_client',   label: 'Pending Client Review' },
+        { key: 'for_revision',     label: 'For Revision' },
+        { key: 'client_approved',  label: 'Client Approved' },
+        { key: 'loss',             label: 'Loss' }
+    ];
+
+    // Group by status (drafts also surfaced under a single 'draft' group at the bottom)
+    const grouped = {};
+    proposalsData.forEach(p => {
+        const key = p.status || 'draft';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(p);
+    });
+    // Sort within each group: newest first by created_at fallback to title
+    Object.values(grouped).forEach(arr => {
+        arr.sort((a, b) => {
+            const ams = a.created_at?.toMillis ? a.created_at.toMillis() : (a.created_at?.seconds * 1000 || 0);
+            const bms = b.created_at?.toMillis ? b.created_at.toMillis() : (b.created_at?.seconds * 1000 || 0);
+            return bms - ams;
+        });
+    });
+
+    const totalProposals = proposalsData.length;
+
+    // Header with "New Proposal" CTA (verbatim UI-SPEC copy)
+    const header = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:2rem 0 1rem 0;">
+            <h2 style="margin:0;font-size:1.5rem;color:#1e293b;">Proposal Dashboard</h2>
+            <button class="btn btn-primary" onclick="window.openCreateProposalModal()">New Proposal</button>
+        </div>
+    `;
+
+    // Empty state (when no proposals exist at all)
+    if (totalProposals === 0) {
+        mount.innerHTML = header + `
+            <div class="card">
+                <div class="card-body" style="text-align:center;padding:3rem 1.5rem;">
+                    <h3 style="margin:0 0 0.5rem 0;font-size:1.125rem;color:#1e293b;">No proposals yet</h3>
+                    <p style="margin:0;color:#64748b;font-size:0.9375rem;">Create a proposal from the New Engagement section above to begin the proposal lifecycle.</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Build stage group cards (skip empty stages)
+    let groupsHtml = '';
+
+    // Drafts group surfaces above the stages
+    if (grouped['draft'] && grouped['draft'].length > 0) {
+        groupsHtml += renderStageGroupCard('Draft', grouped['draft']);
+    }
+    STAGE_ORDER.forEach(({ key, label }) => {
+        const items = grouped[key] || [];
+        if (items.length === 0) return; // hide empty stages per UI-SPEC
+        groupsHtml += renderStageGroupCard(label, items);
+    });
+
+    mount.innerHTML = header + groupsHtml;
+}
+
+/**
+ * Single stage group card: header (label + count pill) + table of proposal rows.
+ */
+function renderStageGroupCard(label, proposals) {
+    const rowsHtml = proposals.map(p => {
+        const overdueBorder = isOverdueInStage(p)
+            ? 'border-left:3px solid #f59e0b;padding-left:8px;'
+            : '';
+        const titleTruncated = (p.title || '').length > 40
+            ? escapeHTML(p.title.slice(0, 40)) + '…'
+            : escapeHTML(p.title || '—');
+        const amountDisplay = (p.amount != null && p.amount !== '')
+            ? `₱${formatCurrency(p.amount)}`
+            : '—';
+        return `
+            <tr style="${overdueBorder}">
+                <td style="padding:8px 10px;">
+                    <a href="#" onclick="event.preventDefault();window.openProposalDetail('${escapeHTML(p.id)}')"
+                       style="font-size:13px;color:#1a73e8;text-decoration:none;font-weight:500;">${escapeHTML(p.proposal_id || p.id)}</a>
+                </td>
+                <td style="padding:8px 10px;font-size:14px;font-weight:600;color:#1e293b;">${titleTruncated}</td>
+                <td style="padding:8px 10px;font-size:13px;color:#475569;">${escapeHTML(p.project_code || '—')}</td>
+                <td style="padding:8px 10px;font-size:13px;color:#475569;">${escapeHTML(p.target_client_name || '(none)')}</td>
+                <td style="padding:8px 10px;font-size:13px;color:#1e293b;text-align:right;">${amountDisplay}</td>
+                <td style="padding:8px 10px;">${renderAgeBadge(p)}</td>
+                <td style="padding:8px 10px;">
+                    <button class="btn btn-sm btn-outline" onclick="window.openProposalDetail('${escapeHTML(p.id)}')" aria-label="View proposal">View</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-header" style="display:flex;align-items:center;gap:0.5rem;padding:0.75rem 1rem;background:#f8f9fa;border-bottom:1px solid #e5e7eb;">
+                <span style="font-size:15px;font-weight:600;color:#1e293b;">${escapeHTML(label)}</span>
+                <span class="badge-secondary" style="padding:2px 8px;font-size:12px;background:#e5e7eb;color:#374151;border-radius:9999px;">${proposals.length}</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;">
+                            <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">PROP ID</th>
+                            <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Title</th>
+                            <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Project</th>
+                            <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Client</th>
+                            <th style="padding:8px 10px;text-align:right;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Amount</th>
+                            <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Age in Stage</th>
+                            <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+// ============================================================
+// PHASE 87 — Audit Trail rendering (Plan 02)
+// ============================================================
+
+const AUDIT_ACTION_DOT_COLORS = {
+    CREATED:              '#64748b',
+    SUBMITTED:            '#1a73e8',
+    APPROVED:             '#059669',
+    REJECTED:             '#ea4335',
+    ATTACHMENT_REPLACED:  '#f59e0b',
+    SENT_TO_CLIENT:       '#1a73e8',
+    CLIENT_APPROVED:      '#059669',
+    LOSS_RECORDED:        '#ea4335'
+};
+
+const AUDIT_ACTION_LABELS = {
+    CREATED:              'Created',
+    SUBMITTED:            'Submitted for Approval',
+    APPROVED:             'Approved',
+    REJECTED:             'Rejected',
+    ATTACHMENT_REPLACED:  'Attachment Replaced',
+    SENT_TO_CLIENT:       'Sent to Client',
+    CLIENT_APPROVED:      'Client Approved',
+    LOSS_RECORDED:        'Marked as Loss'
+};
+
+/**
+ * Render the vertical audit-trail thread (newest first).
+ */
+function renderAuditTrail(proposal) {
+    const entries = (proposal.audit_log || []).slice().sort((a, b) => {
+        const ams = a.ts?.toMillis ? a.ts.toMillis() : (a.ts?.seconds * 1000 || 0);
+        const bms = b.ts?.toMillis ? b.ts.toMillis() : (b.ts?.seconds * 1000 || 0);
+        return bms - ams; // newest first
+    });
+    if (entries.length === 0) {
+        return `<div style="color:#64748b;font-size:13px;">No audit entries.</div>`;
+    }
+    const itemsHtml = entries.map((e, idx) => {
+        const dotColor = AUDIT_ACTION_DOT_COLORS[e.action] || '#64748b';
+        const label = AUDIT_ACTION_LABELS[e.action] || (e.action || 'Unknown');
+        const tsLabel = e.ts ? formatTimestamp(e.ts) : '';
+        const commentHtml = e.comment
+            ? `<div style="font-size:13px;color:#1e293b;font-style:italic;margin-top:4px;">${escapeHTML(e.comment)}</div>`
+            : '';
+        const connector = idx < entries.length - 1
+            ? `<div style="position:absolute;left:3px;top:12px;bottom:-8px;width:1px;background:#e2e8f0;"></div>`
+            : '';
+        return `
+            <div style="position:relative;padding-left:20px;padding-bottom:12px;">
+                <div style="position:absolute;left:0;top:4px;width:8px;height:8px;border-radius:50%;background:${dotColor};"></div>
+                ${connector}
+                <div style="font-size:13px;font-weight:600;color:#1e293b;">${escapeHTML(label)}</div>
+                <div style="font-size:13px;color:#64748b;">${escapeHTML(tsLabel)} · ${escapeHTML(e.actor_name || '—')}</div>
+                ${commentHtml}
+            </div>
+        `;
+    }).join('');
+    return itemsHtml;
+}
+
+// ============================================================
+// PHASE 87 — Proposal Detail modal (Plan 02)
+// ============================================================
+
+/**
+ * Build action button HTML based on proposal.status and current user role.
+ * Plan 02: buttons render but call STUB window functions that toast 'Plan 03'.
+ */
+function renderProposalActionButtons(proposal) {
+    const cu = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const canApprove = ['super_admin', 'operations_admin'].includes(cu?.role);
+    const status = proposal.status || 'draft';
+    const docId = escapeHTML(proposal.id);
+
+    let buttons = [];
+    if (status === 'draft' || status === 'for_revision') {
+        if (canApprove) {
+            buttons.push(`<button class="btn btn-primary" style="width:100%;" onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button>`);
+        }
+        buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.openEditProposalModal('${docId}')">Edit Proposal</button>`);
+    } else if (status === 'pending_internal') {
+        if (canApprove) {
+            buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openApproveModal('${docId}')">Approve Proposal</button>`);
+            buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openRejectModal('${docId}')">Reject Proposal</button>`);
+        }
+    } else if (status === 'pending_client') {
+        if (canApprove) {
+            buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.submitMarkSentToClient('${docId}')">Mark Sent to Client</button>`);
+            buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openClientApprovedModal('${docId}')">Client Approved</button>`);
+            buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openLossModal('${docId}')">Mark as Loss</button>`);
+        }
+    }
+    // client_approved + loss: no further actions (UI-SPEC table)
+
+    if (buttons.length === 0) {
+        return `<div style="font-size:13px;color:#64748b;">No further actions.</div>`;
+    }
+    return `<div style="display:flex;flex-direction:column;gap:8px;">${buttons.join('')}</div>`;
+}
+
+/**
+ * Build the Proposal Detail modal HTML for the given proposal doc.
+ */
+function buildProposalDetailModalHtml(proposal) {
+    const titleSafe = escapeHTML((proposal.title || '').slice(0, 50));
+    const idSafe = escapeHTML(proposal.proposal_id || proposal.id);
+    return `
+    <div id="proposalDetailModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:900px;max-height:85vh;display:flex;flex-direction:column;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${idSafe} — ${titleSafe}</h2>
+                <button class="modal-close" aria-label="Close proposal detail" onclick="window.closeProposalDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;overflow-y:auto;flex:1;display:grid;grid-template-columns:3fr 2fr;gap:1.5rem;">
+                <!-- LEFT: details + comms log + attachment -->
+                <div>
+                    ${buildProposalDetailsBlock(proposal)}
+                    ${buildAttachmentSection(proposal)}
+                    ${buildCommsLogSection(proposal)}
+                </div>
+                <!-- RIGHT: audit trail + action buttons -->
+                <div>
+                    <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0 0 0.75rem 0;">Audit Trail</h3>
+                    ${renderAuditTrail(proposal)}
+                    <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
+                    <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0 0 0.75rem 0;">Actions</h3>
+                    ${renderProposalActionButtons(proposal)}
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span>${getProposalStatusBadge(proposal.status || 'draft')}</span>
+                <button class="btn btn-outline" onclick="window.closeProposalDetailModal()">Close</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function buildProposalDetailsBlock(proposal) {
+    const amount = (proposal.amount != null && proposal.amount !== '')
+        ? `₱${formatCurrency(proposal.amount)}`
+        : '—';
+    return `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+            <div style="grid-column:1/-1;">
+                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Title</div>
+                <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.title || '—')}</div>
+            </div>
+            <div style="grid-column:1/-1;">
+                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Description</div>
+                <div style="color:#1e293b;font-size:14px;line-height:1.5;white-space:pre-wrap;">${escapeHTML(proposal.description || '—')}</div>
+            </div>
+            <div>
+                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Amount</div>
+                <div style="font-weight:600;color:#1e293b;">${amount}</div>
+            </div>
+            <div>
+                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Target Client</div>
+                <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.target_client_name || '(none)')}</div>
+            </div>
+            <div>
+                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Project</div>
+                <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.project_code || '—')}</div>
+            </div>
+            <div>
+                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Version</div>
+                <div style="font-weight:600;color:#1e293b;">v1</div>
+            </div>
+        </div>
+    `;
+}
+
+/** Placeholder for Plan 04 — attachment widget. Renders a disabled placeholder. */
+function buildAttachmentSection(proposal) {
+    const has = !!(proposal.attachment_kind);
+    return `
+        <div style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
+            <div style="font-size:13px;color:#64748b;margin-bottom:6px;">Attachment</div>
+            <div style="font-size:14px;color:#1e293b;">${has ? escapeHTML(proposal.attachment_filename || 'Attached') : 'No attachment'}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:6px;">Attachment widget ships in Plan 04.</div>
+        </div>
+    `;
+}
+
+/** Placeholder for Plan 05 — comms log + inline add form. Renders entries read-only. */
+function buildCommsLogSection(proposal) {
+    const entries = (proposal.comms_log || []).slice().sort((a, b) => {
+        const ad = a.logged_at?.toMillis ? a.logged_at.toMillis() : (a.logged_at?.seconds * 1000 || 0);
+        const bd = b.logged_at?.toMillis ? b.logged_at.toMillis() : (b.logged_at?.seconds * 1000 || 0);
+        return bd - ad;
+    });
+    const items = entries.length === 0
+        ? `<div style="font-size:13px;color:#64748b;">No communications logged yet. Use + Add Entry to record client contact.</div>`
+        : entries.map(e => `
+            <div style="padding:8px 0;border-bottom:1px solid #f1f5f9;">
+                <div style="font-size:13px;color:#475569;">${escapeHTML(e.date || '')} · ${escapeHTML(e.type || '')}</div>
+                <div style="font-size:14px;color:#1e293b;margin-top:2px;">${escapeHTML(e.description || '')}</div>
+            </div>
+        `).join('');
+    return `
+        <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0;">Client Communications</h3>
+                <button class="btn btn-sm btn-outline" onclick="window.toggleAddCommsForm('${escapeHTML(proposal.id)}')">+ Add Entry</button>
+            </div>
+            ${items}
+            <div id="commsLogAddForm-${escapeHTML(proposal.id)}" style="display:none;margin-top:1rem;">
+                <div style="font-size:12px;color:#94a3b8;">Add Entry form ships in Plan 05.</div>
+            </div>
+        </div>
+    `;
+}
+
+function openProposalDetail(proposalDocId) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) {
+        showToast('Proposal not found.', 'error');
+        return;
+    }
+    currentProposal = proposal;
+    const existing = document.getElementById('proposalDetailModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(proposal));
+}
+
+function closeProposalDetailModal() {
+    const el = document.getElementById('proposalDetailModal');
+    if (el) el.remove();
+    currentProposal = null;
+}
