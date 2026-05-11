@@ -1,46 +1,33 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-11T00:32:17Z",
-  "phase": "88",
-  "phase_name": "Proposals Tab Shell + Create Engagement (renamed from Management)",
-  "phase_dir": ".planning/phases/88-management-tab-shell-create-engagement",
-  "plan": 1,
-  "task": 4,
-  "total_tasks": 8,
-  "status": "paused_at_uat_checkpoint",
+  "timestamp": "2026-05-11T12:00:00Z",
+  "phase": "86.9",
+  "phase_name": "gantt-curtain-divider-pdf-export",
+  "phase_dir": ".planning/phases/86.9-gantt-curtain-divider-pdf-export",
+  "plan": 2,
+  "task": 3,
+  "total_tasks": 3,
+  "status": "paused",
   "completed_tasks": [
-    { "id": "88-01-T1", "name": "Extract app/engagement-create.js helper", "status": "done", "commit": "ca3c9d9" },
-    { "id": "88-01-T2", "name": "projects.js delegates to createEngagement (refactor)", "status": "done", "commit": "688f647" },
-    { "id": "88-01-T3", "name": "services.js delegates to createEngagement (refactor)", "status": "done", "commit": "3005188" },
-    { "id": "88-01-SUMMARY", "name": "Write 88-01-SUMMARY.md", "status": "done", "commit": "8c8f9ec" }
+    {"id": 1, "name": "Phase 86.9 Plan 01 — curtain overlay panel resize", "status": "done", "commit": "5669c71"},
+    {"id": 2, "name": "Phase 86.9 Plan 02 — PDF export via window.print()", "status": "done", "commit": "adb9def"},
+    {"id": 3, "name": "Code review fixes (task name field, mobile CSS, double-click guard)", "status": "done", "commit": "beac9a9"},
+    {"id": 4, "name": "Name column cap fix (width:auto + tg-name 200px)", "status": "done", "commit": "17a425b"}
   ],
   "remaining_tasks": [
-    { "id": "88-01-T4", "name": "Browser UAT for Plan 88-01 refactor (5 flows: project create, clientless project, service create, edit existing, console clean)", "status": "in_progress_awaiting_user" },
-    { "id": "88-02-T1", "name": "Add Proposals nav link + #/proposals route + role gate (index.html + app/auth.js + app/router.js)", "status": "not_started" },
-    { "id": "88-02-T2", "name": "Create app/views/proposals.js with inline New Engagement form (calls createEngagement w/ projectStatus='Draft')", "status": "not_started" },
-    { "id": "88-02-T3", "name": "Draft consumer audit: procurement, mrf-form, finance, home (filter Draft from operational lists; add Draft palette entry to home.js)", "status": "not_started" },
-    { "id": "88-02-T4", "name": "Browser UAT for Plan 88-02", "status": "not_started" },
-    { "id": "PHASE-CLOSE", "name": "Update STATE.md + ROADMAP.md to mark Phase 88 complete; rename Phase 89 stub from 'Management Tab' to 'Proposals Tab'", "status": "not_started" }
+    {"id": 5, "name": "Phase 86.5 browser UAT — 4 items pending in VERIFICATION.md (status: human_needed)", "status": "not_started"},
+    {"id": 6, "name": "PDF export improvements — user noted future improvements wanted (scope TBD)", "status": "not_started"}
   ],
-  "blockers": [
-    { "description": "Plan 88-01 UAT not yet performed — user paused before browser verification", "type": "human_action", "workaround": "On resume: run UAT first OR auto-approve if user signals refactor is byte-equivalent" }
-  ],
+  "blockers": [],
   "human_actions_pending": [
-    { "action": "Plan 88-01 UAT in browser", "context": "5 flows listed in .continue-here.md; refactor is pure (no behavior change expected) so quick smoke-test should suffice", "blocking": true }
+    {"action": "Browser UAT for Phase 86.5 (panel header alignment, bar drag-resize, Back button, Excel task entry)", "context": "VERIFICATION.md status: human_needed, 4 items awaiting browser test", "blocking": false}
   ],
   "decisions": [
-    { "decision": "Phase 88 ships before Phase 87 per CONTEXT D-01", "rationale": "PROP-10 dashboard mounts inside the Proposals tab; tab must exist first", "phase": "87+88" },
-    { "decision": "Tab renamed 'Management' to 'Proposals' per user during /gsd-discuss-phase 88", "rationale": "Long-term shape fits — Phase 87 dashboard + Phase 89 queue are the heavyweight features; MGMT-* IDs retained for traceability", "phase": "88" },
-    { "decision": "Nav placement between Finance and Admin (D-02)", "rationale": "Super Admin only; matches existing top-nav order", "phase": "88" },
-    { "decision": "Inline form pattern on Proposals tab; locked section ordering: New Engagement -> [89 queue] -> [87 dashboard] (D-03)", "rationale": "One scrollable surface; downstream phases add sections, not nested routes", "phase": "88" },
-    { "decision": "Extract shared app/engagement-create.js helper; refactor projects.js + services.js call sites in same plan (D-04)", "rationale": "Avoid orphan-ownership drift between Proposals-tab form and existing create flows", "phase": "88-01" },
-    { "decision": "Default project_status = 'Draft' for engagements created from Proposals tab (D-05); existing project/service forms keep user-picked status", "rationale": "Pre-proposal state; Phase 87 lifecycle advances from Draft", "phase": "88+87" },
-    { "decision": "CLMC is not an authoring platform (CONTEXT 87 D-03)", "rationale": "User clarified during /gsd-discuss-phase 87: proposals attach links/files for review, NOT in-house authoring. PROP-06 versioning out-of-scope. Saved to user memory at project_clmc_not_authoring_platform.md", "phase": "87" },
-    { "decision": "Plan-checker WARN to PASS via supersedes_from_plan_review block in 88-02-PLAN.md", "rationale": "5 fixes folded: HIGH-1 (utils.js import path), HIGH-2 (UAT MGMT-07 role), MED-1 (finance.js filter pointer + lock to filter-only), MED-2 (drop dead .status-badge.draft), MED-3 (home.js Draft palette entry)", "phase": "88-02" }
+    {"decision": "curtain overlay uses position:absolute on gantt-pane, position:relative on .plan-split-pane", "rationale": "prevents task-grid-rail columns from shrinking on divider drag", "phase": "86.9"},
+    {"decision": "task-grid table width:auto (not 100%) + tg-name width:200px (not auto)", "rationale": "prevents name column from stretching across full-width rail when curtain is retracted", "phase": "86.9"},
+    {"decision": "exportGanttPDF uses window.print() — zero CDN dependencies", "rationale": "zero-build SPA constraint; native browser PDF via Save as PDF", "phase": "86.9"}
   ],
-  "uncommitted_files": [
-    ".claude/worktrees/ (untracked — orphan executor worktrees from earlier sessions; harmless)"
-  ],
-  "next_action": "Resume Plan 88-01 UAT: ask user via AskUserQuestion whether the 5 flows verified clean, or whether to skip UAT and proceed to Plan 88-02. If approved: spawn gsd-executor for Plan 88-02 (Wave 2) following the supersedes_from_plan_review block in 88-02-PLAN.md.",
-  "context_notes": "Auto mode was active this session. Shipped Phase 86.8 (16 commits, 7 Gantt UX features + UAT defect fixes), captured CONTEXT for Phase 87 (proposal lifecycle — blocked on 88), captured CONTEXT for Phase 88 (proposals tab — renamed from Management), drafted + reviewed + corrected Phase 88 plans, executed Plan 88-01 (refactor). Paused at Plan 88-01 UAT checkpoint. Branch v3.3 has ~25 commits ahead of main; no PR opened yet (user has not requested ship-to-remote)."
+  "uncommitted_files": [],
+  "next_action": "Run /gsd-verify-work 86.5 to resume Phase 86.5 browser UAT, then pick up PDF export improvements",
+  "context_notes": "Phase 86.9 is complete and pushed to origin/v3.3. Phase 86.5 is also code-complete but pending browser UAT (4 items in 86.5 VERIFICATION.md). User wants PDF export improvements but deferred to after addressing immediate issues."
 }
