@@ -1453,3 +1453,139 @@ async function submitMarkSentToClient(proposalDocId) {
         showLoading(false);
     }
 }
+
+// ============================================================
+// PHASE 87 — Approve / Reject sub-modals (Plan 03)
+// ============================================================
+
+function openApproveModal(proposalDocId) {
+    _openApproveOrRejectModal(proposalDocId, 'approve');
+}
+
+function openRejectModal(proposalDocId) {
+    _openApproveOrRejectModal(proposalDocId, 'reject');
+}
+
+function _openApproveOrRejectModal(proposalDocId, mode) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_internal') {
+        showToast('Approve/Reject is only available for proposals pending internal approval.', 'error');
+        return;
+    }
+
+    const config = (mode === 'approve')
+        ? {
+            modalId: 'proposalApproveModal',
+            heading: 'Approve Proposal',
+            body: 'Approving this proposal will advance the project status to \'Proposal Under Client Review\'. This action is recorded in the audit trail.',
+            label: 'Approval Notes',
+            placeholder: 'Describe your review decision...',
+            confirmLabel: 'Confirm Approval',
+            confirmClass: 'btn-success'
+        }
+        : {
+            modalId: 'proposalRejectModal',
+            heading: 'Reject Proposal',
+            body: 'Rejecting this proposal will move it back to \'For Revision\'. The submitter will be notified.',
+            label: 'Rejection Reason',
+            placeholder: 'Explain what needs to be changed...',
+            confirmLabel: 'Confirm Rejection',
+            confirmClass: 'btn-danger'
+        };
+
+    const existing = document.getElementById(config.modalId);
+    if (existing) existing.remove();
+
+    const html = `
+    <div id="${config.modalId}" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${escapeHTML(config.heading)}</h2>
+                <button class="modal-close" aria-label="Close" onclick="document.getElementById('${config.modalId}').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">${escapeHTML(config.body)}</p>
+                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">${escapeHTML(config.label)} <span style="color:#ef4444;">*</span></label>
+                <textarea id="proposalActionComment" rows="4" placeholder="${escapeHTML(config.placeholder)}" style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                <div id="proposalActionCommentError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('${config.modalId}').remove()">Cancel</button>
+                <button class="${'btn ' + config.confirmClass}" onclick="window.submitProposalApproval('${escapeHTML(proposalDocId)}', '${mode}')">${escapeHTML(config.confirmLabel)}</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+// ============================================================
+// PHASE 87 — submitProposalApproval — handles both approve and reject
+// ============================================================
+async function submitProposalApproval(proposalDocId, mode) {
+    const proposal = proposalsData.find(p => p.id === proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_internal') {
+        showToast('Proposal status changed. Please reload.', 'error');
+        return;
+    }
+
+    const commentEl = document.getElementById('proposalActionComment');
+    const errEl = document.getElementById('proposalActionCommentError');
+    const comment = (commentEl?.value || '').trim();
+    const fieldLabel = (mode === 'approve') ? 'Approval Notes' : 'Rejection Reason';
+    if (comment.length < 10) {
+        if (errEl) {
+            errEl.textContent = `${fieldLabel} is required (minimum 10 characters).`;
+            errEl.style.display = 'block';
+        }
+        return;
+    }
+
+    const modalId = (mode === 'approve') ? 'proposalApproveModal' : 'proposalRejectModal';
+    const newStatus = (mode === 'approve') ? 'pending_client' : 'for_revision';
+    const newProjectStatus = (mode === 'approve') ? 'Proposal Under Client Review' : 'For Revision';
+    const auditAction = (mode === 'approve') ? 'APPROVED' : 'REJECTED';
+    const successToast = (mode === 'approve')
+        ? 'Proposal approved. Project status updated.'
+        : 'Proposal rejected. Submitter has been notified.';
+
+    showLoading(true);
+    try {
+        const newAuditEntry = await _applyProposalStateTransition({
+            proposal,
+            newStatus,
+            newProjectStatus,
+            auditAction,
+            auditComment: comment
+        });
+
+        // NOTIF-10 — single recipient: proposal.created_by (the submitter)
+        try {
+            if (proposal.created_by) {
+                const actionVerb = (mode === 'approve') ? 'approved' : 'rejected';
+                const excerpt = comment.length > 60 ? comment.slice(0, 60) + '…' : comment;
+                await createNotification({
+                    user_id: proposal.created_by,
+                    type: NOTIFICATION_TYPES.PROPOSAL_DECIDED,
+                    message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
+                    link: `#/proposals?id=${proposal.proposal_id}`,
+                    source_collection: 'proposals',
+                    source_id: proposal.proposal_id
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Proposals] NOTIF-10 failed:', notifErr);
+        }
+
+        const sub = document.getElementById(modalId);
+        if (sub) sub.remove();
+        showToast(successToast, 'success');
+        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: newStatus });
+    } catch (err) {
+        console.error('[Proposals] submitProposalApproval failed:', err);
+        showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
