@@ -20,7 +20,9 @@ const routePermissionMap = {
     '/admin': 'role_config',
     // Every active user has access to notifications — no role gate needed.
     // Maps to 'dashboard' (same neutral key as '/') so the existing auth+active check applies.
-    '/notifications': 'dashboard'
+    '/notifications': 'dashboard',
+    // Phase 88 D-02 — Proposals tab is super_admin-only; hard-gated in navigate() below.
+    '/proposals': 'proposals'
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -112,6 +114,11 @@ const routes = {
         name: 'Notifications',
         load: () => import('./views/notifications.js'),
         title: 'Notifications | CLMC Operations'
+    },
+    '/proposals': {
+        name: 'Proposals',
+        load: () => import('./views/proposals.js'),
+        title: 'Proposals | CLMC Operations'
     }
 };
 
@@ -279,6 +286,18 @@ export async function navigate(path, tab = null, param = null) {
         // - true = has permission (allow)
         if (hasAccess === false) {
             console.warn('[Router] Access denied to:', path);
+            showAccessDenied();
+            return;
+        }
+    }
+
+    // Phase 88 D-02 / MGMT-02 — hard super_admin gate (defense in depth on top of
+    // the permission system; ensures no role-template misconfiguration ever exposes
+    // the Proposals surface to a non-super-admin).
+    if (path === '/proposals') {
+        const user = window.getCurrentUser?.();
+        if (!user || user.role !== 'super_admin') {
+            console.warn('[Router] Non-super-admin blocked from /proposals');
             showAccessDenied();
             return;
         }

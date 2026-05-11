@@ -402,6 +402,14 @@ function updateNavForAuth(user) {
             link.style.display = hasAccess ? '' : 'none';
         });
 
+        // Phase 88 D-02 — Proposals tab is super_admin-only regardless of role-template config.
+        // Hard-coded visibility mirrors the router-level gate in app/router.js navigate().
+        const proposalsLinks = document.querySelectorAll('[data-route="proposals"]');
+        const isSuperAdmin = user.role === 'super_admin';
+        proposalsLinks.forEach(el => {
+            el.style.display = isSuperAdmin ? '' : 'none';
+        });
+
         // Handle dropdown containers (Admin dropdown)
         const dropdowns = document.querySelectorAll('.nav-dropdown[data-route]');
         dropdowns.forEach(dropdown => {
@@ -437,6 +445,10 @@ function updateNavForAuth(user) {
         dropdowns.forEach(dropdown => {
             dropdown.style.display = 'none';
         });
+
+        // Phase 88 D-02 — hide Proposals links for unauthenticated users.
+        const proposalsLinks = document.querySelectorAll('[data-route="proposals"]');
+        proposalsLinks.forEach(el => { el.style.display = 'none'; });
 
         // Hide all mobile nav items
         const mobileItems = document.querySelectorAll('.mobile-nav-item[data-route]');
