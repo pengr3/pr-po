@@ -709,8 +709,8 @@ function renderTaskGrid() {
           <tr class="tg-row${contextClass}" data-task-id="${escapeHTML(t.task_id)}">
             <td class="tg-rn" draggable="true">${rowNum}</td>
             <td class="tg-name" style="padding-left:${indent}px;">
-              ${collapseToggle}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
-                     data-task-id="${escapeHTML(t.task_id)}">
+              <div class="tg-name-inner">${collapseToggle}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
+                     data-task-id="${escapeHTML(t.task_id)}"></div>
             </td>
             <td class="tg-dur"${parentLockAttr}>
               ${isParent
