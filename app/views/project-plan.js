@@ -196,9 +196,24 @@ export async function init(activeTab = null, param = null) {
                         if (!presentIds.has(optId)) tasks.push(optTask);
                     });
                 }
+                // Save gantt vertical scroll before rendering. gantt.refresh() calls
+                // clear() → svg.innerHTML='' which clamps scrollTop to 0. Frappe then
+                // fires set_scroll_position() via setTimeout (scrollLeft change) which
+                // emits a scroll event → _syncScrollPaneHandler → rail.scrollTop=0.
+                // Restoring ganttEl.scrollTop synchronously after bindScrollSync() means
+                // the deferred scroll event propagates the correct position to the rail.
+                const _snapGanttEl = document.querySelector('#ganttPane .gantt-container');
+                const _snapSavedScroll = _snapGanttEl?.scrollTop || 0;
+
                 renderTaskGrid();
                 if (!_ganttBarDragging) renderGantt(); // Phase 86.7: suppress mid-drag re-render
                 bindScrollSync(); // Phase 86.4 D-SCROLL
+
+                if (_snapSavedScroll > 0) {
+                    const _snapGanttElAfter = document.querySelector('#ganttPane .gantt-container');
+                    if (_snapGanttElAfter) _snapGanttElAfter.scrollTop = _snapSavedScroll;
+                }
+
                 if (__snapshotCount > 0) checkAndToastFsViolations();
                 __snapshotCount++;
             }
@@ -627,6 +642,7 @@ function getVisibleByFilter(t) {
 function renderTaskGrid() {
     const container = document.getElementById('taskGridRail');
     if (!container) return;
+    const _savedScrollTop = container.scrollTop; // innerHTML replace resets scrollTop — preserve it
 
     // Depth-first hierarchical walk — same algorithm renderGantt uses for frappeTasks.
     // Siblings are sorted by row_order asc, but parents always precede their subtrees so the
@@ -659,6 +675,7 @@ function renderTaskGrid() {
               </tbody>
             </table>`;
         bindGridEvents(container);
+        container.scrollTop = _savedScrollTop;
         return;
     }
 
@@ -786,6 +803,7 @@ function renderTaskGrid() {
     // __new__ input, causing handleNewRowCommit to fire again with the old value — creating
     // an infinite add-task loop. Moving it here ensures handlers attach to the fresh DOM.
     bindGridEvents(container);
+    container.scrollTop = _savedScrollTop; // restore — must come after innerHTML/bindGridEvents
 
     // Phase 86.5-08: restore empty-row input state after innerHTML replace
     if (_savedEmptyRow) {
@@ -1068,10 +1086,9 @@ async function handleNewRowCommit(input) {
     const maxOrder = tasks.reduce((m, t) => Math.max(m, t.row_order ?? 0), 0);
     const newRowOrder = maxOrder + 1;
 
-    // DEFECT-6: inherit parent from the last sorted task above; Phase 86.3 D-04/D-05: anchor on row above
-    const sortedForInherit = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
-    const inheritedParentId = sortedForInherit[sortedForInherit.length - 1]?.parent_task_id ?? null;
-    const rowAbove = sortedForInherit[sortedForInherit.length - 1];
+    const visualOrder = flattenTreeDepthFirst(tasks);
+    const rowAbove = visualOrder[visualOrder.length - 1] ?? null;
+    const inheritedParentId = rowAbove?.parent_task_id ?? null;
     const anchorStart = rowAbove?.start_date || formatDateISO(new Date());
 
     const docData = {
@@ -1100,6 +1117,7 @@ async function handleNewRowCommit(input) {
     tasks.push(optimisticTask);
     _pendingOptimistic.set(taskId, optimisticTask); // Phase 86.5-08: survive snapshot wipes
     renderTaskGrid();
+    fixGanttContainerScroll(); // grid now has one more row than the Gantt SVG — re-sync spacer
 
     try {
         await setDoc(doc(db, 'project_tasks', taskId), docData);
@@ -1110,6 +1128,7 @@ async function handleNewRowCommit(input) {
         const idx = tasks.findIndex(t => t.task_id === taskId);
         if (idx >= 0) tasks.splice(idx, 1);
         renderTaskGrid();
+        fixGanttContainerScroll(); // task removed — re-sync spacer back to steady state
         showToast(err?.code === 'permission-denied'
             ? `You don't have permission to add tasks on this project.`
             : 'Could not create task. Please try again.', 'error');
@@ -1159,7 +1178,7 @@ function showTaskContextMenu(event, taskId) {
 
     const menu = document.createElement('div');
     menu.id = 'taskGridContextMenu';
-    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;visibility:hidden;`;
 
     menu.innerHTML = `
         <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(t.name || taskId)}</div>
@@ -1186,6 +1205,11 @@ function showTaskContextMenu(event, taskId) {
         </div>
     `;
     document.body.appendChild(menu);
+    // Flip up/left if menu overflows viewport
+    const mh = menu.offsetHeight, mw = menu.offsetWidth;
+    if (event.clientY + mh > window.innerHeight) menu.style.top = Math.max(0, event.clientY - mh) + 'px';
+    if (event.clientX + mw > window.innerWidth) menu.style.left = Math.max(0, event.clientX - mw) + 'px';
+    menu.style.visibility = '';
     // Dismiss on outside click — 10ms delay (mirrors procurement.js pattern)
     setTimeout(() => {
         document.addEventListener('click', function handler() {
@@ -3091,14 +3115,20 @@ function exportGanttPDF() {
     const dateStr = new Date().toLocaleString();
     const projectName = currentProject?.project_name || projectCode || 'Project';
 
-    // Build task summary table rows — all tasks, sorted by existing tasks[] order (onSnapshot order)
-    const tableRows = tasks.map(t => {
+    // Build task summary table rows in tree display order (depth-first, matches live grid)
+    const tableRows = flattenTreeDepthFirst(tasks).map(t => {
         const name = escapeHTML(t.name || '(unnamed)');
         const progress = t.progress ?? 0;
         const start = t.start_date || '—';
         const end = t.end_date || '—';
         const status = progress >= 100 ? 'Complete' : progress > 0 ? 'In Progress' : 'Not Started';
-        const indent = t.parent_task_id ? 'style="padding-left:20px;"' : '';
+        let depth = 0, cur = t;
+        while (cur.parent_task_id) {
+            depth++;
+            cur = tasks.find(x => x.task_id === cur.parent_task_id) || {};
+            if (!cur.task_id) break;
+        }
+        const indent = depth > 0 ? `style="padding-left:${depth * 16}px;"` : '';
         return `<tr>
             <td ${indent}>${name}</td>
             <td>${progress}%</td>
@@ -3141,9 +3171,17 @@ function exportGanttPDF() {
             </table>
         </div>
     `;
-    // [Phase 86.9 Plan 03] D2 — #ganttHeaderOverlay (Phase 86.7) re-anchors when re-parented and duplicates the header row in print
-    frame.querySelectorAll('#ganttHeaderOverlay').forEach(el => el.remove());
     document.body.appendChild(frame);
+    // Crop leading empty space: shift both the gantt container and header to start just before the first bar
+    const allBars = [...frame.querySelectorAll('.bar-wrapper .bar')];
+    const minBarX = allBars.length ? Math.min(...allBars.map(r => parseFloat(r.getAttribute('x') || '0'))) : 0;
+    const printColWidth = gantt?.config?.column_width || 140;
+    const cropX = Math.max(0, minBarX - printColWidth); // one column of breathing room before first bar
+    const clonedContainer = frame.querySelector('.gantt-container');
+    if (clonedContainer) clonedContainer.style.marginLeft = `-${cropX}px`;
+    const weekOffset = parseFloat(frame.querySelector('#ganttHeaderOverlay')?.dataset?.weekOffset || '0');
+    const ghoInner = frame.querySelector('.gho-inner');
+    if (ghoInner) ghoInner.style.transform = `translateX(${-(weekOffset + cropX)}px)`;
 
     showToast('Opening print dialog — choose "Save as PDF" to download.', 'info');
     window.print();
