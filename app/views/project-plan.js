@@ -1537,11 +1537,16 @@ async function gridPasteRows(afterTaskId) {
     const afterIdx = visualOrder.indexOf(afterTaskId);
     const afterTask = tasks.find(t => t.task_id === afterTaskId);
     const pasteParentId = afterTask?.parent_task_id ?? null;
-    console.log('[Paste] afterTaskId:', afterTaskId, '| afterTask.name:', afterTask?.name || afterTask?.task_name, '| pasteParentId:', pasteParentId);
 
     // Sort clipboard by original row_order so parents come before children
     const sorted = _clipboardTasks.slice().sort((a, b) => (a.row_order ?? 0) - (b.row_order ?? 0));
     const origIdSet = new Set(sorted.map(x => x._orig_id));
+    // If the clipboard contains parent-child pairs, preserve original depth for root items.
+    // If the clipboard is a flat selection (no internal hierarchy), drop root items at the
+    // paste target's indent level (pasteParentId).
+    const hasInternalHierarchy = sorted.some(
+        item => item.parent_task_id && origIdSet.has(item.parent_task_id)
+    );
 
     showLoading(true);
     try {
@@ -1564,11 +1569,12 @@ async function gridPasteRows(afterTaskId) {
         const newIds = [];
         for (const item of sorted) {
             const newTaskId = oldToNew[item._orig_id];
-            // If this item's original parent was also copied, remap to the new parent ID;
-            // otherwise it's a root of the pasted group → land at afterTask's indent level.
+            // If this item's original parent was also copied, remap to the new parent ID.
+            // For root items (parent not in clipboard): preserve original depth when the clipboard
+            // carries internal hierarchy; otherwise drop at the paste target's indent level.
             const newParentId = (item.parent_task_id && origIdSet.has(item.parent_task_id))
                 ? oldToNew[item.parent_task_id]
-                : pasteParentId;
+                : (hasInternalHierarchy ? (item.parent_task_id ?? null) : pasteParentId);
             const anchorDate = item.start_date || formatDateISO(new Date());
             await setDoc(doc(db, 'project_tasks', newTaskId), {
                 task_id: newTaskId,
