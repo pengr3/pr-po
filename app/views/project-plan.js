@@ -1499,12 +1499,15 @@ function showDeleteConfirmModal(taskId, childCount) {
 
 // gridCopyRows(taskIds) — saves task data to _clipboardTasks; shows toast.
 // Accepts a JSON string or an array of task ID strings.
+// _orig_id and row_order are saved so gridPasteRows can remap internal parent references.
 function gridCopyRows(taskIds) {
     const ids = typeof taskIds === 'string' ? JSON.parse(taskIds) : taskIds;
     _clipboardTasks = ids
         .map(id => tasks.find(t => t.task_id === id))
         .filter(Boolean)
         .map(t => ({
+            _orig_id: t.task_id,
+            row_order: t.row_order ?? 0,
             task_name: t.name || t.task_name || '',
             parent_task_id: t.parent_task_id || null,
             start_date: t.start_date || null,
@@ -1519,7 +1522,10 @@ function gridCopyRows(taskIds) {
     showToast(`${_clipboardTasks.length} task(s) copied`, 'success');
 }
 
-// gridPasteRows(afterTaskId) — creates new Firestore task documents below the given row.
+// gridPasteRows(afterTaskId) — creates new Firestore task documents below the given row,
+// preserving the internal parent-child hierarchy of the copied selection.
+// Root clipboard tasks (whose original parent was outside the copied set) land at the same
+// indent level as afterTaskId. Children of copied tasks keep their relative nesting.
 async function gridPasteRows(afterTaskId) {
     if (_clipboardTasks.length === 0) return;
     if (!currentProject?.project_code) {
@@ -1527,18 +1533,20 @@ async function gridPasteRows(afterTaskId) {
         return;
     }
 
-    // Determine insert position: get visual order, splice new tasks after afterTaskId
     const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
     const afterIdx = visualOrder.indexOf(afterTaskId);
-    // Find parent_task_id for paste: inherit from afterTaskId's task (same indent level)
     const afterTask = tasks.find(t => t.task_id === afterTaskId);
     const pasteParentId = afterTask?.parent_task_id || null;
 
+    // Sort clipboard by original row_order so parents come before children
+    const sorted = _clipboardTasks.slice().sort((a, b) => (a.row_order ?? 0) - (b.row_order ?? 0));
+    const origIdSet = new Set(sorted.map(x => x._orig_id));
+
     showLoading(true);
     try {
-        const newIds = [];
-        for (let i = 0; i < _clipboardTasks.length; i++) {
-            const item = _clipboardTasks[i];
+        // Phase 1: allocate all new IDs upfront and build old→new map
+        const oldToNew = {};
+        for (const item of sorted) {
             let newTaskId;
             for (let attempt = 0; attempt < 5; attempt++) {
                 const candidate = await generateTaskId(currentProject.project_code);
@@ -1547,16 +1555,27 @@ async function gridPasteRows(afterTaskId) {
             }
             if (!newTaskId) {
                 showToast('Could not allocate a task id — please try again.', 'error');
-                showLoading(false);
                 return;
             }
+            oldToNew[item._orig_id] = newTaskId;
+        }
+
+        // Phase 2: write all docs with remapped parents
+        const newIds = [];
+        for (const item of sorted) {
+            const newTaskId = oldToNew[item._orig_id];
+            // If this item's original parent was also copied, remap to the new parent ID;
+            // otherwise it's a root of the pasted group → land at afterTask's indent level.
+            const newParentId = (item.parent_task_id && origIdSet.has(item.parent_task_id))
+                ? oldToNew[item.parent_task_id]
+                : pasteParentId;
             const anchorDate = item.start_date || formatDateISO(new Date());
-            const docData = {
+            await setDoc(doc(db, 'project_tasks', newTaskId), {
                 task_id: newTaskId,
                 project_id: currentProject.id,
                 project_code: currentProject.project_code,
-                parent_task_id: pasteParentId,
-                name: item.task_name ? (item.task_name + ' (copy)') : '(copy)',
+                parent_task_id: newParentId,
+                name: item.task_name || '',
                 description: item.description || '',
                 start_date: item.start_date || anchorDate,
                 end_date: item.end_date || anchorDate,
@@ -1565,23 +1584,20 @@ async function gridPasteRows(afterTaskId) {
                 dependencies: item.dependencies ? [...item.dependencies] : [],
                 assignees: item.assignees ? [...item.assignees] : [],
                 resources: item.resources || '',
-                row_order: 0, // will be normalized by commitRowOrderReorder below
+                row_order: 0,
                 created_at: serverTimestamp(),
                 updated_at: serverTimestamp()
-            };
-            await setDoc(doc(db, 'project_tasks', newTaskId), docData);
+            });
             newIds.push(newTaskId);
         }
 
-        // Reorder: splice new task IDs after afterTaskId in the visual order
+        // Phase 3: splice new IDs (in DFS order) after afterTaskId, then normalize row_order
         const insertPos = afterIdx >= 0 ? afterIdx + 1 : visualOrder.length;
-        const reorderedAll = [
+        await commitRowOrderReorder([
             ...visualOrder.slice(0, insertPos),
             ...newIds,
             ...visualOrder.slice(insertPos)
-        ];
-        await commitRowOrderReorder(reorderedAll);
-        // onSnapshot will fire → renderTaskGrid()
+        ]);
     } catch (err) {
         console.error('[ProjectPlan] gridPasteRows failed:', err);
         showToast(err?.code === 'permission-denied'
