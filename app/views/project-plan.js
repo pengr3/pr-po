@@ -915,7 +915,11 @@ function bindGridEvents(container) {
         e.preventDefault();
         const targetTaskId = row.dataset.taskId;
         if (targetTaskId === _draggedTaskId || targetTaskId === '__new__') return;
-        handleRowDrop(_draggedTaskId, targetTaskId);
+        if (_selectedRowIds.size > 1 && _selectedRowIds.has(_draggedTaskId)) {
+            handleGroupDrop([..._selectedRowIds], targetTaskId);
+        } else {
+            handleRowDrop(_draggedTaskId, targetTaskId);
+        }
     };
     container.addEventListener('drop', _gridDropHandler);
 
@@ -1434,6 +1438,41 @@ async function handleRowDrop(draggedTaskId, targetTaskId) {
         // onSnapshot will refresh
     } catch (err) {
         console.error('[ProjectPlan] handleRowDrop failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to reorder tasks on this project.`
+            : 'Could not reorder. Please try again.', 'error');
+    }
+}
+
+// Phase 86.10: move all selected rows as a contiguous block to the drop target position
+async function handleGroupDrop(selectedIds, targetTaskId) {
+    const selSet = new Set(selectedIds);
+    const ordered = flattenTreeDepthFirst(tasks).map(t => t.task_id);
+    const selected = ordered.filter(id => selSet.has(id));
+    const nonSelected = ordered.filter(id => !selSet.has(id));
+    // Find insertion index: position AFTER targetTaskId in nonSelected array.
+    // If targetTaskId is itself selected, walk down ordered from its position to find
+    // the nearest non-selected task as the insertion anchor.
+    let insertAnchorId = targetTaskId;
+    if (selSet.has(targetTaskId)) {
+        const fromIdx = ordered.indexOf(targetTaskId);
+        insertAnchorId = null;
+        for (let i = fromIdx + 1; i < ordered.length; i++) {
+            if (!selSet.has(ordered[i])) { insertAnchorId = ordered[i]; break; }
+        }
+    }
+    let insertAt;
+    if (insertAnchorId === null) {
+        insertAt = nonSelected.length; // append at end
+    } else {
+        const anchorInNonSel = nonSelected.indexOf(insertAnchorId);
+        insertAt = anchorInNonSel >= 0 ? anchorInNonSel : nonSelected.length;
+    }
+    const reorderedAll = [...nonSelected.slice(0, insertAt), ...selected, ...nonSelected.slice(insertAt)];
+    try {
+        await commitRowOrderReorder(reorderedAll);
+    } catch (err) {
+        console.error('[ProjectPlan] handleGroupDrop failed:', err);
         showToast(err?.code === 'permission-denied'
             ? `You don't have permission to reorder tasks on this project.`
             : 'Could not reorder. Please try again.', 'error');
