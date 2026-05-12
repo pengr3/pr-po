@@ -1544,20 +1544,19 @@ async function gridPasteRows(afterTaskId) {
 
     showLoading(true);
     try {
-        // Phase 1: allocate all new IDs upfront and build old→new map
+        // Phase 1: allocate all new IDs from the local tasks array (no Firestore round-trip).
+        // generateTaskId() reads Firestore each call — calling it N times before any setDoc
+        // commits means every call sees the same max and returns the same ID.
+        // Using the in-memory tasks[] (kept fresh by onSnapshot) avoids duplicates.
+        let maxSeq = tasks.reduce((m, t) => {
+            if (typeof t.task_id !== 'string') return m;
+            const n = parseInt(t.task_id.slice(t.task_id.lastIndexOf('-') + 1), 10);
+            return Number.isFinite(n) ? Math.max(m, n) : m;
+        }, 0);
         const oldToNew = {};
         for (const item of sorted) {
-            let newTaskId;
-            for (let attempt = 0; attempt < 5; attempt++) {
-                const candidate = await generateTaskId(currentProject.project_code);
-                const existing = await getDoc(doc(db, 'project_tasks', candidate));
-                if (!existing.exists()) { newTaskId = candidate; break; }
-            }
-            if (!newTaskId) {
-                showToast('Could not allocate a task id — please try again.', 'error');
-                return;
-            }
-            oldToNew[item._orig_id] = newTaskId;
+            maxSeq++;
+            oldToNew[item._orig_id] = `TASK-${currentProject.project_code}-${maxSeq}`;
         }
 
         // Phase 2: write all docs with remapped parents
