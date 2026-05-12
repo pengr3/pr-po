@@ -1,33 +1,43 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-11T12:00:00Z",
+  "timestamp": "2026-05-11T13:45:00Z",
   "phase": "86.9",
-  "phase_name": "gantt-curtain-divider-pdf-export",
+  "phase_name": "Gantt Curtain Divider + PDF Export (UAT-reopen Plan 03)",
   "phase_dir": ".planning/phases/86.9-gantt-curtain-divider-pdf-export",
-  "plan": 2,
+  "plan": 3,
   "task": 3,
   "total_tasks": 3,
-  "status": "paused",
+  "status": "paused_at_uat_checkpoint",
   "completed_tasks": [
-    {"id": 1, "name": "Phase 86.9 Plan 01 — curtain overlay panel resize", "status": "done", "commit": "5669c71"},
-    {"id": 2, "name": "Phase 86.9 Plan 02 — PDF export via window.print()", "status": "done", "commit": "adb9def"},
-    {"id": 3, "name": "Code review fixes (task name field, mobile CSS, double-click guard)", "status": "done", "commit": "beac9a9"},
-    {"id": 4, "name": "Name column cap fix (width:auto + tg-name 200px)", "status": "done", "commit": "17a425b"}
+    { "id": "86.9-03-T1", "name": ".tg-locked padding 4px to 2px (D1 row-alignment fix)", "status": "done", "commit": "5c00e1f" },
+    { "id": "86.9-03-T2", "name": "PDF export landscape + full-width chart + drop duplicate overlay (D2 bundle)", "status": "done", "commit": "5b6a833" },
+    { "id": "86.9-03-T3-PARTIAL", "name": "Reopen UAT file: flip status, reopen Tests 1+4, add Tests 5+6 pending", "status": "done", "commit": "bb19e19" }
   ],
   "remaining_tasks": [
-    {"id": 5, "name": "Phase 86.5 browser UAT — 4 items pending in VERIFICATION.md (status: human_needed)", "status": "not_started"},
-    {"id": 6, "name": "PDF export improvements — user noted future improvements wanted (scope TBD)", "status": "not_started"}
+    { "id": "86.9-03-T3-VERIFY", "name": "Human browser UAT for D1 (diagnostic re-run) + D2 (Export click)", "status": "awaiting_user" },
+    { "id": "86.9-03-SUMMARY", "name": "Write 86.9-03-SUMMARY.md after user signoff (executor resumes via SendMessage to agent ad515002c942a3d1a)", "status": "not_started" },
+    { "id": "86.9-CLOSE", "name": "Re-close 86.9-HUMAN-UAT.md (in_progress -> resolved) + update STATE.md after UAT approved", "status": "not_started" },
+    { "id": "DEBUG-CLEANUP", "name": "Delete project-root debug-diag-86.9.js after UAT closes (kept for post-fix verification per user choice)", "status": "not_started" }
   ],
-  "blockers": [],
+  "blockers": [
+    { "description": "Plan 03 UAT browser verification not yet performed by user", "type": "human_action", "workaround": "Diagnostic snippet ready at project root; resume signal is 'approved' once D1 and D2 verify clean" }
+  ],
   "human_actions_pending": [
-    {"action": "Browser UAT for Phase 86.5 (panel header alignment, bar drag-resize, Back button, Excel task entry)", "context": "VERIFICATION.md status: human_needed, 4 items awaiting browser test", "blocking": false}
+    { "action": "Hard-refresh project plan page (Ctrl+Shift+R) then run debug-diag-86.9.js to confirm all rows render at 42px and offsets within +/-1px", "context": "D1 fix verification; bypass CSS cache to avoid stale 4px padding", "blocking": true },
+    { "action": "Click Export on project plan, confirm landscape orientation + full-width chart + single header row in print preview", "context": "D2 fix verification", "blocking": true }
   ],
   "decisions": [
-    {"decision": "curtain overlay uses position:absolute on gantt-pane, position:relative on .plan-split-pane", "rationale": "prevents task-grid-rail columns from shrinking on divider drag", "phase": "86.9"},
-    {"decision": "task-grid table width:auto (not 100%) + tg-name width:200px (not auto)", "rationale": "prevents name column from stretching across full-width rail when curtain is retracted", "phase": "86.9"},
-    {"decision": "exportGanttPDF uses window.print() — zero CDN dependencies", "rationale": "zero-build SPA constraint; native browser PDF via Save as PDF", "phase": "86.9"}
+    { "decision": "Reopen Phase 86.9 with Plan 03 rather than open a separate Phase 86.10", "rationale": "User chose 'Reopen 86.9 + Plan 03' option; cleanest paper trail when UAT defects surface immediately after phase closure", "phase": "86.9" },
+    { "decision": "D1 root cause confirmed empirically via debug-diag-86.9.js (browser-injected) before any code changed", "rationale": "Per user feedback 'Root cause first' — Frappe compute_y hypothesis (9px within-row offset) was refuted; real cause is .tg-locked rendering at 27.5px stretching parent rows to 45.5px instead of 42px", "phase": "86.9-03" },
+    { "decision": "Single-property CSS edit for D1 (.tg-locked padding 4px 6px -> 2px 6px)", "rationale": "Drops span rendered height from 27.5px to ~23px matching .tg-input; surgical fix, no refactor", "phase": "86.9-03" },
+    { "decision": "D2 fix bundled into one commit (3 CSS edits + 1 JS line)", "rationale": "All three changes address the same defect symptom (broken PDF); atomic commit keeps the fix coherent", "phase": "86.9-03" },
+    { "decision": "Keep debug-diag-86.9.js at project root until UAT closes", "rationale": "User chose 'Keep until UAT closes' so post-fix verification can re-run the same diagnostic without recreating it", "phase": "86.9-03" },
+    { "decision": "Requirement IDs GANTT-UX-ROW-ALIGN and GANTT-UX-PDF-EXPORT-FIX left out of ROADMAP.md", "rationale": "User chose 'Leave as-is — UAT closure'; reopen-style remediation IDs don't need roadmap entries", "phase": "86.9-03" }
   ],
-  "uncommitted_files": [],
-  "next_action": "Run /gsd-verify-work 86.5 to resume Phase 86.5 browser UAT, then pick up PDF export improvements",
-  "context_notes": "Phase 86.9 is complete and pushed to origin/v3.3. Phase 86.5 is also code-complete but pending browser UAT (4 items in 86.5 VERIFICATION.md). User wants PDF export improvements but deferred to after addressing immediate issues."
+  "uncommitted_files": [
+    "debug-diag-86.9.js (untracked, kept intentionally at project root for post-fix verification)",
+    ".claude/worktrees/ (untracked — harmless executor worktree leftovers from earlier sessions)"
+  ],
+  "next_action": "On resume: ask user via AskUserQuestion whether D1 and D2 verified clean in browser. If approved -> SendMessage to executor agent ad515002c942a3d1a with 'approved' so it writes 86.9-03-SUMMARY.md, then re-close 86.9-HUMAN-UAT.md, update STATE.md to mark Phase 86.9 complete again, delete debug-diag-86.9.js. If issues found -> root-cause-first diagnosis, do NOT paper over.",
+  "context_notes": "Phase 86.9 was marked complete 2026-05-11 (commit 129897a) then reopened same-day after user found two visual defects during UAT: (D1) row misalignment in curtain layout; (D2) broken PDF export (portrait, clipped chart, duplicate header). Spawned gsd-debugger then user ran in-browser diagnostic to confirm D1 root cause empirically. Root cause documented in .planning/debug/86.9-row-misalign-DEBUG.md. Spawned gsd-planner -> 86.9-03-PLAN.md. Spawned gsd-plan-checker -> PASS with 2 LOW nits. Spawned gsd-executor -> 3 commits landed, stopped at UAT checkpoint. Awaiting user browser verification. Resume signal is literally 'approved' so SendMessage to executor agent ad515002c942a3d1a can resume."
 }
