@@ -1536,7 +1536,8 @@ async function gridPasteRows(afterTaskId) {
     const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
     const afterIdx = visualOrder.indexOf(afterTaskId);
     const afterTask = tasks.find(t => t.task_id === afterTaskId);
-    const pasteParentId = afterTask?.parent_task_id || null;
+    const pasteParentId = afterTask?.parent_task_id ?? null;
+    console.log('[Paste] afterTaskId:', afterTaskId, '| afterTask.name:', afterTask?.name || afterTask?.task_name, '| pasteParentId:', pasteParentId);
 
     // Sort clipboard by original row_order so parents come before children
     const sorted = _clipboardTasks.slice().sort((a, b) => (a.row_order ?? 0) - (b.row_order ?? 0));
