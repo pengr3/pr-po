@@ -2642,6 +2642,9 @@
 /* Phase 86.8 Feature 7 — selected row highlight (left-edge accent stripe) */
 .tg-row.tg-selected { background: #eff6ff; box-shadow: inset 2px 0 0 0 #1a73e8; }
 .tg-row.tg-selected:hover { background: #dbeafe; }
+/* Phase 86.10 — multi-selected rows (shift+click range) */
+.tg-row.tg-multi-selected { background: #dbeafe; box-shadow: inset 2px 0 0 0 #1a73e8; }
+.tg-row.tg-multi-selected:hover { background: #bfdbfe; }
 
 /* Phase 86.8 Feature 5 — Progress column (between End and Predecessors). */
 /* Compact column: 80px wide, centered. Number input is narrower than full cell so the % */
@@ -3004,6 +3007,7 @@
     }
     /* Gantt snapshot: do NOT clip — show the full chart, page-break after */
     .gantt-print-snapshot {
+        position: relative;         /* anchor for #ganttHeaderOverlay (position:absolute) */
         width: 100%;
         overflow: visible;          /* [Phase 86.9 Plan 03] D2 — was hidden; clipped chart to scroll viewport */
         transform-origin: top left;

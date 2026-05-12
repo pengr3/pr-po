@@ -82,6 +82,8 @@ let _gridCollapseHandler = null;      // delegated click handler on the rail —
 
 // Phase 86.8 — Feature 7: keyboard shortcuts + row/arrow selection
 let _selectedTaskId = null;           // currently-selected row task_id (Delete + Up/Down + Enter)
+let _selectedRowIds = new Set();      // Phase 86.10: task_ids of all multi-selected rows (shift+click)
+let _lastClickedRowId = null;         // Phase 86.10: anchor for shift+click range calculation
 let _planKeydownHandler = null;       // window-level keydown listener
 let _ganttArrowClickHandler = null;   // SVG click → arrow selection
 let _gridRowClickHandler = null;      // delegated click on rail → row selection
@@ -453,6 +455,8 @@ export async function destroy() {
     }
     _ganttArrowClickHandler = null;
     _selectedTaskId = null;
+    _selectedRowIds.clear();
+    _lastClickedRowId = null;
     if (_gridRowClickHandler && gridContainer) {
         gridContainer.removeEventListener('click', _gridRowClickHandler);
     }
@@ -962,6 +966,26 @@ function bindGridEvents(container) {
         if (!row || row.classList.contains('tg-empty-row')) return;
         const id = row.dataset.taskId;
         if (!id || id === '__new__') return;
+        if (e.shiftKey && _lastClickedRowId && _lastClickedRowId !== id) {
+            const ordered = flattenTreeDepthFirst(tasks).map(t => t.task_id);
+            const anchorIdx = ordered.indexOf(_lastClickedRowId);
+            const clickedIdx = ordered.indexOf(id);
+            if (anchorIdx >= 0 && clickedIdx >= 0) {
+                const lo = Math.min(anchorIdx, clickedIdx);
+                const hi = Math.max(anchorIdx, clickedIdx);
+                const rangeIds = ordered.slice(lo, hi + 1);
+                selectRow(null); // clears single-select; anchor preserved (selectRow(null) skips _lastClickedRowId update)
+                rangeIds.forEach(rid => _selectedRowIds.add(rid));
+                container.querySelectorAll('.tg-row.tg-multi-selected').forEach(r => r.classList.remove('tg-multi-selected'));
+                rangeIds.forEach(rid => {
+                    container.querySelector(`.tg-row[data-task-id="${CSS.escape(rid)}"]`)?.classList.add('tg-multi-selected');
+                });
+                return;
+            }
+        }
+        // Plain click: collapse multi-select then single-select
+        container.querySelectorAll('.tg-row.tg-multi-selected').forEach(r => r.classList.remove('tg-multi-selected'));
+        _selectedRowIds.clear();
         selectRow(id);
     };
     container.addEventListener('click', _gridRowClickHandler);
@@ -1954,6 +1978,8 @@ function mountGanttArrowClickSelect() {
 // Phase 86.8 Feature 7 — selection helpers (row vs arrow are mutually exclusive).
 function selectRow(taskId) {
     _selectedTaskId = taskId;
+    _selectedRowIds.clear();
+    if (taskId !== null) _lastClickedRowId = taskId; // null preserves anchor for shift+click continuation
     if (_selectedArrow?.el) {
         _selectedArrow.el.classList.remove('tg-arrow-selected');
     }
@@ -1977,9 +2003,12 @@ function selectArrow(fromId, toId, el) {
 
 function clearSelection() {
     _selectedTaskId = null;
+    _selectedRowIds.clear();
+    _lastClickedRowId = null;
     if (_selectedArrow?.el) _selectedArrow.el.classList.remove('tg-arrow-selected');
     _selectedArrow = null;
     document.querySelectorAll('.tg-row.tg-selected').forEach(r => r.classList.remove('tg-selected'));
+    document.querySelectorAll('.tg-row.tg-multi-selected').forEach(r => r.classList.remove('tg-multi-selected'));
 }
 
 async function removeArrowDependency(fromId, toId) {
