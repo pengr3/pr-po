@@ -88,6 +88,9 @@ let _planKeydownHandler = null;       // window-level keydown listener
 let _ganttArrowClickHandler = null;   // SVG click → arrow selection
 let _gridRowClickHandler = null;      // delegated click on rail → row selection
 
+// Phase 86.10 Plan 03 — Copy/Paste clipboard
+let _clipboardTasks = [];             // array of plain task data objects saved on Copy; cleared in destroy()
+
 // Phase 86.8 — Feature 4: critical-path highlight (CPM forward+backward pass)
 // _criticalPathSet is recomputed on every renderGantt() from the truth-set tasks[],
 // independent of search/collapse filters so the math is never blinkered by what's visible.
@@ -239,6 +242,12 @@ export async function init(activeTab = null, param = null) {
         window.removeArrowDependency = removeArrowDependency; // Phase 86.8 Feature 1+7
         window.toggleCriticalPath = toggleCriticalPath; // Phase 86.8 Feature 4
         window.exportGanttPDF = exportGanttPDF; // Phase 86.9 PDF Export
+        // Phase 86.10 Plan 03: Copy/Paste + Group operations
+        window.gridCopyRows = gridCopyRows;
+        window.gridPasteRows = gridPasteRows;
+        window.gridGroupIndent = gridGroupIndent;
+        window.gridGroupOutdent = gridGroupOutdent;
+        window.gridGroupDelete = gridGroupDelete;
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -468,6 +477,13 @@ export async function destroy() {
     _showCriticalPath = true;
     delete window.toggleCriticalPath;
     delete window.exportGanttPDF; // Phase 86.9 PDF Export
+    // Phase 86.10 Plan 03: Copy/Paste + Group operations cleanup
+    delete window.gridCopyRows;
+    delete window.gridPasteRows;
+    delete window.gridGroupIndent;
+    delete window.gridGroupOutdent;
+    delete window.gridGroupDelete;
+    _clipboardTasks = [];
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -1197,48 +1213,113 @@ function showTaskContextMenu(event, taskId) {
     const t = tasks.find(x => x.task_id === taskId);
     if (!t) return;
 
-    const rowEls = [...document.querySelectorAll('.tg-row:not(.tg-empty-row)')];
-    const rowIdx = rowEls.findIndex(r => r.dataset.taskId === taskId);
-    const isFirstRow = rowIdx === 0;
-    const rowAbove = rowIdx > 0
-        ? tasks.find(x => x.task_id === rowEls[rowIdx - 1]?.dataset.taskId)
-        : null;
-
-    // Indent disabled if: first row, or row above is a descendant of this task (would create cycle)
-    const canIndent = !isFirstRow && rowAbove != null && !isDescendant(rowAbove.task_id, taskId);
-    const canOutdent = !!t.parent_task_id;
-
-    const hasChildren = tasks.some(x => x.parent_task_id === taskId);
-    const childCount = hasChildren ? tasks.filter(x => x.parent_task_id === taskId).length : 0;
+    // Phase 86.10 Plan 03: determine group vs single menu mode
+    const isGroupMenu = _selectedRowIds.size > 1 && _selectedRowIds.has(taskId);
 
     const menu = document.createElement('div');
     menu.id = 'taskGridContextMenu';
     menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;visibility:hidden;`;
 
-    menu.innerHTML = `
-        <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(t.name || taskId)}</div>
-        <div style="padding:8px 16px;cursor:${canIndent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canIndent ? '#1e293b' : '#9ca3af'};"
-             ${canIndent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
-             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridIndentTask('${escapeHTML(taskId)}')"` : ''}>
-            Indent
-        </div>
-        <div style="padding:8px 16px;cursor:${canOutdent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canOutdent ? '#1e293b' : '#9ca3af'};"
-             ${canOutdent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
-             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridOutdentTask('${escapeHTML(taskId)}')"` : ''}>
-            Outdent
-        </div>
-        <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
-        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
-             onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
-             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridInsertRowAbove('${escapeHTML(taskId)}')">
-            Insert Row Above
-        </div>
-        <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
-             onmouseenter="this.style.background='#fef2f2'" onmouseleave="this.style.background='transparent'"
-             onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridDeleteRow('${escapeHTML(taskId)}')">
-            Delete Row${hasChildren ? ` (+ ${childCount} subtask${childCount !== 1 ? 's' : ''})` : ''}
-        </div>
-    `;
+    if (isGroupMenu) {
+        // GROUP MENU — applies actions to all selected rows
+        const selectedIdsArr = [..._selectedRowIds];
+        const selectedIdsJson = escapeHTML(JSON.stringify(selectedIdsArr));
+
+        // Determine topmost selected row in visual (depth-first) order for Insert Above
+        const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
+        const topmostSelectedId = visualOrder.find(id => _selectedRowIds.has(id)) || taskId;
+
+        const hasPaste = _clipboardTasks.length > 0;
+
+        menu.innerHTML = `
+            <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${_selectedRowIds.size} tasks selected</div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridGroupIndent('${selectedIdsJson}')">
+                Indent Selection
+            </div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridGroupOutdent('${selectedIdsJson}')">
+                Outdent Selection
+            </div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridInsertRowAbove('${escapeHTML(topmostSelectedId)}')">
+                Insert Row Above
+            </div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                 onmouseenter="this.style.background='#fef2f2'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridGroupDelete('${selectedIdsJson}')">
+                Delete Selection
+            </div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridCopyRows('${selectedIdsJson}')">
+                Copy Selection
+            </div>
+            <div style="padding:8px 16px;cursor:${hasPaste ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${hasPaste ? '#1e293b' : '#9ca3af'};"
+                 ${hasPaste ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridPasteRows('${escapeHTML(taskId)}')"` : ''}>
+                Paste
+            </div>
+        `;
+    } else {
+        // SINGLE MENU — existing items + Copy/Paste appended
+        const rowEls = [...document.querySelectorAll('.tg-row:not(.tg-empty-row)')];
+        const rowIdx = rowEls.findIndex(r => r.dataset.taskId === taskId);
+        const isFirstRow = rowIdx === 0;
+        const rowAbove = rowIdx > 0
+            ? tasks.find(x => x.task_id === rowEls[rowIdx - 1]?.dataset.taskId)
+            : null;
+
+        // Indent disabled if: first row, or row above is a descendant of this task (would create cycle)
+        const canIndent = !isFirstRow && rowAbove != null && !isDescendant(rowAbove.task_id, taskId);
+        const canOutdent = !!t.parent_task_id;
+
+        const hasChildren = tasks.some(x => x.parent_task_id === taskId);
+        const childCount = hasChildren ? tasks.filter(x => x.parent_task_id === taskId).length : 0;
+
+        const hasPaste = _clipboardTasks.length > 0;
+
+        menu.innerHTML = `
+            <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(t.name || taskId)}</div>
+            <div style="padding:8px 16px;cursor:${canIndent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canIndent ? '#1e293b' : '#9ca3af'};"
+                 ${canIndent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridIndentTask('${escapeHTML(taskId)}')"` : ''}>
+                Indent
+            </div>
+            <div style="padding:8px 16px;cursor:${canOutdent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canOutdent ? '#1e293b' : '#9ca3af'};"
+                 ${canOutdent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridOutdentTask('${escapeHTML(taskId)}')"` : ''}>
+                Outdent
+            </div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridInsertRowAbove('${escapeHTML(taskId)}')">
+                Insert Row Above
+            </div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                 onmouseenter="this.style.background='#fef2f2'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridDeleteRow('${escapeHTML(taskId)}')">
+                Delete Row${hasChildren ? ` (+ ${childCount} subtask${childCount !== 1 ? 's' : ''})` : ''}
+            </div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridCopyRows(JSON.stringify(['${escapeHTML(taskId)}']))">
+                Copy
+            </div>
+            <div style="padding:8px 16px;cursor:${hasPaste ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${hasPaste ? '#1e293b' : '#9ca3af'};"
+                 ${hasPaste ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridPasteRows('${escapeHTML(taskId)}')"` : ''}>
+                Paste
+            </div>
+        `;
+    }
+
     document.body.appendChild(menu);
     // Flip up/left if menu overflows viewport
     const mh = menu.offsetHeight, mw = menu.offsetWidth;
@@ -1412,6 +1493,137 @@ function showDeleteConfirmModal(taskId, childCount) {
     modal.querySelector('#planDeleteNo').addEventListener('click', () => modal.remove());
     modal.querySelector('#planDeleteYes').addEventListener('click', () => { modal.remove(); deleteTaskNow(taskId); });
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+// ---- Phase 86.10 Plan 03: Copy/Paste + Group operations ----
+
+// gridCopyRows(taskIds) — saves task data to _clipboardTasks; shows toast.
+// Accepts a JSON string or an array of task ID strings.
+function gridCopyRows(taskIds) {
+    const ids = typeof taskIds === 'string' ? JSON.parse(taskIds) : taskIds;
+    _clipboardTasks = ids
+        .map(id => tasks.find(t => t.task_id === id))
+        .filter(Boolean)
+        .map(t => ({
+            task_name: t.name || t.task_name || '',
+            parent_task_id: t.parent_task_id || null,
+            start_date: t.start_date || null,
+            end_date: t.end_date || null,
+            assignees: t.assignees ? [...t.assignees] : [],
+            resources: t.resources || '',
+            progress: t.progress || 0,
+            description: t.description || '',
+            is_milestone: t.is_milestone || false,
+            dependencies: t.dependencies ? [...t.dependencies] : []
+        }));
+    showToast(`${_clipboardTasks.length} task(s) copied`, 'success');
+}
+
+// gridPasteRows(afterTaskId) — creates new Firestore task documents below the given row.
+async function gridPasteRows(afterTaskId) {
+    if (_clipboardTasks.length === 0) return;
+    if (!currentProject?.project_code) {
+        showToast(`This project doesn't have a project code yet.`, 'warning');
+        return;
+    }
+
+    // Determine insert position: get visual order, splice new tasks after afterTaskId
+    const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
+    const afterIdx = visualOrder.indexOf(afterTaskId);
+    // Find parent_task_id for paste: inherit from afterTaskId's task (same indent level)
+    const afterTask = tasks.find(t => t.task_id === afterTaskId);
+    const pasteParentId = afterTask?.parent_task_id || null;
+
+    showLoading(true);
+    try {
+        const newIds = [];
+        for (let i = 0; i < _clipboardTasks.length; i++) {
+            const item = _clipboardTasks[i];
+            let newTaskId;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                const candidate = await generateTaskId(currentProject.project_code);
+                const existing = await getDoc(doc(db, 'project_tasks', candidate));
+                if (!existing.exists()) { newTaskId = candidate; break; }
+            }
+            if (!newTaskId) {
+                showToast('Could not allocate a task id — please try again.', 'error');
+                showLoading(false);
+                return;
+            }
+            const anchorDate = item.start_date || formatDateISO(new Date());
+            const docData = {
+                task_id: newTaskId,
+                project_id: currentProject.id,
+                project_code: currentProject.project_code,
+                parent_task_id: pasteParentId,
+                name: item.task_name ? (item.task_name + ' (copy)') : '(copy)',
+                description: item.description || '',
+                start_date: item.start_date || anchorDate,
+                end_date: item.end_date || anchorDate,
+                progress: item.progress || 0,
+                is_milestone: item.is_milestone || false,
+                dependencies: item.dependencies ? [...item.dependencies] : [],
+                assignees: item.assignees ? [...item.assignees] : [],
+                resources: item.resources || '',
+                row_order: 0, // will be normalized by commitRowOrderReorder below
+                created_at: serverTimestamp(),
+                updated_at: serverTimestamp()
+            };
+            await setDoc(doc(db, 'project_tasks', newTaskId), docData);
+            newIds.push(newTaskId);
+        }
+
+        // Reorder: splice new task IDs after afterTaskId in the visual order
+        const insertPos = afterIdx >= 0 ? afterIdx + 1 : visualOrder.length;
+        const reorderedAll = [
+            ...visualOrder.slice(0, insertPos),
+            ...newIds,
+            ...visualOrder.slice(insertPos)
+        ];
+        await commitRowOrderReorder(reorderedAll);
+        // onSnapshot will fire → renderTaskGrid()
+    } catch (err) {
+        console.error('[ProjectPlan] gridPasteRows failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to add tasks on this project.`
+            : 'Could not paste tasks. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// gridGroupIndent(taskIdsJson) — indent all selected rows (bottom-to-top to avoid mid-op parent shift)
+async function gridGroupIndent(taskIdsJson) {
+    const ids = JSON.parse(taskIdsJson);
+    // Process bottom-to-top (reverse of visual order)
+    const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
+    const sorted = ids.slice().sort((a, b) => visualOrder.indexOf(b) - visualOrder.indexOf(a));
+    for (const id of sorted) {
+        await gridIndentTask(id);
+    }
+}
+
+// gridGroupOutdent(taskIdsJson) — outdent all selected rows (top-to-bottom)
+async function gridGroupOutdent(taskIdsJson) {
+    const ids = JSON.parse(taskIdsJson);
+    const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
+    const sorted = ids.slice().sort((a, b) => visualOrder.indexOf(a) - visualOrder.indexOf(b));
+    for (const id of sorted) {
+        await gridOutdentTask(id);
+    }
+}
+
+// gridGroupDelete(taskIdsJson) — delete all selected rows with a single confirm
+// Calls deleteTaskNow() directly (bypassing the per-row confirm modal in gridDeleteRow)
+// because the single upfront confirm covers the entire selection including subtasks.
+async function gridGroupDelete(taskIdsJson) {
+    const ids = JSON.parse(taskIdsJson);
+    if (!ids.length) return;
+    const confirmed = confirm(`Delete ${ids.length} selected tasks? Tasks with subtasks will also remove their subtasks.`);
+    if (!confirmed) return;
+    for (const id of ids) {
+        await deleteTaskNow(id);
+    }
 }
 
 // D-Q4: hierarchy-respecting drop validation + row_order writeBatch commit
