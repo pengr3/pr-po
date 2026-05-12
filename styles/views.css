@@ -2494,7 +2494,8 @@
 
 /* Column widths */
 .tg-rn  { width: 36px; text-align: center; }
-.tg-name { width: 200px; min-width: 140px; }
+.tg-name { width: 200px; min-width: 140px; display: flex; align-items: center; overflow: hidden; }
+.tg-name .tg-input { flex: 1; min-width: 0; }
 .tg-dur  { width: 72px; }
 .tg-date { width: 110px; }
 .tg-pred { width: 90px; }
