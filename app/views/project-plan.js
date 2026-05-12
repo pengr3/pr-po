@@ -1592,24 +1592,83 @@ async function gridPasteRows(afterTaskId) {
     }
 }
 
-// gridGroupIndent(taskIdsJson) — indent all selected rows (bottom-to-top to avoid mid-op parent shift)
+// gridGroupIndent — reparent root rows of the selection to the single anchor above the topmost selected row.
+// "Root rows" = selected rows whose current parent is NOT also in the selection.
+// Non-root rows keep their existing parent (which is already inside the moving group, so they shift with it).
 async function gridGroupIndent(taskIdsJson) {
     const ids = JSON.parse(taskIdsJson);
-    // Process bottom-to-top (reverse of visual order)
+    const idSet = new Set(ids);
+    const rootIds = ids.filter(id => {
+        const t = tasks.find(x => x.task_id === id);
+        return t && !idSet.has(t.parent_task_id);
+    });
+    if (!rootIds.length) return;
+
+    // Find the topmost root in visual order
     const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
-    const sorted = ids.slice().sort((a, b) => visualOrder.indexOf(b) - visualOrder.indexOf(a));
-    for (const id of sorted) {
-        await gridIndentTask(id);
+    rootIds.sort((a, b) => visualOrder.indexOf(a) - visualOrder.indexOf(b));
+    const topmostRootId = rootIds[0];
+
+    // Anchor = first task above topmost root (by row_order) that is NOT in the selection
+    const byOrder = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
+    const idx = byOrder.findIndex(x => x.task_id === topmostRootId);
+    if (idx <= 0) { showToast(`Can't indent — already at the top.`, 'warning'); return; }
+    let anchor = null;
+    for (let i = idx - 1; i >= 0; i--) {
+        if (!idSet.has(byOrder[i].task_id)) { anchor = byOrder[i]; break; }
+    }
+    if (!anchor) { showToast(`Can't indent — no task above selection.`, 'warning'); return; }
+
+    showLoading(true);
+    try {
+        for (const id of rootIds) {
+            const t = tasks.find(x => x.task_id === id);
+            if (!t) continue;
+            const oldParentId = t.parent_task_id || null;
+            await updateDoc(doc(db, 'project_tasks', id), { parent_task_id: anchor.task_id, updated_at: serverTimestamp() });
+            const i = tasks.findIndex(x => x.task_id === id);
+            if (i >= 0) tasks[i] = { ...tasks[i], parent_task_id: anchor.task_id };
+            if (oldParentId) await recomputeParentDates(oldParentId);
+            await recomputeParentDates(anchor.task_id);
+        }
+    } catch (err) {
+        console.error('[ProjectPlan] gridGroupIndent failed:', err);
+        showToast('Could not indent selection. Please try again.', 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
-// gridGroupOutdent(taskIdsJson) — outdent all selected rows (top-to-bottom)
+// gridGroupOutdent — move root rows of the selection up one level (parent → grandparent).
+// Non-root rows (parent inside selection) keep their relative position and shift with the group.
 async function gridGroupOutdent(taskIdsJson) {
     const ids = JSON.parse(taskIdsJson);
-    const visualOrder = flattenTreeDepthFirst(tasks).map(t => t.task_id);
-    const sorted = ids.slice().sort((a, b) => visualOrder.indexOf(a) - visualOrder.indexOf(b));
-    for (const id of sorted) {
-        await gridOutdentTask(id);
+    const idSet = new Set(ids);
+    const rootIds = ids.filter(id => {
+        const t = tasks.find(x => x.task_id === id);
+        return t && !idSet.has(t.parent_task_id);
+    });
+    if (!rootIds.length) return;
+
+    showLoading(true);
+    try {
+        for (const id of rootIds) {
+            const t = tasks.find(x => x.task_id === id);
+            if (!t || !t.parent_task_id) continue; // already at root
+            const parent = tasks.find(x => x.task_id === t.parent_task_id);
+            const newParentId = parent?.parent_task_id || null;
+            const oldParentId = t.parent_task_id;
+            await updateDoc(doc(db, 'project_tasks', id), { parent_task_id: newParentId, updated_at: serverTimestamp() });
+            const i = tasks.findIndex(x => x.task_id === id);
+            if (i >= 0) tasks[i] = { ...tasks[i], parent_task_id: newParentId };
+            await recomputeParentDates(oldParentId);
+            if (newParentId) await recomputeParentDates(newParentId);
+        }
+    } catch (err) {
+        console.error('[ProjectPlan] gridGroupOutdent failed:', err);
+        showToast('Could not outdent selection. Please try again.', 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
