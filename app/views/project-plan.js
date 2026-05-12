@@ -1631,15 +1631,23 @@ async function gridGroupIndent(taskIdsJson) {
     rootIds.sort((a, b) => visualOrder.indexOf(a) - visualOrder.indexOf(b));
     const topmostRootId = rootIds[0];
 
-    // Anchor = first task above topmost root (by row_order) that is NOT in the selection
-    const byOrder = tasks.slice().sort((a, b) => (a.row_order ?? Infinity) - (b.row_order ?? Infinity));
-    const idx = byOrder.findIndex(x => x.task_id === topmostRootId);
+    // Anchor = first task above topmost root (in DFS visual order) that is NOT in the selection.
+    // Use visualOrder (not row_order sort) so the anchor matches what the user sees on screen.
+    const idx = visualOrder.indexOf(topmostRootId);
     if (idx <= 0) { showToast(`Can't indent — already at the top.`, 'warning'); return; }
     let anchor = null;
     for (let i = idx - 1; i >= 0; i--) {
-        if (!idSet.has(byOrder[i].task_id)) { anchor = byOrder[i]; break; }
+        if (!idSet.has(visualOrder[i])) { anchor = tasks.find(x => x.task_id === visualOrder[i]) ?? null; break; }
     }
     if (!anchor) { showToast(`Can't indent — no task above selection.`, 'warning'); return; }
+
+    // Cycle guard: anchor must not be a descendant of any root being indented
+    for (const id of rootIds) {
+        if (isDescendant(anchor.task_id, id)) {
+            showToast(`Can't indent — would create a circular hierarchy.`, 'warning');
+            return;
+        }
+    }
 
     showLoading(true);
     try {
@@ -1702,7 +1710,15 @@ async function gridGroupDelete(taskIdsJson) {
     if (!ids.length) return;
     const confirmed = confirm(`Delete ${ids.length} selected tasks? Tasks with subtasks will also remove their subtasks.`);
     if (!confirmed) return;
-    for (const id of ids) {
+    // Only delete topmost selected IDs — deleteTaskNow cascades the full subtree, so calling it
+    // on a child whose parent is also selected would double-delete already-gone docs and corrupt
+    // recomputeParentDates calls on the surviving ancestors.
+    const idSet = new Set(ids);
+    const topmost = ids.filter(id => {
+        const t = tasks.find(x => x.task_id === id);
+        return !t || !idSet.has(t.parent_task_id);
+    });
+    for (const id of topmost) {
         await deleteTaskNow(id);
     }
 }
