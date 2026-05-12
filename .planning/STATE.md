@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 86.9 complete — 2026-05-11. Both plans done: curtain divider (Plan 01) + PDF Export UAT approved (Plan 02). Phase 86.5 remains for v4.0."
-stopped_at: context exhaustion at 77% (2026-05-12)
-last_updated: "2026-05-12T09:30:50.361Z"
-last_activity: "2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3."
+status: "Phase 86.10 complete — 2026-05-12. All 3 plans done: smart indent, shift+click multi-select, group context menu + copy/paste (4 UAT defects fixed). Phase 86.5 is next."
+stopped_at: ""
+last_updated: "2026-05-12T00:00:00.000Z"
+last_activity: "2026-05-12 - Phase 86.10 all 3 plans UAT approved. Left pane polish shipped. Next: Phase 86.5 Gantt UI Polish 3."
 progress:
-  total_phases: 19
-  completed_phases: 16
-  total_plans: 68
-  completed_plans: 66
-  percent: 97
+  total_phases: 18
+  completed_phases: 17
+  total_plans: 71
+  completed_plans: 69
+  percent: 94
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.10-left-pane-polish — NOT PLANNED YET (inserted 2026-05-12)
-Next: Phase 86.10 — Left Pane Polish
+Phase: 86.10-left-pane-polish — COMPLETE (2026-05-12)
+Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
 
 ## Performance Metrics
 
@@ -460,8 +460,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
-Last session: 2026-05-12T09:30:50.344Z
-Stopped at: context exhaustion at 77% (2026-05-12)
+Last session: 2026-05-12T10:01:06.148Z
+Stopped at: context exhaustion at 76% (2026-05-12)
 Resume file: None
 Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
