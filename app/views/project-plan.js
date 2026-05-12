@@ -959,17 +959,17 @@ function bindGridEvents(container) {
     };
     container.addEventListener('click', _gridCollapseHandler);
 
-    // Phase 86.8 Feature 7 — delegated row click for keyboard selection. Skip clicks on inputs,
-    // selects, and the collapse toggle so existing affordances aren't hijacked.
+    // Phase 86.8/86.10 — delegated row click for keyboard selection and shift+click multi-select.
+    // INPUT guard is intentionally placed AFTER the shift+click check so clicking anywhere in a
+    // row (including input cells) works as the anchor/target for shift+click range selection.
     if (_gridRowClickHandler) container.removeEventListener('click', _gridRowClickHandler);
     _gridRowClickHandler = function(e) {
         if (e.target.closest('.tg-collapse-toggle')) return;
-        const tag = e.target.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
         const row = e.target.closest('.tg-row');
         if (!row || row.classList.contains('tg-empty-row')) return;
         const id = row.dataset.taskId;
         if (!id || id === '__new__') return;
+        const isInput = ['INPUT','TEXTAREA','SELECT','BUTTON'].includes(e.target.tagName);
         if (e.shiftKey && _lastClickedRowId && _lastClickedRowId !== id) {
             const ordered = flattenTreeDepthFirst(tasks).map(t => t.task_id);
             const anchorIdx = ordered.indexOf(_lastClickedRowId);
@@ -987,7 +987,14 @@ function bindGridEvents(container) {
                 return;
             }
         }
-        // Plain click: collapse multi-select then single-select
+        // Plain click on input: update anchor for future shift+clicks but let input handle focus
+        if (isInput) {
+            container.querySelectorAll('.tg-row.tg-multi-selected').forEach(r => r.classList.remove('tg-multi-selected'));
+            _selectedRowIds.clear();
+            _lastClickedRowId = id;
+            return;
+        }
+        // Plain click on non-input: collapse multi-select, single-select
         container.querySelectorAll('.tg-row.tg-multi-selected').forEach(r => r.classList.remove('tg-multi-selected'));
         _selectedRowIds.clear();
         selectRow(id);
