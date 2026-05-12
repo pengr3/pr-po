@@ -348,6 +348,22 @@
   - [x] 86-05-PLAN.md — Filter panel + project-detail summary card + weighted rollup (PM-07, PM-09) — completed 2026-05-05
 **UI hint**: yes
 
+### Phase 86.10: Left Pane Polish: new-row inherits indent depth, shift+click multi-select with group move, group right-click actions, copy/paste rows (INSERTED)
+
+**Goal:** Left pane polish: smart indent inheritance on Enter, shift+click multi-select with group drag, group right-click actions, and copy/paste rows for the project-plan task grid.
+**Requirements**:
+- (1) When Enter commits a new row and the row above is an indented child, the new row automatically defaults to the same indent depth — does not reset to root
+- (2) Shift+click highlights a contiguous group of rows; selected rows move together on drag
+- (3) Right-click context menu actions (indent, outdent, insert above, delete, etc.) apply to the entire selection when multiple rows are selected
+- (4) Right-click menu gains Copy row(s) and Paste row(s) to duplicate tasks easily
+**Depends on:** Phase 86
+**Plans:** 3 plans
+
+Plans:
+- [ ] 86.10-01-PLAN.md — Smart indent inheritance: handleNewRowCommit inherits parent_task_id from row above (REQ-86.10-1)
+- [ ] 86.10-02-PLAN.md — Shift+click multi-select with .tg-multi-selected highlight + handleGroupDrop for group drag (REQ-86.10-2)
+- [ ] 86.10-03-PLAN.md — Group right-click actions (indent/outdent/delete/insert) + Copy/Paste rows via _clipboardTasks (REQ-86.10-3, REQ-86.10-4)
+
 ### Phase 86.8: Gantt UX expansion: arrow right-click to remove predecessor, collapsible parent tasks with drag-parent-moves-children, critical-path highlight, progress percent per bar, task search/filter bar, and keyboard shortcuts (Delete to remove) (INSERTED) ✅
 
 **Goal:** Bundle 7 Gantt UX features into the project-plan view — interactive cluster (arrow right-click remove, collapsible parents w/ drag-parent-moves-children, keyboard shortcuts) and analytical cluster (critical-path highlight, per-bar progress %, task search/filter) — all landing in app/views/project-plan.js + styles/views.css with a single new schemaless field (progress) on project_tasks.
