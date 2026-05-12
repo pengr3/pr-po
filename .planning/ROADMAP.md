@@ -357,7 +357,7 @@
 - (3) Right-click context menu actions (indent, outdent, insert above, delete, etc.) apply to the entire selection when multiple rows are selected
 - (4) Right-click menu gains Copy row(s) and Paste row(s) to duplicate tasks easily
 **Depends on:** Phase 86
-**Plans:** 3 plans
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 86.10-01-PLAN.md — Smart indent inheritance: handleNewRowCommit inherits parent_task_id from row above (REQ-86.10-1)
@@ -588,7 +588,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 84 | v4.0 | 4/4 | Complete | 2026-04-30 |
 | 84.1 | v4.0 | 3/3 | Awaiting UAT | - |
 | 85 | v4.0 | 7/8 | In progress | - |
-| 86 | v4.0 | 5/5 | Complete | 2026-05-05 |
+| 86 | v4.0 | 5/5 | Complete   | 2026-05-12 |
 | 86.1 | v4.0 | 6/6 | Complete | 2026-05-06 |
 | 86.2 | v4.0 | 3/3 | Complete | 2026-05-06 |
 | 86.3 | v4.0 | 5/5 | Complete | 2026-05-06 |

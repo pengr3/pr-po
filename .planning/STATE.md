@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 86.9 complete — 2026-05-11. Both plans done: curtain divider (Plan 01) + PDF Export UAT approved (Plan 02). Phase 86.5 remains for v4.0.
-stopped_at: 86.9-02 complete — UAT approved, plan closed
-last_updated: "2026-05-11T11:05:00Z"
-last_activity: "2026-05-11 - Phase 86.9 Plan 02 UAT approved. exportGanttPDF() + Export button + @media print CSS UAT-verified. GANTT-UX-PDF-EXPORT requirement satisfied. Phase 86.9 fully complete."
+status: "Phase 86.9 complete — 2026-05-11. Both plans done: curtain divider (Plan 01) + PDF Export UAT approved (Plan 02). Phase 86.5 remains for v4.0."
+stopped_at: context exhaustion at 77% (2026-05-12)
+last_updated: "2026-05-12T09:30:50.361Z"
+last_activity: "2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3."
 progress:
-  total_phases: 18
-  completed_phases: 15
-  total_plans: 65
-  completed_plans: 63
+  total_phases: 19
+  completed_phases: 16
+  total_plans: 68
+  completed_plans: 66
   percent: 97
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 86.9-gantt-curtain-divider-pdf-export Plan 02 — COMPLETE 2026-05-11 (UAT approved)
-Next: Phase 86.5 — Gantt UI Polish 3
+Phase: 86.10-left-pane-polish — NOT PLANNED YET (inserted 2026-05-12)
+Next: Phase 86.10 — Left Pane Polish
 
 ## Performance Metrics
 
@@ -440,6 +440,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 86.6 inserted after 86.5 (URGENT, 2026-05-08) — Measure-first vertical alignment fix: spacer-div equalizes maxScrollTop between rail and gantt-container; .tg-locked nowrap+ellipsis prevents parent row height drift — completed same day
 - Phase 86.7 inserted after 86.6 (URGENT, 2026-05-08) — Phantom drag: suppress mid-drag Firestore writes and snapshot re-renders; commit only on mouseup for smooth lag-free bar dragging
 - Phase 86.8 inserted after 86.7 (URGENT, 2026-05-09) — Gantt UX expansion bundle: (1) right-click arrow → remove predecessor, (2) collapsible parent tasks with (-)/(+) toggle, (3) drag-parent-moves-children, (4) critical-path highlight, (5) progress % per bar, (6) task search/filter bar, (7) keyboard shortcuts (Delete to remove)
+- Phase 86.10 inserted after Phase 86: Left pane grid polish: (1) new row created via Enter inherits indent depth of row above (Enter is the trigger, not Tab), (2) shift+click multi-select rows with group move, (3) right-click menu applies to all selected rows, (4) Copy/Paste rows in right-click for easy duplication (URGENT)
 
 ### Quick Tasks Completed
 
@@ -459,8 +460,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
-Last session: 2026-05-11T11:05:00Z
-Stopped at: Completed 86.9-02-PLAN.md
+Last session: 2026-05-12T09:30:50.344Z
+Stopped at: context exhaustion at 77% (2026-05-12)
 Resume file: None
 Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
