@@ -1736,7 +1736,7 @@ export function render(activeTab = 'mrfs') {
         <div style="max-width: 1600px; margin: 2rem auto 0; padding: 0 2rem;">
             <!-- Request Section -->
             <section id="request-section" class="section ${activeTab === 'request' ? 'active' : ''}">
-                ${mrfFormModule.render('form')}
+                ${activeTab === 'request' ? mrfFormModule.render('form') : ''}
             </section>
 
             <!-- MRF Processing Section -->
@@ -2010,6 +2010,12 @@ export async function init(activeTab = 'mrfs') {
             activeTab = 'records';
         }
         // If none are accessible, leave as 'request' — mrf-form.js canEdit check will handle view-only
+    }
+
+    // If switching away from request tab, tear down embedded mrf-form to prevent listener leaks (CR-03)
+    if (_requestSubTabActive && activeTab !== 'request') {
+        try { await mrfFormModule.destroy(); } catch (e) { console.error('[Procurement] mrfFormModule.destroy on tab-switch failed:', e); }
+        _requestSubTabActive = false;
     }
 
     // Request sub-tab: delegate entirely to mrf-form module
