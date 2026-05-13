@@ -214,8 +214,91 @@ async function handleLogin(e) {
     }
 }
 
-// Expose function to window for testing
+/**
+ * Handle "Forgot password?" link click — toggle to forgot panel
+ * @param {Event} e - Click event
+ */
+function handleForgotPassword(e) {
+    e.preventDefault();
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('forgotPanel').style.display = 'block';
+    document.getElementById('resetEmail').focus();
+}
+
+/**
+ * Handle "Send Reset Link" button click — fire sendPasswordResetEmail
+ */
+async function handleSendReset() {
+    const email = document.getElementById('resetEmail').value.trim();
+
+    // Clear previous messages
+    const resetEmailError = document.getElementById('resetEmailError');
+    resetEmailError.textContent = '';
+    resetEmailError.style.display = 'none';
+    const resetSuccess = document.getElementById('resetSuccess');
+    resetSuccess.style.display = 'none';
+
+    // Validate email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        resetEmailError.textContent = 'Please enter a valid email address.';
+        resetEmailError.style.display = 'block';
+        return;
+    }
+
+    // Show loading state
+    const sendResetBtn = document.getElementById('sendResetBtn');
+    sendResetBtn.textContent = 'Sending...';
+    sendResetBtn.disabled = true;
+
+    try {
+        await sendPasswordResetEmail(auth, email);
+
+        // Success
+        resetSuccess.textContent = 'Password reset email sent. Check your inbox and follow the link to reset your password.';
+        resetSuccess.style.display = 'block';
+        document.getElementById('cancelResetBtn').textContent = 'Back to Login';
+        // Keep sendResetBtn disabled after success
+    } catch (error) {
+        // Re-enable button on error
+        sendResetBtn.disabled = false;
+        sendResetBtn.textContent = 'Send Reset Link';
+
+        if (error.code === 'auth/invalid-email') {
+            resetEmailError.textContent = 'Please enter a valid email address.';
+        } else if (error.code === 'auth/user-not-found') {
+            resetEmailError.textContent = 'No account found with that email address.';
+        } else {
+            resetEmailError.textContent = 'Failed to send reset email. Please try again.';
+        }
+        resetEmailError.style.display = 'block';
+    }
+}
+
+/**
+ * Handle "Cancel" / "Back to Login" button click — restore login form
+ */
+function handleCancelReset() {
+    // Clear forgot panel state
+    document.getElementById('resetEmail').value = '';
+    const resetEmailError = document.getElementById('resetEmailError');
+    resetEmailError.textContent = '';
+    resetEmailError.style.display = 'none';
+    document.getElementById('resetSuccess').style.display = 'none';
+    document.getElementById('cancelResetBtn').textContent = 'Cancel';
+    const sendResetBtn = document.getElementById('sendResetBtn');
+    sendResetBtn.disabled = false;
+    sendResetBtn.textContent = 'Send Reset Link';
+
+    // Toggle panels
+    document.getElementById('forgotPanel').style.display = 'none';
+    document.getElementById('loginForm').style.display = '';
+}
+
+// Expose functions to window for testing
 window.handleLogin = handleLogin;
+window.handleForgotPassword = handleForgotPassword;
+window.handleSendReset = handleSendReset;
+window.handleCancelReset = handleCancelReset;
 
 /**
  * Initialize login view
@@ -230,6 +313,14 @@ export async function init() {
 
     // Add submit handler
     form.addEventListener('submit', handleLogin);
+
+    // Wire forgot-password panel handlers
+    const forgotLink = document.getElementById('forgotPasswordLink');
+    if (forgotLink) forgotLink.addEventListener('click', handleForgotPassword);
+    const sendResetBtn = document.getElementById('sendResetBtn');
+    if (sendResetBtn) sendResetBtn.addEventListener('click', handleSendReset);
+    const cancelResetBtn = document.getElementById('cancelResetBtn');
+    if (cancelResetBtn) cancelResetBtn.addEventListener('click', handleCancelReset);
 }
 
 /**
@@ -242,6 +333,16 @@ export async function destroy() {
         form.removeEventListener('submit', handleLogin);
     }
 
-    // Remove window function
+    const forgotLink = document.getElementById('forgotPasswordLink');
+    if (forgotLink) forgotLink.removeEventListener('click', handleForgotPassword);
+    const sendResetBtn = document.getElementById('sendResetBtn');
+    if (sendResetBtn) sendResetBtn.removeEventListener('click', handleSendReset);
+    const cancelResetBtn = document.getElementById('cancelResetBtn');
+    if (cancelResetBtn) cancelResetBtn.removeEventListener('click', handleCancelReset);
+
+    // Remove window functions
     delete window.handleLogin;
+    delete window.handleForgotPassword;
+    delete window.handleSendReset;
+    delete window.handleCancelReset;
 }
