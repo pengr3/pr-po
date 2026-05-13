@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 91 executing — Plan 03 complete.
-stopped_at: Phase 91 Plan 03 complete — Request sub-tab integrated in procurement.js via mrfFormModule delegation; per-sub-tab DOM gating; mrf-form.js canEdit uses procurement_request key
-last_updated: "2026-05-13T08:00:00Z"
-last_activity: "2026-05-13 - Phase 91 Plan 03 complete. Procurement view Request sub-tab added (first tab) delegating to mrf-form.js exports; 4 canSeeXxx flags gate tab row anchors; default-tab fallthrough in init(); mrfFormModule.destroy() called in procurement destroy(); mrf-form.js canEditTab('mrf_form') changed to procurement_request."
+status: Phase 91 executing — Plan 04 complete.
+stopped_at: Phase 91 Plan 04 complete — My Requests filter + Records project-scope + assignmentsChanged listener wired in procurement.js
+last_updated: "2026-05-13T07:43:50Z"
+last_activity: 2026-05-13 - Phase 91 Plan 04 complete. My Requests 4th dept-filter option; filterPRPORecords my_requests branch; cachedAllPRPORecords cache; loadPRPORecords project-scope filter; reFilterAndRenderPRPORecords helper; _procurementRecordsAssignmentHandler listener + destroy cleanup.
 progress:
   total_phases: 21
-  completed_phases: 17
+  completed_phases: 18
   total_plans: 75
   completed_plans: 73
   percent: 97
@@ -151,6 +151,8 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91-04]: cachedAllPRPORecords stores raw post-fetch snapshot before project-scope filter; cache-hit branch re-applies scope to prevent stale assignment data leak on re-entry; reFilterAndRenderPRPORecords() mirrors reFilterAndRenderMRFs() shape; _procurementRecordsAssignmentHandler dedup guard registered unconditionally in init() (not inside activeTab==='records' branch); typeof safety guard in listener body; destroy() removes listener and resets cachedAllPRPORecords; My Requests filter matches mrf.requestor_user_id === uid; uid null/undefined yields empty table (no crash)
 
 - [Phase 91-03]: procurement.js Request sub-tab uses import * as mrfFormModule delegation pattern; 4 canSeeXxx !== false flags gate tab row anchors at render time; _requestSubTabActive flag ensures mrfFormModule.destroy() called exactly once on view exit; mrf-form.js canEditTab changed from 'mrf_form' to 'procurement_request' — finance role (access:false) now sees view-only notice; super_admin must run forceReseedRoleTemplates() once post-deploy to push sub-tab keys to Firestore role docs
 
@@ -473,9 +475,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-13 - Phase 91 Plan 03 complete. Request sub-tab integrated in procurement.js via mrfFormModule delegation; per-sub-tab DOM gating with 4 canSeeXxx flags; default-tab fallthrough in init(); mrf-form.js canEditTab uses procurement_request key.
-Last session: 2026-05-13T08:00:00Z
-Stopped at: Phase 91 Plan 03 complete
-Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-03-SUMMARY.md
-Next action: Phase 91 Plan 04 — Add My Requests sub-tab and project-scope filtering for Records tab
+Last activity: 2026-05-13 - Phase 91 Plan 04 complete. My Requests 4th dept-filter option; filterPRPORecords my_requests branch; cachedAllPRPORecords cache; loadPRPORecords project-scope filter; reFilterAndRenderPRPORecords helper; _procurementRecordsAssignmentHandler listener + destroy cleanup.
+Last session: 2026-05-13T07:43:50Z
+Stopped at: Phase 91 Plan 04 complete — My Requests filter + Records project-scope + assignmentsChanged listener
+Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-04-SUMMARY.md
+Next action: Phase 91 complete — all 4 plans delivered
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
