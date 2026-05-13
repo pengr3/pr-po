@@ -272,6 +272,18 @@ export function initAuthObserver() {
                                 return;
                             }
                             // Active users: no forced redirect
+                            // Post-login redirect: if the user landed here from #/login, send them
+                            // to their intended route (or home). This is the race-safe path because
+                            // currentUser is guaranteed to be set before this block runs (Plan 90-01).
+                            if (window.location.hash.includes('/login')) {
+                                const intendedRoute = sessionStorage.getItem('intendedRoute');
+                                if (intendedRoute) {
+                                    sessionStorage.removeItem('intendedRoute');
+                                    window.location.hash = '#' + intendedRoute;
+                                } else {
+                                    window.location.hash = '#/';
+                                }
+                            }
 
                             window.dispatchEvent(new CustomEvent('authStateChanged', {
                                 detail: { user: currentUser }
