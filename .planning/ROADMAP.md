@@ -579,7 +579,7 @@ Plans:
   5. No existing auth flows (login error display, registration validation, invitation code check, pending-approval redirect, deactivated-account sign-out) are broken by these changes
 **Plans**: 3 plans
   - [x] 90-01-PLAN.md — Fix login routing race condition: modify `app/auth.js` snapshot listener to redirect from `/login` to home (or `intendedRoute`) when `currentUser` is confirmed active; remove the bare hash-assignment from `login.js` that races the observer — completed 2026-05-13 (22ae1e7, a1ad13b)
-  - [ ] 90-02-PLAN.md — Registration UX polish: replace repurposed error element with a dedicated `.auth-success` styled success block; make redirect immediate (or show a visible countdown with cancel option)
+  - [x] 90-02-PLAN.md — Registration UX polish: replace repurposed error element with a dedicated `.auth-success` styled success block; make redirect immediate (or show a visible countdown with cancel option) — completed 2026-05-13 (83cac7c, 0221117)
   - [ ] 90-03-PLAN.md — Forgot Password: add collapsible inline panel on login page; wire `sendPasswordResetEmail`; inline success + error feedback; no new route required
 **UI hint**: yes
 

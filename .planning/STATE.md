@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 90-01 complete — 2026-05-13. Login routing race fix shipped. Phase 86.5 still pending.
-stopped_at: Phase 90 Plan 01 complete (2026-05-13)
-last_updated: "2026-05-13T00:10:00.000Z"
-last_activity: "2026-05-13 - Phase 90 Plan 01 complete. Login routing race fix: auth.js onSnapshot now owns all post-login routing; login.js handleLogin no longer sets window.location.hash."
+status: Phase 90-02 complete — 2026-05-13. Registration success UX polish shipped. Phase 86.5 still pending.
+stopped_at: Phase 90 Plan 02 complete (2026-05-13)
+last_updated: "2026-05-13T00:20:00.000Z"
+last_activity: "2026-05-13 - Phase 90 Plan 02 complete. Registration success: showSuccess() helper replaces piggyback error element; .auth-success CSS class added; redirect is now immediate (no setTimeout)."
 progress:
   total_phases: 20
   completed_phases: 16
@@ -142,6 +142,7 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 | Phase 89 P01 | ~20 | 2 tasks + UAT passed | 1 files |
 | Phase 86.9 P01 | ~15 | 2 tasks | 2 files |
 | Phase 86.9 P02 | ~10 | 2 tasks + UAT approved | 2 files |
+| Phase 90 P02 | ~5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,7 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 90-02]: showSuccess() uses textContent (not innerHTML) for XSS safety — message is a hardcoded string literal per T-90.2-01; #generalSuccess pre-rendered outside #registerForm so hiding the form does not hide the success block; redirect is immediate (direct hash assignment, no setTimeout) per plan must_haves
 - [Phase 90-01]: Post-login redirect block in auth.js fires only when window.location.hash.includes('/login') — prevents re-triggering for active users already on '#/' (T-90.1-03 hash-loop mitigation); block placed BEFORE dispatchEvent(authStateChanged) so routing settles before downstream observers fire; auth.js is now sole owner of sessionStorage.getItem('intendedRoute') key
 - [Phase 90-01]: login.js handleLogin retains eager deactivated-account check (signOut + showError) as belt-and-suspenders alongside auth.js onSnapshot deactivated path — ownership is non-overlapping: login.js catches before auth state fires, auth.js catches runtime deactivation
 
