@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, ge
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 import { showProofModal, saveProofUrl } from '../proof-modal.js';
 import { createNotification, createNotificationForRoles, createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+import * as mrfFormModule from './mrf-form.js';
 
 // ========================================
 // GLOBAL STATE
@@ -37,6 +38,9 @@ let cachedRejectedTRs = []; // TRs with finance_status='Rejected' belonging to a
 
 // Department filter state for PO Tracking table
 let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
+
+// Request sub-tab delegation flag — tracks whether mrf-form listeners are active
+let _requestSubTabActive = false;
 
 // Sort state for MRF Records table (Records tab)
 let prpoSortColumn = 'date_needed';
@@ -1709,25 +1713,31 @@ export function render(activeTab = 'mrfs') {
     const canEdit = window.canEditTab?.('procurement');
     const showEditControls = canEdit !== false;
 
+    // Sub-tab access flags — !==false so undefined (bootstrap) is treated as accessible
+    const canSeeRequest   = window.hasTabAccess?.('procurement_request') !== false;
+    const canSeeMrfs      = window.hasTabAccess?.('procurement_mrfs') !== false;
+    const canSeeSuppliers = window.hasTabAccess?.('procurement_suppliers') !== false;
+    const canSeeRecords   = window.hasTabAccess?.('procurement_records') !== false;
+
     return `
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 1px solid var(--gray-200);">
             <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
-                    <a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">
-                        MRF Processing
-                    </a>
-                    <a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">
-                        Supplier Management
-                    </a>
-                    <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
-                        MRF Records
-                    </a>
+                    ${canSeeRequest ? `<a href="#/procurement/request" class="tab-btn ${activeTab === 'request' ? 'active' : ''}">Request</a>` : ''}
+                    ${canSeeMrfs ? `<a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">MRF Processing</a>` : ''}
+                    ${canSeeSuppliers ? `<a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">Supplier Management</a>` : ''}
+                    ${canSeeRecords ? `<a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">MRF Records</a>` : ''}
                 </div>
             </div>
         </div>
 
         <div style="max-width: 1600px; margin: 2rem auto 0; padding: 0 2rem;">
+            <!-- Request Section -->
+            <section id="request-section" class="section ${activeTab === 'request' ? 'active' : ''}">
+                ${mrfFormModule.render('form')}
+            </section>
+
             <!-- MRF Processing Section -->
             <section id="mrfs-section" class="section ${activeTab === 'mrfs' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view MRF data but cannot create or process MRFs.</span></div>' : ''}
@@ -2231,6 +2241,7 @@ export async function destroy() {
     delete window.cancelRFPDocument;
     activePODeptFilter = '';
     cachedRejectedTRs = [];
+    _requestSubTabActive = false;
 }
 
 // ========================================
