@@ -2176,6 +2176,8 @@ export async function destroy() {
 
     // Phase 7: Clear cached MRF data
     cachedAllMRFs = [];
+    // Phase 91: Clear cached Records data
+    cachedAllPRPORecords = [];
 
     // Unsubscribe from all Firebase listeners
     listeners.forEach(unsubscribe => {
@@ -2462,6 +2464,19 @@ function reFilterAndRenderMRFs() {
     transportMRFs.sort(sortByDeadline);
 
     renderMRFList(materialMRFs, transportMRFs);
+}
+
+// Phase 91 — re-scope MRF Records on assignmentsChanged without a Firestore round-trip.
+function reFilterAndRenderPRPORecords() {
+    const assignedCodes = window.getAssignedProjectCodes?.();
+    if (assignedCodes === null) {
+        allPRPORecords = [...cachedAllPRPORecords];
+    } else {
+        allPRPORecords = cachedAllPRPORecords.filter(mrf =>
+            !mrf.project_code || assignedCodes.includes(mrf.project_code)
+        );
+    }
+    filterPRPORecords();
 }
 
 /**
@@ -4648,7 +4663,14 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
  */
 async function loadPRPORecords() {
     // If records are cached and fresh, render from cache (no Firestore fetch, no loading overlay)
-    if (allPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
+    if (cachedAllPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
+        // Phase 91 — re-apply project-scope from cache so stale assignment data does not leak
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        if (assignedCodes === null) {
+            allPRPORecords = [...cachedAllPRPORecords];
+        } else {
+            allPRPORecords = cachedAllPRPORecords.filter(mrf => !mrf.project_code || assignedCodes.includes(mrf.project_code));
+        }
         filteredPRPORecords = [...allPRPORecords];
         prpoCurrentPage = 1;
         await renderPRPORecords();
@@ -4691,6 +4713,18 @@ async function loadPRPORecords() {
             }
             return prpoSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
+
+        // Phase 91 — cache raw set before applying project-scope filter
+        cachedAllPRPORecords = [...allPRPORecords];
+
+        // Phase 91 — apply project-scope filter (mirrors MRF Management tab pattern)
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        if (assignedCodes !== null) {
+            allPRPORecords = allPRPORecords.filter(mrf =>
+                // Defensively include legacy MRFs that lack project_code (pre-Phase-4 data)
+                !mrf.project_code || assignedCodes.includes(mrf.project_code)
+            );
+        }
 
         // Fetch all POs for scoreboard
         const posRef = collection(db, 'pos');
