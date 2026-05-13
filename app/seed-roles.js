@@ -12,7 +12,8 @@ import { doc, setDoc, serverTimestamp, writeBatch, getDoc } from './firebase.js'
 
 /**
  * Default role templates with tab permissions
- * Each role MUST have all 7 tabs defined (access: true/false, edit: true/false)
+ * Each role MUST have all 11 tabs defined (access: true/false, edit: true/false)
+ * Phase 91 — added 4 sub-tab keys per role and 2 new role objects (services_admin, services_user)
  */
 const defaultRoleTemplates = [
     {
@@ -26,7 +27,11 @@ const defaultRoleTemplates = [
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: true },
-                role_config: { access: true, edit: true }
+                role_config: { access: true, edit: true },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
             }
         }
     },
@@ -41,7 +46,11 @@ const defaultRoleTemplates = [
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: false },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
             }
         }
     },
@@ -56,7 +65,49 @@ const defaultRoleTemplates = [
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: false },
                 finance: { access: false, edit: false },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: false },
+                procurement_suppliers: { access: true, edit: false },
+                procurement_records:   { access: true, edit: false }
+            }
+        }
+    },
+    {
+        role_id: 'services_admin',
+        role_name: 'Services Admin',
+        permissions: {
+            tabs: {
+                dashboard: { access: true, edit: false },
+                clients: { access: true, edit: true },
+                projects: { access: true, edit: true },
+                mrf_form: { access: true, edit: true },
+                procurement: { access: true, edit: true },
+                finance: { access: true, edit: false },
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
+            }
+        }
+    },
+    {
+        role_id: 'services_user',
+        role_name: 'Services User',
+        permissions: {
+            tabs: {
+                dashboard: { access: true, edit: false },
+                clients: { access: true, edit: false },
+                projects: { access: true, edit: false },
+                mrf_form: { access: true, edit: true },
+                procurement: { access: true, edit: false },
+                finance: { access: false, edit: false },
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: false },
+                procurement_suppliers: { access: true, edit: false },
+                procurement_records:   { access: true, edit: false }
             }
         }
     },
@@ -71,7 +122,11 @@ const defaultRoleTemplates = [
                 mrf_form: { access: false, edit: false },
                 procurement: { access: false, edit: false },
                 finance: { access: true, edit: true },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: false, edit: false },
+                procurement_mrfs:      { access: false, edit: false },
+                procurement_suppliers: { access: false, edit: false },
+                procurement_records:   { access: false, edit: false }
             }
         }
     },
@@ -86,7 +141,11 @@ const defaultRoleTemplates = [
                 mrf_form: { access: false, edit: false },
                 procurement: { access: true, edit: true },
                 finance: { access: false, edit: false },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: false, edit: false },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
             }
         }
     }
