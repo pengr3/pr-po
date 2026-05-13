@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 90-02 complete — 2026-05-13. Registration success UX polish shipped. Phase 86.5 still pending.
-stopped_at: Phase 90 Plan 02 complete (2026-05-13)
-last_updated: "2026-05-13T00:20:00.000Z"
-last_activity: "2026-05-13 - Phase 90 Plan 02 complete. Registration success: showSuccess() helper replaces piggyback error element; .auth-success CSS class added; redirect is now immediate (no setTimeout)."
+status: Phase 90-03 complete — 2026-05-13. Forgot Password panel shipped in login.js. Phase 86.5 still pending.
+stopped_at: Phase 90 Plan 03 complete (2026-05-13)
+last_updated: "2026-05-13T02:57:40.670Z"
+last_activity: "2026-05-13 - Phase 90 Plan 03 complete. Forgot Password panel: sendPasswordResetEmail imported from firebase.js; #forgotPanel HTML added to login render(); handleForgotPassword/handleSendReset/handleCancelReset wired in init/destroy with full cleanup."
 progress:
   total_phases: 20
-  completed_phases: 16
+  completed_phases: 17
   total_plans: 71
-  completed_plans: 67
-  percent: 94
+  completed_plans: 70
+  percent: 99
 ---
 
 # Project State
@@ -143,6 +143,7 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 | Phase 86.9 P01 | ~15 | 2 tasks | 2 files |
 | Phase 86.9 P02 | ~10 | 2 tasks + UAT approved | 2 files |
 | Phase 90 P02 | ~5 | 2 tasks | 2 files |
+| Phase 90 P03 | ~12 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,7 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 90-03]: sendPasswordResetEmail added to firebase.js CDN import + export blocks; handleSendReset validates with /^[^\s@]+@[^\s@]+\.[^\s@]+$/ regex before network call; sendResetBtn stays disabled after success; handleCancelReset resets ALL panel state before restoring #loginForm (T-90.3-04 state-leakage mitigate); all three handlers registered on window and deleted in destroy()
 - [Phase 90-02]: showSuccess() uses textContent (not innerHTML) for XSS safety — message is a hardcoded string literal per T-90.2-01; #generalSuccess pre-rendered outside #registerForm so hiding the form does not hide the success block; redirect is immediate (direct hash assignment, no setTimeout) per plan must_haves
 - [Phase 90-01]: Post-login redirect block in auth.js fires only when window.location.hash.includes('/login') — prevents re-triggering for active users already on '#/' (T-90.1-03 hash-loop mitigation); block placed BEFORE dispatchEvent(authStateChanged) so routing settles before downstream observers fire; auth.js is now sole owner of sessionStorage.getItem('intendedRoute') key
 - [Phase 90-01]: login.js handleLogin retains eager deactivated-account check (signOut + showError) as belt-and-suspenders alongside auth.js onSnapshot deactivated path — ownership is non-overlapping: login.js catches before auth state fires, auth.js catches runtime deactivation
@@ -465,7 +467,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
-Last session: 2026-05-13T02:39:17.759Z
+Last session: 2026-05-13T02:57:40.636Z
 Stopped at: context exhaustion at 75% (2026-05-13)
 Resume file: None
 Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)

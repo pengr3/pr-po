@@ -237,7 +237,7 @@
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred — Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions — completed 2026-05-11
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
-- [ ] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail`
+- [x] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail` (completed 2026-05-13)
 
 ## Phase Details
 
@@ -580,7 +580,7 @@ Plans:
 **Plans**: 3 plans
   - [x] 90-01-PLAN.md — Fix login routing race condition: modify `app/auth.js` snapshot listener to redirect from `/login` to home (or `intendedRoute`) when `currentUser` is confirmed active; remove the bare hash-assignment from `login.js` that races the observer — completed 2026-05-13 (22ae1e7, a1ad13b)
   - [x] 90-02-PLAN.md — Registration UX polish: replace repurposed error element with a dedicated `.auth-success` styled success block; make redirect immediate (or show a visible countdown with cancel option) — completed 2026-05-13 (83cac7c, 0221117)
-  - [ ] 90-03-PLAN.md — Forgot Password: add collapsible inline panel on login page; wire `sendPasswordResetEmail`; inline success + error feedback; no new route required
+  - [x] 90-03-PLAN.md — Forgot Password: add collapsible inline panel on login page; wire `sendPasswordResetEmail`; inline success + error feedback; no new route required
 **UI hint**: yes
 
 ## Progress
