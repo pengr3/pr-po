@@ -430,9 +430,11 @@ export function handleInitialRoute() {
         }
     }
 
-    // Show navbar
+    // Show navbar only for authenticated users — deactivated/unauthenticated flow
+    // calls handleInitialRoute() from the null-user branch; showing the navbar there
+    // leaves the nav visible on #/login after a deactivated login attempt.
     const navbar = document.querySelector('.top-nav');
-    if (navbar) {
+    if (navbar && window.getCurrentUser?.()) {
         navbar.style.display = '';
     }
 

@@ -267,6 +267,7 @@ export function initAuthObserver() {
                             } else if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                                 if (window.destroyNotifications) window.destroyNotifications();
+                                updateNavForAuth(null);
                                 await signOut(auth);
                                 window.location.hash = '#/login';
                                 return;
