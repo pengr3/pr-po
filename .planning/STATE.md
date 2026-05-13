@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 91 executing — Plan 02 complete.
-stopped_at: Phase 91 Plan 02 complete — router.js and index.html updated; #/mrf-form retired with redirect to #/procurement/request
-last_updated: "2026-05-13T07:35:30Z"
-last_activity: "2026-05-13 - Phase 91 Plan 02 complete. #/mrf-form route removed from routePermissionMap and routes; backward-compat redirect added in handleHashChange + handleInitialRoute; procurement defaultTab changed to 'request'; Material Request nav links removed from desktop+mobile nav."
+status: Phase 91 executing — Plan 03 complete.
+stopped_at: Phase 91 Plan 03 complete — Request sub-tab integrated in procurement.js via mrfFormModule delegation; per-sub-tab DOM gating; mrf-form.js canEdit uses procurement_request key
+last_updated: "2026-05-13T08:00:00Z"
+last_activity: "2026-05-13 - Phase 91 Plan 03 complete. Procurement view Request sub-tab added (first tab) delegating to mrf-form.js exports; 4 canSeeXxx flags gate tab row anchors; default-tab fallthrough in init(); mrfFormModule.destroy() called in procurement destroy(); mrf-form.js canEditTab('mrf_form') changed to procurement_request."
 progress:
   total_phases: 21
   completed_phases: 17
   total_plans: 75
-  completed_plans: 72
-  percent: 96
+  completed_plans: 73
+  percent: 97
 ---
 
 # Project State
@@ -151,6 +151,8 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91-03]: procurement.js Request sub-tab uses import * as mrfFormModule delegation pattern; 4 canSeeXxx !== false flags gate tab row anchors at render time; _requestSubTabActive flag ensures mrfFormModule.destroy() called exactly once on view exit; mrf-form.js canEditTab changed from 'mrf_form' to 'procurement_request' — finance role (access:false) now sees view-only notice; super_admin must run forceReseedRoleTemplates() once post-deploy to push sub-tab keys to Firestore role docs
 
 - [Phase 91-02]: #/mrf-form route removed from routePermissionMap and routes object; backward-compat redirect added in handleHashChange() and handleInitialRoute() targeting navigate('/procurement', 'request'); /procurement defaultTab changed from 'mrfs' to 'request'; Material Request nav links removed from desktop+mobile nav in index.html; mrf-form.js view module intentionally retained for Plan 03 delegation
 
@@ -471,9 +473,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-13 - Phase 91 Plan 02 complete. #/mrf-form route retired; redirect to #/procurement/request added; procurement defaultTab changed to 'request'; Material Request nav links removed.
-Last session: 2026-05-13T07:35:30Z
-Stopped at: Phase 91 Plan 02 complete
-Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-02-SUMMARY.md
-Next action: Phase 91 Plan 03 — Add "Request" sub-tab to procurement.js (delegate to mrf-form.js)
+Last activity: 2026-05-13 - Phase 91 Plan 03 complete. Request sub-tab integrated in procurement.js via mrfFormModule delegation; per-sub-tab DOM gating with 4 canSeeXxx flags; default-tab fallthrough in init(); mrf-form.js canEditTab uses procurement_request key.
+Last session: 2026-05-13T08:00:00Z
+Stopped at: Phase 91 Plan 03 complete
+Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-03-SUMMARY.md
+Next action: Phase 91 Plan 04 — Add My Requests sub-tab and project-scope filtering for Records tab
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |

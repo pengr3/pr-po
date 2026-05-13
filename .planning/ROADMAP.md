@@ -598,7 +598,7 @@ Plans:
 **Plans**: 4 plans (planned 2026-05-13)
   - [x] 91-01-PLAN.md -- seed-roles.js: 4 new sub-tab permission keys per role + add services_admin/services_user templates + verify helper (D-03, D-04) -- Wave 1
   - [x] 91-02-PLAN.md -- Router cleanup + nav link removal: drop /mrf-form route, add #/mrf-form -> #/procurement/request redirect, change procurement defaultTab to request (D-01) -- Wave 1
-  - [ ] 91-03-PLAN.md -- procurement.js Request sub-tab: import mrf-form delegation, 4-tab row with hidden-not-gated sub-tab access flags, init/destroy hooks, default-tab fallthrough; mrf-form.js canEdit key swap to procurement_request (D-01, D-03, D-04) -- Wave 2
+  - [x] 91-03-PLAN.md -- procurement.js Request sub-tab: import mrf-form delegation, 4-tab row with hidden-not-gated sub-tab access flags, init/destroy hooks, default-tab fallthrough; mrf-form.js canEdit key swap to procurement_request (D-01, D-03, D-04) -- Wave 2
   - [ ] 91-04-PLAN.md -- procurement.js My Requests dropdown option + filter branch + Records-tab project-scope filter + assignmentsChanged listener + cachedAllPRPORecords cache (D-02) -- Wave 3
 **UI hint**: yes
 
