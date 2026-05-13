@@ -1993,6 +1993,30 @@ export function render(activeTab = 'mrfs') {
  * @param {string} activeTab - Active tab to display
  */
 export async function init(activeTab = 'mrfs') {
+    // Default-tab fallthrough (D-01): if request sub-tab is not accessible, fall to first accessible tab
+    const canSeeRequest   = window.hasTabAccess?.('procurement_request') !== false;
+    const canSeeMrfs      = window.hasTabAccess?.('procurement_mrfs') !== false;
+    const canSeeSuppliers = window.hasTabAccess?.('procurement_suppliers') !== false;
+    const canSeeRecords   = window.hasTabAccess?.('procurement_records') !== false;
+
+    if (activeTab === 'request' && !canSeeRequest) {
+        if (canSeeMrfs) {
+            activeTab = 'mrfs';
+        } else if (canSeeSuppliers) {
+            activeTab = 'suppliers';
+        } else if (canSeeRecords) {
+            activeTab = 'records';
+        }
+        // If none are accessible, leave as 'request' — mrf-form.js canEdit check will handle view-only
+    }
+
+    // Request sub-tab: delegate entirely to mrf-form module
+    if (activeTab === 'request') {
+        _requestSubTabActive = true;
+        await mrfFormModule.init('form');
+        return;
+    }
+
     // Re-attach all window functions (needed after tab navigation)
     attachWindowFunctions();
 
@@ -2132,6 +2156,16 @@ function closeSupplierHistoryModal() {
  * Cleanup when leaving the view
  */
 export async function destroy() {
+    // Tear down embedded mrf-form module when the request sub-tab was active
+    if (_requestSubTabActive) {
+        try {
+            await mrfFormModule.destroy();
+        } catch (e) {
+            console.error('[Procurement] mrfFormModule.destroy failed:', e);
+        }
+        _requestSubTabActive = false;
+    }
+
     // Phase 7: Remove assignment change listener
     if (window._procurementAssignmentHandler) {
         window.removeEventListener('assignmentsChanged', window._procurementAssignmentHandler);
