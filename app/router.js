@@ -14,7 +14,6 @@ const routePermissionMap = {
     '/project-plan': 'projects',  // Phase 86 — same gate as project-detail (PM-11 enforced at firestore.rules layer)
     '/services': 'services',
     '/service-detail': 'services',  // Detail view uses services permission
-    '/mrf-form': 'mrf_form',
     '/procurement': 'procurement',
     '/finance': 'finance',
     '/admin': 'role_config',
@@ -51,17 +50,11 @@ const routes = {
         load: () => import('./views/projects.js'),
         title: 'Projects | CLMC Procurement'
     },
-    '/mrf-form': {
-        name: 'Material Request',
-        load: () => import('./views/mrf-form.js'),
-        title: 'Submit MRF | CLMC Procurement',
-        defaultTab: 'form'
-    },
     '/procurement': {
         name: 'Procurement',
         load: () => import('./views/procurement.js'),
         title: 'Procurement Dashboard | CLMC Procurement',
-        defaultTab: 'mrfs'
+        defaultTab: 'request'
     },
     '/finance': {
         name: 'Finance',
@@ -413,6 +406,12 @@ function handleHashChange() {
         return;
     }
 
+    // Phase 91 — #/mrf-form is retired; redirect to #/procurement/request
+    if (path === '/mrf-form') {
+        navigate('/procurement', 'request');
+        return;
+    }
+
     navigate(path, tab);
 }
 
@@ -430,11 +429,9 @@ export function handleInitialRoute() {
         }
     }
 
-    // Show navbar only for authenticated users — deactivated/unauthenticated flow
-    // calls handleInitialRoute() from the null-user branch; showing the navbar there
-    // leaves the nav visible on #/login after a deactivated login attempt.
+    // Show navbar
     const navbar = document.querySelector('.top-nav');
-    if (navbar && window.getCurrentUser?.()) {
+    if (navbar) {
         navbar.style.display = '';
     }
 
@@ -449,6 +446,9 @@ export function handleInitialRoute() {
     } else if (path === '/projects' && tab && subpath === 'plan') {
         // Phase 86 — initial-load branch for #/projects/CODE/plan
         navigate('/project-plan', null, tab);
+    } else if (path === '/mrf-form') {
+        // Phase 91 — #/mrf-form is retired; redirect to #/procurement/request
+        navigate('/procurement', 'request');
     } else {
         navigate(path, tab);
     }
