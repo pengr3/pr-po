@@ -4,7 +4,7 @@
    ======================================== */
 
 import { auth, db } from '../firebase.js';
-import { signInWithEmailAndPassword, signOut, doc, getDoc } from '../firebase.js';
+import { signInWithEmailAndPassword, signOut, doc, getDoc, sendPasswordResetEmail } from '../firebase.js';
 
 /**
  * Render login view
@@ -47,12 +47,34 @@ export function render() {
                         <div class="auth-error" id="passwordError"></div>
                     </div>
 
+                    <div class="auth-link" style="margin-top: -0.5rem; text-align: right; font-size: 0.875rem;"><a href="#" id="forgotPasswordLink">Forgot password?</a></div>
+
                     <div class="auth-error" id="generalError"></div>
 
                     <button type="submit" class="btn btn-primary btn-block" id="loginBtn">
                         Sign In
                     </button>
                 </form>
+
+                <div id="forgotPanel" style="display:none;">
+                    <p style="margin-bottom:1rem; font-size:0.9375rem; color: var(--gray-700);">
+                        Enter your email address and we'll send you a link to reset your password.
+                    </p>
+                    <div class="auth-form">
+                        <div class="auth-field">
+                            <label for="resetEmail">Email</label>
+                            <input type="email" id="resetEmail" placeholder="Enter your email">
+                            <div class="auth-error" id="resetEmailError"></div>
+                        </div>
+                        <div class="auth-success" id="resetSuccess"></div>
+                        <button type="button" class="btn btn-primary btn-block" id="sendResetBtn">
+                            Send Reset Link
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-block" id="cancelResetBtn">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     `;
