@@ -236,9 +236,6 @@ export function initAuthObserver() {
                                 await initPermissionsObserver(currentUser);
                             }
 
-                            // Update navigation for authenticated user
-                            updateNavForAuth(currentUser);
-
                             // Phase 83: Attach bell-listener for active users. Window-guarded so notifications
                             // module is optional (defensive — auth.js works even if notifications.js fails to load).
                             if (userData.status === 'active' && window.initNotifications) {
@@ -267,11 +264,14 @@ export function initAuthObserver() {
                             } else if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                                 if (window.destroyNotifications) window.destroyNotifications();
-                                updateNavForAuth(null);
                                 await signOut(auth);
                                 window.location.hash = '#/login';
                                 return;
                             }
+                            // Update navigation only for non-deactivated users (pending, rejected, active).
+                            // Deactivated path returns above — calling updateNavForAuth before the check
+                            // caused the nav to flash visible for deactivated users on sign-in.
+                            updateNavForAuth(currentUser);
                             // Active users: no forced redirect
                             // Post-login redirect: if the user landed here from #/login, send them
                             // to their intended route (or home). This is the race-safe path because
