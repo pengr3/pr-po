@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 91 executing — Plan 01 complete.
-stopped_at: Phase 91 Plan 01 complete — seed-roles.js updated with 7 roles + 4 sub-tab keys
-last_updated: "2026-05-13T07:32:25Z"
-last_activity: "2026-05-13 - Phase 91 Plan 01 complete. seed-roles.js updated with 7-role templates, 4 sub-tab permission keys (D-03), verifyRoleTemplates extended to 11 tabs."
+status: Phase 91 executing — Plan 02 complete.
+stopped_at: Phase 91 Plan 02 complete — router.js and index.html updated; #/mrf-form retired with redirect to #/procurement/request
+last_updated: "2026-05-13T07:35:30Z"
+last_activity: "2026-05-13 - Phase 91 Plan 02 complete. #/mrf-form route removed from routePermissionMap and routes; backward-compat redirect added in handleHashChange + handleInitialRoute; procurement defaultTab changed to 'request'; Material Request nav links removed from desktop+mobile nav."
 progress:
   total_phases: 21
   completed_phases: 17
   total_plans: 75
-  completed_plans: 71
-  percent: 95
+  completed_plans: 72
+  percent: 96
 ---
 
 # Project State
@@ -151,6 +151,8 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91-02]: #/mrf-form route removed from routePermissionMap and routes object; backward-compat redirect added in handleHashChange() and handleInitialRoute() targeting navigate('/procurement', 'request'); /procurement defaultTab changed from 'mrfs' to 'request'; Material Request nav links removed from desktop+mobile nav in index.html; mrf-form.js view module intentionally retained for Plan 03 delegation
 
 - [Phase 91-01]: defaultRoleTemplates extended to 7 roles with 4 sub-tab permission keys (procurement_request, procurement_mrfs, procurement_suppliers, procurement_records) per D-03; mrf_form key retained per D-04; services_admin mirrors operations_admin permissions; services_user mirrors operations_user permissions; verifyRoleTemplates validates 11 tabs across 7 roles; JSDoc note on forceReseedRoleTemplates directs super_admin to run once post-deploy
 
@@ -469,9 +471,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
-Last session: 2026-05-13T06:34:51.779Z
-Stopped at: Phase 91 context gathered
-Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-CONTEXT.md
-Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
+Last activity: 2026-05-13 - Phase 91 Plan 02 complete. #/mrf-form route retired; redirect to #/procurement/request added; procurement defaultTab changed to 'request'; Material Request nav links removed.
+Last session: 2026-05-13T07:35:30Z
+Stopped at: Phase 91 Plan 02 complete
+Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-02-SUMMARY.md
+Next action: Phase 91 Plan 03 — Add "Request" sub-tab to procurement.js (delegate to mrf-form.js)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
