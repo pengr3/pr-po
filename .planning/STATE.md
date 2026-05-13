@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Phase 90-03 complete — 2026-05-13. Forgot Password panel shipped in login.js. Phase 86.5 still pending.
-stopped_at: Phase 90 Plan 03 complete (2026-05-13)
-last_updated: "2026-05-13T02:57:40.670Z"
-last_activity: "2026-05-13 - Phase 90 Plan 03 complete. Forgot Password panel: sendPasswordResetEmail imported from firebase.js; #forgotPanel HTML added to login render(); handleForgotPassword/handleSendReset/handleCancelReset wired in init/destroy with full cleanup."
+stopped_at: Phase 91 context gathered
+last_updated: "2026-05-13T06:34:51.795Z"
+last_activity: "2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3."
 progress:
-  total_phases: 20
+  total_phases: 21
   completed_phases: 17
   total_plans: 71
-  completed_plans: 70
-  percent: 99
+  completed_plans: 69
+  percent: 97
 ---
 
 # Project State
@@ -467,8 +467,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
-Last session: 2026-05-13T02:57:40.636Z
-Stopped at: context exhaustion at 75% (2026-05-13)
-Resume file: None
+Last session: 2026-05-13T06:34:51.779Z
+Stopped at: Phase 91 context gathered
+Resume file: .planning/phases/91-navigation-restructuring-mrf-into-procurement-my-requests-fi/91-CONTEXT.md
 Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
