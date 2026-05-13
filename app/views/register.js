@@ -112,6 +112,8 @@ export function render() {
                 <div class="auth-link">
                     Already have an account? <a href="#/login">Log in</a>
                 </div>
+
+                <div class="auth-success" id="generalSuccess"></div>
             </div>
         </div>
     `;
@@ -160,6 +162,19 @@ function showError(fieldId, message) {
     if (errorEl) {
         errorEl.textContent = message;
         errorEl.style.display = 'block';
+    }
+}
+
+/**
+ * Show success message and hide the registration form
+ * @param {string} message - Success message to display
+ */
+function showSuccess(message) {
+    document.getElementById('registerForm').style.display = 'none';
+    const successEl = document.getElementById('generalSuccess');
+    if (successEl) {
+        successEl.textContent = message;
+        successEl.style.display = 'block';
     }
 }
 
@@ -274,14 +289,9 @@ async function handleRegister(e) {
         // Sign out the user (they must manually log in)
         await signOut(auth);
 
-        // Show success message
-        showError('general', 'Account created! Please log in.');
-        document.getElementById('generalError').style.color = 'var(--success)';
-
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-            window.location.hash = '#/login';
-        }, 2000);
+        // Show success message and redirect immediately
+        showSuccess('Account created! Redirecting to login...');
+        window.location.hash = '#/login';
 
     } catch (error) {
         console.error('[Register] Error during registration:', error);
