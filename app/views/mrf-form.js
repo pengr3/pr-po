@@ -147,8 +147,8 @@ function renderMyRequestsView(tabNav) {
  * @param {string} activeTab - 'form' (default) or 'my-requests'
  * @returns {string} HTML string
  */
-export function render(activeTab = 'form') {
-    const tabNav = renderSubTabNav(activeTab);
+export function render(activeTab = 'form', embedded = false) {
+    const tabNav = embedded ? '' : renderSubTabNav(activeTab);
 
     if (activeTab === 'my-requests') {
         return renderMyRequestsView(tabNav);

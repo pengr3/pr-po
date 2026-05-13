@@ -1725,7 +1725,7 @@ export function render(activeTab = 'mrfs') {
         <div style="background: white; border-bottom: 1px solid var(--gray-200);">
             <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
-                    ${canSeeRequest ? `<a href="#/procurement/request" class="tab-btn ${activeTab === 'request' ? 'active' : ''}">Request</a>` : ''}
+                    ${canSeeRequest ? `<a href="#/procurement/request" class="tab-btn ${(activeTab === 'request' || activeTab === 'my-requests') ? 'active' : ''}">Request</a>` : ''}
                     ${canSeeMrfs ? `<a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">MRF Processing</a>` : ''}
                     ${canSeeSuppliers ? `<a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">Supplier Management</a>` : ''}
                     ${canSeeRecords ? `<a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">MRF Records</a>` : ''}
@@ -1733,10 +1733,31 @@ export function render(activeTab = 'mrfs') {
             </div>
         </div>
 
+        ${(activeTab === 'request' || activeTab === 'my-requests') ? `
+        <nav class="mrf-sub-nav" id="mrfSubNav" role="navigation" aria-label="Material Request sections">
+            <div class="mrf-sub-nav-inner">
+                <div class="mrf-sub-nav-tabs" role="tablist">
+                    <button type="button"
+                        class="mrf-sub-nav-tab ${activeTab !== 'my-requests' ? 'mrf-sub-nav-tab--active' : ''}"
+                        role="tab" aria-selected="${activeTab !== 'my-requests' ? 'true' : 'false'}"
+                        onclick="window.location.hash='#/procurement/request'">
+                        Material Request Form
+                    </button>
+                    <button type="button"
+                        class="mrf-sub-nav-tab ${activeTab === 'my-requests' ? 'mrf-sub-nav-tab--active' : ''}"
+                        role="tab" aria-selected="${activeTab === 'my-requests' ? 'true' : 'false'}"
+                        onclick="window.location.hash='#/procurement/my-requests'">
+                        My Requests
+                    </button>
+                </div>
+            </div>
+        </nav>` : ''}
+
         <div style="max-width: 1600px; margin: 2rem auto 0; padding: 0 2rem;">
             <!-- Request Section -->
-            <section id="request-section" class="section ${activeTab === 'request' ? 'active' : ''}">
-                ${activeTab === 'request' ? mrfFormModule.render('form') : ''}
+            <section id="request-section" class="section ${(activeTab === 'request' || activeTab === 'my-requests') ? 'active' : ''}">
+                ${activeTab === 'request' ? mrfFormModule.render('form', true) : ''}
+                ${activeTab === 'my-requests' ? mrfFormModule.render('my-requests', true) : ''}
             </section>
 
             <!-- MRF Processing Section -->
@@ -2013,7 +2034,8 @@ export async function init(activeTab = 'mrfs') {
     }
 
     // If switching away from request tab, tear down embedded mrf-form to prevent listener leaks (CR-03)
-    if (_requestSubTabActive && activeTab !== 'request') {
+    const isRequestSubTab = activeTab === 'request' || activeTab === 'my-requests';
+    if (_requestSubTabActive && !isRequestSubTab) {
         try { await mrfFormModule.destroy(); } catch (e) { console.error('[Procurement] mrfFormModule.destroy on tab-switch failed:', e); }
         _requestSubTabActive = false;
     }
@@ -2022,6 +2044,12 @@ export async function init(activeTab = 'mrfs') {
     if (activeTab === 'request') {
         _requestSubTabActive = true;
         await mrfFormModule.init('form');
+        return;
+    }
+
+    if (activeTab === 'my-requests') {
+        _requestSubTabActive = true;
+        await mrfFormModule.init('my-requests');
         return;
     }
 
