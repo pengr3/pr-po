@@ -2032,6 +2032,18 @@ export async function init(activeTab = 'mrfs') {
         window._procurementAssignmentHandler = assignmentChangeHandler;
     }
 
+    // Phase 91 — re-filter MRF Records when assignments change.
+    // Guard: only register once (init() called on every tab switch without destroy).
+    if (!window._procurementRecordsAssignmentHandler) {
+        const recordsAssignmentHandler = () => {
+            if (typeof reFilterAndRenderPRPORecords === 'function') {
+                reFilterAndRenderPRPORecords();
+            }
+        };
+        window.addEventListener('assignmentsChanged', recordsAssignmentHandler);
+        window._procurementRecordsAssignmentHandler = recordsAssignmentHandler;
+    }
+
     try {
         // Reference data is independent — load in parallel for faster init
         await Promise.all([
@@ -2172,6 +2184,12 @@ export async function destroy() {
     if (window._procurementAssignmentHandler) {
         window.removeEventListener('assignmentsChanged', window._procurementAssignmentHandler);
         delete window._procurementAssignmentHandler;
+    }
+
+    // Phase 91 — Remove Records-tab assignment change listener
+    if (window._procurementRecordsAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._procurementRecordsAssignmentHandler);
+        delete window._procurementRecordsAssignmentHandler;
     }
 
     // Phase 7: Clear cached MRF data
