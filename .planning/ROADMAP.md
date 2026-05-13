@@ -237,6 +237,7 @@
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred — Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions — completed 2026-05-11
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
+- [ ] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail`
 
 ## Phase Details
 
@@ -564,6 +565,22 @@ Plans:
   2. Super Admin can approve or reject proposals (with mandatory comments) directly from the queue, with the same audit-trail and project-status-advancement behavior as in Phase 87 — no duplicated approval logic
 **Plans**: 1 plan
   - [x] 89-01-PLAN.md — Proposal Approval Queue: renderApprovalQueue(), queue mini-modal, approve/reject wired to _applyProposalStateTransition (MGMT-03, MGMT-04) — completed 2026-05-11 (ea73c5e, UAT approved)
+**UI hint**: yes
+
+### Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password
+**Goal**: Three auth-surface improvements: (1) fix a race condition where successful login bounces back to #/login instead of navigating to home — caused by `window.getCurrentUser()` not yet populated when the hashchange fires; (2) polish the registration success state and redirect so it feels intentional rather than repurposing the error element; (3) add a "Forgot password?" link on the login page that lets users trigger a Firebase password-reset email without leaving the page.
+**Depends on**: Nothing (self-contained changes to auth-surface files: `app/auth.js`, `app/views/login.js`, `app/views/register.js`)
+**Requirements**: None mapped (polish / bug-fix phase)
+**Success Criteria** (what must be TRUE):
+  1. After successful login with valid credentials, the user lands on the home page (#/) — the URL does not bounce back to #/login at any point
+  2. The fix is race-condition-safe: routing to home is driven by the auth observer after `currentUser` is confirmed set, not by a bare `window.location.hash` assignment racing against the observer
+  3. Registration success shows a clearly styled success state (not the repurposed error element) and redirects to the login page — the redirect is immediate (no unexplained delay) or uses a visible countdown
+  4. Login page displays a "Forgot password?" link below the password field; clicking it shows an inline email-input form (no separate route needed); submitting fires `sendPasswordResetEmail` from Firebase Auth and shows a confirmation message; errors (invalid email, user not found) surface inline
+  5. No existing auth flows (login error display, registration validation, invitation code check, pending-approval redirect, deactivated-account sign-out) are broken by these changes
+**Plans**: 3 plans
+  - [x] 90-01-PLAN.md — Fix login routing race condition: modify `app/auth.js` snapshot listener to redirect from `/login` to home (or `intendedRoute`) when `currentUser` is confirmed active; remove the bare hash-assignment from `login.js` that races the observer — completed 2026-05-13 (22ae1e7, a1ad13b)
+  - [ ] 90-02-PLAN.md — Registration UX polish: replace repurposed error element with a dedicated `.auth-success` styled success block; make redirect immediate (or show a visible countdown with cancel option)
+  - [ ] 90-03-PLAN.md — Forgot Password: add collapsible inline panel on login page; wire `sendPasswordResetEmail`; inline success + error feedback; no new route required
 **UI hint**: yes
 
 ## Progress

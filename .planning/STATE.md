@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 86.10 complete — 2026-05-12. All 3 plans done: smart indent, shift+click multi-select, group context menu + copy/paste (4 UAT defects fixed). Phase 86.5 is next."
-stopped_at: ""
-last_updated: "2026-05-12T00:00:00.000Z"
-last_activity: "2026-05-12 - Phase 86.10 all 3 plans UAT approved. Left pane polish shipped. Next: Phase 86.5 Gantt UI Polish 3."
+status: Phase 90-01 complete — 2026-05-13. Login routing race fix shipped. Phase 86.5 still pending.
+stopped_at: Phase 90 Plan 01 complete (2026-05-13)
+last_updated: "2026-05-13T00:10:00.000Z"
+last_activity: "2026-05-13 - Phase 90 Plan 01 complete. Login routing race fix: auth.js onSnapshot now owns all post-login routing; login.js handleLogin no longer sets window.location.hash."
 progress:
-  total_phases: 18
-  completed_phases: 17
+  total_phases: 20
+  completed_phases: 16
   total_plans: 71
-  completed_plans: 69
+  completed_plans: 67
   percent: 94
 ---
 
@@ -148,6 +148,9 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 90-01]: Post-login redirect block in auth.js fires only when window.location.hash.includes('/login') — prevents re-triggering for active users already on '#/' (T-90.1-03 hash-loop mitigation); block placed BEFORE dispatchEvent(authStateChanged) so routing settles before downstream observers fire; auth.js is now sole owner of sessionStorage.getItem('intendedRoute') key
+- [Phase 90-01]: login.js handleLogin retains eager deactivated-account check (signOut + showError) as belt-and-suspenders alongside auth.js onSnapshot deactivated path — ownership is non-overlapping: login.js catches before auth state fires, auth.js catches runtime deactivation
 
 - [Phase 86.9-01]: Curtain approach keeps .task-grid-rail at flex:0 0 100%/min-width:100% at all times; .gantt-pane is position:absolute overlay. No column shrink on drag — initPanelResize() now mutates ganttPane.style.left not gridTemplateColumns
 - [Phase 86.9-01]: _paneDividerPct = 35 is the default position applied on every initPanelResize() call, reset in destroy() for clean re-entry
@@ -460,8 +463,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3.
-Last session: 2026-05-12T10:01:06.148Z
-Stopped at: context exhaustion at 76% (2026-05-12)
+Last session: 2026-05-13T02:39:17.759Z
+Stopped at: context exhaustion at 75% (2026-05-13)
 Resume file: None
 Next action: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
