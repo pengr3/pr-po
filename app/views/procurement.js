@@ -28,6 +28,7 @@ let poCurrentPage = 1;
 const poItemsPerPage = 15;
 
 let allPRPORecords = [];
+let cachedAllPRPORecords = [];  // Phase 91 — raw snapshot for re-filter on assignmentsChanged without re-fetch
 let filteredPRPORecords = [];
 let prpoCurrentPage = 1;
 const prpoItemsPerPage = 10;
@@ -1858,6 +1859,7 @@ export function render(activeTab = 'mrfs') {
                                 <option value="">All Departments</option>
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
+                                <option value="my_requests">My Requests</option>
                             </select>
                             <button class="btn btn-secondary" onclick="window.exportPOTrackingCSV()">Export PO CSV</button>
                             <button class="btn btn-secondary" onclick="window.exportPRPORecordsCSV()">Export MRF CSV</button>
@@ -4776,9 +4778,15 @@ function filterPRPORecords() {
     const poStatusFilter = document.getElementById('poStatusFilter')?.value || '';
 
     filteredPRPORecords = allPRPORecords.filter(mrf => {
-        // Department filter
-        const mrfDept = mrf.department || (mrf.service_code ? 'services' : 'projects');
-        const matchesDept = !activePODeptFilter || mrfDept === activePODeptFilter;
+        // Department filter — includes my_requests branch (Phase 91)
+        let matchesDept;
+        if (activePODeptFilter === 'my_requests') {
+            const uid = window.getCurrentUser?.()?.uid;
+            matchesDept = uid ? mrf.requestor_user_id === uid : false;
+        } else {
+            const mrfDept = mrf.department || (mrf.service_code ? 'services' : 'projects');
+            matchesDept = !activePODeptFilter || mrfDept === activePODeptFilter;
+        }
 
         // Search filter
         const matchesSearch = !searchInput ||
