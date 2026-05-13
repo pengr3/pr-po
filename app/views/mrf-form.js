@@ -25,10 +25,6 @@ let psShowServices = true;
 // My Requests sub-tab controller (from mrf-records.js)
 let myRequestsController = null;
 
-// Phase 74-01: Scroll-hide/show handler for sticky MRF sub-nav pill bar
-let _mrfNavScrollHandler = null;
-let _mrfNavLastScrollY = 0;
-
 // Phase 74-02: Module-level refs for scoped sync handlers on .mrf-items-section.
 // REVIEWS [HIGH]: Stored as module-level vars (not window globals) so
 // destroy() can call removeEventListener and avoid zombie handlers.
@@ -36,42 +32,12 @@ let _mrfItemSyncHandler = null;        // for 'input' events
 let _mrfItemSyncChangeHandler = null;  // for 'change' events
 
 // ----------------------------------------
-// SUB-TAB NAVIGATION RENDER
-// ----------------------------------------
-
-function renderSubTabNav(activeTab) {
-    return `
-        <nav class="mrf-sub-nav" id="mrfSubNav" role="navigation" aria-label="Material Request sections">
-            <div class="mrf-sub-nav-inner">
-                <div class="mrf-sub-nav-tabs" role="tablist">
-                    <button type="button"
-                        class="mrf-sub-nav-tab ${activeTab === 'form' ? 'mrf-sub-nav-tab--active' : ''}"
-                        role="tab"
-                        aria-selected="${activeTab === 'form' ? 'true' : 'false'}"
-                        onclick="window.navigateToTab('form')">
-                        Material Request Form
-                    </button>
-                    <button type="button"
-                        class="mrf-sub-nav-tab ${activeTab === 'my-requests' ? 'mrf-sub-nav-tab--active' : ''}"
-                        role="tab"
-                        aria-selected="${activeTab === 'my-requests' ? 'true' : 'false'}"
-                        onclick="window.navigateToTab('my-requests')">
-                        My Requests
-                    </button>
-                </div>
-            </div>
-        </nav>
-    `;
-}
-
-// ----------------------------------------
 // MY REQUESTS VIEW RENDER
 // ----------------------------------------
 
-function renderMyRequestsView(tabNav) {
+function renderMyRequestsView() {
     return `
         <div style="min-height: 100vh; background: #f8fafc;">
-            ${tabNav}
             <div class="container" style="max-width: 1600px; margin: 0 auto; padding: 2rem;">
                 <div class="card">
                     <div class="card-header">
@@ -147,22 +113,18 @@ function renderMyRequestsView(tabNav) {
  * @param {string} activeTab - 'form' (default) or 'my-requests'
  * @returns {string} HTML string
  */
-export function render(activeTab = 'form', embedded = false) {
-    const tabNav = embedded ? '' : renderSubTabNav(activeTab);
-
+export function render(activeTab = 'form') {
     if (activeTab === 'my-requests') {
-        return renderMyRequestsView(tabNav);
+        return renderMyRequestsView();
     }
 
     // --- FORM TAB ---
     // Check edit permission - this is a create form, so block if no edit permission
     const canEdit = window.canEditTab?.('procurement_request');
 
-    // If user has no edit permission, show blocked message (but still show sub-tab nav)
     if (canEdit === false) {
         return `
             <div style="min-height: 100vh; background: #f8fafc;">
-                ${tabNav}
                 <div class="container" style="padding: 2rem;">
                     <div class="view-only-notice">
                         <span class="notice-icon">👁</span>
@@ -178,7 +140,6 @@ export function render(activeTab = 'form', embedded = false) {
 
     return `
         <div style="min-height: 100vh; background: #f8fafc;">
-            ${tabNav}
             <div style="max-width: 1100px; margin: 2rem auto; background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); overflow: hidden;">
                 <div style="background: var(--primary); color: white; padding: 2rem; text-align: center;">
                     <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; color: white;">Material Request Form (MRF)</h1>
@@ -395,35 +356,6 @@ export function render(activeTab = 'form', embedded = false) {
  * @param {string} activeTab - 'form' (default) or 'my-requests'
  */
 export async function init(activeTab = 'form') {
-    // Phase 74-01: Attach scroll-hide/show listener for the sticky MRF sub-nav.
-    // Router does NOT call destroy() when switching sub-tabs within MRF view,
-    // so guard against re-attach on repeated init() calls.
-    if (!_mrfNavScrollHandler) {
-        _mrfNavLastScrollY = window.scrollY || 0;
-        const SCROLL_THRESHOLD = 80;
-        _mrfNavScrollHandler = function () {
-            const nav = document.getElementById('mrfSubNav');
-            if (!nav) return;
-            const currentY = window.scrollY || 0;
-            const prevY = _mrfNavLastScrollY;
-            _mrfNavLastScrollY = currentY; // always update first
-            if (currentY < SCROLL_THRESHOLD) {
-                // Always show when near top of page.
-                nav.style.transform = 'translateY(0)';
-                nav.style.opacity = '1';
-            } else if (currentY > prevY) {
-                // Scrolling DOWN past threshold — hide.
-                nav.style.transform = 'translateY(-100%)';
-                nav.style.opacity = '0';
-            } else if (currentY < prevY) {
-                // Scrolling UP at any position — show.
-                nav.style.transform = 'translateY(0)';
-                nav.style.opacity = '1';
-            }
-        };
-        window.addEventListener('scroll', _mrfNavScrollHandler, { passive: true });
-    }
-
     if (activeTab === 'my-requests') {
         // Clean up form listeners from previous sub-tab if switching from form → my-requests
         if (projectsListener) { projectsListener(); projectsListener = null; }
@@ -1932,13 +1864,6 @@ export async function destroy() {
     }
     const staleMobileMenu = document.getElementById('myRequestsMobileMenu');
     if (staleMobileMenu) staleMobileMenu.remove();
-
-    // Phase 74-01: Detach scroll-hide/show listener for sticky sub-nav.
-    if (_mrfNavScrollHandler) {
-        window.removeEventListener('scroll', _mrfNavScrollHandler);
-        _mrfNavScrollHandler = null;
-    }
-    _mrfNavLastScrollY = 0;
 
     // Phase 74-02: REVIEWS [HIGH] — detach scoped item sync handlers to prevent zombies.
     // Section may already be gone from DOM; handlers still need to be null'd.
