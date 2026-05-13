@@ -238,6 +238,7 @@
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
 - [x] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail` (completed 2026-05-13)
+- [ ] **Phase 91: Navigation Restructuring — MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** — Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure
 
 ## Phase Details
 
@@ -583,6 +584,24 @@ Plans:
   - [x] 90-03-PLAN.md — Forgot Password: add collapsible inline panel on login page; wire `sendPasswordResetEmail`; inline success + error feedback; no new route required
 **UI hint**: yes
 
+### Phase 91: Navigation Restructuring — MRF into Procurement, My Requests Filtered View, Role Permission Overhaul
+**Goal**: Consolidate the top navigation by absorbing the standalone Material Request tab into Procurement (MRF submission and management belong together under one roof), retiring the redundant My Requests tab, and replacing it with a user-scoped filter view inside MRF Records. Revise Firestore Security Rules and role permission configuration to match the new nav structure.
+**Depends on**: Nothing (self-contained changes to nav, router, procurement.js, mrf-form.js, firestore.rules, and role config)
+**Requirements**: None mapped (navigation overhaul + permission alignment)
+**Success Criteria** (what must be TRUE):
+  1. The standalone “Material Request” nav link is removed; MRF creation and management are accessible as a sub-tab inside the Procurement view
+  2. The standalone “My Requests” nav tab is removed; instead, MRF Records gains a “My Requests” filter toggle that narrows the table to MRFs filed by the currently logged-in user
+  3. Requestor-role users can still access their own submissions via the new filtered view with no loss of functionality
+  4. Firestore Security Rules are updated to reflect the merged access model — no new permission gaps introduced by the restructure
+  5. Role configuration (which nav tabs each role sees) is updated so the correct tabs are shown/hidden for every role after the restructure
+  6. All existing procurement operations (MRF approval, PR/TR generation, status updates, proof attachment) are fully functional under the new structure
+**Plans**: 4 plans (planned 2026-05-13)
+  - [x] 91-01-PLAN.md -- seed-roles.js: 4 new sub-tab permission keys per role + add services_admin/services_user templates + verify helper (D-03, D-04) -- Wave 1
+  - [ ] 91-02-PLAN.md -- Router cleanup + nav link removal: drop /mrf-form route, add #/mrf-form -> #/procurement/request redirect, change procurement defaultTab to request (D-01) -- Wave 1
+  - [ ] 91-03-PLAN.md -- procurement.js Request sub-tab: import mrf-form delegation, 4-tab row with hidden-not-gated sub-tab access flags, init/destroy hooks, default-tab fallthrough; mrf-form.js canEdit key swap to procurement_request (D-01, D-03, D-04) -- Wave 2
+  - [ ] 91-04-PLAN.md -- procurement.js My Requests dropdown option + filter branch + Records-tab project-scope filter + assignmentsChanged listener + cachedAllPRPORecords cache (D-02) -- Wave 3
+**UI hint**: yes
+
 ## Progress
 
 **Total shipped: 92 phases, 200+ plans, 11 milestones. Active milestone: v4.0 (7 phases planned).**
@@ -614,6 +633,8 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 87 | v4.0 | 5/5 | Complete | 2026-05-11 |
 | 88 | v4.0 | 2/2 | Complete | 2026-05-11 |
 | 89 | v4.0 | 1/1 | Complete | 2026-05-11 |
+| 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
+| 91 | v4.0 | 1/4 | In Progress|  |
 
 ### Carry-overs (deferred to v4.1+)
 

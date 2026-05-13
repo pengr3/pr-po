@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 90-03 complete — 2026-05-13. Forgot Password panel shipped in login.js. Phase 86.5 still pending.
-stopped_at: Phase 91 context gathered
-last_updated: "2026-05-13T06:34:51.795Z"
-last_activity: "2026-05-11 - Phase 86.9 Plan 02 UAT approved. PDF Export shipped and verified. Phase 86.9 complete (both plans). Next: Phase 86.5 Gantt UI Polish 3."
+status: Phase 91 executing — Plan 01 complete.
+stopped_at: Phase 91 Plan 01 complete — seed-roles.js updated with 7 roles + 4 sub-tab keys
+last_updated: "2026-05-13T07:32:25Z"
+last_activity: "2026-05-13 - Phase 91 Plan 01 complete. seed-roles.js updated with 7-role templates, 4 sub-tab permission keys (D-03), verifyRoleTemplates extended to 11 tabs."
 progress:
   total_phases: 21
   completed_phases: 17
-  total_plans: 71
-  completed_plans: 69
-  percent: 97
+  total_plans: 75
+  completed_plans: 71
+  percent: 95
 ---
 
 # Project State
@@ -144,12 +144,15 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 | Phase 86.9 P02 | ~10 | 2 tasks + UAT approved | 2 files |
 | Phase 90 P02 | ~5 | 2 tasks | 2 files |
 | Phase 90 P03 | ~12 | 2 tasks | 2 files |
+| Phase 91 P01 | ~1 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91-01]: defaultRoleTemplates extended to 7 roles with 4 sub-tab permission keys (procurement_request, procurement_mrfs, procurement_suppliers, procurement_records) per D-03; mrf_form key retained per D-04; services_admin mirrors operations_admin permissions; services_user mirrors operations_user permissions; verifyRoleTemplates validates 11 tabs across 7 roles; JSDoc note on forceReseedRoleTemplates directs super_admin to run once post-deploy
 
 - [Phase 90-03]: sendPasswordResetEmail added to firebase.js CDN import + export blocks; handleSendReset validates with /^[^\s@]+@[^\s@]+\.[^\s@]+$/ regex before network call; sendResetBtn stays disabled after success; handleCancelReset resets ALL panel state before restoring #loginForm (T-90.3-04 state-leakage mitigate); all three handlers registered on window and deleted in destroy()
 - [Phase 90-02]: showSuccess() uses textContent (not innerHTML) for XSS safety — message is a hardcoded string literal per T-90.2-01; #generalSuccess pre-rendered outside #registerForm so hiding the form does not hide the success block; redirect is immediate (direct hash assignment, no setTimeout) per plan must_haves
