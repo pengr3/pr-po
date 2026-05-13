@@ -166,17 +166,7 @@ async function handleLogin(e) {
             }
 
             // Valid user (active, pending, or rejected) - allow navigation
-            // Auth observer will handle routing based on status
-
-            // Check for intended route (SEC-02)
-            const intendedRoute = sessionStorage.getItem('intendedRoute');
-
-            if (intendedRoute) {
-                sessionStorage.removeItem('intendedRoute');
-                window.location.hash = '#' + intendedRoute;
-            } else {
-                window.location.hash = '#/';
-            }
+            // Auth observer (auth.js) owns post-login routing — no hash assignment here.
 
         } catch (validationError) {
             console.error('[Login] Error validating user:', validationError);
