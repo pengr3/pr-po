@@ -191,6 +191,7 @@ export async function seedRoleTemplates() {
 }
 
 /**
+ * Phase 91 — call this once after deploy to push the 4 new sub-tab permission keys to live role documents.
  * Force reseed role templates (overwrites existing)
  * Use for testing or resetting to defaults
  * @returns {Promise<void>}
@@ -223,12 +224,13 @@ export async function forceReseedRoleTemplates() {
 
 /**
  * Verify role templates have correct structure
- * Checks all 5 roles exist and each has all 7 tabs defined
+ * Checks all 7 roles exist and each has all 11 tabs defined
  * @returns {Promise<{valid: boolean, errors: Array<string>}>}
  */
 export async function verifyRoleTemplates() {
-    const roles = ['super_admin', 'operations_admin', 'operations_user', 'finance', 'procurement'];
-    const requiredTabs = ['dashboard', 'clients', 'projects', 'mrf_form', 'procurement', 'finance', 'role_config'];
+    const roles = ['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'finance', 'procurement'];
+    const requiredTabs = ['dashboard', 'clients', 'projects', 'mrf_form', 'procurement', 'finance', 'role_config',
+                          'procurement_request', 'procurement_mrfs', 'procurement_suppliers', 'procurement_records'];
     const results = { valid: true, errors: [] };
 
     for (const roleId of roles) {
