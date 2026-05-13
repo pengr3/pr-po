@@ -156,7 +156,7 @@ export function render(activeTab = 'form') {
 
     // --- FORM TAB ---
     // Check edit permission - this is a create form, so block if no edit permission
-    const canEdit = window.canEditTab?.('mrf_form');
+    const canEdit = window.canEditTab?.('procurement_request');
 
     // If user has no edit permission, show blocked message (but still show sub-tab nav)
     if (canEdit === false) {
