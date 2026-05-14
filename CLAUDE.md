@@ -71,6 +71,7 @@ python -m http.server 8000  # OR npx http-server
 
 **`suppliers`** - Supplier database
 - `supplier_name` (unique), `contact_person`, `email`, `phone`, `address`
+- `categories` (string array, optional) - trade categories e.g. `['Electrical', 'Lighting']`. May be absent or empty on legacy documents (treat `undefined`/`null`/`[]` as equivalent "uncategorized"). Added in Phase 91.1.
 
 **`projects`** - Active projects
 - `project_name` (unique), `status`: `active` | `inactive`
