@@ -2045,14 +2045,22 @@ export function render(activeTab = 'mrfs') {
                     </div>
 
                     <!-- Supplier Search Filter Bar -->
-                    <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                    <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
                         <div class="form-group" style="margin: 0; flex: 2; min-width: 200px;">
                             <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Search</label>
                             <input type="text"
                                    id="supplierSearchInput"
-                                   placeholder="Search by supplier name or contact person..."
+                                   placeholder="Search by name, contact, or category..."
                                    oninput="window.applySupplierSearch()"
                                    style="width: 100%;">
+                        </div>
+                        <div class="form-group" style="margin: 0; padding-bottom: 0.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer; margin: 0;">
+                                <input type="checkbox"
+                                       id="suppliersUncategorizedOnly"
+                                       onchange="window.applySupplierSearch()">
+                                Show uncategorized only
+                            </label>
                         </div>
                     </div>
 
@@ -4884,12 +4892,23 @@ async function deleteSupplier(supplierId, supplierName) {
 
 function applySupplierSearch() {
     const term = document.getElementById('supplierSearchInput')?.value?.toLowerCase() || '';
-    filteredSuppliersData = !term
+    const uncategorizedOnly = document.getElementById('suppliersUncategorizedOnly')?.checked === true;
+
+    // Stage 1: apply search term (extended per D-07 to also match categories)
+    let result = !term
         ? [...suppliersData]
         : suppliersData.filter(s =>
             (s.supplier_name && s.supplier_name.toLowerCase().includes(term)) ||
-            (s.contact_person && s.contact_person.toLowerCase().includes(term))
+            (s.contact_person && s.contact_person.toLowerCase().includes(term)) ||
+            (Array.isArray(s.categories) && s.categories.some(c => typeof c === 'string' && c.toLowerCase().includes(term)))
           );
+
+    // Stage 2: compose with "Show uncategorized only" toggle (D-06)
+    if (uncategorizedOnly) {
+        result = result.filter(s => !Array.isArray(s.categories) || s.categories.length === 0);
+    }
+
+    filteredSuppliersData = result;
     suppliersCurrentPage = 1;
     renderSuppliersTable();
 }
