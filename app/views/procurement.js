@@ -2062,6 +2062,7 @@ export function render(activeTab = 'mrfs') {
                         <thead>
                             <tr>
                                 <th>Supplier Name</th>
+                                <th>Categories</th>
                                 <th>Contact Person</th>
                                 <th>Email</th>
                                 <th>Phone</th>
@@ -4661,7 +4662,7 @@ function renderSuppliersTable() {
         const message = term
             ? 'No suppliers match your search.'
             : 'No suppliers yet. Add your first supplier!';
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
         const paginationDiv = document.getElementById('suppliersPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
@@ -4672,6 +4673,18 @@ function renderSuppliersTable() {
     const startIndex = (suppliersCurrentPage - 1) * suppliersItemsPerPage;
     const endIndex = Math.min(startIndex + suppliersItemsPerPage, filteredSuppliersData.length);
     const pageItems = filteredSuppliersData.slice(startIndex, endIndex);
+
+    // Display-only category pills: reuse .personnel-pill class for visual parity with
+    // inline-edit row, but omit the .pill-remove button (read-only context).
+    // Em-dash for empty/missing per D-06.
+    const renderCategoryDisplay = (cats) => {
+        if (!Array.isArray(cats) || cats.length === 0) {
+            return '<span style="color: #94a3b8;">—</span>';
+        }
+        return cats.map(c =>
+            `<span class="personnel-pill" style="margin: 0.125rem;">${escapeHTML(c)}</span>`
+        ).join('');
+    };
 
     tbody.innerHTML = pageItems.map(supplier => {
         if (editingSupplier === supplier.id) {
@@ -4697,6 +4710,7 @@ function renderSuppliersTable() {
             return `
                 <tr>
                     <td class="clickable-supplier" onclick="window.showSupplierPurchaseHistory('${escapeHTML(supplier.supplier_name)}')">${escapeHTML(supplier.supplier_name)}</td>
+                    <td>${renderCategoryDisplay(supplier.categories)}</td>
                     <td>${escapeHTML(supplier.contact_person)}</td>
                     <td>${escapeHTML(supplier.email)}</td>
                     <td>${escapeHTML(supplier.phone)}</td>
