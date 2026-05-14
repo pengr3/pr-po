@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in_progress
-stopped_at: Plan 91.1-02 complete (2026-05-14T09:58:38Z)
-last_updated: "2026-05-14T09:58:38Z"
-last_activity: 2026-05-14 - Phase 91.1 Plan 02 (forms — Add/Edit consumers of pill control) complete. 2 tasks, 1 file modified (app/views/procurement.js, +32 lines), 0 deviations. Add form writes `categories` (>=1 enforced); inline-edit row writes `categories` (empty allowed per D-02 legacy carve-out). Plan 03 (table + toolbar) ready for execution.
+stopped_at: Phase 91.1 complete (2026-05-14T10:06:38Z)
+last_updated: "2026-05-14T10:06:38Z"
+last_activity: 2026-05-14 - Phase 91.1 Plan 03 (table + toolbar — display column, em-dash on blank, extended search, 'Show uncategorized only' toolbar) complete. 2 tasks, 1 file modified (app/views/procurement.js, +38 lines), 0 deviations. D-08 verified: firestore.rules:354-362 unchanged, no `categories` reference, super_admin + procurement roles still gating create/update/delete. Phase 91.1 closed — all 3 plans shipped (read + write sides of supplier categories live).
 progress:
   total_phases: 21
-  completed_phases: 20
+  completed_phases: 21
   total_plans: 78
-  completed_plans: 77
-  percent: 99
+  completed_plans: 78
+  percent: 100
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 91.1
-Next: Phase 91.1 — Plans 01 ✓ + 02 ✓ complete. Plan 02 commits: 5f9d0d6 (Task 1 — Add form), 0fe411d (Task 2 — inline-edit row). Run Plan 03 (table + toolbar — display column, em-dash on blank, extended search, "Show uncategorized only" toolbar control) next to close out Phase 91.1.
+Phase: 91.1 ✓ COMPLETE
+Next: Phase 91.1 fully shipped (3/3 plans). Plan 03 commits: 82fb23e (Task 1 — Categories column + display-row em-dash), d38c8c6 (Task 2 — extended search + 'Show uncategorized only' toolbar + D-08 verified). Awaiting orchestrator decision on next phase. Phase 85 still in progress (7/8); v3.3 deferred items (Phase 68.1 subcon scorecard, Phase 70 rework) remain in BACKLOG. Recommend `/gsd:transition` or `/gsd:complete-milestone` review.
 
 ## Performance Metrics
 
@@ -147,12 +147,23 @@ Next: Phase 91.1 — Plans 01 ✓ + 02 ✓ complete. Plan 02 commits: 5f9d0d6 (T
 | Phase 91 P01 | ~1 | 2 tasks | 1 files |
 | Phase 91.1 P01 | ~3 | 3 tasks | 2 files |
 | Phase 91.1 P02 | ~2 | 2 tasks | 1 files |
+| Phase 91.1 P03 | ~3 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91.1-03]: Categories column inserted at position 2 of the suppliers table head (between Supplier Name and Contact Person) — matches the inline-edit row position Plan 02 already shipped; zero column-reshuffle on landing
+- [Phase 91.1-03]: Read-only display pills reuse `.personnel-pill` class (inline `margin: 0.125rem`) WITHOUT the `.pill-remove` button child — visual parity with inline-edit row but explicitly non-interactive; no new CSS class
+- [Phase 91.1-03]: `renderCategoryDisplay` helper hoisted inside `renderSuppliersTable` just above the `.map()` call (instead of module-scope) — keeps it close to its sole call site, captures nothing it doesn't need, and naturally rebuilds on every render; em-dash literal `<span style="color: #94a3b8;">—</span>` is a static HTML entity reference (no user data, no escapeHTML needed)
+- [Phase 91.1-03]: Em-dash returned via `!Array.isArray(cats) || cats.length === 0` guard — matches D-01 "uncategorized" semantics (undefined / null / non-array / [] all collapse to the same affordance); legacy suppliers and explicitly-cleared categories both render identically
+- [Phase 91.1-03]: `applySupplierSearch` restructured into a two-stage pipeline (Stage 1 = term match incl. categories, Stage 2 = uncategorized filter) instead of inlining everything into one giant `.filter` predicate — composition semantics are AND, search narrows first, uncategorized further narrows; reviewer-visible separation of D-06 vs D-07 concerns
+- [Phase 91.1-03]: `typeof c === 'string'` guard inside the categories `.some(...)` branch defends against malformed Firestore docs where a non-string slipped past Plan 01's read filter — defense-in-depth; T-91.1-12 mitigation
+- [Phase 91.1-03]: Filter-bar `align-items: flex-end` added so the new uncategorized-checkbox column lines up with the bottom of the (taller) search-input column — visual alignment with no per-element margin tweaks
+- [Phase 91.1-03]: D-08 verified by grep-only, not by edit — `match /suppliers/{supplierId}` block at firestore.rules:354-362 contains no `categories` reference and still gates create/update/delete on super_admin + procurement roles; categories writes are unrestricted under the existing role gate, so no rules deploy is needed for this phase
+- [Phase 91.1-03]: ZERO edits to inline-edit row branch / addSupplier / saveEdit / cancelEdit / toggleAddForm / clearAddForm / CLAUDE.md / firestore.rules — all Plan 02 / Plan 01 territory and external policy preserved per orchestrator scope guard; `git diff` confirms only the four intended edit sites (thead, empty-state colspan, helper insertion, display-row td) in Task 1 and the two intended edit sites (filter-bar HTML, applySupplierSearch body) in Task 2
 
 - [Phase 91.1-02]: Add form's Categories field uses `renderCategoryPillControl('newCategoriesPills', [])` inline in the procurement view template literal — paints empty on render, then `toggleAddForm` seeds the state slot on every open (idempotent) so the next open is guaranteed clean even if a previous close path skipped clearAddForm
 - [Phase 91.1-02]: D-02 required-vs-optional split realized as deliberate code-level branching, NOT a shared validator — `addSupplier` blocks empty submissions with `showToast('Please add at least one category')`, `saveEdit` deliberately omits the same guard so legacy un-encoded rows remain saveable while the operations team manually backfills categories post-deploy
@@ -498,8 +509,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-14
-Last session: 2026-05-14T09:58:38Z
-Stopped at: Plan 91.1-02 complete (Plan 02 commits 5f9d0d6, 0fe411d)
+Last session: 2026-05-14T10:06:38Z
+Stopped at: Phase 91.1 complete — all 3 plans shipped (Plan 03 commits 82fb23e, d38c8c6)
 Resume file: None
-Next action: Run Plan 91.1-03 (table + toolbar — display column, em-dash on blank, extended search, "Show uncategorized only" toolbar control) to close out Phase 91.1
+Next action: Phase 91.1 closed. Phase 85 still in progress (7/8 plans). Phase 84.1 awaiting UAT. Consider `/gsd:transition` to assess remaining v4.0 work or `/gsd:complete-milestone` review.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |

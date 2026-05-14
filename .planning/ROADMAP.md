@@ -616,7 +616,7 @@ Plans:
 **Plans**: 3 plans
   - [x] 91.1-01-PLAN.md — Schema constants (SEED_CATEGORIES, getKnownCategories) + reusable tag-pill control + CLAUDE.md doc update — Wave 1 ✓ 2026-05-14 (commits 9f1e1ed, 58056d7, 9298a22)
   - [x] 91.1-02-PLAN.md — Wire categories into Add Supplier form (required ≥1) and inline Edit row (optional, legacy-friendly) write paths — Wave 2 ✓ 2026-05-14 (commits 5f9d0d6, 0fe411d)
-  - [ ] 91.1-03-PLAN.md — Suppliers table Categories column + em-dash on blank + extended search + 'Show uncategorized only' toolbar; verify firestore.rules unchanged (D-08) — Wave 3 *(blocked on Wave 2 completion)*
+  - [x] 91.1-03-PLAN.md — Suppliers table Categories column + em-dash on blank + extended search + 'Show uncategorized only' toolbar; verify firestore.rules unchanged (D-08) — Wave 3 ✓ 2026-05-14 (commits 82fb23e, d38c8c6)
 
   Cross-cutting constraints (from plan must_haves):
   - D-01 multi-tag `categories: string[]` array — referenced in all 3 plans
@@ -656,7 +656,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 89 | v4.0 | 1/1 | Complete | 2026-05-11 |
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
-| 91.1 | v4.0 | 2/3 | In progress | - |
+| 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
 
 ### Carry-overs (deferred to v4.1+)
 
