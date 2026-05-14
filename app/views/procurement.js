@@ -69,6 +69,55 @@ let rfpsByPO = {};        // { po_id: [rfp, rfp, ...] } for O(1) lookup per PO r
 let rfpsByTR = {};        // { tr_id: [rfp, rfp, ...] } for O(1) lookup per TR row
 
 // ========================================
+// SUPPLIER CATEGORIES (Phase 91.1)
+// ========================================
+// Seed list of trade categories used as the default dropdown options
+// in the Supplier Add/Edit tag-pill control. Source ordering preserved
+// from D-03 for future-reader intent; UI sorts A-Z on render.
+const SEED_CATEGORIES = [
+  'Civil / Structural',
+  'Architectural Works',
+  'Flooring',
+  'Ceiling Systems',
+  'Wall Finishes',
+  'Doors, Windows & Glass',
+  'Joinery / Carpentry',
+  'Plumbing / Sanitary',
+  'Bathroom Fixtures & Accessories',
+  'Electrical',
+  'Lighting',
+  'Mechanical / HVAC',
+  'Fire Protection',
+  'Security Systems',
+  'Smart Technology & Automation',
+  'Landscaping',
+  'Roofing Systems',
+  'Hardware & General Construction Supplies',
+  'Construction Service',
+  'Professional Service',
+];
+
+// Max chars allowed on a user-entered "Add new..." category — guards against
+// pathologically long strings polluting the derived dropdown. (Threat T-91.1-02)
+const MAX_CATEGORY_LENGTH = 60;
+
+/**
+ * Returns the deduped, A-Z sorted union of SEED_CATEGORIES and every
+ * category currently present on any supplier document. Defensive
+ * against missing/null/non-array `categories` fields on legacy docs.
+ *
+ * @param {Array<{categories?: string[]}>} suppliersList
+ * @returns {string[]} sorted unique category strings
+ */
+function getKnownCategories(suppliersList) {
+  const fromSuppliers = (suppliersList || [])
+    .flatMap(s => Array.isArray(s.categories) ? s.categories : [])
+    .filter(c => typeof c === 'string' && c.trim().length > 0);
+  const all = [...new Set([...SEED_CATEGORIES, ...fromSuppliers])];
+  return all.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+// ========================================
 // TRANCHE BUILDER HELPERS
 // ========================================
 
