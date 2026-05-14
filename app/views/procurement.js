@@ -118,6 +118,177 @@ function getKnownCategories(suppliersList) {
 }
 
 // ========================================
+// CATEGORY TAG-PILL CONTROL (Phase 91.1)
+// ========================================
+// State map: containerId -> string[] of currently-selected categories.
+// One entry per simultaneously-rendered control (Add form has containerId
+// 'newCategoriesPills'; inline-edit row uses 'edit-categories-<supplierId>').
+const _categoryPillState = new Map();
+
+/**
+ * Render the tag-pill control as an HTML string. Caller is responsible for
+ * placing the returned string inside its layout AND calling
+ * setCategoryPillState(containerId, initialCategories) before/after insertion
+ * so removal handlers find the state slot.
+ *
+ * @param {string} containerId   Unique DOM id for the .pill-input-container element
+ * @param {string[]} selected    Currently selected categories (will be rendered as pills)
+ * @returns {string} HTML
+ */
+function renderCategoryPillControl(containerId, selected) {
+  const safeId = escapeHTML(containerId);
+  const pills = (selected || []).map((cat, idx) => `
+    <span class="personnel-pill" data-category="${escapeHTML(cat)}">
+      ${escapeHTML(cat)}
+      <button type="button" class="pill-remove"
+              onclick="window.removeCategoryPill('${safeId}', ${idx})"
+              aria-label="Remove ${escapeHTML(cat)}">×</button>
+    </span>
+  `).join('');
+
+  return `
+    <div class="pill-input-container" id="${safeId}">
+      ${pills}
+      <button type="button"
+              class="pill-search-input"
+              style="cursor: pointer; text-align: left;"
+              onclick="window.openCategoryDropdown('${safeId}')">+ Add...</button>
+      <div class="pill-dropdown" id="${safeId}-dropdown" style="display: none;"></div>
+    </div>
+  `;
+}
+
+/**
+ * Initialize/replace the state slot for a control. MUST be called before the
+ * control's DOM is interacted with (typically immediately after render).
+ */
+function setCategoryPillState(containerId, categories) {
+  _categoryPillState.set(containerId, Array.isArray(categories) ? [...categories] : []);
+}
+
+/**
+ * Read the current selection from a control's state slot. Used by addSupplier()
+ * and saveEdit() in Plan 02 to extract what to write to Firestore.
+ * Returns a defensive copy (callers may mutate).
+ */
+function getCategoryPillState(containerId) {
+  return [..._categoryPillState.get(containerId) || []];
+}
+
+function clearCategoryPillState(containerId) {
+  _categoryPillState.delete(containerId);
+  const dd = document.getElementById(`${containerId}-dropdown`);
+  if (dd) dd.style.display = 'none';
+}
+
+/**
+ * Remove the pill at index `idx` from the named control, then re-render the
+ * control in place. Wired to window for onclick handlers.
+ */
+function removeCategoryPill(containerId, idx) {
+  const arr = _categoryPillState.get(containerId) || [];
+  if (idx < 0 || idx >= arr.length) return;
+  arr.splice(idx, 1);
+  _categoryPillState.set(containerId, arr);
+  rerenderCategoryPillControl(containerId);
+}
+
+/**
+ * Open the "+ Add..." dropdown for a control. Populates it with known
+ * categories (seed ∪ all suppliers') minus those already selected, plus an
+ * "Add new..." action at the bottom.
+ */
+function openCategoryDropdown(containerId) {
+  const dd = document.getElementById(`${containerId}-dropdown`);
+  if (!dd) return;
+  const selected = new Set(_categoryPillState.get(containerId) || []);
+  const known = getKnownCategories(suppliersData).filter(c => !selected.has(c));
+
+  const items = known.map(cat => `
+    <div class="pill-dropdown-item"
+         onclick="window.addCategoryPill('${escapeHTML(containerId)}', '${escapeHTML(cat)}')">
+      ${escapeHTML(cat)}
+    </div>
+  `).join('');
+
+  const addNew = `
+    <div style="border-top: 1px solid var(--gray-300); padding: 0.5rem 0.75rem; display: flex; gap: 0.25rem; align-items: center;">
+      <input type="text"
+             id="${escapeHTML(containerId)}-newcat"
+             placeholder="Add new category..."
+             maxlength="${MAX_CATEGORY_LENGTH}"
+             style="flex: 1; padding: 0.25rem 0.5rem; font-size: 0.875rem;"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();window.commitNewCategoryPill('${escapeHTML(containerId)}')}">
+      <button type="button" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;"
+              onclick="window.commitNewCategoryPill('${escapeHTML(containerId)}')">+ Add</button>
+    </div>
+  `;
+
+  dd.innerHTML = items + addNew;
+  dd.style.display = 'block';
+
+  // Click-away to close: register a one-shot document listener
+  setTimeout(() => {
+    const onDocClick = (e) => {
+      const container = document.getElementById(containerId);
+      if (container && !container.contains(e.target)) {
+        dd.style.display = 'none';
+        document.removeEventListener('click', onDocClick, true);
+      }
+    };
+    document.addEventListener('click', onDocClick, true);
+  }, 0);
+}
+
+/**
+ * Add a known category (selected from the dropdown) as a pill.
+ */
+function addCategoryPill(containerId, category) {
+  const arr = _categoryPillState.get(containerId) || [];
+  if (!arr.includes(category)) {
+    arr.push(category);
+    _categoryPillState.set(containerId, arr);
+  }
+  const dd = document.getElementById(`${containerId}-dropdown`);
+  if (dd) dd.style.display = 'none';
+  rerenderCategoryPillControl(containerId);
+}
+
+/**
+ * Commit a user-typed "Add new..." string as a pill. Trims, validates length,
+ * dedupes case-sensitively against existing pills. Empty input is a no-op
+ * (no toast — just silently does nothing, matching common chip-input UX).
+ */
+function commitNewCategoryPill(containerId) {
+  const input = document.getElementById(`${containerId}-newcat`);
+  if (!input) return;
+  const raw = (input.value || '').trim();
+  if (!raw) return;
+  if (raw.length > MAX_CATEGORY_LENGTH) {
+    showToast(`Category name must be ${MAX_CATEGORY_LENGTH} characters or fewer`, 'error');
+    return;
+  }
+  addCategoryPill(containerId, raw);
+}
+
+/**
+ * Re-render the pill control in place after a state mutation. Keeps the
+ * dropdown closed (caller can re-open via openCategoryDropdown).
+ */
+function rerenderCategoryPillControl(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const selected = _categoryPillState.get(containerId) || [];
+  // Replace container's innerHTML with a fresh render's inner contents.
+  const fresh = renderCategoryPillControl(containerId, selected);
+  // renderCategoryPillControl returns the outer container too; strip it.
+  const tmp = document.createElement('div');
+  tmp.innerHTML = fresh.trim();
+  const newInner = tmp.firstElementChild;
+  if (newInner) container.innerHTML = newInner.innerHTML;
+}
+
+// ========================================
 // TRANCHE BUILDER HELPERS
 // ========================================
 
@@ -1674,6 +1845,12 @@ function attachWindowFunctions() {
     window.changeSuppliersPage = changeSuppliersPage;
     window.applySupplierSearch = applySupplierSearch;
 
+    // Category tag-pill control (Phase 91.1) — used by Add/Edit forms in Plan 02
+    window.openCategoryDropdown = openCategoryDropdown;
+    window.addCategoryPill = addCategoryPill;
+    window.removeCategoryPill = removeCategoryPill;
+    window.commitNewCategoryPill = commitNewCategoryPill;
+
     // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
     window.filterPRPORecords = filterPRPORecords;
@@ -2307,6 +2484,10 @@ export async function destroy() {
     delete window.deleteSupplier;
     delete window.changeSuppliersPage;
     delete window.applySupplierSearch;
+    delete window.openCategoryDropdown;
+    delete window.addCategoryPill;
+    delete window.removeCategoryPill;
+    delete window.commitNewCategoryPill;
     delete window.loadPRPORecords;
     delete window.filterPRPORecords;
     delete window.goToPRPOPage;
