@@ -2033,6 +2033,11 @@ export function render(activeTab = 'mrfs') {
                             <label>Phone *</label>
                             <input type="text" id="newPhone" required>
                         </div>
+                        <div class="form-group">
+                            <label>Categories *</label>
+                            ${renderCategoryPillControl('newCategoriesPills', [])}
+                            <small style="display: block; margin-top: 0.25rem; color: var(--gray-600); font-size: 0.8125rem;">Add at least one category (e.g. Electrical, Plumbing / Sanitary).</small>
+                        </div>
                         <div class="form-actions">
                             <button class="btn btn-secondary" onclick="window.toggleAddForm()">Cancel</button>
                             <button class="btn btn-success" onclick="window.addSupplier()">Add Supplier</button>
@@ -4709,6 +4714,8 @@ function toggleAddForm() {
     const form = document.getElementById('addSupplierForm');
     if (form.style.display === 'none') {
         form.style.display = 'block';
+        setCategoryPillState('newCategoriesPills', []);
+        rerenderCategoryPillControl('newCategoriesPills');
     } else {
         form.style.display = 'none';
         clearAddForm();
@@ -4720,6 +4727,9 @@ function clearAddForm() {
     document.getElementById('newContactPerson').value = '';
     document.getElementById('newEmail').value = '';
     document.getElementById('newPhone').value = '';
+    clearCategoryPillState('newCategoriesPills');
+    setCategoryPillState('newCategoriesPills', []);
+    rerenderCategoryPillControl('newCategoriesPills');
 }
 
 async function addSupplier() {
@@ -4738,6 +4748,13 @@ async function addSupplier() {
         return;
     }
 
+    // D-02: Add form requires ≥1 category pill
+    const categories = getCategoryPillState('newCategoriesPills');
+    if (categories.length === 0) {
+        showToast('Please add at least one category', 'error');
+        return;
+    }
+
     showLoading(true);
 
     try {
@@ -4746,6 +4763,7 @@ async function addSupplier() {
             contact_person,
             email,
             phone,
+            categories,
             created_at: new Date().toISOString()
         });
 
