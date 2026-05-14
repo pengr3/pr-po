@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in_progress
-stopped_at: Plan 91.1-01 complete (2026-05-14T09:51:33Z)
-last_updated: "2026-05-14T09:51:33Z"
-last_activity: 2026-05-14 - Phase 91.1 Plan 01 (foundation — SEED_CATEGORIES + tag-pill control) complete. 3 tasks, 2 files modified (app/views/procurement.js + CLAUDE.md), 0 deviations. Plans 02 (forms) and 03 (table + toolbar) ready for sequential execution.
+stopped_at: Plan 91.1-02 complete (2026-05-14T09:58:38Z)
+last_updated: "2026-05-14T09:58:38Z"
+last_activity: 2026-05-14 - Phase 91.1 Plan 02 (forms — Add/Edit consumers of pill control) complete. 2 tasks, 1 file modified (app/views/procurement.js, +32 lines), 0 deviations. Add form writes `categories` (>=1 enforced); inline-edit row writes `categories` (empty allowed per D-02 legacy carve-out). Plan 03 (table + toolbar) ready for execution.
 progress:
   total_phases: 21
   completed_phases: 20
   total_plans: 78
-  completed_plans: 76
-  percent: 97
+  completed_plans: 77
+  percent: 99
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 ## Current Position
 
 Phase: 91.1
-Next: Phase 91.1 — Plan 01 ✓ complete (commits 9f1e1ed, 58056d7, 9298a22). Run Plan 02 (forms — Add/Edit consumers of pill control) next, then Plan 03 (table + toolbar).
+Next: Phase 91.1 — Plans 01 ✓ + 02 ✓ complete. Plan 02 commits: 5f9d0d6 (Task 1 — Add form), 0fe411d (Task 2 — inline-edit row). Run Plan 03 (table + toolbar — display column, em-dash on blank, extended search, "Show uncategorized only" toolbar control) next to close out Phase 91.1.
 
 ## Performance Metrics
 
@@ -146,12 +146,22 @@ Next: Phase 91.1 — Plan 01 ✓ complete (commits 9f1e1ed, 58056d7, 9298a22). R
 | Phase 90 P03 | ~12 | 2 tasks | 2 files |
 | Phase 91 P01 | ~1 | 2 tasks | 1 files |
 | Phase 91.1 P01 | ~3 | 3 tasks | 2 files |
+| Phase 91.1 P02 | ~2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91.1-02]: Add form's Categories field uses `renderCategoryPillControl('newCategoriesPills', [])` inline in the procurement view template literal — paints empty on render, then `toggleAddForm` seeds the state slot on every open (idempotent) so the next open is guaranteed clean even if a previous close path skipped clearAddForm
+- [Phase 91.1-02]: D-02 required-vs-optional split realized as deliberate code-level branching, NOT a shared validator — `addSupplier` blocks empty submissions with `showToast('Please add at least one category')`, `saveEdit` deliberately omits the same guard so legacy un-encoded rows remain saveable while the operations team manually backfills categories post-deploy
+- [Phase 91.1-02]: Inline-edit row Categories cell at column position 2 (between Supplier Name and Contact Person) to match the position Plan 03 will give the display-row column — coordinates ahead so Plan 03 only needs to add the `<th>` and the display-branch `<td>` at the same position without an existing-row shuffle
+- [Phase 91.1-02]: Per-row pill state keyed by `edit-categories-${supplier.id}` in the module-scope Map — supplier.id namespace prevents collision across rapid Edit→Cancel→Edit-different-row toggles; cleanup wired at three sites (cancelEdit always, saveEdit post-success, view destroy via Plan 01's existing teardown)
+- [Phase 91.1-02]: Renderer reads pill state via `_categoryPillState.get(editStateId) || []` (module-private Map handle) rather than `getCategoryPillState()` — Plan 01 helper returns a defensive spread-copy which is wasted allocation inside the hot render loop; the inline-edit branch is the only call site that legitimately bypasses the helper
+- [Phase 91.1-02]: `Array.isArray(supplier.categories) ? supplier.categories : []` defensive guard on the edit-row seed — handles legacy rows where categories field is absent, null, or non-array; matches D-01 read-side semantics (undefined / null / [] all = "uncategorized")
+- [Phase 91.1-02]: `clearAddForm` uses three-step clear→set→rerender sequence — `clearCategoryPillState` deletes the slot *and* hides any open dropdown, `setCategoryPillState([])` recreates an empty slot for the next open, `rerenderCategoryPillControl` repaints the cleared chrome; explicit three steps because the Map slot must exist before `toggleAddForm`'s next open path
+- [Phase 91.1-02]: ZERO edits to display-row branch of renderSuppliersTable / table `<thead>` / `colspan="5"` empty-state / applySupplierSearch / filter-bar HTML / firestore.rules — those remain Plan 91.1-03 territory per orchestrator scope guard; git diff confirms
 
 - [Phase 91.1-01]: SEED_CATEGORIES const (20 trade categories, verbatim D-03 order) + MAX_CATEGORY_LENGTH=60 + getKnownCategories(suppliersList) helper inserted at top of procurement.js (after RFP data block, before TRANCHE BUILDER HELPERS) — single source of truth for Plans 02/03 dropdown derivation
 - [Phase 91.1-01]: Category tag-pill state stored in module-scope Map<containerId, string[]> rather than a single global selectedCategories array — required because Plan 02 Add form ('newCategoriesPills') and Plan 03 inline-edit row ('edit-categories-<supplierId>') will render simultaneously on the same page; concurrent controls cannot collide
@@ -487,9 +497,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-13
-Last session: 2026-05-13T09:06:00.840Z
-Stopped at: context exhaustion at 76% (2026-05-13)
+Last activity: 2026-05-14
+Last session: 2026-05-14T09:58:38Z
+Stopped at: Plan 91.1-02 complete (Plan 02 commits 5f9d0d6, 0fe411d)
 Resume file: None
-Next action: Phase 91 complete — all 4 plans delivered
+Next action: Run Plan 91.1-03 (table + toolbar — display column, em-dash on blank, extended search, "Show uncategorized only" toolbar control) to close out Phase 91.1
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
