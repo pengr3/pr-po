@@ -602,6 +602,27 @@ Plans:
   - [x] 91-04-PLAN.md -- procurement.js My Requests dropdown option + filter branch + Records-tab project-scope filter + assignmentsChanged listener + cachedAllPRPORecords cache (D-02) -- Wave 3
 **UI hint**: yes
 
+### Phase 91.1: Supplier Management — Category Column Schema Addition (INSERTED)
+**Goal**: Inline with the Phase 91 procurement tab shake-up, extend the Supplier Management schema with a new `Category` column. Legacy supplier records remain blank (manual encoding by users post-deploy); new supplier creation requires Category as part of the data-input form.
+**Depends on**: Phase 91 (Supplier Management now lives as a Procurement sub-tab)
+**Requirements**: None mapped (INSERTED schema-extension phase — no REQUIREMENTS.md IDs)
+**Success Criteria** (what must be TRUE):
+  1. The `suppliers` Firestore documents support a new `category` field (string); existing documents without the field are treated as blank/uncategorized — no migration script written values
+  2. The Supplier Management table (Procurement → Suppliers sub-tab) displays a new `Category` column next to existing fields; legacy rows show an empty/`—` cell
+  3. The Add Supplier form includes a Category input control (dropdown or text — to be decided in plan); the field is required for new submissions
+  4. The Edit Supplier form lets users fill in or update the Category for legacy/blank rows manually
+  5. Firestore Security Rules permit reads/writes to the new field under existing supplier write roles; no new permission gaps introduced
+  6. No existing supplier flows (search, pagination, link from MRF/PR, supplier deletion) are broken by the schema addition
+**Plans**: 3 plans
+  - [x] 91.1-01-PLAN.md — Schema constants (SEED_CATEGORIES, getKnownCategories) + reusable tag-pill control + CLAUDE.md doc update — Wave 1 ✓ 2026-05-14 (commits 9f1e1ed, 58056d7, 9298a22)
+  - [ ] 91.1-02-PLAN.md — Wire categories into Add Supplier form (required ≥1) and inline Edit row (optional, legacy-friendly) write paths — Wave 2 *(blocked on Wave 1 completion)*
+  - [ ] 91.1-03-PLAN.md — Suppliers table Categories column + em-dash on blank + extended search + 'Show uncategorized only' toolbar; verify firestore.rules unchanged (D-08) — Wave 3 *(blocked on Wave 2 — both modify renderSuppliersTable() in procurement.js)*
+
+  Cross-cutting constraints (from plan must_haves):
+  - D-01 multi-tag `categories: string[]` array — referenced in all 3 plans
+  - escapeHTML() on every category render path (XSS mitigation) — referenced in 91.1-01 (helper) and 91.1-03 (display path)
+**UI hint**: yes
+
 ## Progress
 
 **Total shipped: 92 phases, 200+ plans, 11 milestones. Active milestone: v4.0 (7 phases planned).**
@@ -635,6 +656,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 89 | v4.0 | 1/1 | Complete | 2026-05-11 |
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
+| 91.1 | v4.0 | 1/3 | In progress | - |
 
 ### Carry-overs (deferred to v4.1+)
 

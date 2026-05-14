@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: milestone_complete
-stopped_at: context exhaustion at 76% (2026-05-13)
-last_updated: "2026-05-13T09:06:00.857Z"
-last_activity: 2026-05-13 - Phase 91 Plan 04 complete. My Requests 4th dept-filter option; filterPRPORecords my_requests branch; cachedAllPRPORecords cache; loadPRPORecords project-scope filter; reFilterAndRenderPRPORecords helper; _procurementRecordsAssignmentHandler listener + destroy cleanup.
+status: in_progress
+stopped_at: Plan 91.1-01 complete (2026-05-14T09:51:33Z)
+last_updated: "2026-05-14T09:51:33Z"
+last_activity: 2026-05-14 - Phase 91.1 Plan 01 (foundation — SEED_CATEGORIES + tag-pill control) complete. 3 tasks, 2 files modified (app/views/procurement.js + CLAUDE.md), 0 deviations. Plans 02 (forms) and 03 (table + toolbar) ready for sequential execution.
 progress:
-  total_phases: 20
-  completed_phases: 19
-  total_plans: 75
-  completed_plans: 73
-  percent: 95
+  total_phases: 21
+  completed_phases: 20
+  total_plans: 78
+  completed_plans: 76
+  percent: 97
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 91
-Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag-resize, Back button fix, Excel-style task entry)
+Phase: 91.1
+Next: Phase 91.1 — Plan 01 ✓ complete (commits 9f1e1ed, 58056d7, 9298a22). Run Plan 02 (forms — Add/Edit consumers of pill control) next, then Plan 03 (table + toolbar).
 
 ## Performance Metrics
 
@@ -145,12 +145,23 @@ Next: Phase 86.5 — Gantt UI Polish 3 (panel header alignment, unified bar drag
 | Phase 90 P02 | ~5 | 2 tasks | 2 files |
 | Phase 90 P03 | ~12 | 2 tasks | 2 files |
 | Phase 91 P01 | ~1 | 2 tasks | 1 files |
+| Phase 91.1 P01 | ~3 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 91.1-01]: SEED_CATEGORIES const (20 trade categories, verbatim D-03 order) + MAX_CATEGORY_LENGTH=60 + getKnownCategories(suppliersList) helper inserted at top of procurement.js (after RFP data block, before TRANCHE BUILDER HELPERS) — single source of truth for Plans 02/03 dropdown derivation
+- [Phase 91.1-01]: Category tag-pill state stored in module-scope Map<containerId, string[]> rather than a single global selectedCategories array — required because Plan 02 Add form ('newCategoriesPills') and Plan 03 inline-edit row ('edit-categories-<supplierId>') will render simultaneously on the same page; concurrent controls cannot collide
+- [Phase 91.1-01]: Reused existing .personnel-pill / .pill-input-container / .pill-dropdown / .pill-dropdown-item CSS verbatim — no parallel .category-pill class introduced (D-CONTEXT gotcha: "confirm whether styles/components.css already has a pill/badge style; if so, reuse rather than introducing a new one")
+- [Phase 91.1-01]: getKnownCategories defensive guards — Array.isArray(s.categories) + typeof === 'string' + trim().length > 0 filter rejects malformed Firestore docs (null/'' inside categories) before they can pollute the dropdown (T-91.1-03 mitigation)
+- [Phase 91.1-01]: localeCompare with { sensitivity: 'base' } for known-categories sort — current seed is title-case so no behavior change today, but keeps future user-typed `welding` vs `Welding` grouped if they ever diverge
+- [Phase 91.1-01]: Click-away dropdown close uses a one-shot document click listener registered via setTimeout(...,0) — deferral avoids the listener catching the originating click that opened the dropdown
+- [Phase 91.1-01]: escapeHTML alone is sufficient for category strings interpolated into single-quoted onclick attributes (single quotes become &#39; so surrounding '...' delimiters stay unambiguous); no extra .replace(/'/g, ...) chain needed (verified against app/utils.js escapeHTML behavior)
+- [Phase 91.1-01]: 4 onclick targets registered on window (openCategoryDropdown, addCategoryPill, removeCategoryPill, commitNewCategoryPill) with matching delete window.* cleanup in destroy block — no leaks on tab switch
+- [Phase 91.1-01]: ZERO edits to addSupplier / saveEdit / renderSuppliersTable / toggleAddForm / clearAddForm / cancelEdit / applySupplierSearch — those remain Plan 02/03 territory per orchestrator scope guard
 
 - [Phase 91-04]: cachedAllPRPORecords stores raw post-fetch snapshot before project-scope filter; cache-hit branch re-applies scope to prevent stale assignment data leak on re-entry; reFilterAndRenderPRPORecords() mirrors reFilterAndRenderMRFs() shape; _procurementRecordsAssignmentHandler dedup guard registered unconditionally in init() (not inside activeTab==='records' branch); typeof safety guard in listener body; destroy() removes listener and resets cachedAllPRPORecords; My Requests filter matches mrf.requestor_user_id === uid; uid null/undefined yields empty table (no crash)
 
@@ -457,6 +468,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 86.7 inserted after 86.6 (URGENT, 2026-05-08) — Phantom drag: suppress mid-drag Firestore writes and snapshot re-renders; commit only on mouseup for smooth lag-free bar dragging
 - Phase 86.8 inserted after 86.7 (URGENT, 2026-05-09) — Gantt UX expansion bundle: (1) right-click arrow → remove predecessor, (2) collapsible parent tasks with (-)/(+) toggle, (3) drag-parent-moves-children, (4) critical-path highlight, (5) progress % per bar, (6) task search/filter bar, (7) keyboard shortcuts (Delete to remove)
 - Phase 86.10 inserted after Phase 86: Left pane grid polish: (1) new row created via Enter inherits indent depth of row above (Enter is the trigger, not Tab), (2) shift+click multi-select rows with group move, (3) right-click menu applies to all selected rows, (4) Copy/Paste rows in right-click for easy duplication (URGENT)
+- Phase 91.1 inserted after 91 (URGENT, 2026-05-14) — Supplier Management schema extension: add `Category` column to the suppliers table alongside the Procurement tab shake-up; legacy supplier rows left blank for manual encoding; new supplier inputs require Category as part of the data-input form
 
 ### Quick Tasks Completed
 
