@@ -4675,9 +4675,15 @@ function renderSuppliersTable() {
 
     tbody.innerHTML = pageItems.map(supplier => {
         if (editingSupplier === supplier.id) {
+            const editStateId = `edit-categories-${supplier.id}`;
+            // Initialize state for this row's pill control. Idempotent — re-init on every
+            // re-render is safe because the user can only edit one row at a time and
+            // cancelEdit clears it. Legacy rows without a categories array land as [].
+            setCategoryPillState(editStateId, Array.isArray(supplier.categories) ? supplier.categories : []);
             return `
                 <tr class="edit-row">
                     <td><input type="text" value="${escapeHTML(supplier.supplier_name)}" id="edit-name"></td>
+                    <td>${renderCategoryPillControl(editStateId, _categoryPillState.get(editStateId) || [])}</td>
                     <td><input type="text" value="${escapeHTML(supplier.contact_person)}" id="edit-contact"></td>
                     <td><input type="email" value="${escapeHTML(supplier.email)}" id="edit-email"></td>
                     <td><input type="text" value="${escapeHTML(supplier.phone)}" id="edit-phone"></td>
@@ -4788,6 +4794,9 @@ function editSupplier(supplierId) {
 };
 
 function cancelEdit() {
+    if (editingSupplier) {
+        clearCategoryPillState(`edit-categories-${editingSupplier}`);
+    }
     editingSupplier = null;
     renderSuppliersTable();
 };
@@ -4808,6 +4817,9 @@ async function saveEdit(supplierId) {
         return;
     }
 
+    // D-02: Edit allows empty categories (legacy rows can be saved without forced encoding)
+    const categories = getCategoryPillState(`edit-categories-${supplierId}`);
+
     showLoading(true);
 
     try {
@@ -4817,10 +4829,12 @@ async function saveEdit(supplierId) {
             contact_person,
             email,
             phone,
+            categories,
             updated_at: new Date().toISOString()
         });
 
         showToast('Supplier updated successfully', 'success');
+        clearCategoryPillState(`edit-categories-${supplierId}`);
         editingSupplier = null;
         renderSuppliersTable();
     } catch (error) {
