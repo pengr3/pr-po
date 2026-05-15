@@ -149,10 +149,16 @@ function renderCategoryPillControl(containerId, selected) {
   return `
     <div class="pill-input-container" id="${safeId}">
       ${pills}
-      <button type="button"
-              class="pill-search-input"
-              style="cursor: pointer; text-align: left;"
-              onclick="window.openCategoryDropdown('${safeId}')">+ Add...</button>
+      <input type="text"
+             class="pill-search-input"
+             id="${safeId}-combo"
+             placeholder="Add category..."
+             maxlength="${MAX_CATEGORY_LENGTH}"
+             autocomplete="off"
+             oninput="window.filterCategoryCombo('${safeId}')"
+             onkeydown="window.categoryComboKeydown(event,'${safeId}')"
+             onfocus="window.filterCategoryCombo('${safeId}')"
+             onblur="setTimeout(function(){var d=document.getElementById('${safeId}-dropdown');if(d)d.style.display='none';},150)">
       <div class="pill-dropdown" id="${safeId}-dropdown" style="display: none;"></div>
     </div>
   `;
@@ -194,50 +200,54 @@ function removeCategoryPill(containerId, idx) {
 }
 
 /**
- * Open the "+ Add..." dropdown for a control. Populates it with known
- * categories (seed ∪ all suppliers') minus those already selected, plus an
- * "Add new..." action at the bottom.
+ * Filter the combobox dropdown for a control. Shows all known categories
+ * (seed ∪ all suppliers') minus those already selected, filtered by what
+ * the user has typed. Appends an "Add X" row when the typed value isn't
+ * an exact match.
  */
-function openCategoryDropdown(containerId) {
+function filterCategoryCombo(containerId) {
+  const input = document.getElementById(`${containerId}-combo`);
   const dd = document.getElementById(`${containerId}-dropdown`);
-  if (!dd) return;
+  if (!input || !dd) return;
+
+  const term = input.value.trim().toLowerCase();
   const selected = new Set(_categoryPillState.get(containerId) || []);
   const known = getKnownCategories(suppliersData).filter(c => !selected.has(c));
+  const matches = term ? known.filter(c => c.toLowerCase().includes(term)) : known;
 
-  const items = known.map(cat => `
+  const items = matches.map(cat => `
     <div class="pill-dropdown-item"
-         onclick="window.addCategoryPill('${escapeHTML(containerId)}', '${escapeHTML(cat)}')">
-      ${escapeHTML(cat)}
-    </div>
+         onmousedown="event.preventDefault();window.addCategoryPill('${escapeHTML(containerId)}','${escapeHTML(cat)}')">${escapeHTML(cat)}</div>
   `).join('');
 
-  const addNew = `
-    <div style="border-top: 1px solid var(--gray-300); padding: 0.5rem 0.75rem; display: flex; gap: 0.25rem; align-items: center;">
-      <input type="text"
-             id="${escapeHTML(containerId)}-newcat"
-             placeholder="Add new category..."
-             maxlength="${MAX_CATEGORY_LENGTH}"
-             style="flex: 1; padding: 0.25rem 0.5rem; font-size: 0.875rem;"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();window.commitNewCategoryPill('${escapeHTML(containerId)}')}">
-      <button type="button" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;"
-              onclick="window.commitNewCategoryPill('${escapeHTML(containerId)}')">+ Add</button>
-    </div>
-  `;
+  const exactMatch = term && known.some(c => c.toLowerCase() === term);
+  const rawDisplay = escapeHTML(input.value.trim());
+  const addNew = (term && !exactMatch && rawDisplay) ? `
+    <div class="pill-dropdown-item" style="border-top:1px solid var(--gray-300);font-style:italic;color:#64748b;"
+         onmousedown="event.preventDefault();window.commitCategoryCombo('${escapeHTML(containerId)}')"
+    >Add "${rawDisplay}"</div>
+  ` : '';
 
-  dd.innerHTML = items + addNew;
+  const html = items + addNew;
+  if (!html) { dd.style.display = 'none'; return; }
+  dd.innerHTML = html;
   dd.style.display = 'block';
+}
 
-  // Click-away to close: register a one-shot document listener
-  setTimeout(() => {
-    const onDocClick = (e) => {
-      const container = document.getElementById(containerId);
-      if (container && !container.contains(e.target)) {
-        dd.style.display = 'none';
-        document.removeEventListener('click', onDocClick, true);
-      }
-    };
-    document.addEventListener('click', onDocClick, true);
-  }, 0);
+function categoryComboKeydown(event, containerId) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const dd = document.getElementById(`${containerId}-dropdown`);
+    const visibleItems = dd ? dd.querySelectorAll('.pill-dropdown-item') : [];
+    if (visibleItems.length === 1) {
+      visibleItems[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    } else {
+      window.commitCategoryCombo(containerId);
+    }
+  } else if (event.key === 'Escape') {
+    const dd = document.getElementById(`${containerId}-dropdown`);
+    if (dd) dd.style.display = 'none';
+  }
 }
 
 /**
@@ -252,17 +262,18 @@ function addCategoryPill(containerId, category) {
   const dd = document.getElementById(`${containerId}-dropdown`);
   if (dd) dd.style.display = 'none';
   rerenderCategoryPillControl(containerId);
+  const newInput = document.getElementById(`${containerId}-combo`);
+  if (newInput) { newInput.value = ''; newInput.focus(); }
 }
 
 /**
- * Commit a user-typed "Add new..." string as a pill. Trims, validates length,
- * dedupes case-sensitively against existing pills. Empty input is a no-op
- * (no toast — just silently does nothing, matching common chip-input UX).
+ * Commit the combobox input value as a new pill. Reads the live combo input,
+ * trims, validates length, then delegates to addCategoryPill.
  */
-function commitNewCategoryPill(containerId) {
-  const input = document.getElementById(`${containerId}-newcat`);
+function commitCategoryCombo(containerId) {
+  const input = document.getElementById(`${containerId}-combo`);
   if (!input) return;
-  const raw = (input.value || '').trim();
+  const raw = input.value.trim();
   if (!raw) return;
   if (raw.length > MAX_CATEGORY_LENGTH) {
     showToast(`Category name must be ${MAX_CATEGORY_LENGTH} characters or fewer`, 'error');
@@ -1846,10 +1857,11 @@ function attachWindowFunctions() {
     window.applySupplierSearch = applySupplierSearch;
 
     // Category tag-pill control (Phase 91.1) — used by Add/Edit forms in Plan 02
-    window.openCategoryDropdown = openCategoryDropdown;
+    window.filterCategoryCombo = filterCategoryCombo;
+    window.categoryComboKeydown = categoryComboKeydown;
+    window.commitCategoryCombo = commitCategoryCombo;
     window.addCategoryPill = addCategoryPill;
     window.removeCategoryPill = removeCategoryPill;
-    window.commitNewCategoryPill = commitNewCategoryPill;
 
     // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
@@ -2053,14 +2065,6 @@ export function render(activeTab = 'mrfs') {
                                    placeholder="Search by name, contact, or category..."
                                    oninput="window.applySupplierSearch()"
                                    style="width: 100%;">
-                        </div>
-                        <div class="form-group" style="margin: 0; padding-bottom: 0.5rem;">
-                            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer; margin: 0;">
-                                <input type="checkbox"
-                                       id="suppliersUncategorizedOnly"
-                                       onchange="window.applySupplierSearch()">
-                                Show uncategorized only
-                            </label>
                         </div>
                     </div>
 
@@ -2498,10 +2502,11 @@ export async function destroy() {
     delete window.deleteSupplier;
     delete window.changeSuppliersPage;
     delete window.applySupplierSearch;
-    delete window.openCategoryDropdown;
+    delete window.filterCategoryCombo;
+    delete window.categoryComboKeydown;
+    delete window.commitCategoryCombo;
     delete window.addCategoryPill;
     delete window.removeCategoryPill;
-    delete window.commitNewCategoryPill;
     delete window.loadPRPORecords;
     delete window.filterPRPORecords;
     delete window.goToPRPOPage;
@@ -4704,7 +4709,7 @@ function renderSuppliersTable() {
             return `
                 <tr class="edit-row">
                     <td><input type="text" value="${escapeHTML(supplier.supplier_name)}" id="edit-name"></td>
-                    <td>${renderCategoryPillControl(editStateId, _categoryPillState.get(editStateId) || [])}</td>
+                    <td style="vertical-align: middle;">${renderCategoryPillControl(editStateId, _categoryPillState.get(editStateId) || [])}</td>
                     <td><input type="text" value="${escapeHTML(supplier.contact_person)}" id="edit-contact"></td>
                     <td><input type="email" value="${escapeHTML(supplier.email)}" id="edit-email"></td>
                     <td><input type="text" value="${escapeHTML(supplier.phone)}" id="edit-phone"></td>
@@ -4892,10 +4897,8 @@ async function deleteSupplier(supplierId, supplierName) {
 
 function applySupplierSearch() {
     const term = document.getElementById('supplierSearchInput')?.value?.toLowerCase() || '';
-    const uncategorizedOnly = document.getElementById('suppliersUncategorizedOnly')?.checked === true;
 
-    // Stage 1: apply search term (extended per D-07 to also match categories)
-    let result = !term
+    filteredSuppliersData = !term
         ? [...suppliersData]
         : suppliersData.filter(s =>
             (s.supplier_name && s.supplier_name.toLowerCase().includes(term)) ||
@@ -4903,12 +4906,6 @@ function applySupplierSearch() {
             (Array.isArray(s.categories) && s.categories.some(c => typeof c === 'string' && c.toLowerCase().includes(term)))
           );
 
-    // Stage 2: compose with "Show uncategorized only" toggle (D-06)
-    if (uncategorizedOnly) {
-        result = result.filter(s => !Array.isArray(s.categories) || s.categories.length === 0);
-    }
-
-    filteredSuppliersData = result;
     suppliersCurrentPage = 1;
     renderSuppliersTable();
 }
