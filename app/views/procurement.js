@@ -232,6 +232,13 @@ function filterCategoryCombo(containerId) {
   if (!html) { dd.style.display = 'none'; return; }
   dd.innerHTML = html;
   dd.style.display = 'block';
+
+  // Flip upward if the dropdown would overflow the viewport bottom
+  const container = document.getElementById(containerId);
+  if (container) {
+    const rect = container.getBoundingClientRect();
+    dd.classList.toggle('drop-up', rect.bottom + 200 > window.innerHeight);
+  }
 }
 
 function categoryComboKeydown(event, containerId) {
