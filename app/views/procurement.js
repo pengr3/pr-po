@@ -2589,7 +2589,20 @@ async function loadServicesForNewMRF() {
         return; // Use cached data
     }
     try {
-        const q = query(collection(db, 'services'), where('active', '==', true));
+        // operations_user is project-scoped — no service types in their MRF form
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        if (assignedServiceCodes !== null && assignedServiceCodes.length === 0) return;
+
+        let q;
+        if (assignedServiceCodes !== null) {
+            // services_user: scope to assigned codes (mirrors mrf-form.js loadServices pattern)
+            q = query(collection(db, 'services'), where('service_code', 'in', assignedServiceCodes));
+        } else {
+            // Admin/finance/procurement/operations_user with list access: unscoped active filter
+            const user = window.getCurrentUser?.();
+            if (user?.role === 'operations_user') return;
+            q = query(collection(db, 'services'), where('active', '==', true));
+        }
         const snapshot = await getDocs(q);
         cachedServicesForNewMRF = [];
         snapshot.forEach(docSnap => {
