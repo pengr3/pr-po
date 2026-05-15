@@ -230,15 +230,16 @@ function filterCategoryCombo(containerId) {
 
   const html = items + addNew;
   if (!html) { dd.style.display = 'none'; return; }
+
+  // Flip upward when less than 210px (max-height + buffer) remains below the container
+  const containerEl = document.getElementById(containerId);
+  if (containerEl) {
+    const rect = containerEl.getBoundingClientRect();
+    dd.classList.toggle('pill-dropdown-up', window.innerHeight - rect.bottom < 210);
+  }
+
   dd.innerHTML = html;
   dd.style.display = 'block';
-
-  // Flip upward if the dropdown would overflow the viewport bottom
-  const container = document.getElementById(containerId);
-  if (container) {
-    const rect = container.getBoundingClientRect();
-    dd.classList.toggle('drop-up', rect.bottom + 200 > window.innerHeight);
-  }
 }
 
 function categoryComboKeydown(event, containerId) {
