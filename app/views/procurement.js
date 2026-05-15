@@ -231,11 +231,25 @@ function filterCategoryCombo(containerId) {
   const html = items + addNew;
   if (!html) { dd.style.display = 'none'; return; }
 
-  // Flip upward when less than 210px (max-height + buffer) remains below the container
+  // Use position:fixed to escape table overflow clipping; calculate coords from viewport
   const containerEl = document.getElementById(containerId);
   if (containerEl) {
     const rect = containerEl.getBoundingClientRect();
-    dd.classList.toggle('pill-dropdown-up', window.innerHeight - rect.bottom < 210);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    dd.style.position = 'fixed';
+    dd.style.left = rect.left + 'px';
+    dd.style.width = rect.width + 'px';
+    dd.style.right = 'auto';
+    dd.style.zIndex = '9999';
+    if (spaceBelow < 210) {
+      dd.style.top = 'auto';
+      dd.style.bottom = (window.innerHeight - rect.top) + 'px';
+      dd.classList.add('pill-dropdown-up');
+    } else {
+      dd.style.top = rect.bottom + 'px';
+      dd.style.bottom = 'auto';
+      dd.classList.remove('pill-dropdown-up');
+    }
   }
 
   dd.innerHTML = html;
