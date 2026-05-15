@@ -2668,14 +2668,18 @@ async function loadMRFs() {
         // Cache raw data for re-filtering on assignment change (Phase 7)
         cachedAllMRFs = [...allMRFs];
 
-        // Phase 7: Scope MRF list to assigned projects for operations_user.
-        // Runs BEFORE the material/transport split so both lists are filtered.
+        // Scope MRF list to assigned projects/services before material/transport split.
         const assignedCodes = window.getAssignedProjectCodes?.();
         let scopedMRFs = allMRFs;
         if (assignedCodes !== null) {
             scopedMRFs = allMRFs.filter(mrf =>
-                // Defensively include legacy MRFs that lack project_code (pre-Phase-4 data)
-                !mrf.project_code || assignedCodes.includes(mrf.project_code)
+                mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+            );
+        }
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        if (assignedServiceCodes !== null) {
+            scopedMRFs = scopedMRFs.filter(mrf =>
+                mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
             );
         }
 
@@ -2742,7 +2746,13 @@ function reFilterAndRenderMRFs() {
     let scopedMRFs = cachedAllMRFs;
     if (assignedCodes !== null) {
         scopedMRFs = cachedAllMRFs.filter(mrf =>
-            !mrf.project_code || assignedCodes.includes(mrf.project_code)
+            mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+        );
+    }
+    const assignedServiceCodes = window.getAssignedServiceCodes?.();
+    if (assignedServiceCodes !== null) {
+        scopedMRFs = scopedMRFs.filter(mrf =>
+            mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
         );
     }
 
@@ -2764,13 +2774,19 @@ function reFilterAndRenderMRFs() {
 // Phase 91 — re-scope MRF Records on assignmentsChanged without a Firestore round-trip.
 function reFilterAndRenderPRPORecords() {
     const assignedCodes = window.getAssignedProjectCodes?.();
-    if (assignedCodes === null) {
-        allPRPORecords = [...cachedAllPRPORecords];
-    } else {
-        allPRPORecords = cachedAllPRPORecords.filter(mrf =>
-            !mrf.project_code || assignedCodes.includes(mrf.project_code)
+    const assignedServiceCodes = window.getAssignedServiceCodes?.();
+    let scoped = [...cachedAllPRPORecords];
+    if (assignedCodes !== null) {
+        scoped = scoped.filter(mrf =>
+            mrf.project_code == null || assignedCodes.includes(mrf.project_code)
         );
     }
+    if (assignedServiceCodes !== null) {
+        scoped = scoped.filter(mrf =>
+            mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
+        );
+    }
+    allPRPORecords = scoped;
     filterPRPORecords();
 }
 
@@ -4717,7 +4733,7 @@ function renderSuppliersTable() {
             return '<span style="color: #94a3b8;">—</span>';
         }
         return cats.map(c =>
-            `<span class="personnel-pill" style="margin: 0.125rem;">${escapeHTML(c)}</span>`
+            `<span class="personnel-pill" style="margin: 0.125rem; max-width: none;">${escapeHTML(c)}</span>`
         ).join('');
     };
 
@@ -4736,8 +4752,10 @@ function renderSuppliersTable() {
                     <td><input type="email" value="${escapeHTML(supplier.email)}" id="edit-email"></td>
                     <td><input type="text" value="${escapeHTML(supplier.phone)}" id="edit-phone"></td>
                     <td class="actions">
-                        <button class="btn btn-success" onclick="window.saveEdit('${supplier.id}')">Save</button>
-                        <button class="btn btn-secondary" onclick="window.cancelEdit()">Cancel</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-success" onclick="window.saveEdit('${supplier.id}')">Save</button>
+                            <button class="btn btn-secondary" onclick="window.cancelEdit()">Cancel</button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -4751,9 +4769,10 @@ function renderSuppliersTable() {
                     <td>${escapeHTML(supplier.phone)}</td>
                     <td class="actions">
                         ${showEditControls ? `
-                        <button class="icon-btn" onclick="window.editSupplier('${supplier.id}')">Edit</button>
-                        <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${escapeHTML(supplier.supplier_name)}')">Delete</button>
-                        ` : '<span class="view-only-badge">View Only</span>'}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="icon-btn" onclick="window.editSupplier('${supplier.id}')">Edit</button>
+                            <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${escapeHTML(supplier.supplier_name)}')">Delete</button>
+                        </div>` : '<span class="view-only-badge">View Only</span>'}
                     </td>
                 </tr>
             `;
@@ -5002,13 +5021,17 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 async function loadPRPORecords() {
     // If records are cached and fresh, render from cache (no Firestore fetch, no loading overlay)
     if (cachedAllPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
-        // Phase 91 — re-apply project-scope from cache so stale assignment data does not leak
+        // Re-apply scope filters from cache so stale assignment data does not leak
         const assignedCodes = window.getAssignedProjectCodes?.();
-        if (assignedCodes === null) {
-            allPRPORecords = [...cachedAllPRPORecords];
-        } else {
-            allPRPORecords = cachedAllPRPORecords.filter(mrf => !mrf.project_code || assignedCodes.includes(mrf.project_code));
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        let scoped = [...cachedAllPRPORecords];
+        if (assignedCodes !== null) {
+            scoped = scoped.filter(mrf => mrf.project_code == null || assignedCodes.includes(mrf.project_code));
         }
+        if (assignedServiceCodes !== null) {
+            scoped = scoped.filter(mrf => mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code));
+        }
+        allPRPORecords = scoped;
         filteredPRPORecords = [...allPRPORecords];
         prpoCurrentPage = 1;
         await renderPRPORecords();
@@ -5055,12 +5078,17 @@ async function loadPRPORecords() {
         // Phase 91 — cache raw set before applying project-scope filter
         cachedAllPRPORecords = [...allPRPORecords];
 
-        // Phase 91 — apply project-scope filter (mirrors MRF Management tab pattern)
+        // Apply project-scope for operations_user; service-scope for services_user
         const assignedCodes = window.getAssignedProjectCodes?.();
         if (assignedCodes !== null) {
             allPRPORecords = allPRPORecords.filter(mrf =>
-                // Defensively include legacy MRFs that lack project_code (pre-Phase-4 data)
-                !mrf.project_code || assignedCodes.includes(mrf.project_code)
+                mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+            );
+        }
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        if (assignedServiceCodes !== null) {
+            allPRPORecords = allPRPORecords.filter(mrf =>
+                mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
             );
         }
 
