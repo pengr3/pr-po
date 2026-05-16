@@ -2802,6 +2802,12 @@ function reFilterAndRenderPRPORecords() {
         );
     }
     allPRPORecords = scoped;
+    // Phase 91 UAT Bug 3 — keep the PO scoreboards in sync with the re-scoped
+    // MRF set so assignment changes refresh the visible counts without a
+    // Firestore round-trip. Set is built from mrf.mrf_id (human-readable
+    // code) to match po.mrf_id's join key.
+    const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
+    updatePOScoreboards(cachedAllPOData.filter(po => visibleMrfIds.has(po.mrf_id)));
     filterPRPORecords();
 }
 
