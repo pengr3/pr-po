@@ -29,6 +29,7 @@ const poItemsPerPage = 15;
 
 let allPRPORecords = [];
 let cachedAllPRPORecords = [];  // Phase 91 — raw snapshot for re-filter on assignmentsChanged without re-fetch
+let cachedAllPOData = [];       // Phase 91 UAT Bug 3 — raw PO snapshot so scoreboard can be re-scoped on assignmentsChanged without a Firestore round-trip
 let filteredPRPORecords = [];
 let prpoCurrentPage = 1;
 const prpoItemsPerPage = 10;
@@ -2468,6 +2469,7 @@ export async function destroy() {
     cachedAllMRFs = [];
     // Phase 91: Clear cached Records data
     cachedAllPRPORecords = [];
+    cachedAllPOData = [];
 
     // Unsubscribe from all Firebase listeners
     listeners.forEach(unsubscribe => {
