@@ -505,12 +505,13 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260430-a4b | Codeless projects/services with assigned personnel_user_ids should appear in MRF for operations_user and services_user | 2026-04-30 | 551125d | Verified | [260430-a4b-codeless-projects-mrf-personnel-filter](.planning/quick/260430-a4b-codeless-projects-mrf-personnel-filter/) |
 | 260508-g2p | Phase 86.6 Plan 02: Fix Gantt/grid vertical alignment — Bug H2 (.tg-locked nowrap+ellipsis, 42px row height) and Bug H1 (diff-based paddingBottom equalization in fixGanttContainerScroll, eliminates 17px bar drift at max scroll) | 2026-05-08 | c00a3fd, ef795c9 | Awaiting browser UAT | [260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a](.planning/quick/260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a/) |
 | 260511-k4f | Strip Firebase Storage file upload — link-only attachments in proposal + comms widgets | 2026-05-11 | 9eec78f | Verified | [260511-k4f-strip-file-upload-link-only-proposals](.planning/quick/260511-k4f-strip-file-upload-link-only-proposals/) |
+| 260516-bg3 | Phase 91 UAT Bug 3 — scope PO scoreboard input on MRF Records tab to POs whose mrf_id matches a visible MRF (fixes operations_user / services_user seeing unscoped counts) | 2026-05-16 | 2c28d15, 713e735, 7215c95 | Awaiting browser UAT | [260516-bg3-scoreboard-scoping](.planning/quick/260516-bg3-scoreboard-scoping/) |
 
 ## Session Continuity
 
-Last activity: 2026-05-14
-Last session: 2026-05-14T10:06:38Z
-Stopped at: Phase 91.1 complete — all 3 plans shipped (Plan 03 commits 82fb23e, d38c8c6)
-Resume file: None
-Next action: Phase 91.1 closed. Phase 85 still in progress (7/8 plans). Phase 84.1 awaiting UAT. Consider `/gsd:transition` to assess remaining v4.0 work or `/gsd:complete-milestone` review.
+Last activity: 2026-05-16 — Quick task 260516-bg3 complete (Phase 91 UAT Bug 3, PO scoreboard scoping). Awaiting browser UAT.
+Last session: 2026-05-16
+Stopped at: Phase 91 UAT Bug 3 code-complete (3 commits on v3.3). Bug 1 + Bug 2 already shipped (298ad05, 22140f0); Bug 3 was the last remaining diagnosed-but-unimplemented item from .continue-here.md.
+Resume file: .planning/quick/260516-bg3-scoreboard-scoping/260516-bg3-SUMMARY.md
+Next action: Human-run UAT as operations_user / services_user / super_admin on MRF Records tab (see SUMMARY for the 4-step checklist). If all pass, mark Phase 91 UAT closed and consider `/gsd-complete-milestone` review for the v3.3 → main merge.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
