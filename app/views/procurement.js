@@ -5114,9 +5114,17 @@ async function loadPRPORecords() {
         posSnapshot.forEach((doc) => {
             allPOData.push({ id: doc.id, ...doc.data() });
         });
+        // Phase 91 UAT Bug 3 — cache the raw PO set so reFilterAndRenderPRPORecords
+        // can re-scope without re-fetching.
+        cachedAllPOData = allPOData;
 
-        // Update scoreboards
-        updatePOScoreboards(allPOData);
+        // Scope scoreboard input to POs tied to MRFs the user can see.
+        // POs join to MRFs via the human-readable mrf_id string (see
+        // procurement.js:915, 3380, 4395, 5313, 5531 — every PO↔MRF query
+        // uses where('mrf_id', '==', mrf.mrf_id)), so build the Set from
+        // mrf.mrf_id, NOT the Firestore doc id.
+        const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
+        updatePOScoreboards(allPOData.filter(po => visibleMrfIds.has(po.mrf_id)));
 
         filteredPRPORecords = [...allPRPORecords];
         prpoCurrentPage = 1;
