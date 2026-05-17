@@ -7055,10 +7055,13 @@ async function generatePRandTR() {
  */
 async function loadPOTracking() {
     if (_poTrackingListenerActive) {
-        // Listener already registered — re-render from cached data
+        // Listener already registered — re-render from cached data.
+        // renderPOTrackingTable also writes the scoreboard DOM (and applies
+        // the MRF-scope filter when on the Records tab), so no separate
+        // updatePOScoreboards call is needed here — it would only undo the
+        // scope by passing the full unscoped poData.
         if (poData.length > 0) {
             renderPOTrackingTable(poData);
-            updatePOScoreboards(poData);
         }
         return;
     }
@@ -7192,9 +7195,21 @@ function renderPOTrackingTable(pos) {
     const showEditControls = canEdit !== false;
 
     // Filter POs by department if active, then calculate scoreboard counts
-    const scoreboardPos = activePODeptFilter
+    let scoreboardPos = activePODeptFilter
         ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
         : pos;
+
+    // Phase 91 UAT Bug 3 — when rendering for the MRF Records tab (no PO
+    // table body, scoreboards only), scope the scoreboard input to POs tied
+    // to MRFs the current user can see. allPRPORecords is the source of
+    // truth for "visible MRFs" — it was populated and scoped by
+    // loadPRPORecords/reFilterAndRenderPRPORecords before this function ran.
+    // Skip scoping on the PO Tracking tab (tbody present) — that tab has
+    // its own access-control contract and lists all POs.
+    if (!tbody) {
+        const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
+        scoreboardPos = scoreboardPos.filter(po => visibleMrfIds.has(po.mrf_id));
+    }
 
     const materialCounts = {
         pending: 0,      // Pending Procurement
