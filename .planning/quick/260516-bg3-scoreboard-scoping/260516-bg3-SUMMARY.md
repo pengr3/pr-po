@@ -2,13 +2,14 @@
 quick_id: 260516-bg3
 slug: scoreboard-scoping
 status: complete
-completed: 2026-05-16
+completed: 2026-05-17
 commits:
   - 2c28d15  # T1 — declare cachedAllPOData + reset wiring
   - 713e735  # T2 — scope fresh-fetch scoreboard call in loadPRPORecords
   - 7215c95  # T3 — scope scoreboard refresh in reFilterAndRenderPRPORecords
+  - 557a764  # T4 — scope second scoreboard writer (renderPOTrackingTable) — UAT follow-up
 files_modified:
-  - app/views/procurement.js  # +19 lines, -3 lines net
+  - app/views/procurement.js  # +37 lines, -6 lines net
 ---
 
 # Summary — Phase 91 UAT Bug 3 (PO scoreboard scoping)
@@ -47,3 +48,18 @@ None for Bug 3 itself. Open items for the wider Phase 91 UAT cycle:
 
 - Once UAT 1–4 pass, mark Phase 91 UAT closed and consider `/gsd-complete-milestone` for v3.3 → main merge.
 - The four untracked files (Phase 86.9 debug leftovers) still need triage independent of this work.
+
+## UAT follow-up — T4 (2026-05-17)
+
+The initial T1–T3 commits landed but UAT revealed the scoreboard still showed unscoped counts. Root cause: a **second scoreboard writer** that the original `.continue-here.md` audit missed.
+
+`renderPOTrackingTable` (procurement.js:7188) writes the same scoreboard DOM elements directly (lines 7230–7239) using its own count loop. It is invoked by the `loadPOTracking` snapshot listener, which fires asynchronously **after** `loadPRPORecords` has scoped the scoreboard. The listener call overwrites the scoped values with a fresh unscoped count.
+
+**Fixes in commit `557a764`:**
+
+- `renderPOTrackingTable` now applies the same `visibleMrfIds` filter when rendering for the MRF Records tab (detected via `!tbody`, mirroring the existing `// MRF Records tab has scoreboards but no PO table body — exit after scoreboards` branch at line 7242). The PO Tracking tab path (tbody present) is unchanged.
+- The `loadPOTracking` early-return path (line 7059) made a redundant unscoped `updatePOScoreboards(poData)` call after `renderPOTrackingTable`. That call would undo the scope every time the user switched away from the Records tab and back within the procurement view (since `_poTrackingListenerActive` persists across in-view tab switches per CLAUDE.md's "Router DOES NOT call destroy() when switching tabs within same view"). Removed; `renderPOTrackingTable` is now the sole authoritative writer for that path.
+
+**Why T2/T3 are still kept (not subsumed by T4):** T2 and T3 provide the synchronous, immediate scoreboard update before the async snapshot fires (or instead of it, for assignmentsChanged where no PO data changed). T4 ensures the async path doesn't clobber the scoped values. They are complementary.
+
+**Lesson captured:** the original audit grep-ed for `updatePOScoreboards` only. The actual scoreboard DOM elements (`scoreMaterialsPending` etc.) have two writers in this file. For future audits of "stale UI" bugs, search for the **DOM element IDs**, not just the function that "should" be writing them.
