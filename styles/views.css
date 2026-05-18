@@ -2968,3 +2968,65 @@
     }
     .pdf-summary-table tr:nth-child(even) td { background: #f8fafc; }
 }
+
+/* ========================================
+   PROJECTS VIEW — Status Scorecard Strip
+   ======================================== */
+
+.project-scorecards {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.project-scorecard-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: border-color 0.15s, background-color 0.15s;
+    user-select: none;
+}
+
+.project-scorecard-card:hover {
+    border-color: #93c5fd;
+    background-color: #f0f7ff;
+}
+
+.project-scorecard-card--active {
+    border-color: #1a73e8;
+    background-color: #e8f0fe;
+}
+
+.project-scorecard-card--total {
+    grid-column: span 2;
+}
+
+.scorecard-label {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: #475569;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.scorecard-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1;
+}
+
+@media (max-width: 768px) {
+    .scorecard-count {
+        font-size: 1.1rem;
+    }
+    .scorecard-label {
+        font-size: 0.62rem;
+    }
+}
