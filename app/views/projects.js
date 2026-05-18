@@ -26,10 +26,10 @@ let allProjects = [];           // Unfiltered data from Firebase
 let filteredProjects = [];      // Filtered subset for display
 let sortColumn = 'created_at';  // Default sort column
 let sortDirection = 'desc';     // Most recent first (PROJ-15)
+let activeStatusFilter = null;
 
 // Status options
 const UNIFIED_STATUS_OPTIONS = [
-    'Draft',  // Phase 88 D-05 — pre-proposal stage; engagements created from the Proposals tab default here.
     'For Inspection',
     'For Proposal',
     'Proposal for Internal Approval',
@@ -81,6 +81,7 @@ function attachWindowFunctions() {
     window.addTranche = (scopeKey) => addTranche(scopeKey);
     window.removeTranche = (button, scopeKey) => removeTranche(button, scopeKey);
     window.recalculateTranches = (scopeKey) => recalculateTranches(scopeKey);
+    window.handleScorecardClick = handleScorecardClick;
 }
 
 // Render view HTML
@@ -187,16 +188,21 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
+                <!-- Status Scorecard Strip -->
+                <div id="projectScorecards" class="project-scorecards">
+                    ${UNIFIED_STATUS_OPTIONS.map(s => `
+                    <div class="project-scorecard-card" data-status="${s}" onclick="window.handleScorecardClick('${s}'); event.stopPropagation()">
+                        <span class="scorecard-label">${s}</span>
+                        <span class="scorecard-count" id="scorecard-count-${s.replace(/\s+/g, '_')}">—</span>
+                    </div>`).join('')}
+                    <div class="project-scorecard-card project-scorecard-card--total" data-status="__total__" onclick="window.handleScorecardClick(null); event.stopPropagation()">
+                        <span class="scorecard-label">Total</span>
+                        <span class="scorecard-count" id="scorecard-count-total">—</span>
+                    </div>
+                </div>
+
                 <!-- Filter Bar -->
                 <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Status</label>
-                        <select id="projectStatusFilter" onchange="window.applyFilters()" style="width: 100%;">
-                            <option value="">All Statuses</option>
-                            ${UNIFIED_STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('')}
-                        </select>
-                    </div>
-
                     <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
                         <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Client</label>
                         <select id="clientFilter" onchange="window.applyFilters()" style="width: 100%;">
@@ -282,6 +288,17 @@ export async function init(activeTab = null) {
     document.addEventListener('mousedown', clickOutsideHandler);
     window._personnelClickOutside = clickOutsideHandler;
 
+    window._scorecardClickOutside = (e) => {
+        const strip = document.getElementById('projectScorecards');
+        if (!strip) return;
+        if (!strip.contains(e.target)) {
+            activeStatusFilter = null;
+            renderScorecards();
+            applyFilters();
+        }
+    };
+    document.addEventListener('click', window._scorecardClickOutside);
+
     await loadClients();
     await loadActiveUsers();
     await loadProjects();
@@ -345,6 +362,12 @@ export async function destroy() {
     }
     selectedPersonnel = [];
 
+    if (window._scorecardClickOutside) {
+        document.removeEventListener('click', window._scorecardClickOutside);
+        delete window._scorecardClickOutside;
+    }
+    activeStatusFilter = null;
+
     delete window.toggleAddProjectForm;
     delete window.addProject;
     delete window.editProject;
@@ -367,6 +390,7 @@ export async function destroy() {
     delete window.addTranche;
     delete window.removeTranche;
     delete window.recalculateTranches;
+    delete window.handleScorecardClick;
     editingProjectTranches = [];
 }
 
@@ -707,10 +731,38 @@ async function addProject() {
     }
 }
 
+// Render status scorecard counts and active highlight
+function renderScorecards() {
+    for (const s of UNIFIED_STATUS_OPTIONS) {
+        const count = allProjects.filter(p => p.project_status === s).length;
+        const el = document.getElementById(`scorecard-count-${s.replace(/\s+/g, '_')}`);
+        if (el) el.textContent = count;
+    }
+    const totalEl = document.getElementById('scorecard-count-total');
+    if (totalEl) totalEl.textContent = allProjects.length;
+
+    document.querySelectorAll('.project-scorecard-card').forEach(card => {
+        card.classList.remove('project-scorecard-card--active');
+    });
+    const activeKey = activeStatusFilter || '__total__';
+    document.querySelector(`.project-scorecard-card[data-status="${activeKey}"]`)
+        ?.classList.add('project-scorecard-card--active');
+}
+
+// Handle scorecard card click — toggle filter
+function handleScorecardClick(status) {
+    if (status === null || status === activeStatusFilter) {
+        activeStatusFilter = null;
+    } else {
+        activeStatusFilter = status;
+    }
+    renderScorecards();
+    applyFilters();
+}
+
 // Apply filters
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const projectStatusFilter = document.getElementById('projectStatusFilter')?.value || '';
     const clientFilter = document.getElementById('clientFilter')?.value || '';
 
     // Phase 7: Scope to assigned projects for operations_user
@@ -734,8 +786,8 @@ function applyFilters() {
             (project.project_name && project.project_name.toLowerCase().includes(searchTerm));
 
         // Status filter (exact match)
-        const matchesProjectStatus = !projectStatusFilter ||
-            project.project_status === projectStatusFilter;
+        const matchesProjectStatus = !activeStatusFilter ||
+            project.project_status === activeStatusFilter;
 
         // Client filter (match by ID)
         const matchesClient = !clientFilter ||
@@ -752,32 +804,7 @@ function applyFilters() {
     sortFilteredProjects();
 
     renderProjectsTable();
-}
-
-// Rebuild status filter dropdown — injects legacy values not in UNIFIED_STATUS_OPTIONS
-// under an "Other (legacy)" optgroup so users can filter to find and update them.
-function rebuildStatusFilterOptions() {
-    const select = document.getElementById('projectStatusFilter');
-    if (!select) return;
-    const previousValue = select.value;
-    const legacyValues = new Set();
-    for (const project of allProjects) {
-        const v = project.project_status;
-        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
-            legacyValues.add(v);
-        }
-    }
-    const unifiedHtml = UNIFIED_STATUS_OPTIONS
-        .map(s => `<option value="${s}">${s}</option>`)
-        .join('');
-    const legacyHtml = legacyValues.size > 0
-        ? `<optgroup label="Other (legacy)">${[...legacyValues].sort().map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)} (legacy)</option>`).join('')}</optgroup>`
-        : '';
-    select.innerHTML = `<option value="">All Statuses</option>${unifiedHtml}${legacyHtml}`;
-    // Restore previous selection if it still exists (either unified or legacy)
-    if (previousValue && [...select.options].some(o => o.value === previousValue)) {
-        select.value = previousValue;
-    }
+    renderScorecards();
 }
 
 // Sort filtered projects
@@ -874,7 +901,6 @@ async function loadProjects() {
 
 // Render projects table
 function renderProjectsTable() {
-    rebuildStatusFilterOptions();
     const tbody = document.getElementById('projectsTableBody');
     if (!tbody) return;
 
