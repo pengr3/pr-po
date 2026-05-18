@@ -41,6 +41,10 @@ let cachedRejectedTRs = []; // TRs with finance_status='Rejected' belonging to a
 // Department filter state for PO Tracking table
 let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
 
+// MRF Records scorecard filter state (Phase 91.2): null = show all, string = active PO status
+let activeMaterialsFilter = null;
+let activeSubconFilter = null;
+
 // Request sub-tab delegation flag — tracks whether mrf-form listeners are active
 let _requestSubTabActive = false;
 
