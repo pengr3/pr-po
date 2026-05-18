@@ -1,51 +1,54 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-14T13:38:42Z",
-  "phase": "91.1",
-  "phase_name": "supplier-management-category-column-schema",
-  "phase_dir": ".planning/phases/91.1-supplier-management-category-column-schema",
-  "plan": 3,
-  "task": null,
-  "total_tasks": 7,
-  "status": "code_complete_awaiting_uat",
+  "timestamp": "2026-05-18T10:25:48Z",
+  "phase": "91.2",
+  "phase_name": "mrf-records-scorecard-improvements",
+  "phase_dir": ".planning/phases/91.2-mrf-records-scorecard-improvements",
+  "plan": 2,
+  "task": "UAT",
+  "total_tasks": "6 UAT browser tests",
+  "status": "paused",
   "completed_tasks": [
-    {"id": "91.1-01-T1", "name": "SEED_CATEGORIES + getKnownCategories helper", "status": "done", "commit": "9f1e1ed"},
-    {"id": "91.1-01-T2", "name": "Reusable category tag-pill control helpers (9 functions) + window.* registrations + destroy cleanups", "status": "done", "commit": "58056d7"},
-    {"id": "91.1-01-T3", "name": "CLAUDE.md suppliers schema doc updated with categories field", "status": "done", "commit": "9298a22"},
-    {"id": "91.1-02-T1", "name": "Add Supplier form Categories field (required >=1) + toggleAddForm/clearAddForm/addSupplier wiring", "status": "done", "commit": "5f9d0d6"},
-    {"id": "91.1-02-T2", "name": "Inline-edit row Categories cell + saveEdit/cancelEdit wiring (empty allowed per D-02)", "status": "done", "commit": "0fe411d"},
-    {"id": "91.1-03-T1", "name": "Categories <th> at position 2 + display-row pills + em-dash on blank + colspan 5->6", "status": "done", "commit": "82fb23e"},
-    {"id": "91.1-03-T2", "name": "Extended applySupplierSearch (category match branch) + Show uncategorized only toolbar + D-08 firestore.rules verified-not-needed", "status": "done", "commit": "d38c8c6"}
+    {"id": 1, "name": "Plan 01 - Scorecard HTML to .project-scorecard-card", "status": "done", "commit": "bc9be35"},
+    {"id": 2, "name": "Plan 02 - Filter state, click handler, AND logic, loadPRPORecords routing", "status": "done", "commit": "ffdd733"},
+    {"id": 3, "name": "Code review (REVIEW.md)", "status": "done", "commit": "1d8769f"},
+    {"id": 4, "name": "Static verification 14/14 (VERIFICATION.md)", "status": "done", "commit": "bf40f25"},
+    {"id": 5, "name": "UAT file seeded (HUMAN-UAT.md)", "status": "done", "commit": "bf40f25"}
   ],
   "remaining_tasks": [
-    {"id": "UAT-91.1-01", "name": "Browser UAT: navigate to #/procurement/suppliers, verify Categories column appears at position 2", "status": "not_started"},
-    {"id": "UAT-91.1-02", "name": "Add Supplier flow: zero pills blocked with toast 'Please add at least one category'; >=1 pill writes categories array", "status": "not_started"},
-    {"id": "UAT-91.1-03", "name": "Edit legacy supplier: pill control empty, save without categories permitted (D-02 carve-out)", "status": "not_started"},
-    {"id": "UAT-91.1-04", "name": "Search by category string matches (case-insensitive substring)", "status": "not_started"},
-    {"id": "UAT-91.1-05", "name": "'Show uncategorized only' toggle filters; composes (AND) with search term", "status": "not_started"}
+    {"id": 6, "name": "Decide is_subcon fix approach (auto-detect vs manual toggle vs hybrid)", "status": "not_started"},
+    {"id": 7, "name": "Implement is_subcon fix (new plan or new phase)", "status": "not_started"},
+    {"id": 8, "name": "Browser UAT - all 6 tests", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "is_subcon is hardcoded false on all POs in finance.js:5348 — Subcon scorecard group always shows 0, filter never returns results",
+      "type": "technical",
+      "workaround": "Materials group UAT (tests 1/2/3/5/6) can proceed; test 4 (AND logic) blocked until fix"
+    }
+  ],
   "human_actions_pending": [
-    {"action": "Run browser UAT (python -m http.server 8000, sign in, walk through the 5 UAT items in remaining_tasks)", "context": "Phase 91.1 code is committed but never exercised against live Firestore. Required before marking the feature as truly shipped.", "blocking": false},
-    {"action": "Decide on the four untracked carry-overs (.claude/worktrees/, .planning/debug/86.9-row-misalign-DEBUG.md, .planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md, debug-diag-86.9.js)", "context": "Pre-existing artifacts from Phase 86.9 debug work — none belong to 91.1, none are blocking but should be triaged before next phase starts", "blocking": false},
-    {"action": "Pick next v4.0 phase (Phase 85 in progress 7/8, Phase 84.1 awaiting UAT, deferred Phase 68.1 subcon scorecard, deferred Phase 70 rework). v3.3 branch hasn't merged to main — consider /gsd-complete-milestone review when ready.", "context": "STATE.md says completed_phases 21/21 percent 100 for v4.0 active slice, but v3.3 BACKLOG items and Phase 85 remain outstanding", "blocking": false}
+    {
+      "action": "Choose is_subcon fix approach: A=auto-detect from item categories, B=manual Finance toggle, C=hybrid",
+      "context": "No POs have is_subcon=true; Subcon scorecard is non-functional without this decision",
+      "blocking": true
+    },
+    {
+      "action": "Browser UAT for 6 tests in 91.2-HUMAN-UAT.md (tests 1/2/3/5/6 after fix, test 4 requires is_subcon fix first)",
+      "context": "Phase cannot close without human browser verification",
+      "blocking": true
+    }
   ],
   "decisions": [
-    {"decision": "categories field shape is string[] (array of trade-category strings), not a single string", "rationale": "D-01 multi-tag pattern from memory feedback_multi_tag_pill_pattern — categories can go many ways per supplier", "phase": "91.1"},
-    {"decision": "Add form requires >=1 category; Edit form allows empty array (legacy carve-out)", "rationale": "D-02 — new suppliers must self-classify, but legacy rows can be saved without forcing premature categorization during the manual-encoding pass", "phase": "91.1"},
-    {"decision": "Reuse .personnel-pill CSS class from components.css:1530-1648 for the new pill control", "rationale": "D-CONTEXT gotcha: existing pill style is visually generic — adding a parallel .category-pill class would have duplicated CSS for no benefit", "phase": "91.1"},
-    {"decision": "Categories column inserted at position 2 (between Supplier Name and Contact Person)", "rationale": "D-05 — places the most-likely-searched-by attribute next to the entity name; matches inline-edit row column order from Plan 02", "phase": "91.1"},
-    {"decision": "Em-dash with #94a3b8 muted color for empty/missing categories on display rows", "rationale": "D-06 — distinguishes empty rows visually so the manual encoding pass can find them via the 'Show uncategorized only' toggle", "phase": "91.1"},
-    {"decision": "firestore.rules NOT modified (D-08 verified-not-needed)", "rationale": "/suppliers/{supplierId} block at lines 354-362 has no field-level write restrictions; categories writes are automatically permitted under existing super_admin/procurement role gates", "phase": "91.1"},
-    {"decision": "MAX_CATEGORY_LENGTH=60 enforced via maxlength attribute AND JS check in commitNewCategoryPill", "rationale": "T-91.1-02 storage-bloat DoS mitigation — defense in depth, client-only since firestore.rules don't gate field length", "phase": "91.1"},
-    {"decision": "Every category string interpolated to DOM flows through escapeHTML()", "rationale": "T-91.1-01 XSS mitigation — categories are user-typed strings that get rendered to every viewer including admins/finance/viewers; single-quote becomes &#39; making onclick delimiter quoting safe without a second .replace() chain", "phase": "91.1"}
+    {
+      "decision": "is_subcon fix approach not yet chosen",
+      "rationale": "User investigating options: auto-detect from SUBCON category in items_json vs explicit Finance modal toggle",
+      "phase": "91.2"
+    }
   ],
   "uncommitted_files": [
-    ".claude/worktrees/",
-    ".planning/debug/86.9-row-misalign-DEBUG.md",
-    ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md",
-    "debug-diag-86.9.js"
+    "styles/components.css (M - modified, not committed)"
   ],
-  "next_action": "Run python -m http.server 8000, navigate to #/procurement/suppliers, execute the 5 UAT items in remaining_tasks. If all pass, mark phase shipped and run /gsd-progress to pick next phase. If any fail, capture the failure in .planning/debug/ and route to /gsd-debug 91.1.",
-  "context_notes": "Phase 91.1 was a 3-plan, fully-serialized execution (all plans touch app/views/procurement.js with a linear depends_on chain). All three plans landed in a single session with zero deviations, zero scope breaches, and clean syntax verification at each commit. The work introduces a multi-tag pill UI primitive that the codebase did not previously have at this generality — the 9 helper functions are reusable for any future tag-pill control. The phase deliberately stayed inside the Supplier Management surface; MRF/PR/PO linkage to supplier records is untouched (categories is a display-and-filter attribute, not a constraint). The four untracked files at session start belong to a parallel Phase 86.9 debug investigation and are NOT 91.1 carry-overs."
+  "next_action": "Confirm is_subcon fix approach, then implement as Plan 03 or Phase 91.3, deploy, then run all 6 browser UAT tests",
+  "context_notes": "Both plans fully committed and statically verified. The Subcon scorecard group is architecturally correct but depends on upstream is_subcon flag that was never populated. Fix is small (one block in finance.js approvePR). User understands the issue and needs to pick approach before proceeding."
 }
