@@ -5,23 +5,6 @@
 
 import { db, collection, query, where, onSnapshot } from '../firebase.js';
 
-// Unified status list for services charts. Intentionally includes 'Draft' (Phase 88 D-05)
-// which is absent from projects.js UNIFIED_STATUS_OPTIONS since Phase 92 (scorecard strip).
-// Do NOT sync to projects.js — the Draft bucket is required for services chart rendering.
-const UNIFIED_STATUS_OPTIONS = [
-    'Draft',  // Phase 88 D-05 — pre-proposal stage; retained for services chart support.
-    'For Inspection',
-    'For Proposal',
-    'Proposal for Internal Approval',
-    'Proposal Under Client Review',
-    'For Revision',
-    'Client Approved',
-    'For Mobilization',
-    'On-going',
-    'Completed',
-    'Loss'
-];
-
 // View state
 let statsListeners = [];
 // Phase 81 D-05 — fresh object literal; old 8-key shape is fully replaced (REVIEWS Concern 4).
@@ -29,46 +12,8 @@ let cachedStats = {
     // Procurement pipeline (D-01)
     activeMRFs: null,
     pendingPRs: null,
-    activePOs: null,
-    // Phase 81 D-05 — unified status breakdown (one map per entity type)
-    servicesByStatusOneTime: null,
-    servicesByStatusRecurring: null
+    activePOs: null
 };
-
-// Phase 77.1 — Chart.js instance registry: containerId → Chart instance
-// Used so onSnapshot callbacks can call .update() on existing charts (vs recreating)
-// and destroy() can tear them all down on view exit.
-const chartInstances = new Map();
-
-// Phase 81 — color palette for the 10 unified statuses.
-// Highlighted = active workflow stages (brand-color muted); non-highlighted = transitional/terminal (slate gradient).
-const HIGHLIGHTED_STATUS_COLORS = {
-    'For Inspection':              'rgba(26, 115, 232, 0.55)',  // muted --primary
-    'For Proposal':                'rgba(52, 168, 83, 0.55)',   // muted --success
-    'Proposal Under Client Review':'rgba(251, 188, 4, 0.65)',   // muted --warning
-    'On-going':                    'rgba(26, 115, 232, 0.55)'   // shared brand hue
-};
-const MONOCHROMATIC_STATUS_COLORS = {
-    'Draft':                          'rgba(107, 114, 128, 0.50)',  // Phase 88 MED-3 — gray-neutral for pre-proposal stage.
-    'Proposal for Internal Approval': 'rgba(148, 163, 184, 0.38)',
-    'For Revision':                   'rgba(148, 163, 184, 0.50)',
-    'Client Approved':                'rgba(148, 163, 184, 0.60)',
-    'For Mobilization':               'rgba(148, 163, 184, 0.55)',
-    'Completed':                      'rgba(148, 163, 184, 0.68)',
-    'Loss':                           'rgba(100, 116, 139, 0.55)'
-};
-const MONOCHROMATIC_FALLBACK = 'rgba(148, 163, 184, 0.55)'; // fallback for unknown statuses
-
-function getBarColor(statusLabel) {
-    return HIGHLIGHTED_STATUS_COLORS[statusLabel]
-        || MONOCHROMATIC_STATUS_COLORS[statusLabel]
-        || MONOCHROMATIC_FALLBACK;
-}
-
-// Phase 81 — single chart class for unified status (10 bars).
-function getChartSizeClass(containerId) {
-    return 'hs-chart-status';
-}
 
 /**
  * Determine dashboard mode based on current user role
@@ -79,22 +24,6 @@ function getDashboardMode() {
     if (['operations_admin', 'operations_user'].includes(role)) return 'projects';
     if (['services_admin', 'services_user'].includes(role)) return 'services';
     return 'both'; // super_admin, finance, procurement_staff, unknown
-}
-
-/**
- * Build HTML wrapper for a status breakdown chart.
- * Phase 77.1: emits a <canvas> inside a sized wrapper instead of a text-row grid.
- * Chart.js initialization happens later in renderStatusBreakdown(), called from
- * the onSnapshot callbacks in loadStats(). Skeleton loading state is just an
- * empty wrapper — the chart fills in on first snapshot fire (typically <500ms).
- * @param {string} containerId - ID assigned to the <canvas> element
- * @param {Object|null} countsMap - cached counts (unused here; kept for signature parity with Phase 77)
- * @param {number} rowCount - bar count, used to pick chart size class (unused param kept for signature parity)
- * @returns {string}
- */
-function buildStatusBreakdownContainer(containerId, countsMap, rowCount) {
-    const sizeClass = getChartSizeClass(containerId);
-    return `<div class="hs-chart-canvas ${sizeClass}"><canvas id="${containerId}"></canvas></div>`;
 }
 
 /**
@@ -125,125 +54,6 @@ function procurementCardHtml() {
 }
 
 /**
- * Build Services card HTML (D-03) — shown when mode === 'services' || mode === 'both'
- * Stacked sections: One-time above, Recurring below, separated by <hr class="hs-divider">.
- * @returns {string}
- */
-function servicesCardHtml() {
-    return `
-        <div class="hs-stat-card">
-            <h4 class="hs-stat-card-title">Services</h4>
-            <div class="hs-type-section">
-                <span class="hs-type-label">One-time</span>
-                <div class="hs-section-group">
-                    <div class="hs-section-heading">Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-ot-status', cachedStats.servicesByStatusOneTime, 10)}
-                </div>
-            </div>
-            <hr class="hs-divider">
-            <div class="hs-type-section">
-                <span class="hs-type-label">Recurring</span>
-                <div class="hs-section-group">
-                    <div class="hs-section-heading">Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-rec-status', cachedStats.servicesByStatusRecurring, 10)}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Render or update a 100% stacked horizontal bar chart for a status breakdown.
- * Each status is one segment; all segments together fill 100% width.
- * - First call: creates Chart instance (one dataset per status), stores in chartInstances.
- * - Subsequent calls: updates each dataset's percentage value in place via chart.update().
- * chart._rawCounts stores the original counts for tooltip display.
- * @param {string} containerId - ID of the <canvas> element
- * @param {Object} countsMap - { statusName: count, ... }
- */
-function renderStatusBreakdown(containerId, countsMap) {
-    const canvas = document.getElementById(containerId);
-    if (!canvas) return;
-    if (typeof window.Chart !== 'function') {
-        console.error('[Home] Chart.js not loaded — verify CDN script tag in index.html');
-        return;
-    }
-
-    const labels = Object.keys(countsMap);
-    const total = Object.values(countsMap).reduce((s, v) => s + v, 0);
-    const toPercent = (count) => total > 0 ? parseFloat(((count / total) * 100).toFixed(1)) : 0;
-
-    const existing = chartInstances.get(containerId);
-    if (existing) {
-        // Update in place — update each dataset's percentage and refresh raw counts for tooltip
-        existing._rawCounts = { ...countsMap };
-        labels.forEach((label, i) => {
-            if (existing.data.datasets[i]) {
-                existing.data.datasets[i].data = [toPercent(countsMap[label])];
-            }
-        });
-        existing.update();
-        return;
-    }
-
-    // First render — one dataset per status, stacked to 100%
-    const datasets = labels.map(label => ({
-        label,
-        data: [toPercent(countsMap[label])],
-        backgroundColor: getBarColor(label),
-        borderWidth: 0,
-        barThickness: 28,
-    }));
-
-    const chart = new window.Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: [''],
-            datasets
-        },
-        options: {
-            indexAxis: 'y',
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom',
-                    // Phase 77.2 — bumped legend font + box from 10px to 12px to match the
-                    // tightened card height (180px desktop / 220px mobile in views.css).
-                    labels: {
-                        boxWidth: 12,
-                        boxHeight: 12,
-                        font: { size: 12 },
-                        padding: 4,
-                        color: '#64748b'
-                    }
-                },
-                tooltip: {
-                    enabled: true,
-                    callbacks: {
-                        label: (ctx) => {
-                            const rawCounts = ctx.chart._rawCounts || {};
-                            const lbl = ctx.dataset.label;
-                            const count = rawCounts[lbl] ?? 0;
-                            const pct = ctx.parsed.x.toFixed(1);
-                            return ` ${lbl}: ${count} (${pct}%)`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: { stacked: true, max: 100, display: false, grid: { display: false } },
-                y: { stacked: true, display: false, grid: { display: false } }
-            }
-        }
-    });
-    chart._rawCounts = { ...countsMap };
-    chartInstances.set(containerId, chart);
-}
-
-/**
  * Render the home page
  * @returns {string} HTML string for home page
  */
@@ -256,9 +66,6 @@ export function render() {
     // - 'both' (super_admin/finance/procurement_staff/unknown) → all 3 cards
     // Procurement card always shown regardless of mode.
     let statsContent = procurementCardHtml();
-    if (mode === 'services' || mode === 'both') {
-        statsContent += servicesCardHtml();
-    }
 
     return `
         <div class="hero-section">
@@ -366,37 +173,6 @@ function loadStats(mode) {
         (error) => { console.error('[Home] Error loading PO stats:', error); }
     );
     statsListeners.push(poListener);
-
-    // ---- Services card (D-03) ----
-    if (mode === 'services' || mode === 'both') {
-        const servicesListener = onSnapshot(
-            collection(db, 'services'),
-            (snapshot) => {
-                const otStatus = {};
-                const recStatus = {};
-                UNIFIED_STATUS_OPTIONS.forEach(s => {
-                    otStatus[s] = 0;
-                    recStatus[s] = 0;
-                });
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    const isOneTime = d.service_type === 'one-time';
-                    const isRecurring = d.service_type === 'recurring';
-                    if (isOneTime && d.project_status && otStatus[d.project_status] !== undefined) {
-                        otStatus[d.project_status]++;
-                    } else if (isRecurring && d.project_status && recStatus[d.project_status] !== undefined) {
-                        recStatus[d.project_status]++;
-                    }
-                });
-                cachedStats.servicesByStatusOneTime = otStatus;
-                cachedStats.servicesByStatusRecurring = recStatus;
-                renderStatusBreakdown('stat-services-ot-status', otStatus);
-                renderStatusBreakdown('stat-services-rec-status', recStatus);
-            },
-            (error) => { console.error('[Home] Error loading services stats:', error); }
-        );
-        statsListeners.push(servicesListener);
-    }
 }
 
 /**
@@ -415,8 +191,6 @@ function updateStatDisplay(elementId, value) {
 
 /**
  * Cleanup when leaving the view
- * Phase 77.1: also tears down Chart.js instances so canvases can be garbage-collected
- * and re-creating the view doesn't leave orphaned charts bound to detached DOM nodes.
  */
 export async function destroy() {
     // Unsubscribe from all Firestore listeners
@@ -426,14 +200,6 @@ export async function destroy() {
         }
     });
     statsListeners = [];
-
-    // Phase 77.1 — destroy Chart.js instances and clear the registry
-    chartInstances.forEach(chart => {
-        if (chart && typeof chart.destroy === 'function') {
-            chart.destroy();
-        }
-    });
-    chartInstances.clear();
 
     // cachedStats intentionally NOT reset — stale-while-revalidate pattern:
     // preserved values shown immediately on next visit while fresh data loads

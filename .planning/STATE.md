@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase complete — awaiting next phase decision
-stopped_at: Phase 92.1 complete (1/1 plans). Scorecard color-coding + visibility scope fix shipped.
+status: Phase 92.2 code-complete — awaiting UAT
+stopped_at: Phase 92.2 both plans executed. Plan 01 adds scorecard strip to services.js (replaces #serviceProjectStatusFilter dropdown). Plan 02 removes dead services chart from home.js and dead CSS from views.css.
 last_updated: "2026-05-18T00:00:00.000Z"
-last_activity: 2026-05-18 — Phase 92.1 complete. CSS color rules for 5 status cards + renderScorecards(baseProjects) fix. UAT approved by user.
+last_activity: 2026-05-18 — Phase 92.2 executed (2 plans in parallel). Services view gains interactive scorecard strip mirroring Phase 92 projects pattern. Home page services chart infrastructure removed.
 progress:
-  total_phases: 24
-  completed_phases: 21
-  total_plans: 81
-  completed_plans: 79
+  total_phases: 23
+  completed_phases: 20
+  total_plans: 80
+  completed_plans: 78
   percent: 98
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 92.1 ✓ COMPLETE
-Next: Phase 92.1 fully shipped (1/1 plans, 2026-05-18). CSS color-coding for 5 scorecard cards + renderScorecards visibility scope fix. UAT approved. Awaiting next phase decision.
+Phase: 92.2
+Next: /gsd-plan-phase 92.2
 
 ## Performance Metrics
 
@@ -492,6 +492,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 91.1 inserted after 91 (URGENT, 2026-05-14) — Supplier Management schema extension: add `Category` column to the suppliers table alongside the Procurement tab shake-up; legacy supplier rows left blank for manual encoding; new supplier inputs require Category as part of the data-input form
 - Phase 92 added 2026-05-18 -- Projects Tab Status Scorecards: migrate the project status bar chart from Home page into Projects tab as a 2x6 scorecard grid (10 status cards + 1x2 Total card)
 - Phase 92.1 inserted after Phase 92: Scorecard improvements: color-coded status cards and filter scorecards to match MRF Records user-visibility scope (URGENT)
+- Phase 92.2 inserted after Phase 92: Service scorecards — mirror project scorecards for one-time/recurring services with matching colors; remove home-page charts (URGENT)
 
 ### Quick Tasks Completed
 

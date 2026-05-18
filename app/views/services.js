@@ -32,6 +32,9 @@ let sortDirection = 'desc';     // Most recent first
 // Module-level active tab - persists across re-renders
 let currentActiveTab = 'services';
 
+// Phase 92.2: Scorecard filter state — null = "Total" (all statuses)
+let activeServiceStatusFilter = null;
+
 // Unified status options (11 values since Phase 88 D-05 added Draft)
 const UNIFIED_STATUS_OPTIONS = [
     'Draft',  // Phase 88 D-05 — pre-proposal stage; engagements created from the Proposals tab default here.
@@ -46,6 +49,9 @@ const UNIFIED_STATUS_OPTIONS = [
     'Completed',
     'Loss'
 ];
+
+// Phase 92.2: Scorecard strip excludes 'Draft' (Draft services are proposals; not surfaced as a status filter)
+const SCORECARD_STATUS_OPTIONS = UNIFIED_STATUS_OPTIONS.filter(s => s !== 'Draft');
 
 // Debounce utility function
 function debounce(callback, wait) {
@@ -71,6 +77,7 @@ function attachWindowFunctions() {
     window.toggleServiceActive = toggleServiceActive;
     window.changeServicesPage = changeServicesPage;
     window.applyServiceFilters = applyServiceFilters;
+    window.handleServiceScorecardClick = handleServiceScorecardClick;
     window.debouncedServiceFilter = debouncedServiceFilter;
     window.sortServices = sortServices;
     window.exportServicesCSV = exportServicesCSV;
@@ -214,18 +221,22 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
+                <!-- Phase 92.2: Status Scorecard Strip (mirrors Phase 92 projects pattern) -->
+                <div id="serviceScorecards" class="project-scorecards">
+                    ${SCORECARD_STATUS_OPTIONS.map(s => `
+                        <div class="project-scorecard-card" data-status="${s}" onclick="window.handleServiceScorecardClick('${s}'); event.stopPropagation()">
+                            <span class="scorecard-label">${s}</span>
+                            <span class="scorecard-count" id="service-scorecard-count-${s.replace(/\s+/g, '_')}">—</span>
+                        </div>
+                    `).join('')}
+                    <div class="project-scorecard-card project-scorecard-card--total" data-status="__total__" onclick="window.handleServiceScorecardClick(null); event.stopPropagation()">
+                        <span class="scorecard-label">Total</span>
+                        <span class="scorecard-count" id="service-scorecard-count-total">—</span>
+                    </div>
+                </div>
+
                 <!-- Filter Bar -->
                 <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Status</label>
-                        <select id="serviceProjectStatusFilter" onchange="window.applyServiceFilters()" style="width: 100%;">
-                            <option value="">All Statuses</option>
-                            ${UNIFIED_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}">${s}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-
                     <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
                         <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Client</label>
                         <select id="serviceClientFilter" onchange="window.applyServiceFilters()" style="width: 100%;">
@@ -313,6 +324,18 @@ export async function init(activeTab = null) {
     document.addEventListener('mousedown', clickOutsideHandler);
     window._servicePersonnelClickOutside = clickOutsideHandler;
 
+    // Phase 92.2: Reset scorecard filter on fresh init; click-outside clears active scorecard
+    activeServiceStatusFilter = null;
+    window._serviceScorecardClickOutside = (e) => {
+        const strip = document.getElementById('serviceScorecards');
+        if (!strip) return;
+        if (!strip.contains(e.target)) {
+            activeServiceStatusFilter = null;
+            applyServiceFilters();
+        }
+    };
+    document.addEventListener('click', window._serviceScorecardClickOutside);
+
     await loadServiceClients();
     await loadServiceActiveUsers();
     await loadServices();
@@ -377,6 +400,13 @@ export async function destroy() {
     }
     selectedPersonnel = [];
 
+    // Phase 92.2: Tear down scorecard click-outside handler and reset filter state
+    if (window._serviceScorecardClickOutside) {
+        document.removeEventListener('click', window._serviceScorecardClickOutside);
+        delete window._serviceScorecardClickOutside;
+    }
+    activeServiceStatusFilter = null;
+
     delete window.toggleAddServiceForm;
     delete window.addService;
     delete window.editService;
@@ -393,6 +423,7 @@ export async function destroy() {
     delete window.removeServicePersonnel;
     delete window.filterServicePersonnelDropdown;
     delete window.showServicePersonnelDropdown;
+    delete window.handleServiceScorecardClick;
     // Phase 85 D-01: detach tranche-builder window helpers
     delete window.addTranche;
     delete window.removeTranche;
@@ -742,10 +773,41 @@ async function addService() {
     }
 }
 
+// Phase 92.2: Render scorecard counts and active highlight
+// baseServices = services scoped only by sub-tab type + services_user assignments
+// (NOT filtered by client/search/status — counts reflect the "what's available" pool
+// for this tab so toggling a card never makes its own count change)
+function renderServiceScorecards(baseServices) {
+    for (const s of SCORECARD_STATUS_OPTIONS) {
+        const count = baseServices.filter(sv => sv.project_status === s).length;
+        const key = s.replace(/\s+/g, '_');
+        const el = document.getElementById(`service-scorecard-count-${key}`);
+        if (el) el.textContent = count;
+    }
+    const totalEl = document.getElementById('service-scorecard-count-total');
+    if (totalEl) totalEl.textContent = baseServices.length;
+
+    document.querySelectorAll('#serviceScorecards .project-scorecard-card').forEach(card => {
+        card.classList.remove('project-scorecard-card--active');
+    });
+    const activeKey = activeServiceStatusFilter || '__total__';
+    document.querySelector(`#serviceScorecards .project-scorecard-card[data-status="${activeKey}"]`)
+        ?.classList.add('project-scorecard-card--active');
+}
+
+// Phase 92.2: Toggle scorecard filter — clicking the active card or passing null clears it
+function handleServiceScorecardClick(status) {
+    if (status === null || status === activeServiceStatusFilter) {
+        activeServiceStatusFilter = null;
+    } else {
+        activeServiceStatusFilter = status;
+    }
+    applyServiceFilters();
+}
+
 // Apply filters (includes sub-tab type filter and services_user scope)
 function applyServiceFilters() {
     const searchTerm = document.getElementById('serviceSearchInput')?.value.toLowerCase() || '';
-    const projectStatusFilter = document.getElementById('serviceProjectStatusFilter')?.value || '';
     const clientFilter = document.getElementById('serviceClientFilter')?.value || '';
 
     // Sub-tab determines service_type filter
@@ -756,30 +818,29 @@ function applyServiceFilters() {
     // services_user without all_services. Returns [] if zero assignments.
     const assignedCodes = getAssignedServiceCodes();
 
-    filteredServices = allServices.filter(service => {
-        // Sub-tab type filter (always applied)
-        const matchesType = service.service_type === serviceTypeFilter;
+    // Phase 92.2: Build the "scoped" pool first — service_type + assignment scope only.
+    // Scorecards count from this pool so toggling a status card never changes its own count.
+    const scopedServicesForTab = allServices.filter(sv =>
+        sv.service_type === serviceTypeFilter &&
+        (assignedCodes === null || assignedCodes.includes(sv.service_code))
+    );
 
+    filteredServices = scopedServicesForTab.filter(service => {
         // Search filter (OR across code and name)
         const matchesSearch = !searchTerm ||
             (service.service_code && service.service_code.toLowerCase().includes(searchTerm)) ||
             (service.service_name && service.service_name.toLowerCase().includes(searchTerm));
 
-        // Status filter (exact match)
-        const matchesProjectStatus = !projectStatusFilter ||
-            service.project_status === projectStatusFilter;
+        // Phase 92.2: Status filter now driven by scorecard click state
+        const matchesProjectStatus = activeServiceStatusFilter === null ||
+            service.project_status === activeServiceStatusFilter;
 
         // Client filter (match by ID)
         const matchesClient = !clientFilter ||
             service.client_id === clientFilter;
 
-        // ASSIGN-04: services_user scope restriction
-        if (assignedCodes !== null && !assignedCodes.includes(service.service_code)) {
-            return false;
-        }
-
         // AND logic - all conditions must be true
-        return matchesType && matchesSearch && matchesProjectStatus && matchesClient;
+        return matchesSearch && matchesProjectStatus && matchesClient;
     });
 
     // Reset pagination when filters change
@@ -789,6 +850,7 @@ function applyServiceFilters() {
     sortFilteredServices();
 
     renderServicesTable();
+    renderServiceScorecards(scopedServicesForTab);
 }
 
 // Sort filtered services
@@ -827,30 +889,10 @@ function sortFilteredServices() {
     });
 }
 
-// Rebuild status filter dropdown — injects legacy values discovered in servicesData
-// under an "Other (legacy)" optgroup so users can find and update them.
-function rebuildServiceStatusFilterOptions() {
-    const select = document.getElementById('serviceProjectStatusFilter');
-    if (!select) return;
-    const previousValue = select.value;
-    const legacyValues = new Set();
-    for (const service of allServices) {
-        const v = service.project_status;
-        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
-            legacyValues.add(v);
-        }
-    }
-    const unifiedHtml = UNIFIED_STATUS_OPTIONS
-        .map(s => `<option value="${s}">${s}</option>`)
-        .join('');
-    const legacyHtml = legacyValues.size > 0
-        ? `<optgroup label="Other (legacy)">${[...legacyValues].sort().map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)} (legacy)</option>`).join('')}</optgroup>`
-        : '';
-    select.innerHTML = `<option value="">All Statuses</option>${unifiedHtml}${legacyHtml}`;
-    if (previousValue && [...select.options].some(o => o.value === previousValue)) {
-        select.value = previousValue;
-    }
-}
+// Phase 92.2: rebuildServiceStatusFilterOptions() removed — the status filter
+// dropdown was replaced by the scorecard strip, which uses the fixed
+// SCORECARD_STATUS_OPTIONS set. Legacy status values still display on rows
+// via project_status, but are no longer surfaced as a filter affordance.
 
 // Create debounced filter
 const debouncedServiceFilter = debounce(applyServiceFilters, 300);
@@ -929,7 +971,6 @@ async function loadServices() {
 
 // Render services table
 function renderServicesTable() {
-    rebuildServiceStatusFilterOptions();
     const tbody = document.getElementById('servicesTableBody');
     if (!tbody) return;
 

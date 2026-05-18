@@ -2273,27 +2273,6 @@
 }
 
 /* ========================================
-   HOME DASHBOARD — UNIFIED STATUS CHART
-   Phase 81: single chart per entity using the 10 unified status options (D-05).
-   ======================================== */
-
-/* Phase 77.2 — single stacked horizontal bar (28px) + 12px legend wraps to ~3 rows
-   on the 10 unified statuses. ~28 (bar) + ~78 (legend, 3 rows × 22px line-height + pad)
-   + ~24 (top/bottom breathing room) ≈ 130px. We round up to 180px to absorb
-   narrow-card legend wrapping (4 rows) and avoid clipping; mobile gets +40px
-   because wider per-item legend padding pushes legend into 4-5 rows at 360px-414px. */
-.hs-chart-canvas.hs-chart-status {
-    height: 180px;
-    min-height: 180px;
-}
-@media (max-width: 768px) {
-    .hs-chart-canvas.hs-chart-status {
-        height: 220px;
-        min-height: 220px;
-    }
-}
-
-/* ========================================
    PROJECT PLAN VIEW (Phase 86)
    Split-pane plan surface: toolbar + task tree (left) + Gantt pane (right)
    ======================================== */
