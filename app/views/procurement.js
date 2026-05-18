@@ -2140,22 +2140,22 @@ export function render(activeTab = 'mrfs') {
                             <!-- Materials Scoreboards -->
                             <div>
                                 <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement</div>
-                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
-                                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Pending</div>
-                                        <div id="scoreMaterialsPending" style="font-size: 1.75rem; font-weight: 700; color: #dc2626;">0</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Pending Procurement" style="border-left: 3px solid #dc2626" onclick="window.handleMRFScorecardClick('materials', 'Pending Procurement'); event.stopPropagation()">
+                                        <span class="scorecard-label">Pending</span>
+                                        <span class="scorecard-count" id="scoreMaterialsPending">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Procuring</div>
-                                        <div id="scoreMaterialsProcuring" style="font-size: 1.75rem; font-weight: 700; color: #ca8a04;">0</div>
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Procuring" style="border-left: 3px solid #eab308" onclick="window.handleMRFScorecardClick('materials', 'Procuring'); event.stopPropagation()">
+                                        <span class="scorecard-label">Procuring</span>
+                                        <span class="scorecard-count" id="scoreMaterialsProcuring">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Procured</div>
-                                        <div id="scoreMaterialsProcured" style="font-size: 1.75rem; font-weight: 700; color: #16a34a;">0</div>
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Procured" style="border-left: 3px solid #22c55e" onclick="window.handleMRFScorecardClick('materials', 'Procured'); event.stopPropagation()">
+                                        <span class="scorecard-label">Procured</span>
+                                        <span class="scorecard-count" id="scoreMaterialsProcured">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Delivered</div>
-                                        <div id="scoreMaterialsDelivered" style="font-size: 1.75rem; font-weight: 700; color: #2563eb;">0</div>
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Delivered" style="border-left: 3px solid #3b82f6" onclick="window.handleMRFScorecardClick('materials', 'Delivered'); event.stopPropagation()">
+                                        <span class="scorecard-label">Delivered</span>
+                                        <span class="scorecard-count" id="scoreMaterialsDelivered">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -2163,18 +2163,18 @@ export function render(activeTab = 'mrfs') {
                             <!-- Subcon Scoreboards -->
                             <div>
                                 <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing</div>
-                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
-                                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Pending</div>
-                                        <div id="scoreSubconPending" style="font-size: 1.75rem; font-weight: 700; color: #dc2626;">0</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                    <div class="project-scorecard-card" data-group="subcon" data-status="Pending" style="border-left: 3px solid #dc2626" onclick="window.handleMRFScorecardClick('subcon', 'Pending'); event.stopPropagation()">
+                                        <span class="scorecard-label">Pending</span>
+                                        <span class="scorecard-count" id="scoreSubconPending">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Processing</div>
-                                        <div id="scoreSubconProcessing" style="font-size: 1.75rem; font-weight: 700; color: #ca8a04;">0</div>
+                                    <div class="project-scorecard-card" data-group="subcon" data-status="Processing" style="border-left: 3px solid #eab308" onclick="window.handleMRFScorecardClick('subcon', 'Processing'); event.stopPropagation()">
+                                        <span class="scorecard-label">Processing</span>
+                                        <span class="scorecard-count" id="scoreSubconProcessing">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; grid-column: span 2;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Processed</div>
-                                        <div id="scoreSubconProcessed" style="font-size: 1.75rem; font-weight: 700; color: #16a34a;">0</div>
+                                    <div class="project-scorecard-card" data-group="subcon" data-status="Processed" style="grid-column: span 2; border-left: 3px solid #22c55e" onclick="window.handleMRFScorecardClick('subcon', 'Processed'); event.stopPropagation()">
+                                        <span class="scorecard-label">Processed</span>
+                                        <span class="scorecard-count" id="scoreSubconProcessed">0</span>
                                     </div>
                                 </div>
                             </div>
