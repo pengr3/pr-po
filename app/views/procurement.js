@@ -445,6 +445,25 @@ function removeTranche(button, poId) {
     recalculateTranches(poId);
 }
 
+function renderMRFScorecardActive() {
+    document.querySelectorAll('[data-group="materials"]').forEach(card => {
+        card.classList.toggle('project-scorecard-card--active', card.dataset.status === activeMaterialsFilter);
+    });
+    document.querySelectorAll('[data-group="subcon"]').forEach(card => {
+        card.classList.toggle('project-scorecard-card--active', card.dataset.status === activeSubconFilter);
+    });
+}
+
+function handleMRFScorecardClick(group, status) {
+    if (group === 'materials') {
+        activeMaterialsFilter = (activeMaterialsFilter === status) ? null : status;
+    } else if (group === 'subcon') {
+        activeSubconFilter = (activeSubconFilter === status) ? null : status;
+    }
+    renderMRFScorecardActive();
+    filterPRPORecords();
+}
+
 /**
  * Apply department filter to scoreboards and MRF Records table.
  * Called by the dept filter dropdown onchange handler.
