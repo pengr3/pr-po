@@ -3030,3 +3030,70 @@
         font-size: 0.62rem;
     }
 }
+
+/* Per-status color coding for Phase 92.1 */
+
+.project-scorecard-card[data-status="Loss"] {
+    border-left: 3px solid #ef4444;
+    background-color: #fff5f5;
+}
+.project-scorecard-card[data-status="Loss"]:hover {
+    background-color: #fee2e2;
+    border-color: #ef4444;
+}
+.project-scorecard-card[data-status="Loss"].project-scorecard-card--active {
+    background-color: #fecaca;
+    border-color: #ef4444;
+}
+
+.project-scorecard-card[data-status="Completed"] {
+    border-left: 3px solid #1a73e8;
+    background-color: #e8f0fe;
+}
+.project-scorecard-card[data-status="Completed"]:hover {
+    background-color: #d2e3fc;
+    border-color: #1a73e8;
+}
+.project-scorecard-card[data-status="Completed"].project-scorecard-card--active {
+    background-color: #b3cef9;
+    border-color: #1a73e8;
+}
+
+.project-scorecard-card[data-status="On-going"] {
+    border-left: 3px solid #eab308;
+    background-color: #fefce8;
+}
+.project-scorecard-card[data-status="On-going"]:hover {
+    background-color: #fef9c3;
+    border-color: #eab308;
+}
+.project-scorecard-card[data-status="On-going"].project-scorecard-card--active {
+    background-color: #fef08a;
+    border-color: #eab308;
+}
+
+.project-scorecard-card[data-status="For Mobilization"] {
+    border-left: 3px solid #f97316;
+    background-color: #fff8f3;
+}
+.project-scorecard-card[data-status="For Mobilization"]:hover {
+    background-color: #ffedd5;
+    border-color: #f97316;
+}
+.project-scorecard-card[data-status="For Mobilization"].project-scorecard-card--active {
+    background-color: #fed7aa;
+    border-color: #f97316;
+}
+
+.project-scorecard-card[data-status="Client Approved"] {
+    border-left: 3px solid #16a34a;
+    background-color: #f0fdf4;
+}
+.project-scorecard-card[data-status="Client Approved"]:hover {
+    background-color: #dcfce7;
+    border-color: #16a34a;
+}
+.project-scorecard-card[data-status="Client Approved"].project-scorecard-card--active {
+    background-color: #bbf7d0;
+    border-color: #16a34a;
+}
