@@ -29,7 +29,6 @@ let cachedStats = {
     pendingPRs: null,
     activePOs: null,
     // Phase 81 D-05 — unified status breakdown (one map per entity type)
-    projectsByStatus: null,
     servicesByStatusOneTime: null,
     servicesByStatusRecurring: null
 };
@@ -118,22 +117,6 @@ function procurementCardHtml() {
                     <span class="stat-label">Active POs</span>
                     <span class="stat-value" id="stat-pos">${cachedStats.activePOs !== null ? cachedStats.activePOs : '<span class="skeleton skeleton-stat"></span>'}</span>
                 </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Build Projects card HTML (D-02) — shown when mode === 'projects' || mode === 'both'
- * @returns {string}
- */
-function projectsCardHtml() {
-    return `
-        <div class="hs-stat-card">
-            <h4 class="hs-stat-card-title">Projects</h4>
-            <div class="hs-section-group">
-                <div class="hs-section-heading">Status</div>
-                ${buildStatusBreakdownContainer('stat-projects-status', cachedStats.projectsByStatus, 10)}
             </div>
         </div>
     `;
@@ -271,9 +254,6 @@ export function render() {
     // - 'both' (super_admin/finance/procurement_staff/unknown) → all 3 cards
     // Procurement card always shown regardless of mode.
     let statsContent = procurementCardHtml();
-    if (mode === 'projects' || mode === 'both') {
-        statsContent += projectsCardHtml();
-    }
     if (mode === 'services' || mode === 'both') {
         statsContent += servicesCardHtml();
     }
@@ -384,27 +364,6 @@ function loadStats(mode) {
         (error) => { console.error('[Home] Error loading PO stats:', error); }
     );
     statsListeners.push(poListener);
-
-    // ---- Projects card (D-02) ----
-    if (mode === 'projects' || mode === 'both') {
-        const projectsListener = onSnapshot(
-            collection(db, 'projects'),
-            (snapshot) => {
-                const byStatus = {};
-                UNIFIED_STATUS_OPTIONS.forEach(s => { byStatus[s] = 0; });
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    if (d.project_status && byStatus[d.project_status] !== undefined) {
-                        byStatus[d.project_status]++;
-                    }
-                });
-                cachedStats.projectsByStatus = byStatus;
-                renderStatusBreakdown('stat-projects-status', byStatus);
-            },
-            (error) => { console.error('[Home] Error loading projects stats:', error); }
-        );
-        statsListeners.push(projectsListener);
-    }
 
     // ---- Services card (D-03) ----
     if (mode === 'services' || mode === 'both') {
