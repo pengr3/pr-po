@@ -731,14 +731,14 @@ async function addProject() {
 }
 
 // Render status scorecard counts and active highlight
-function renderScorecards() {
+function renderScorecards(baseProjects) {
     for (const s of UNIFIED_STATUS_OPTIONS) {
-        const count = allProjects.filter(p => p.project_status === s).length;
+        const count = baseProjects.filter(p => p.project_status === s).length;
         const el = document.getElementById(`scorecard-count-${s.replace(/\s+/g, '_')}`);
         if (el) el.textContent = count;
     }
     const totalEl = document.getElementById('scorecard-count-total');
-    if (totalEl) totalEl.textContent = allProjects.length;
+    if (totalEl) totalEl.textContent = baseProjects.length;
 
     document.querySelectorAll('.project-scorecard-card').forEach(card => {
         card.classList.remove('project-scorecard-card--active');
@@ -802,7 +802,7 @@ function applyFilters() {
     sortFilteredProjects();
 
     renderProjectsTable();
-    renderScorecards();
+    renderScorecards(scopedProjects);
 }
 
 // Sort filtered projects
