@@ -12,8 +12,9 @@ import { doc, setDoc, serverTimestamp, writeBatch, getDoc } from './firebase.js'
 
 /**
  * Default role templates with tab permissions
- * Each role MUST have all 11 tabs defined (access: true/false, edit: true/false)
+ * Each role MUST have all 12 tabs defined (access: true/false, edit: true/false)
  * Phase 91 — added 4 sub-tab keys per role and 2 new role objects (services_admin, services_user)
+ * Bugfix — added missing `services` tab key; fixed operations_user projects.edit (was false)
  */
 const defaultRoleTemplates = [
     {
@@ -24,6 +25,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: true },
                 clients: { access: true, edit: true },
                 projects: { access: true, edit: true },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: true },
@@ -43,6 +45,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: true },
                 projects: { access: true, edit: true },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: false },
@@ -61,7 +64,8 @@ const defaultRoleTemplates = [
             tabs: {
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
-                projects: { access: true, edit: false },
+                projects: { access: true, edit: true },
+                services: { access: true, edit: false },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: false },
                 finance: { access: false, edit: false },
@@ -81,6 +85,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: true },
                 projects: { access: true, edit: true },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: false },
@@ -100,6 +105,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
                 projects: { access: true, edit: false },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: false },
                 finance: { access: false, edit: false },
@@ -119,6 +125,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
                 projects: { access: true, edit: false },
+                services: { access: true, edit: false },
                 mrf_form: { access: false, edit: false },
                 procurement: { access: false, edit: false },
                 finance: { access: true, edit: true },
@@ -138,6 +145,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
                 projects: { access: true, edit: false },
+                services: { access: true, edit: false },
                 mrf_form: { access: false, edit: false },
                 procurement: { access: true, edit: true },
                 finance: { access: false, edit: false },
@@ -224,12 +232,12 @@ export async function forceReseedRoleTemplates() {
 
 /**
  * Verify role templates have correct structure
- * Checks all 7 roles exist and each has all 11 tabs defined
+ * Checks all 7 roles exist and each has all 12 tabs defined
  * @returns {Promise<{valid: boolean, errors: Array<string>}>}
  */
 export async function verifyRoleTemplates() {
     const roles = ['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'finance', 'procurement'];
-    const requiredTabs = ['dashboard', 'clients', 'projects', 'mrf_form', 'procurement', 'finance', 'role_config',
+    const requiredTabs = ['dashboard', 'clients', 'projects', 'services', 'mrf_form', 'procurement', 'finance', 'role_config',
                           'procurement_request', 'procurement_mrfs', 'procurement_suppliers', 'procurement_records'];
     const results = { valid: true, errors: [] };
 
