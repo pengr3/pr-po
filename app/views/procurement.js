@@ -7603,6 +7603,26 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
 
         await updateDoc(poRef, updateData);
 
+        // Cache coherency — mirror the Firestore write into the in-memory caches
+        // that feed the MRF Records render. Without this, the 🔄 button's cache-hit
+        // path serves a stale snapshot and the dropdown reverts to the pre-update
+        // value. Mirrors the precedents at procurement.js cancelPRorTR (~1041) and
+        // _proofOnSaved (~1930).
+        const cachedPO = cachedAllPOData.find(p => p.id === poId);
+        if (cachedPO) {
+            Object.assign(cachedPO, updateData);
+        }
+        for (const [, sub] of _prpoSubDataCache) {
+            const subPO = sub.poDataArray?.find(p => p.docId === poId);
+            if (subPO) {
+                subPO.procurement_status = newStatus;
+                if (updateData.delivery_fee !== undefined) {
+                    subPO.delivery_fee = updateData.delivery_fee;
+                }
+                break;
+            }
+        }
+
         // Phase 84.1 NOTIF-18: notify MRF requestor + PO creator on Delivered (material POs only;
         // subcon POs terminate at 'Processed' and are out of NOTIF-18 scope by design). Fire-and-forget per D-03.
         // Local variable named poDataFresh (not poData) to avoid shadowing the module-scope poData array.
