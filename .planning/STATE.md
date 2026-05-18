@@ -522,3 +522,4 @@ Stopped at: Phase 91.2 Plan 03 code-complete with 4 commits on v3.3. Subcon scor
 Resume file: None (HANDOFF.json from earlier in session is now stale — blocker resolved)
 Next action: Browser UAT for Phase 91.2 — 6 tests in 91.2-HUMAN-UAT.md. Tests 1/2/3/5/6 (Materials side) can run against existing data; test 4 (cross-group AND) requires creating a fresh MRF with a SUBCON-category line item, approving through Finance to mint a new is_subcon=true PO. Also still pending: Phase 91 UAT (Bug 3 re-verification per prior commit 557a764) and Phase 92.2 UAT.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
+| 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
