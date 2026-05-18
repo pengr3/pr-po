@@ -1,4 +1,4 @@
-# Roadmap: CLMC Procurement System
+﻿# Roadmap: CLMC Procurement System
 
 ## Milestones
 
@@ -237,8 +237,11 @@
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred — Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions — completed 2026-05-11
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
-- [x] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail` (completed 2026-05-13)
-- [x] **Phase 91: Navigation Restructuring — MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** — Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure (completed 2026-05-13)
+- [x] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail`
+ (completed 2026-05-13)
+- [x] **Phase 91: Navigation Restructuring — MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** — Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure
+ (completed 2026-05-13)
+- [ ] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot
 
 ## Phase Details
 
@@ -623,9 +626,25 @@ Plans:
   - escapeHTML() on every category render path (XSS mitigation) — referenced in 91.1-01 (helper) and 91.1-03 (display path)
 **UI hint**: yes
 
+### Phase 92: Projects Tab -- Status Scorecards
+**Goal**: Replace the stacked bar chart on the Home page Projects section with interactive status scorecards surfaced directly in the Projects tab -- giving users a scannable count of every project status at a glance without leaving the Projects view.
+**Depends on**: Nothing (reads existing `projects` collection; self-contained UI addition to `app/views/projects.js`)
+**Requirements**: None mapped (UX migration phase)
+**Success Criteria** (what must be TRUE):
+  1. The Projects tab displays a scorecard strip above the project table with 12 tiles in a 2x6 grid: one card per status (Draft, For Inspection, For Proposal, Proposal for Internal Approval, Proposal Under Client Review, For Revision, Client Approved, For Mobilization, On-going, Completed) plus a Total card spanning 2 columns in the bottom-right
+  2. Each status card shows the status label and a live count; the Total card shows the sum of all projects
+  3. Counts update in real time from the existing `onSnapshot` listener -- no extra Firestore reads
+  4. Clicking a status card filters the project table to that status; clicking again (or Total) clears the filter
+  5. The Home page Projects status chart is removed once the scorecards are live in the Projects tab
+**Plans**: 2 plans
+Plans:
+- [ ] 92-01-PLAN.md -- Scorecard strip in projects.js + .project-scorecards CSS (UNIFIED_STATUS_OPTIONS Draft removal, renderScorecards, handleScorecardClick, applyFilters extension, click-outside listener, #projectStatusFilter removal, rebuildStatusFilterOptions deletion)
+- [ ] 92-02-PLAN.md -- home.js cleanup (delete projects onSnapshot listener + projectsCardHtml function)
+**UI hint**: yes
+
 ## Progress
 
-**Total shipped: 92 phases, 200+ plans, 11 milestones. Active milestone: v4.0 (7 phases planned).**
+**Total shipped: 92 phases, 200+ plans, 11 milestones. Active milestone: v4.0 (8 phases planned).**
 
 **Execution Order (v4.0):**
 Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs Phase 83. Phase 89 needs Phase 87 + Phase 88. Phases 85, 86, and 88 are all independent of each other and of the notification track.
@@ -657,6 +676,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
+| 92 | v4.0 | 0/? | Not planned | - |
 
 ### Carry-overs (deferred to v4.1+)
 
