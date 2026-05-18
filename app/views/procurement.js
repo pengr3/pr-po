@@ -5260,11 +5260,16 @@ function filterPRPORecords() {
         // MRF status filter
         const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
 
-        // Scorecard filters (Phase 91.2)
-        const matchesMaterialsScorecard = !materialFilterMrfIds || materialFilterMrfIds.has(mrf.mrf_id);
-        const matchesSubconScorecard = !subconFilterMrfIds || subconFilterMrfIds.has(mrf.mrf_id);
+        // Scorecard filters (Phase 91.2 — OR semantics across groups: when both
+        // Materials and Subcon cards are active, an MRF matches if it belongs to
+        // EITHER filtered set, not both. Non-scorecard filters (dept/search/status)
+        // still AND with this union.)
+        const anyScorecardActive = materialFilterMrfIds || subconFilterMrfIds;
+        const matchesScorecards = !anyScorecardActive ||
+            (materialFilterMrfIds && materialFilterMrfIds.has(mrf.mrf_id)) ||
+            (subconFilterMrfIds && subconFilterMrfIds.has(mrf.mrf_id));
 
-        return matchesDept && matchesSearch && matchesMRFStatus && matchesMaterialsScorecard && matchesSubconScorecard;
+        return matchesDept && matchesSearch && matchesMRFStatus && matchesScorecards;
     });
 
     renderMRFScorecardActive();
