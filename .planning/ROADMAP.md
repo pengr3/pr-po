@@ -626,6 +626,23 @@ Plans:
   - escapeHTML() on every category render path (XSS mitigation) — referenced in 91.1-01 (helper) and 91.1-03 (display path)
 **UI hint**: yes
 
+### Phase 91.2: MRF Records Scorecard Improvements — Resize cards to Phase 92 proportions; cross-group multi-filter (select one status per scorecard group simultaneously) (INSERTED)
+
+**Goal:** Apply the Phase 92 scorecard visual style to the existing MRF Records scorecards (Materials Procurement and Subcon Processing), and upgrade the filter behavior so the user can select one card from each group simultaneously — e.g., "Pending Procurement" (Materials) + "Processing" (Subcon) both active at once.
+**Depends on**: Phase 92.1 (scorecard card CSS), Phase 91 (MRF Records tab)
+**Requirements**: None mapped (INSERTED UX improvement)
+**Success Criteria** (what must be TRUE):
+  1. Materials Procurement and Subcon Processing scorecard cards are resized to match the compact Phase 92 card proportions — same height, font sizes, and padding as `.project-scorecards` cards
+  2. Within each scorecard group (Materials Procurement, Subcon Processing), only one card can be selected at a time (single-select per group)
+  3. Selections across groups are independent — the user can have one card active in Materials Procurement AND one active in Subcon Processing simultaneously; the table filters to records matching both active selections
+  4. Clicking an already-selected card deselects it (toggle off), returning that group to "show all"
+  5. Existing filter controls (PO Status dropdown, MRF Status dropdown, Search) remain functional alongside the new cross-group scorecard filters
+**Plans**: TBD
+**UI hint**: yes
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 91.2 to break down)
+
 ### Phase 92: Projects Tab -- Status Scorecards
 **Goal**: Replace the stacked bar chart on the Home page Projects section with interactive status scorecards surfaced directly in the Projects tab -- giving users a scannable count of every project status at a glance without leaving the Projects view.
 **Depends on**: Nothing (reads existing `projects` collection; self-contained UI addition to `app/views/projects.js`)
@@ -676,6 +693,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
+| 91.2 | v4.0 | 1/2 | In Progress|  |
 | 92 | v4.0 | 2/2 | Complete | 2026-05-18 |
 | 92.1 | v4.0 | 1/1 | Complete | 2026-05-18 |
 
@@ -687,6 +705,16 @@ These are tracked but explicitly out of scope for v4.0 per the milestone definit
 - **Phase 70 rework** — Cancel-PR flow needs proper approval workflow, audit trail, soft-delete, role-based access (tracked in `BACKLOG.md` as "Recall Process with Finance Approval")
 - **Process gaps** — Phases 73.2 and 79 shipped without VERIFICATION.md (reqs satisfied, but for tidiness)
 - **Dead CSS housekeeping** — `styles/hero.css` orphan classes from Phase 81; `views.css:1748` unused `.mrf-sub-nav--hidden`
+
+### Phase 92.2: Service scorecards — mirror project scorecards for one-time/recurring services with matching colors; remove home-page charts (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 92
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 92.2 to break down)
 
 ### Phase 92.1: Scorecard improvements: color-coded status cards (Loss=Red, Completed=Blue, On-going=Yellow, For Mobilization=Orange, Client Approved=Green) and filter scorecards to match MRF Records user-visibility scope (INSERTED)
 
