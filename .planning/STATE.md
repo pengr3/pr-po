@@ -1,11 +1,11 @@
----
+﻿---
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: in_progress
-stopped_at: Phase 91.1 complete (2026-05-14T10:06:38Z)
-last_updated: "2026-05-14T10:06:38Z"
-last_activity: 2026-05-14 - Phase 91.1 Plan 03 (table + toolbar — display column, em-dash on blank, extended search, 'Show uncategorized only' toolbar) complete. 2 tasks, 1 file modified (app/views/procurement.js, +38 lines), 0 deviations. D-08 verified: firestore.rules:354-362 unchanged, no `categories` reference, super_admin + procurement roles still gating create/update/delete. Phase 91.1 closed — all 3 plans shipped (read + write sides of supplier categories live).
+stopped_at: Phase 92 complete (2026-05-18)
+last_updated: "2026-05-18"
+last_activity: 2026-05-18 - Phase 92 (Projects Tab Status Scorecards) complete — 2/2 plans shipped. 10-card scorecard strip live in Projects tab; Draft removed from UNIFIED_STATUS_OPTIONS; Home page Projects chart deleted. UAT passed (all 7 browser items approved).
 progress:
   total_phases: 21
   completed_phases: 21
@@ -490,6 +490,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 86.8 inserted after 86.7 (URGENT, 2026-05-09) — Gantt UX expansion bundle: (1) right-click arrow → remove predecessor, (2) collapsible parent tasks with (-)/(+) toggle, (3) drag-parent-moves-children, (4) critical-path highlight, (5) progress % per bar, (6) task search/filter bar, (7) keyboard shortcuts (Delete to remove)
 - Phase 86.10 inserted after Phase 86: Left pane grid polish: (1) new row created via Enter inherits indent depth of row above (Enter is the trigger, not Tab), (2) shift+click multi-select rows with group move, (3) right-click menu applies to all selected rows, (4) Copy/Paste rows in right-click for easy duplication (URGENT)
 - Phase 91.1 inserted after 91 (URGENT, 2026-05-14) — Supplier Management schema extension: add `Category` column to the suppliers table alongside the Procurement tab shake-up; legacy supplier rows left blank for manual encoding; new supplier inputs require Category as part of the data-input form
+- Phase 92 added 2026-05-18 -- Projects Tab Status Scorecards: migrate the project status bar chart from Home page into Projects tab as a 2x6 scorecard grid (10 status cards + 1x2 Total card)
 
 ### Quick Tasks Completed
 

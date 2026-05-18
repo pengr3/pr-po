@@ -241,7 +241,7 @@
  (completed 2026-05-13)
 - [x] **Phase 91: Navigation Restructuring — MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** — Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure
  (completed 2026-05-13)
-- [ ] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot
+- [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
 
 ## Phase Details
 
@@ -638,8 +638,8 @@ Plans:
   5. The Home page Projects status chart is removed once the scorecards are live in the Projects tab
 **Plans**: 2 plans
 Plans:
-- [ ] 92-01-PLAN.md -- Scorecard strip in projects.js + .project-scorecards CSS (UNIFIED_STATUS_OPTIONS Draft removal, renderScorecards, handleScorecardClick, applyFilters extension, click-outside listener, #projectStatusFilter removal, rebuildStatusFilterOptions deletion)
-- [ ] 92-02-PLAN.md -- home.js cleanup (delete projects onSnapshot listener + projectsCardHtml function)
+- [x] 92-01-PLAN.md -- Scorecard strip in projects.js + .project-scorecards CSS (UNIFIED_STATUS_OPTIONS Draft removal, renderScorecards, handleScorecardClick, applyFilters extension, click-outside listener, #projectStatusFilter removal, rebuildStatusFilterOptions deletion)
+- [x] 92-02-PLAN.md -- home.js cleanup (delete projects onSnapshot listener + projectsCardHtml function)
 **UI hint**: yes
 
 ## Progress
@@ -676,7 +676,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
-| 92 | v4.0 | 0/? | Not planned | - |
+| 92 | v4.0 | 0/2 | Ready to execute | - |
 
 ### Carry-overs (deferred to v4.1+)
 
