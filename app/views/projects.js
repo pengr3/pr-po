@@ -293,7 +293,6 @@ export async function init(activeTab = null) {
         if (!strip) return;
         if (!strip.contains(e.target)) {
             activeStatusFilter = null;
-            renderScorecards();
             applyFilters();
         }
     };
@@ -756,7 +755,6 @@ function handleScorecardClick(status) {
     } else {
         activeStatusFilter = status;
     }
-    renderScorecards();
     applyFilters();
 }
 

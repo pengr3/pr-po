@@ -5,9 +5,11 @@
 
 import { db, collection, query, where, onSnapshot } from '../firebase.js';
 
-// Unified status list — canonical source: app/views/projects.js (Phase 81 D-02)
+// Unified status list for services charts. Intentionally includes 'Draft' (Phase 88 D-05)
+// which is absent from projects.js UNIFIED_STATUS_OPTIONS since Phase 92 (scorecard strip).
+// Do NOT sync to projects.js — the Draft bucket is required for services chart rendering.
 const UNIFIED_STATUS_OPTIONS = [
-    'Draft',  // Phase 88 D-05 — pre-proposal stage; ensures Draft bucket appears in Home charts.
+    'Draft',  // Phase 88 D-05 — pre-proposal stage; retained for services chart support.
     'For Inspection',
     'For Proposal',
     'Proposal for Internal Approval',
