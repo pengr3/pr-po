@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Ready to execute
-stopped_at: Phase 92.1 planned (1 plan). Phase 92 complete (2/2 plans). Phase 91.1 fully shipped.
+status: Phase complete — awaiting next phase decision
+stopped_at: Phase 92.1 complete (1/1 plans). Scorecard color-coding + visibility scope fix shipped.
 last_updated: "2026-05-18T00:00:00.000Z"
-last_activity: 2026-05-18 — Phase 92.1 planned (92.1-01-PLAN.md). 2 tasks: CSS color-coding for 5 status cards + renderScorecards visibility scope fix.
+last_activity: 2026-05-18 — Phase 92.1 complete. CSS color rules for 5 status cards + renderScorecards(baseProjects) fix. UAT approved by user.
 progress:
   total_phases: 24
-  completed_phases: 20
+  completed_phases: 21
   total_plans: 81
-  completed_plans: 78
-  percent: 96
+  completed_plans: 79
+  percent: 98
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 91.1 ✓ COMPLETE
-Next: Phase 91.1 fully shipped (3/3 plans). Plan 03 commits: 82fb23e (Task 1 — Categories column + display-row em-dash), d38c8c6 (Task 2 — extended search + 'Show uncategorized only' toolbar + D-08 verified). Awaiting orchestrator decision on next phase. Phase 85 still in progress (7/8); v3.3 deferred items (Phase 68.1 subcon scorecard, Phase 70 rework) remain in BACKLOG. Recommend `/gsd:transition` or `/gsd:complete-milestone` review.
+Phase: 92.1 ✓ COMPLETE
+Next: Phase 92.1 fully shipped (1/1 plans, 2026-05-18). CSS color-coding for 5 scorecard cards + renderScorecards visibility scope fix. UAT approved. Awaiting next phase decision.
 
 ## Performance Metrics
 

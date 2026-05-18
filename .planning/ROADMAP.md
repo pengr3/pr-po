@@ -676,7 +676,8 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
-| 92 | v4.0 | 0/2 | Ready to execute | - |
+| 92 | v4.0 | 2/2 | Complete | 2026-05-18 |
+| 92.1 | v4.0 | 1/1 | Complete | 2026-05-18 |
 
 ### Carry-overs (deferred to v4.1+)
 
@@ -686,3 +687,13 @@ These are tracked but explicitly out of scope for v4.0 per the milestone definit
 - **Phase 70 rework** — Cancel-PR flow needs proper approval workflow, audit trail, soft-delete, role-based access (tracked in `BACKLOG.md` as "Recall Process with Finance Approval")
 - **Process gaps** — Phases 73.2 and 79 shipped without VERIFICATION.md (reqs satisfied, but for tidiness)
 - **Dead CSS housekeeping** — `styles/hero.css` orphan classes from Phase 81; `views.css:1748` unused `.mrf-sub-nav--hidden`
+
+### Phase 92.1: Scorecard improvements: color-coded status cards (Loss=Red, Completed=Blue, On-going=Yellow, For Mobilization=Orange, Client Approved=Green) and filter scorecards to match MRF Records user-visibility scope (INSERTED)
+
+**Goal:** Color-code 5 status scorecard cards and fix visibility-scoped counts for operations_user
+**Status:** ✓ Complete — 2026-05-18
+**Depends on:** Phase 92
+**Plans:** 1/1 complete
+
+Plans:
+- [x] 92.1-01: Scorecard color-coding + visibility scope fix (2026-05-18)
