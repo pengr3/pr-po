@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 92.2 code-complete — awaiting UAT
-stopped_at: Phase 91 UAT Bug 3 code-complete with UAT follow-up (4 commits on v3.3). Bug 1 + Bug 2 shipped earlier (298ad05, 22140f0); Bug 3 initial T1–T3 (2c28d15, 713e735, 7215c95) plus T4 follow-up (557a764) after UAT discovery of the second scoreboard writer.
-last_updated: "2026-05-18T09:37:38.029Z"
-last_activity: 2026-05-17 — Quick task 260516-bg3 T4 follow-up commit 557a764. UAT surfaced that the original T1–T3 fix only covered one of two scoreboard writers; renderPOTrackingTable was overwriting the scoped values. Now patched. Re-UAT pending.
+status: Phase 91.2 Plan 03 code-complete — Subcon scorecard unblocked; awaiting browser UAT
+stopped_at: Phase 91.2 Plan 03 (is_subcon auto-detect regression fix) code-complete with 4 commits on v3.3 (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Closes Phase 68.1 backlog item. Browser UAT pending — test 4 requires a fresh SUBCON MRF per the backfill caveat.
+last_updated: "2026-05-18T11:00:00.000Z"
+last_activity: 2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (archive parity restoration at finance.js:5324/5347/5348). Subcon scorecard group can now populate. Plan-checker PASS with 7 confirmations. Phase 68.1 backlog item closed.
 progress:
   total_phases: 24
   completed_phases: 21
-  total_plans: 82
-  completed_plans: 80
+  total_plans: 83
+  completed_plans: 81
   percent: 98
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 91.2 Plan 02 COMPLETE
-Next: Phase 91.2 UAT / next planned phase
+Phase: 91.2 Plan 03 COMPLETE (3/3 plans shipped; Phase 68.1 backlog item closed)
+Next: Phase 91.2 browser UAT (all 6 tests; test 4 needs fresh SUBCON MRF per backfill caveat)
 
 ## Performance Metrics
 
@@ -148,6 +148,9 @@ Next: Phase 91.2 UAT / next planned phase
 | Phase 91.1 P01 | ~3 | 3 tasks | 2 files |
 | Phase 91.1 P02 | ~2 | 2 tasks | 1 files |
 | Phase 91.1 P03 | ~3 | 2 tasks | 1 files |
+| Phase 91.2 P01 | ~5 | scorecard HTML to .project-scorecard-card | 1 files |
+| Phase 91.2 P02 | ~10 | 5 tasks (filter state, click handler, AND logic, loadPRPORecords routing) | 1 files |
+| Phase 91.2 P03 | ~15 | 2 tasks (is_subcon auto-detect + UAT caveat) | 2 files |
 
 ## Accumulated Context
 
@@ -513,9 +516,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-17 — Quick task 260516-bg3 T4 follow-up commit 557a764. UAT surfaced that the original T1–T3 fix only covered one of two scoreboard writers; renderPOTrackingTable was overwriting the scoped values. Now patched. Re-UAT pending.
-Last session: 2026-05-18T09:37:38.011Z
-Stopped at: Phase 91 UAT Bug 3 code-complete with UAT follow-up (4 commits on v3.3). Bug 1 + Bug 2 shipped earlier (298ad05, 22140f0); Bug 3 initial T1–T3 (2c28d15, 713e735, 7215c95) plus T4 follow-up (557a764) after UAT discovery of the second scoreboard writer.
-Resume file: None
-Next action: Re-run human UAT as operations_user / services_user / super_admin on MRF Records tab (see SUMMARY for the 4-step checklist). Verify scoreboard now matches the empty/filtered table. If all pass, mark Phase 91 UAT closed and consider `/gsd-complete-milestone` review for v3.3 → main.
+Last activity: 2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item.
+Last session: 2026-05-18T11:00:00Z
+Stopped at: Phase 91.2 Plan 03 code-complete with 4 commits on v3.3. Subcon scorecard group can now populate from new POs. Existing pre-fix POs remain is_subcon=false — UAT caveat documents the test 4 path requiring a fresh SUBCON-category MRF.
+Resume file: None (HANDOFF.json from earlier in session is now stale — blocker resolved)
+Next action: Browser UAT for Phase 91.2 — 6 tests in 91.2-HUMAN-UAT.md. Tests 1/2/3/5/6 (Materials side) can run against existing data; test 4 (cross-group AND) requires creating a fresh MRF with a SUBCON-category line item, approving through Finance to mint a new is_subcon=true PO. Also still pending: Phase 91 UAT (Bug 3 re-verification per prior commit 557a764) and Phase 92.2 UAT.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
