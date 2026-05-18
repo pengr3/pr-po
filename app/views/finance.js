@@ -5321,6 +5321,7 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
     for (const supplier of suppliers) {
         const supplierItems = itemsBySupplier[supplier];
         const supplierTotal = supplierItems.reduce((s, item) => s + parseFloat(item.subtotal || 0), 0);
+        const hasSubconItems = supplierItems.some(item => item.category === 'SUBCON');
 
         const firstWord = supplier.split(/\s+/)[0] || supplier;
         const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
@@ -5344,8 +5345,8 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
             // NOT the Finance approver (currentUser). Used by NOTIF-18 (PO Delivered) routing.
             po_creator_user_id: pr.pr_creator_user_id ?? null,
             po_creator_name: pr.pr_creator_name ?? '',
-            procurement_status: 'Pending Procurement',
-            is_subcon: false,
+            procurement_status: hasSubconItems ? 'Pending' : 'Pending Procurement',
+            is_subcon: hasSubconItems,
             finance_approver_user_id: currentUser.uid,
             finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             finance_signature_url: signatureDataURL,
