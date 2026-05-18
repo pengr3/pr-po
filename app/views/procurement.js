@@ -5076,9 +5076,7 @@ async function loadPRPORecords() {
             scoped = scoped.filter(mrf => mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code));
         }
         allPRPORecords = scoped;
-        filteredPRPORecords = [...allPRPORecords];
-        prpoCurrentPage = 1;
-        await renderPRPORecords();
+        filterPRPORecords();
         return;
     }
 
@@ -5155,11 +5153,8 @@ async function loadPRPORecords() {
         const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
         updatePOScoreboards(allPOData.filter(po => visibleMrfIds.has(po.mrf_id)));
 
-        filteredPRPORecords = [...allPRPORecords];
-        prpoCurrentPage = 1;
         _prpoRecordsCachedAt = Date.now();
-
-        renderPRPORecords();
+        filterPRPORecords();
     } catch (error) {
         console.error('Error loading PR-PO records:', error);
         showToast('Error loading PR-PO records', 'error');
