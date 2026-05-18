@@ -5229,6 +5229,17 @@ function filterPRPORecords() {
     const mrfStatusFilter = document.getElementById('histStatusFilter')?.value || '';
     const poStatusFilter = document.getElementById('poStatusFilter')?.value || '';
 
+    const materialFilterMrfIds = activeMaterialsFilter
+        ? new Set(cachedAllPOData
+            .filter(po => !po.is_subcon && (po.procurement_status || 'Pending Procurement') === activeMaterialsFilter)
+            .map(po => po.mrf_id))
+        : null;
+    const subconFilterMrfIds = activeSubconFilter
+        ? new Set(cachedAllPOData
+            .filter(po => po.is_subcon && (po.procurement_status || 'Pending') === activeSubconFilter)
+            .map(po => po.mrf_id))
+        : null;
+
     filteredPRPORecords = allPRPORecords.filter(mrf => {
         // Department filter — includes my_requests branch (Phase 91)
         let matchesDept;
@@ -5250,7 +5261,11 @@ function filterPRPORecords() {
         // MRF status filter
         const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
 
-        return matchesDept && matchesSearch && matchesMRFStatus;
+        // Scorecard filters (Phase 91.2)
+        const matchesMaterialsScorecard = !materialFilterMrfIds || materialFilterMrfIds.has(mrf.mrf_id);
+        const matchesSubconScorecard = !subconFilterMrfIds || subconFilterMrfIds.has(mrf.mrf_id);
+
+        return matchesDept && matchesSearch && matchesMRFStatus && matchesMaterialsScorecard && matchesSubconScorecard;
     });
 
     prpoCurrentPage = 1;
