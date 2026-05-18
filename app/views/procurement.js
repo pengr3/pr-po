@@ -5231,12 +5231,12 @@ function filterPRPORecords() {
     const materialFilterMrfIds = activeMaterialsFilter
         ? new Set(cachedAllPOData
             .filter(po => !po.is_subcon && (po.procurement_status || 'Pending Procurement') === activeMaterialsFilter)
-            .map(po => po.mrf_id))
+            .map(po => po.mrf_id).filter(Boolean))
         : null;
     const subconFilterMrfIds = activeSubconFilter
         ? new Set(cachedAllPOData
             .filter(po => po.is_subcon && (po.procurement_status || 'Pending') === activeSubconFilter)
-            .map(po => po.mrf_id))
+            .map(po => po.mrf_id).filter(Boolean))
         : null;
 
     filteredPRPORecords = allPRPORecords.filter(mrf => {
@@ -5267,6 +5267,7 @@ function filterPRPORecords() {
         return matchesDept && matchesSearch && matchesMRFStatus && matchesMaterialsScorecard && matchesSubconScorecard;
     });
 
+    renderMRFScorecardActive();
     prpoCurrentPage = 1;
     renderPRPORecords();
 }
