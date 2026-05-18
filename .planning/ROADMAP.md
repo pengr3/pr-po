@@ -641,7 +641,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 91.2 to break down)
+- [x] TBD (run /gsd-plan-phase 91.2 to break down) (completed 2026-05-18)
 
 ### Phase 92: Projects Tab -- Status Scorecards
 **Goal**: Replace the stacked bar chart on the Home page Projects section with interactive status scorecards surfaced directly in the Projects tab -- giving users a scannable count of every project status at a glance without leaving the Projects view.
@@ -693,7 +693,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 90 | v4.0 | 3/3 | Complete | 2026-05-13 |
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
-| 91.2 | v4.0 | 1/2 | In Progress|  |
+| 91.2 | v4.0 | 2/2 | Complete   | 2026-05-18 |
 | 92 | v4.0 | 2/2 | Complete | 2026-05-18 |
 | 92.1 | v4.0 | 1/1 | Complete | 2026-05-18 |
 

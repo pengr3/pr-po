@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Phase 92.2 code-complete — awaiting UAT
 stopped_at: Phase 91 UAT Bug 3 code-complete with UAT follow-up (4 commits on v3.3). Bug 1 + Bug 2 shipped earlier (298ad05, 22140f0); Bug 3 initial T1–T3 (2c28d15, 713e735, 7215c95) plus T4 follow-up (557a764) after UAT discovery of the second scoreboard writer.
-last_updated: "2026-05-18T09:33:51.304Z"
+last_updated: "2026-05-18T09:37:38.029Z"
 last_activity: 2026-05-17 — Quick task 260516-bg3 T4 follow-up commit 557a764. UAT surfaced that the original T1–T3 fix only covered one of two scoreboard writers; renderPOTrackingTable was overwriting the scoped values. Now patched. Re-UAT pending.
 progress:
   total_phases: 24
-  completed_phases: 20
+  completed_phases: 21
   total_plans: 82
-  completed_plans: 79
-  percent: 96
+  completed_plans: 80
+  percent: 98
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 91.2 (INSERTED)
-Next: /gsd-plan-phase 91.2
+Phase: 91.2 Plan 02 COMPLETE
+Next: Phase 91.2 UAT / next planned phase
 
 ## Performance Metrics
 
@@ -514,7 +514,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-17 — Quick task 260516-bg3 T4 follow-up commit 557a764. UAT surfaced that the original T1–T3 fix only covered one of two scoreboard writers; renderPOTrackingTable was overwriting the scoped values. Now patched. Re-UAT pending.
-Last session: 2026-05-18T09:33:51.286Z
+Last session: 2026-05-18T09:37:38.011Z
 Stopped at: Phase 91 UAT Bug 3 code-complete with UAT follow-up (4 commits on v3.3). Bug 1 + Bug 2 shipped earlier (298ad05, 22140f0); Bug 3 initial T1–T3 (2c28d15, 713e735, 7215c95) plus T4 follow-up (557a764) after UAT discovery of the second scoreboard writer.
 Resume file: None
 Next action: Re-run human UAT as operations_user / services_user / super_admin on MRF Records tab (see SUMMARY for the 4-step checklist). Verify scoreboard now matches the empty/filtered table. If all pass, mark Phase 91 UAT closed and consider `/gsd-complete-milestone` review for v3.3 → main.
