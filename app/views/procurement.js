@@ -1912,6 +1912,7 @@ function attachWindowFunctions() {
     // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
     window.filterPRPORecords = filterPRPORecords;
+    window.handleMRFScorecardClick = handleMRFScorecardClick;
     window.goToPRPOPage = goToPRPOPage;
     window.viewPRDetails = viewPRDetails;
     window.viewTRDetails = viewTRDetails;
@@ -2556,6 +2557,7 @@ export async function destroy() {
     delete window.removeCategoryPill;
     delete window.loadPRPORecords;
     delete window.filterPRPORecords;
+    delete window.handleMRFScorecardClick;
     delete window.goToPRPOPage;
     delete window.viewPRDetails;
     delete window.viewTRDetails;
@@ -2598,6 +2600,8 @@ export async function destroy() {
     delete window.cancelMRFPRs;
     delete window.cancelRFPDocument;
     activePODeptFilter = '';
+    activeMaterialsFilter = null;
+    activeSubconFilter = null;
     cachedRejectedTRs = [];
     _requestSubTabActive = false;
 }
