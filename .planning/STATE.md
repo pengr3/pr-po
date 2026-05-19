@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 Plan 02 COMPLETE — engagements.js standalone view extracted from proposals.js.
-stopped_at: Phase 87.1 Plan 02 complete (2026-05-19)
-last_updated: "2026-05-19T10:58:00Z"
-last_activity: "2026-05-19 — Phase 87.1 Plan 02 shipped (991b250). Created app/views/engagements.js as standalone Create Engagement view. Imported 5 Plan 01 pill wrapper functions from proposals.js (renderProposalPillsFor, proposalFilterPersonnelDropdownFor, proposalSelectPersonnelIn, proposalRemovePersonnelFrom, proposalShowPersonnelDropdownFor). Full render/init/destroy lifecycle with clients + users listeners."
+status: Phase 87.1 Plan 03 COMPLETE — engagement form stripped from proposals.js render/init/destroy.
+stopped_at: Phase 87.1 Plan 03 complete (2026-05-19)
+last_updated: "2026-05-19T11:20:00Z"
+last_activity: "2026-05-19 — Phase 87.1 Plan 03 shipped (6828610). Stripped Create Engagement form from proposals.js render() (~116 lines). Removed 6 engagement window function registrations from init() and 6 deletes + 4 state resets from destroy(). Proposals tab now shows only Approval Queue + Dashboard mount points."
 progress:
   total_phases: 25
   completed_phases: 21
   total_plans: 90
-  completed_plans: 84
+  completed_plans: 85
   percent: 93
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 Plan 02 COMPLETE (2/7 plans shipped)
-Next: Phase 87.1 Plan 03 — remove engagement form from proposals.js
+Phase: 87.1 Plan 03 COMPLETE (3/7 plans shipped)
+Next: Phase 87.1 Plan 04 — router + auth.js + index.html for /engagements route
 
 ## Performance Metrics
 

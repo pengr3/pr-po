@@ -562,7 +562,7 @@ Key integration goals:
 Plans:
 - [x] 87.1-01-PLAN.md — proposals.js exports + parent_collection fix + .proposal-inline-card CSS
 - [x] 87.1-02-PLAN.md — new app/views/engagements.js view (extracted form)
-- [ ] 87.1-03-PLAN.md — proposals.js refocus (remove engagement section)
+- [x] 87.1-03-PLAN.md — proposals.js refocus (remove engagement section)
 - [ ] 87.1-04-PLAN.md — project-detail.js inline proposal card
 - [ ] 87.1-05-PLAN.md — service-detail.js inline proposal card
 - [ ] 87.1-06-PLAN.md — home.js Proposals sub-tab + views.css
