@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 91.2 UAT complete — all 9 tests passed (6 core + 3 fix re-verifications). Phase 91.2 DONE. Ready for /gsd-complete-milestone v3.3 → main.
-stopped_at: Phase 87.1 context gathered
-last_updated: "2026-05-19T08:24:02.934Z"
+status: Phase 87.1 plans replanned with cross-AI review feedback — 7 plans verified, ready to execute.
+stopped_at: Phase 87.1 replanning complete (--reviews) — 7 plans in 4 waves, verification passed
+last_updated: "2026-05-19T00:00:00.000Z"
 last_activity: "2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item."
 progress:
   total_phases: 25
