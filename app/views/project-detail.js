@@ -8,6 +8,7 @@ import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel,
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+import { _applyProposalStateTransition, getProposalStatusBadge, renderAgeBadge, PROPOSAL_RANGE_STATUSES } from './proposals.js';
 
 let currentProject = null;
 let projectCode = null;
