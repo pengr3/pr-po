@@ -131,8 +131,8 @@ export function render(activeTab = null, param = null) {
                                        class="pill-search-input"
                                        id="proposalPersonnelSearchInput"
                                        placeholder="Type name or email..."
-                                       oninput="window.proposalFilterPersonnelDropdown(this.value)"
-                                       onfocus="window.proposalShowPersonnelDropdown()"
+                                       oninput="window.proposalFilterPersonnelDropdownFor && window.proposalFilterPersonnelDropdownFor(this.value)"
+                                       onfocus="window.proposalShowPersonnelDropdownFor && window.proposalShowPersonnelDropdownFor()"
                                        autocomplete="off"
                                        style="border: none; outline: none; padding: 0.125rem 0.25rem; flex: 1; min-width: 140px; font-size: 0.9375rem;">
                             </div>
@@ -333,21 +333,22 @@ export async function init(activeTab = null, param = null) {
 
     // Personnel pill window closures — delegate to imported wrapper functions,
     // binding local module state as arguments (Phase 87.1 review recommendation).
-    window.proposalSelectPersonnel = (userId, userName) => {
+    // Names must match what renderProposalPillsFor() injects into onclick/oninput attributes.
+    window.proposalSelectPersonnelIn = (userId, userName) => {
         selectedPersonnel = proposalSelectPersonnelIn(
             userId, userName, selectedPersonnel,
             () => renderProposalPillsFor(selectedPersonnel)
         );
     };
-    window.proposalRemovePersonnel = (userId) => {
+    window.proposalRemovePersonnelFrom = (userId) => {
         selectedPersonnel = proposalRemovePersonnelFrom(
             userId, selectedPersonnel,
             () => renderProposalPillsFor(selectedPersonnel)
         );
     };
-    window.proposalShowPersonnelDropdown = () =>
+    window.proposalShowPersonnelDropdownFor = () =>
         proposalShowPersonnelDropdownFor(selectedPersonnel, usersData);
-    window.proposalFilterPersonnelDropdown = (text) =>
+    window.proposalFilterPersonnelDropdownFor = (text) =>
         proposalFilterPersonnelDropdownFor(text, selectedPersonnel, usersData);
 
     // Initialize pill container if it exists in the DOM at this point.
@@ -397,10 +398,10 @@ export async function destroy() {
     // Remove all window functions attached in init().
     delete window.submitNewEngagement;
     delete window.handleEngagementTypeChange;
-    delete window.proposalSelectPersonnel;
-    delete window.proposalRemovePersonnel;
-    delete window.proposalShowPersonnelDropdown;
-    delete window.proposalFilterPersonnelDropdown;
+    delete window.proposalSelectPersonnelIn;
+    delete window.proposalRemovePersonnelFrom;
+    delete window.proposalShowPersonnelDropdownFor;
+    delete window.proposalFilterPersonnelDropdownFor;
 
     // Reset module state.
     clientsData = [];
