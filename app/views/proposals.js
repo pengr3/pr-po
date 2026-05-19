@@ -1292,7 +1292,7 @@ function showCreateModal(existing) {
         const label = p.project_code
             ? `${escapeHTML(p.project_code)} — ${escapeHTML(p.project_name || '')}`
             : escapeHTML(p.project_name || '');
-        return `<option value="${escapeHTML(p.id)}" data-code="${escapeHTML(p.project_code || '')}" data-name="${escapeHTML(p.project_name || '')}" ${sel}>${label}</option>`;
+        return `<option value="${escapeHTML(p.id)}" data-code="${escapeHTML(p.project_code || '')}" data-name="${escapeHTML(p.project_name || '')}" data-collection="projects" ${sel}>${label}</option>`;
     }).join('');
 
     // Build client <option> list from clientsData (Phase 88 listener already populates this)
@@ -1440,6 +1440,9 @@ async function saveProposal() {
         } else {
             // CREATE mode: mint PROP ID, build full doc, write to Firestore.
             const proposalId = await generateProposalId();
+            // Phase 87.1 Plan 01 — read parent_collection from selected option's data-collection attribute.
+            const projectSelect = document.getElementById('proposalCreateProject');
+            const parentCollection = projectSelect?.options[projectSelect.selectedIndex]?.dataset?.collection || 'projects';
             const createdAuditEntry = {
                 entry_id: cryptoRandomUuid(),
                 ts: new Date().toISOString(), // ISO string — serverTimestamp() sentinel not allowed inside array elements
@@ -1452,6 +1455,7 @@ async function saveProposal() {
                 proposal_id: proposalId,
                 project_id: projectId,
                 project_code: projectCode,
+                parent_collection: parentCollection,
                 title,
                 description: description || '',
                 amount: (amount != null) ? amount : null,
