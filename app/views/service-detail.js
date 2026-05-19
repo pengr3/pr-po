@@ -222,6 +222,10 @@ export async function destroy() {
     delete window.refreshAndShowServiceExpenseModal;
     delete window.showEditHistory;
     delete window.exportServiceExpenseCSV;
+    // Phase 87.1 D-01 — inline proposal card modal cleanup
+    delete window.openProposalInlineSubmitModal;
+    delete window.closeProposalInlineSubmitModal;
+    delete window.confirmProposalInlineSubmit;
 }
 
 /**
@@ -278,6 +282,9 @@ function renderServiceDetail() {
     const canEditPersonnel = showEditControls && (user?.role === 'super_admin' || user?.role === 'services_admin');
 
     const focusedField = document.activeElement?.dataset?.field;
+
+    // Phase 87.1 D-01 — inline proposal card visibility
+    const isInProposalRange = PROPOSAL_RANGE_STATUSES.includes(currentService.project_status);
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
@@ -481,6 +488,10 @@ function renderServiceDetail() {
                     </div>
                 </div>
             </div>
+
+            ${isInProposalRange
+                ? `<div id="proposalInlineCard" style="margin-top:1rem;"><div class="proposal-inline-card"><p style="color:#64748b;font-size:0.9rem;">Loading proposal...</p></div></div>`
+                : ''}
         </div>
     `;
 
@@ -493,6 +504,125 @@ function renderServiceDetail() {
             const field = document.querySelector(`[data-field="${focusedField}"]`);
             if (field) field.focus();
         }
+    }
+
+    // Phase 87.1 D-01 — load inline proposal card (one-time getDocs, no listener)
+    if (isInProposalRange) {
+        loadProposalCard(currentServiceDocId, 'services');
+    }
+}
+
+// Phase 87.1 D-01 — Inline proposal card: data fetch
+async function loadProposalCard(parentDocId, parentCollection) {
+    try {
+        const q = query(collection(db, 'proposals'), where('project_id', '==', parentDocId));
+        const snap = await getDocs(q);
+        const el = document.getElementById('proposalInlineCard');
+        if (!el) return; // view navigated away
+        if (snap.empty) {
+            el.innerHTML = `<div class="proposal-inline-card"><p style="color:#64748b;">No proposal linked yet.</p></div>`;
+            return;
+        }
+        const proposal = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        el.innerHTML = renderInlineProposalCard(proposal);
+    } catch (err) {
+        console.error(`[ServiceDetail] loadProposalCard failed for ${parentDocId}:`, err);
+    }
+}
+
+// Phase 87.1 D-01 — Inline proposal card: HTML renderer
+function renderInlineProposalCard(proposal) {
+    const isActionable = ['draft', 'for_revision'].includes(proposal.status);
+
+    // Inline overdue check (getAgeInStageDays not exported from proposals.js)
+    const ts = proposal.current_status_since || proposal.created_at;
+    let ageDays = 0;
+    if (ts) {
+        let ms;
+        if (ts.toMillis) ms = ts.toMillis();
+        else if (ts.seconds != null) ms = ts.seconds * 1000;
+        else if (typeof ts === 'string') ms = Date.parse(ts);
+        if (ms) ageDays = Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24));
+    }
+    const isOverdue = ['pending_internal', 'pending_client'].includes(proposal.status) && ageDays > 7;
+    const overdueBorderStyle = isOverdue ? 'border-left:3px solid #f59e0b;' : '';
+
+    return `
+        <div class="proposal-inline-card" style="${overdueBorderStyle}">
+            <div class="proposal-inline-card__header">
+                <span class="proposal-inline-card__label">Active Proposal</span>
+                ${getProposalStatusBadge(proposal.status)}
+            </div>
+            <div class="proposal-inline-card__body">
+                <div style="font-size:13px;font-weight:600;color:#1a73e8;">${escapeHTML(proposal.proposal_id || proposal.id)}</div>
+                <div style="font-size:15px;font-weight:600;color:#1e293b;margin-top:4px;">${escapeHTML(proposal.title || '—')}</div>
+                <div style="font-size:13px;color:#475569;margin-top:4px;">${proposal.amount != null ? `₱${formatCurrency(proposal.amount)}` : '—'}</div>
+                <div style="margin-top:4px;">${renderAgeBadge(proposal)}</div>
+            </div>
+            <div class="proposal-inline-card__footer" style="margin-top:12px;">
+                ${isActionable
+                    ? `<button class="btn btn-primary" onclick="window.openProposalInlineSubmitModal('${escapeHTML(proposal.id)}')">Submit for Approval</button>`
+                    : `<a href="#/proposals" style="color:#1a73e8;font-size:13px;font-weight:600;text-decoration:none;">View Proposal →</a>`
+                }
+            </div>
+        </div>
+    `;
+}
+
+// Phase 87.1 D-01 — Mini-modal: open Submit for Approval
+function openProposalInlineSubmitModal(proposalDocId) {
+    const existing = document.getElementById('proposal-inline-submit-modal');
+    if (existing) existing.remove();
+
+    const html = `
+    <div id="proposal-inline-submit-modal" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Submit for Approval</h2>
+                <button class="modal-close" aria-label="Close" onclick="window.closeProposalInlineSubmitModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 1rem 0;">Submitting will advance this service to &#39;Proposal for Internal Approval&#39;. This action is recorded in the audit trail.</p>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="margin-bottom:0.25rem;font-weight:600;font-size:13px;">Submission Notes</label>
+                    <textarea id="proposalInlineSubmitComment" rows="3" style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:4px;font-size:13px;resize:vertical;" placeholder="Describe the proposal and any context for approvers..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="window.closeProposalInlineSubmitModal()">Keep Editing</button>
+                <button class="btn btn-primary" id="proposalInlineConfirmBtn" onclick="window.confirmProposalInlineSubmit('${escapeHTML(proposalDocId)}')">Confirm Submission</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+// Phase 87.1 D-01 — Mini-modal: close
+function closeProposalInlineSubmitModal() {
+    document.getElementById('proposal-inline-submit-modal')?.remove();
+}
+
+// Phase 87.1 D-01 — Mini-modal: confirm submission
+async function confirmProposalInlineSubmit(proposalDocId) {
+    const confirmBtn = document.getElementById('proposalInlineConfirmBtn');
+    if (confirmBtn) confirmBtn.disabled = true;
+    try {
+        const docSnap = await getDoc(doc(db, 'proposals', proposalDocId));
+        if (!docSnap.exists()) throw new Error('Proposal not found');
+        const auditComment = document.getElementById('proposalInlineSubmitComment')?.value?.trim() || null;
+        await _applyProposalStateTransition({
+            proposal: { id: proposalDocId, ...docSnap.data() },
+            newStatus: 'pending_internal',
+            newProjectStatus: 'Proposal for Internal Approval',
+            auditAction: 'SUBMITTED',
+            auditComment
+        });
+        closeProposalInlineSubmitModal();
+        showToast('Proposal submitted for approval.', 'success');
+    } catch (err) {
+        console.error('[ServiceDetail] confirmProposalInlineSubmit failed:', err);
+        if (confirmBtn) confirmBtn.disabled = false;
+        showToast('Failed to submit proposal. Please try again.', 'error');
     }
 }
 
@@ -1069,4 +1199,8 @@ function attachWindowFunctions() {
     window.showEditHistory = () => currentService && currentServiceDocId &&
         showEditHistoryModal(currentServiceDocId, currentService.service_code, 'services');
     window.exportServiceExpenseCSV = exportServiceExpenseCSV;
+    // Phase 87.1 D-01 — inline proposal card modal functions
+    window.openProposalInlineSubmitModal = openProposalInlineSubmitModal;
+    window.closeProposalInlineSubmitModal = closeProposalInlineSubmitModal;
+    window.confirmProposalInlineSubmit = confirmProposalInlineSubmit;
 }
