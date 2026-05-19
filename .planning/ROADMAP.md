@@ -235,7 +235,7 @@
   - [x] 86.9-01-PLAN.md — Curtain divider: rewrite initPanelResize() + CSS from grid to position:absolute overlay; _paneDividerPct var (GANTT-UX-CURTAIN-DIVIDER) — Wave 1 — completed 2026-05-11
   - [x] 86.9-02-PLAN.md — PDF Export: exportGanttPDF() + Export toolbar button + @media print CSS (GANTT-UX-PDF-EXPORT) — Wave 1 — completed 2026-05-11 (UAT approved)
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred — Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions — completed 2026-05-11
-- [ ] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED) — Proposal lifecycle moved into Projects/Services context; proposal status transitions bidirectionally sync with project status; home dashboard gains proposal activity sub-tab; Proposals standalone tab retired
+- [x] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED) — Proposal lifecycle moved into Projects/Services context; proposal status transitions bidirectionally sync with project status; home dashboard gains proposal activity sub-tab; Proposals standalone tab retired (completed 2026-05-19)
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
 - [x] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail`
@@ -550,7 +550,7 @@ Plans:
 **Goal:** Make the proposal lifecycle fully integrated with the project/service record rather than living in isolation in a separate Proposals tab. When a project/service enters the proposal workflow (status = "For Proposal"), the proposal process should be driven from within the project/service context. Proposal status transitions should be reflected on the project/service record in real time. The Proposals standalone tab is retired or reduced to a global view-only list. Home dashboard gains a proposal activity sub-tab for quick overview.
 **Requirements**: TBD — to be established during /gsd-discuss-phase 87.1
 **Depends on:** Phase 87 (proposals collection + approval infra), Phase 89 (Management Tab approval queue)
-**Plans:** 5/7 plans executed
+**Plans:** 7/7 plans complete
 
 Key integration goals:
 1. Project/Service record shows current proposal stage inline when status is in the proposal lifecycle range
@@ -565,8 +565,8 @@ Plans:
 - [x] 87.1-03-PLAN.md — proposals.js refocus (remove engagement section)
 - [x] 87.1-04-PLAN.md — project-detail.js inline proposal card
 - [x] 87.1-05-PLAN.md — service-detail.js inline proposal card
-- [ ] 87.1-06-PLAN.md — home.js Proposals sub-tab + views.css
-- [ ] 87.1-07-PLAN.md — router.js + auth.js + index.html wiring
+- [x] 87.1-06-PLAN.md — home.js Proposals sub-tab + views.css
+- [x] 87.1-07-PLAN.md — router.js + auth.js + index.html wiring
 
 ### Phase 88: Management Tab Shell + Create Engagement
 **Goal**: Super Admin gets a dedicated Management tab in navigation, with a "Create Engagement" form that auto-routes the new record to the right collection (projects vs services, one-time vs recurring) — the shell and the create-engagement slice can ship before the proposal queue.
