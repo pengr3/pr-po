@@ -2154,7 +2154,7 @@ export function render(activeTab = 'mrfs') {
                             </select>
                             <button class="btn btn-secondary" onclick="window.exportPOTrackingCSV()">Export PO CSV</button>
                             <button class="btn btn-secondary" onclick="window.exportPRPORecordsCSV()">Export MRF CSV</button>
-                            <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                            <button class="btn btn-primary" onclick="window.loadPRPORecords(true)">🔄 Refresh</button>
                         </div>
                     </div>
 
@@ -5066,9 +5066,9 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 /**
  * Load MRF Records (combines MRFs, PRs, and POs)
  */
-async function loadPRPORecords() {
+async function loadPRPORecords(force = false) {
     // If records are cached and fresh, render from cache (no Firestore fetch, no loading overlay)
-    if (cachedAllPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
+    if (!force && cachedAllPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
         // Re-apply scope filters from cache so stale assignment data does not leak
         const assignedCodes = window.getAssignedProjectCodes?.();
         const assignedServiceCodes = window.getAssignedServiceCodes?.();
