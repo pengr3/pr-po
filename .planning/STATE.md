@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 91.2 Plan 03 code-complete — Subcon scorecard unblocked; awaiting browser UAT
-stopped_at: Phase 91.2 Plan 03 (is_subcon auto-detect regression fix) code-complete with 4 commits on v3.3 (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Closes Phase 68.1 backlog item. Browser UAT pending — test 4 requires a fresh SUBCON MRF per the backfill caveat.
-last_updated: "2026-05-18T11:00:00.000Z"
-last_activity: 2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (archive parity restoration at finance.js:5324/5347/5348). Subcon scorecard group can now populate. Plan-checker PASS with 7 confirmations. Phase 68.1 backlog item closed.
+status: Phase 91.2 UAT complete — all 9 tests passed (6 core + 3 fix re-verifications). Phase 91.2 DONE. Ready for /gsd-complete-milestone v3.3 → main.
+stopped_at: Phase 91.2 fully verified 2026-05-19. All 3 plans shipped, all UAT passed including test 4 (fresh SUBCON MRF path). Two follow-up bugs fixed (cache coherency 7daa2b9 + force-refresh e74fc70) and verified. HANDOFF.json consumed and deleted.
+last_updated: "2026-05-19T00:00:00.000Z"
+last_activity: 2026-05-19 — Phase 91.2 browser UAT complete. All 9 tests pass (6 core scorecard tests + Fix A cache revert + Fix B force-refresh + Fix C OR-filter). Phase 68.1 backlog item closed. Branch v3.3 ready to ship.
 progress:
   total_phases: 24
-  completed_phases: 21
+  completed_phases: 22
   total_plans: 83
-  completed_plans: 81
-  percent: 98
+  completed_plans: 83
+  percent: 100
 ---
 
 # Project State
