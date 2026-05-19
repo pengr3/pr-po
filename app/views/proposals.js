@@ -62,124 +62,6 @@ export function render(activeTab = null, param = null) {
                 <h2 style="margin: 0; font-size: 1.5rem; color: #1e293b;">Proposals</h2>
             </div>
 
-            <!-- New Engagement Form — Phase 88 D-03 (always at top of tab) -->
-            <section id="new-engagement-section">
-                <div class="card" style="margin-bottom: 1.5rem;">
-                    <div class="card-body">
-                        <h3 style="margin: 0 0 1.25rem 0; font-size: 1.1rem; color: #1e293b;">New Engagement</h3>
-
-                        <!-- Engagement type -->
-                        <div style="margin-bottom: 1rem;">
-                            <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                Engagement Type
-                            </label>
-                            <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-                                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
-                                    <input type="radio" name="engagementType" value="project" checked
-                                           onchange="window.handleEngagementTypeChange('project')">
-                                    Project
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
-                                    <input type="radio" name="engagementType" value="one-time"
-                                           onchange="window.handleEngagementTypeChange('one-time')">
-                                    One-time Service
-                                </label>
-                                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
-                                    <input type="radio" name="engagementType" value="recurring"
-                                           onchange="window.handleEngagementTypeChange('recurring')">
-                                    Recurring Service
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Client picker -->
-                        <div style="margin-bottom: 1rem;">
-                            <label id="proposalClientLabel" style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                Client <span id="proposalClientRequired" style="color: #64748b; font-weight: 400;">(optional — clientless project allowed)</span>
-                            </label>
-                            <select id="proposalClient" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem; color: #1e293b; background: white;">
-                                <option value="" data-code="">(none — clientless project)</option>
-                            </select>
-                        </div>
-
-                        <!-- Name -->
-                        <div style="margin-bottom: 1rem;">
-                            <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                Name <span style="color: #ef4444;">*</span>
-                            </label>
-                            <input type="text" id="proposalName" placeholder="Project or service name"
-                                   style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem; color: #1e293b; box-sizing: border-box;">
-                        </div>
-
-                        <!-- Location -->
-                        <div style="margin-bottom: 1rem;">
-                            <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                Location <span style="color: #64748b; font-weight: 400;">(optional)</span>
-                            </label>
-                            <input type="text" id="proposalLocation" placeholder="Site or delivery location"
-                                   style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem; color: #1e293b; box-sizing: border-box;">
-                        </div>
-
-                        <!-- Budget + Contract Cost (two columns on wider screens) -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                            <div>
-                                <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                    Budget (PHP)
-                                </label>
-                                <input type="number" id="proposalBudget" min="0" step="0.01" placeholder="0.00"
-                                       style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem; color: #1e293b; box-sizing: border-box;">
-                            </div>
-                            <div>
-                                <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                    Contract Cost (PHP)
-                                </label>
-                                <input type="number" id="proposalContractCost" min="0" step="0.01" placeholder="0.00"
-                                       style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem; color: #1e293b; box-sizing: border-box;">
-                            </div>
-                        </div>
-
-                        <!-- Personnel multi-select
-                             Phase 88-02: Local copy of projects.js picker pattern (refactor candidate D-07).
-                             Uses proposalPersonnel* prefix to avoid collision with projects.js window functions. -->
-                        <div style="margin-bottom: 1.25rem;">
-                            <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                                Personnel <span style="color: #ef4444;">*</span>
-                            </label>
-                            <div style="position: relative;">
-                                <div id="proposalPersonnelPillContainer"
-                                     class="personnel-pill-container"
-                                     style="min-height: 2.5rem; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.375rem 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; background: white; cursor: text;"
-                                     onclick="document.getElementById('proposalPersonnelSearchInput')?.focus()">
-                                    <input type="text"
-                                           class="pill-search-input"
-                                           id="proposalPersonnelSearchInput"
-                                           placeholder="Type name or email..."
-                                           oninput="window.proposalFilterPersonnelDropdown(this.value)"
-                                           onfocus="window.proposalShowPersonnelDropdown()"
-                                           autocomplete="off"
-                                           style="border: none; outline: none; padding: 0.125rem 0.25rem; flex: 1; min-width: 140px; font-size: 0.9375rem;">
-                                </div>
-                                <div id="proposalPersonnelDropdown"
-                                     style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 100; max-height: 220px; overflow-y: auto;">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Submit -->
-                        <div>
-                            <button type="button" id="proposalSubmit"
-                                    onclick="window.submitNewEngagement()"
-                                    class="btn btn-primary">
-                                Create Engagement (Draft)
-                            </button>
-                            <div style="margin-top: 0.5rem;">
-                                <small style="color: #64748b;">New engagements start as <strong>Draft</strong> and advance through the proposal lifecycle.</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <!-- Phase 89: Proposal Approval Queue — mounts here (D-03 section ordering) -->
             <section id="proposal-queue-mount" style="display: none;">
                 <!-- Phase 89 mounts here -->
@@ -557,14 +439,6 @@ async function submitNewEngagement() {
 // ----------------------------------------
 
 export async function init(activeTab = null, param = null) {
-    // Attach window functions for onclick handlers.
-    window.submitNewEngagement = submitNewEngagement;
-    window.handleEngagementTypeChange = handleEngagementTypeChange;
-    window.proposalSelectPersonnel = proposalSelectPersonnel;
-    window.proposalRemovePersonnel = proposalRemovePersonnel;
-    window.proposalShowPersonnelDropdown = proposalShowPersonnelDropdown;
-    window.proposalFilterPersonnelDropdown = proposalFilterPersonnelDropdown;
-
     // Phase 87: activate proposal dashboard mount point.
     // The dashboard content is injected by Plan 02 in renderProposalDashboard().
     const mount = document.getElementById('proposal-dashboard-mount');
@@ -683,20 +557,6 @@ export async function init(activeTab = null, param = null) {
 export async function destroy() {
     listeners.forEach(unsub => unsub?.());
     listeners = [];
-
-    // Remove window functions attached in init().
-    delete window.submitNewEngagement;
-    delete window.handleEngagementTypeChange;
-    delete window.proposalSelectPersonnel;
-    delete window.proposalRemovePersonnel;
-    delete window.proposalShowPersonnelDropdown;
-    delete window.proposalFilterPersonnelDropdown;
-
-    // Reset module state.
-    clientsData = [];
-    usersData = [];
-    selectedPersonnel = [];
-    currentEngagementType = 'project';
 
     // --- Phase 87 window function cleanup (Plan 02) ---
     delete window.openProposalDetail;
