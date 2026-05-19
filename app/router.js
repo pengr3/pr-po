@@ -113,6 +113,11 @@ const routes = {
         name: 'Proposals',
         load: () => import('./views/proposals.js'),
         title: 'Proposals | CLMC Operations'
+    },
+    '/engagements': {
+        name: 'Engagements',
+        load: () => import('./views/engagements.js'),
+        title: 'New Engagement | CLMC Operations'
     }
 };
 
@@ -292,6 +297,22 @@ export async function navigate(path, tab = null, param = null) {
         const user = window.getCurrentUser?.();
         if (!user || user.role !== 'super_admin') {
             console.warn('[Router] Non-super-admin blocked from /proposals');
+            showAccessDenied();
+            return;
+        }
+    }
+
+    // Phase 87.1 D-03 — hard role gate for /engagements (mirrors /proposals pattern above)
+    // NOTE: /engagements is NOT in routePermissionMap. routePermissionMap calls hasTabAccess()
+    // which looks up project/service assignment templates. Routes that are not tab-scoped (like
+    // /proposals and /engagements) bypass routePermissionMap and use a direct role check here
+    // instead. This is an intentional two-tier pattern in this router: routePermissionMap for
+    // assignment-scoped tabs, hard gate for application-level feature routes.
+    if (path === '/engagements') {
+        const user = window.getCurrentUser?.();
+        const allowed = ['super_admin', 'operations_admin', 'services_admin'];
+        if (!user || !allowed.includes(user.role)) {
+            console.warn('[Router] Unauthorized access blocked from /engagements');
             showAccessDenied();
             return;
         }
