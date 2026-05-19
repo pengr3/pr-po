@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 plans replanned with cross-AI review feedback — 7 plans verified, ready to execute.
-stopped_at: Phase 87.1 replanning complete (--reviews) — 7 plans in 4 waves, verification passed
-last_updated: "2026-05-19T00:00:00.000Z"
-last_activity: "2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item."
+status: Phase 87.1 Plan 01 COMPLETE — export foundation + parent_collection fix shipped.
+stopped_at: Phase 87.1 Plan 01 complete (2026-05-19)
+last_updated: "2026-05-19T10:50:00Z"
+last_activity: "2026-05-19 — Phase 87.1 Plan 01 shipped (6d9da0d + 793e6b7 + b365c72). Exported PROPOSAL_RANGE_STATUSES, STAGE_ORDER, 4 functions, 5 pill wrapper functions from proposals.js. Fixed D-02 parent_collection bug in _applyProposalStateTransition. Persisted parent_collection in saveProposal() docPayload. Added .proposal-inline-card CSS block."
 progress:
   total_phases: 25
   completed_phases: 21
-  total_plans: 83
-  completed_plans: 81
-  percent: 98
+  total_plans: 97
+  completed_plans: 83
+  percent: 86
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 91.2 Plan 03 COMPLETE (3/3 plans shipped; Phase 68.1 backlog item closed)
-Next: Phase 91.2 browser UAT (all 6 tests; test 4 needs fresh SUBCON MRF per backfill caveat)
+Phase: 87.1 Plan 01 COMPLETE (1/7 plans shipped)
+Next: Phase 87.1 Plan 02 — engagements.js extraction
 
 ## Performance Metrics
 
@@ -518,9 +518,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item.
-Last session: 2026-05-19T08:24:02.916Z
-Stopped at: Phase 87.1 context gathered
-Resume file: .planning/phases/87.1-proposal-lifecycle-integration-proposal-project-bidirectiona/87.1-CONTEXT.md
+Last session: 2026-05-19T10:43:10.129Z
+Stopped at: context exhaustion at 75% (2026-05-19)
+Resume file: None
 Next action: Browser UAT for Phase 91.2 — 6 tests in 91.2-HUMAN-UAT.md. Tests 1/2/3/5/6 (Materials side) can run against existing data; test 4 (cross-group AND) requires creating a fresh MRF with a SUBCON-category line item, approving through Finance to mint a new is_subcon=true PO. Also still pending: Phase 91 UAT (Bug 3 re-verification per prior commit 557a764) and Phase 92.2 UAT.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
