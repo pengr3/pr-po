@@ -68,25 +68,29 @@ export async function init(activeTab = null, param = null) {
     };
     document.addEventListener('mousedown', personnelClickOutsideHandler);
 
-    // Listen for permission changes and re-render
+    // Listen for permission changes and re-render.
+    // Remove stale handler from a prior init before adding the new one so
+    // repeated visits don't accumulate undeletable listeners (mirrors project-detail.js).
+    if (window._serviceDetailPermissionHandler) {
+        window.removeEventListener('permissionsChanged', window._serviceDetailPermissionHandler);
+    }
     const permissionChangeHandler = () => {
         renderServiceDetail();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
-    if (!window._serviceDetailPermissionHandler) {
-        window._serviceDetailPermissionHandler = permissionChangeHandler;
-    }
+    window._serviceDetailPermissionHandler = permissionChangeHandler;
 
-    // Re-check access when assignments change
+    // Re-check access when assignments change.
+    if (window._serviceDetailAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._serviceDetailAssignmentHandler);
+    }
     const assignmentChangeHandler = () => {
         if (currentService) {
             checkServiceAccess();
         }
     };
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
-    if (!window._serviceDetailAssignmentHandler) {
-        window._serviceDetailAssignmentHandler = assignmentChangeHandler;
-    }
+    window._serviceDetailAssignmentHandler = assignmentChangeHandler;
 
     if (!serviceParam) {
         document.getElementById('serviceDetailContainer').innerHTML = `
