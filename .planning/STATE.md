@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 Plan 03 COMPLETE — engagement form stripped from proposals.js render/init/destroy.
-stopped_at: Phase 87.1 Plan 03 complete (2026-05-19)
-last_updated: "2026-05-19T11:20:00Z"
-last_activity: "2026-05-19 — Phase 87.1 Plan 03 shipped (6828610). Stripped Create Engagement form from proposals.js render() (~116 lines). Removed 6 engagement window function registrations from init() and 6 deletes + 4 state resets from destroy(). Proposals tab now shows only Approval Queue + Dashboard mount points."
+status: Phase 87.1 Plan 04 COMPLETE — inline proposal card added to project-detail.js.
+stopped_at: context exhaustion at 75% (2026-05-19)
+last_updated: "2026-05-19T12:00:00.000Z"
+last_activity: "2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item."
 progress:
   total_phases: 25
   completed_phases: 21
   total_plans: 90
   completed_plans: 85
-  percent: 93
+  percent: 94
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 Plan 03 COMPLETE (3/7 plans shipped)
-Next: Phase 87.1 Plan 04 — router + auth.js + index.html for /engagements route
+Phase: 87.1 Plan 04 COMPLETE (4/7 plans shipped)
+Next: Phase 87.1 Plan 05 — inline proposal card for service-detail.js
 
 ## Performance Metrics
 
@@ -151,12 +151,18 @@ Next: Phase 87.1 Plan 04 — router + auth.js + index.html for /engagements rout
 | Phase 91.2 P01 | ~5 | scorecard HTML to .project-scorecard-card | 1 files |
 | Phase 91.2 P02 | ~10 | 5 tasks (filter state, click handler, AND logic, loadPRPORecords routing) | 1 files |
 | Phase 91.2 P03 | ~15 | 2 tasks (is_subcon auto-detect + UAT caveat) | 2 files |
+| Phase 87.1 P04 | ~12 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 87.1-04]: PROPOSAL_RANGE_STATUSES imported from proposals.js — no local duplicate in project-detail.js; eliminates duplication identified in cross-AI review
+- [Phase 87.1-04]: getAgeInStageDays inlined in renderInlineProposalCard (same logic as proposals.js) since it is not exported — avoids adding another export to proposals.js for a one-liner computation
+- [Phase 87.1-04]: getDocs (one-time read) used in loadProposalCard — no onSnapshot listener added to project detail, consistent with plan D-01 architecture decision
+- [Phase 87.1-04]: confirmProposalInlineSubmit fetches fresh proposal doc via getDoc before calling _applyProposalStateTransition to ensure latest state and prevent stale-data transition
 
 - [Phase 91.1-03]: Categories column inserted at position 2 of the suppliers table head (between Supplier Name and Contact Person) — matches the inline-edit row position Plan 02 already shipped; zero column-reshuffle on landing
 - [Phase 91.1-03]: Read-only display pills reuse `.personnel-pill` class (inline `margin: 0.125rem`) WITHOUT the `.pill-remove` button child — visual parity with inline-edit row but explicitly non-interactive; no new CSS class
