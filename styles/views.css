@@ -3076,3 +3076,34 @@
     background-color: #bbf7d0;
     border-color: #16a34a;
 }
+
+/* Phase 87.1 D-05 — Home dashboard Proposals sub-tab */
+.home-sub-nav {
+    background: #ffffff;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 1.5rem;
+}
+.home-sub-nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.home-sub-nav-tabs::-webkit-scrollbar { display: none; }
+.home-sub-nav-tab {
+    flex: 0 0 auto;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--gray-700);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+.home-sub-nav-tab:hover { background: var(--gray-50); color: var(--gray-900); }
+.home-sub-nav-tab--active { background: var(--primary); color: #ffffff; }
+.home-sub-nav-tab--active:hover { background: var(--primary-dark); color: #ffffff; }

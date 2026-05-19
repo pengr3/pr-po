@@ -98,6 +98,15 @@ export function render() {
             <div class="quick-stats">
                 ${statsContent}
             </div>
+            <div class="home-sub-nav" style="display:none;" id="homeSubNav">
+                <div class="home-sub-nav-tabs">
+                    <button class="home-sub-nav-tab home-sub-nav-tab--active"
+                            onclick="window.switchHomeTab('overview')" id="homeTabOverview">Overview</button>
+                    <button class="home-sub-nav-tab"
+                            onclick="window.switchHomeTab('proposals')" id="homeTabProposals">Proposals</button>
+                </div>
+            </div>
+            <div id="homeProposalsContent" style="display:none;padding:0 1rem;"></div>
         </div>
     `;
 }
