@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 Plan 04 COMPLETE — inline proposal card added to project-detail.js.
-stopped_at: context exhaustion at 75% (2026-05-19)
-last_updated: "2026-05-19T11:05:04.293Z"
+status: Phase 87.1 Plan 06 COMPLETE — home Proposals sub-tab with role-filtered getDocs and .home-sub-nav CSS.
+stopped_at: Plan 06 complete (2026-05-19)
+last_updated: "2026-05-19T12:00:00.000Z"
 last_activity: "2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item."
 progress:
   total_phases: 25
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 Plan 04 COMPLETE (4/7 plans shipped)
-Next: Phase 87.1 Plan 05 — inline proposal card for service-detail.js
+Phase: 87.1 Plan 06 COMPLETE (6/7 plans shipped)
+Next: Phase 87.1 Plan 07 — final wave (router/auth/index.html Engagements wiring)
 
 ## Performance Metrics
 
@@ -152,6 +152,7 @@ Next: Phase 87.1 Plan 05 — inline proposal card for service-detail.js
 | Phase 91.2 P02 | ~10 | 5 tasks (filter state, click handler, AND logic, loadPRPORecords routing) | 1 files |
 | Phase 91.2 P03 | ~15 | 2 tasks (is_subcon auto-detect + UAT caveat) | 2 files |
 | Phase 87.1 P04 | ~12 | 2 tasks | 1 files |
+| Phase 87.1 P06 | ~15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,10 @@ Next: Phase 87.1 Plan 05 — inline proposal card for service-detail.js
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.1-06]: STAGE_ORDER imported from proposals.js in home.js — no local redeclaration; single source of truth for stage/label config per cross-AI review recommendation
+- [Phase 87.1-06]: getDocs in separate try/catch in init() so proposals failure cannot block home stats (T-87.1-06-03 mitigate)
+- [Phase 87.1-06]: filterProposalsForUser returns [] for finance and procurement_staff — sub-nav never shown for those roles (T-87.1-06-01 mitigate)
+- [Phase 87.1-06]: renderHomeStageCard Actions column links to #/proposals only — Submit for Approval intentionally not available from home (D-05)
 - [Phase 87.1-04]: PROPOSAL_RANGE_STATUSES imported from proposals.js — no local duplicate in project-detail.js; eliminates duplication identified in cross-AI review
 - [Phase 87.1-04]: getAgeInStageDays inlined in renderInlineProposalCard (same logic as proposals.js) since it is not exported — avoids adding another export to proposals.js for a one-liner computation
 - [Phase 87.1-04]: getDocs (one-time read) used in loadProposalCard — no onSnapshot listener added to project detail, consistent with plan D-01 architecture decision
