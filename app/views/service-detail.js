@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel,
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+import { _applyProposalStateTransition, getProposalStatusBadge, renderAgeBadge, PROPOSAL_RANGE_STATUSES } from './proposals.js';
 
 let currentService = null;
 let currentServiceDocId = null;
