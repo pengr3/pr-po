@@ -38,6 +38,20 @@ let createModalMode = 'create'; // 'create' | 'edit' — set when modal opens; r
 let createModalEditingId = null; // Firestore doc ID when in edit mode; null when create
 
 // ----------------------------------------
+// Phase 87.1 Plan 01 — exported constants and helpers
+// ----------------------------------------
+
+export const PROPOSAL_RANGE_STATUSES = ['For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision', 'Client Approved'];
+
+export const STAGE_ORDER = [
+    { key: 'pending_internal', label: 'Pending Internal Approval' },
+    { key: 'pending_client',   label: 'Pending Client Review' },
+    { key: 'for_revision',     label: 'For Revision' },
+    { key: 'client_approved',  label: 'Client Approved' },
+    { key: 'loss',             label: 'Loss' }
+];
+
+// ----------------------------------------
 // render()
 // ----------------------------------------
 
@@ -274,6 +288,105 @@ function proposalRemovePersonnel(userId, userName) {
         selectedPersonnel = selectedPersonnel.filter(u => u.name !== userName);
     }
     renderProposalPills();
+}
+
+// ----------------------------------------
+// Phase 87.1 Plan 01 — Exported personnel pill wrapper functions
+// These accept state as parameters so engagements.js can import them.
+// The private helpers above remain unchanged; internal callers continue using
+// module-level state via the window function assignments in init().
+// ----------------------------------------
+
+export function renderProposalPillsFor(selectedPersonnel, containerId = 'proposalPersonnelPillContainer', searchInputId = 'proposalPersonnelSearchInput') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const searchInput = document.getElementById(searchInputId);
+    const searchValue = searchInput?.value || '';
+
+    const pillsHtml = selectedPersonnel.map(user => `
+        <span class="personnel-pill" data-user-id="${user.id || ''}">
+            ${escapeHTML(user.name)}
+            <button type="button" class="pill-remove"
+                onmousedown="event.preventDefault(); window.proposalRemovePersonnelFrom && window.proposalRemovePersonnelFrom('${user.id || ''}', '${user.name.replace(/'/g, "\\'")}')">&times;</button>
+        </span>
+    `).join('');
+
+    container.innerHTML = `
+        ${pillsHtml}
+        <input type="text"
+               class="pill-search-input"
+               id="${searchInputId}"
+               placeholder="${selectedPersonnel.length === 0 ? 'Type name or email...' : ''}"
+               value="${searchValue}"
+               oninput="window.proposalFilterPersonnelDropdownFor && window.proposalFilterPersonnelDropdownFor(this.value)"
+               onfocus="window.proposalShowPersonnelDropdownFor && window.proposalShowPersonnelDropdownFor()"
+               autocomplete="off"
+               style="border: none; outline: none; padding: 0.125rem 0.25rem; flex: 1; min-width: 140px; font-size: 0.9375rem;">
+    `;
+
+    const newSearchInput = document.getElementById(searchInputId);
+    if (searchValue) {
+        newSearchInput?.focus();
+    }
+}
+
+export function proposalFilterPersonnelDropdownFor(searchText, selectedPersonnel, usersData, dropdownId = 'proposalPersonnelDropdown') {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+
+    const term = searchText.toLowerCase().trim();
+    const selectedIds = selectedPersonnel.map(u => u.id).filter(Boolean);
+
+    const matches = term ? usersData.filter(user =>
+        !selectedIds.includes(user.id) &&
+        (user.full_name.toLowerCase().includes(term) ||
+         user.email.toLowerCase().includes(term))
+    ) : [];
+
+    if (matches.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+
+    dropdown.innerHTML = matches.slice(0, 10).map(user => `
+        <div class="pill-dropdown-item"
+             onmousedown="event.preventDefault(); window.proposalSelectPersonnelIn && window.proposalSelectPersonnelIn('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
+            <strong>${escapeHTML(user.full_name)}</strong>
+            <span style="color: #64748b; margin-left: 0.5rem;">${escapeHTML(user.email)}</span>
+        </div>
+    `).join('');
+
+    dropdown.style.display = 'block';
+}
+
+export function proposalShowPersonnelDropdownFor(selectedPersonnel, usersData, searchInputId = 'proposalPersonnelSearchInput', dropdownId = 'proposalPersonnelDropdown') {
+    const searchInput = document.getElementById(searchInputId);
+    if (searchInput?.value?.trim()) {
+        proposalFilterPersonnelDropdownFor(searchInput.value, selectedPersonnel, usersData, dropdownId);
+    }
+}
+
+export function proposalSelectPersonnelIn(userId, userName, selectedPersonnel, renderFn, searchInputId = 'proposalPersonnelSearchInput', dropdownId = 'proposalPersonnelDropdown') {
+    if (selectedPersonnel.some(u => u.id === userId)) return selectedPersonnel;
+    const updated = [...selectedPersonnel, { id: userId, name: userName }];
+    if (typeof renderFn === 'function') renderFn();
+
+    const searchInput = document.getElementById(searchInputId);
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    const dropdown = document.getElementById(dropdownId);
+    if (dropdown) dropdown.style.display = 'none';
+
+    return updated;
+}
+
+export function proposalRemovePersonnelFrom(userId, selectedPersonnel, renderFn) {
+    const updated = selectedPersonnel.filter(u => u.id !== userId);
+    if (typeof renderFn === 'function') renderFn();
+    return updated;
 }
 
 // ----------------------------------------
@@ -629,7 +742,7 @@ export async function destroy() {
 /**
  * Status → badge metadata mapping (UI-SPEC Color section).
  */
-function getProposalStatusBadge(status) {
+export function getProposalStatusBadge(status) {
     const map = {
         draft:            { cls: 'badge-secondary',                       label: 'Draft' },
         pending_internal: { cls: 'status-badge pending',                  label: 'Pending Internal Approval' },
@@ -663,7 +776,7 @@ function isOverdueInStage(proposal) {
         && getAgeInStageDays(proposal) > THRESHOLD_DAYS;
 }
 
-function renderAgeBadge(proposal) {
+export function renderAgeBadge(proposal) {
     const days = getAgeInStageDays(proposal);
     const label = days === 1 ? '1 day' : `${days} days`;
     if (isOverdueInStage(proposal)) {
@@ -679,15 +792,6 @@ function renderAgeBadge(proposal) {
 function renderProposalDashboard() {
     const mount = document.getElementById('proposal-dashboard-mount');
     if (!mount) return;
-
-    // Stage groups in UI-SPEC order
-    const STAGE_ORDER = [
-        { key: 'pending_internal', label: 'Pending Internal Approval' },
-        { key: 'pending_client',   label: 'Pending Client Review' },
-        { key: 'for_revision',     label: 'For Revision' },
-        { key: 'client_approved',  label: 'Client Approved' },
-        { key: 'loss',             label: 'Loss' }
-    ];
 
     // Group by status (drafts also surfaced under a single 'draft' group at the bottom)
     const grouped = {};
@@ -747,7 +851,7 @@ function renderProposalDashboard() {
 /**
  * Single stage group card: header (label + count pill) + table of proposal rows.
  */
-function renderStageGroupCard(label, proposals) {
+export function renderStageGroupCard(label, proposals) {
     const rowsHtml = proposals.map(p => {
         const overdueBorder = isOverdueInStage(p)
             ? 'border-left:3px solid #f59e0b;padding-left:8px;'
@@ -1425,7 +1529,7 @@ function _stubP05(label) {
  * @param {object} [args.extraProposalFields]  - extra top-level fields (e.g. {loss_reason: 'xyz'})
  * @returns {Promise<object>} the new audit entry written
  */
-async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields }) {
+export async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields }) {
     if (!proposal || !proposal.id) throw new Error('_applyProposalStateTransition: proposal with id required');
     if (!auditAction) throw new Error('_applyProposalStateTransition: auditAction required');
 
@@ -1461,8 +1565,9 @@ async function _applyProposalStateTransition({ proposal, newStatus, newProjectSt
     batch.update(doc(db, 'proposals', proposal.id), proposalPayload);
 
     // Project doc update only when transition explicitly maps to a project_status change.
+    const parentCollection = proposal.parent_collection || 'projects';
     if (newProjectStatus && proposal.project_id) {
-        batch.update(doc(db, 'projects', proposal.project_id), {
+        batch.update(doc(db, parentCollection, proposal.project_id), {
             project_status: newProjectStatus,
             updated_at: new Date().toISOString()  // projects collection convention (project-detail.js line 804)
         });
