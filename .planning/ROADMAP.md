@@ -550,7 +550,7 @@ Plans:
 **Goal:** Make the proposal lifecycle fully integrated with the project/service record rather than living in isolation in a separate Proposals tab. When a project/service enters the proposal workflow (status = "For Proposal"), the proposal process should be driven from within the project/service context. Proposal status transitions should be reflected on the project/service record in real time. The Proposals standalone tab is retired or reduced to a global view-only list. Home dashboard gains a proposal activity sub-tab for quick overview.
 **Requirements**: TBD — to be established during /gsd-discuss-phase 87.1
 **Depends on:** Phase 87 (proposals collection + approval infra), Phase 89 (Management Tab approval queue)
-**Plans:** 1/7 plans executed
+**Plans:** 5/7 plans executed
 
 Key integration goals:
 1. Project/Service record shows current proposal stage inline when status is in the proposal lifecycle range
@@ -563,8 +563,8 @@ Plans:
 - [x] 87.1-01-PLAN.md — proposals.js exports + parent_collection fix + .proposal-inline-card CSS
 - [x] 87.1-02-PLAN.md — new app/views/engagements.js view (extracted form)
 - [x] 87.1-03-PLAN.md — proposals.js refocus (remove engagement section)
-- [ ] 87.1-04-PLAN.md — project-detail.js inline proposal card
-- [ ] 87.1-05-PLAN.md — service-detail.js inline proposal card
+- [x] 87.1-04-PLAN.md — project-detail.js inline proposal card
+- [x] 87.1-05-PLAN.md — service-detail.js inline proposal card
 - [ ] 87.1-06-PLAN.md — home.js Proposals sub-tab + views.css
 - [ ] 87.1-07-PLAN.md — router.js + auth.js + index.html wiring
 
