@@ -1050,8 +1050,7 @@ tr:hover {
    ======================================== */
 
 .actions {
-    display: flex;
-    gap: 0.5rem;
+    vertical-align: middle;
 }
 
 /* ========================================
@@ -1927,4 +1926,27 @@ tr:hover {
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+}
+
+/* Phase 87.1 D-01 — Inline proposal card in project/service detail */
+.proposal-inline-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    margin-top: 1rem;
+}
+.proposal-inline-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+.proposal-inline-card__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
