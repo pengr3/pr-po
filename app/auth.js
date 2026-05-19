@@ -423,6 +423,13 @@ function updateNavForAuth(user) {
             el.style.display = isSuperAdmin ? '' : 'none';
         });
 
+        // Phase 87.1 D-03 — Engagements tab: visible to super_admin, operations_admin, services_admin
+        const engagementsLinks = document.querySelectorAll('[data-route="engagements"]');
+        const canSeeEngagements = ['super_admin', 'operations_admin', 'services_admin'].includes(user.role);
+        engagementsLinks.forEach(el => {
+            el.style.display = canSeeEngagements ? '' : 'none';
+        });
+
         // Handle dropdown containers (Admin dropdown)
         const dropdowns = document.querySelectorAll('.nav-dropdown[data-route]');
         dropdowns.forEach(dropdown => {
@@ -462,6 +469,9 @@ function updateNavForAuth(user) {
         // Phase 88 D-02 — hide Proposals links for unauthenticated users.
         const proposalsLinks = document.querySelectorAll('[data-route="proposals"]');
         proposalsLinks.forEach(el => { el.style.display = 'none'; });
+
+        // Phase 87.1 D-03 — hide Engagements links for unauthenticated users
+        document.querySelectorAll('[data-route="engagements"]').forEach(el => { el.style.display = 'none'; });
 
         // Hide all mobile nav items
         const mobileItems = document.querySelectorAll('.mobile-nav-item[data-route]');
