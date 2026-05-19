@@ -17,18 +17,14 @@
 
 import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp, writeBatch } from '../firebase.js';
 
-import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
-import { createEngagement } from '../engagement-create.js';
+import { showLoading, showToast, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
 import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ----------------------------------------
 // Module state
 // ----------------------------------------
 let clientsData = [];
-let usersData = [];
-let selectedPersonnel = []; // [{ id, name }]
 let listeners = [];
-let currentEngagementType = 'project'; // 'project' | 'one-time' | 'recurring'
 
 // --- Phase 87 module state (Plan 02) ---
 let proposalsData = [];      // all proposal docs from onSnapshot — sorted/grouped at render time
@@ -76,107 +72,8 @@ export function render(activeTab = null, param = null) {
 }
 
 // ----------------------------------------
-// Personnel pill helpers (local copy — Phase 88-02 refactor candidate D-07)
-// ----------------------------------------
-
-function renderProposalPills() {
-    const container = document.getElementById('proposalPersonnelPillContainer');
-    if (!container) return;
-
-    const searchInput = document.getElementById('proposalPersonnelSearchInput');
-    const searchValue = searchInput?.value || '';
-
-    const pillsHtml = selectedPersonnel.map(user => `
-        <span class="personnel-pill" data-user-id="${user.id || ''}">
-            ${escapeHTML(user.name)}
-            <button type="button" class="pill-remove"
-                onmousedown="event.preventDefault(); window.proposalRemovePersonnel('${user.id || ''}', '${user.name.replace(/'/g, "\\'")}')">&times;</button>
-        </span>
-    `).join('');
-
-    container.innerHTML = `
-        ${pillsHtml}
-        <input type="text"
-               class="pill-search-input"
-               id="proposalPersonnelSearchInput"
-               placeholder="${selectedPersonnel.length === 0 ? 'Type name or email...' : ''}"
-               value="${searchValue}"
-               oninput="window.proposalFilterPersonnelDropdown(this.value)"
-               onfocus="window.proposalShowPersonnelDropdown()"
-               autocomplete="off"
-               style="border: none; outline: none; padding: 0.125rem 0.25rem; flex: 1; min-width: 140px; font-size: 0.9375rem;">
-    `;
-
-    const newSearchInput = document.getElementById('proposalPersonnelSearchInput');
-    if (searchValue) {
-        newSearchInput?.focus();
-    }
-}
-
-function proposalFilterPersonnelDropdown(searchText) {
-    const dropdown = document.getElementById('proposalPersonnelDropdown');
-    if (!dropdown) return;
-
-    const term = searchText.toLowerCase().trim();
-    const selectedIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-
-    const matches = term ? usersData.filter(user =>
-        !selectedIds.includes(user.id) &&
-        (user.full_name.toLowerCase().includes(term) ||
-         user.email.toLowerCase().includes(term))
-    ) : [];
-
-    if (matches.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-    }
-
-    dropdown.innerHTML = matches.slice(0, 10).map(user => `
-        <div class="pill-dropdown-item"
-             onmousedown="event.preventDefault(); window.proposalSelectPersonnel('${user.id}', '${user.full_name.replace(/'/g, "\\'")}')">
-            <strong>${escapeHTML(user.full_name)}</strong>
-            <span style="color: #64748b; margin-left: 0.5rem;">${escapeHTML(user.email)}</span>
-        </div>
-    `).join('');
-
-    dropdown.style.display = 'block';
-}
-
-function proposalShowPersonnelDropdown() {
-    const searchInput = document.getElementById('proposalPersonnelSearchInput');
-    if (searchInput?.value?.trim()) {
-        proposalFilterPersonnelDropdown(searchInput.value);
-    }
-}
-
-function proposalSelectPersonnel(userId, userName) {
-    if (selectedPersonnel.some(u => u.id === userId)) return;
-    selectedPersonnel.push({ id: userId, name: userName });
-    renderProposalPills();
-
-    const searchInput = document.getElementById('proposalPersonnelSearchInput');
-    if (searchInput) {
-        searchInput.value = '';
-        searchInput.focus();
-    }
-    const dropdown = document.getElementById('proposalPersonnelDropdown');
-    if (dropdown) dropdown.style.display = 'none';
-}
-
-function proposalRemovePersonnel(userId, userName) {
-    if (userId) {
-        selectedPersonnel = selectedPersonnel.filter(u => u.id !== userId);
-    } else {
-        selectedPersonnel = selectedPersonnel.filter(u => u.name !== userName);
-    }
-    renderProposalPills();
-}
-
-// ----------------------------------------
 // Phase 87.1 Plan 01 — Exported personnel pill wrapper functions
 // These accept state as parameters so engagements.js can import them.
-// The private helpers above remain unchanged; internal callers continue using
-// module-level state via the window function assignments in init().
 // ----------------------------------------
 
 export function renderProposalPillsFor(selectedPersonnel, containerId = 'proposalPersonnelPillContainer', searchInputId = 'proposalPersonnelSearchInput') {
@@ -272,169 +169,6 @@ export function proposalRemovePersonnelFrom(userId, selectedPersonnel, renderFn)
 }
 
 // ----------------------------------------
-// Engagement type change handler
-// ----------------------------------------
-
-function handleEngagementTypeChange(type) {
-    currentEngagementType = type;
-
-    const clientLabel = document.getElementById('proposalClientRequired');
-    const clientSelect = document.getElementById('proposalClient');
-    if (!clientLabel || !clientSelect) return;
-
-    if (type === 'project') {
-        // Client is optional for projects (Phase 78 D-04 clientless-creation pattern).
-        clientLabel.textContent = '(optional — clientless project allowed)';
-        clientLabel.style.color = '';
-
-        // Restore the none/clientless option if not already there.
-        if (!clientSelect.querySelector('option[value=""]')) {
-            const noneOpt = document.createElement('option');
-            noneOpt.value = '';
-            noneOpt.dataset.code = '';
-            noneOpt.textContent = '(none — clientless project)';
-            clientSelect.insertBefore(noneOpt, clientSelect.firstChild);
-        }
-        clientSelect.value = '';
-    } else {
-        // One-time or recurring: client is required (D-08).
-        clientLabel.textContent = '(required for service engagements)';
-        clientLabel.style.color = '#ef4444';
-
-        // Remove the none/clientless option so the user must pick a real client.
-        const noneOpt = clientSelect.querySelector('option[value=""]');
-        if (noneOpt) noneOpt.remove();
-
-        // If previously on none, reset to first real client.
-        if (!clientSelect.value && clientSelect.options.length > 0) {
-            clientSelect.selectedIndex = 0;
-        }
-    }
-}
-
-// ----------------------------------------
-// Client dropdown population
-// ----------------------------------------
-
-function populateClientDropdown() {
-    const select = document.getElementById('proposalClient');
-    if (!select) return;
-
-    const currentVal = select.value;
-
-    // Build options — keep the none option only for project type.
-    let html = '';
-    if (currentEngagementType === 'project') {
-        html += '<option value="" data-code="">(none — clientless project)</option>';
-    }
-
-    clientsData.forEach(client => {
-        const selected = client.id === currentVal ? 'selected' : '';
-        html += `<option value="${client.id}" data-code="${escapeHTML(client.client_code || '')}" ${selected}>
-            ${escapeHTML(client.client_code ? `${client.client_code} — ${client.client_name}` : client.client_name)}
-        </option>`;
-    });
-
-    select.innerHTML = html;
-}
-
-// ----------------------------------------
-// Submit handler
-// ----------------------------------------
-
-async function submitNewEngagement() {
-    // 1. Read engagement type.
-    const typeEl = document.querySelector('input[name="engagementType"]:checked');
-    const type = typeEl ? typeEl.value : 'project'; // fallback
-
-    // 2. Read DOM values.
-    const clientSelect = document.getElementById('proposalClient');
-    const clientId = clientSelect?.value || null;
-    const selectedOption = clientSelect?.options[clientSelect.selectedIndex];
-    const clientCode = selectedOption?.dataset?.code || null;
-
-    const name = (document.getElementById('proposalName')?.value || '').trim();
-    const location = (document.getElementById('proposalLocation')?.value || '').trim();
-    const budgetRaw = document.getElementById('proposalBudget')?.value;
-    const contractCostRaw = document.getElementById('proposalContractCost')?.value;
-
-    const budget = budgetRaw !== '' && budgetRaw !== undefined ? parseFloat(budgetRaw) : null;
-    const contractCost = contractCostRaw !== '' && contractCostRaw !== undefined ? parseFloat(contractCostRaw) : null;
-
-    // 3. Validate.
-    if (!name) {
-        showToast('Engagement name is required.', 'error');
-        return;
-    }
-    if (selectedPersonnel.length < 1) {
-        showToast('At least one personnel member is required.', 'error');
-        return;
-    }
-    if (budget !== null && (isNaN(budget) || budget <= 0)) {
-        showToast('Budget must be a positive number if provided.', 'error');
-        return;
-    }
-    if (contractCost !== null && (isNaN(contractCost) || contractCost <= 0)) {
-        showToast('Contract cost must be a positive number if provided.', 'error');
-        return;
-    }
-    // D-08: service types require a client.
-    if (type !== 'project' && !clientId) {
-        showToast('Client is required for service engagements.', 'error');
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const { code } = await createEngagement({
-            type,
-            clientId: clientId || null,
-            clientCode: (clientCode && clientCode.trim()) ? clientCode.trim() : null,
-            name,
-            location: location || null,
-            projectStatus: 'Draft', // Phase 88 D-05 — all Proposals-tab creates start as Draft.
-            budget,
-            contractCost,
-            personnel: selectedPersonnel,
-            collectionTranches: [], // Tranches not collected on Proposals form (Phase 85 D-09).
-            onAfterCreate: ({ code: generatedCode, type: createdType }) => {
-                // Assignment sync runs after a successful create.
-                const userIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-                if (createdType === 'project' && generatedCode) {
-                    syncPersonnelToAssignments(generatedCode, [], userIds)
-                        .catch(err => console.error('[Proposals] Project assignment sync failed:', err));
-                } else if ((createdType === 'one-time' || createdType === 'recurring') && generatedCode) {
-                    syncServicePersonnelToAssignments(generatedCode, [], userIds)
-                        .catch(err => console.error('[Proposals] Service assignment sync failed:', err));
-                }
-            }
-        });
-
-        // Success: clear form and show toast (stay on the page per D-03 inline pattern).
-        selectedPersonnel = [];
-        document.getElementById('proposalName').value = '';
-        document.getElementById('proposalLocation').value = '';
-        document.getElementById('proposalBudget').value = '';
-        document.getElementById('proposalContractCost').value = '';
-        // Reset type radios to project.
-        const projectRadio = document.querySelector('input[name="engagementType"][value="project"]');
-        if (projectRadio) {
-            projectRadio.checked = true;
-            handleEngagementTypeChange('project');
-        }
-        renderProposalPills();
-
-        const codeDisplay = code || '(pending client assignment)';
-        showToast(`Engagement created as Draft. Code: ${codeDisplay}`, 'success');
-    } catch (err) {
-        console.error('[Proposals] submitNewEngagement failed:', err);
-        showToast(err?.message || 'Failed to create engagement. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ----------------------------------------
 // init()
 // ----------------------------------------
 
@@ -475,7 +209,7 @@ export async function init(activeTab = null, param = null) {
     window.queueConfirmAction = queueConfirmAction;
     window.queueCancelModal = queueCancelModal;
 
-    // Clients listener: populates the client picker.
+    // Clients listener: keeps clientsData fresh for the Create/Edit Proposal modal dropdowns.
     const clientsListener = onSnapshot(
         query(collection(db, 'clients'), where('active', '==', true)),
         (snapshot) => {
@@ -487,26 +221,10 @@ export async function init(activeTab = null, param = null) {
             clientsData.sort((a, b) =>
                 (a.client_code || a.client_name || '').localeCompare(b.client_code || b.client_name || '')
             );
-            populateClientDropdown();
         },
         (err) => console.error('[Proposals] Clients listener error:', err)
     );
     listeners.push(clientsListener);
-
-    // Users listener: populates the personnel picker.
-    // Users collection uses status=='active' (not an active boolean) — matches projects.js pattern.
-    const usersListener = onSnapshot(
-        query(collection(db, 'users'), where('status', '==', 'active')),
-        (snapshot) => {
-            usersData = [];
-            snapshot.forEach(doc => {
-                usersData.push({ id: doc.id, ...doc.data() });
-            });
-            usersData.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
-        },
-        (err) => console.error('[Proposals] Users listener error:', err)
-    );
-    listeners.push(usersListener);
 
         // --- Phase 87 listeners (Plan 02) ---
 
