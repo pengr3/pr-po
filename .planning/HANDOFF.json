@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-20T00:00:00Z",
+  "phase": "87.1",
+  "phase_name": "Proposal Lifecycle Integration",
+  "phase_dir": ".planning/phases/87.1-proposal-lifecycle-integration-proposal-project-bidirectiona",
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 0,
+  "status": "paused",
+  "completed_tasks": [],
+  "remaining_tasks": [
+    {"id": 1, "name": "Run plan-checker on 7 existing redesigned plans", "status": "not_started"},
+    {"id": 2, "name": "Fix any checker issues (if found)", "status": "not_started"},
+    {"id": 3, "name": "Record planning complete in STATE.md", "status": "not_started"},
+    {"id": 4, "name": "Execute phase (7 plans across waves)", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {
+      "decision": "Full code revert of prior 87.1 implementation (commit 9f27c7b)",
+      "rationale": "Prior implementation had CR-01 personnel picker bug + design mismatch with redesigned vision; scrapped entirely",
+      "phase": "87.1"
+    },
+    {
+      "decision": "Home page gains Overview | Engagements | Proposals sub-tabs; Proposals top-nav tab retired",
+      "rationale": "Redesign: proposals move into home sub-tabs, no longer a standalone nav destination",
+      "phase": "87.1"
+    },
+    {
+      "decision": "proposals.js becomes a pure module; proposal modal extracted to app/proposal-modal.js",
+      "rationale": "Allows modal to be shared from home.js, project-detail.js, service-detail.js without duplication",
+      "phase": "87.1"
+    },
+    {
+      "decision": "CR-01 anti-pattern: personnel pill window functions MUST use suffixed names",
+      "rationale": "renderProposalPillsFor generates HTML calling proposalSelectPersonnelIn / proposalRemovePersonnelFrom (suffixed). Using unsuffixed names breaks the picker silently.",
+      "phase": "87.1"
+    }
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run /gsd-plan-phase 87.1 and choose 'Verify existing plans' to spawn plan-checker on the 7 redesigned PLAN.md files (87.1-01 through 87.1-07)",
+  "context_notes": "FULL RESET: prior 87.1 implementation was reverted. Context redesigned 2026-05-20. 7 new PLAN.md files created matching redesigned context (all committed in 46df5ba). No code exists yet for this phase. Planning session started 2026-05-20 but paused before plan-checker was spawned — no files modified in paused session."
+}
