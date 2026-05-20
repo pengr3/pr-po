@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 Plan 07 COMPLETE — /engagements route + hard role gate, auth.js nav visibility, index.html nav links. Phase 87.1 ALL 7 PLANS SHIPPED.
-stopped_at: Plan 07 complete (2026-05-19)
-last_updated: "2026-05-19T13:00:00.000Z"
+status: Phase 87.1 REPLANNED (2026-05-20) — full redesign after code revert. 7 plans ready across 6 waves. Ready to execute.
+stopped_at: Phase 87.1 replanned — awaiting /gsd-execute-phase 87.1
+last_updated: "2026-05-20T00:00:00.000Z"
 last_activity: "2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item."
 progress:
   total_phases: 25
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 ALL 7 PLANS COMPLETE — Proposal Lifecycle Integration fully shipped
-Next: Next phase per ROADMAP.md
+Phase: 87.1 REPLANNED (2026-05-20) — 7 plans across 6 waves. Full redesign: home sub-tabs, proposal-modal.js extraction, engagement-create.js extension, enriched inline card, retire Proposals nav.
+Next: /gsd-execute-phase 87.1
 
 ## Performance Metrics
 

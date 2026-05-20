@@ -235,7 +235,7 @@
   - [x] 86.9-01-PLAN.md — Curtain divider: rewrite initPanelResize() + CSS from grid to position:absolute overlay; _paneDividerPct var (GANTT-UX-CURTAIN-DIVIDER) — Wave 1 — completed 2026-05-11
   - [x] 86.9-02-PLAN.md — PDF Export: exportGanttPDF() + Export toolbar button + @media print CSS (GANTT-UX-PDF-EXPORT) — Wave 1 — completed 2026-05-11 (UAT approved)
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** — `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred — Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions — completed 2026-05-11
-- [x] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED) — Proposal lifecycle moved into Projects/Services context; proposal status transitions bidirectionally sync with project status; home dashboard gains proposal activity sub-tab; Proposals standalone tab retired (completed 2026-05-19)
+- [ ] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED, REDESIGN) — Home page gains Overview | Engagements | Proposals sub-tabs; top-level Proposals nav tab retired; proposals.js becomes pure module; proposal modal extracted to app/proposal-modal.js; enriched inline proposal card (attachment + latest comms + View Proposal button) in project/service detail. Replanned 2026-05-20 after full code revert.
 - [x] **Phase 88: Management Tab Shell + Create Engagement** — `Management` nav entry (Super Admin only), router/Security Rules gating, Create Engagement form auto-routing to `projects` vs `services` (one-time vs recurring) — completed 2026-05-11
 - [x] **Phase 89: Management Tab — Proposal Approval Queue** — Proposal Approval Queue inside Mgmt Tab consuming Phase 87 proposal infra (oldest-first, approve/reject from queue context) — completed 2026-05-11
 - [x] **Phase 90: Auth Pages Polish — Login Routing Fix, Registration UX, Forgot Password** — Fix post-login navigation race condition so successful login lands on home (not bounces to #/login); polish registration success state and redirect; add Forgot Password link on login page with email-reset flow via Firebase Auth `sendPasswordResetEmail`
@@ -550,23 +550,18 @@ Plans:
 **Goal:** Make the proposal lifecycle fully integrated with the project/service record rather than living in isolation in a separate Proposals tab. When a project/service enters the proposal workflow (status = "For Proposal"), the proposal process should be driven from within the project/service context. Proposal status transitions should be reflected on the project/service record in real time. The Proposals standalone tab is retired or reduced to a global view-only list. Home dashboard gains a proposal activity sub-tab for quick overview.
 **Requirements**: TBD — to be established during /gsd-discuss-phase 87.1
 **Depends on:** Phase 87 (proposals collection + approval infra), Phase 89 (Management Tab approval queue)
-**Plans:** 7/7 plans complete
+**Plans:** 7 plans (replanned 2026-05-20 — full redesign after revert)
 
-Key integration goals:
-1. Project/Service record shows current proposal stage inline when status is in the proposal lifecycle range
-2. Proposal actions (submit for internal approval, mark under client review, etc.) are available from inside the project/service detail view
-3. Approving/rejecting a proposal from Management Tab updates both the `proposals` document AND the parent project/service status atomically
-4. Home dashboard: new "Proposals" sub-tab showing active proposals at a glance (replaces standalone Proposals nav tab)
-5. Proposals nav tab retired (or demoted to admin-only audit log)
+Redesign: Home gains Overview | Engagements | Proposals sub-tabs. Proposals top-nav tab retired. proposal-modal.js extracted as shared utility. engagement-create.js extended. Inline card in project/service detail adds attachment + comms + View Proposal.
 
 Plans:
-- [x] 87.1-01-PLAN.md — proposals.js exports + parent_collection fix + .proposal-inline-card CSS
-- [x] 87.1-02-PLAN.md — new app/views/engagements.js view (extracted form)
-- [x] 87.1-03-PLAN.md — proposals.js refocus (remove engagement section)
-- [x] 87.1-04-PLAN.md — project-detail.js inline proposal card
-- [x] 87.1-05-PLAN.md — service-detail.js inline proposal card
-- [x] 87.1-06-PLAN.md — home.js Proposals sub-tab + views.css
-- [x] 87.1-07-PLAN.md — router.js + auth.js + index.html wiring
+- [ ] 87.1-01-PLAN.md — proposals.js: lift STAGE_ORDER, add PROPOSAL_RANGE_STATUSES, export 7 functions, D-06 parent_collection fix; utils.js: export cryptoRandomUuid — Wave 1
+- [ ] 87.1-02-PLAN.md — app/proposal-modal.js: extract full proposal detail modal from proposals.js, fresh getDoc fetch — Wave 2
+- [ ] 87.1-03-PLAN.md — engagement-create.js: add renderEngagementForm/initEngagementForm/destroyEngagementForm; proposals.js: remove engagement code, stub render/init/destroy — Wave 2
+- [ ] 87.1-04-PLAN.md — home.js: Overview|Engagements|Proposals sub-tabs + role gates + getDocs proposals; styles/views.css: .home-sub-nav CSS — Wave 3
+- [ ] 87.1-05-PLAN.md — project-detail.js + service-detail.js: enriched inline proposal card (attachment, comms, Submit+View buttons); styles/components.css: .proposal-inline-card CSS — Wave 3
+- [ ] 87.1-06-PLAN.md — router.js: remove /proposals route + gate; auth.js: remove proposals visibility block; index.html: remove Proposals nav links — Wave 4
+- [ ] 87.1-07-PLAN.md — UAT checkpoint: manual verification of D-01 through D-08; CR-01 regression test — Wave 5
 
 ### Phase 88: Management Tab Shell + Create Engagement
 **Goal**: Super Admin gets a dedicated Management tab in navigation, with a "Create Engagement" form that auto-routes the new record to the right collection (projects vs services, one-time vs recurring) — the shell and the create-engagement slice can ship before the proposal queue.
