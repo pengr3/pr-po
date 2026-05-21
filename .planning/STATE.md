@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 COMPLETE (2026-05-21) — UAT approved by super_admin; all 7 plans done; 19 commits on v3.3; proposals.js reduced 2,013 → 395 lines; CR-01 anti-pattern structurally closed.
-stopped_at: Phase 87.1 complete — ready for PR / next phase
-last_updated: "2026-05-21T17:00:00.000Z"
-last_activity: "2026-05-21 — Phase 87.1 (Proposal Lifecycle Integration, redesign) COMPLETE on v3.3. All 7 plans landed; user-conducted in-browser UAT passed all 31 checks (D-01 home sub-tabs + role gates, CR-01 personnel-picker regression on Engagements tab, D-02 /proposals route + nav retired, D-04 openProposalModal from home + detail views, D-05 inline proposal card on project/service detail, D-06 services parent_collection write path, D-08 role-filtered Proposals sub-tab). Final architecture: proposals.js is a 395-line pure shared module exposing STAGE_ORDER, PROPOSAL_RANGE_STATUSES, badge/age helpers, renderStageGroupCard, renderApprovalQueue, _applyProposalStateTransition; app/proposal-modal.js owns the detail modal (fresh getDoc, 20 symmetric window fns); app/engagement-create.js owns the engagement form (6 unsuffixed window fns, CR-01 helper from prior attempt gone); home.js mounts Overview/Engagements/Proposals sub-tabs with role gates; project-detail.js + service-detail.js render inline proposal cards with parent_collection-aware submit; /proposals route + Proposals nav links retired. CR-01 anti-pattern structurally closed — no suffixed-name pill helper remains."
+status: Phase 87.2 READY TO EXECUTE (2026-05-21) — 5 plans across 4 waves; 26/26 decisions covered; verification passed after 2 revision iterations.
+stopped_at: Phase 87.2 planned
+last_updated: "2026-05-21T11:00:00.000Z"
+last_activity: "2026-05-21 — Phase 87.2 PLANNED. 5 plans across 4 waves: 87.2-01 G1 Target Client default + saveProposal company_name bug fix at six sites (1 write + 3 dropdown render + 2 sort comparator) (Wave 1, app/proposal-modal.js); 87.2-02 G4 firestore.rules new proposals update branch with field-mask + parent-personnel + department-alignment (Wave 1, firestore.rules — parallel-safe with 87.2-01); 87.2-03 G2 renderProposalActionButtons dual canApprove + canDrive flags, parent_collection-aware department gating (Wave 2, app/proposal-modal.js, depends 01); 87.2-04 G3 Request Revision button + extended Mark Sent to Client gate + REVISION_REQUESTED audit action (Wave 3, app/proposal-modal.js, depends 03); 87.2-05 G5 renderAuditTrail merges comms_log as nested children under SENT_TO_CLIENT / CREATED (Wave 4, app/proposal-modal.js, depends 04). All 26 D-NN decisions traceable to at least one plan. Plan-checker iter 2: 0 BLOCKER, 0 WARNING, 0 outstanding. Manual deploy note: Plan 02 requires `firebase deploy --only firestore:rules` before Plan 03's smoke-test can succeed for non-admin assigned users. Next: /gsd-execute-phase 87.2."
 progress:
   total_phases: 25
-  completed_phases: 22
-  total_plans: 90
-  completed_plans: 90
-  percent: 99
+  completed_phases: 18
+  total_plans: 76
+  completed_plans: 88
+  percent: 100
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 COMPLETE (2026-05-21) — 7 plans done across 6 waves. UAT approved. proposals.js is now a pure shared module (395 lines), proposal-modal.js owns the detail modal, engagement-create.js owns the engagement form, home.js mounts the new sub-tabs, project/service detail show inline proposal cards, /proposals route retired.
-Next: PR / merge v3.3 branch when ready, or pick the next phase from ROADMAP
+Phase: 87.2 READY TO EXECUTE (2026-05-21) — 5 plans across 4 waves. Plans address the 5 integration gaps surfaced in the super_admin walkthrough: G1 Target Client default + 6-site company_name bug fix (Plan 01); G2 operations role permissions UI (Plan 03); G3 explicit Revision cycle action buttons — NOT comms-auto-status, per CONTEXT.md D-10/D-11 corrective (Plan 04); G4 Firestore rules update branch (Plan 02); G5 audit trail comms nesting (Plan 05). Coverage 26/26 D-NN decisions. Plan-checker verification passed after 2 targeted revision iterations.
+Next: /gsd-execute-phase 87.2
 
 ## Performance Metrics
 
@@ -543,6 +543,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 92.2 inserted after Phase 92: Service scorecards — mirror project scorecards for one-time/recurring services with matching colors; remove home-page charts (URGENT)
 - Phase 91.2 inserted after Phase 91.1 (URGENT, 2026-05-18) — MRF Records scorecard improvements: resize cards to match Phase 92 proportions; cross-group multi-filter so one card from Materials Procurement AND one from Subcon Processing can be active simultaneously
 - Phase 87.1 inserted after Phase 87: Proposal Lifecycle Integration — proposal-project bidirectional sync, proposal lifecycle moved into Projects/Services context, home dashboard sub-tab (URGENT)
+- Phase 87.2 inserted after Phase 87.1 (URGENT, 2026-05-21) — Proposal Workflow Polish: 5 integration gaps from super_admin walkthrough — (1) Target Client (none) bug: backfill from parent project/service client; (2) operations_user can't see Mark Sent to Client / Client Approved / Mark as Loss in Projects/Services detail; (3) Revision Requested comms entry is inert — should drive project status to "For Revision", subsequent Sent entry restores Pending Client Review; (4) operations_user blocked by Firestore rules from saving comms entries (`Missing or insufficient permissions`); (5) client communications should appear in proposal Audit Trail, indented under their "Sent to Client" event
 
 ### Quick Tasks Completed
 
@@ -563,9 +564,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
-Last session: 2026-05-21T16:39:21.000Z
-Stopped at: Phase 87.1 Wave 6 (Plan 06) DONE — Plan 07 (manual UAT) next
-Resume file: .planning/HANDOFF.json + .planning/phases/87.1-proposal-lifecycle-integration-proposal-project-bidirectiona/.continue-here.md
+Last session: 2026-05-21T10:34:39.333Z
+Stopped at: Phase 87.2 context gathered
+Resume file: .planning/phases/87.2-proposal-workflow-polish/87.2-CONTEXT.md
 Next action: Spawn Plan 87.1-07 executor — manual UAT in browser. Verify: no Proposals nav link visible for any role, #/proposals redirects to #/, home Overview/Engagements/Proposals sub-tabs work for eligible roles, finance/procurement_staff see no sub-nav, inline cards on For Proposal project + service show ID/title/amount/badges/attachment/comms, Submit/View buttons work, D-06 services write goes to services collection. Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |

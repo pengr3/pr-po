@@ -563,6 +563,38 @@ Plans:
 - [x] 87.1-06-PLAN.md — router.js: remove /proposals route + gate; auth.js: remove proposals visibility block; index.html: remove Proposals nav links; proposals.js: strip orphan modal/queue code (2,013 → 395 lines, pure shared module) — Wave 6 — DONE 2026-05-21 (4d75b9a + 0d06916 + bdc5735 + 6382a58)
 - [x] 87.1-07-PLAN.md — UAT checkpoint: manual verification of D-01 through D-08; CR-01 regression test — Wave 6 — DONE 2026-05-21 (user approved in-browser walkthrough, all 31 checks passed)
 
+### Phase 87.2: Proposal Workflow Polish — Client Context, Operations Permissions, Revision Cycle, Audit Trail Integration (INSERTED)
+**Goal**: Polish the proposal lifecycle foundation laid in Phase 87.1 by closing five integration gaps observed in a super_admin walkthrough of an in-flight proposal (PROP-2026-001 on CLMC-SPI-2026004): (1) **Target Client** on the proposal modal reads "(none)" even when the parent project/service has a client — proposal target_client should default from the parent record's client when the proposal is created from within a project/service context; (2) the Actions column (Mark Sent to Client / Client Approved / Mark as Loss) is invisible to **operations_user** inside Projects/Services detail, so the role that actually drives the proposal cannot progress it — extend the role gates to grant operations_user the workflow actions appropriate to their scope; (3) **"Revision Requested"** comms entries are inert — when a comms entry of type Revision Requested is logged, the parent project/service status should auto-advance to **"For Revision"**, and a subsequent **"Sent"** comms entry should advance status back to **"Pending Client Review"** (or a new **"Revision Sent"** sub-status if the team prefers an explicit re-review marker — to be decided in discuss-phase); (4) **operations_user cannot save comms entries** — Firestore rules reject the write with `Missing or insufficient permissions` from `saveCommsEntry`, so the very role that owns client communications is locked out of the modal — extend `proposals` rules to allow operations_user to append comms entries on proposals attached to projects/services they have access to; (5) **client communications should surface in the proposal Audit Trail**, rendered as indented children under the "Sent to Client" event they belong to so reviewers can read the full conversation thread without bouncing between the Audit Trail and the Client Communications section.
+**Depends on**: Phase 87 (proposals collection, comms_log schema, audit_trail schema, `_applyProposalStateTransition`), Phase 87.1 (proposal-modal.js, project-detail.js, service-detail.js, inline proposal card — surfaces being polished)
+**Requirements**: TBD — to be established during /gsd-discuss-phase 87.2
+**Success Criteria** (what must be TRUE):
+  1. Creating or opening a proposal whose parent project/service has a client populates Target Client on the proposal modal with the parent's client; legacy proposals with target_client unset are backfilled on-read from parent (no destructive migration required)
+  2. operations_user, when viewing a project/service they have access to, sees and can invoke Mark Sent to Client, Client Approved, and Mark as Loss on attached proposals — verified by direct in-browser test from an operations_user session
+  3. Logging a "Revision Requested" comms entry on a proposal advances the parent project/service status to "For Revision"; logging a subsequent "Sent" comms entry advances it back to "Pending Client Review" (or the agreed Revision-Sent variant) — audit_trail records both transitions with actor + timestamp
+  4. operations_user can save comms entries on proposals attached to their assigned projects/services — Firestore rules permit the write and the modal no longer logs `Missing or insufficient permissions` from `saveCommsEntry`; non-attached users are still denied (verified by direct Firestore call from an unrelated operations_user session)
+  5. The proposal Audit Trail renders comms entries as indented children of the "Sent to Client" event they followed — visually nested, chronologically grouped, no separate scroll for the comms log when reviewing the trail
+**Plans**: 5 plans (planned 2026-05-21)
+
+**Wave 1** *(parallel — disjoint files)*
+  - [ ] 87.2-01-PLAN.md — proposal-modal.js: Target Client auto-select on project change + client.company_name field-name bug fix at 6 sites (1 saveProposal write + 3 dropdown render + 2 sort comparator) (D-01..D-04) — Wave 1
+  - [ ] 87.2-02-PLAN.md — firestore.rules: new proposals update branch (field-mask + parent-personnel assignment + department alignment) for operations_user/services_user; preserves existing super_admin/operations_admin blanket rule (D-16..D-20) — Wave 1
+
+**Wave 2** *(blocked on Wave 1 — shared app/proposal-modal.js, depends on 87.2-01)*
+  - [ ] 87.2-03-PLAN.md — proposal-modal.js: renderProposalActionButtons dual canApprove + canDrive flags, parent_collection-aware department gating, parent-doc preload via _parentDocCache (D-05..D-09) — Wave 2
+
+**Wave 3** *(blocked on Wave 2 — shared app/proposal-modal.js, depends on 87.2-03)*
+  - [ ] 87.2-04-PLAN.md — proposal-modal.js: Request Revision button + sub-modal (mirrors Mark as Loss), extended Mark Sent to Client gate at for_revision, REVISION_REQUESTED audit action + dot color, window function registration (D-10..D-15) — Wave 3
+
+**Wave 4** *(blocked on Wave 3 — shared app/proposal-modal.js, depends on 87.2-04)*
+  - [ ] 87.2-05-PLAN.md — proposal-modal.js: renderAuditTrail merges comms_log as indented children under SENT_TO_CLIENT or CREATED parent; left-column Communications section kept as input surface (D-21..D-26) — Wave 4
+
+  Cross-cutting constraints (from plan must_haves):
+  - `parent_collection`-aware department gating (operations → projects; services → services) — referenced in 87.2-02, 87.2-03, 87.2-04 (firestore.rules branch + UI canDrive + Request Revision target)
+  - Course-correction lock from CONTEXT.md D-10/D-11/D-12/D-15: comms entries DO NOT trigger any status change; explicit Request Revision and Mark Sent to Client action buttons cover the revision cycle — referenced in 87.2-04, 87.2-05 (no auto-status logic in audit-trail merge either)
+  - Existing `_applyProposalStateTransition(app/views/proposals.js:245-294)` signature unchanged — referenced in 87.2-04 (Request Revision + Mark Sent to Client both invoke it with parent_collection-aware payloads)
+  - **Manual deploy:** Plan 87.2-02 modifies firestore.rules — `firebase deploy --only firestore:rules` REQUIRED before Plan 87.2-03's smoke-test (operations_user assignment-check) and Plan 87.2-04's Request Revision flow will succeed for non-admin assigned users
+**UI hint**: yes
+
 ### Phase 88: Management Tab Shell + Create Engagement
 **Goal**: Super Admin gets a dedicated Management tab in navigation, with a "Create Engagement" form that auto-routes the new record to the right collection (projects vs services, one-time vs recurring) — the shell and the create-engagement slice can ship before the proposal queue.
 **Depends on**: Nothing on the v4.0 critical path (Mgmt Tab shell + Create Engagement are independent of Phase 87; Phase 89 wires the proposal queue into this same shell)
