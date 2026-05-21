@@ -153,13 +153,14 @@ export function renderAgeBadge(proposal) {
 /**
  * Single stage group card: header (label + count pill) + table of proposal rows.
  *
- * IMPORTANT: rows emit onclick handlers calling window.openProposalDetail and
- * window.openProposalModal. The consuming view (home.js) must register
- * window.openProposalModal before the cards are rendered. Phase 87.1: most
- * callers register window.openProposalModal = openProposalModal from
- * app/proposal-modal.js; the legacy window.openProposalDetail name is
- * still referenced inside this file for backward compatibility with any
- * detail modal still relying on it.
+ * IMPORTANT: rows emit onclick handlers calling window.openProposalModal.
+ * The consuming view must register window.openProposalModal before the
+ * cards are rendered. Phase 87.1: home.js registers
+ * window.openProposalModal = openProposalModal from app/proposal-modal.js
+ * inside its init() lifecycle; project-detail.js and service-detail.js do
+ * the same inside their attachWindowFunctions blocks. The onclick guards
+ * (`window.openProposalModal && ...`) make the call safe if the function
+ * has not yet been registered.
  */
 export function renderStageGroupCard(label, proposals) {
     const rowsHtml = proposals.map(p => {
