@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-07) paused for manual UAT.
 stopped_at: Phase 87.1 in-flight — executor agents spawning per wave
-last_updated: "2026-05-21T07:46:32.000Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 02 (Wave 2) DONE on v3.3. New shared utility app/proposal-modal.js (1,367 lines) extracted from proposals.js — exports openProposalModal(proposalId, context) + closeProposalModal(). Fresh getDoc() fetch on open and every lifecycle handler (no proposalsData dependency); 20 window functions registered on open / deleted on close. proposals.js untouched (its in-place modal stays live until /proposals route retires in Wave 6). Commit bb03a4f. Plans 04-06 (home.js sub-tabs, project-detail inline card, service-detail inline card) now unblocked."
+last_updated: "2026-05-21T08:03:00.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 03 (Wave 3) DONE on v3.3. app/engagement-create.js extended (131 → 654 lines) with renderEngagementForm/initEngagementForm/destroyEngagementForm exports alongside existing createEngagement(); proposals.js stripped of all engagement form code (2,409 → 2,013 lines, -396 net). Form HTML + 8 private helpers + clients/users onSnapshot listeners moved verbatim as a self-contained mountable unit. CR-01 avoided by construction: all 6 emitted window function names (submitNewEngagement, handleEngagementTypeChange, proposalSelectPersonnel, proposalRemovePersonnel, proposalShowPersonnelDropdown, proposalFilterPersonnelDropdown) match the 6 registered names exactly — no suffixed helper variant exists in either module. Commits 2d6fea0 (feat) + 4fb3611 (refactor). Plan 04 (home.js sub-tabs) unblocked."
 progress:
   total_phases: 25
   completed_phases: 22
   total_plans: 90
-  completed_plans: 88
-  percent: 98
+  completed_plans: 89
+  percent: 99
 ---
 
 # Project State
@@ -154,6 +154,7 @@ Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
 | Phase 87.1 P04 | ~12 | 2 tasks | 1 files |
 | Phase 87.1 P06 | ~15 | 2 tasks | 2 files |
 | Phase 87.1 P02 | 6 | 1 tasks | 1 files |
+| Phase 87.1 P03 | 9 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 87.1-02]: Projects + clients dropdown data loaded lazily on first openCreateProposalModal call and cached in module scope — avoids holding listeners for data only used by the Create/Edit sub-modal
 - [Phase 87.1-02]: proposals.js NOT modified — its in-place private modal must stay until /proposals route retires in Wave 6 (Plan 07); duplicate-code cleanup deferred to that wave
 - [Phase 87.1-02]: window.openApproveModal / window.openRejectModal registered as arrow-function wrappers over _openApproveOrRejectModal(id, mode) — preserves identical onclick strings from proposals.js while routing through a single mode-aware helper
+- [Phase 87.1-03]: Engagement form moved to app/engagement-create.js as a UNIT — HTML + 8 private helpers + clients/users onSnapshot listeners all extracted together. CR-01 from the reverted 87.1 attempt avoided by construction: emitter (form/helper HTML) and registrar (initEngagementForm) live in the same module and reference identical unsuffixed window function names; no suffixed renderProposalPillsFor / proposalSelectPersonnelIn variant exists anywhere
+- [Phase 87.1-03]: _formListeners array as scoped lifecycle owner — separate from any other listener tracking in engagement-create.js so destroyEngagementForm() can safely clear only its own clients/users subscribers
+- [Phase 87.1-03]: initEngagementForm() is idempotent — calls destroyEngagementForm() first as a reset guard so home.js can re-init on sub-tab activation without leaking listeners or stale state
+- [Phase 87.1-03]: proposals.js render() reduced to a no-op stub (return '') — pure module status confirmed; legacy modal code in showCreateModal/saveProposal kept alive via a const clientsData = [] referential-integrity stub until Wave 6 (Plan 06) retires the route and the modal functions together
 - [Phase 87.1-06]: STAGE_ORDER imported from proposals.js in home.js — no local redeclaration; single source of truth for stage/label config per cross-AI review recommendation
 - [Phase 87.1-06]: getDocs in separate try/catch in init() so proposals failure cannot block home stats (T-87.1-06-03 mitigate)
 - [Phase 87.1-06]: filterProposalsForUser returns [] for finance and procurement_staff — sub-nav never shown for those roles (T-87.1-06-01 mitigate)
