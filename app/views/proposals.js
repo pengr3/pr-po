@@ -1,39 +1,37 @@
 /* ========================================
-   PROPOSALS VIEW
-   Phase 88-02 — Proposals tab shell + Create Engagement form
+   PROPOSALS — Pure shared module (Phase 87.1)
 
-   Context decisions:
-   D-01: Tab labeled "Proposals" (renamed from Management).
-   D-02: Visible only to Super Admin; hard-gated at router level.
-   D-03: Inline "New Engagement" section at top; Phase 89 queue below; Phase 87 dashboard below that.
-   D-04: All writes delegated to createEngagement() — no addDoc here.
-   D-05: New engagements default to project_status='Draft'.
-   D-07: Personnel picker is a local copy of projects.js pattern (refactor candidate; noted below).
-   D-08: Client is optional for project type; required for one-time/recurring service types.
+   This file used to be a routed view backing the standalone /proposals tab.
+   That tab was retired in Phase 87.1 (D-02): proposal surfaces now live as
+   home sub-tabs (Engagements + Proposals) and inline cards on project/service
+   detail. The proposal detail modal (with audit log, comms log, attachment
+   widget, and all lifecycle action handlers) moved to app/proposal-modal.js
+   in Plan 02; the Create Engagement form moved to app/engagement-create.js
+   in Plan 03. This file now exports only the shared constants, badge/age
+   helpers, the stage-group renderer, and the writeBatch state-transition
+   helper consumed by:
 
-   Phase 88-02 refactor candidate: The personnel multi-select pill+dropdown is duplicated
-   across projects.js, services.js, and this file. Future cleanup: extract to app/picker-personnel.js.
+     - app/views/home.js               (Proposals sub-tab dashboard + queue)
+     - app/proposal-modal.js           (detail modal + lifecycle actions)
+     - app/views/project-detail.js     (inline proposal card)
+     - app/views/service-detail.js     (inline proposal card)
+
+   render() / init() / destroy() remain as no-op stubs so any straggling
+   caller (test harness, dynamic import) gets a defined function rather
+   than a runtime error. The router has no /proposals entry; this module
+   is only consumed via static `import { … } from './proposals.js'`.
    ======================================== */
 
-import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp, writeBatch } from '../firebase.js';
-
-import { showLoading, showToast, escapeHTML, formatCurrency, formatTimestamp, generateProposalId, cryptoRandomUuid } from '../utils.js';
-// Phase 87.1 Plan 03: createEngagement, syncPersonnelToAssignments,
-// syncServicePersonnelToAssignments imports removed — the Create Engagement
-// submit handler (submitNewEngagement) moved with the rest of the form to
-// app/engagement-create.js, where these helpers are now consumed.
-import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
+import { db, doc, writeBatch, serverTimestamp } from '../firebase.js';
+import { escapeHTML, formatCurrency, cryptoRandomUuid } from '../utils.js';
 
 // ----------------------------------------
-// Module-level constants (Phase 87.1 — exported for home.js, proposal-modal.js,
-// project-detail.js, service-detail.js, and other consumers).
+// Module-level exported constants
 // ----------------------------------------
 
 /**
  * Proposal stage order for the Proposal Dashboard grouping (UI-SPEC order).
- * Drafts are rendered above this list (see renderProposalDashboard()).
- * Phase 87.1: lifted from inside renderProposalDashboard() to module scope so
- * downstream views can import it without coupling to the dashboard implementation.
+ * Drafts are rendered above this list by the consuming view.
  */
 export const STAGE_ORDER = [
     { key: 'pending_internal', label: 'Pending Internal Approval' },
@@ -63,207 +61,43 @@ export const PROPOSAL_RANGE_STATUSES = [
 // ----------------------------------------
 // Module state
 // ----------------------------------------
-// Phase 87.1 Plan 03: engagement form state (clientsData, usersData,
-// selectedPersonnel, currentEngagementType) moved with the form to
-// app/engagement-create.js. `listeners` stays — still tracks the proposals
-// + projects onSnapshot subscribers below.
-let listeners = [];
-
-// Phase 87.1 Plan 03 — referential-integrity stub for the legacy Create/Edit
-// Proposal modal still living in this module (`showCreateModal`, `saveProposal`).
-// The Phase 88 clients onSnapshot listener that used to populate this array
-// has moved to app/engagement-create.js with the rest of the engagement form.
-// The legacy modal is unreachable via UI (render() returns '' and the
-// /proposals route is retired in Wave 6), but `window.openCreateProposalModal`
-// is still registered, so any straggling caller would otherwise hit a
-// ReferenceError at line ~814/~919 below. Keep as an empty array — the modal
-// will simply show no client options but will not crash. Plan 06 retires the
-// route entirely; this stub goes away with the modal functions.
-const clientsData = [];
-
-// --- Phase 87 module state (Plan 02) ---
-let proposalsData = [];      // all proposal docs from onSnapshot — sorted/grouped at render time
-let projectsData = [];       // active projects for Create/Edit Proposal dropdown (Open Question 3)
-let currentProposal = null;  // currently-open proposal in the detail modal (null when modal closed)
-let createModalMode = 'create'; // 'create' | 'edit' — set when modal opens; read by saveProposal()
-let createModalEditingId = null; // Firestore doc ID when in edit mode; null when create
+// renderApprovalQueue reads from this array. There is no longer a Firestore
+// listener inside this module that populates it — the home Proposals sub-tab
+// implements its own local approval queue with fresh-fetch confirm path
+// (see app/views/home.js _loadHomeProposalsTab + _renderHomeApprovalQueueHtml).
+// proposalsData stays as an empty array so the renderApprovalQueue export
+// remains callable without crashing for any external caller. The function
+// will render the empty-state UI when called against this empty array.
+let proposalsData = [];
 
 // ----------------------------------------
-// render() — Phase 87.1 D-03: pure-module stub.
+// Lifecycle stubs — proposals.js is no longer a routed view (D-02). The
+// router has no /proposals entry, so render/init/destroy are never invoked
+// by the router. The stubs remain only as a defensive surface for any
+// straggling caller (test harness, dynamic import).
 // ----------------------------------------
-// proposals.js is no longer a routed view as of Phase 87.1. The Engagements
-// form HTML moved to app/engagement-create.js (Plan 03); the approval queue
-// + proposal dashboard now mount inside the home Proposals sub-tab (Plan 04);
-// the proposal detail modal moved to app/proposal-modal.js (Plan 02). The
-// /proposals route is retired in Wave 6 (Plan 06). The stub remains so any
-// straggling caller still gets a defined function rather than a runtime error.
 
 export function render(activeTab = null, param = null) {
     return '';
 }
 
-// ----------------------------------------
-// Engagement form code REMOVED (Phase 87.1 Plan 03 D-07)
-// ----------------------------------------
-// The Create Engagement form HTML, its 8 private helper functions
-// (renderProposalPills, proposalFilterPersonnelDropdown,
-// proposalShowPersonnelDropdown, proposalSelectPersonnel,
-// proposalRemovePersonnel, handleEngagementTypeChange,
-// populateClientDropdown, submitNewEngagement), its module state
-// (clientsData, usersData, selectedPersonnel, currentEngagementType),
-// and its clients/users onSnapshot listeners moved verbatim to
-// app/engagement-create.js as renderEngagementForm() / initEngagementForm() /
-// destroyEngagementForm(). The home Engagements sub-tab (Plan 04) mounts them.
-
-// ----------------------------------------
-// init()
-// ----------------------------------------
-
 export async function init(activeTab = null, param = null) {
-    // Phase 87.1 Plan 03: engagement window function registrations
-    // (submitNewEngagement, handleEngagementTypeChange, proposalSelectPersonnel,
-    // proposalRemovePersonnel, proposalShowPersonnelDropdown,
-    // proposalFilterPersonnelDropdown) moved to initEngagementForm() in
-    // app/engagement-create.js. They are now registered by the home Engagements
-    // sub-tab init flow, not here.
-
-    // Phase 87: activate proposal dashboard mount point.
-    // (Mount no longer renders since render() returns ''; harmless no-op when
-    // the element is absent. Kept for symmetry until route retirement in Wave 6.)
-    const mount = document.getElementById('proposal-dashboard-mount');
-    if (mount) mount.style.display = 'block';
-
-    // --- Phase 87 window functions (Plan 02) ---
-    window.openProposalDetail        = openProposalDetail;
-    window.closeProposalDetailModal  = closeProposalDetailModal;
-    window.openCreateProposalModal   = openCreateProposalModal;
-    window.openEditProposalModal     = openEditProposalModal;
-    window.closeCreateProposalModal  = closeCreateProposalModal;
-    window.saveProposal              = saveProposal;
-    // Phase 87 Plan 03 — state-transition handlers (real implementations):
-    window.submitProposalForApproval = submitProposalForApproval;
-    window.openApproveModal          = openApproveModal;
-    window.openRejectModal           = openRejectModal;
-    window.submitProposalApproval    = submitProposalApproval;
-    window.openLossModal             = openLossModal;
-    window.submitLoss                = submitLoss;
-    window.openClientApprovedModal   = openClientApprovedModal;
-    window.submitClientApproved      = submitClientApproved;
-    window.submitMarkSentToClient    = submitMarkSentToClient;
-    // Phase 87 Plan 04 — attachment widget handlers (real implementations):
-    window.saveProposalAttachment           = saveProposalAttachment;
-    window.removeProposalAttachment         = removeProposalAttachment;
-    window._openProposalAttachmentReplace   = _openProposalAttachmentReplace;
-    window._openProposalAttachmentRemoveConfirm = _openProposalAttachmentRemoveConfirm;
-    // Phase 87 Plan 05 — comms log handlers (real implementations):
-    window.toggleAddCommsForm           = toggleAddCommsForm;
-    window.saveCommsEntry               = saveCommsEntry;
-    // Phase 89 queue window functions:
-    window.queueOpenApproveModal = queueOpenApproveModal;
-    window.queueOpenRejectModal = queueOpenRejectModal;
-    window.queueConfirmAction = queueConfirmAction;
-    window.queueCancelModal = queueCancelModal;
-
-    // Phase 87.1 Plan 03: clients and users onSnapshot listeners moved to
-    // initEngagementForm() in app/engagement-create.js. The home Engagements
-    // sub-tab starts them on demand.
-
-        // --- Phase 87 listeners (Plan 02) ---
-
-        // Proposals listener — real-time dashboard updates (D-10: any active user can read)
-        const proposalsListener = onSnapshot(
-            collection(db, 'proposals'),
-            (snapshot) => {
-                proposalsData = [];
-                snapshot.forEach(d => proposalsData.push({ id: d.id, ...d.data() }));
-                renderProposalDashboard();
-                renderApprovalQueue();
-            },
-            (err) => console.error('[Proposals] proposals listener error:', err)
-        );
-        listeners.push(proposalsListener);
-
-        // Projects listener — populates the Create/Edit Proposal modal project dropdown.
-        // Filter to status=='active' projects only (mirrors mrf-form.js loadProjects pattern).
-        // NOTE: 'status' here refers to the 'active'/'inactive' boolean-equivalent flag
-        // on projects docs, NOT 'project_status'. If the field is different in this
-        // codebase, the executor must read app/views/mrf-form.js for the canonical query.
-        const projectsListener = onSnapshot(
-            collection(db, 'projects'),
-            (snapshot) => {
-                projectsData = [];
-                snapshot.forEach(d => {
-                    const data = { id: d.id, ...d.data() };
-                    // Filter Draft + inactive projects out of the Create Proposal dropdown.
-                    // Draft is hidden because a proposal must be linked to a real project.
-                    // Inactive is hidden for the same reason. Match Phase 88-02 procurement.js filter pattern.
-                    if (data.project_status === 'Draft') return;
-                    if (data.active === false) return;
-                    projectsData.push(data);
-                });
-                projectsData.sort((a, b) =>
-                    (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || '')
-                );
-            },
-            (err) => console.error('[Proposals] projects listener error:', err)
-        );
-        listeners.push(projectsListener);
+    // Intentionally empty. The proposal lifecycle listeners that used to live
+    // here (proposals + projects onSnapshot) and the ~21 window-function
+    // registrations for the detail modal were retired in Phase 87.1 Plan 06.
+    // Per-surface lifecycles now own their own listeners and window functions:
+    //   - home.js Proposals sub-tab: one-time getDocs + local queue
+    //   - proposal-modal.js: registers all detail-modal action window fns
+    //     inside openProposalModal(), deletes them inside closeProposalModal()
 }
 
-// ----------------------------------------
-// destroy()
-// ----------------------------------------
-
 export async function destroy() {
-    listeners.forEach(unsub => unsub?.());
-    listeners = [];
-
-    // Phase 87.1 Plan 03: engagement window function deletes
-    // (submitNewEngagement, handleEngagementTypeChange, proposalSelectPersonnel,
-    // proposalRemovePersonnel, proposalShowPersonnelDropdown,
-    // proposalFilterPersonnelDropdown) and module state resets
-    // (clientsData, usersData, selectedPersonnel, currentEngagementType)
-    // moved to destroyEngagementForm() in app/engagement-create.js.
-
-    // --- Phase 87 window function cleanup (Plan 02) ---
-    delete window.openProposalDetail;
-    delete window.closeProposalDetailModal;
-    delete window.openCreateProposalModal;
-    delete window.openEditProposalModal;
-    delete window.closeCreateProposalModal;
-    delete window.saveProposal;
-    delete window.submitProposalForApproval;
-    delete window.openApproveModal;
-    delete window.openRejectModal;
-    delete window.submitProposalApproval;
-    delete window.openLossModal;
-    delete window.submitLoss;
-    delete window.openClientApprovedModal;
-    delete window.submitClientApproved;
-    delete window.submitMarkSentToClient;
-    delete window.saveProposalAttachment;
-    delete window.removeProposalAttachment;
-    delete window._openProposalAttachmentReplace;
-    delete window._openProposalAttachmentRemoveConfirm;
-    delete window.toggleAddCommsForm;
-    delete window.saveCommsEntry;
-
-    // --- Phase 89 queue window function cleanup ---
-    delete window.queueOpenApproveModal;
-    delete window.queueOpenRejectModal;
-    delete window.queueConfirmAction;
-    delete window.queueCancelModal;
-
-    // --- Phase 87 module state reset (Plan 02) ---
-    proposalsData = [];
-    projectsData = [];
-    currentProposal = null;
-    createModalMode = 'create';
-    createModalEditingId = null;
+    // Intentionally empty. Symmetric with init() above.
 }
 
 // ============================================================
-// PHASE 87 — Proposal Dashboard rendering (Plan 02)
+// Status badge + age helpers (consumed by home.js inline-card surfaces,
+// proposal-modal.js, project-detail.js, service-detail.js)
 // ============================================================
 
 /**
@@ -284,7 +118,7 @@ export function getProposalStatusBadge(status) {
 
 /**
  * Days since the proposal entered its current status.
- * Reads current_status_since (Firestore Timestamp) — set on every transition by Plan 03.
+ * Reads current_status_since (Firestore Timestamp) — set on every transition by _applyProposalStateTransition.
  */
 export function getAgeInStageDays(proposal) {
     const ts = proposal.current_status_since || proposal.created_at;
@@ -312,74 +146,20 @@ export function renderAgeBadge(proposal) {
     return `<span style="color:#64748b;font-size:13px;">${escapeHTML(label)}</span>`;
 }
 
-/**
- * Render the entire Proposal Dashboard into #proposal-dashboard-mount.
- * Called by the proposals onSnapshot listener whenever proposalsData changes.
- */
-function renderProposalDashboard() {
-    const mount = document.getElementById('proposal-dashboard-mount');
-    if (!mount) return;
-
-    // Stage groups in UI-SPEC order — STAGE_ORDER is now a module-level export
-    // (lifted in Phase 87.1 so other views can import it).
-
-    // Group by status (drafts also surfaced under a single 'draft' group at the bottom)
-    const grouped = {};
-    proposalsData.forEach(p => {
-        const key = p.status || 'draft';
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(p);
-    });
-    // Sort within each group: newest first by created_at fallback to title
-    Object.values(grouped).forEach(arr => {
-        arr.sort((a, b) => {
-            const ams = a.created_at?.toMillis ? a.created_at.toMillis() : (a.created_at?.seconds * 1000 || 0);
-            const bms = b.created_at?.toMillis ? b.created_at.toMillis() : (b.created_at?.seconds * 1000 || 0);
-            return bms - ams;
-        });
-    });
-
-    const totalProposals = proposalsData.length;
-
-    // Header with "New Proposal" CTA (verbatim UI-SPEC copy)
-    const header = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:2rem 0 1rem 0;">
-            <h2 style="margin:0;font-size:1.5rem;color:#1e293b;">Proposal Dashboard</h2>
-            <button class="btn btn-primary" onclick="window.openCreateProposalModal()">New Proposal</button>
-        </div>
-    `;
-
-    // Empty state (when no proposals exist at all)
-    if (totalProposals === 0) {
-        mount.innerHTML = header + `
-            <div class="card">
-                <div class="card-body" style="text-align:center;padding:3rem 1.5rem;">
-                    <h3 style="margin:0 0 0.5rem 0;font-size:1.125rem;color:#1e293b;">No proposals yet</h3>
-                    <p style="margin:0;color:#64748b;font-size:0.9375rem;">Create a proposal from the New Engagement section above to begin the proposal lifecycle.</p>
-                </div>
-            </div>
-        `;
-        return;
-    }
-
-    // Build stage group cards (skip empty stages)
-    let groupsHtml = '';
-
-    // Drafts group surfaces above the stages
-    if (grouped['draft'] && grouped['draft'].length > 0) {
-        groupsHtml += renderStageGroupCard('Draft', grouped['draft']);
-    }
-    STAGE_ORDER.forEach(({ key, label }) => {
-        const items = grouped[key] || [];
-        if (items.length === 0) return; // hide empty stages per UI-SPEC
-        groupsHtml += renderStageGroupCard(label, items);
-    });
-
-    mount.innerHTML = header + groupsHtml;
-}
+// ============================================================
+// Stage-group card renderer (consumed by home.js Proposals sub-tab)
+// ============================================================
 
 /**
  * Single stage group card: header (label + count pill) + table of proposal rows.
+ *
+ * IMPORTANT: rows emit onclick handlers calling window.openProposalDetail and
+ * window.openProposalModal. The consuming view (home.js) must register
+ * window.openProposalModal before the cards are rendered. Phase 87.1: most
+ * callers register window.openProposalModal = openProposalModal from
+ * app/proposal-modal.js; the legacy window.openProposalDetail name is
+ * still referenced inside this file for backward compatibility with any
+ * detail modal still relying on it.
  */
 export function renderStageGroupCard(label, proposals) {
     const rowsHtml = proposals.map(p => {
@@ -395,7 +175,7 @@ export function renderStageGroupCard(label, proposals) {
         return `
             <tr style="${overdueBorder}">
                 <td style="padding:8px 10px;">
-                    <a href="#" onclick="event.preventDefault();window.openProposalDetail('${escapeHTML(p.id)}')"
+                    <a href="#" onclick="event.preventDefault();window.openProposalModal && window.openProposalModal('${escapeHTML(p.id)}')"
                        style="font-size:13px;color:#1a73e8;text-decoration:none;font-weight:500;">${escapeHTML(p.proposal_id || p.id)}</a>
                 </td>
                 <td style="padding:8px 10px;font-size:14px;font-weight:600;color:#1e293b;">${titleTruncated}</td>
@@ -404,7 +184,7 @@ export function renderStageGroupCard(label, proposals) {
                 <td style="padding:8px 10px;font-size:13px;color:#1e293b;text-align:right;">${amountDisplay}</td>
                 <td style="padding:8px 10px;">${renderAgeBadge(p)}</td>
                 <td style="padding:8px 10px;">
-                    <button class="btn btn-sm btn-outline" onclick="window.openProposalDetail('${escapeHTML(p.id)}')" aria-label="View proposal">View</button>
+                    <button class="btn btn-sm btn-outline" onclick="window.openProposalModal && window.openProposalModal('${escapeHTML(p.id)}')" aria-label="View proposal">View</button>
                 </td>
             </tr>
         `;
@@ -437,611 +217,23 @@ export function renderStageGroupCard(label, proposals) {
 }
 
 // ============================================================
-// PHASE 87 — Audit Trail rendering (Plan 02)
-// ============================================================
-
-const AUDIT_ACTION_DOT_COLORS = {
-    CREATED:              '#64748b',
-    SUBMITTED:            '#1a73e8',
-    APPROVED:             '#059669',
-    REJECTED:             '#ea4335',
-    ATTACHMENT_REPLACED:  '#f59e0b',
-    SENT_TO_CLIENT:       '#1a73e8',
-    CLIENT_APPROVED:      '#059669',
-    LOSS_RECORDED:        '#ea4335'
-};
-
-const AUDIT_ACTION_LABELS = {
-    CREATED:              'Created',
-    SUBMITTED:            'Submitted for Approval',
-    APPROVED:             'Approved',
-    REJECTED:             'Rejected',
-    ATTACHMENT_REPLACED:  'Attachment Replaced',
-    SENT_TO_CLIENT:       'Sent to Client',
-    CLIENT_APPROVED:      'Client Approved',
-    LOSS_RECORDED:        'Marked as Loss'
-};
-
-/**
- * Render the vertical audit-trail thread (newest first).
- */
-function renderAuditTrail(proposal) {
-    const entries = (proposal.audit_log || []).slice().sort((a, b) => {
-        const ams = a.ts?.toMillis ? a.ts.toMillis() : (a.ts?.seconds * 1000 || 0);
-        const bms = b.ts?.toMillis ? b.ts.toMillis() : (b.ts?.seconds * 1000 || 0);
-        return bms - ams; // newest first
-    });
-    if (entries.length === 0) {
-        return `<div style="color:#64748b;font-size:13px;">No audit entries.</div>`;
-    }
-    const itemsHtml = entries.map((e, idx) => {
-        const dotColor = AUDIT_ACTION_DOT_COLORS[e.action] || '#64748b';
-        const label = AUDIT_ACTION_LABELS[e.action] || (e.action || 'Unknown');
-        const tsLabel = e.ts ? formatTimestamp(e.ts) : '';
-        const commentHtml = e.comment
-            ? `<div style="font-size:13px;color:#1e293b;font-style:italic;margin-top:4px;">${escapeHTML(e.comment)}</div>`
-            : '';
-        const connector = idx < entries.length - 1
-            ? `<div style="position:absolute;left:3px;top:12px;bottom:-8px;width:1px;background:#e2e8f0;"></div>`
-            : '';
-        return `
-            <div style="position:relative;padding-left:20px;padding-bottom:12px;">
-                <div style="position:absolute;left:0;top:4px;width:8px;height:8px;border-radius:50%;background:${dotColor};"></div>
-                ${connector}
-                <div style="font-size:13px;font-weight:600;color:#1e293b;">${escapeHTML(label)}</div>
-                <div style="font-size:13px;color:#64748b;">${escapeHTML(tsLabel)} · ${escapeHTML(e.actor_name || '—')}</div>
-                ${commentHtml}
-            </div>
-        `;
-    }).join('');
-    return itemsHtml;
-}
-
-// ============================================================
-// PHASE 87 — Proposal Detail modal (Plan 02)
-// ============================================================
-
-/**
- * Build action button HTML based on proposal.status and current user role.
- * Plan 02: buttons render but call STUB window functions that toast 'Plan 03'.
- */
-function renderProposalActionButtons(proposal) {
-    const cu = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-    const canApprove = ['super_admin', 'operations_admin'].includes(cu?.role);
-    const status = proposal.status || 'draft';
-    const docId = escapeHTML(proposal.id);
-
-    let buttons = [];
-    if (status === 'draft' || status === 'for_revision') {
-        if (canApprove) {
-            buttons.push(`<button class="btn btn-primary" style="width:100%;" onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button>`);
-        }
-        buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.openEditProposalModal('${docId}')">Edit Proposal</button>`);
-    } else if (status === 'pending_internal') {
-        if (canApprove) {
-            buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openApproveModal('${docId}')">Approve Proposal</button>`);
-            buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openRejectModal('${docId}')">Reject Proposal</button>`);
-        }
-    } else if (status === 'pending_client') {
-        if (canApprove) {
-            buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.submitMarkSentToClient('${docId}')">Mark Sent to Client</button>`);
-            buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openClientApprovedModal('${docId}')">Client Approved</button>`);
-            buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openLossModal('${docId}')">Mark as Loss</button>`);
-        }
-    }
-    // client_approved + loss: no further actions (UI-SPEC table)
-
-    if (buttons.length === 0) {
-        return `<div style="font-size:13px;color:#64748b;">No further actions.</div>`;
-    }
-    return `<div style="display:flex;flex-direction:column;gap:8px;">${buttons.join('')}</div>`;
-}
-
-/**
- * Build the Proposal Detail modal HTML for the given proposal doc.
- */
-function buildProposalDetailModalHtml(proposal) {
-    const titleSafe = escapeHTML((proposal.title || '').slice(0, 50));
-    const idSafe = escapeHTML(proposal.proposal_id || proposal.id);
-    return `
-    <div id="proposalDetailModal" class="modal" style="display:flex;">
-        <div class="modal-content" style="max-width:900px;max-height:85vh;display:flex;flex-direction:column;">
-            <div class="modal-header">
-                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${idSafe} — ${titleSafe}</h2>
-                <button class="modal-close" aria-label="Close proposal detail" onclick="window.closeProposalDetailModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:1.5rem;overflow-y:auto;flex:1;display:grid;grid-template-columns:3fr 2fr;gap:1.5rem;">
-                <!-- LEFT: details + comms log + attachment -->
-                <div>
-                    ${buildProposalDetailsBlock(proposal)}
-                    ${buildAttachmentSection(proposal)}
-                    ${buildCommsLogSection(proposal)}
-                </div>
-                <!-- RIGHT: audit trail + action buttons -->
-                <div>
-                    <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0 0 0.75rem 0;">Audit Trail</h3>
-                    ${renderAuditTrail(proposal)}
-                    <hr style="border:none;border-top:1px solid #e5e7eb;margin:1rem 0;">
-                    <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0 0 0.75rem 0;">Actions</h3>
-                    ${renderProposalActionButtons(proposal)}
-                </div>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <span>${getProposalStatusBadge(proposal.status || 'draft')}</span>
-                <button class="btn btn-outline" onclick="window.closeProposalDetailModal()">Close</button>
-            </div>
-        </div>
-    </div>`;
-}
-
-function buildProposalDetailsBlock(proposal) {
-    const amount = (proposal.amount != null && proposal.amount !== '')
-        ? `₱${formatCurrency(proposal.amount)}`
-        : '—';
-    return `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
-            <div style="grid-column:1/-1;">
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Title</div>
-                <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.title || '—')}</div>
-            </div>
-            <div style="grid-column:1/-1;">
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Description</div>
-                <div style="color:#1e293b;font-size:14px;line-height:1.5;white-space:pre-wrap;">${escapeHTML(proposal.description || '—')}</div>
-            </div>
-            <div>
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Amount</div>
-                <div style="font-weight:600;color:#1e293b;">${amount}</div>
-            </div>
-            <div>
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Target Client</div>
-                <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.target_client_name || '(none)')}</div>
-            </div>
-            <div>
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Project</div>
-                <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.project_code || '—')}</div>
-            </div>
-            <div>
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Version</div>
-                <div style="font-weight:600;color:#1e293b;">v1</div>
-            </div>
-        </div>
-    `;
-}
-
-function buildAttachmentSection(proposal) {
-    const has = !!(proposal.attachment_kind);
-    const docId = escapeHTML(proposal.id);
-
-    if (has) {
-        // State B — attachment exists
-        const isLink = proposal.attachment_kind === 'link';
-        const url = proposal.attachment_url || '';
-        const filename = proposal.attachment_filename || '';
-        let displayLabel = '';
-        if (isLink) {
-            try {
-                displayLabel = new URL(url).hostname;
-            } catch {
-                displayLabel = 'View link';
-            }
-        } else {
-            displayLabel = filename || 'Download file';
-        }
-        const linkLabel = isLink ? 'Attached link' : 'Attached file';
-        return `
-            <div id="proposalAttachmentWidget" style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
-                <div style="font-size:13px;color:#64748b;margin-bottom:6px;">${escapeHTML(linkLabel)}</div>
-                <div style="font-size:14px;color:#1e293b;margin-bottom:8px;">
-                    <a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">${escapeHTML(displayLabel)}</a>
-                </div>
-                <div id="proposalAttachmentActions" style="display:flex;gap:8px;">
-                    <button class="btn btn-sm btn-outline" onclick="window._openProposalAttachmentReplace('${docId}')">Replace</button>
-                    <button class="btn btn-sm" style="color:#ea4335;border:1px solid #ea4335;background:white;" onclick="window._openProposalAttachmentRemoveConfirm('${docId}')">Remove</button>
-                </div>
-                <div id="proposalAttachmentRemoveConfirm" style="display:none;margin-top:8px;padding:8px;background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;">
-                    <div style="font-size:13px;color:#1e293b;margin-bottom:6px;">Remove this attachment? This cannot be undone.</div>
-                    <div style="display:flex;gap:6px;">
-                        <button class="btn btn-sm btn-danger" onclick="window.removeProposalAttachment('${docId}')">Yes, remove</button>
-                        <button class="btn btn-sm btn-outline" onclick="document.getElementById('proposalAttachmentRemoveConfirm').style.display='none';">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    // State A — no attachment yet (also used for Replace mode via _openProposalAttachmentReplace)
-    return `
-        <div id="proposalAttachmentWidget" style="border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;margin-bottom:1.5rem;">
-            <div style="font-size:13px;color:#64748b;margin-bottom:8px;">Attachment</div>
-            <div id="proposalAttachmentLinkInput" style="margin-bottom:8px;">
-                <input type="url" id="proposalAttachmentUrl"
-                       placeholder="https://drive.google.com/..."
-                       style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
-            </div>
-            <div id="proposalAttachmentError" style="display:none;color:#ea4335;font-size:13px;margin-bottom:8px;"></div>
-            <button class="btn btn-sm btn-outline" onclick="window.saveProposalAttachment('${docId}')">Save Attachment</button>
-        </div>
-    `;
-}
-
-/** Placeholder for Plan 05 — comms log + inline add form. Renders entries read-only. */
-// ============================================================
-// PHASE 87 — Comms Log rendering (Plan 05)
-// ============================================================
-
-const COMMS_TYPE_META = {
-    sent:               { label: 'Sent',                cls: 'badge-primary' },
-    feedback_received:  { label: 'Feedback Received',   cls: 'status-badge pending' },
-    revision_requested: { label: 'Revision Requested',  cls: 'status-badge rejected' }
-};
-
-function _renderCommsTypeBadge(type) {
-    const meta = COMMS_TYPE_META[type] || { label: type || '—', cls: 'badge-secondary' };
-    return `<span class="${meta.cls}" style="font-size:12px;padding:2px 8px;border-radius:4px;">${escapeHTML(meta.label)}</span>`;
-}
-
-function _renderCommsEntry(entry) {
-    const dateLabel = entry.date || '—';
-    const descSafe = escapeHTML(entry.description || '');
-    // Attachment display
-    let attachmentHtml = '';
-    if (entry.attachment_kind === 'link' && entry.attachment_url) {
-        let dom = 'View link';
-        try { dom = new URL(entry.attachment_url).hostname; } catch {}
-        attachmentHtml = `<div style="font-size:13px;margin-top:4px;"><a href="${escapeHTML(entry.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">${escapeHTML(dom)}</a></div>`;
-    } else if (entry.attachment_kind === 'file' && entry.attachment_url) {
-        attachmentHtml = `<div style="font-size:13px;margin-top:4px;"><a href="${escapeHTML(entry.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">${escapeHTML(entry.attachment_filename || 'Download file')}</a></div>`;
-    }
-    return `
-        <div style="padding:10px 0;border-bottom:1px solid #f1f5f9;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
-                <div>
-                    <span style="font-size:13px;color:#475569;">${escapeHTML(dateLabel)}</span>
-                    <span style="margin:0 8px;color:#cbd5e1;">·</span>
-                    ${_renderCommsTypeBadge(entry.type)}
-                </div>
-                <div style="font-size:13px;color:#64748b;text-align:right;">by ${escapeHTML(entry.actor_name || entry.logged_by_name || '—')}</div>
-            </div>
-            <div style="font-size:14px;color:#1e293b;line-height:1.5;white-space:pre-wrap;">${descSafe}</div>
-            ${attachmentHtml}
-        </div>
-    `;
-}
-
-function buildCommsLogSection(proposal) {
-    const entries = (proposal.comms_log || []).slice().sort((a, b) => {
-        // Newest first by logged_at ISO string (string compare is correct for ISO 8601)
-        const ad = (typeof a.logged_at === 'string') ? a.logged_at : (a.logged_at?.toDate?.()?.toISOString?.() || '');
-        const bd = (typeof b.logged_at === 'string') ? b.logged_at : (b.logged_at?.toDate?.()?.toISOString?.() || '');
-        return bd.localeCompare(ad);
-    });
-    const entriesHtml = entries.length === 0
-        ? `<div style="font-size:13px;color:#64748b;padding:8px 0;">No communications logged yet. Use + Add Entry to record client contact.</div>`
-        : entries.map(e => _renderCommsEntry(e)).join('');
-
-    const docId = escapeHTML(proposal.id);
-    const today = new Date().toISOString().slice(0, 10);
-
-    return `
-        <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
-                <h3 style="font-size:14px;font-weight:600;color:#1e293b;margin:0;">Client Communications</h3>
-                <button id="proposalCommsAddBtn" class="btn btn-sm btn-outline" onclick="window.toggleAddCommsForm('${docId}')">+ Add Entry</button>
-            </div>
-            ${entriesHtml}
-            <!-- Inline Add Entry form (collapsed by default) -->
-            <div id="proposalCommsAddForm" style="display:none;margin-top:1rem;border:1px solid #e2e8f0;border-radius:6px;padding:12px;background:#f8fafc;">
-                <div style="margin-bottom:8px;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Date <span style="color:#ef4444;">*</span></label>
-                    <input type="date" id="proposalCommsDate" value="${today}" style="padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;">
-                </div>
-                <div style="margin-bottom:8px;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Type <span style="color:#ef4444;">*</span></label>
-                    <select id="proposalCommsType" style="width:100%;padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;background:white;">
-                        <option value="sent">Sent</option>
-                        <option value="feedback_received">Feedback Received</option>
-                        <option value="revision_requested">Revision Requested</option>
-                    </select>
-                </div>
-                <div style="margin-bottom:8px;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Description <span style="color:#ef4444;">*</span></label>
-                    <textarea id="proposalCommsDescription" rows="3" placeholder="Describe the communication..." style="width:100%;min-height:64px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
-                </div>
-                <div style="margin-bottom:8px;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.25rem;">Attachment <span style="color:#64748b;font-weight:400;">(optional)</span></label>
-                    <div style="margin-bottom:6px;">
-                        <input type="url" id="proposalCommsAttachmentUrl" placeholder="https://... (optional)" style="width:100%;padding:0.375rem 0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
-                    </div>
-                </div>
-                <div id="proposalCommsError" style="display:none;color:#ea4335;font-size:13px;margin-bottom:8px;"></div>
-                <div style="display:flex;justify-content:flex-end;gap:6px;">
-                    <button class="btn btn-sm btn-outline" onclick="window.toggleAddCommsForm('${docId}')">Cancel</button>
-                    <button class="btn btn-sm btn-primary" onclick="window.saveCommsEntry('${docId}')">Add Entry</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function openProposalDetail(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) {
-        showToast('Proposal not found.', 'error');
-        return;
-    }
-    currentProposal = proposal;
-    const existing = document.getElementById('proposalDetailModal');
-    if (existing) existing.remove();
-    document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(proposal));
-}
-
-function closeProposalDetailModal() {
-    const el = document.getElementById('proposalDetailModal');
-    if (el) el.remove();
-    currentProposal = null;
-}
-
-// ============================================================
-// PHASE 87 — Create / Edit Proposal modal (Plan 02)
-// ============================================================
-
-function openCreateProposalModal() {
-    createModalMode = 'create';
-    createModalEditingId = null;
-    showCreateModal(null);
-}
-
-function openEditProposalModal(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) {
-        showToast('Proposal not found.', 'error');
-        return;
-    }
-    createModalMode = 'edit';
-    createModalEditingId = proposalDocId;
-    showCreateModal(proposal);
-}
-
-function showCreateModal(existing) {
-    const existingEl = document.getElementById('proposalCreateModal');
-    if (existingEl) existingEl.remove();
-
-    const isEdit = createModalMode === 'edit';
-    const heading = isEdit ? 'Edit Proposal' : 'New Proposal';
-    const ctaLabel = isEdit ? 'Save Changes' : 'Save Proposal';
-
-    const titleVal = isEdit ? escapeHTML(existing?.title || '') : '';
-    const descVal = isEdit ? escapeHTML(existing?.description || '') : '';
-    const amountVal = (isEdit && existing?.amount != null) ? String(existing.amount) : '';
-    const currentProjectId = isEdit ? (existing?.project_id || '') : '';
-    const currentClientId = isEdit ? (existing?.target_client_id || '') : '';
-
-    // Build project <option> list from projectsData (active, non-Draft only — populated by Task 1 listener)
-    const projectOptions = projectsData.map(p => {
-        const sel = (p.id === currentProjectId) ? 'selected' : '';
-        const label = p.project_code
-            ? `${escapeHTML(p.project_code)} — ${escapeHTML(p.project_name || '')}`
-            : escapeHTML(p.project_name || '');
-        return `<option value="${escapeHTML(p.id)}" data-code="${escapeHTML(p.project_code || '')}" data-name="${escapeHTML(p.project_name || '')}" ${sel}>${label}</option>`;
-    }).join('');
-
-    // Build client <option> list from clientsData (Phase 88 listener already populates this)
-    const clientOptions = clientsData.map(c => {
-        const sel = (c.id === currentClientId) ? 'selected' : '';
-        const label = c.client_code
-            ? `${escapeHTML(c.client_code)} — ${escapeHTML(c.client_name || '')}`
-            : escapeHTML(c.client_name || '');
-        return `<option value="${escapeHTML(c.id)}" data-name="${escapeHTML(c.client_name || '')}" ${sel}>${label}</option>`;
-    }).join('');
-
-    const html = `
-    <div id="proposalCreateModal" class="modal" style="display:flex;z-index:1001;">
-        <div class="modal-content" style="max-width:640px;margin:auto;">
-            <div class="modal-header">
-                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${heading}</h2>
-                <button class="modal-close" aria-label="Close" onclick="window.closeCreateProposalModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:1.5rem;">
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Title <span style="color:#ef4444;">*</span></label>
-                    <input type="text" id="proposalCreateTitle" placeholder="Brief proposal title" value="${titleVal}" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
-                    <div id="proposalCreateTitleError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Project <span style="color:#ef4444;">*</span></label>
-                    <select id="proposalCreateProject" ${isEdit ? 'disabled' : ''} style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;background:white;">
-                        <option value="">— Select a project —</option>
-                        ${projectOptions}
-                    </select>
-                    <div id="proposalCreateProjectError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
-                    ${isEdit ? '<div style="font-size:12px;color:#64748b;margin-top:4px;">Project link cannot be changed after creation.</div>' : ''}
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Target Client <span style="color:#64748b;font-weight:400;">(optional)</span></label>
-                    <select id="proposalCreateClient" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;background:white;">
-                        <option value="">(none)</option>
-                        ${clientOptions}
-                    </select>
-                </div>
-                <div style="margin-bottom:1rem;">
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Description</label>
-                    <textarea id="proposalCreateDescription" rows="4" placeholder="Describe the scope and deliverables" style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;">${descVal}</textarea>
-                </div>
-                <div>
-                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Amount (PHP)</label>
-                    <input type="number" id="proposalCreateAmount" min="0" step="0.01" placeholder="0.00" value="${amountVal}" style="width:100%;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;">
-                    <div id="proposalCreateAmountError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
-                </div>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <button class="btn btn-outline" onclick="window.closeCreateProposalModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="window.saveProposal()">${ctaLabel}</button>
-            </div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function closeCreateProposalModal() {
-    const el = document.getElementById('proposalCreateModal');
-    if (el) el.remove();
-    createModalMode = 'create';
-    createModalEditingId = null;
-}
-
-async function saveProposal() {
-    // Validation: read DOM values + show inline errors
-    const titleEl = document.getElementById('proposalCreateTitle');
-    const projectEl = document.getElementById('proposalCreateProject');
-    const clientEl = document.getElementById('proposalCreateClient');
-    const descEl = document.getElementById('proposalCreateDescription');
-    const amountEl = document.getElementById('proposalCreateAmount');
-
-    const title = (titleEl?.value || '').trim();
-    const projectId = projectEl?.value || '';
-    const clientId = clientEl?.value || '';
-    const description = (descEl?.value || '').trim();
-    const amountRaw = amountEl?.value;
-    const amount = (amountRaw !== '' && amountRaw != null) ? parseFloat(amountRaw) : null;
-
-    // Clear previous inline errors
-    ['proposalCreateTitleError', 'proposalCreateProjectError', 'proposalCreateAmountError'].forEach(id => {
-        const e = document.getElementById(id);
-        if (e) { e.textContent = ''; e.style.display = 'none'; }
-    });
-
-    let hasError = false;
-    if (!title) {
-        const e = document.getElementById('proposalCreateTitleError');
-        if (e) { e.textContent = 'Proposal title is required.'; e.style.display = 'block'; }
-        hasError = true;
-    }
-    if (!projectId) {
-        const e = document.getElementById('proposalCreateProjectError');
-        if (e) { e.textContent = 'Please select a project for this proposal.'; e.style.display = 'block'; }
-        hasError = true;
-    }
-    if (amount != null && (isNaN(amount) || amount < 0)) {
-        const e = document.getElementById('proposalCreateAmountError');
-        if (e) { e.textContent = 'Amount must be a positive number if provided.'; e.style.display = 'block'; }
-        hasError = true;
-    }
-    if (hasError) return;
-
-    // Resolve denormalized fields from in-memory data
-    const project = projectsData.find(p => p.id === projectId);
-    const projectCode = project?.project_code || null;
-    const client = clientId ? clientsData.find(c => c.id === clientId) : null;
-    const clientName = client?.client_name || null;
-
-    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-    const actorUid = currentUser?.uid ?? null;
-    const actorName = currentUser?.full_name || 'Unknown';
-
-    showLoading(true);
-    try {
-        if (createModalMode === 'edit' && createModalEditingId) {
-            // EDIT mode: update title/description/amount/target_client_id/target_client_name only.
-            // D-04: metadata edits do NOT append to audit_log (only lifecycle actions do).
-            // Project link is immutable post-create (UI disables the dropdown).
-            await updateDoc(doc(db, 'proposals', createModalEditingId), {
-                title,
-                description: description || '',
-                amount: (amount != null) ? amount : null,
-                target_client_id: clientId || null,
-                target_client_name: clientName,
-                updated_at: serverTimestamp()
-            });
-            closeCreateProposalModal();
-            // Refresh detail modal if open
-            if (currentProposal && currentProposal.id === createModalEditingId) {
-                const refreshed = proposalsData.find(p => p.id === createModalEditingId);
-                if (refreshed) {
-                    currentProposal = refreshed;
-                    // Re-render modal HTML in place
-                    const existing = document.getElementById('proposalDetailModal');
-                    if (existing) {
-                        existing.remove();
-                        document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(currentProposal));
-                    }
-                }
-            }
-            showToast('Proposal updated.', 'success');
-        } else {
-            // CREATE mode: mint PROP ID, build full doc, write to Firestore.
-            const proposalId = await generateProposalId();
-            const createdAuditEntry = {
-                entry_id: cryptoRandomUuid(),
-                ts: new Date().toISOString(), // ISO string — serverTimestamp() sentinel not allowed inside array elements
-                actor_id: actorUid,
-                actor_name: actorName,
-                action: 'CREATED',
-                comment: null
-            };
-            const docPayload = {
-                proposal_id: proposalId,
-                project_id: projectId,
-                project_code: projectCode,
-                title,
-                description: description || '',
-                amount: (amount != null) ? amount : null,
-                target_client_id: clientId || null,
-                target_client_name: clientName,
-                status: 'draft',
-                attachment_kind: null,
-                attachment_url: null,
-                attachment_storage_path: null,
-                attachment_filename: null,
-                audit_log: [createdAuditEntry],
-                comms_log: [],
-                loss_reason: null,
-                current_status_since: serverTimestamp(),
-                created_by: actorUid,  // PROP-11 firestore.rules requires == request.auth.uid
-                created_at: serverTimestamp(),
-                updated_at: serverTimestamp()
-            };
-            await addDoc(collection(db, 'proposals'), docPayload);
-            closeCreateProposalModal();
-            showToast(`Proposal ${proposalId} created.`, 'success');
-        }
-    } catch (err) {
-        console.error('[Proposals] saveProposal failed:', err);
-        showToast(err?.message || 'Failed to save. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Phase 87.1: cryptoRandomUuid was relocated to app/utils.js; imported above.
-
-// ============================================================
-// PHASE 87 — Stub window functions for Plans 03 / 04 / 05
-// These render the toast 'Coming in Plan {N}' so users can click action buttons
-// in the detail modal without runtime errors. Plans 03/04/05 OVERWRITE these
-// via direct window assignment in their init() additions.
-// ============================================================
-
-function _stubP03(label) {
-    return () => showToast(`${label} — wiring ships in Plan 03 (state transitions).`, 'info');
-}
-function _stubP04(label) {
-    return () => showToast(`${label} — wiring ships in Plan 04 (attachments).`, 'info');
-}
-function _stubP05(label) {
-    return () => showToast(`${label} — wiring ships in Plan 05 (comms log).`, 'info');
-}
-
-// ============================================================
-// PHASE 87 — Shared state-transition helper (Plan 03)
+// Shared state-transition helper (consumed by home.js queue + proposal-modal.js
+// lifecycle handlers + project-detail.js + service-detail.js inline-card
+// Submit-for-Approval flow). Writes proposal doc + (optionally) parent
+// project/service doc in a single writeBatch.
 // ============================================================
 
 /**
  * Apply a proposal state transition atomically.
- * Writes ONE writeBatch covering proposal doc + (optionally) project doc.
+ * Writes ONE writeBatch covering proposal doc + (optionally) parent (project|service) doc.
  * Caller fires notifications AFTER batch.commit() in fire-and-forget try/catch.
  *
+ * Phase 87.1 D-06: parent_collection is read from the proposal doc itself
+ * ('projects' or 'services', defaulting to 'projects' for legacy docs) so
+ * service proposals correctly write project_status to the services collection.
+ *
  * @param {object} args
- * @param {object} args.proposal               - current proposal (with .id, .status, .audit_log, .project_id)
+ * @param {object} args.proposal               - current proposal (with .id, .status, .audit_log, .project_id, .parent_collection)
  * @param {string|null} args.newStatus         - new proposal.status, or null for audit-only (e.g. Mark Sent to Client)
  * @param {string|null} args.newProjectStatus  - new project.project_status, or null to skip project doc write
  * @param {string} args.auditAction            - 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'SENT_TO_CLIENT' | 'CLIENT_APPROVED' | 'LOSS_RECORDED'
@@ -1100,264 +292,23 @@ export async function _applyProposalStateTransition({ proposal, newStatus, newPr
     return newAuditEntry;
 }
 
-/**
- * After a state transition succeeds, re-render the detail modal (if open) with
- * the new audit entry + updated action buttons. onSnapshot will catch up; we
- * optimistically merge here for immediate user feedback.
- */
-function _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, statusUpdate, extraUpdates) {
-    setTimeout(() => {
-        let proposal = proposalsData.find(p => p.id === proposalDocId);
-        if (!proposal) return;
-        const hasOurEntry = (proposal.audit_log || []).some(e => e.entry_id === newAuditEntry.entry_id);
-        if (!hasOurEntry) {
-            proposal = {
-                ...proposal,
-                ...statusUpdate,
-                ...(extraUpdates || {}),
-                audit_log: [...(proposal.audit_log || []), newAuditEntry]
-            };
-        }
-        currentProposal = proposal;
-        const existing = document.getElementById('proposalDetailModal');
-        if (existing) {
-            existing.remove();
-            document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(proposal));
-        }
-    }, 0);
-}
-
 // ============================================================
-// PHASE 87 — Transition: Submit for Internal Approval (Plan 03)
-//   Source statuses:  draft, for_revision
-//   Target status:    pending_internal
-//   Project status:   Proposal for Internal Approval
-//   Notification:     NOTIF-09 fan-out to super_admin + operations_admin
-// ============================================================
-async function submitProposalForApproval(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (!['draft', 'for_revision'].includes(proposal.status)) {
-        showToast('Cannot submit a proposal that is not in Draft or For Revision.', 'error');
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const newAuditEntry = await _applyProposalStateTransition({
-            proposal,
-            newStatus: 'pending_internal',
-            newProjectStatus: 'Proposal for Internal Approval',
-            auditAction: 'SUBMITTED',
-            auditComment: null
-        });
-
-        // NOTIF-09 — fan-out to all approvers (D-09 message + link format)
-        try {
-            const actor = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-            const actorName = actor?.full_name || 'Unknown';
-            await createNotificationForRoles({
-                roles: ['super_admin', 'operations_admin'],
-                type: NOTIFICATION_TYPES.PROPOSAL_SUBMITTED,
-                message: `Proposal ${proposal.title} submitted for approval by ${actorName}`,
-                link: `#/proposals?id=${proposal.proposal_id}`,
-                source_collection: 'proposals',
-                source_id: proposal.proposal_id,
-                excludeActor: true
-            });
-        } catch (notifErr) {
-            console.error('[Proposals] NOTIF-09 failed:', notifErr);
-        }
-
-        showToast('Proposal submitted for internal approval. Approvers have been notified.', 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: 'pending_internal' });
-    } catch (err) {
-        console.error('[Proposals] submitProposalForApproval failed:', err);
-        showToast(err?.message || 'Failed to submit proposal. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 87 — Transition: Mark Sent to Client (Plan 03)
-//   Source statuses:  pending_client
-//   Target status:    pending_client (idempotent — audit only)
-//   Project status:   (no change — D-08 explicit)
-//   Notification:     none (internal bookkeeping)
-// ============================================================
-async function submitMarkSentToClient(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_client') {
-        showToast('Mark Sent to Client is only available after the proposal is approved internally.', 'error');
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const newAuditEntry = await _applyProposalStateTransition({
-            proposal,
-            newStatus: null,                  // stay in pending_client
-            newProjectStatus: null,           // no project status change
-            auditAction: 'SENT_TO_CLIENT',
-            auditComment: null
-        });
-        showToast('Marked as sent to client.', 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {});
-    } catch (err) {
-        console.error('[Proposals] submitMarkSentToClient failed:', err);
-        showToast(err?.message || 'Failed to mark as sent. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 87 — Approve / Reject sub-modals (Plan 03)
-// ============================================================
-
-function openApproveModal(proposalDocId) {
-    _openApproveOrRejectModal(proposalDocId, 'approve');
-}
-
-function openRejectModal(proposalDocId) {
-    _openApproveOrRejectModal(proposalDocId, 'reject');
-}
-
-function _openApproveOrRejectModal(proposalDocId, mode) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_internal') {
-        showToast('Approve/Reject is only available for proposals pending internal approval.', 'error');
-        return;
-    }
-
-    const config = (mode === 'approve')
-        ? {
-            modalId: 'proposalApproveModal',
-            heading: 'Approve Proposal',
-            body: 'Approving this proposal will advance the project status to \'Proposal Under Client Review\'. This action is recorded in the audit trail.',
-            label: 'Approval Notes',
-            placeholder: 'Describe your review decision...',
-            confirmLabel: 'Confirm Approval',
-            confirmClass: 'btn-success'
-        }
-        : {
-            modalId: 'proposalRejectModal',
-            heading: 'Reject Proposal',
-            body: 'Rejecting this proposal will move it back to \'For Revision\'. The submitter will be notified.',
-            label: 'Rejection Reason',
-            placeholder: 'Explain what needs to be changed...',
-            confirmLabel: 'Confirm Rejection',
-            confirmClass: 'btn-danger'
-        };
-
-    const existing = document.getElementById(config.modalId);
-    if (existing) existing.remove();
-
-    const html = `
-    <div id="${config.modalId}" class="modal" style="display:flex;z-index:1001;">
-        <div class="modal-content" style="max-width:480px;margin:auto;">
-            <div class="modal-header">
-                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${escapeHTML(config.heading)}</h2>
-                <button class="modal-close" aria-label="Close" onclick="document.getElementById('${config.modalId}').remove()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:1.5rem;">
-                <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">${escapeHTML(config.body)}</p>
-                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">${escapeHTML(config.label)} <span style="color:#ef4444;">*</span></label>
-                <textarea id="proposalActionComment" rows="4" placeholder="${escapeHTML(config.placeholder)}" style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
-                <div id="proposalActionCommentError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <button class="btn btn-outline" onclick="document.getElementById('${config.modalId}').remove()">Cancel</button>
-                <button class="${'btn ' + config.confirmClass}" onclick="window.submitProposalApproval('${escapeHTML(proposalDocId)}', '${mode}')">${escapeHTML(config.confirmLabel)}</button>
-            </div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-// ============================================================
-// PHASE 87 — submitProposalApproval — handles both approve and reject
-// ============================================================
-async function submitProposalApproval(proposalDocId, mode) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_internal') {
-        showToast('Proposal status changed. Please reload.', 'error');
-        return;
-    }
-
-    const commentEl = document.getElementById('proposalActionComment');
-    const errEl = document.getElementById('proposalActionCommentError');
-    const comment = (commentEl?.value || '').trim();
-    const fieldLabel = (mode === 'approve') ? 'Approval Notes' : 'Rejection Reason';
-    if (comment.length < 10) {
-        if (errEl) {
-            errEl.textContent = `${fieldLabel} is required (minimum 10 characters).`;
-            errEl.style.display = 'block';
-        }
-        return;
-    }
-
-    const modalId = (mode === 'approve') ? 'proposalApproveModal' : 'proposalRejectModal';
-    const newStatus = (mode === 'approve') ? 'pending_client' : 'for_revision';
-    const newProjectStatus = (mode === 'approve') ? 'Proposal Under Client Review' : 'For Revision';
-    const auditAction = (mode === 'approve') ? 'APPROVED' : 'REJECTED';
-    const successToast = (mode === 'approve')
-        ? 'Proposal approved. Project status updated.'
-        : 'Proposal rejected. Submitter has been notified.';
-
-    showLoading(true);
-    try {
-        const newAuditEntry = await _applyProposalStateTransition({
-            proposal,
-            newStatus,
-            newProjectStatus,
-            auditAction,
-            auditComment: comment
-        });
-
-        // NOTIF-10 — single recipient: proposal.created_by (the submitter)
-        try {
-            if (proposal.created_by) {
-                const actionVerb = (mode === 'approve') ? 'approved' : 'rejected';
-                const excerpt = comment.length > 60 ? comment.slice(0, 60) + '…' : comment;
-                await createNotification({
-                    user_id: proposal.created_by,
-                    type: NOTIFICATION_TYPES.PROPOSAL_DECIDED,
-                    message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
-                    link: `#/proposals?id=${proposal.proposal_id}`,
-                    source_collection: 'proposals',
-                    source_id: proposal.proposal_id
-                });
-            }
-        } catch (notifErr) {
-            console.error('[Proposals] NOTIF-10 failed:', notifErr);
-        }
-
-        const sub = document.getElementById(modalId);
-        if (sub) sub.remove();
-        showToast(successToast, 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: newStatus });
-    } catch (err) {
-        console.error('[Proposals] submitProposalApproval failed:', err);
-        showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 89 — Proposal Approval Queue
-// MGMT-03: queue section showing pending_internal proposals oldest-first
-// MGMT-04: approve/reject from queue via mini-modal → _applyProposalStateTransition
+// Approval Queue renderer (legacy export — preserved for compatibility but
+// no longer the active surface). The home Proposals sub-tab implements its
+// own local approval queue with fresh-fetch confirm path because the home
+// view does not maintain a proposalsData module state and explicitly
+// avoids coupling to it (see RESEARCH Pitfall 7).
+//
+// This export remains as a public API so any external caller (current or
+// future) gets a defined function. Because no Firestore listener feeds
+// proposalsData inside this module anymore, the function will render the
+// "no proposals awaiting approval" empty state unless a caller mutates
+// proposalsData directly. Phase 87.1 Plan 06 keeps this export per the
+// executor preservation list.
 // ============================================================
 
 /**
  * Render the Proposal Approval Queue into #proposal-queue-mount.
- * Called by the proposals onSnapshot listener alongside renderProposalDashboard().
  * Filters proposalsData for status === 'pending_internal', sorts oldest-first.
  */
 export function renderApprovalQueue() {
@@ -1409,9 +360,9 @@ export function renderApprovalQueue() {
                 </td>
                 <td style="padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap;">
                     <button class="btn btn-success" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem; margin-right: 6px;"
-                            onclick="window.queueOpenApproveModal('${escapeHTML(p.id)}')">Approve</button>
+                            onclick="window.queueOpenApproveModal && window.queueOpenApproveModal('${escapeHTML(p.id)}')">Approve</button>
                     <button class="btn btn-danger" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem;"
-                            onclick="window.queueOpenRejectModal('${escapeHTML(p.id)}')">Reject</button>
+                            onclick="window.queueOpenRejectModal && window.queueOpenRejectModal('${escapeHTML(p.id)}')">Reject</button>
                 </td>
             </tr>`;
     }).join('');
@@ -1441,573 +392,4 @@ export function renderApprovalQueue() {
                 </div>
             </div>
         </div>`;
-}
-
-/**
- * Open the queue approve mini-modal for a proposal.
- * Mini-modal ID: proposal-queue-action-modal (distinct from Phase 87 modal IDs).
- */
-function queueOpenApproveModal(proposalDocId) {
-    _openQueueActionModal(proposalDocId, 'approve');
-}
-
-/**
- * Open the queue reject mini-modal for a proposal.
- */
-function queueOpenRejectModal(proposalDocId) {
-    _openQueueActionModal(proposalDocId, 'reject');
-}
-
-function _openQueueActionModal(proposalDocId, mode) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_internal') {
-        showToast('This proposal is no longer pending approval.', 'error');
-        renderApprovalQueue();
-        return;
-    }
-
-    const existing = document.getElementById('proposal-queue-action-modal');
-    if (existing) existing.remove();
-
-    const isApprove = mode === 'approve';
-    const heading = isApprove ? 'Approve Proposal' : 'Reject Proposal';
-    const bodyText = isApprove
-        ? "Approving will advance the project status to 'Proposal Under Client Review'. This action is recorded in the audit trail."
-        : "Rejecting will move the proposal back to 'For Revision'. The submitter will be notified.";
-    const label = isApprove ? 'Approval Notes' : 'Rejection Reason';
-    const placeholder = isApprove ? 'Describe your review decision...' : 'Explain what needs to be changed...';
-    const confirmLabel = isApprove ? 'Confirm Approval' : 'Confirm Rejection';
-    const confirmClass = isApprove ? 'btn-success' : 'btn-danger';
-
-    const html = `
-    <div id="proposal-queue-action-modal" class="modal" style="display:flex;z-index:1001;">
-        <div class="modal-content" style="max-width:480px;margin:auto;">
-            <div class="modal-header">
-                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${escapeHTML(heading)}</h2>
-                <button class="modal-close" aria-label="Close" onclick="window.queueCancelModal()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:1.5rem;">
-                <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 0.75rem 0;">
-                    <strong>${escapeHTML(proposal.title || '—')}</strong>
-                </p>
-                <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 1rem 0;">${escapeHTML(bodyText)}</p>
-                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">
-                    ${escapeHTML(label)} <span style="color:#ef4444;">*</span>
-                </label>
-                <textarea id="queueActionComment" rows="4"
-                    placeholder="${escapeHTML(placeholder)}"
-                    style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
-                <div id="queueActionCommentError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <button class="btn btn-outline" onclick="window.queueCancelModal()">Cancel</button>
-                <button class="btn ${confirmClass}" onclick="window.queueConfirmAction('${escapeHTML(proposalDocId)}', '${mode}')">${escapeHTML(confirmLabel)}</button>
-            </div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-/**
- * Dismiss the queue mini-modal without taking action.
- */
-function queueCancelModal() {
-    const modal = document.getElementById('proposal-queue-action-modal');
-    if (modal) modal.remove();
-}
-
-/**
- * Handle confirm from the queue mini-modal.
- * Validates comment (min 10 chars), calls _applyProposalStateTransition,
- * fires NOTIF-10 (same pattern as submitProposalApproval lines 1682-1698),
- * then re-renders the queue.
- */
-async function queueConfirmAction(proposalDocId, mode) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_internal') {
-        showToast('Proposal status changed. Please reload.', 'error');
-        queueCancelModal();
-        return;
-    }
-
-    const commentEl = document.getElementById('queueActionComment');
-    const errEl = document.getElementById('queueActionCommentError');
-    const comment = (commentEl?.value || '').trim();
-    const fieldLabel = (mode === 'approve') ? 'Approval Notes' : 'Rejection Reason';
-    if (comment.length < 10) {
-        if (errEl) {
-            errEl.textContent = `${fieldLabel} is required (minimum 10 characters).`;
-            errEl.style.display = 'block';
-        }
-        return;
-    }
-
-    const newStatus = (mode === 'approve') ? 'pending_client' : 'for_revision';
-    const newProjectStatus = (mode === 'approve') ? 'Proposal Under Client Review' : 'For Revision';
-    const auditAction = (mode === 'approve') ? 'APPROVED' : 'REJECTED';
-    const successToast = (mode === 'approve')
-        ? 'Proposal approved. Project status updated.'
-        : 'Proposal rejected. Submitter has been notified.';
-
-    showLoading(true);
-    try {
-        await _applyProposalStateTransition({
-            proposal,
-            newStatus,
-            newProjectStatus,
-            auditAction,
-            auditComment: comment
-        });
-
-        // NOTIF-10 — notify proposal submitter of decision (mirrors submitProposalApproval lines 1682-1698)
-        try {
-            if (proposal.created_by) {
-                const actionVerb = (mode === 'approve') ? 'approved' : 'rejected';
-                const excerpt = comment.length > 60 ? comment.slice(0, 60) + '…' : comment;
-                await createNotification({
-                    user_id: proposal.created_by,
-                    type: NOTIFICATION_TYPES.PROPOSAL_DECIDED,
-                    message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
-                    link: `#/proposals?id=${proposal.proposal_id}`,
-                    source_collection: 'proposals',
-                    source_id: proposal.proposal_id
-                });
-            }
-        } catch (notifErr) {
-            console.error('[Proposals] NOTIF-10 failed (queue):', notifErr);
-        }
-
-        queueCancelModal();
-        showToast(successToast, 'success');
-        renderApprovalQueue();
-    } catch (err) {
-        console.error('[Proposals] queueConfirmAction failed:', err);
-        showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 87 — Mark Loss sub-modal (Plan 03)
-//   Source statuses:  any active (D-08 — "any active proposal")
-//   Target status:    loss
-//   Project status:   Loss
-//   Notification:     none (deferred per CONTEXT — could add later)
-//   Loss reason:      required free text, persisted on proposal.loss_reason
-//                     AND mirrored to LOSS_RECORDED audit entry's comment (D-06)
-// ============================================================
-function openLossModal(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (['client_approved', 'loss'].includes(proposal.status)) {
-        showToast('Cannot mark a final-state proposal as Loss.', 'error');
-        return;
-    }
-
-    const existing = document.getElementById('proposalLossModal');
-    if (existing) existing.remove();
-
-    const html = `
-    <div id="proposalLossModal" class="modal" style="display:flex;z-index:1001;">
-        <div class="modal-content" style="max-width:480px;margin:auto;">
-            <div class="modal-header">
-                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Mark as Loss</h2>
-                <button class="modal-close" aria-label="Close" onclick="document.getElementById('proposalLossModal').remove()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:1.5rem;">
-                <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">This will permanently mark the proposal as lost and advance the project status to "Loss". This action cannot be undone.</p>
-                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Loss Reason <span style="color:#ef4444;">*</span></label>
-                <textarea id="proposalLossReason" rows="3" placeholder="Describe why this proposal was lost (client decision, budget, competitor, etc.)" style="width:100%;min-height:96px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
-                <div id="proposalLossReasonError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <button class="btn btn-outline" onclick="document.getElementById('proposalLossModal').remove()">Cancel</button>
-                <button class="btn btn-danger" onclick="window.submitLoss('${escapeHTML(proposalDocId)}')">Confirm Loss</button>
-            </div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-async function submitLoss(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-
-    const reasonEl = document.getElementById('proposalLossReason');
-    const errEl = document.getElementById('proposalLossReasonError');
-    const reason = (reasonEl?.value || '').trim();
-    if (reason.length < 10) {
-        if (errEl) {
-            errEl.textContent = 'Loss Reason is required (minimum 10 characters).';
-            errEl.style.display = 'block';
-        }
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const newAuditEntry = await _applyProposalStateTransition({
-            proposal,
-            newStatus: 'loss',
-            newProjectStatus: 'Loss',
-            auditAction: 'LOSS_RECORDED',
-            auditComment: reason,         // D-06: mirror loss_reason into audit comment
-            extraProposalFields: { loss_reason: reason }
-        });
-
-        const sub = document.getElementById('proposalLossModal');
-        if (sub) sub.remove();
-        showToast('Proposal marked as Loss. Project status updated.', 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: 'loss' }, { loss_reason: reason });
-    } catch (err) {
-        console.error('[Proposals] submitLoss failed:', err);
-        showToast(err?.message || 'Failed to record loss. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 87 — Client Approved sub-modal (Plan 03)
-//   Source statuses:  pending_client
-//   Target status:    client_approved
-//   Project status:   Client Approved  (per 87-RESEARCH.md verified canonical string;
-//                     'For Mobilization' is a separate downstream manual action)
-//   Notification:     none (positive final state — no submitter notify needed)
-// ============================================================
-function openClientApprovedModal(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_client') {
-        showToast('Client Approved is only available after a proposal is pending client review.', 'error');
-        return;
-    }
-
-    const existing = document.getElementById('proposalClientApprovedModal');
-    if (existing) existing.remove();
-
-    const html = `
-    <div id="proposalClientApprovedModal" class="modal" style="display:flex;z-index:1001;">
-        <div class="modal-content" style="max-width:480px;margin:auto;">
-            <div class="modal-header">
-                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Mark as Client Approved</h2>
-                <button class="modal-close" aria-label="Close" onclick="document.getElementById('proposalClientApprovedModal').remove()">&times;</button>
-            </div>
-            <div class="modal-body" style="padding:1.5rem;">
-                <p style="color:#475569;margin:0;font-size:14px;line-height:1.5;">This will advance the project status to "Client Approved". The proposal lifecycle is complete.</p>
-            </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
-                <button class="btn btn-outline" onclick="document.getElementById('proposalClientApprovedModal').remove()">Cancel</button>
-                <button class="btn btn-success" onclick="window.submitClientApproved('${escapeHTML(proposalDocId)}')">Confirm Client Approval</button>
-            </div>
-        </div>
-    </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-}
-
-async function submitClientApproved(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_client') {
-        showToast('Proposal status changed. Please reload.', 'error');
-        return;
-    }
-
-    showLoading(true);
-    try {
-        const newAuditEntry = await _applyProposalStateTransition({
-            proposal,
-            newStatus: 'client_approved',
-            newProjectStatus: 'Client Approved',
-            auditAction: 'CLIENT_APPROVED',
-            auditComment: null
-        });
-
-        const sub = document.getElementById('proposalClientApprovedModal');
-        if (sub) sub.remove();
-        showToast('Proposal marked Client Approved. Project status updated.', 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, { status: 'client_approved' });
-    } catch (err) {
-        console.error('[Proposals] submitClientApproved failed:', err);
-        showToast(err?.message || 'Failed to mark Client Approved. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 87 — Attachment widget action handlers (Plan 04)
-// ============================================================
-
-/**
- * Show the Remove micro-confirm panel inline in the widget.
- */
-function _openProposalAttachmentRemoveConfirm(proposalDocId) {
-    const panel = document.getElementById('proposalAttachmentRemoveConfirm');
-    if (panel) panel.style.display = 'block';
-}
-
-/**
- * Replace flow: re-render the attachment widget in State A (no attachment) in place.
- * The actual swap happens on Save Attachment via saveProposalAttachment.
- * Reads proposalsData for the freshest doc and renders State A.
- */
-function _openProposalAttachmentReplace(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) return;
-    // Build a synthetic "no attachment" proposal for State A render
-    const proposalForStateA = { ...proposal, attachment_kind: null };
-    const widget = document.getElementById('proposalAttachmentWidget');
-    if (widget) {
-        widget.outerHTML = buildAttachmentSection(proposalForStateA);
-    }
-}
-
-/**
- * Save attachment — link-only (file upload removed; no Firebase Storage required).
- * Writes ATTACHMENT_REPLACED audit entry on success.
- */
-async function saveProposalAttachment(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-
-    const errEl = document.getElementById('proposalAttachmentError');
-    const setError = (msg) => {
-        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
-    };
-    const clearError = () => {
-        if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
-    };
-    clearError();
-
-    const urlInput = document.getElementById('proposalAttachmentUrl');
-    const url = (urlInput?.value || '').trim();
-    if (!url) {
-        setError('Please enter a URL.');
-        return;
-    }
-    if (!/^https?:\/\//i.test(url)) {
-        setError('URL must start with http:// or https://');
-        return;
-    }
-
-    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-    const actorUid = currentUser?.uid ?? null;
-    const actorName = currentUser?.full_name || 'Unknown';
-
-    const newAttachmentFields = {
-        attachment_kind: 'link',
-        attachment_url: url,
-        attachment_storage_path: null,
-        attachment_filename: null
-    };
-
-    showLoading(true);
-    try {
-        const newAuditEntry = {
-            entry_id: cryptoRandomUuid(),
-            ts: new Date().toISOString(),
-            actor_id: actorUid,
-            actor_name: actorName,
-            action: 'ATTACHMENT_REPLACED',
-            comment: null
-        };
-
-        await updateDoc(doc(db, 'proposals', proposalDocId), {
-            ...newAttachmentFields,
-            audit_log: [...(proposal.audit_log || []), newAuditEntry],
-            updated_at: serverTimestamp()
-        });
-
-        showToast('Attachment saved.', 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {}, newAttachmentFields);
-    } catch (err) {
-        console.error('[Proposals] saveProposalAttachment failed:', err);
-        showToast(err?.message || 'Failed to save attachment. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-/**
- * Remove the current attachment.
- * Writes Firestore: attachment_* fields → null + ATTACHMENT_REPLACED audit entry.
- */
-async function removeProposalAttachment(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (!proposal.attachment_kind) {
-        const panel = document.getElementById('proposalAttachmentRemoveConfirm');
-        if (panel) panel.style.display = 'none';
-        return;
-    }
-
-    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-    const actorUid = currentUser?.uid ?? null;
-    const actorName = currentUser?.full_name || 'Unknown';
-
-    showLoading(true);
-    try {
-        const newAuditEntry = {
-            entry_id: cryptoRandomUuid(),
-            ts: new Date().toISOString(),
-            actor_id: actorUid,
-            actor_name: actorName,
-            action: 'ATTACHMENT_REPLACED',
-            comment: 'Attachment removed.'
-        };
-        const cleared = {
-            attachment_kind: null,
-            attachment_url: null,
-            attachment_storage_path: null,
-            attachment_filename: null
-        };
-        await updateDoc(doc(db, 'proposals', proposalDocId), {
-            ...cleared,
-            audit_log: [...(proposal.audit_log || []), newAuditEntry],
-            updated_at: serverTimestamp()
-        });
-        showToast('Attachment removed.', 'success');
-        _refreshDetailModalAfterTransition(proposalDocId, newAuditEntry, {}, cleared);
-    } catch (err) {
-        console.error('[Proposals] removeProposalAttachment failed:', err);
-        showToast(err?.message || 'Failed to remove attachment. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
-}
-
-// ============================================================
-// PHASE 87 — Comms Log action handlers (Plan 05)
-// ============================================================
-
-/**
- * Toggle the inline Add Entry form open/closed.
- * Button label flips between '+ Add Entry' and 'Cancel'.
- */
-function toggleAddCommsForm(proposalDocId) {
-    const form = document.getElementById('proposalCommsAddForm');
-    const btn = document.getElementById('proposalCommsAddBtn');
-    if (!form || !btn) return;
-    const isOpen = form.style.display === 'block';
-    if (isOpen) {
-        form.style.display = 'none';
-        btn.textContent = '+ Add Entry';
-        const urlInput = document.getElementById('proposalCommsAttachmentUrl');
-        if (urlInput) urlInput.value = '';
-    } else {
-        form.style.display = 'block';
-        btn.textContent = 'Cancel';
-    }
-}
-
-/**
- * Save a new comms log entry.
- * - Validates Date / Type / Description / Attachment.
- * - If file attachment: uploads to proposals/{proposalDocId}/comms/{entry_id}.{ext}.
- * - Writes the proposal doc with comms_log spread + new entry + updated_at.
- * - APPEND-ONLY: no edit, no delete.
- */
-async function saveCommsEntry(proposalDocId) {
-    const proposal = proposalsData.find(p => p.id === proposalDocId);
-    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-
-    const errEl = document.getElementById('proposalCommsError');
-    const setError = (msg) => {
-        if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
-    };
-    const clearError = () => {
-        if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
-    };
-    clearError();
-
-    const date = (document.getElementById('proposalCommsDate')?.value || '').trim();
-    const type = document.getElementById('proposalCommsType')?.value || '';
-    const description = (document.getElementById('proposalCommsDescription')?.value || '').trim();
-
-    if (!date) { setError('Date is required.'); return; }
-    if (!type || !['sent', 'feedback_received', 'revision_requested'].includes(type)) {
-        setError('Please choose a Type.');
-        return;
-    }
-    if (!description) { setError('Description is required.'); return; }
-
-    const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-    const actorUid = currentUser?.uid ?? null;
-    const actorName = currentUser?.full_name || 'Unknown';
-
-    const entryId = cryptoRandomUuid();
-    const rawUrl = (document.getElementById('proposalCommsAttachmentUrl')?.value || '').trim();
-    let attachmentFields = {
-        attachment_kind: null,
-        attachment_url: null,
-        attachment_storage_path: null,
-        attachment_filename: null
-    };
-
-    showLoading(true);
-    try {
-        if (rawUrl) {
-            if (!/^https?:\/\//i.test(rawUrl)) {
-                setError('URL must start with http:// or https://');
-                showLoading(false);
-                return;
-            }
-            attachmentFields = {
-                attachment_kind: 'link',
-                attachment_url: rawUrl,
-                attachment_storage_path: null,
-                attachment_filename: null
-            };
-        }
-        // no URL → attachmentFields stays all-null (no attachment)
-
-        const newEntry = {
-            entry_id: entryId,
-            date,                 // 'YYYY-MM-DD'
-            type,
-            description,
-            ...attachmentFields,
-            logged_by: actorUid,
-            logged_by_name: actorName,  // denormalized for display
-            logged_at: new Date().toISOString()
-        };
-
-        await updateDoc(doc(db, 'proposals', proposalDocId), {
-            comms_log: [...(proposal.comms_log || []), newEntry],
-            updated_at: serverTimestamp()
-        });
-
-        showToast('Communication entry added.', 'success');
-        // Collapse the form
-        const form = document.getElementById('proposalCommsAddForm');
-        const btn = document.getElementById('proposalCommsAddBtn');
-        if (form) form.style.display = 'none';
-        if (btn) btn.textContent = '+ Add Entry';
-
-        // Re-render the detail modal with the new entry
-        setTimeout(() => {
-            const refreshed = proposalsData.find(p => p.id === proposalDocId);
-            if (!refreshed) return;
-            // Optimistic merge if onSnapshot hasn't yet caught up
-            const hasOurEntry = (refreshed.comms_log || []).some(e => e.entry_id === entryId);
-            const updated = hasOurEntry
-                ? refreshed
-                : { ...refreshed, comms_log: [...(refreshed.comms_log || []), newEntry] };
-            currentProposal = updated;
-            const existing = document.getElementById('proposalDetailModal');
-            if (existing) {
-                existing.remove();
-                document.body.insertAdjacentHTML('beforeend', buildProposalDetailModalHtml(updated));
-            }
-        }, 0);
-    } catch (err) {
-        console.error('[Proposals] saveCommsEntry failed:', err);
-        showToast(err?.message || 'Failed to save communication entry. Please try again.', 'error');
-    } finally {
-        showLoading(false);
-    }
 }
