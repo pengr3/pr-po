@@ -20,9 +20,9 @@ const routePermissionMap = {
     // Every active user has access to notifications — no role gate needed.
     // Maps to 'dashboard' (same neutral key as '/') so the existing auth+active check applies.
     '/notifications': 'dashboard',
-    // Phase 88 D-02 — /proposals is NOT in the permission-template system; it uses a
-    // hard super_admin gate in navigate() below. Omitting it here prevents the template
-    // lookup from returning false (no template exists yet) and blocking super_admin.
+    // Phase 87.1 Plan 06 (D-02): the former Phase 88 /proposals entry was removed
+    // — the standalone /proposals route no longer exists. Proposal surfaces are
+    // role-gated at the home sub-tab and detail-view inline-card layer instead.
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -108,12 +108,13 @@ const routes = {
         name: 'Notifications',
         load: () => import('./views/notifications.js'),
         title: 'Notifications | CLMC Operations'
-    },
-    '/proposals': {
-        name: 'Proposals',
-        load: () => import('./views/proposals.js'),
-        title: 'Proposals | CLMC Operations'
     }
+    // Phase 87.1 Plan 06 (D-02): #/proposals route retired. Proposal surfaces
+    // now live as home sub-tabs (Engagements + Proposals) and inline cards on
+    // project/service detail. proposals.js remains as a pure module providing
+    // shared exports (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, helper functions,
+    // _applyProposalStateTransition) consumed by home.js, proposal-modal.js,
+    // project-detail.js, and service-detail.js.
 };
 
 /**
@@ -285,17 +286,11 @@ export async function navigate(path, tab = null, param = null) {
         }
     }
 
-    // Phase 88 D-02 / MGMT-02 — hard super_admin gate (defense in depth on top of
-    // the permission system; ensures no role-template misconfiguration ever exposes
-    // the Proposals surface to a non-super-admin).
-    if (path === '/proposals') {
-        const user = window.getCurrentUser?.();
-        if (!user || user.role !== 'super_admin') {
-            console.warn('[Router] Non-super-admin blocked from /proposals');
-            showAccessDenied();
-            return;
-        }
-    }
+    // Phase 87.1 Plan 06 (D-02): the Phase 88 hard super_admin gate for
+    // /proposals was removed alongside the route entry above. Proposal access
+    // is now role-gated inside home.js getHomeSubTabConfig() (home sub-tabs)
+    // and inside project-detail.js / service-detail.js (inline card visibility
+    // bound to PROPOSAL_RANGE_STATUSES). No router-level gate needed.
 
     // Show loading
     showLoading(true);
