@@ -557,11 +557,11 @@ Redesign: Home gains Overview | Engagements | Proposals sub-tabs. Proposals top-
 Plans:
 - [ ] 87.1-01-PLAN.md — proposals.js: lift STAGE_ORDER, add PROPOSAL_RANGE_STATUSES, export 7 functions, D-06 parent_collection fix; utils.js: export cryptoRandomUuid — Wave 1
 - [ ] 87.1-02-PLAN.md — app/proposal-modal.js: extract full proposal detail modal from proposals.js, fresh getDoc fetch — Wave 2
-- [ ] 87.1-03-PLAN.md — engagement-create.js: add renderEngagementForm/initEngagementForm/destroyEngagementForm; proposals.js: remove engagement code, stub render/init/destroy — Wave 2
-- [ ] 87.1-04-PLAN.md — home.js: Overview|Engagements|Proposals sub-tabs + role gates + getDocs proposals; styles/views.css: .home-sub-nav CSS — Wave 3
-- [ ] 87.1-05-PLAN.md — project-detail.js + service-detail.js: enriched inline proposal card (attachment, comms, Submit+View buttons); styles/components.css: .proposal-inline-card CSS — Wave 3
-- [ ] 87.1-06-PLAN.md — router.js: remove /proposals route + gate; auth.js: remove proposals visibility block; index.html: remove Proposals nav links — Wave 4
-- [ ] 87.1-07-PLAN.md — UAT checkpoint: manual verification of D-01 through D-08; CR-01 regression test — Wave 5
+- [ ] 87.1-03-PLAN.md — engagement-create.js: add renderEngagementForm/initEngagementForm/destroyEngagementForm; proposals.js: remove engagement code, stub render — Wave 3
+- [ ] 87.1-04-PLAN.md — home.js: Overview|Engagements|Proposals sub-tabs + role gates + getDocs proposals; styles/views.css: .home-sub-nav CSS — Wave 4
+- [ ] 87.1-05-PLAN.md — project-detail.js + service-detail.js: enriched inline proposal card (attachment, comms, Submit+View buttons); styles/components.css: .proposal-inline-card CSS — Wave 4
+- [ ] 87.1-06-PLAN.md — router.js: remove /proposals route + gate; auth.js: remove proposals visibility block; index.html: remove Proposals nav links — Wave 5
+- [ ] 87.1-07-PLAN.md — UAT checkpoint: manual verification of D-01 through D-08; CR-01 regression test — Wave 6
 
 ### Phase 88: Management Tab Shell + Create Engagement
 **Goal**: Super Admin gets a dedicated Management tab in navigation, with a "Create Engagement" form that auto-routes the new record to the right collection (projects vs services, one-time vs recurring) — the shell and the create-engagement slice can ship before the proposal queue.
