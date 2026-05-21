@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-07) paused for manual UAT.
-stopped_at: Phase 87.1 in-flight — Wave 5 (Plan 05) DONE; Wave 6 (Plan 07) next
-last_updated: "2026-05-21T08:24:53.000Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 05 (Wave 5) DONE on v3.3. Inline proposal cards added to both app/views/project-detail.js (+206 lines) and app/views/service-detail.js (+209 lines): renderProjectDetail/renderServiceDetail emit a #proposalInlineCard placeholder when status ∈ PROPOSAL_RANGE_STATUSES; loadProposalCard() does one-time getDocs(proposals where project_id == parentDocId) and populates the card with proposal ID, title, amount, status badge, age badge, attachment link, latest comms entry, plus Submit-for-Approval (draft|for_revision only) and View Proposal (always — calls openProposalModal from proposal-modal.js). confirmProposalInlineSubmit follows home.js _homeQueueConfirmAction pattern verbatim: fresh getDoc → status guard → _applyProposalStateTransition → reload card. Submit confirm button disabled synchronously before await (double-submit prevention). All 4 inline-card window functions registered in attachWindowFunctions and deleted in destroy in BOTH files (CR-01 symmetric register/delete). D-06 parent_collection handled by-doc: proposal.parent_collection is set at engagement-create time and _applyProposalStateTransition reads it from the fresh-getDoc proposal — caller never has to pass collection name, so services proposals write to services collection automatically. styles/components.css gained 24 lines (.proposal-inline-card + __header + __label). Commits c0fc457 (feat CSS), f6f05b7 (feat project-detail), bd02fab (feat service-detail). Plan 07 (UAT + retire /proposals route) unblocked."
+status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-06) DONE; Wave 6 (87.1-07) paused for manual UAT.
+stopped_at: Phase 87.1 in-flight — Wave 6 (Plan 06) DONE; Plan 07 (UAT) next
+last_updated: "2026-05-21T16:39:21.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE on v3.3. The standalone /proposals top-nav tab is fully retired: app/router.js no longer has a /proposals route entry or a hard super_admin gate block in navigate(); index.html no longer has a Proposals nav anchor in either the desktop nav or the mobile menu; app/auth.js no longer has the Proposals-link visibility block in either the authenticated or unauthenticated branch. app/views/proposals.js stripped from 2,013 lines to 395 — all detail-modal HTML, lifecycle action handlers, attachment widget handlers, comms-log handlers, queue mini-modal handlers, Create/Edit Proposal modal code, _refreshDetailModalAfterTransition, _stubP03/04/05, the dead renderProposalDashboard, module state (projectsData, currentProposal, createModalMode, createModalEditingId, listeners, the Wave-3 clientsData stub), and the proposals + projects onSnapshot listeners all removed. Preserved (per executor preservation list): STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue + render/init/destroy no-op stubs. Stage-card and queue-button onclick handlers rewritten from the deleted window.openProposalDetail / window.queueOpen*Modal targets to window.openProposalModal with && safety guards (owner: proposal-modal.js). Direct navigation to #/proposals falls through router.js's 'Route not found' branch and redirects to #/. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Plan 87.1-07 (manual UAT) fully unblocked."
 progress:
   total_phases: 25
   completed_phases: 22
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 EXECUTING (2026-05-21) — 7 plans across 6 waves. Sequential execution on v3.3. Wave 6 (87.1-07 UAT) reserved for manual user verification.
-Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
+Phase: 87.1 EXECUTING (2026-05-21) — 7 plans across 6 waves. Sequential execution on v3.3. Wave 6 (87.1-06) DONE; Plan 87.1-07 (manual UAT) is the only remaining work.
+Next: pause for manual UAT on 87.1-07 (browser verification of nav retirement + sub-tabs + inline cards)
 
 ## Performance Metrics
 
@@ -157,6 +157,7 @@ Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
 | Phase 87.1 P03 | 9 | 2 tasks | 2 files |
 | Phase 87.1 P04 (Wave 4) | 8 | 2 tasks | 2 files |
 | Phase 87.1 P05 (Wave 5) | 6 | 3 tasks | 3 files |
+| Phase 87.1 P06 (Wave 6) | 5 | 3 tasks (+1 docs follow-up) | 4 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,12 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 87.1-05 Wave 5]: Double-submit prevention via DOM-side button disable — confirmBtn.disabled=true + textContent='Submitting...' set synchronously before the first await; re-enabled with original text on error so user can retry. Pattern is portable to any future inline action button.
 - [Phase 87.1-05 Wave 5]: Overdue visual computed inline in renderInlineProposalCard (3-line try/catch) — handles both Firestore Timestamp seconds and ISO string formats, applies 3px amber left border when current_status_since > 7 days. Defensive against missing field on legacy proposal docs.
 - [Phase 87.1-05 Wave 5]: window.openProposalModal owned by the active detail view (project-detail OR service-detail). Both register and delete symmetrically; home.js does the same. Because router calls destroy() before init() of the next view, no double-registration risk.
+- [Phase 87.1-06 Wave 6]: /proposals route entry + the hard super_admin gate block in router.js navigate() removed together — the REVIEWS.md "router-gate-pattern divergence" flag (LOW) was resolved by full retirement rather than normalization into routePermissionMap. No new routePermissionMap entry was ever needed because the route no longer exists.
+- [Phase 87.1-06 Wave 6]: proposals.js stripped from 2,013 lines to 395 — all detail-modal builders, lifecycle action handlers, attachment + comms handlers, Create/Edit Proposal modal, queue mini-modal handlers, _stubP03/04/05, _refreshDetailModalAfterTransition, the dead renderProposalDashboard, the proposals + projects onSnapshot listeners, module state (projectsData, currentProposal, createModalMode, createModalEditingId, listeners, the Wave-3 clientsData stub), and ~21 window function registrations + their cleanups all removed. The proposal-modal.js shared utility (Wave 2) is now the canonical owner of every action window function name.
+- [Phase 87.1-06 Wave 6]: render/init/destroy retained as no-op stubs in proposals.js (not deleted). The file is statically imported by home.js, proposal-modal.js, project-detail.js, service-detail.js; ESM evaluates the whole module on first import. Stubs are essentially free and prevent any straggling dynamic-import caller from hitting an undefined-is-not-a-function crash.
+- [Phase 87.1-06 Wave 6]: renderApprovalQueue preserved as an export per the executor preservation list even though no external module imports it (home.js implements its own local queue per Pitfall 7). Module-internal `let proposalsData = []` retained as an inert empty array so the function does not crash on call — it renders the "no proposals awaiting approval" empty state since no listener feeds the array. Cost: ~80 lines; benefit: API stability for any future consumer.
+- [Phase 87.1-06 Wave 6]: Stage-card and queue-button onclick handlers rewritten from the deleted `window.openProposalDetail` / `window.queueOpenApproveModal` / `window.queueOpenRejectModal` targets to `window.openProposalModal && window.openProposalModal(...)` / `window.queueOpenApproveModal && ...` short-circuit guards. The new target is owned by proposal-modal.js (Wave 2). The `&&` guard makes the call safe before the consuming view has registered the function — covers any render-race condition or post-destroy click.
+- [Phase 87.1-06 Wave 6]: Direct navigation to #/proposals safely redirects to #/. router.js's `parseHash()` returns {path:'/proposals'}, `navigate()` looks up `routes['/proposals']` → undefined → logs `Route not found` and assigns `window.location.hash = '#/'`. No half-retired surface, no white screen.
 
 - [Phase 91.1-03]: Categories column inserted at position 2 of the suppliers table head (between Supplier Name and Contact Person) — matches the inline-edit row position Plan 02 already shipped; zero column-reshuffle on landing
 - [Phase 91.1-03]: Read-only display pills reuse `.personnel-pill` class (inline `margin: 0.125rem`) WITHOUT the `.pill-remove` button child — visual parity with inline-edit row but explicitly non-interactive; no new CSS class
@@ -555,10 +562,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-21 — Phase 87.1 Plan 05 (Wave 5) DONE. Inline proposal card shipped to project-detail.js (+206) and service-detail.js (+209), .proposal-inline-card CSS to components.css (+24). Card shows ID/title/amount/status-badge/age-badge/attachment/comms; Submit-for-Approval (draft|for_revision) uses fresh-getDoc → _applyProposalStateTransition (matches home.js _homeQueueConfirmAction); View Proposal launches the shared proposal-modal.js openProposalModal. All 4 window functions register/delete symmetrically (CR-01 anti-pattern guard). D-06 parent_collection handled by-doc, not by-caller. Commits c0fc457 + f6f05b7 + bd02fab. Plan 87.1-07 (UAT + retire /proposals route) unblocked.
-Last session: 2026-05-21T08:24:53.000Z
-Stopped at: Phase 87.1 Wave 5 (Plan 05) DONE — Wave 6 (Plan 07: UAT + retire /proposals route) next
+Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
+Last session: 2026-05-21T16:39:21.000Z
+Stopped at: Phase 87.1 Wave 6 (Plan 06) DONE — Plan 07 (manual UAT) next
 Resume file: .planning/HANDOFF.json + .planning/phases/87.1-proposal-lifecycle-integration-proposal-project-bidirectiona/.continue-here.md
-Next action: Spawn Plan 87.1-07 executor — manual UAT in browser (verify inline cards on For Proposal project + service, Submit/View buttons, D-06 services write) THEN retire /proposals route (router.js + auth.js + index.html nav links). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.
+Next action: Spawn Plan 87.1-07 executor — manual UAT in browser. Verify: no Proposals nav link visible for any role, #/proposals redirects to #/, home Overview/Engagements/Proposals sub-tabs work for eligible roles, finance/procurement_staff see no sub-nav, inline cards on For Proposal project + service show ID/title/amount/badges/attachment/comms, Submit/View buttons work, D-06 services write goes to services collection. Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |

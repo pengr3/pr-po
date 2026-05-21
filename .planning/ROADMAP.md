@@ -560,7 +560,7 @@ Plans:
 - [x] 87.1-03-PLAN.md — engagement-create.js: add renderEngagementForm/initEngagementForm/destroyEngagementForm; proposals.js: remove engagement code, stub render — Wave 3 — DONE 2026-05-21 (2d6fea0 + 4fb3611)
 - [x] 87.1-04-PLAN.md — home.js: Overview|Engagements|Proposals sub-tabs + role gates + getDocs proposals; styles/views.css: .home-sub-nav CSS — Wave 4 — DONE 2026-05-21 (a5374f9 + a095b60)
 - [x] 87.1-05-PLAN.md — project-detail.js + service-detail.js: enriched inline proposal card (attachment, comms, Submit+View buttons); styles/components.css: .proposal-inline-card CSS — Wave 5 — DONE 2026-05-21 (c0fc457 + f6f05b7 + bd02fab)
-- [ ] 87.1-06-PLAN.md — router.js: remove /proposals route + gate; auth.js: remove proposals visibility block; index.html: remove Proposals nav links — Wave 5
+- [x] 87.1-06-PLAN.md — router.js: remove /proposals route + gate; auth.js: remove proposals visibility block; index.html: remove Proposals nav links; proposals.js: strip orphan modal/queue code (2,013 → 395 lines, pure shared module) — Wave 6 — DONE 2026-05-21 (4d75b9a + 0d06916 + bdc5735 + 6382a58)
 - [ ] 87.1-07-PLAN.md — UAT checkpoint: manual verification of D-01 through D-08; CR-01 regression test — Wave 6
 
 ### Phase 88: Management Tab Shell + Create Engagement
