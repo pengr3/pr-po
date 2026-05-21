@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-07) paused for manual UAT.
-stopped_at: Phase 87.1 in-flight — executor agents spawning per wave
-last_updated: "2026-05-21T08:12:00.000Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 04 (Wave 4) DONE on v3.3. app/views/home.js grew 206 → 649 lines with three role-gated sub-tabs (Overview / Engagements / Proposals): Engagements mounts engagement-create.js form (renderEngagementForm + initEngagementForm), Proposals uses one-time getDocs + role filter + local home-only approval queue per RESEARCH Pitfall 7. _homeQueueConfirmAction does fresh getDoc + _applyProposalStateTransition + NOTIF-10 + sub-tab refresh. styles/views.css gained .home-sub-nav pill tabs (31 lines). finance + procurement_staff get no sub-nav. destroy() calls destroyEngagementForm() — CR-01 anti-pattern guard satisfied. Commits a5374f9 (feat CSS) + a095b60 (feat home.js). Plans 05/06 (inline cards) unblocked; openProposalModal entry point ready."
+stopped_at: Phase 87.1 in-flight — Wave 5 (Plan 05) DONE; Wave 6 (Plan 07) next
+last_updated: "2026-05-21T08:24:53.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 05 (Wave 5) DONE on v3.3. Inline proposal cards added to both app/views/project-detail.js (+206 lines) and app/views/service-detail.js (+209 lines): renderProjectDetail/renderServiceDetail emit a #proposalInlineCard placeholder when status ∈ PROPOSAL_RANGE_STATUSES; loadProposalCard() does one-time getDocs(proposals where project_id == parentDocId) and populates the card with proposal ID, title, amount, status badge, age badge, attachment link, latest comms entry, plus Submit-for-Approval (draft|for_revision only) and View Proposal (always — calls openProposalModal from proposal-modal.js). confirmProposalInlineSubmit follows home.js _homeQueueConfirmAction pattern verbatim: fresh getDoc → status guard → _applyProposalStateTransition → reload card. Submit confirm button disabled synchronously before await (double-submit prevention). All 4 inline-card window functions registered in attachWindowFunctions and deleted in destroy in BOTH files (CR-01 symmetric register/delete). D-06 parent_collection handled by-doc: proposal.parent_collection is set at engagement-create time and _applyProposalStateTransition reads it from the fresh-getDoc proposal — caller never has to pass collection name, so services proposals write to services collection automatically. styles/components.css gained 24 lines (.proposal-inline-card + __header + __label). Commits c0fc457 (feat CSS), f6f05b7 (feat project-detail), bd02fab (feat service-detail). Plan 07 (UAT + retire /proposals route) unblocked."
 progress:
   total_phases: 25
   completed_phases: 22
   total_plans: 90
-  completed_plans: 89
+  completed_plans: 90
   percent: 99
 ---
 
@@ -156,6 +156,7 @@ Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
 | Phase 87.1 P02 | 6 | 1 tasks | 1 files |
 | Phase 87.1 P03 | 9 | 2 tasks | 2 files |
 | Phase 87.1 P04 (Wave 4) | 8 | 2 tasks | 2 files |
+| Phase 87.1 P05 (Wave 5) | 6 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -189,6 +190,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 87.1-04]: getAgeInStageDays inlined in renderInlineProposalCard (same logic as proposals.js) since it is not exported — avoids adding another export to proposals.js for a one-liner computation
 - [Phase 87.1-04]: getDocs (one-time read) used in loadProposalCard — no onSnapshot listener added to project detail, consistent with plan D-01 architecture decision
 - [Phase 87.1-04]: confirmProposalInlineSubmit fetches fresh proposal doc via getDoc before calling _applyProposalStateTransition to ensure latest state and prevent stale-data transition
+- [Phase 87.1-05 Wave 5]: D-06 parent_collection handled by-doc, not by-caller — proposal.parent_collection is set at engagement-create time and _applyProposalStateTransition reads it from the freshly-fetched proposal object. Inline-card callers (project-detail.js + service-detail.js) never have to pass the collection name; service-detail's loadProposalCard('services') call is for self-documentation only. Single source of truth = the proposal doc.
+- [Phase 87.1-05 Wave 5]: Inline card mini-modal kept local in each detail view (NOT extracted to a shared helper) — modal is 25 HTML lines, co-location with its action handler is clearer than introducing a fourth import surface. If a third detail view emerges (engagement-detail), revisit.
+- [Phase 87.1-05 Wave 5]: Double-submit prevention via DOM-side button disable — confirmBtn.disabled=true + textContent='Submitting...' set synchronously before the first await; re-enabled with original text on error so user can retry. Pattern is portable to any future inline action button.
+- [Phase 87.1-05 Wave 5]: Overdue visual computed inline in renderInlineProposalCard (3-line try/catch) — handles both Firestore Timestamp seconds and ISO string formats, applies 3px amber left border when current_status_since > 7 days. Defensive against missing field on legacy proposal docs.
+- [Phase 87.1-05 Wave 5]: window.openProposalModal owned by the active detail view (project-detail OR service-detail). Both register and delete symmetrically; home.js does the same. Because router calls destroy() before init() of the next view, no double-registration risk.
 
 - [Phase 91.1-03]: Categories column inserted at position 2 of the suppliers table head (between Supplier Name and Contact Person) — matches the inline-edit row position Plan 02 already shipped; zero column-reshuffle on landing
 - [Phase 91.1-03]: Read-only display pills reuse `.personnel-pill` class (inline `margin: 0.125rem`) WITHOUT the `.pill-remove` button child — visual parity with inline-edit row but explicitly non-interactive; no new CSS class
@@ -549,10 +555,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item.
-Last session: 2026-05-21T00:00:00.000Z
-Stopped at: Session resumed — proceeding to /gsd-plan-phase 87.1 plan-checker verification on 7 redesigned plans (HANDOFF.json + .continue-here.md aligned)
+Last activity: 2026-05-21 — Phase 87.1 Plan 05 (Wave 5) DONE. Inline proposal card shipped to project-detail.js (+206) and service-detail.js (+209), .proposal-inline-card CSS to components.css (+24). Card shows ID/title/amount/status-badge/age-badge/attachment/comms; Submit-for-Approval (draft|for_revision) uses fresh-getDoc → _applyProposalStateTransition (matches home.js _homeQueueConfirmAction); View Proposal launches the shared proposal-modal.js openProposalModal. All 4 window functions register/delete symmetrically (CR-01 anti-pattern guard). D-06 parent_collection handled by-doc, not by-caller. Commits c0fc457 + f6f05b7 + bd02fab. Plan 87.1-07 (UAT + retire /proposals route) unblocked.
+Last session: 2026-05-21T08:24:53.000Z
+Stopped at: Phase 87.1 Wave 5 (Plan 05) DONE — Wave 6 (Plan 07: UAT + retire /proposals route) next
 Resume file: .planning/HANDOFF.json + .planning/phases/87.1-proposal-lifecycle-integration-proposal-project-bidirectiona/.continue-here.md
-Next action: Run /gsd-plan-phase 87.1 → choose "Verify existing plans" to spawn plan-checker on PLAN.md 01–07. Carry-over items still pending: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.
+Next action: Spawn Plan 87.1-07 executor — manual UAT in browser (verify inline cards on For Proposal project + service, Submit/View buttons, D-06 services write) THEN retire /proposals route (router.js + auth.js + index.html nav links). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
