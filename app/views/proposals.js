@@ -22,6 +22,42 @@ import { createEngagement } from '../engagement-create.js';
 import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // ----------------------------------------
+// Module-level constants (Phase 87.1 — exported for home.js, proposal-modal.js,
+// project-detail.js, service-detail.js, and other consumers).
+// ----------------------------------------
+
+/**
+ * Proposal stage order for the Proposal Dashboard grouping (UI-SPEC order).
+ * Drafts are rendered above this list (see renderProposalDashboard()).
+ * Phase 87.1: lifted from inside renderProposalDashboard() to module scope so
+ * downstream views can import it without coupling to the dashboard implementation.
+ */
+export const STAGE_ORDER = [
+    { key: 'pending_internal', label: 'Pending Internal Approval' },
+    { key: 'pending_client',   label: 'Pending Client Review' },
+    { key: 'for_revision',     label: 'For Revision' },
+    { key: 'client_approved',  label: 'Client Approved' },
+    { key: 'loss',             label: 'Loss' }
+];
+
+/**
+ * The set of unified project/service statuses that indicate a record is inside
+ * the active proposal lifecycle (between "For Proposal" entry and the
+ * "Client Approved" / "Loss" terminal states).
+ * Used by project-detail.js and service-detail.js to decide whether to render
+ * the inline proposal card.
+ * Note: 'Draft' is intentionally excluded (no active proposal yet) and 'Loss'
+ * is excluded (lifecycle complete).
+ */
+export const PROPOSAL_RANGE_STATUSES = [
+    'For Proposal',
+    'Proposal for Internal Approval',
+    'Proposal Under Client Review',
+    'For Revision',
+    'Client Approved'
+];
+
+// ----------------------------------------
 // Module state
 // ----------------------------------------
 let clientsData = [];
@@ -629,7 +665,7 @@ export async function destroy() {
 /**
  * Status → badge metadata mapping (UI-SPEC Color section).
  */
-function getProposalStatusBadge(status) {
+export function getProposalStatusBadge(status) {
     const map = {
         draft:            { cls: 'badge-secondary',                       label: 'Draft' },
         pending_internal: { cls: 'status-badge pending',                  label: 'Pending Internal Approval' },
@@ -646,7 +682,7 @@ function getProposalStatusBadge(status) {
  * Days since the proposal entered its current status.
  * Reads current_status_since (Firestore Timestamp) — set on every transition by Plan 03.
  */
-function getAgeInStageDays(proposal) {
+export function getAgeInStageDays(proposal) {
     const ts = proposal.current_status_since || proposal.created_at;
     if (!ts) return 0;
     let ms;
@@ -657,13 +693,13 @@ function getAgeInStageDays(proposal) {
     return Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24));
 }
 
-function isOverdueInStage(proposal) {
+export function isOverdueInStage(proposal) {
     const THRESHOLD_DAYS = 7;
     return ['pending_internal', 'pending_client'].includes(proposal.status)
         && getAgeInStageDays(proposal) > THRESHOLD_DAYS;
 }
 
-function renderAgeBadge(proposal) {
+export function renderAgeBadge(proposal) {
     const days = getAgeInStageDays(proposal);
     const label = days === 1 ? '1 day' : `${days} days`;
     if (isOverdueInStage(proposal)) {
@@ -680,14 +716,8 @@ function renderProposalDashboard() {
     const mount = document.getElementById('proposal-dashboard-mount');
     if (!mount) return;
 
-    // Stage groups in UI-SPEC order
-    const STAGE_ORDER = [
-        { key: 'pending_internal', label: 'Pending Internal Approval' },
-        { key: 'pending_client',   label: 'Pending Client Review' },
-        { key: 'for_revision',     label: 'For Revision' },
-        { key: 'client_approved',  label: 'Client Approved' },
-        { key: 'loss',             label: 'Loss' }
-    ];
+    // Stage groups in UI-SPEC order — STAGE_ORDER is now a module-level export
+    // (lifted in Phase 87.1 so other views can import it).
 
     // Group by status (drafts also surfaced under a single 'draft' group at the bottom)
     const grouped = {};
@@ -747,7 +777,7 @@ function renderProposalDashboard() {
 /**
  * Single stage group card: header (label + count pill) + table of proposal rows.
  */
-function renderStageGroupCard(label, proposals) {
+export function renderStageGroupCard(label, proposals) {
     const rowsHtml = proposals.map(p => {
         const overdueBorder = isOverdueInStage(p)
             ? 'border-left:3px solid #f59e0b;padding-left:8px;'
@@ -1415,7 +1445,7 @@ function _stubP05(label) {
  * @param {object} [args.extraProposalFields]  - extra top-level fields (e.g. {loss_reason: 'xyz'})
  * @returns {Promise<object>} the new audit entry written
  */
-async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields }) {
+export async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields }) {
     if (!proposal || !proposal.id) throw new Error('_applyProposalStateTransition: proposal with id required');
     if (!auditAction) throw new Error('_applyProposalStateTransition: auditAction required');
 
@@ -1451,10 +1481,14 @@ async function _applyProposalStateTransition({ proposal, newStatus, newProjectSt
     batch.update(doc(db, 'proposals', proposal.id), proposalPayload);
 
     // Project doc update only when transition explicitly maps to a project_status change.
+    // Phase 87.1 D-06: proposals can be linked to either the 'projects' or the
+    // 'services' collection. parent_collection defaults to 'projects' for
+    // legacy proposals that pre-date services-proposal support.
+    const parentCollection = proposal.parent_collection || 'projects';
     if (newProjectStatus && proposal.project_id) {
-        batch.update(doc(db, 'projects', proposal.project_id), {
+        batch.update(doc(db, parentCollection, proposal.project_id), {
             project_status: newProjectStatus,
-            updated_at: new Date().toISOString()  // projects collection convention (project-detail.js line 804)
+            updated_at: new Date().toISOString()  // projects/services collection convention (project-detail.js line 804)
         });
     }
 
@@ -1722,7 +1756,7 @@ async function submitProposalApproval(proposalDocId, mode) {
  * Called by the proposals onSnapshot listener alongside renderProposalDashboard().
  * Filters proposalsData for status === 'pending_internal', sorts oldest-first.
  */
-function renderApprovalQueue() {
+export function renderApprovalQueue() {
     const mount = document.getElementById('proposal-queue-mount');
     if (!mount) return;
 
