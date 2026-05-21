@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-06) DONE; Wave 6 (87.1-07) paused for manual UAT.
-stopped_at: Phase 87.1 in-flight — Wave 6 (Plan 06) DONE; Plan 07 (UAT) next
-last_updated: "2026-05-21T16:39:21.000Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE on v3.3. The standalone /proposals top-nav tab is fully retired: app/router.js no longer has a /proposals route entry or a hard super_admin gate block in navigate(); index.html no longer has a Proposals nav anchor in either the desktop nav or the mobile menu; app/auth.js no longer has the Proposals-link visibility block in either the authenticated or unauthenticated branch. app/views/proposals.js stripped from 2,013 lines to 395 — all detail-modal HTML, lifecycle action handlers, attachment widget handlers, comms-log handlers, queue mini-modal handlers, Create/Edit Proposal modal code, _refreshDetailModalAfterTransition, _stubP03/04/05, the dead renderProposalDashboard, module state (projectsData, currentProposal, createModalMode, createModalEditingId, listeners, the Wave-3 clientsData stub), and the proposals + projects onSnapshot listeners all removed. Preserved (per executor preservation list): STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue + render/init/destroy no-op stubs. Stage-card and queue-button onclick handlers rewritten from the deleted window.openProposalDetail / window.queueOpen*Modal targets to window.openProposalModal with && safety guards (owner: proposal-modal.js). Direct navigation to #/proposals falls through router.js's 'Route not found' branch and redirects to #/. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Plan 87.1-07 (manual UAT) fully unblocked."
+status: Phase 87.1 COMPLETE (2026-05-21) — UAT approved by super_admin; all 7 plans done; 19 commits on v3.3; proposals.js reduced 2,013 → 395 lines; CR-01 anti-pattern structurally closed.
+stopped_at: Phase 87.1 complete — ready for PR / next phase
+last_updated: "2026-05-21T17:00:00.000Z"
+last_activity: "2026-05-21 — Phase 87.1 (Proposal Lifecycle Integration, redesign) COMPLETE on v3.3. All 7 plans landed; user-conducted in-browser UAT passed all 31 checks (D-01 home sub-tabs + role gates, CR-01 personnel-picker regression on Engagements tab, D-02 /proposals route + nav retired, D-04 openProposalModal from home + detail views, D-05 inline proposal card on project/service detail, D-06 services parent_collection write path, D-08 role-filtered Proposals sub-tab). Final architecture: proposals.js is a 395-line pure shared module exposing STAGE_ORDER, PROPOSAL_RANGE_STATUSES, badge/age helpers, renderStageGroupCard, renderApprovalQueue, _applyProposalStateTransition; app/proposal-modal.js owns the detail modal (fresh getDoc, 20 symmetric window fns); app/engagement-create.js owns the engagement form (6 unsuffixed window fns, CR-01 helper from prior attempt gone); home.js mounts Overview/Engagements/Proposals sub-tabs with role gates; project-detail.js + service-detail.js render inline proposal cards with parent_collection-aware submit; /proposals route + Proposals nav links retired. CR-01 anti-pattern structurally closed — no suffixed-name pill helper remains."
 progress:
   total_phases: 25
   completed_phases: 22
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 EXECUTING (2026-05-21) — 7 plans across 6 waves. Sequential execution on v3.3. Wave 6 (87.1-06) DONE; Plan 87.1-07 (manual UAT) is the only remaining work.
-Next: pause for manual UAT on 87.1-07 (browser verification of nav retirement + sub-tabs + inline cards)
+Phase: 87.1 COMPLETE (2026-05-21) — 7 plans done across 6 waves. UAT approved. proposals.js is now a pure shared module (395 lines), proposal-modal.js owns the detail modal, engagement-create.js owns the engagement form, home.js mounts the new sub-tabs, project/service detail show inline proposal cards, /proposals route retired.
+Next: PR / merge v3.3 branch when ready, or pick the next phase from ROADMAP
 
 ## Performance Metrics
 
