@@ -4,8 +4,8 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-07) paused for manual UAT.
 stopped_at: Phase 87.1 in-flight — executor agents spawning per wave
-last_updated: "2026-05-21T00:00:00.000Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 01 (Wave 1) DONE on v3.3. proposals.js gained 9 module-level exports (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, renderApprovalQueue, _applyProposalStateTransition) + D-06 parent_collection fix; cryptoRandomUuid moved to utils.js. Existing Proposals tab behaviour unchanged. Commits be900bd (refactor cryptoRandomUuid) + 95cc355 (feat exports + D-06). Foundation for plans 02-06."
+last_updated: "2026-05-21T07:46:32.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 02 (Wave 2) DONE on v3.3. New shared utility app/proposal-modal.js (1,367 lines) extracted from proposals.js — exports openProposalModal(proposalId, context) + closeProposalModal(). Fresh getDoc() fetch on open and every lifecycle handler (no proposalsData dependency); 20 window functions registered on open / deleted on close. proposals.js untouched (its in-place modal stays live until /proposals route retires in Wave 6). Commit bb03a4f. Plans 04-06 (home.js sub-tabs, project-detail inline card, service-detail inline card) now unblocked."
 progress:
   total_phases: 25
   completed_phases: 22
@@ -153,6 +153,7 @@ Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
 | Phase 91.2 P03 | ~15 | 2 tasks (is_subcon auto-detect + UAT caveat) | 2 files |
 | Phase 87.1 P04 | ~12 | 2 tasks | 1 files |
 | Phase 87.1 P06 | ~15 | 2 tasks | 2 files |
+| Phase 87.1 P02 | 6 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -160,6 +161,13 @@ Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.1-02]: app/proposal-modal.js placed at app/ level (not app/views/) — mirrors engagement-create.js / proof-modal.js shared utility pattern; it is not a routed view
+- [Phase 87.1-02]: openProposalModal does fresh getDoc per call (not proposalsData.find) — utility must work from any view that has no module-level proposals array
+- [Phase 87.1-02]: Every lifecycle handler (submitProposalForApproval, submitProposalApproval, submitLoss, etc.) does its own _fetchProposalDoc revalidation — keeps "status changed" guards meaningful without coupling to a missing onSnapshot listener
+- [Phase 87.1-02]: _refreshDetailModalAfterTransition refetches from Firestore (no optimistic merge) — there's no onSnapshot to catch up in this stateless utility, so refetch is the only correct source of truth
+- [Phase 87.1-02]: Projects + clients dropdown data loaded lazily on first openCreateProposalModal call and cached in module scope — avoids holding listeners for data only used by the Create/Edit sub-modal
+- [Phase 87.1-02]: proposals.js NOT modified — its in-place private modal must stay until /proposals route retires in Wave 6 (Plan 07); duplicate-code cleanup deferred to that wave
+- [Phase 87.1-02]: window.openApproveModal / window.openRejectModal registered as arrow-function wrappers over _openApproveOrRejectModal(id, mode) — preserves identical onclick strings from proposals.js while routing through a single mode-aware helper
 - [Phase 87.1-06]: STAGE_ORDER imported from proposals.js in home.js — no local redeclaration; single source of truth for stage/label config per cross-AI review recommendation
 - [Phase 87.1-06]: getDocs in separate try/catch in init() so proposals failure cannot block home stats (T-87.1-06-03 mitigate)
 - [Phase 87.1-06]: filterProposalsForUser returns [] for finance and procurement_staff — sub-nav never shown for those roles (T-87.1-06-01 mitigate)
