@@ -555,7 +555,7 @@ Plans:
 Redesign: Home gains Overview | Engagements | Proposals sub-tabs. Proposals top-nav tab retired. proposal-modal.js extracted as shared utility. engagement-create.js extended. Inline card in project/service detail adds attachment + comms + View Proposal.
 
 Plans:
-- [ ] 87.1-01-PLAN.md — proposals.js: lift STAGE_ORDER, add PROPOSAL_RANGE_STATUSES, export 7 functions, D-06 parent_collection fix; utils.js: export cryptoRandomUuid — Wave 1
+- [x] 87.1-01-PLAN.md — proposals.js: lift STAGE_ORDER, add PROPOSAL_RANGE_STATUSES, export 7 functions, D-06 parent_collection fix; utils.js: export cryptoRandomUuid — Wave 1 — DONE 2026-05-21 (be900bd + 95cc355)
 - [ ] 87.1-02-PLAN.md — app/proposal-modal.js: extract full proposal detail modal from proposals.js, fresh getDoc fetch — Wave 2
 - [ ] 87.1-03-PLAN.md — engagement-create.js: add renderEngagementForm/initEngagementForm/destroyEngagementForm; proposals.js: remove engagement code, stub render — Wave 3
 - [ ] 87.1-04-PLAN.md — home.js: Overview|Engagements|Proposals sub-tabs + role gates + getDocs proposals; styles/views.css: .home-sub-nav CSS — Wave 4

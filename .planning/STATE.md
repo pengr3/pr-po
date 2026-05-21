@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.1 REPLANNED (2026-05-20) — full redesign after code revert. 7 plans ready across 6 waves. Ready to execute.
-stopped_at: Phase 87.1 replanned — awaiting /gsd-execute-phase 87.1
-last_updated: "2026-05-20T00:00:00.000Z"
-last_activity: "2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item."
+status: Phase 87.1 EXECUTING (2026-05-21) — sequential execution on v3.3, 7 plans across 6 waves, Wave 6 (87.1-07) paused for manual UAT.
+stopped_at: Phase 87.1 in-flight — executor agents spawning per wave
+last_updated: "2026-05-21T00:00:00.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 01 (Wave 1) DONE on v3.3. proposals.js gained 9 module-level exports (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, renderApprovalQueue, _applyProposalStateTransition) + D-06 parent_collection fix; cryptoRandomUuid moved to utils.js. Existing Proposals tab behaviour unchanged. Commits be900bd (refactor cryptoRandomUuid) + 95cc355 (feat exports + D-06). Foundation for plans 02-06."
 progress:
   total_phases: 25
   completed_phases: 22
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.1 REPLANNED (2026-05-20) — 7 plans across 6 waves. Full redesign: home sub-tabs, proposal-modal.js extraction, engagement-create.js extension, enriched inline card, retire Proposals nav.
-Next: /gsd-execute-phase 87.1
+Phase: 87.1 EXECUTING (2026-05-21) — 7 plans across 6 waves. Sequential execution on v3.3. Wave 6 (87.1-07 UAT) reserved for manual user verification.
+Next: complete Waves 1–5 autonomously, pause for manual UAT on 87.1-07
 
 ## Performance Metrics
 
@@ -529,9 +529,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-18 — Phase 91.2 Plan 03 is_subcon auto-detect regression fix shipped (1b0fbe2 plan + 4d5a801 finance.js fix + df04e9c UAT caveat + daf109f summary). Restores archive parity at finance.js:5324/5347/5348 (mirrors archive/finance.html:2507). Plan-checker PASS with 7 confirmations. Closes the long-pending Phase 68.1 backlog item.
-Last session: 2026-05-19T11:12:26.656Z
-Stopped at: context exhaustion at 75% (2026-05-19)
-Resume file: None
-Next action: Browser UAT for Phase 91.2 — 6 tests in 91.2-HUMAN-UAT.md. Tests 1/2/3/5/6 (Materials side) can run against existing data; test 4 (cross-group AND) requires creating a fresh MRF with a SUBCON-category line item, approving through Finance to mint a new is_subcon=true PO. Also still pending: Phase 91 UAT (Bug 3 re-verification per prior commit 557a764) and Phase 92.2 UAT.
+Last session: 2026-05-21T00:00:00.000Z
+Stopped at: Session resumed — proceeding to /gsd-plan-phase 87.1 plan-checker verification on 7 redesigned plans (HANDOFF.json + .continue-here.md aligned)
+Resume file: .planning/HANDOFF.json + .planning/phases/87.1-proposal-lifecycle-integration-proposal-project-bidirectiona/.continue-here.md
+Next action: Run /gsd-plan-phase 87.1 → choose "Verify existing plans" to spawn plan-checker on PLAN.md 01–07. Carry-over items still pending: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
