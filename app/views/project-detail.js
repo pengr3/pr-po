@@ -8,6 +8,9 @@ import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel,
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+// Phase 87.1 D-05 — inline proposal card
+import { PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, renderAgeBadge, _applyProposalStateTransition } from './proposals.js';
+import { openProposalModal } from '../proposal-modal.js';
 
 let currentProject = null;
 let projectCode = null;
@@ -286,7 +289,13 @@ export async function destroy() {
     delete window.exportProjectExpenseCSV;
     delete window.startCodeIssuance;
     delete window.runCodeIssuance;
+    // Phase 87.1 D-05 — inline proposal card window functions cleanup
+    delete window.openProposalModal;
+    delete window.openProposalInlineSubmitModal;
+    delete window.closeProposalInlineSubmitModal;
+    delete window.confirmProposalInlineSubmit;
     document.getElementById('issueCodeOverlay')?.remove();
+    document.getElementById('proposal-inline-submit-modal')?.remove();
 }
 
 /**
@@ -349,6 +358,12 @@ function renderProjectDetail() {
     const canEditPersonnel = showEditControls && (user?.role === 'super_admin' || user?.role === 'operations_admin');
 
     const focusedField = document.activeElement?.dataset?.field;
+
+    // ----- Phase 87.1 D-05: inline proposal card placeholder (loaded async via loadProposalCard) -----
+    const isInProposalRange = PROPOSAL_RANGE_STATUSES.includes(currentProject.project_status);
+    const proposalCardHtml = isInProposalRange
+        ? `<div id="proposalInlineCard" style="margin-top:1rem;"><div class="proposal-inline-card"><p style="color:#64748b;font-size:0.875rem;">Loading proposal...</p></div></div>`
+        : '';
 
     // ----- Project Plan summary card (Phase 86 D-03) -----
     const planCardHtml = `
@@ -557,6 +572,8 @@ function renderProjectDetail() {
                 </div>
             </div>
 
+            ${proposalCardHtml}
+
             ${planCardHtml}
 
             <!-- Delete Button (Below All Cards) -->
@@ -567,6 +584,11 @@ function renderProjectDetail() {
             ` : ''}
         </div>
     `;
+
+    // Phase 87.1 D-05 — fire-and-forget load of proposal card (only when in range)
+    if (isInProposalRange) {
+        loadProposalCard(currentProject.id, 'projects');
+    }
 
     // Restore focus if field was focused before re-render
     if (focusedField) {
@@ -1293,6 +1315,185 @@ async function runCodeIssuance(clientId, clientCode, newProjectCode) {
     }
 }
 
+// ============================================================
+// Phase 87.1 D-05 — Inline proposal card (project detail)
+// ============================================================
+// Renders a lightweight info panel when the project status is in the proposal
+// lifecycle range. Shows attachment + latest comms entry + Submit-for-Approval
+// (when applicable) + View Proposal (full modal via proposal-modal.js).
+// All Firestore writes go through _applyProposalStateTransition with a fresh
+// getDoc() — same pattern as home.js _homeQueueConfirmAction (the reference).
+
+function _renderCardAttachment(proposal) {
+    if (!proposal.attachment_kind) {
+        return `<div style="font-size:12px;color:#94a3b8;margin-top:4px;">No attachment</div>`;
+    }
+    if (proposal.attachment_kind === 'link') {
+        const url = proposal.attachment_url || '';
+        let label = 'View link';
+        try { label = new URL(url).hostname; } catch (_) { /* keep default */ }
+        return `<div style="font-size:12px;margin-top:4px;"><a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;">${escapeHTML(label)}</a></div>`;
+    }
+    if (proposal.attachment_kind === 'file') {
+        const filename = proposal.attachment_filename || 'Download file';
+        const url = proposal.attachment_url || '#';
+        return `<div style="font-size:12px;margin-top:4px;"><a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;">${escapeHTML(filename)}</a></div>`;
+    }
+    return '';
+}
+
+function _renderCardLatestComms(proposal) {
+    const log = proposal.comms_log || [];
+    if (log.length === 0) {
+        return `<div style="font-size:12px;color:#94a3b8;margin-top:4px;">No comms yet</div>`;
+    }
+    const last = log[log.length - 1];
+    const date = last.date || '—';
+    const rawDesc = last.description || '';
+    const desc = rawDesc.length > 80 ? rawDesc.slice(0, 80) + '…' : rawDesc;
+    return `<div style="font-size:12px;color:#475569;margin-top:4px;">${escapeHTML(date)} · ${escapeHTML(desc)}</div>`;
+}
+
+function renderInlineProposalCard(proposal) {
+    // Overdue visual: amber left border when current_status_since > 7 days ago.
+    let overdueBorder = '';
+    try {
+        const since = proposal.current_status_since;
+        if (since) {
+            const sinceMs = since?.seconds ? since.seconds * 1000 : (typeof since === 'string' ? Date.parse(since) : 0);
+            if (sinceMs > 0) {
+                const ageDays = (Date.now() - sinceMs) / 86400000;
+                if (ageDays > 7) overdueBorder = 'border-left: 3px solid #f59e0b;';
+            }
+        }
+    } catch (_) { /* ignore */ }
+
+    const showSubmit = ['draft', 'for_revision'].includes(proposal.status);
+    const submitBtnHtml = showSubmit
+        ? `<button class="btn btn-primary" id="proposalInlineSubmitBtn" onclick="window.openProposalInlineSubmitModal('${escapeHTML(proposal.id)}')">Submit for Approval</button>`
+        : '';
+
+    return `
+        <div class="proposal-inline-card" style="${overdueBorder}">
+            <div class="proposal-inline-card__header">
+                <span class="proposal-inline-card__label">Active Proposal</span>
+                ${getProposalStatusBadge(proposal.status)}
+            </div>
+            <div class="proposal-inline-card__body">
+                <div style="font-size:13px;color:#1a73e8;font-weight:600;">${escapeHTML(proposal.proposal_id || proposal.id)}</div>
+                <div style="font-size:15px;color:#1e293b;font-weight:600;margin-top:2px;">${escapeHTML(proposal.title || '(Untitled proposal)')}</div>
+                <div style="font-size:13px;color:#475569;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span>${proposal.amount != null ? 'PHP ' + formatCurrency(proposal.amount) : '—'}</span>
+                    ${renderAgeBadge(proposal)}
+                </div>
+                ${_renderCardAttachment(proposal)}
+                ${_renderCardLatestComms(proposal)}
+            </div>
+            <div class="proposal-inline-card__footer" style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+                ${submitBtnHtml}
+                <button class="btn btn-outline" onclick="window.openProposalModal('${escapeHTML(proposal.id)}')">View Proposal</button>
+            </div>
+        </div>
+    `;
+}
+
+function openProposalInlineSubmitModal(proposalDocId) {
+    document.getElementById('proposal-inline-submit-modal')?.remove();
+    const html = `
+        <div id="proposal-inline-submit-modal" class="modal-overlay" style="display:flex;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:1000;backdrop-filter:blur(2px);">
+            <div class="modal-window" style="background:#ffffff;border-radius:8px;max-width:480px;width:92%;padding:0;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                <div style="padding:1rem 1.25rem;border-bottom:1px solid #e5e7eb;">
+                    <h3 style="margin:0;font-size:1.05rem;font-weight:600;color:#1e293b;">Submit for Approval</h3>
+                </div>
+                <div style="padding:1rem 1.25rem;">
+                    <p style="margin:0 0 0.75rem 0;color:#475569;font-size:0.875rem;">Submitting will advance this project to <strong>Proposal for Internal Approval</strong>. This action is recorded in the audit trail.</p>
+                    <label style="display:block;font-size:0.8125rem;font-weight:600;color:#475569;margin-bottom:0.25rem;">Submission Notes (optional)</label>
+                    <textarea id="proposalInlineSubmitNotes" rows="3" placeholder="Describe the proposal and any context for approvers..." style="width:100%;padding:0.5rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.875rem;resize:vertical;font-family:inherit;"></textarea>
+                </div>
+                <div style="padding:0.75rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;">
+                    <button class="btn btn-secondary" onclick="window.closeProposalInlineSubmitModal()">Keep Editing</button>
+                    <button class="btn btn-primary" id="proposalInlineSubmitConfirmBtn" onclick="window.confirmProposalInlineSubmit('${escapeHTML(proposalDocId)}')">Confirm Submission</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function confirmProposalInlineSubmit(proposalDocId) {
+    // CR-01 anti-pattern guard + double-submit prevention: disable confirm button immediately
+    const confirmBtn = document.getElementById('proposalInlineSubmitConfirmBtn');
+    if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Submitting...'; }
+
+    try {
+        // Fresh fetch — mirrors home.js _homeQueueConfirmAction reference pattern
+        const snap = await getDoc(doc(db, 'proposals', proposalDocId));
+        if (!snap.exists()) {
+            showToast('Proposal not found.', 'error');
+            return;
+        }
+        const proposal = { id: snap.id, ...snap.data() };
+        if (!['draft', 'for_revision'].includes(proposal.status)) {
+            showToast('Proposal status has changed. Please reload the page.', 'error');
+            document.getElementById('proposal-inline-submit-modal')?.remove();
+            return;
+        }
+
+        showLoading(true);
+        try {
+            await _applyProposalStateTransition({
+                proposal,
+                newStatus: 'pending_internal',
+                newProjectStatus: 'Proposal for Internal Approval',
+                auditAction: 'SUBMITTED',
+                auditComment: null
+            });
+            document.getElementById('proposal-inline-submit-modal')?.remove();
+            showToast('Proposal submitted for approval.', 'success');
+            // Reload card so it reflects the new status (Submit button hides)
+            if (currentProject) {
+                loadProposalCard(currentProject.id, 'projects');
+            }
+        } catch (err) {
+            console.error('[ProjectDetail] confirmProposalInlineSubmit transition failed:', err);
+            showToast(err?.message || 'Failed to submit proposal. Please try again.', 'error');
+            // Re-enable confirm button so user can retry
+            if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm Submission'; }
+        } finally {
+            showLoading(false);
+        }
+    } catch (err) {
+        console.error('[ProjectDetail] confirmProposalInlineSubmit outer failure:', err);
+        showToast(err?.message || 'Failed to submit proposal.', 'error');
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm Submission'; }
+    }
+}
+
+async function loadProposalCard(parentDocId, parentCollection) {
+    try {
+        const q = query(collection(db, 'proposals'), where('project_id', '==', parentDocId));
+        const snap = await getDocs(q);
+        const el = document.getElementById('proposalInlineCard');
+        if (!el) return; // navigated away
+
+        if (snap.empty) {
+            el.innerHTML = `<div class="proposal-inline-card"><p style="color:#64748b;font-size:0.875rem;margin:0;">No proposal linked yet.</p></div>`;
+            return;
+        }
+
+        // REVIEWS.md Plan-05 guidance — most projects have ≤1 active proposal; if multiple,
+        // surface the first (Firestore returns them in indexed/natural order).
+        const proposal = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        el.innerHTML = renderInlineProposalCard(proposal);
+    } catch (err) {
+        console.error('[ProjectDetail] loadProposalCard failed:', err);
+        const el = document.getElementById('proposalInlineCard');
+        if (el) {
+            el.innerHTML = `<div class="proposal-inline-card"><p style="color:#ef4444;font-size:0.875rem;margin:0;">Could not load proposal.</p></div>`;
+        }
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveField = saveField;
@@ -1313,6 +1514,11 @@ function attachWindowFunctions() {
     window.exportProjectExpenseCSV = exportProjectExpenseCSV;
     window.startCodeIssuance = startCodeIssuance;
     window.runCodeIssuance = runCodeIssuance;
+    // Phase 87.1 D-05 — inline proposal card window functions
+    window.openProposalModal = openProposalModal;
+    window.openProposalInlineSubmitModal = openProposalInlineSubmitModal;
+    window.closeProposalInlineSubmitModal = () => { document.getElementById('proposal-inline-submit-modal')?.remove(); };
+    window.confirmProposalInlineSubmit = confirmProposalInlineSubmit;
 }
 
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
