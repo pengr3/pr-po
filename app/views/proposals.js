@@ -17,7 +17,7 @@
 
 import { db, collection, onSnapshot, query, where, doc, getDoc, addDoc, updateDoc, serverTimestamp, writeBatch } from '../firebase.js';
 
-import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId } from '../utils.js';
+import { showLoading, showToast, syncPersonnelToAssignments, syncServicePersonnelToAssignments, escapeHTML, formatCurrency, formatTimestamp, generateProposalId, cryptoRandomUuid } from '../utils.js';
 import { createEngagement } from '../engagement-create.js';
 import { createNotification, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
@@ -1378,17 +1378,7 @@ async function saveProposal() {
     }
 }
 
-/**
- * Generate a UUID for audit_log entry_id.
- * Prefers crypto.randomUUID() (modern browsers); falls back to a simple pseudo-UUID.
- */
-function cryptoRandomUuid() {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        return crypto.randomUUID();
-    }
-    // Fallback for older runtimes — sufficient uniqueness for audit entry IDs
-    return 'p87-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
-}
+// Phase 87.1: cryptoRandomUuid was relocated to app/utils.js; imported above.
 
 // ============================================================
 // PHASE 87 — Stub window functions for Plans 03 / 04 / 05

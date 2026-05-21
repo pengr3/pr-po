@@ -815,3 +815,26 @@ export function downloadCSV(headers, rows, filename) {
 
 // Phase 87: re-export proposal ID generator for convenience (defined in app/proposal-id.js)
 export { generateProposalId } from './proposal-id.js';
+
+/* ========================================
+   UUID / RANDOM ID UTILITIES
+   ======================================== */
+
+/**
+ * Generate a UUID suitable for audit_log entry_id and similar in-document keys.
+ * Prefers crypto.randomUUID() (modern browsers); falls back to a simple pseudo-UUID
+ * for older runtimes (sufficient uniqueness for audit entry IDs).
+ *
+ * Phase 87.1: extracted to utils.js (was previously private in app/views/proposals.js)
+ * so proposals.js, app/proposal-modal.js, and other modules can share one implementation
+ * without circular imports.
+ *
+ * @returns {string} A UUID string
+ */
+export function cryptoRandomUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Fallback for older runtimes — sufficient uniqueness for audit entry IDs
+    return 'p87-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+}
