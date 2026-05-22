@@ -57,6 +57,20 @@
       ]
     },
     {
+      "collectionGroup": "transport_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "service_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
