@@ -287,6 +287,10 @@ function renderProposalActionButtons(proposal) {
             buttons.push(`<button class="btn btn-primary" style="width:100%;" onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button>`);
             buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.openEditProposalModal('${docId}')">Edit Proposal</button>`);
         }
+    }
+    if (status === 'for_revision' && canDrive) {
+        // Phase 87.2 D-12: Mark Sent to Client also available at for_revision (additive — draft/for_revision block above already pushed Submit+Edit)
+        buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.submitMarkSentToClient('${docId}')">Mark Sent to Client</button>`);
     } else if (status === 'pending_internal') {
         if (canApprove) {
             buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openApproveModal('${docId}')">Approve Proposal</button>`);
@@ -297,6 +301,8 @@ function renderProposalActionButtons(proposal) {
             buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.submitMarkSentToClient('${docId}')">Mark Sent to Client</button>`);
             buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openClientApprovedModal('${docId}')">Client Approved</button>`);
             buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openLossModal('${docId}')">Mark as Loss</button>`);
+            // Phase 87.2 D-11: Request Revision button — backward transition, last in list
+            buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openRequestRevisionModal('${docId}')">Request Revision</button>`);
         }
     }
     // client_approved + loss: no further actions
@@ -845,21 +851,34 @@ async function submitProposalForApproval(proposalDocId) {
 async function submitMarkSentToClient(proposalDocId) {
     const proposal = await _fetchProposalDoc(proposalDocId);
     if (!proposal) { showToast('Proposal not found.', 'error'); return; }
-    if (proposal.status !== 'pending_client') {
-        showToast('Mark Sent to Client is only available after the proposal is approved internally.', 'error');
+    if (proposal.status !== 'pending_client' && proposal.status !== 'for_revision') {
+        showToast('Mark Sent to Client is only available after internal approval or while in revision.', 'error');
         return;
     }
 
-    showLoading(true);
-    try {
-        await _applyProposalStateTransition({
+    const isResend = (proposal.status === 'for_revision');
+    // Phase 87.2 D-12/D-14: when resending after revision, advance status forward.
+    // When already in pending_client, this is a no-op-status audit-only event.
+    const transitionArgs = isResend
+        ? {
             proposal,
-            newStatus: null,                  // stay in pending_client
-            newProjectStatus: null,           // no project status change
+            newStatus: 'pending_client',
+            newProjectStatus: 'Proposal Under Client Review',
             auditAction: 'SENT_TO_CLIENT',
             auditComment: null
-        });
-        showToast('Marked as sent to client.', 'success');
+        }
+        : {
+            proposal,
+            newStatus: null,
+            newProjectStatus: null,
+            auditAction: 'SENT_TO_CLIENT',
+            auditComment: null
+        };
+
+    showLoading(true);
+    try {
+        await _applyProposalStateTransition(transitionArgs);
+        showToast(isResend ? 'Resent to client. Proposal back under client review.' : 'Marked as sent to client.', 'success');
         await _refreshDetailModalAfterTransition(proposalDocId);
     } catch (err) {
         console.error('[ProposalModal] submitMarkSentToClient failed:', err);
@@ -1499,6 +1518,8 @@ export async function openProposalModal(proposalId, context) {
     window.submitLoss                           = submitLoss;
     window.openClientApprovedModal              = openClientApprovedModal;
     window.submitClientApproved                 = submitClientApproved;
+    window.openRequestRevisionModal             = openRequestRevisionModal;
+    window.confirmRequestRevision               = confirmRequestRevision;
     window.saveProposalAttachment               = saveProposalAttachment;
     window.removeProposalAttachment             = removeProposalAttachment;
     window._openProposalAttachmentReplace       = _openProposalAttachmentReplace;
@@ -1534,6 +1555,8 @@ export function closeProposalModal() {
     delete window.submitLoss;
     delete window.openClientApprovedModal;
     delete window.submitClientApproved;
+    delete window.openRequestRevisionModal;
+    delete window.confirmRequestRevision;
     delete window.saveProposalAttachment;
     delete window.removeProposalAttachment;
     delete window._openProposalAttachmentReplace;
