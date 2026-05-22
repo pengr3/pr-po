@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.2 executing — Plan 03 complete (2026-05-22); 2 plans remain (Plan 04: G3 Revision cycle, Plan 05: G5 audit trail).
-stopped_at: Completed 87.2-03-PLAN.md
+status: "Phase 87.2 executing — Plan 04 complete (2026-05-22); 1 plan remains (Plan 05: G5 audit trail comms nesting)."
+stopped_at: Completed 87.2-04-PLAN.md
 last_updated: "2026-05-22T00:00:00.000Z"
-last_activity: "2026-05-22 — Phase 87.2 Plan 03 DONE. Closed Gap G2: renderProposalActionButtons refactored to dual canApprove+canDrive flags. Added _parentDocCache module state + _isCallerAttachedToProposalParent() synchronous helper. openProposalModal preloads parent project/service doc (one getDoc per open). operations_user assigned to parent project now sees driver buttons on pending_client proposals. Decisions covered: D-05, D-06, D-07, D-08, D-09. Commits d43db72 (helper+cache), 6ce2ad9 (renderProposalActionButtons refactor)."
+last_activity: "2026-05-22 — Phase 87.2 Plan 04 DONE. Closed Gap G3: explicit revision cycle via action buttons. Added REVISION_REQUESTED to AUDIT_ACTION_DOT_COLORS (amber #f59e0b) + AUDIT_ACTION_LABELS ('Revision Requested'). Added openRequestRevisionModal + confirmRequestRevision (mirroring Mark-as-Loss sub-modal shape). Extended renderProposalActionButtons: Request Revision button at pending_client (last, btn-danger); Mark Sent to Client also at for_revision (additive if-block). Extended submitMarkSentToClient with isResend branch: from for_revision advances to pending_client + 'Proposal Under Client Review'; from pending_client remains audit-only. Window registrations added in openProposalModal + cleanups in closeProposalModal. saveCommsEntry NOT touched (D-10 preserved). Commits ce7224a (AUDIT_ACTION constants), 9dd8eb6 (openRequestRevisionModal+confirmRequestRevision), 2df6746 (buttons+submitMarkSentToClient+window regs). Decisions covered: D-10, D-11, D-12, D-13, D-14, D-15."
 progress:
   total_phases: 26
   completed_phases: 22
   total_plans: 95
-  completed_plans: 91
-  percent: 96
+  completed_plans: 93
+  percent: 98
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.2 executing — Plan 03 complete (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2), G2 closed (Plan 03 — dual-flag renderProposalActionButtons). Remaining: Plan 04 (G3 Revision cycle), Plan 05 (G5 audit trail comms nesting).
-Next: 87.2-04
+Phase: 87.2 executing — Plan 04 complete (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2), G2 closed (Plan 03 — dual-flag renderProposalActionButtons), G3 closed (Plan 04 — Request Revision + extended Mark Sent). Remaining: Plan 05 (G5 audit trail comms nesting).
+Next: 87.2-05
 
 ## Performance Metrics
 
@@ -158,6 +158,7 @@ Next: 87.2-04
 | Phase 87.1 P04 (Wave 4) | 8 | 2 tasks | 2 files |
 | Phase 87.1 P05 (Wave 5) | 6 | 3 tasks | 3 files |
 | Phase 87.1 P06 (Wave 6) | 5 | 3 tasks (+1 docs follow-up) | 4 files |
+| Phase 87.2 P04 | ~20 | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,11 @@ Next: 87.2-04
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.2-04]: D-10 preserved — saveCommsEntry is a pure updateDoc on comms_log only; no status change triggered by comms entries (anti-pattern explicitly blocked)
+- [Phase 87.2-04]: D-11 Request Revision button at pending_client opens sub-modal mirroring Mark-as-Loss shape; confirmRequestRevision calls _applyProposalStateTransition(for_revision, 'For Revision', REVISION_REQUESTED)
+- [Phase 87.2-04]: D-12/D-14 Mark Sent to Client extended to for_revision; isResend branch advances to pending_client + 'Proposal Under Client Review' (no new enum value introduced)
+- [Phase 87.2-04]: D-13 REVISION_REQUESTED: amber dot '#f59e0b', label 'Revision Requested' in AUDIT_ACTION_DOT_COLORS + AUDIT_ACTION_LABELS
+- [Phase 87.2-04]: Additive if(for_revision&&canDrive) block placed AFTER the existing if(draft||for_revision) block — for_revision gets Submit+Edit (from first block) AND Mark Sent (from second block) additively; pending_internal/pending_client branches use else-if chaining for mutual exclusivity
 - [Phase 87.2-03]: renderProposalActionButtons dual-flag: canApprove gates Approve/Reject (admins only); canDrive gates Submit/Edit/Mark Sent/Client Approved/Mark as Loss (admins + assigned ops/services user per D-05/D-06/D-07/D-08/D-09)
 - [Phase 87.2-03]: _parentDocCache preloaded at openProposalModal time (one getDoc per open) — synchronous renderProposalActionButtons reads cache without async; cleared in closeProposalModal; defensive default-deny when null
 - [Phase 87.2-03]: _isCallerAttachedToProposalParent is synchronous (no async keyword) — safe to call inside template-literal HTML builders
