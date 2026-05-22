@@ -577,6 +577,27 @@ function showCreateModal(existing) {
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // Phase 87.2 D-01/D-04: when the user changes the project dropdown, auto-select
+    // the picked project's parent client in the Target Client dropdown. User can
+    // still manually override before saving. Not fired on initial render — `change`
+    // only fires on user interaction, so edit-mode existing target_client_id is
+    // preserved per D-04.
+    const projectSelectEl = document.getElementById('proposalCreateProject');
+    const clientSelectEl  = document.getElementById('proposalCreateClient');
+    if (projectSelectEl && clientSelectEl) {
+        projectSelectEl.addEventListener('change', () => {
+            const pid = projectSelectEl.value;
+            if (!pid) return;
+            const project = _modalProjectsData.find(p => p.id === pid);
+            const parentClientId = project?.client_id || '';
+            // Only set if the option exists in the client dropdown (legacy clientless
+            // projects have client_id === null; leave the dropdown alone in that case).
+            if (parentClientId && clientSelectEl.querySelector(`option[value="${parentClientId}"]`)) {
+                clientSelectEl.value = parentClientId;
+            }
+        });
+    }
 }
 
 function closeCreateProposalModal() {
