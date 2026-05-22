@@ -1275,7 +1275,7 @@ async function loadProposalCard(parentDocId, parentCollection) {
                 el.innerHTML = `<div class="proposal-inline-card proposal-inline-card--start">
                     <div class="proposal-inline-card__body" style="text-align:center;padding:1rem 0;">
                         <p style="margin:0 0 0.75rem 0;color:#475569;font-size:0.875rem;">No proposal yet. Ready to start one?</p>
-                        <button class="btn btn-primary" onclick="window.openCreateProposalModal('${escapeHTML(parentDocId)}', window._startProposalCallback)">Start Proposal</button>
+                        <button class="btn btn-primary" onclick="window.openCreateProposalModal('${escapeHTML(parentDocId)}', window._startProposalCallback, 'services', '${escapeHTML(currentService?.service_code || '')}')">Start Proposal</button>
                     </div>
                 </div>`;
             } else if (currentService?.project_status === 'For Proposal') {
