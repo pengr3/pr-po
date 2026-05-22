@@ -9,8 +9,8 @@ import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 // Phase 87.1 D-05 — inline proposal card
-import { PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, renderAgeBadge, _applyProposalStateTransition } from './proposals.js';
-import { openProposalModal } from '../proposal-modal.js';
+import { renderAgeBadge, _applyProposalStateTransition } from './proposals.js';
+import { openProposalModal, openCreateProposalModal } from '../proposal-modal.js';
 
 let currentProject = null;
 let projectCode = null;
@@ -294,6 +294,9 @@ export async function destroy() {
     delete window.openProposalInlineSubmitModal;
     delete window.closeProposalInlineSubmitModal;
     delete window.confirmProposalInlineSubmit;
+    // Phase 87.3 D-01 — Start Proposal window functions cleanup
+    delete window.openCreateProposalModal;
+    delete window._startProposalCallback;
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
 }
@@ -359,11 +362,8 @@ function renderProjectDetail() {
 
     const focusedField = document.activeElement?.dataset?.field;
 
-    // ----- Phase 87.1 D-05: inline proposal card placeholder (loaded async via loadProposalCard) -----
-    const isInProposalRange = PROPOSAL_RANGE_STATUSES.includes(currentProject.project_status);
-    const proposalCardHtml = isInProposalRange
-        ? `<div id="proposalInlineCard" style="margin-top:1rem;"><div class="proposal-inline-card"><p style="color:#64748b;font-size:0.875rem;">Loading proposal...</p></div></div>`
-        : '';
+    // ----- Phase 87.3 D-07: proposalInlineCard always rendered; loadProposalCard handles all branching -----
+    const proposalCardHtml = '<div id="proposalInlineCard" style="margin-top:1rem;"></div>';
 
     // ----- Project Plan summary card (Phase 86 D-03) -----
     const planCardHtml = `
@@ -585,10 +585,8 @@ function renderProjectDetail() {
         </div>
     `;
 
-    // Phase 87.1 D-05 — fire-and-forget load of proposal card (only when in range)
-    if (isInProposalRange) {
-        loadProposalCard(currentProject.id, 'projects');
-    }
+    // Phase 87.3 D-07 — fire-and-forget load of proposal card (unconditional; branching inside loadProposalCard)
+    loadProposalCard(currentProject.id, 'projects');
 
     // Restore focus if field was focused before re-render
     if (focusedField) {
@@ -1354,7 +1352,33 @@ function _renderCardLatestComms(proposal) {
     return `<div style="font-size:12px;color:#475569;margin-top:4px;">${escapeHTML(date)} · ${escapeHTML(desc)}</div>`;
 }
 
-function renderInlineProposalCard(proposal) {
+// Phase 87.3 D-12 — map proposal status to human-readable stage label
+function _proposalStageLabel(status) {
+    const labels = {
+        draft: 'Draft Proposal',
+        pending_internal: 'For Internal Approval',
+        pending_client: 'Under Client Review',
+        for_revision: 'Revision Requested',
+        approved: 'Client Approved',
+        loss: 'Loss',
+    };
+    return labels[status] || 'Proposal';
+}
+
+// Phase 87.3 D-13 — dot color per proposal status
+function _proposalStatusDotColor(status) {
+    const colors = {
+        draft: '#94a3b8',
+        pending_internal: '#f59e0b',
+        pending_client: '#1a73e8',
+        for_revision: '#f59e0b',
+        approved: '#059669',
+        loss: '#ef4444',
+    };
+    return colors[status] || '#94a3b8';
+}
+
+function renderInlineProposalCard(proposal, canDrive) {
     // Overdue visual: amber left border when current_status_since > 7 days ago.
     let overdueBorder = '';
     try {
@@ -1368,7 +1392,7 @@ function renderInlineProposalCard(proposal) {
         }
     } catch (_) { /* ignore */ }
 
-    const showSubmit = ['draft', 'for_revision'].includes(proposal.status);
+    const showSubmit = canDrive && ['draft', 'for_revision'].includes(proposal.status);
     const submitBtnHtml = showSubmit
         ? `<button class="btn btn-primary" id="proposalInlineSubmitBtn" onclick="window.openProposalInlineSubmitModal('${escapeHTML(proposal.id)}')">Submit for Approval</button>`
         : '';
@@ -1376,11 +1400,14 @@ function renderInlineProposalCard(proposal) {
     return `
         <div class="proposal-inline-card" style="${overdueBorder}">
             <div class="proposal-inline-card__header">
-                <span class="proposal-inline-card__label">Active Proposal</span>
-                ${getProposalStatusBadge(proposal.status)}
+                <span class="proposal-inline-card__status-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${_proposalStatusDotColor(proposal.status)};margin-right:6px;flex-shrink:0;"></span>
+                <span class="proposal-inline-card__label">${_proposalStageLabel(proposal.status)}</span>
             </div>
             <div class="proposal-inline-card__body">
-                <div style="font-size:13px;color:#1a73e8;font-weight:600;">${escapeHTML(proposal.proposal_id || proposal.id)}</div>
+                <div style="font-size:13px;color:#1a73e8;font-weight:600;display:flex;align-items:center;gap:8px;">
+                    <span>${escapeHTML(proposal.proposal_id || proposal.id)}</span>
+                    <span style="color:#94a3b8;font-weight:400;">v${proposal.version || 1}</span>
+                </div>
                 <div style="font-size:15px;color:#1e293b;font-weight:600;margin-top:2px;">${escapeHTML(proposal.title || '(Untitled proposal)')}</div>
                 <div style="font-size:13px;color:#475569;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span>${proposal.amount != null ? 'PHP ' + formatCurrency(proposal.amount) : '—'}</span>
@@ -1471,20 +1498,48 @@ async function confirmProposalInlineSubmit(proposalDocId) {
 
 async function loadProposalCard(parentDocId, parentCollection) {
     try {
+        // Phase 87.3 D-01/D-02/D-05 — compute canDrive from current user role + personnel assignment
+        const user = window.getCurrentUser?.();
+        const uid = user?.uid;
+        const role = user?.role;
+        const adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+        const assignedRoles = ['operations_user', 'services_user'];
+        const parentPersonnel = currentProject?.personnel_user_ids || [];
+        const canDrive = adminRoles.includes(role)
+            || (assignedRoles.includes(role) && uid && parentPersonnel.includes(uid));
+
         const q = query(collection(db, 'proposals'), where('project_id', '==', parentDocId));
         const snap = await getDocs(q);
         const el = document.getElementById('proposalInlineCard');
         if (!el) return; // navigated away
 
         if (snap.empty) {
-            el.innerHTML = `<div class="proposal-inline-card"><p style="color:#64748b;font-size:0.875rem;margin:0;">No proposal linked yet.</p></div>`;
+            if (currentProject?.project_status === 'For Proposal' && canDrive) {
+                // Show Start Proposal CTA for canDrive users on For Proposal projects
+                window._startProposalCallback = () => loadProposalCard(parentDocId, parentCollection);
+                el.style.display = '';
+                el.innerHTML = `<div class="proposal-inline-card proposal-inline-card--start">
+                    <div class="proposal-inline-card__body" style="text-align:center;padding:1rem 0;">
+                        <p style="margin:0 0 0.75rem 0;color:#475569;font-size:0.875rem;">No proposal yet. Ready to start one?</p>
+                        <button class="btn btn-primary" onclick="window.openCreateProposalModal('${escapeHTML(parentDocId)}', window._startProposalCallback)">Start Proposal</button>
+                    </div>
+                </div>`;
+            } else if (currentProject?.project_status === 'For Proposal') {
+                // Non-canDrive user on For Proposal — show placeholder
+                el.style.display = '';
+                el.innerHTML = `<div class="proposal-inline-card"><p style="color:#64748b;font-size:0.875rem;margin:0;">No proposal linked yet.</p></div>`;
+            } else {
+                // Not in proposal range and no proposal — hide container
+                el.style.display = 'none';
+            }
             return;
         }
 
         // REVIEWS.md Plan-05 guidance — most projects have ≤1 active proposal; if multiple,
         // surface the first (Firestore returns them in indexed/natural order).
         const proposal = { id: snap.docs[0].id, ...snap.docs[0].data() };
-        el.innerHTML = renderInlineProposalCard(proposal);
+        el.style.display = '';
+        el.innerHTML = renderInlineProposalCard(proposal, canDrive);
     } catch (err) {
         console.error('[ProjectDetail] loadProposalCard failed:', err);
         const el = document.getElementById('proposalInlineCard');
@@ -1519,6 +1574,8 @@ function attachWindowFunctions() {
     window.openProposalInlineSubmitModal = openProposalInlineSubmitModal;
     window.closeProposalInlineSubmitModal = () => { document.getElementById('proposal-inline-submit-modal')?.remove(); };
     window.confirmProposalInlineSubmit = confirmProposalInlineSubmit;
+    // Phase 87.3 D-01 — Start Proposal button support
+    window.openCreateProposalModal = openCreateProposalModal;
 }
 
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
