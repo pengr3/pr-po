@@ -273,24 +273,25 @@ function renderAuditTrail(proposal) {
 // ============================================================
 
 function renderProposalActionButtons(proposal) {
-    const cu = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
-    const canApprove = ['super_admin', 'operations_admin'].includes(cu?.role);
+    // Phase 87.2 D-05/D-06/D-07/D-08/D-09 — Dual-flag gating.
+    const { canApprove, canDrive } = _isCallerAttachedToProposalParent(proposal);
     const status = proposal.status || 'draft';
     const docId = escapeHTML(proposal.id);
 
     let buttons = [];
+
     if (status === 'draft' || status === 'for_revision') {
-        if (canApprove) {
+        if (canDrive) {
             buttons.push(`<button class="btn btn-primary" style="width:100%;" onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button>`);
+            buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.openEditProposalModal('${docId}')">Edit Proposal</button>`);
         }
-        buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.openEditProposalModal('${docId}')">Edit Proposal</button>`);
     } else if (status === 'pending_internal') {
         if (canApprove) {
             buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openApproveModal('${docId}')">Approve Proposal</button>`);
             buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openRejectModal('${docId}')">Reject Proposal</button>`);
         }
     } else if (status === 'pending_client') {
-        if (canApprove) {
+        if (canDrive) {
             buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.submitMarkSentToClient('${docId}')">Mark Sent to Client</button>`);
             buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openClientApprovedModal('${docId}')">Client Approved</button>`);
             buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openLossModal('${docId}')">Mark as Loss</button>`);
