@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.2 executing — Plan 01 complete (2026-05-22); 4 plans remain across 3 waves.
-stopped_at: Completed 87.2-01-PLAN.md
+status: Phase 87.2 executing — Plan 02 complete (2026-05-22); 3 plans remain across 2 waves.
+stopped_at: Completed 87.2-02-PLAN.md
 last_updated: "2026-05-22T00:00:00.000Z"
-last_activity: "2026-05-22 — Phase 87.2 Plan 01 DONE. Fixed client_name→company_name at all 6 sites in proposal-modal.js (2 sort comparator + 3 dropdown render + 1 saveProposal write); added project→client auto-select change listener in showCreateModal. Decisions covered: D-01, D-02, D-03, D-04. Commits b7bf7ab (bug fix), d6d2e9f (listener)."
+last_activity: "2026-05-22 — Phase 87.2 Plan 02 DONE. Added BRANCH 2 to proposals.allow update in firestore.rules: ops/services_user with narrow field-mask (5-key hasOnly) + personnel_user_ids parent-assignment check. Closes Gap G4. DEPLOY REQUIRED: firebase deploy --only firestore:rules. Decisions covered: D-16, D-17, D-18, D-19, D-20. Commit 2eac4d1."
 progress:
   total_phases: 26
   completed_phases: 22
   total_plans: 95
-  completed_plans: 89
-  percent: 94
+  completed_plans: 90
+  percent: 95
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.2 executing — Plan 01 complete (2026-05-22). G1 closed: client_name→company_name fixed at 6 sites; project→client auto-select listener added. Remaining: Plan 02 (G4 firestore.rules — Wave 1 parallel), Plan 03 (G2 operations permissions), Plan 04 (G3 Revision cycle), Plan 05 (G5 audit trail comms nesting).
-Next: 87.2-02
+Phase: 87.2 executing — Plan 02 complete (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2). DEPLOY REQUIRED: firebase deploy --only firestore:rules before Plan 03 smoke-test. Remaining: Plan 03 (G2 operations permissions), Plan 04 (G3 Revision cycle), Plan 05 (G5 audit trail comms nesting).
+Next: 87.2-03
 
 ## Performance Metrics
 
@@ -564,7 +564,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
-Last session: 2026-05-22T02:58:04.045Z
+Last session: 2026-05-22T03:01:47.862Z
 Stopped at: Phase 87.2 context gathered
 Resume file: None
 Next action: Spawn Plan 87.1-07 executor — manual UAT in browser. Verify: no Proposals nav link visible for any role, #/proposals redirects to #/, home Overview/Engagements/Proposals sub-tabs work for eligible roles, finance/procurement_staff see no sub-nav, inline cards on For Proposal project + service show ID/title/amount/badges/attachment/comms, Submit/View buttons work, D-06 services write goes to services collection. Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.

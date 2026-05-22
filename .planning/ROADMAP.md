@@ -577,7 +577,7 @@ Plans:
 
 **Wave 1** *(parallel — disjoint files)*
   - [x] 87.2-01-PLAN.md — proposal-modal.js: Target Client auto-select on project change + client.company_name field-name bug fix at 6 sites (1 saveProposal write + 3 dropdown render + 2 sort comparator) (D-01..D-04) — Wave 1
-  - [ ] 87.2-02-PLAN.md — firestore.rules: new proposals update branch (field-mask + parent-personnel assignment + department alignment) for operations_user/services_user; preserves existing super_admin/operations_admin blanket rule (D-16..D-20) — Wave 1
+  - [x] 87.2-02-PLAN.md — firestore.rules: new proposals update branch (field-mask + parent-personnel assignment + department alignment) for operations_user/services_user; preserves existing super_admin/operations_admin blanket rule (D-16..D-20) — Wave 1
 
 **Wave 2** *(blocked on Wave 1 — shared app/proposal-modal.js, depends on 87.2-01)*
   - [ ] 87.2-03-PLAN.md — proposal-modal.js: renderProposalActionButtons dual canApprove + canDrive flags, parent_collection-aware department gating, parent-doc preload via _parentDocCache (D-05..D-09) — Wave 2
