@@ -238,24 +238,126 @@ async function _loadModalDropdownData() {
 // Audit Trail rendering
 // ============================================================
 
-function renderAuditTrail(proposal) {
-    const entries = (proposal.audit_log || []).slice().sort((a, b) => {
-        const ams = a.ts?.toMillis ? a.ts.toMillis() : (a.ts?.seconds * 1000 || 0);
-        const bms = b.ts?.toMillis ? b.ts.toMillis() : (b.ts?.seconds * 1000 || 0);
-        return bms - ams; // newest first
+/**
+ * Phase 87.2 D-21/D-22/D-23 — Group comms_log entries under the nearest
+ * preceding SENT_TO_CLIENT audit entry. Returns an array of audit entries
+ * in newest-first order, each augmented with a `children: commsEntry[]`
+ * field listing the comms entries that belong to it (in OLDEST-first order
+ * within the group per D-23).
+ *
+ * Algorithm:
+ *   1. Sort audit_log oldest-first into auditAsc.
+ *   2. Scan auditAsc; the CREATED entry is the initial "active parent".
+ *      Each time a SENT_TO_CLIENT is encountered it becomes the new
+ *      active parent. Each comms entry whose logged_at lies between the
+ *      active parent's ts (or 0 for CREATED) and the NEXT SENT_TO_CLIENT
+ *      (or +Infinity if none) attaches to the active parent.
+ *   3. Sort each group's children oldest-first.
+ *   4. Reverse the audit list back to newest-first for display.
+ *
+ * Comms entries with logged_at preceding the CREATED ts (impossible by
+ * construction — CREATED is the first write) defensively attach to CREATED.
+ */
+function _buildAuditCommsGroups(auditLog, commsLog) {
+    const audit = (auditLog || []).map(e => ({ ...e, children: [] }));
+    const comms = (commsLog || []).slice();
+
+    // Normalize ISO strings into millis for comparison. Audit ts is ISO string per
+    // Phase 87 D-04; comms logged_at is ISO string per saveCommsEntry. Both can be
+    // compared via Date.parse — undefined-safe via fallback to 0.
+    const ms = (s) => {
+        if (!s) return 0;
+        if (typeof s === 'string') return Date.parse(s) || 0;
+        if (s?.toMillis) return s.toMillis();
+        if (s?.seconds) return s.seconds * 1000;
+        return 0;
+    };
+
+    // Oldest-first scan
+    audit.sort((a, b) => ms(a.ts) - ms(b.ts));
+
+    // Identify the indices of SENT_TO_CLIENT entries (parents) and the CREATED entry.
+    // CREATED is always the first audit entry by construction; we use index 0 as the
+    // fallback parent when no SENT_TO_CLIENT precedes a comms entry.
+    if (audit.length === 0) {
+        // Edge case: empty audit_log (shouldn't happen if CREATED is always written,
+        // but be defensive). Synthesize a single placeholder bucket for comms.
+        return comms.length === 0
+            ? []
+            : [{ entry_id: 'synthetic-created', action: 'CREATED', ts: null, actor_name: '-',
+                 comment: null, children: comms.slice().sort((a, b) => ms(a.logged_at) - ms(b.logged_at)) }];
+    }
+
+    comms.forEach(c => {
+        const cMs = ms(c.logged_at);
+        // Walk audit oldest-first; pick the index of the latest entry that is either
+        // CREATED (idx 0) or SENT_TO_CLIENT, whose ts <= cMs.
+        let parentIdx = 0;  // CREATED fallback
+        for (let i = 0; i < audit.length; i++) {
+            const aMs = ms(audit[i].ts);
+            if (aMs > cMs) break;  // future audit entry — stop scanning
+            if (i === 0 || audit[i].action === 'SENT_TO_CLIENT') {
+                parentIdx = i;
+            }
+        }
+        audit[parentIdx].children.push(c);
     });
-    if (entries.length === 0) {
+
+    // Sort each group's children oldest-first per D-23
+    audit.forEach(a => {
+        a.children.sort((x, y) => ms(x.logged_at) - ms(y.logged_at));
+    });
+
+    // Flip back to newest-first for display per D-23 (trail-level newest-first)
+    audit.reverse();
+    return audit;
+}
+
+/**
+ * Phase 87.2 D-25 — Render a single comms_log entry as an indented child
+ * under its parent audit entry. Visual treatment per CONTEXT discretion:
+ *   - 24px left padding relative to parent
+ *   - 12px font (vs 13px for audit entries)
+ *   - Gray dot (#94a3b8) to distinguish from colored audit-action dots
+ *   - Type pill via COMMS_TYPE_META.cls; description truncated to ~120 chars
+ *   - logged_by_name + relative date in muted color
+ */
+function _renderNestedCommsChild(c) {
+    const meta = COMMS_TYPE_META[c.type] || { label: c.type || 'Comms', cls: 'badge-primary' };
+    const desc = (c.description || '').trim();
+    const descShort = desc.length > 120 ? desc.slice(0, 117) + '...' : desc;
+    const tsLabel = c.logged_at ? formatTimestamp(c.logged_at) : (c.date || '');
+    return `
+        <div style="position:relative;padding-left:24px;padding-top:6px;padding-bottom:6px;font-size:12px;color:#1e293b;">
+            <div style="position:absolute;left:4px;top:10px;width:6px;height:6px;border-radius:50%;background:#94a3b8;"></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                <span class="${escapeHTML(meta.cls)}" style="font-size:11px;padding:1px 6px;border-radius:4px;">${escapeHTML(meta.label)}</span>
+                <span style="color:#64748b;">${escapeHTML(tsLabel)} · ${escapeHTML(c.logged_by_name || '—')}</span>
+            </div>
+            ${descShort ? `<div style="color:#1e293b;line-height:1.4;">${escapeHTML(descShort)}</div>` : ''}
+        </div>
+    `;
+}
+
+function renderAuditTrail(proposal) {
+    // Phase 87.2 D-21/D-22: merge audit_log + comms_log into grouped structure.
+    const grouped = _buildAuditCommsGroups(proposal.audit_log, proposal.comms_log);
+    if (grouped.length === 0) {
         return `<div style="color:#64748b;font-size:13px;">No audit entries.</div>`;
     }
-    const itemsHtml = entries.map((e, idx) => {
+
+    const itemsHtml = grouped.map((e, idx) => {
         const dotColor = AUDIT_ACTION_DOT_COLORS[e.action] || '#64748b';
         const label = AUDIT_ACTION_LABELS[e.action] || (e.action || 'Unknown');
         const tsLabel = e.ts ? formatTimestamp(e.ts) : '';
         const commentHtml = e.comment
             ? `<div style="font-size:13px;color:#1e293b;font-style:italic;margin-top:4px;">${escapeHTML(e.comment)}</div>`
             : '';
-        const connector = idx < entries.length - 1
+        const connector = idx < grouped.length - 1
             ? `<div style="position:absolute;left:3px;top:12px;bottom:-8px;width:1px;background:#e2e8f0;"></div>`
+            : '';
+        const childrenHtml = (e.children && e.children.length > 0)
+            ? `<div style="margin-top:6px;">${e.children.map(c => _renderNestedCommsChild(c)).join('')}</div>`
             : '';
         return `
             <div style="position:relative;padding-left:20px;padding-bottom:12px;">
@@ -264,6 +366,7 @@ function renderAuditTrail(proposal) {
                 <div style="font-size:13px;font-weight:600;color:#1e293b;">${escapeHTML(label)}</div>
                 <div style="font-size:13px;color:#64748b;">${escapeHTML(tsLabel)} · ${escapeHTML(e.actor_name || '—')}</div>
                 ${commentHtml}
+                ${childrenHtml}
             </div>
         `;
     }).join('');
