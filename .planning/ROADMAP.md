@@ -550,10 +550,10 @@ Plans:
 **Goal:** Polish the inline proposal card in project/service detail: add "Start Proposal" CTA when project is in 'For Proposal' status and no proposal exists; fix Firestore permission gaps for assigned ops/services users; redesign card header with dynamic lifecycle stage label and version number.
 **Requirements**: D-01 through D-15 (from 87.3-CONTEXT.md)
 **Depends on:** Phase 87, Phase 87.1, Phase 87.2
-**Plans:** 3 plans (planned 2026-05-22)
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 87.3-01-PLAN.md — Firestore rules: expand update field-mask (D-09) + add ops/services_user create rule (D-10) + comments (D-11) — Wave 1
+- [x] 87.3-01-PLAN.md — Firestore rules: expand update field-mask (D-09) + add ops/services_user create rule (D-10) + comments (D-11) — Wave 1
 - [ ] 87.3-02-PLAN.md — proposal-modal.js: openCreateProposalModal optional preselectedProjectId + onClose callback (D-03, D-04) — Wave 1
 - [ ] 87.3-03-PLAN.md — project-detail.js + service-detail.js: remove isInProposalRange gate, Start Proposal card path (D-01, D-02, D-05–D-07), renderInlineProposalCard redesign (D-12–D-15), CSS polish — Wave 2
 
