@@ -157,7 +157,7 @@ async function _loadModalDropdownData() {
             _modalClientsData.push({ id: d.id, ...d.data() });
         });
         _modalClientsData.sort((a, b) =>
-            (a.client_code || a.client_name || '').localeCompare(b.client_code || b.client_name || '')
+            (a.client_code || a.company_name || '').localeCompare(b.client_code || b.company_name || '')
         );
 
         _modalProjectsLoaded = true;
@@ -526,9 +526,9 @@ function showCreateModal(existing) {
     const clientOptions = _modalClientsData.map(c => {
         const sel = (c.id === currentClientId) ? 'selected' : '';
         const label = c.client_code
-            ? `${escapeHTML(c.client_code)} — ${escapeHTML(c.client_name || '')}`
-            : escapeHTML(c.client_name || '');
-        return `<option value="${escapeHTML(c.id)}" data-name="${escapeHTML(c.client_name || '')}" ${sel}>${label}</option>`;
+            ? `${escapeHTML(c.client_code)} — ${escapeHTML(c.company_name || '')}`
+            : escapeHTML(c.company_name || '');
+        return `<option value="${escapeHTML(c.id)}" data-name="${escapeHTML(c.company_name || '')}" ${sel}>${label}</option>`;
     }).join('');
 
     const html = `
@@ -629,7 +629,7 @@ async function saveProposal() {
     const project = _modalProjectsData.find(p => p.id === projectId);
     const projectCode = project?.project_code || null;
     const client = clientId ? _modalClientsData.find(c => c.id === clientId) : null;
-    const clientName = client?.client_name || null;
+    const clientName = client?.company_name || null;
 
     const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
     const actorUid = currentUser?.uid ?? null;
