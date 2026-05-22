@@ -71,24 +71,26 @@ export async function init(activeTab = null, param = null) {
     document.addEventListener('mousedown', personnelClickOutsideHandler);
 
     // Listen for permission changes and re-render
+    if (window._serviceDetailPermissionHandler) {
+        window.removeEventListener('permissionsChanged', window._serviceDetailPermissionHandler);
+    }
     const permissionChangeHandler = () => {
         renderServiceDetail();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
-    if (!window._serviceDetailPermissionHandler) {
-        window._serviceDetailPermissionHandler = permissionChangeHandler;
-    }
+    window._serviceDetailPermissionHandler = permissionChangeHandler;
 
     // Re-check access when assignments change
+    if (window._serviceDetailAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._serviceDetailAssignmentHandler);
+    }
     const assignmentChangeHandler = () => {
         if (currentService) {
             checkServiceAccess();
         }
     };
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
-    if (!window._serviceDetailAssignmentHandler) {
-        window._serviceDetailAssignmentHandler = assignmentChangeHandler;
-    }
+    window._serviceDetailAssignmentHandler = assignmentChangeHandler;
 
     if (!serviceParam) {
         document.getElementById('serviceDetailContainer').innerHTML = `
@@ -1111,7 +1113,7 @@ function _proposalStageLabel(status) {
         pending_internal: 'For Internal Approval',
         pending_client: 'Under Client Review',
         for_revision: 'Revision Requested',
-        approved: 'Client Approved',
+        client_approved: 'Client Approved',
         loss: 'Loss',
     };
     return labels[status] || 'Proposal';
@@ -1124,7 +1126,7 @@ function _proposalStatusDotColor(status) {
         pending_internal: '#f59e0b',
         pending_client: '#1a73e8',
         for_revision: '#f59e0b',
-        approved: '#059669',
+        client_approved: '#059669',
         loss: '#ef4444',
     };
     return colors[status] || '#94a3b8';
