@@ -209,11 +209,19 @@ service cloud.firestore {
       // Phase 78 D-12: once project_code is issued (non-null), client_id/client_code/project_code are PERMANENTLY LOCKED at the DB level.
       // Pre-issuance (project_code == null): all updates allowed (lets runCodeIssuance set the codes).
       // Post-issuance: updates allowed ONLY if the request preserves project_code, client_id, and client_code unchanged.
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']) &&
+      // Phase 87.2 G3-fix: operations_user assigned to the project may update project_status + updated_at only
+      //   (mirrors the proposal BRANCH 2 field-mask pattern — unblocks _applyProposalStateTransition writeBatch).
+      allow update: if (
+        hasRole(['super_admin', 'operations_admin', 'finance']) &&
         (resource.data.project_code == null ||
           (request.resource.data.project_code == resource.data.project_code &&
            request.resource.data.client_id == resource.data.client_id &&
-           request.resource.data.client_code == resource.data.client_code));
+           request.resource.data.client_code == resource.data.client_code))
+      ) || (
+        isRole('operations_user') &&
+        request.auth.uid in resource.data.personnel_user_ids &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['project_status', 'updated_at'])
+      );
 
       // Delete: super_admin, operations_admin
       allow delete: if hasRole(['super_admin', 'operations_admin']);
