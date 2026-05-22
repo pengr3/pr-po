@@ -70,6 +70,7 @@ import {
 let currentProposal = null;        // currently-open proposal in the detail modal
 let createModalMode = 'create';    // 'create' | 'edit'
 let createModalEditingId = null;   // Firestore doc ID when in edit mode
+let _createModalOnClose = null;    // optional callback fired by closeCreateProposalModal
 let _modalProjectsData = [];       // active, non-Draft projects (for Create/Edit modal dropdown)
 let _modalClientsData = [];        // active clients (for Create/Edit modal dropdown)
 let _modalProjectsLoaded = false;  // one-shot getDocs cache flag
@@ -659,11 +660,20 @@ async function _refreshDetailModalAfterTransition(proposalDocId) {
 // Create / Edit Proposal sub-modal
 // ============================================================
 
-async function openCreateProposalModal() {
+async function openCreateProposalModal(preselectedProjectId = null, onClose = null) {
     createModalMode = 'create';
     createModalEditingId = null;
+    _createModalOnClose = onClose;
     await _loadModalDropdownData();
     showCreateModal(null);
+    if (preselectedProjectId) {
+        const projectSelectEl = document.getElementById('proposalCreateProject');
+        if (projectSelectEl) {
+            projectSelectEl.value = preselectedProjectId;
+            projectSelectEl.disabled = true;
+            projectSelectEl.dispatchEvent(new Event('change'));
+        }
+    }
 }
 
 async function openEditProposalModal(proposalDocId) {
@@ -783,6 +793,9 @@ function closeCreateProposalModal() {
     if (el) el.remove();
     createModalMode = 'create';
     createModalEditingId = null;
+    const cb = _createModalOnClose;
+    _createModalOnClose = null;
+    if (typeof cb === 'function') cb();
 }
 
 async function saveProposal() {
