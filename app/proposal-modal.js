@@ -1070,6 +1070,75 @@ async function submitLoss(proposalDocId) {
 }
 
 // ============================================================
+// Request Revision sub-modal (Phase 87.2 D-11)
+// ============================================================
+
+async function openRequestRevisionModal(proposalDocId) {
+    const proposal = await _fetchProposalDoc(proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_client') {
+        showToast('Request Revision is only available while the proposal is under client review.', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('proposalRequestRevisionModal');
+    if (existing) existing.remove();
+
+    const html = `
+    <div id="proposalRequestRevisionModal" class="modal" style="display:flex;z-index:1001;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Request Revision</h2>
+                <button class="modal-close" aria-label="Close" onclick="document.getElementById('proposalRequestRevisionModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">This will move the proposal to "For Revision" so you can edit and resend. The project status updates to "For Revision" and the change is recorded in the audit trail.</p>
+                <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Comment <span style="color:#64748b;font-weight:400;">(optional)</span></label>
+                <textarea id="proposalRequestRevisionComment" rows="3" placeholder="Describe what the client asked to be revised..." style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('proposalRequestRevisionModal').remove()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.confirmRequestRevision('${escapeHTML(proposalDocId)}')">Confirm</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function confirmRequestRevision(proposalDocId) {
+    const proposal = await _fetchProposalDoc(proposalDocId);
+    if (!proposal) { showToast('Proposal not found.', 'error'); return; }
+    if (proposal.status !== 'pending_client') {
+        showToast('Proposal status changed. Please reload.', 'error');
+        return;
+    }
+
+    const commentEl = document.getElementById('proposalRequestRevisionComment');
+    const comment = (commentEl?.value || '').trim() || null;
+
+    showLoading(true);
+    try {
+        await _applyProposalStateTransition({
+            proposal,
+            newStatus: 'for_revision',
+            newProjectStatus: 'For Revision',
+            auditAction: 'REVISION_REQUESTED',
+            auditComment: comment
+        });
+
+        const sub = document.getElementById('proposalRequestRevisionModal');
+        if (sub) sub.remove();
+        showToast('Revision requested. Proposal moved to For Revision.', 'success');
+        await _refreshDetailModalAfterTransition(proposalDocId);
+    } catch (err) {
+        console.error('[ProposalModal] confirmRequestRevision failed:', err);
+        showToast(err?.message || 'Failed to request revision. Please try again.', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ============================================================
 // Client Approved sub-modal
 // ============================================================
 
