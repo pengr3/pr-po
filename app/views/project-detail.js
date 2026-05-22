@@ -1359,7 +1359,7 @@ function _proposalStageLabel(status) {
         pending_internal: 'For Internal Approval',
         pending_client: 'Under Client Review',
         for_revision: 'Revision Requested',
-        approved: 'Client Approved',
+        client_approved: 'Client Approved',
         loss: 'Loss',
     };
     return labels[status] || 'Proposal';
@@ -1372,7 +1372,7 @@ function _proposalStatusDotColor(status) {
         pending_internal: '#f59e0b',
         pending_client: '#1a73e8',
         for_revision: '#f59e0b',
-        approved: '#059669',
+        client_approved: '#059669',
         loss: '#ef4444',
     };
     return colors[status] || '#94a3b8';
