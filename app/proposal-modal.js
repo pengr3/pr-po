@@ -774,6 +774,8 @@ function showCreateModal(existing) {
             </div>
         </div>
     </div>`;
+    window.closeCreateProposalModal = closeCreateProposalModal;
+    window.saveProposal             = saveProposal;
     document.body.insertAdjacentHTML('beforeend', html);
 
     // Phase 87.2 D-01/D-04: when the user changes the project dropdown, auto-select
@@ -801,6 +803,8 @@ function showCreateModal(existing) {
 function closeCreateProposalModal() {
     const el = document.getElementById('proposalCreateModal');
     if (el) el.remove();
+    delete window.closeCreateProposalModal;
+    delete window.saveProposal;
     createModalMode = 'create';
     createModalEditingId = null;
     _createModalParentCollection = 'projects';
