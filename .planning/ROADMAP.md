@@ -545,6 +545,18 @@ Plans:
   - [x] 87-05-PLAN.md — Comms Log inline Add Entry form with optional per-entry attachment + end-of-phase UAT checkpoint (PROP-08) — Wave 4
 **UI hint**: yes
 
+### Phase 87.3: Proposal Card Polish — create from detail, edit permissions, inline card redesign (INSERTED)
+
+**Goal:** Polish the inline proposal card in project/service detail: add "Start Proposal" CTA when project is in 'For Proposal' status and no proposal exists; fix Firestore permission gaps for assigned ops/services users; redesign card header with dynamic lifecycle stage label and version number.
+**Requirements**: D-01 through D-15 (from 87.3-CONTEXT.md)
+**Depends on:** Phase 87, Phase 87.1, Phase 87.2
+**Plans:** 3 plans (planned 2026-05-22)
+
+Plans:
+- [ ] 87.3-01-PLAN.md — Firestore rules: expand update field-mask (D-09) + add ops/services_user create rule (D-10) + comments (D-11) — Wave 1
+- [ ] 87.3-02-PLAN.md — proposal-modal.js: openCreateProposalModal optional preselectedProjectId + onClose callback (D-03, D-04) — Wave 1
+- [ ] 87.3-03-PLAN.md — project-detail.js + service-detail.js: remove isInProposalRange gate, Start Proposal card path (D-01, D-02, D-05–D-07), renderInlineProposalCard redesign (D-12–D-15), CSS polish — Wave 2
+
 ### Phase 87.1: Proposal Lifecycle Integration — Proposal-Project Bidirectional Sync, Projects/Services as Proposal Workflow Hub (INSERTED)
 
 **Goal:** Make the proposal lifecycle fully integrated with the project/service record rather than living in isolation in a separate Proposals tab. When a project/service enters the proposal workflow (status = "For Proposal"), the proposal process should be driven from within the project/service context. Proposal status transitions should be reflected on the project/service record in real time. The Proposals standalone tab is retired or reduced to a global view-only list. Home dashboard gains a proposal activity sub-tab for quick overview.
