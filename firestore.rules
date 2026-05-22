@@ -531,7 +531,7 @@ service cloud.firestore {
     }
 
     // =============================================
-    // proposals collection (Phase 87 — PROP-11, D-10)
+    // proposals collection (Phase 87 — PROP-11, D-10; Phase 87.2 — D-16..D-20)
     // =============================================
     // Proposal lifecycle docs. audit_log + comms_log are embedded arrays
     // (D-04 — no subcollections). Schema (D-02):
@@ -540,11 +540,27 @@ service cloud.firestore {
     //   status (draft|pending_internal|pending_client|for_revision|client_approved|loss),
     //   attachment_kind, attachment_url, attachment_storage_path, attachment_filename,
     //   audit_log[], comms_log[], loss_reason, current_status_since,
+    //   parent_collection (Phase 87.1 D-06 — 'projects' | 'services', defaults to 'projects'),
     //   created_by, created_at, updated_at.
     //
-    // Approver gate (D-05): create/update/delete limited to super_admin and
-    // operations_admin. Field-level immutability on update: created_at + created_by
-    // (mirrors notifications block immutability pattern lines 560-567).
+    // Approver gate (D-05): create/delete limited to super_admin and operations_admin.
+    //
+    // Update gate (Phase 87.2 D-16/D-17/D-18/D-19):
+    //   BRANCH 1 — Admin (existing, preserved): super_admin + operations_admin can update
+    //     any field (subject to created_at/created_by immutability checks).
+    //   BRANCH 2 — Attached user (NEW, additive): operations_user or services_user can
+    //     update ONLY when ALL of:
+    //       (a) field-mask: affectedKeys().hasOnly(['comms_log', 'audit_log',
+    //           'status', 'current_status_since', 'updated_at'])
+    //       (b) department alignment: operations_user requires
+    //           parent_collection == 'projects' (default when absent);
+    //           services_user requires parent_collection == 'services'.
+    //       (c) parent-assignment: caller's UID is in the parent doc's
+    //           personnel_user_ids array (one get() per write — same cost shape
+    //           as Phase 84 NOTIF-12 create rule).
+    //   The field-mask prevents an authorized-but-adversarial caller from rewriting
+    //   title / amount / target_client_* / created_by / loss_reason / attachment_*.
+    //   Loss writes (which touch loss_reason) remain admin-only by construction.
     match /proposals/{proposalId} {
       // Read: any active user (Operations Admin / Super Admin approve; all staff view)
       allow read: if isActiveUser();
@@ -553,11 +569,38 @@ service cloud.firestore {
       allow create: if hasRole(['super_admin', 'operations_admin'])
         && request.resource.data.created_by == request.auth.uid;
 
-      // Update: super_admin, operations_admin only
-      // created_at and created_by immutable post-create (mirror notifications block)
-      allow update: if hasRole(['super_admin', 'operations_admin'])
+      // Update branches — see expanded block comment above for the full rationale.
+      // Both branches preserve the existing created_at + created_by immutability invariants.
+      allow update: if (
+        // BRANCH 1 — Admin (existing, preserved verbatim from Phase 87 D-10).
+        hasRole(['super_admin', 'operations_admin'])
         && request.resource.data.created_by == resource.data.created_by
-        && request.resource.data.created_at == resource.data.created_at;
+        && request.resource.data.created_at == resource.data.created_at
+      ) || (
+        // BRANCH 2 — Attached operations_user / services_user, narrow field-mask
+        //            (Phase 87.2 D-16 / D-17 / D-18).
+        // Field-mask: only the 5-key allow-list is mutable.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at'])
+        // Same created_at + created_by immutability as BRANCH 1.
+        && request.resource.data.created_by == resource.data.created_by
+        && request.resource.data.created_at == resource.data.created_at
+        && (
+          // Operations branch: parent_collection is 'projects' (defaults when absent).
+          (
+            isRole('operations_user')
+            && (!('parent_collection' in resource.data) || resource.data.parent_collection == 'projects')
+            && request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids
+          )
+          ||
+          // Services branch: parent_collection is 'services' (explicit).
+          (
+            isRole('services_user')
+            && 'parent_collection' in resource.data
+            && resource.data.parent_collection == 'services'
+            && request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.project_id)).data.personnel_user_ids
+          )
+        )
+      );
 
       // Delete: super_admin only — proposals are not normally deleted
       allow delete: if isRole('super_admin');
