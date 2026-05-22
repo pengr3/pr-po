@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.2 executing — Plan 02 complete (2026-05-22); 3 plans remain across 2 waves.
-stopped_at: Completed 87.2-02-PLAN.md
+status: Phase 87.2 executing — Plan 03 complete (2026-05-22); 2 plans remain (Plan 04: G3 Revision cycle, Plan 05: G5 audit trail).
+stopped_at: Completed 87.2-03-PLAN.md
 last_updated: "2026-05-22T00:00:00.000Z"
-last_activity: "2026-05-22 — Phase 87.2 Plan 02 DONE. Added BRANCH 2 to proposals.allow update in firestore.rules: ops/services_user with narrow field-mask (5-key hasOnly) + personnel_user_ids parent-assignment check. Closes Gap G4. DEPLOY REQUIRED: firebase deploy --only firestore:rules. Decisions covered: D-16, D-17, D-18, D-19, D-20. Commit 2eac4d1."
+last_activity: "2026-05-22 — Phase 87.2 Plan 03 DONE. Closed Gap G2: renderProposalActionButtons refactored to dual canApprove+canDrive flags. Added _parentDocCache module state + _isCallerAttachedToProposalParent() synchronous helper. openProposalModal preloads parent project/service doc (one getDoc per open). operations_user assigned to parent project now sees driver buttons on pending_client proposals. Decisions covered: D-05, D-06, D-07, D-08, D-09. Commits d43db72 (helper+cache), 6ce2ad9 (renderProposalActionButtons refactor)."
 progress:
   total_phases: 26
   completed_phases: 22
   total_plans: 95
-  completed_plans: 90
-  percent: 95
+  completed_plans: 91
+  percent: 96
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.2 executing — Plan 02 complete (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2). DEPLOY REQUIRED: firebase deploy --only firestore:rules before Plan 03 smoke-test. Remaining: Plan 03 (G2 operations permissions), Plan 04 (G3 Revision cycle), Plan 05 (G5 audit trail comms nesting).
-Next: 87.2-03
+Phase: 87.2 executing — Plan 03 complete (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2), G2 closed (Plan 03 — dual-flag renderProposalActionButtons). Remaining: Plan 04 (G3 Revision cycle), Plan 05 (G5 audit trail comms nesting).
+Next: 87.2-04
 
 ## Performance Metrics
 
@@ -165,6 +165,9 @@ Next: 87.2-03
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.2-03]: renderProposalActionButtons dual-flag: canApprove gates Approve/Reject (admins only); canDrive gates Submit/Edit/Mark Sent/Client Approved/Mark as Loss (admins + assigned ops/services user per D-05/D-06/D-07/D-08/D-09)
+- [Phase 87.2-03]: _parentDocCache preloaded at openProposalModal time (one getDoc per open) — synchronous renderProposalActionButtons reads cache without async; cleared in closeProposalModal; defensive default-deny when null
+- [Phase 87.2-03]: _isCallerAttachedToProposalParent is synchronous (no async keyword) — safe to call inside template-literal HTML builders
 - [Phase 87.1-02]: app/proposal-modal.js placed at app/ level (not app/views/) — mirrors engagement-create.js / proof-modal.js shared utility pattern; it is not a routed view
 - [Phase 87.1-02]: openProposalModal does fresh getDoc per call (not proposalsData.find) — utility must work from any view that has no module-level proposals array
 - [Phase 87.1-02]: Every lifecycle handler (submitProposalForApproval, submitProposalApproval, submitLoss, etc.) does its own _fetchProposalDoc revalidation — keeps "status changed" guards meaningful without coupling to a missing onSnapshot listener
