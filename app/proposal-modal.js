@@ -74,6 +74,12 @@ let _modalProjectsData = [];       // active, non-Draft projects (for Create/Edi
 let _modalClientsData = [];        // active clients (for Create/Edit modal dropdown)
 let _modalProjectsLoaded = false;  // one-shot getDocs cache flag
 
+// Phase 87.2 D-06/D-07: cache the parent project/service doc so the synchronous
+// renderProposalActionButtons gate can do role + assignment checks without an
+// async lookup on every render. Populated in openProposalModal, cleared in
+// closeProposalModal. Shape: { collection: 'projects'|'services', doc: {id, personnel_user_ids, ...} } | null
+let _parentDocCache = null;
+
 // ----------------------------------------
 // Constants (copied verbatim from proposals.js)
 // ----------------------------------------
@@ -124,6 +130,66 @@ async function _fetchProposalDoc(proposalDocId) {
         console.error('[ProposalModal] _fetchProposalDoc failed:', err);
         return null;
     }
+}
+
+/**
+ * Phase 87.2 D-05/D-06/D-07 — Synchronous role + assignment check for the
+ * proposal modal's Action Buttons gate. Returns { canApprove, canDrive }.
+ *
+ * canApprove  - may invoke Approve / Reject sub-modals.
+ *   super_admin: always true
+ *   operations_admin: true when parent_collection === 'projects' (D-09)
+ *   services_admin: true when parent_collection === 'services' (D-09)
+ *
+ * canDrive    - may invoke Submit / Edit / Mark Sent / Client Approved /
+ *               Mark as Loss / Request Revision.
+ *   super_admin: always true
+ *   operations_admin: true when parent_collection === 'projects' (D-06)
+ *   services_admin: true when parent_collection === 'services' (D-06)
+ *   operations_user: true when parent_collection === 'projects' AND caller uid
+ *                    is in _parentDocCache.doc.personnel_user_ids (D-07)
+ *   services_user: true when parent_collection === 'services' AND caller uid
+ *                  is in _parentDocCache.doc.personnel_user_ids (D-07)
+ *
+ * canApprove implies canDrive (admins can do everything drivers can).
+ *
+ * Returns { canApprove: false, canDrive: false } if _parentDocCache is empty
+ * (e.g., modal opened against a deleted parent doc - defensive default-deny).
+ */
+function _isCallerAttachedToProposalParent(proposal) {
+    const cu = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+    const role = cu?.role || null;
+    const parentCollection = proposal?.parent_collection || 'projects';
+    const assigned = Array.isArray(_parentDocCache?.doc?.personnel_user_ids)
+        ? _parentDocCache.doc.personnel_user_ids
+        : [];
+    const isAssigned = !!cu?.uid && assigned.includes(cu.uid);
+
+    let canApprove = false;
+    let canDrive   = false;
+
+    if (role === 'super_admin') {
+        canApprove = true;
+        canDrive   = true;
+    } else if (parentCollection === 'projects') {
+        if (role === 'operations_admin') {
+            canApprove = true;
+            canDrive   = true;
+        } else if (role === 'operations_user' && isAssigned) {
+            canApprove = false;
+            canDrive   = true;
+        }
+    } else if (parentCollection === 'services') {
+        if (role === 'services_admin') {
+            canApprove = true;
+            canDrive   = true;
+        } else if (role === 'services_user' && isAssigned) {
+            canApprove = false;
+            canDrive   = true;
+        }
+    }
+
+    return { canApprove, canDrive };
 }
 
 /**
@@ -1324,6 +1390,22 @@ export async function openProposalModal(proposalId, context) {
     }
     currentProposal = proposal;
 
+    // Phase 87.2 D-06/D-07 - Preload the parent project/service doc so the
+    // synchronous renderProposalActionButtons gate can check assignment without
+    // an async lookup on every render. Single getDoc per modal open.
+    try {
+        const parentColl = proposal.parent_collection || 'projects';
+        const parentSnap = await getDoc(doc(db, parentColl, proposal.project_id));
+        if (parentSnap.exists()) {
+            _parentDocCache = { collection: parentColl, doc: { id: parentSnap.id, ...parentSnap.data() } };
+        } else {
+            _parentDocCache = null;
+        }
+    } catch (err) {
+        console.error('[ProposalModal] parent-doc preload failed:', err);
+        _parentDocCache = null;
+    }
+
     // Remove any pre-existing instance of the modal (e.g., user re-opened
     // before closing) so we don't end up with duplicate IDs in the DOM.
     const existing = document.getElementById('proposalDetailModal');
@@ -1363,6 +1445,7 @@ export function closeProposalModal() {
     const el = document.getElementById('proposalDetailModal');
     if (el) el.remove();
     currentProposal = null;
+    _parentDocCache = null;
 
     // Delete every window function registered in openProposalModal().
     delete window.closeProposalDetailModal;
