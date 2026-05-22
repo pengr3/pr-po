@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.3 PLANNED (2026-05-22) — 3 plans in 2 waves. Ready to execute.
-stopped_at: context exhaustion at 75% (2026-05-22)
-last_updated: "2026-05-22T08:17:28.381Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
+status: Phase 87.3 Plan 03 COMPLETE (2026-05-22) — Wave 2 done. Phase 87.3 code-complete.
+stopped_at: Phase 87.3 Plan 03 complete (2026-05-22)
+last_updated: "2026-05-22T08:45:00.000Z"
+last_activity: "2026-05-22 — Phase 87.3 Plan 03 DONE. isInProposalRange gate removed from project-detail.js and service-detail.js; proposalInlineCard div always rendered; loadProposalCard has three-way logic (Start Proposal CTA for canDrive+For Proposal, placeholder for non-canDrive+For Proposal, hide for all other statuses with no proposal); renderInlineProposalCard redesigned with dynamic stage label, colored dot, version number, canDrive-gated Submit button; service-detail.js in full parity; .proposal-inline-card--start CSS variant added. Commits e238e14 (project-detail.js) + 247945c (service-detail.js + CSS)."
 progress:
   total_phases: 27
-  completed_phases: 23
+  completed_phases: 24
   total_plans: 98
-  completed_plans: 95
-  percent: 97
+  completed_plans: 97
+  percent: 99
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.3 PLANNED (2026-05-22). 3 plans ready to execute.
-Next: Execute Phase 87.3 — /gsd-execute-phase 87.3
+Phase: 87.3 COMPLETE (2026-05-22). All 3 plans executed. Phase code-complete — awaiting UAT.
+Next: Manual UAT for Phase 87.3 per verification checklist in 87.3-03-PLAN.md
 
 ## Performance Metrics
 
@@ -160,6 +160,9 @@ Next: Execute Phase 87.3 — /gsd-execute-phase 87.3
 | Phase 87.1 P06 (Wave 6) | 5 | 3 tasks (+1 docs follow-up) | 4 files |
 | Phase 87.2 P04 | ~20 | 3 tasks | 1 files |
 | Phase 87.2 P05 | ~12 | 1 task (2 sub-edits) | 1 files |
+| Phase 87.3 P01 | ~5 | 1 task | 3 files |
+| Phase 87.3 P02 | ~10 | 1 task | 1 files |
+| Phase 87.3 P03 | ~15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -167,6 +170,12 @@ Next: Execute Phase 87.3 — /gsd-execute-phase 87.3
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.3-03]: isInProposalRange gate removed from project-detail.js and service-detail.js; proposalInlineCard div always in HTML; loadProposalCard handles all branching: canDrive+For Proposal→Start Proposal CTA, non-canDrive+For Proposal→placeholder, other status no proposal→display:none
+- [Phase 87.3-03]: _proposalStageLabel maps 6 status strings to human-readable labels; _proposalStatusDotColor returns hex per status — both module-private helpers added to both detail views for card redesign (D-12/D-13)
+- [Phase 87.3-03]: window._startProposalCallback closure over parentDocId (not inline arrow) used as Start Proposal button callback — HTML attribute onclick cannot serialize closures; registered in loadProposalCard, deleted in destroy()
+- [Phase 87.3-03]: PROPOSAL_RANGE_STATUSES and getProposalStatusBadge removed from proposals.js import in both detail views — no longer used after gate removal and header redesign
+- [Phase 87.3-02]: openCreateProposalModal extended with optional (preselectedProjectId=null, onClose=null) params; backward-compatible; local-cb-before-null pattern in closeCreateProposalModal prevents double-fire re-entry
+- [Phase 87.3-01]: Firestore rules for proposals collection added; canDrive permission model (admin roles + assigned ops/services users) enforced server-side
 - [Phase 87.2-05]: D-21/D-22 _buildAuditCommsGroups: comms_log entries grouped under nearest preceding SENT_TO_CLIENT audit entry (CREATED at idx 0 as fallback bucket); only CREATED + SENT_TO_CLIENT are group parents — REVISION_REQUESTED and other actions are NOT group parents
 - [Phase 87.2-05]: D-23 trail-level newest-first; within-group children oldest-first (conversation reading direction); algorithm: sort audit oldest-first, scan comms to assign to parentIdx, sort children, reverse audit back to newest-first
 - [Phase 87.2-05]: D-24 buildCommsLogSection (left-column input surface) unchanged — add-entry form and chronological list co-located there; renderAuditTrail is pure read/display
