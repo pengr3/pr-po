@@ -92,6 +92,7 @@ const AUDIT_ACTION_DOT_COLORS = {
     ATTACHMENT_REPLACED:  '#f59e0b',
     SENT_TO_CLIENT:       '#1a73e8',
     CLIENT_APPROVED:      '#059669',
+    REVISION_REQUESTED:   '#f59e0b',
     LOSS_RECORDED:        '#ea4335'
 };
 
@@ -103,6 +104,7 @@ const AUDIT_ACTION_LABELS = {
     ATTACHMENT_REPLACED:  'Attachment Replaced',
     SENT_TO_CLIENT:       'Sent to Client',
     CLIENT_APPROVED:      'Client Approved',
+    REVISION_REQUESTED:   'Revision Requested',
     LOSS_RECORDED:        'Marked as Loss'
 };
 
