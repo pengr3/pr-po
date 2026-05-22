@@ -71,6 +71,8 @@ let currentProposal = null;        // currently-open proposal in the detail moda
 let createModalMode = 'create';    // 'create' | 'edit'
 let createModalEditingId = null;   // Firestore doc ID when in edit mode
 let _createModalOnClose = null;    // optional callback fired by closeCreateProposalModal
+let _createModalParentCollection = 'projects';  // 'projects' | 'services'
+let _createModalLockedProjectCode = null;       // non-null when modal is locked to a service
 let _modalProjectsData = [];       // active, non-Draft projects (for Create/Edit modal dropdown)
 let _modalClientsData = [];        // active clients (for Create/Edit modal dropdown)
 let _modalProjectsLoaded = false;  // one-shot getDocs cache flag
@@ -660,15 +662,23 @@ async function _refreshDetailModalAfterTransition(proposalDocId) {
 // Create / Edit Proposal sub-modal
 // ============================================================
 
-async function openCreateProposalModal(preselectedProjectId = null, onClose = null) {
+async function openCreateProposalModal(preselectedProjectId = null, onClose = null, parentCollection = 'projects', lockedProjectCode = null) {
     createModalMode = 'create';
     createModalEditingId = null;
     _createModalOnClose = onClose;
+    _createModalParentCollection = parentCollection;
+    _createModalLockedProjectCode = lockedProjectCode;
     await _loadModalDropdownData();
     showCreateModal(null);
     if (preselectedProjectId) {
         const projectSelectEl = document.getElementById('proposalCreateProject');
         if (projectSelectEl) {
+            if (lockedProjectCode) {
+                const syntheticOpt = document.createElement('option');
+                syntheticOpt.value = preselectedProjectId;
+                syntheticOpt.textContent = lockedProjectCode + ' (Service)';
+                projectSelectEl.insertBefore(syntheticOpt, projectSelectEl.firstChild);
+            }
             projectSelectEl.value = preselectedProjectId;
             projectSelectEl.disabled = true;
             projectSelectEl.dispatchEvent(new Event('change'));
@@ -793,6 +803,8 @@ function closeCreateProposalModal() {
     if (el) el.remove();
     createModalMode = 'create';
     createModalEditingId = null;
+    _createModalParentCollection = 'projects';
+    _createModalLockedProjectCode = null;
     const cb = _createModalOnClose;
     _createModalOnClose = null;
     if (typeof cb === 'function') cb();
@@ -839,7 +851,7 @@ async function saveProposal() {
 
     // Resolve denormalized fields from cached dropdown data
     const project = _modalProjectsData.find(p => p.id === projectId);
-    const projectCode = project?.project_code || null;
+    const projectCode = project?.project_code || _createModalLockedProjectCode || null;
     const client = clientId ? _modalClientsData.find(c => c.id === clientId) : null;
     const clientName = client?.company_name || null;
 
@@ -880,6 +892,7 @@ async function saveProposal() {
             const docPayload = {
                 proposal_id: proposalId,
                 project_id: projectId,
+                parent_collection: _createModalParentCollection,
                 project_code: projectCode,
                 title,
                 description: description || '',
