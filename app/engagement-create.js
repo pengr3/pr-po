@@ -600,7 +600,7 @@ export async function initEngagementForm() {
 
     // Clients listener: populates the client picker.
     const clientsListener = onSnapshot(
-        query(collection(db, 'clients'), where('active', '==', true)),
+        collection(db, 'clients'),
         (snapshot) => {
             clientsData = [];
             snapshot.forEach(d => {

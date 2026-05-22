@@ -207,7 +207,7 @@ async function _loadModalDropdownData() {
     try {
         const [projectsSnap, clientsSnap] = await Promise.all([
             getDocs(collection(db, 'projects')),
-            getDocs(query(collection(db, 'clients'), where('active', '==', true)))
+            getDocs(collection(db, 'clients'))
         ]);
 
         _modalProjectsData = [];
