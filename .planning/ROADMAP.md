@@ -586,7 +586,7 @@ Plans:
   - [x] 87.2-04-PLAN.md — proposal-modal.js: Request Revision button + sub-modal (mirrors Mark as Loss), extended Mark Sent to Client gate at for_revision, REVISION_REQUESTED audit action + dot color, window function registration (D-10..D-15) — Wave 3
 
 **Wave 4** *(blocked on Wave 3 — shared app/proposal-modal.js, depends on 87.2-04)*
-  - [ ] 87.2-05-PLAN.md — proposal-modal.js: renderAuditTrail merges comms_log as indented children under SENT_TO_CLIENT or CREATED parent; left-column Communications section kept as input surface (D-21..D-26) — Wave 4
+  - [x] 87.2-05-PLAN.md — proposal-modal.js: renderAuditTrail merges comms_log as indented children under SENT_TO_CLIENT or CREATED parent; left-column Communications section kept as input surface (D-21..D-26) — Wave 4 — DONE 2026-05-22 (commit b6b3f12)
 
   Cross-cutting constraints (from plan must_haves):
   - `parent_collection`-aware department gating (operations → projects; services → services) — referenced in 87.2-02, 87.2-03, 87.2-04 (firestore.rules branch + UI canDrive + Request Revision target)

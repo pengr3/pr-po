@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 87.2 executing — Plan 04 complete (2026-05-22); 1 plan remains (Plan 05: G5 audit trail comms nesting)."
-stopped_at: Completed 87.2-04-PLAN.md
+status: "Phase 87.2 COMPLETE (2026-05-22) — all 5 plans executed. Gaps G1-G5 closed. Ready for UAT."
+stopped_at: Completed 87.2-05-PLAN.md
 last_updated: "2026-05-22T00:00:00.000Z"
-last_activity: "2026-05-22 — Phase 87.2 Plan 04 DONE. Closed Gap G3: explicit revision cycle via action buttons. Added REVISION_REQUESTED to AUDIT_ACTION_DOT_COLORS (amber #f59e0b) + AUDIT_ACTION_LABELS ('Revision Requested'). Added openRequestRevisionModal + confirmRequestRevision (mirroring Mark-as-Loss sub-modal shape). Extended renderProposalActionButtons: Request Revision button at pending_client (last, btn-danger); Mark Sent to Client also at for_revision (additive if-block). Extended submitMarkSentToClient with isResend branch: from for_revision advances to pending_client + 'Proposal Under Client Review'; from pending_client remains audit-only. Window registrations added in openProposalModal + cleanups in closeProposalModal. saveCommsEntry NOT touched (D-10 preserved). Commits ce7224a (AUDIT_ACTION constants), 9dd8eb6 (openRequestRevisionModal+confirmRequestRevision), 2df6746 (buttons+submitMarkSentToClient+window regs). Decisions covered: D-10, D-11, D-12, D-13, D-14, D-15."
+last_activity: "2026-05-22 — Phase 87.2 Plan 05 DONE. Closed Gap G5: comms_log entries render as nested children in the audit trail. Added _buildAuditCommsGroups (groups comms under nearest preceding SENT_TO_CLIENT, CREATED as fallback) + _renderNestedCommsChild (24px indent, 12px font, #94a3b8 gray dot, type pill via COMMS_TYPE_META.cls). Replaced renderAuditTrail body to call _buildAuditCommsGroups and append childrenHtml inside each audit row. buildCommsLogSection (left-column input surface) unchanged per D-24. No new exports per D-26. Commit b6b3f12. Decisions covered: D-21, D-22, D-23, D-24, D-25, D-26."
 progress:
   total_phases: 26
-  completed_phases: 22
+  completed_phases: 23
   total_plans: 95
-  completed_plans: 93
-  percent: 98
+  completed_plans: 94
+  percent: 99
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.2 executing — Plan 04 complete (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2), G2 closed (Plan 03 — dual-flag renderProposalActionButtons), G3 closed (Plan 04 — Request Revision + extended Mark Sent). Remaining: Plan 05 (G5 audit trail comms nesting).
-Next: 87.2-05
+Phase: 87.2 COMPLETE (2026-05-22). G1 closed (Plan 01), G4 closed (Plan 02 — firestore.rules BRANCH 2), G2 closed (Plan 03 — dual-flag renderProposalActionButtons), G3 closed (Plan 04 — Request Revision + extended Mark Sent), G5 closed (Plan 05 — comms_log nested children in audit trail). All 5 plans complete. Ready for UAT.
+Next: Phase 87.2 UAT
 
 ## Performance Metrics
 
@@ -159,6 +159,7 @@ Next: 87.2-05
 | Phase 87.1 P05 (Wave 5) | 6 | 3 tasks | 3 files |
 | Phase 87.1 P06 (Wave 6) | 5 | 3 tasks (+1 docs follow-up) | 4 files |
 | Phase 87.2 P04 | ~20 | 3 tasks | 1 files |
+| Phase 87.2 P05 | ~12 | 1 task (2 sub-edits) | 1 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,11 @@ Next: 87.2-05
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.2-05]: D-21/D-22 _buildAuditCommsGroups: comms_log entries grouped under nearest preceding SENT_TO_CLIENT audit entry (CREATED at idx 0 as fallback bucket); only CREATED + SENT_TO_CLIENT are group parents — REVISION_REQUESTED and other actions are NOT group parents
+- [Phase 87.2-05]: D-23 trail-level newest-first; within-group children oldest-first (conversation reading direction); algorithm: sort audit oldest-first, scan comms to assign to parentIdx, sort children, reverse audit back to newest-first
+- [Phase 87.2-05]: D-24 buildCommsLogSection (left-column input surface) unchanged — add-entry form and chronological list co-located there; renderAuditTrail is pure read/display
+- [Phase 87.2-05]: D-25 visual treatment — 24px left-padding, 12px font, #94a3b8 gray dot (vs colored audit dot), type pill via COMMS_TYPE_META.cls (badge-primary/status-badge pending/status-badge rejected), description truncated to 120 chars
+- [Phase 87.2-05]: D-26 no new exports — _buildAuditCommsGroups and _renderNestedCommsChild are module-private (underscore naming convention, no export keyword)
 - [Phase 87.2-04]: D-10 preserved — saveCommsEntry is a pure updateDoc on comms_log only; no status change triggered by comms entries (anti-pattern explicitly blocked)
 - [Phase 87.2-04]: D-11 Request Revision button at pending_client opens sub-modal mirroring Mark-as-Loss shape; confirmRequestRevision calls _applyProposalStateTransition(for_revision, 'For Revision', REVISION_REQUESTED)
 - [Phase 87.2-04]: D-12/D-14 Mark Sent to Client extended to for_revision; isResend branch advances to pending_client + 'Proposal Under Client Review' (no new enum value introduced)
