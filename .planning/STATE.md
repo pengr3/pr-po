@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.3 Plan 03 COMPLETE (2026-05-22) — Wave 2 done. Phase 87.3 code-complete.
-stopped_at: Phase 87.3 Plan 03 complete (2026-05-22)
-last_updated: "2026-05-22T08:45:00.000Z"
-last_activity: "2026-05-22 — Phase 87.3 Plan 03 DONE. isInProposalRange gate removed from project-detail.js and service-detail.js; proposalInlineCard div always rendered; loadProposalCard has three-way logic (Start Proposal CTA for canDrive+For Proposal, placeholder for non-canDrive+For Proposal, hide for all other statuses with no proposal); renderInlineProposalCard redesigned with dynamic stage label, colored dot, version number, canDrive-gated Submit button; service-detail.js in full parity; .proposal-inline-card--start CSS variant added. Commits e238e14 (project-detail.js) + 247945c (service-detail.js + CSS)."
+status: Phase 87.3 Plan 04 COMPLETE (2026-05-22) — CR-1/CR-2 fixed. parent_collection in CREATE payload; service context preselect working.
+stopped_at: Completed 87.3-04-PLAN.md
+last_updated: "2026-05-22T09:07:00.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
 progress:
   total_phases: 27
-  completed_phases: 24
-  total_plans: 98
+  completed_phases: 23
+  total_plans: 100
   completed_plans: 97
-  percent: 99
+  percent: 97
 ---
 
 # Project State
@@ -163,6 +163,7 @@ Next: Manual UAT for Phase 87.3 per verification checklist in 87.3-03-PLAN.md
 | Phase 87.3 P01 | ~5 | 1 task | 3 files |
 | Phase 87.3 P02 | ~10 | 1 task | 1 files |
 | Phase 87.3 P03 | ~15 | 2 tasks | 3 files |
+| Phase 87.3 P04 | ~8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,7 @@ Next: Manual UAT for Phase 87.3 per verification checklist in 87.3-03-PLAN.md
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
+- [Phase 87.3-04]: _createModalParentCollection defaults to 'projects' so all existing 2-arg callers (project-detail.js) are unaffected; synthetic <option> injected at head of project select for service context; parent_collection field in CREATE docPayload satisfies Firestore BRANCH B rule; projectCode falls back to _createModalLockedProjectCode when no matching project entry exists; both vars reset to defaults in closeCreateProposalModal
 - [Phase 87.3-03]: isInProposalRange gate removed from project-detail.js and service-detail.js; proposalInlineCard div always in HTML; loadProposalCard handles all branching: canDrive+For Proposal→Start Proposal CTA, non-canDrive+For Proposal→placeholder, other status no proposal→display:none
 - [Phase 87.3-03]: _proposalStageLabel maps 6 status strings to human-readable labels; _proposalStatusDotColor returns hex per status — both module-private helpers added to both detail views for card redesign (D-12/D-13)
 - [Phase 87.3-03]: window._startProposalCallback closure over parentDocId (not inline arrow) used as Start Proposal button callback — HTML attribute onclick cannot serialize closures; registered in loadProposalCard, deleted in destroy()
@@ -590,7 +592,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
-Last session: 2026-05-22T08:17:28.341Z
+Last session: 2026-05-22T09:01:10.860Z
 Stopped at: context exhaustion at 75% (2026-05-22)
 Resume file: None
 Next action: Spawn Plan 87.1-07 executor — manual UAT in browser. Verify: no Proposals nav link visible for any role, #/proposals redirects to #/, home Overview/Engagements/Proposals sub-tabs work for eligible roles, finance/procurement_staff see no sub-nav, inline cards on For Proposal project + service show ID/title/amount/badges/attachment/comms, Submit/View buttons work, D-06 services write goes to services collection. Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js), browser UAT for 91.2 / 91 (Bug 3) / 92.2.

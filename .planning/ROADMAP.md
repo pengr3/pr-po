@@ -550,7 +550,7 @@ Plans:
 **Goal:** Polish the inline proposal card in project/service detail: add "Start Proposal" CTA when project is in 'For Proposal' status and no proposal exists; fix Firestore permission gaps for assigned ops/services users; redesign card header with dynamic lifecycle stage label and version number.
 **Requirements**: D-01 through D-15 (from 87.3-CONTEXT.md)
 **Depends on:** Phase 87, Phase 87.1, Phase 87.2
-**Plans:** 3/3 plans executed — COMPLETE
+**Plans:** 4/5 plans executed
 
 Plans:
 - [x] 87.3-01-PLAN.md — Firestore rules: expand update field-mask (D-09) + add ops/services_user create rule (D-10) + comments (D-11) — Wave 1
