@@ -539,7 +539,8 @@ service cloud.firestore {
     }
 
     // =============================================
-    // proposals collection (Phase 87 — PROP-11, D-10; Phase 87.2 — D-16..D-20)
+    // proposals collection (Phase 87 — PROP-11, D-10; Phase 87.2 — D-16..D-20;
+    //                        Phase 87.3 — D-09, D-10)
     // =============================================
     // Proposal lifecycle docs. audit_log + comms_log are embedded arrays
     // (D-04 — no subcollections). Schema (D-02):
@@ -551,15 +552,28 @@ service cloud.firestore {
     //   parent_collection (Phase 87.1 D-06 — 'projects' | 'services', defaults to 'projects'),
     //   created_by, created_at, updated_at.
     //
-    // Approver gate (D-05): create/delete limited to super_admin and operations_admin.
+    // Create gate:
+    //   BRANCH A — Admin (Phase 87 D-05): super_admin + operations_admin can create any
+    //     proposal with created_by pinned to caller's UID.
+    //   BRANCH B — Assigned ops/services user (Phase 87.3 D-10): operations_user or
+    //     services_user can create a proposal ONLY when assigned to the parent project/service
+    //     (caller UID in parent doc's personnel_user_ids) AND department alignment matches
+    //     (operations_user → parent_collection 'projects'; services_user → 'services').
+    //     created_by is pinned to caller's UID — prevents impersonation. This mirrors
+    //     BRANCH 2 of the update rule and enables the "Start Proposal" button for
+    //     non-admin users on the project/service detail page.
+    //     NOTE: uses request.resource.data.* (doc doesn't exist yet at create time).
     //
-    // Update gate (Phase 87.2 D-16/D-17/D-18/D-19):
+    // Update gate (Phase 87.2 D-16/D-17/D-18/D-19; Phase 87.3 D-09):
     //   BRANCH 1 — Admin (existing, preserved): super_admin + operations_admin can update
     //     any field (subject to created_at/created_by immutability checks).
-    //   BRANCH 2 — Attached user (NEW, additive): operations_user or services_user can
-    //     update ONLY when ALL of:
-    //       (a) field-mask: affectedKeys().hasOnly(['comms_log', 'audit_log',
-    //           'status', 'current_status_since', 'updated_at'])
+    //   BRANCH 2 — Attached user (Phase 87.2 D-16, expanded Phase 87.3 D-09): operations_user
+    //     or services_user can update ONLY when ALL of:
+    //       (a) field-mask: affectedKeys().hasOnly([14-key allow-list]) — expanded in Phase 87.3
+    //           D-09 to include editable proposal content fields (title, description, amount,
+    //           target_client_id, target_client_name, version, attachment_kind, attachment_url,
+    //           attachment_filename) so that assigned ops/services users can save edits via the
+    //           full proposal modal. The original 5 status/log keys are preserved.
     //       (b) department alignment: operations_user requires
     //           parent_collection == 'projects' (default when absent);
     //           services_user requires parent_collection == 'services'.
@@ -567,15 +581,32 @@ service cloud.firestore {
     //           personnel_user_ids array (one get() per write — same cost shape
     //           as Phase 84 NOTIF-12 create rule).
     //   The field-mask prevents an authorized-but-adversarial caller from rewriting
-    //   title / amount / target_client_* / created_by / loss_reason / attachment_*.
+    //   created_by / loss_reason / attachment_storage_path or any unlisted field.
     //   Loss writes (which touch loss_reason) remain admin-only by construction.
     match /proposals/{proposalId} {
       // Read: any active user (Operations Admin / Super Admin approve; all staff view)
       allow read: if isActiveUser();
 
-      // Create: super_admin, operations_admin only — created_by pinned to caller
-      allow create: if hasRole(['super_admin', 'operations_admin'])
-        && request.resource.data.created_by == request.auth.uid;
+      // Create: admin (BRANCH A) OR assigned ops/services user (BRANCH B — Phase 87.3 D-10)
+      allow create: if (
+        // BRANCH A — Admin: super_admin or operations_admin, created_by pinned to caller.
+        hasRole(['super_admin', 'operations_admin'])
+        && request.resource.data.created_by == request.auth.uid
+      ) || (
+        // BRANCH B — Assigned operations_user: parent_collection is 'projects' (default),
+        //            caller must be in project's personnel_user_ids, created_by pinned.
+        isRole('operations_user')
+        && request.resource.data.get('parent_collection', 'projects') == 'projects'
+        && request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.personnel_user_ids
+        && request.resource.data.created_by == request.auth.uid
+      ) || (
+        // BRANCH B — Assigned services_user: parent_collection must be 'services',
+        //            caller must be in service's personnel_user_ids, created_by pinned.
+        isRole('services_user')
+        && request.resource.data.get('parent_collection', 'projects') == 'services'
+        && request.auth.uid in get(/databases/$(database)/documents/services/$(request.resource.data.project_id)).data.personnel_user_ids
+        && request.resource.data.created_by == request.auth.uid
+      );
 
       // Update branches — see expanded block comment above for the full rationale.
       // Both branches preserve the existing created_at + created_by immutability invariants.
@@ -585,10 +616,10 @@ service cloud.firestore {
         && request.resource.data.created_by == resource.data.created_by
         && request.resource.data.created_at == resource.data.created_at
       ) || (
-        // BRANCH 2 — Attached operations_user / services_user, narrow field-mask
-        //            (Phase 87.2 D-16 / D-17 / D-18).
-        // Field-mask: only the 5-key allow-list is mutable.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at'])
+        // BRANCH 2 — Attached operations_user / services_user, expanded field-mask
+        //            (Phase 87.2 D-16 / D-17 / D-18; expanded Phase 87.3 D-09).
+        // Field-mask: 14-key allow-list (5 original status/log keys + 9 editable content keys).
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at', 'title', 'description', 'amount', 'target_client_id', 'target_client_name', 'version', 'attachment_kind', 'attachment_url', 'attachment_filename'])
         // Same created_at + created_by immutability as BRANCH 1.
         && request.resource.data.created_by == resource.data.created_by
         && request.resource.data.created_at == resource.data.created_at
