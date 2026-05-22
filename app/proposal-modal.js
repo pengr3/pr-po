@@ -662,7 +662,7 @@ async function _refreshDetailModalAfterTransition(proposalDocId) {
 // Create / Edit Proposal sub-modal
 // ============================================================
 
-async function openCreateProposalModal(preselectedProjectId = null, onClose = null, parentCollection = 'projects', lockedProjectCode = null) {
+export async function openCreateProposalModal(preselectedProjectId = null, onClose = null, parentCollection = 'projects', lockedProjectCode = null) {
     createModalMode = 'create';
     createModalEditingId = null;
     _createModalOnClose = onClose;
@@ -1634,7 +1634,6 @@ export async function openProposalModal(proposalId, context) {
     // Register ALL window functions needed by the modal's inline onclick handlers.
     // These are deleted in closeProposalModal() to avoid leaks across views.
     window.closeProposalDetailModal             = closeProposalModal;
-    window.openCreateProposalModal              = openCreateProposalModal;
     window.openEditProposalModal                = openEditProposalModal;
     window.closeCreateProposalModal             = closeCreateProposalModal;
     window.saveProposal                         = saveProposal;
@@ -1671,7 +1670,6 @@ export function closeProposalModal() {
 
     // Delete every window function registered in openProposalModal().
     delete window.closeProposalDetailModal;
-    delete window.openCreateProposalModal;
     delete window.openEditProposalModal;
     delete window.closeCreateProposalModal;
     delete window.saveProposal;
