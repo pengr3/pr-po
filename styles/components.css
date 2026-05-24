@@ -539,15 +539,21 @@ tr:hover {
 }
 
 /* Phase 87.4 D-15/D-19 — defensive sizing for badge-class pills.
-   Prevents row-width background overflow when a pill is placed
-   in a flex parent with default align-items: stretch. Root cause
-   (per Task 1 code-inspection diagnosis in 87.4-03-SUMMARY.md):
-   .badge-primary lacks `display` (UA <span> default is `inline`,
-   which a flex parent blockifies to `block`), and .status-badge
-   has `display: inline-block` but no `width: fit-content`. Both
-   properties together at the class level immunise every current
-   and future caller of these classes. No outer-bound cap added —
-   see SUMMARY decision narrative (D-20 root-cause-first). */
+   Three properties together immunise every current and future caller:
+     1. display: inline-block — prevents flex-blockification of `<span>`
+        (UA default `inline` becomes `block` when inside a flex parent).
+     2. width: fit-content — locks box to content width (was the
+        original row-width-fill fix per Task 1 diagnosis).
+     3. white-space: nowrap — REVISION (post-UAT 2026-05-24): flex
+        items default to `min-width: auto = min-content`, which for
+        normal-wrap text is the longest single word. In a constrained
+        flex parent (e.g., pill + timestamp on the same row), the pill
+        was being squeezed down to the longest word's width and the
+        rest of the label wrapped inside the pill. `nowrap` makes
+        min-content == max-content, so the pill stays on one line.
+   See 87.4-03-SUMMARY.md `## Follow-up — UAT Multi-Line Wrap` for the
+   diagnosis trace. No `overflow:hidden` / fixed-width / `max-width` per
+   D-20 root-cause-first. */
 .status-badge,
 .badge-primary,
 .badge-secondary,
@@ -559,6 +565,7 @@ tr:hover {
 .badge-warning {
     display: inline-block;
     width: fit-content;
+    white-space: nowrap;
 }
 
 .status-badge {
