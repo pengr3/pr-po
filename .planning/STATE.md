@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.4 PLANNED (2026-05-24) — 3 plans across 1 wave (87.4-01 attachment-required Submit, 87.4-02 button recolor + Version removal, 87.4-03 audit pill CSS fix). Ready to execute.
-stopped_at: Phase 87.4 plans verified (1 BLOCKER + 4 WARNINGS surfaced in iteration 1 → all fixed in iteration 2 → VERIFICATION PASSED)
+status: Phase 87.4 CODE COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15 must-haves COVERED); status=human_needed (UAT + `firebase deploy --only firestore:rules` pending in browser per overnight batch authorization). See 87.4-VERIFICATION.md.
+stopped_at: Phase 87.4 awaiting consolidated UAT punch list (Plan 01 attachment-gate UAT + production rules deploy; Plan 02 button + grid visual; Plan 03 pill DevTools confirmation + cross-view regression scan)
 last_updated: "2026-05-24T00:00:00.000Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
+last_activity: "2026-05-24 — Phase 87.4 executed sequentially (Plan 01 → 02 → 03) on v3.3 main working tree per user direction. 10 code/docs commits. Plan 01: disabled Submit + hint (.btn:disabled global already exists at components.css:179 — inline override omitted), submitProposalForApproval early-return guard, firestore.rules top-level conjunction wrapping BRANCH 1 || BRANCH 2 on pending_internal transitions; D-13 anchor 'version', 'attachment_kind' preserved at firestore.rules:637. Plan 02: orange #f59e0b inline-style Request Revision (.btn-warning forbidden since --warning is yellow #fbbc04), dead Version cell deleted, grid restructured Strategy A repeat(3, 1fr) with Amount | Target Client | Project bottom row. Plan 03: code-inspection diagnosis (DevTools deferred to UAT per batch auth) — root cause is .badge-primary lacks display (UA span default inline → blockified to block in flex parent) + no width:fit-content on any of 9 pill classes. Fix: class-level defensive rule on .status-badge / .badge-primary / .badge-secondary / .badge-pending / .badge-approved / .badge-rejected / .badge-success / .badge-danger / .badge-warning. UAT items deferred to consolidated punch list."
 progress:
   total_phases: 27
-  completed_phases: 20
-  total_plans: 86
-  completed_plans: 98
+  completed_phases: 21
+  total_plans: 89
+  completed_plans: 101
   percent: 100
 ---
 
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.4 PLANNED (2026-05-24) — 3 plans across 1 wave (all parallel-safe with documented line-range ownership inside `renderProposalActionButtons`). Plan 87.4-01 (Items 1, attachment-required Submit) edits `app/proposal-modal.js` lines 391-396 + `submitProposalForApproval` + `firestore.rules` lines 586-646. Plan 87.4-02 (Items 3+4, button color + Version removal) edits `app/proposal-modal.js` lines 405-413 + 482-485. Plan 87.4-03 (Item 5, audit pill CSS) is diagnosis-first (DevTools → SUMMARY artifact) then root-cause CSS fix in `styles/components.css`. Item 2 (PROP-ID, D-06) is decision-record only — no plan file. Phase 87.3 remains COMPLETE pending UAT.
-Next: `/gsd-execute-phase 87.4` (after `/clear`).
+Phase: 87.4 CODE COMPLETE (2026-05-24) — 3/3 plans landed sequentially on v3.3 with verification PASSED 15/15 (status=human_needed). Plan 01: 3-layer attachment-required Submit gate (UI disable + hint, handler guard, firestore.rules top-level conjunction); D-13 anchor preserved at firestore.rules:637. Plan 02: orange #f59e0b Request Revision via inline style (.btn-warning forbidden — yellow), dead Version cell removed, grid restructured to Strategy A repeat(3, 1fr). Plan 03: code-inspection diagnosis (DevTools deferred to UAT per overnight batch auth); class-level defensive `display:inline-block` + `width:fit-content` on all 9 badge-* classes in components.css:541-562. Phase 87.3 still pending UAT.
+Next: User runs consolidated UAT punch list + `firebase deploy --only firestore:rules` for production attachment-gate. Then `/gsd-discuss-phase <next>` or `/gsd-verify-work 87.4` after UAT.
 
 ## Performance Metrics
 
