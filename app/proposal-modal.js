@@ -952,6 +952,15 @@ async function submitProposalForApproval(proposalDocId) {
         showToast('Cannot submit a proposal that is not in Draft or For Revision.', 'error');
         return;
     }
+    // Phase 87.4 D-05 — Belt-and-suspenders guard: catches stale-state clicks where the
+    // disabled-button UI was bypassed (e.g., DevTools re-enable, or attachment removed
+    // between render and click). Toast copy is intentionally distinct from the inline hint
+    // so the user can tell which defense layer fired (inline hint is preventive; toast is
+    // reactive after a stale-state click).
+    if (!proposal.attachment_kind) {
+        showToast('Add an attachment before submitting for approval.', 'error');
+        return;
+    }
 
     showLoading(true);
     try {
