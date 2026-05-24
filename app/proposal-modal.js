@@ -421,7 +421,15 @@ function renderProposalActionButtons(proposal) {
             buttons.push(`<button class="btn btn-success" style="width:100%;" onclick="window.openClientApprovedModal('${docId}')">Client Approved</button>`);
             buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openLossModal('${docId}')">Mark as Loss</button>`);
             // Phase 87.2 D-11: Request Revision button — backward transition, last in list
-            buttons.push(`<button class="btn btn-danger" style="width:100%;" onclick="window.openRequestRevisionModal('${docId}')">Request Revision</button>`);
+            // Phase 87.4 D-08/D-09/D-10 — Recolored from the red destructive class to inline
+            // orange #f59e0b with white text, matching AUDIT_ACTION_DOT_COLORS.REVISION_REQUESTED
+            // (line 98) so the button color and the resulting audit-trail dot read as visually
+            // consistent. The red destructive class is now reserved exclusively for Reject
+            // Proposal + Mark as Loss. The inline-style approach is mandated: the warning class
+            // resolves to yellow #fbbc04 with dark text (styles/main.css:16 +
+            // styles/components.css:217-220), which violates D-08's mandate of #f59e0b orange
+            // + white text.
+            buttons.push(`<button class="btn" style="background:#f59e0b;color:#fff;border-color:#f59e0b;width:100%;" onclick="window.openRequestRevisionModal('${docId}')">Request Revision</button>`);
         }
     }
     // client_approved + loss: no further actions
