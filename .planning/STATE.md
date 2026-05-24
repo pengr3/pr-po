@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.4 CODE COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15 must-haves COVERED); status=human_needed (UAT + `firebase deploy --only firestore:rules` pending in browser per overnight batch authorization). See 87.4-VERIFICATION.md.
-stopped_at: Phase 87.4 awaiting consolidated UAT punch list (Plan 01 attachment-gate UAT + production rules deploy; Plan 02 button + grid visual; Plan 03 pill DevTools confirmation + cross-view regression scan)
+status: Phase 87.4 COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15); client UAT approved 2026-05-24 incl. follow-up fix b70593d (white-space:nowrap on pill defensive rule — primary fix exposed flex min-content wrap behavior). PENDING FOLLOW-UP: `firebase deploy --only firestore:rules` deferred to merge-to-main (D-03/D-04 server-side gate not live in prod until deploy).
+stopped_at: Phase 87.4 complete; awaiting merge of v3.3 to main + production firestore.rules deploy
 last_updated: "2026-05-24T00:00:00.000Z"
 last_activity: "2026-05-24 — Phase 87.4 executed sequentially (Plan 01 → 02 → 03) on v3.3 main working tree per user direction. 10 code/docs commits. Plan 01: disabled Submit + hint (.btn:disabled global already exists at components.css:179 — inline override omitted), submitProposalForApproval early-return guard, firestore.rules top-level conjunction wrapping BRANCH 1 || BRANCH 2 on pending_internal transitions; D-13 anchor 'version', 'attachment_kind' preserved at firestore.rules:637. Plan 02: orange #f59e0b inline-style Request Revision (.btn-warning forbidden since --warning is yellow #fbbc04), dead Version cell deleted, grid restructured Strategy A repeat(3, 1fr) with Amount | Target Client | Project bottom row. Plan 03: code-inspection diagnosis (DevTools deferred to UAT per batch auth) — root cause is .badge-primary lacks display (UA span default inline → blockified to block in flex parent) + no width:fit-content on any of 9 pill classes. Fix: class-level defensive rule on .status-badge / .badge-primary / .badge-secondary / .badge-pending / .badge-approved / .badge-rejected / .badge-success / .badge-danger / .badge-warning. UAT items deferred to consolidated punch list."
 progress:
@@ -25,8 +25,11 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 87.4 CODE COMPLETE (2026-05-24) — 3/3 plans landed sequentially on v3.3 with verification PASSED 15/15 (status=human_needed). Plan 01: 3-layer attachment-required Submit gate (UI disable + hint, handler guard, firestore.rules top-level conjunction); D-13 anchor preserved at firestore.rules:637. Plan 02: orange #f59e0b Request Revision via inline style (.btn-warning forbidden — yellow), dead Version cell removed, grid restructured to Strategy A repeat(3, 1fr). Plan 03: code-inspection diagnosis (DevTools deferred to UAT per overnight batch auth); class-level defensive `display:inline-block` + `width:fit-content` on all 9 badge-* classes in components.css:541-562. Phase 87.3 still pending UAT.
-Next: User runs consolidated UAT punch list + `firebase deploy --only firestore:rules` for production attachment-gate. Then `/gsd-discuss-phase <next>` or `/gsd-verify-work 87.4` after UAT.
+Phase: 87.4 COMPLETE (2026-05-24) — 3/3 plans landed sequentially on v3.3, verification PASSED 15/15, client UAT approved. Plan 01: 3-layer attachment-required Submit gate (UI disable + hint, handler guard, firestore.rules top-level conjunction); D-13 anchor preserved at firestore.rules:637. Plan 02: orange #f59e0b Request Revision via inline style (.btn-warning forbidden — yellow), dead Version cell removed, grid restructured to Strategy A repeat(3, 1fr). Plan 03: defensive rule on all 9 badge-* classes — initial fix `display:inline-block` + `width:fit-content` shipped, then UAT exposed secondary mechanism (flex min-width:auto = min-content was wrapping pill text); follow-up commit b70593d added `white-space:nowrap` to complete the canonical pill triad. Phase 87.3 still pending UAT.
+
+**Pending follow-up:** `firebase deploy --only firestore:rules` deferred to merge of v3.3 to main. Plan 01 D-03/D-04 server-side attachment-presence gate not live in production until then. Same pattern as project_phase841_pending_followups — surfaces in /gsd-progress until cleared.
+
+Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deploy --only firestore:rules`. Or queue next phase if more work on v3.3 first.
 
 ## Performance Metrics
 
