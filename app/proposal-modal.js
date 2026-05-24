@@ -390,7 +390,20 @@ function renderProposalActionButtons(proposal) {
 
     if (status === 'draft' || status === 'for_revision') {
         if (canDrive) {
-            buttons.push(`<button class="btn btn-primary" style="width:100%;" onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button>`);
+            // Phase 87.4 D-01/D-02 — Attachment-required gate on Submit for Internal Approval.
+            // When attachment_kind is unset, render Submit as disabled with an inline muted
+            // hint directly beneath. Wrapped in a single column-flex div so the button + hint
+            // count as ONE entry in the outer buttons array (preserves outer gap:8px spacing
+            // between distinct action affordances). The global .btn:disabled rule in
+            // styles/components.css:179 supplies the faded look (opacity:0.5;cursor:not-allowed),
+            // so no inline override is needed on the disabled button. Edit Proposal stays
+            // enabled regardless of attachment state.
+            const hasAttachment = !!proposal.attachment_kind;
+            if (hasAttachment) {
+                buttons.push(`<button class="btn btn-primary" style="width:100%;" onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button>`);
+            } else {
+                buttons.push(`<div style="display:flex;flex-direction:column;gap:4px;"><button class="btn btn-primary" style="width:100%;" disabled onclick="window.submitProposalForApproval('${docId}')">Submit for Internal Approval</button><div style="font-size:12px;color:#64748b;margin-top:4px;text-align:center;">Add an attachment to submit for approval.</div></div>`);
+            }
             buttons.push(`<button class="btn btn-outline" style="width:100%;" onclick="window.openEditProposalModal('${docId}')">Edit Proposal</button>`);
         }
     }
