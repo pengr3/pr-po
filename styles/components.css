@@ -538,6 +538,29 @@ tr:hover {
     text-align: center;
 }
 
+/* Phase 87.4 D-15/D-19 — defensive sizing for badge-class pills.
+   Prevents row-width background overflow when a pill is placed
+   in a flex parent with default align-items: stretch. Root cause
+   (per Task 1 code-inspection diagnosis in 87.4-03-SUMMARY.md):
+   .badge-primary lacks `display` (UA <span> default is `inline`,
+   which a flex parent blockifies to `block`), and .status-badge
+   has `display: inline-block` but no `width: fit-content`. Both
+   properties together at the class level immunise every current
+   and future caller of these classes. No outer-bound cap added —
+   see SUMMARY decision narrative (D-20 root-cause-first). */
+.status-badge,
+.badge-primary,
+.badge-secondary,
+.badge-pending,
+.badge-approved,
+.badge-rejected,
+.badge-success,
+.badge-danger,
+.badge-warning {
+    display: inline-block;
+    width: fit-content;
+}
+
 .status-badge {
     padding: 0.25rem 0.75rem;
     border-radius: 12px;
