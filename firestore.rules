@@ -610,33 +610,50 @@ service cloud.firestore {
 
       // Update branches — see expanded block comment above for the full rationale.
       // Both branches preserve the existing created_at + created_by immutability invariants.
+      // Phase 87.4 D-03/D-04 — attachment-presence gate on pending_internal transition (data-integrity, applies to both branches).
+      // The top-level conjunction below requires attachment_kind to be set whenever the
+      // transition INTO 'pending_internal' is being performed. Disjunction reads as:
+      //   (new status is NOT pending_internal) OR (old status was already pending_internal,
+      //   so this isn't a transition) OR (attachment_kind is present on the new doc).
+      // Only the "transition INTO pending_internal with null attachment" path fails.
+      // Admins do NOT bypass — this is data integrity, not authorization (D-04).
       allow update: if (
-        // BRANCH 1 — Admin (existing, preserved verbatim from Phase 87 D-10).
-        hasRole(['super_admin', 'operations_admin'])
-        && request.resource.data.created_by == resource.data.created_by
-        && request.resource.data.created_at == resource.data.created_at
-      ) || (
-        // BRANCH 2 — Attached operations_user / services_user, expanded field-mask
-        //            (Phase 87.2 D-16 / D-17 / D-18; expanded Phase 87.3 D-09).
-        // Field-mask: 14-key allow-list (5 original status/log keys + 9 editable content keys).
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at', 'title', 'description', 'amount', 'target_client_id', 'target_client_name', 'version', 'attachment_kind', 'attachment_url', 'attachment_filename'])
-        // Same created_at + created_by immutability as BRANCH 1.
-        && request.resource.data.created_by == resource.data.created_by
-        && request.resource.data.created_at == resource.data.created_at
-        && (
-          // Operations branch: parent_collection is 'projects' (defaults when absent).
+        (
+          request.resource.data.status != 'pending_internal'
+          || resource.data.status == 'pending_internal'
+          || request.resource.data.attachment_kind != null
+        )
+        &&
+        (
           (
-            isRole('operations_user')
-            && (!('parent_collection' in resource.data) || resource.data.parent_collection == 'projects')
-            && request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids
-          )
-          ||
-          // Services branch: parent_collection is 'services' (explicit).
-          (
-            isRole('services_user')
-            && 'parent_collection' in resource.data
-            && resource.data.parent_collection == 'services'
-            && request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.project_id)).data.personnel_user_ids
+            // BRANCH 1 — Admin (existing, preserved verbatim from Phase 87 D-10).
+            hasRole(['super_admin', 'operations_admin'])
+            && request.resource.data.created_by == resource.data.created_by
+            && request.resource.data.created_at == resource.data.created_at
+          ) || (
+            // BRANCH 2 — Attached operations_user / services_user, expanded field-mask
+            //            (Phase 87.2 D-16 / D-17 / D-18; expanded Phase 87.3 D-09).
+            // Field-mask: 14-key allow-list (5 original status/log keys + 9 editable content keys).
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at', 'title', 'description', 'amount', 'target_client_id', 'target_client_name', 'version', 'attachment_kind', 'attachment_url', 'attachment_filename'])
+            // Same created_at + created_by immutability as BRANCH 1.
+            && request.resource.data.created_by == resource.data.created_by
+            && request.resource.data.created_at == resource.data.created_at
+            && (
+              // Operations branch: parent_collection is 'projects' (defaults when absent).
+              (
+                isRole('operations_user')
+                && (!('parent_collection' in resource.data) || resource.data.parent_collection == 'projects')
+                && request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids
+              )
+              ||
+              // Services branch: parent_collection is 'services' (explicit).
+              (
+                isRole('services_user')
+                && 'parent_collection' in resource.data
+                && resource.data.parent_collection == 'services'
+                && request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.project_id)).data.personnel_user_ids
+              )
+            )
           )
         )
       );
