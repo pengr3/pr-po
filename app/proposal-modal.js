@@ -478,8 +478,15 @@ function buildProposalDetailsBlock(proposal) {
     const amount = (proposal.amount != null && proposal.amount !== '')
         ? `₱${formatCurrency(proposal.amount)}`
         : '—';
+    // Phase 87.4 D-11/D-12/D-14 — Removed the dead Version field entirely (no schema, no
+    // versioning concept exists in the proposal model; the hardcoded "v1" was misleading
+    // dead UI). Adjusted the grid from 2-column to 3-column (Strategy A from the plan) so
+    // the freed cell does not leave a visible hole — the bottom row now reads symmetrically
+    // as Amount | Target Client | Project. Title and Description retain grid-column:1/-1
+    // and span all three columns. Per D-14, no proposal-doc field of the removed name is
+    // referenced anywhere in this function.
     return `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:1rem;margin-bottom:1.5rem;">
             <div style="grid-column:1/-1;">
                 <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Title</div>
                 <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.title || '—')}</div>
@@ -499,10 +506,6 @@ function buildProposalDetailsBlock(proposal) {
             <div>
                 <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Project</div>
                 <div style="font-weight:600;color:#1e293b;">${escapeHTML(proposal.project_code || '—')}</div>
-            </div>
-            <div>
-                <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Version</div>
-                <div style="font-weight:600;color:#1e293b;">v1</div>
             </div>
         </div>
     `;
