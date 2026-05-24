@@ -1,74 +1,45 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-22T00:00:00Z",
-  "phase": "87.2",
-  "phase_name": "Proposal Workflow Polish — Client Context, Operations Permissions, Revision Cycle, Audit Trail Integration",
-  "phase_dir": ".planning/phases/87.2-proposal-workflow-polish",
-  "plan": 0,
-  "task": 0,
-  "total_tasks": 0,
-  "status": "planned_ready_to_execute",
+  "timestamp": "2026-05-25T17:37:10.979Z",
+  "phase": "93",
+  "phase_name": "home-rebrand-department-routing-sub-nav-integration",
+  "phase_dir": ".planning/phases/93-home-rebrand-department-routing-sub-nav-integration",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "paused",
+  "stage": "discuss-complete",
   "completed_tasks": [
-    {"id": "discuss-phase", "name": "Gather CONTEXT.md (26 decisions D-01..D-26)", "status": "done", "commit": "(committed with b24a617)"},
-    {"id": "plan-phase", "name": "Produce 5 PLAN.md files across 4 waves", "status": "done", "commit": "b24a617"},
-    {"id": "plan-checker", "name": "Verify plans — iter 2 passed after 2 targeted revisions (W1 enumerated 6 client_name sites; W2 corrected Request Revision grep count)", "status": "done", "commit": "b24a617"},
-    {"id": "coverage-gate", "name": "Decision coverage 26/26 D-NN verified; REQ coverage N/A (Requirements: TBD on phase)", "status": "done", "commit": "b24a617"}
+    {"id": 1, "name": "Discuss Area 1 — 5th department identity", "status": "done", "commit": "00d9ae8"},
+    {"id": 2, "name": "Discuss Area 2 — Sub-nav fate", "status": "done", "commit": "00d9ae8"},
+    {"id": 3, "name": "Discuss Area 3 — Tile layout & visual treatment", "status": "done", "commit": "00d9ae8"},
+    {"id": 4, "name": "Discuss Area 4 — Per-role visibility & click behavior", "status": "done", "commit": "00d9ae8"},
+    {"id": 5, "name": "Write 93-CONTEXT.md + 93-DISCUSSION-LOG.md + commit", "status": "done", "commit": "00d9ae8"}
   ],
   "remaining_tasks": [
-    {"id": 1, "name": "Wave 1 (parallel) — Execute 87.2-01 (Target Client default + 6-site company_name bug fix) + 87.2-02 (firestore.rules new proposals update branch)", "status": "not_started"},
-    {"id": 2, "name": "MANUAL DEPLOY — `firebase deploy --only firestore:rules` (REQUIRED before Wave 2's smoke-test or operations_user assignment-check will fail)", "status": "not_started"},
-    {"id": 3, "name": "Wave 2 — Execute 87.2-03 (renderProposalActionButtons dual canApprove + canDrive flags, parent_collection-aware department gating, _parentDocCache preload)", "status": "not_started"},
-    {"id": 4, "name": "Wave 3 — Execute 87.2-04 (Request Revision button + sub-modal + extended Mark Sent gate + REVISION_REQUESTED audit action)", "status": "not_started"},
-    {"id": 5, "name": "Wave 4 — Execute 87.2-05 (renderAuditTrail merges comms_log as nested children under SENT_TO_CLIENT / CREATED)", "status": "not_started"},
-    {"id": 6, "name": "UAT — manual smoke-test on PROP-2026-001 walkthrough: verify Target Client populates, operations_user sees new buttons, Request Revision flow, comms_log saves succeed for assigned operations_user, audit trail shows nesting", "status": "not_started"},
-    {"id": 7, "name": "/gsd-verify-phase 87.2 — goal-backward verification against the 5 Roadmap Success Criteria (re-interpreted per D-10/D-11/D-12/D-15 corrective for SC#3 and D-03 corrective for SC#1)", "status": "not_started"}
+    {"id": 6, "name": "Run /gsd-plan-phase 93 to break Phase 93 into plans", "status": "not_started"},
+    {"id": 7, "name": "Optional: /gsd-ui-phase 93 for UI design contract (UI hint: yes)", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [
-    {
-      "action": "firebase deploy --only firestore:rules",
-      "context": "Plan 87.2-02 modifies firestore.rules — required deploy step between Wave 1 and Wave 2 so the new field-mask + parent-assignment + department-alignment update branch is live before operations_user/services_user smoke-tests. Netlify auto-deploys SPA assets only; Firebase rules are out-of-band.",
-      "blocking": true
-    },
-    {
-      "action": "In-browser UAT on PROP-2026-001 (CLMC-SPI-2026004)",
-      "context": "Five integration gaps were originally surfaced in a super_admin walkthrough of this specific proposal. The same walkthrough is the natural smoke-test post-execution: verify Target Client populates correctly on new proposals from a project context, operations_user sees Mark Sent / Client Approved / Mark as Loss / Request Revision buttons, Request Revision moves status to For Revision, comms_log saves succeed without `Missing or insufficient permissions`, audit trail renders comms as indented children.",
-      "blocking": false
-    }
+    {"action": "Merge v3.3 → main + run `firebase deploy --only firestore:rules`", "context": "Carried over from Phase 87.4 — D-03/D-04 server-side attachment-presence gate not live in production until then", "blocking": false}
   ],
   "decisions": [
-    {
-      "decision": "CONTEXT.md mid-discussion course-correction supersedes ROADMAP.md Success Criterion #3",
-      "rationale": "ROADMAP says 'Logging a Revision Requested comms entry advances status' (auto-status-from-comms). CONTEXT D-10/D-11/D-12/D-15 explicitly rejects this and replaces it with explicit Request Revision action button + extended Mark Sent gate. Plans MUST honor CONTEXT, not ROADMAP, for SC#3. Comms entries stay pure logs.",
-      "phase": "87.2"
-    },
-    {
-      "decision": "No legacy backfill for target_client_name — D-03 overrides Roadmap SC#1",
-      "rationale": "ROADMAP says 'legacy proposals are backfilled on-read from parent'. CONTEXT D-03 explicitly rejects backfill ('just in prod as of now so no need for legacy'). Existing prod proposals with target_client_name=null stay until manually corrected via Edit modal once the save-side bug is fixed. No read-time fallback, no migration script.",
-      "phase": "87.2"
-    },
-    {
-      "decision": "Bundle ALL six client_name sites in Plan 01 (1 write + 3 dropdown render + 2 sort comparator)",
-      "rationale": "D-02 originally identified the saveProposal write site only. Plan-checker iter 1 found 3 additional sites in showCreateModal's dropdown render (lines 529-531). Plan-checker iter 2 found 2 more in the _modalClientsData.sort() comparator at line 160 (`a.client_name`, `b.client_name`). Same root cause (canonical field is company_name, not client_name); bundling them keeps the bug fix atomic and avoids a visible 'empty client name' defect during the Plan 01 smoke-test.",
-      "phase": "87.2"
-    },
-    {
-      "decision": "Wave structure prioritizes shared-file safety over speed",
-      "rationale": "Plans 01, 03, 04, 05 all touch app/proposal-modal.js. Per project memory `feedback_orphan_ownership_parallel_plans.md`, parallel plans on a shared file are forbidden. Only Plan 02 (firestore.rules — disjoint file) can run in parallel with Plan 01. Waves 2-4 serialize the remaining proposal-modal.js plans. Adds wall-clock time but eliminates merge-conflict risk.",
-      "phase": "87.2"
-    },
-    {
-      "decision": "Skipped UI-SPEC.md and RESEARCH.md for this phase",
-      "rationale": "CONTEXT.md D-25 already specified the visual treatment (padding ~24px, font 12px, dot color gray #94a3b8, pill reuse, oldest-first sort, connector stub). CONTEXT also cited every line number for the code surfaces. Generating UI-SPEC.md and RESEARCH.md would duplicate work captured in CONTEXT. User confirmed via AskUserQuestion.",
-      "phase": "87.2"
-    },
-    {
-      "decision": "Accepted iter-2 plan-checker INFOs without further revision",
-      "rationale": "Iter-2 checker raised 1 WARNING (line 160 sort comparator — addressed in iter-2 revision) + 1 cosmetic INFO (off-by-one line numbers 528→529). Iter-3 checker not re-run because (a) the disk content was manually verified to match the revision spec, (b) running a third checker cycle on a tightly-bounded narrow change introduces noise risk, (c) we were already at the 3-iteration cap so no further revisions could be issued anyway.",
-      "phase": "87.2"
-    }
+    {"decision": "5 home tiles = Clients, Projects, Services, Procurement, Finance (1:1 with top-nav)", "rationale": "User picked Clients as the 5th; mirror top-nav rather than re-frame as broader department landings", "phase": "93"},
+    {"decision": "All tiles visible to every role; click denied falls through to existing router.js route protection", "rationale": "Simplest model; no new soft-disable state required", "phase": "93"},
+    {"decision": "Phase 87.1 sub-nav (Overview | Engagements | Proposals) retained as-is; Management stays in top nav", "rationale": "User explicitly chose 'remove management' from sub-nav; Management is not a tile or sub-nav entry", "phase": "93"},
+    {"decision": "Overview sub-tab restructured: 5 tiles on top, Procurement stats card below", "rationale": "User: 'No retain tiles in overview. Tiles first then stats'", "phase": "93"},
+    {"decision": "Tile visual = current .nav-card style; layout = 3-on-top + 2-centered-below; descriptions revised per current functionality", "rationale": "User: 'match the current layout of tiles i like it, and just revise their description to much they current functionality'", "phase": "93"}
   ],
-  "uncommitted_files": [],
-  "next_action": "/gsd-execute-phase 87.2 — starts Wave 1 (parallel: 87.2-01 proposal-modal.js + 87.2-02 firestore.rules). After Wave 1 commits successfully, pause and run `firebase deploy --only firestore:rules` before continuing to Wave 2 (which depends on the new rules being live for the operations_user smoke-test).",
-  "context_notes": "Phase 87.2 was inserted 2026-05-21 after a super_admin walkthrough of PROP-2026-001 surfaced 5 integration gaps in the proposal workflow built across Phase 87 / 87.1. This is a POLISH phase — no new lifecycle stages, no schema migrations, no new collections. All work is targeted edits to existing files. Plans are commit-ready and execution-ready. The one cross-wave manual gate is the `firebase deploy` for the firestore.rules change in Plan 02 — without it, operations_user assignment-check writes will be denied at the rules layer and the Wave 2 smoke-test will fail in a confusing way (looks like a UI bug when actually it's a rules deploy missing). Branch: v3.3."
+  "uncommitted_files": [
+    ".planning/HANDOFF.json (deleted before this session — being recreated)",
+    ".planning/ROADMAP.md (modified — pre-existing changes)",
+    ".planning/STATE.md (modified — pre-existing changes)",
+    ".planning/debug/86.9-row-misalign-DEBUG.md (untracked — pre-existing)",
+    ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md (untracked — pre-existing)",
+    "debug-diag-86.9.js (untracked — pre-existing)",
+    ".claude/worktrees/ (untracked — pre-existing)"
+  ],
+  "next_action": "Run /gsd-plan-phase 93 to break Phase 93 into plans. Optionally run /gsd-ui-phase 93 first (UI hint: yes).",
+  "context_notes": "Discuss-phase 93 complete in --batch mode (switched to default interactive mid-flow at user request). CONTEXT.md captures 10 decisions (D-01..D-10) covering 4 areas: department identity, sub-nav fate, tile layout, click behavior. Primary edit target for planning will be app/views/home.js (~650 lines), styles/hero.css (.nav-card + .navigation-cards), and possibly styles/views.css (no regression to .home-sub-nav from Phase 87.1). Pure UI rebrand — no firestore.rules edits, no new collection."
 }
