@@ -255,8 +255,10 @@ function _renderHomeApprovalQueueHtml(pending) {
                 <td style="padding: 0.75rem 1rem; vertical-align: middle;">
                     <div style="font-weight: 600; color: #1e293b; font-size: 0.9375rem;">${escapeHTML(p.title || '—')}</div>
                     <div style="color: #64748b; font-size: 0.8125rem; margin-top: 2px;">${escapeHTML(projectLabel)}</div>
+                    ${p.attachment_url ? `<div style="margin-top:3px;"><a href="${escapeHTML(p.attachment_url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" style="font-size:0.75rem;color:#3b82f6;">📎 ${escapeHTML(p.attachment_filename || 'View Attachment')}</a></div>` : ''}
                 </td>
                 <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(submitterName)}</td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(p.target_client_name || '—')}</td>
                 <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(amount)}</td>
                 <td style="padding: 0.75rem 1rem; vertical-align: middle;">
                     <span style="${ageStyle}">${escapeHTML(ageLabel)}</span>
@@ -285,6 +287,7 @@ function _renderHomeApprovalQueueHtml(pending) {
                             <tr style="background: #f8fafc;">
                                 <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Proposal</th>
                                 <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Submitted By</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Client</th>
                                 <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Amount</th>
                                 <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Age in Stage</th>
                                 <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Actions</th>
