@@ -35,6 +35,8 @@ let cachedStats = {
 let _homeProposalsCache = [];
 let _homeCanApproveQueue = false;
 let _homeProposalStatusFilter = null; // null = all stages; string = active status key (single-select)
+const ACTIVE_PROPOSAL_STAGES = ['draft', 'pending_internal', 'pending_client', 'for_revision'];
+let _homeProposalPage = 1;
 let _proposalListener = null; // onSnapshot unsubscribe handle for proposals collection
 
 /**
@@ -555,7 +557,7 @@ function _rerenderProposalTable() {
  */
 function _loadHomeProposalsTab(canApproveQueue) {
     _homeCanApproveQueue = !!canApproveQueue;
-    _homeProposalStatusFilter = null;
+    _homeProposalStatusFilter = 'active_only';
 
     // Cancel any existing proposals listener before registering a new one (T-93.2-04)
     _proposalListener?.();
@@ -572,6 +574,7 @@ function _loadHomeProposalsTab(canApproveQueue) {
 
             const scoped = filterProposalsForUser(all);
             _homeProposalsCache = scoped;
+            _homeProposalPage = 1;
 
             // Queue section — only for approvers (super_admin + operations_admin)
             let queueHtml = '';
@@ -586,10 +589,15 @@ function _loadHomeProposalsTab(canApproveQueue) {
                 queueHtml = _renderHomeApprovalQueueHtml(pending);
             }
 
+            // Apply active-only filter before building the table
+            const filtered = _homeProposalStatusFilter === 'active_only'
+                ? scoped.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status))
+                : (_homeProposalStatusFilter ? scoped.filter(p => p.status === _homeProposalStatusFilter) : scoped);
+
             // Unified proposals table with scorecard tiles above
             const tableSection = `<div id="homeProposalTableSection" style="width:100%;">
-                ${_renderHomeProposalScorecards(scoped, null)}
-                ${_renderHomeProposalTable(scoped)}
+                ${_renderHomeProposalScorecards(scoped, _homeProposalStatusFilter)}
+                ${_renderHomeProposalTable(filtered, _homeProposalPage)}
             </div>`;
 
             mount.innerHTML = `
@@ -753,6 +761,7 @@ export async function destroy() {
     delete window.homeQueueOpenApproveModal;
     delete window.homeQueueOpenRejectModal;
     delete window.handleHomeProposalScorecardClick;
+    delete window.handleHomeProposalPageChange;
     try {
         destroyEngagementForm();
     } catch (err) {
@@ -761,6 +770,7 @@ export async function destroy() {
     _homeProposalsCache = [];
     _homeCanApproveQueue = false;
     _homeProposalStatusFilter = null;
+    _homeProposalPage = 1;
 
     // Cancel proposals real-time listener (Phase 93.2)
     _proposalListener?.();
