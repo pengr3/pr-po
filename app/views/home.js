@@ -462,7 +462,7 @@ function _renderHomeProposalScorecards(proposals, activeFilter) {
         const isActive = activeFilter === stage.key;
         return `<div class="project-scorecard-card${isActive ? ' project-scorecard-card--active' : ''}"
             data-status="${stage.key}"
-            style="flex:1;min-width:140px;border-left:3px solid ${color};"
+            style="flex:1;min-width:140px;height:72px;border-left:3px solid ${color};"
             onclick="window.handleHomeProposalScorecardClick('${stage.key}')">
             <span class="scorecard-label">${escapeHTML(stage.label)}</span>
             <span class="scorecard-count">${count}</span>
