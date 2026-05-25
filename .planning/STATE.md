@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 93.2 COMPLETE — Plan 01 (real-time onSnapshot queue, Client column, attachment link) + Plan 02 (active_only default filter, updated_at sort, 10/page pagination, scorecard click rework) both DONE. PENDING: firebase deploy --only firestore:rules (Phase 87.4 D-03/D-04 server gate not live until merge v3.3 → main)."
-stopped_at: Phase 93.1 context gathered
-last_updated: "2026-05-25T09:01:28.213Z"
+status: "Phase 94 Plan 01 — Tasks 1+2 code complete (commits e49e5a9, 27aabb9). PAUSED at human-verify checkpoint: browser test of slide-in banner, Refresh/Dismiss, and mobile stacking required before SUMMARY.md is written and plan is closed."
+stopped_at: "Phase 94 Plan 01 Task 2 human-verify checkpoint"
+last_updated: "2026-05-25T10:00:00.000Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 28
