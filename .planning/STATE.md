@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: Phase 87.4 COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15); client UAT approved 2026-05-24 incl. follow-up fix b70593d (white-space:nowrap on pill defensive rule — primary fix exposed flex min-content wrap behavior). PENDING FOLLOW-UP: `firebase deploy --only firestore:rules` deferred to merge-to-main (D-03/D-04 server-side gate not live in prod until deploy).
-stopped_at: Phase 87.4 complete; awaiting merge of v3.3 to main + production firestore.rules deploy
-last_updated: "2026-05-24T00:00:00.000Z"
-last_activity: "2026-05-24 — Phase 87.4 executed sequentially (Plan 01 → 02 → 03) on v3.3 main working tree per user direction. 10 code/docs commits. Plan 01: disabled Submit + hint (.btn:disabled global already exists at components.css:179 — inline override omitted), submitProposalForApproval early-return guard, firestore.rules top-level conjunction wrapping BRANCH 1 || BRANCH 2 on pending_internal transitions; D-13 anchor 'version', 'attachment_kind' preserved at firestore.rules:637. Plan 02: orange #f59e0b inline-style Request Revision (.btn-warning forbidden since --warning is yellow #fbbc04), dead Version cell deleted, grid restructured Strategy A repeat(3, 1fr) with Amount | Target Client | Project bottom row. Plan 03: code-inspection diagnosis (DevTools deferred to UAT per batch auth) — root cause is .badge-primary lacks display (UA span default inline → blockified to block in flex parent) + no width:fit-content on any of 9 pill classes. Fix: class-level defensive rule on .status-badge / .badge-primary / .badge-secondary / .badge-pending / .badge-approved / .badge-rejected / .badge-success / .badge-danger / .badge-warning. UAT items deferred to consolidated punch list."
+status: "Phase 87.4 COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15); client UAT approved 2026-05-24 incl. follow-up fix b70593d (white-space:nowrap on pill defensive rule — primary fix exposed flex min-content wrap behavior). PENDING FOLLOW-UP: `firebase deploy --only firestore:rules` deferred to merge-to-main (D-03/D-04 server-side gate not live in prod until deploy)."
+stopped_at: Phase 93 planned — ready to execute (2 plans, Wave 1 parallel)
+last_updated: "2026-05-25T00:00:00.000Z"
+last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
 progress:
-  total_phases: 27
-  completed_phases: 21
-  total_plans: 89
+  total_phases: 28
+  completed_phases: 25
+  total_plans: 103
   completed_plans: 101
-  percent: 100
+  percent: 89
 ---
 
 # Project State
@@ -597,9 +597,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
-Last session: 2026-05-23T14:24:10.972Z
-Stopped at: Phase 87.4 context gathered
-Resume file: .planning/phases/87.4-proposal-modal-polish-2-attachment-pill-button-color-id-version/87.4-CONTEXT.md
+Last session: 2026-05-25T02:22:14.907Z
+Stopped at: Phase 93 UI-SPEC approved
+Resume file: .planning/phases/93-home-rebrand-department-routing-sub-nav-integration/93-UI-SPEC.md
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
