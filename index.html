@@ -201,7 +201,12 @@
             var menu = document.getElementById('mobileNavMenu');
             var backdrop = document.getElementById('mobileNavBackdrop');
             var btn = document.getElementById('hamburgerBtn');
-            if (menu) menu.classList.add('is-open');
+            var strip = document.getElementById('updateStripSlot');
+            var stripH = strip && strip.classList.contains('open') ? strip.offsetHeight : 0;
+            if (menu) {
+                menu.style.top = (64 + stripH) + 'px';
+                menu.classList.add('is-open');
+            }
             if (backdrop) backdrop.classList.add('is-open');
             if (btn) { btn.classList.add('is-open'); btn.setAttribute('aria-expanded', 'true'); }
             document.body.style.overflow = 'hidden'; // lock scroll
