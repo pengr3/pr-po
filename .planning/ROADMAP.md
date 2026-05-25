@@ -823,3 +823,5 @@ Plans:
 Plans:
 - [x] 93-01-PLAN.md — CSS: .dept-cards / .dept-cards-row grid CSS in hero.css (3+2 desktop, responsive breakpoints) — Wave 1
 - [x] 93-02-PLAN.md — JS: replace 3 legacy nav-cards with 5-tile grid in home.js render(); wrap Overview in #homeOverviewContent; update switchHomeTab() — Wave 1
+
+**Status:** ✓ Complete — 2026-05-25

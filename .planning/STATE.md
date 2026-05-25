@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 87.4 COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15); client UAT approved 2026-05-24 incl. follow-up fix b70593d (white-space:nowrap on pill defensive rule — primary fix exposed flex min-content wrap behavior). PENDING FOLLOW-UP: `firebase deploy --only firestore:rules` deferred to merge-to-main (D-03/D-04 server-side gate not live in prod until deploy)."
-stopped_at: Phase 93 Plan 02 COMPLETE (2026-05-25) — 5-tile dept grid in home.js render() + #homeOverviewContent wrapper + switchHomeTab() selector updated; ready for Plan 03 if exists or phase close
-last_updated: "2026-05-25T03:15:00.000Z"
+status: "Phase 93 COMPLETE (2026-05-25) — 2/2 plans landed; verification PASSED (9/9 automated); client UAT approved 2026-05-25. 5-tile dept grid live on home page; Phase 87.1 sub-nav preserved; CSS review fixes applied (e606873). PENDING: firebase deploy --only firestore:rules (Phase 87.4 D-03/D-04 server gate not live until merge v3.3 → main)."
+stopped_at: Phase 93 COMPLETE — UAT approved 2026-05-25. Next: merge v3.3 → main + firebase deploy, or continue with next phase.
+last_updated: "2026-05-25T00:00:00.000Z"
 last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
 progress:
   total_phases: 28
-  completed_phases: 25
+  completed_phases: 26
   total_plans: 103
-  completed_plans: 101
-  percent: 89
+  completed_plans: 103
+  percent: 92
 ---
 
 # Project State
