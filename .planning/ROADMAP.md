@@ -853,7 +853,7 @@ Plans:
 **Goal:** Add a passive update notification system to the SPA — poll `HEAD /index.html` every 30 minutes, detect a new Netlify deploy via ETag/Last-Modified change, and slide in a full-width dismissible top strip banner prompting the user to refresh. Zero build step required; no Firebase usage.
 **Depends on:** None
 **Requirements**: None mapped (synthetic UPD-01..UPD-04 in plan frontmatter)
-**Plans:** 1 plan (planned 2026-05-25)
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 94-01-PLAN.md — update-check.js HEAD-poll module + index.html strip banner + components.css slide-in/mobile CSS — Wave 1
+- [x] 94-01-PLAN.md — update-check.js HEAD-poll module + index.html strip banner + components.css slide-in/mobile CSS — Wave 1
