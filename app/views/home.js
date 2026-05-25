@@ -481,11 +481,27 @@ function _renderHomeProposalScorecards(proposals, activeFilter) {
  * @param {Array} proposals - Proposals to display (may be filtered by active status)
  * @returns {string} HTML string
  */
-function _renderHomeProposalTable(proposals) {
-    if (proposals.length === 0) {
+function _renderHomeProposalTable(proposals, page = 1) {
+    // Sort by updated_at descending: newest first
+    const sorted = [...proposals].sort((a, b) => {
+        const tsA = a.updated_at?.toMillis?.() ?? (a.updated_at?.seconds != null ? a.updated_at.seconds * 1000 : 0);
+        const tsB = b.updated_at?.toMillis?.() ?? (b.updated_at?.seconds != null ? b.updated_at.seconds * 1000 : 0);
+        return tsB - tsA;
+    });
+
+    if (sorted.length === 0) {
         return `<div class="card" style="margin-bottom:1rem;width:100%;"><div class="card-body" style="padding:1.25rem 1.5rem;"><p style="color:#64748b;margin:0;font-size:0.9375rem;">No proposals match the selected filter. Click the active tile to show all.</p></div></div>`;
     }
-    const rows = proposals.map(p => {
+
+    // Pagination
+    const totalItems = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / 10));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const startIdx = (safePage - 1) * 10;
+    const endIdx = Math.min(startIdx + 10, totalItems);
+    const pageItems = sorted.slice(startIdx, endIdx);
+
+    const rows = pageItems.map(p => {
         const titleTruncated = (p.title || '').length > 40
             ? escapeHTML((p.title || '').slice(0, 40)) + '…'
             : escapeHTML(p.title || '—');
@@ -505,6 +521,29 @@ function _renderHomeProposalTable(proposals) {
             <td style="padding:0.6rem 1rem;vertical-align:middle;">${renderAgeBadge(p)}</td>
         </tr>`;
     }).join('');
+
+    // Build pagination HTML (omitted when everything fits on one page)
+    let paginationHtml = '';
+    if (totalPages > 1) {
+        let pageButtons = '';
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= safePage - 1 && i <= safePage + 1)) {
+                pageButtons += `<button class="pagination-btn${i === safePage ? ' active' : ''}" onclick="window.handleHomeProposalPageChange(${i})">${i}</button>`;
+            } else if (i === safePage - 2 || i === safePage + 2) {
+                pageButtons += '<span class="pagination-ellipsis">...</span>';
+            }
+        }
+        paginationHtml = `
+            <div class="pagination-container">
+                <div class="pagination-info">Showing <strong>${startIdx + 1}–${endIdx}</strong> of <strong>${totalItems}</strong> Proposals</div>
+                <div class="pagination-controls">
+                    <button class="pagination-btn" onclick="window.handleHomeProposalPageChange(${safePage - 1})" ${safePage === 1 ? 'disabled' : ''}>← Previous</button>
+                    ${pageButtons}
+                    <button class="pagination-btn" onclick="window.handleHomeProposalPageChange(${safePage + 1})" ${safePage === totalPages ? 'disabled' : ''}>Next →</button>
+                </div>
+            </div>`;
+    }
+
     return `<div class="card" style="margin-bottom:1rem;"><div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;">
             <thead>
@@ -520,7 +559,7 @@ function _renderHomeProposalTable(proposals) {
             </thead>
             <tbody>${rows}</tbody>
         </table>
-    </div></div>`;
+    </div></div>${paginationHtml}`;
 }
 
 /**
@@ -533,11 +572,11 @@ function _rerenderProposalTable() {
     const tableContainerId = 'homeProposalTableSection';
     const existing = document.getElementById(tableContainerId);
     if (!existing) return;
-    const filtered = _homeProposalStatusFilter
-        ? _homeProposalsCache.filter(p => p.status === _homeProposalStatusFilter)
-        : _homeProposalsCache;
+    const filtered = _homeProposalStatusFilter === 'active_only'
+        ? _homeProposalsCache.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status))
+        : (_homeProposalStatusFilter ? _homeProposalsCache.filter(p => p.status === _homeProposalStatusFilter) : _homeProposalsCache);
     existing.innerHTML = _renderHomeProposalScorecards(_homeProposalsCache, _homeProposalStatusFilter)
-        + _renderHomeProposalTable(filtered);
+        + _renderHomeProposalTable(filtered, _homeProposalPage);
     // Safety-net: sync active class on re-rendered tiles (already set via template literal above)
     document.querySelectorAll('#homeProposalTableSection .project-scorecard-card').forEach(card => {
         card.classList.toggle('project-scorecard-card--active', card.dataset.status === _homeProposalStatusFilter);
@@ -670,7 +709,16 @@ export async function init() {
         window.homeQueueOpenApproveModal = (id) => _openHomeQueueModal(id, 'approve');
         window.homeQueueOpenRejectModal = (id) => _openHomeQueueModal(id, 'reject');
         window.handleHomeProposalScorecardClick = (statusKey) => {
-            _homeProposalStatusFilter = (_homeProposalStatusFilter === statusKey) ? null : statusKey;
+            if (ACTIVE_PROPOSAL_STAGES.includes(statusKey)) {
+                _homeProposalStatusFilter = 'active_only';
+            } else {
+                _homeProposalStatusFilter = (_homeProposalStatusFilter === statusKey) ? 'active_only' : statusKey;
+            }
+            _homeProposalPage = 1;
+            _rerenderProposalTable();
+        };
+        window.handleHomeProposalPageChange = (page) => {
+            _homeProposalPage = page;
             _rerenderProposalTable();
         };
     } catch (error) {
