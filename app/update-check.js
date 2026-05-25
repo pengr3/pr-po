@@ -75,6 +75,11 @@ export function startUpdateCheck() {
     // Fire one immediate poll (fire-and-forget) to capture the baseline on load.
     poll();
 
+    // Poll immediately when user returns to a backgrounded tab — avoids up-to-30-min lag.
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') poll();
+    });
+
     // Then repeat every 30 minutes.
     pollTimer = setInterval(poll, POLL_INTERVAL_MS);
 }
