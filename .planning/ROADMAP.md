@@ -847,3 +847,13 @@ Plans:
 Plans:
 - [x] 93.2-01-PLAN.md � Real-time queue via onSnapshot + Client column + attachment link in queue rows � Wave 1
 - [x] 93.2-02-PLAN.md � Active-only default filter + updated_at sort + 10/page pagination + handleHomeProposalScorecardClick behavior update � Wave 2
+
+### Phase 94: App Update Notification — Top Strip Banner with ETag HEAD Polling
+
+**Goal:** Add a passive update notification system to the SPA — poll `HEAD /index.html` every 30 minutes, detect a new Netlify deploy via ETag/Last-Modified change, and slide in a full-width dismissible top strip banner prompting the user to refresh. Zero build step required; no Firebase usage.
+**Depends on:** None
+**Requirements**: None mapped (synthetic UPD-01..UPD-04 in plan frontmatter)
+**Plans:** 1 plan (planned 2026-05-25)
+
+Plans:
+- [ ] 94-01-PLAN.md — update-check.js HEAD-poll module + index.html strip banner + components.css slide-in/mobile CSS — Wave 1

@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: "Phase 93.2 COMPLETE — Plan 01 (real-time onSnapshot queue, Client column, attachment link) + Plan 02 (active_only default filter, updated_at sort, 10/page pagination, scorecard click rework) both DONE. PENDING: firebase deploy --only firestore:rules (Phase 87.4 D-03/D-04 server gate not live until merge v3.3 → main)."
-stopped_at: "Phase 93.2 Plan 02 complete — all 6 UX improvements across Plans 01 and 02 delivered"
-last_updated: "2026-05-25T07:55:13Z"
-last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
+stopped_at: Phase 93.1 context gathered
+last_updated: "2026-05-25T09:01:28.213Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 28
   completed_phases: 25
@@ -609,7 +609,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
+Last activity: 2026-05-25
 Last session: 2026-05-25T07:56:07.493Z
 Stopped at: Phase 93.1 context gathered
 Resume file: None
