@@ -825,3 +825,14 @@ Plans:
 - [x] 93-02-PLAN.md — JS: replace 3 legacy nav-cards with 5-tile grid in home.js render(); wrap Overview in #homeOverviewContent; update switchHomeTab() — Wave 1
 
 **Status:** ✓ Complete — 2026-05-25
+
+### Phase 93.1: Proposal Queue UX — Row-Click Modal + Unified Status Table with Filterable Scorecards (INSERTED)
+
+**Goal:** Two UX improvements to the Home → Proposals sub-tab: (1) make each row in the Proposal Approval Queue clickable to open the proposal detail modal (currently the queue has no row-click action, so status is only discoverable via the Proposals table); (2) collapse the separate per-status proposal tables into a single unified table with a Status column, backed by filterable scorecards in the same style as Projects, MRF Records, and Services.
+**Depends on:** Phase 87.1 (home sub-nav + approval queue), Phase 87 (proposal modal)
+**Requirements**: None mapped (INSERTED UX improvement)
+**Plans:** 2 plans
+
+Plans:
+- [ ] 93.1-01-PLAN.md — Queue row-click: add onclick + stopPropagation + hover affordance to _renderHomeApprovalQueueHtml — Wave 1
+- [ ] 93.1-02-PLAN.md — Unified table + scorecards: replace renderStageGroupCard loop with 5 scorecard tiles + unified table + filter state + window function lifecycle — Wave 2
