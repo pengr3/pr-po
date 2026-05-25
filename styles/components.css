@@ -11,6 +11,65 @@
     z-index: 100;
 }
 
+/* ── Update strip banner (Phase 94) ──
+   Collapsing slot in normal flow above the sticky nav.
+   Adding .open transitions height from 0 → 46px, pushing the nav down.
+   Do NOT use position:fixed — the strip scrolls away naturally when the
+   user scrolls, and the sticky nav pins to viewport top on its own. */
+.update-strip-slot {
+    overflow: hidden;
+    height: 0;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.update-strip-slot.open {
+    height: 46px;
+}
+.update-strip-inner {
+    background: #1557b0;
+    color: white;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+}
+.update-strip-text {
+    font-size: 0.9375rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.update-strip-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.update-strip-btn {
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.update-strip-btn--refresh {
+    background: white;
+    color: #1557b0;
+}
+.update-strip-btn--refresh:hover {
+    background: #f0f7ff;
+}
+.update-strip-btn--dismiss {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.update-strip-btn--dismiss:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
 .top-nav-content {
     max-width: 1600px;
     margin: 0 auto;
@@ -1935,6 +1994,21 @@ tr:hover {
    Also adjust .top-nav-content so brand + bell + hamburger fit at narrow widths.
    Consolidated in this file because the existing .top-nav-content rule lives here. */
 @media (max-width: 768px) {
+    /* Update strip: stack text above buttons on narrow viewports (Phase 94) */
+    .update-strip-slot.open {
+        height: auto;
+    }
+    .update-strip-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        height: auto;
+        padding: 10px 16px;
+    }
+    .update-strip-actions {
+        justify-content: flex-end;
+    }
+
     .notif-bell-wrap {
         order: 0;  /* Reset desktop ordering on mobile (where .nav-links is hidden anyway) */
         margin: 0 0.25rem;

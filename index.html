@@ -22,6 +22,20 @@
     <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.umd.js"></script>
 </head>
 <body>
+    <!-- Update strip banner slot (Phase 94) — collapsed by default; opened via app/update-check.js -->
+    <div class="update-strip-slot" id="updateStripSlot">
+        <div class="update-strip-inner">
+            <div class="update-strip-text">
+                <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+                A new version is available — refresh to get the latest updates.
+            </div>
+            <div class="update-strip-actions">
+                <button class="update-strip-btn update-strip-btn--refresh" onclick="window.location.reload()">Refresh Now</button>
+                <button class="update-strip-btn update-strip-btn--dismiss" onclick="window.dismissUpdateBanner()">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Top Navigation (hidden until auth state known - SEC-01) -->
     <nav class="top-nav" style="display: none;">
         <div class="top-nav-content">
@@ -251,15 +265,20 @@
         //  onclick fires and before app/auth.js calls window.initNotifications.
         import './app/notifications.js';
 
+        // Phase 94: Import update-check module — starts passive ETag HEAD-poll after router init
+        import { startUpdateCheck } from './app/update-check.js';
+
         // Initialize auth and router when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 initAuthObserver();
                 initRouter();
+                startUpdateCheck();
             });
         } else {
             initAuthObserver();
             initRouter();
+            startUpdateCheck();
         }
     </script>
 </body>
