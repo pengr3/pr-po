@@ -34,7 +34,7 @@ let cachedStats = {
 // titles/projects when opening the action mini-modal without a re-fetch.
 let _homeProposalsCache = [];
 let _homeCanApproveQueue = false;
-let _homeProposalStatusFilter = null; // null = all stages; string = active status key (single-select)
+let _homeProposalStatusFilter = null; // null = active-only (default); string = specific status key (single-select)
 const ACTIVE_PROPOSAL_STAGES = ['draft', 'pending_internal', 'pending_client', 'for_revision'];
 let _homeProposalPage = 1;
 let _proposalListener = null; // onSnapshot unsubscribe handle for proposals collection
@@ -575,9 +575,9 @@ function _rerenderProposalTable() {
     const tableContainerId = 'homeProposalTableSection';
     const existing = document.getElementById(tableContainerId);
     if (!existing) return;
-    const filtered = _homeProposalStatusFilter === 'active_only'
-        ? _homeProposalsCache.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status))
-        : (_homeProposalStatusFilter ? _homeProposalsCache.filter(p => p.status === _homeProposalStatusFilter) : _homeProposalsCache);
+    const filtered = (_homeProposalStatusFilter && _homeProposalStatusFilter !== 'active_only')
+        ? _homeProposalsCache.filter(p => p.status === _homeProposalStatusFilter)
+        : _homeProposalsCache.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status));
     existing.innerHTML = _renderHomeProposalScorecards(_homeProposalsCache, _homeProposalStatusFilter)
         + _renderHomeProposalTable(filtered, _homeProposalPage);
     // Safety-net: sync active class on re-rendered tiles (already set via template literal above)
@@ -632,9 +632,9 @@ function _loadHomeProposalsTab(canApproveQueue) {
             }
 
             // Apply active-only filter before building the table
-            const filtered = _homeProposalStatusFilter === 'active_only'
-                ? scoped.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status))
-                : (_homeProposalStatusFilter ? scoped.filter(p => p.status === _homeProposalStatusFilter) : scoped);
+            const filtered = (_homeProposalStatusFilter && _homeProposalStatusFilter !== 'active_only')
+                ? scoped.filter(p => p.status === _homeProposalStatusFilter)
+                : scoped.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status));
 
             // Unified proposals table with scorecard tiles above
             const tableSection = `<div id="homeProposalTableSection" style="width:100%;">
@@ -712,11 +712,9 @@ export async function init() {
         window.homeQueueOpenApproveModal = (id) => _openHomeQueueModal(id, 'approve');
         window.homeQueueOpenRejectModal = (id) => _openHomeQueueModal(id, 'reject');
         window.handleHomeProposalScorecardClick = (statusKey) => {
-            if (ACTIVE_PROPOSAL_STAGES.includes(statusKey)) {
-                _homeProposalStatusFilter = 'active_only';
-            } else {
-                _homeProposalStatusFilter = (_homeProposalStatusFilter === statusKey) ? 'active_only' : statusKey;
-            }
+            // Toggle: clicking the active tile resets to null (reverts to active-only default);
+            // clicking a different tile filters to that specific status.
+            _homeProposalStatusFilter = (_homeProposalStatusFilter === statusKey) ? null : statusKey;
             _homeProposalPage = 1;
             _rerenderProposalTable();
         };
