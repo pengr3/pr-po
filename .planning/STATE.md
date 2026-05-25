@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 93.1 IN PROGRESS (2026-05-25) — Plan 01 DONE (queue row-click modal), Plan 02 pending. PENDING: firebase deploy --only firestore:rules (Phase 87.4 D-03/D-04 server gate not live until merge v3.3 → main)."
-stopped_at: "Phase 93.1 Plan 01 complete — /gsd:execute-phase 93.1 plan 02 next"
-last_updated: "2026-05-25T06:10:00.000Z"
+status: "Phase 93.1 COMPLETE (2026-05-25) — Plan 01 DONE (queue row-click modal), Plan 02 DONE (unified proposals table + scorecard tiles). PENDING: firebase deploy --only firestore:rules (Phase 87.4 D-03/D-04 server gate not live until merge v3.3 → main)."
+stopped_at: "Phase 93.1 Plan 02 complete — phase done, ready for UAT or next phase"
+last_updated: "2026-05-25T06:05:48.246Z"
 last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
 progress:
   total_phases: 28
@@ -169,12 +169,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 87.3 P04 | ~8 | 2 tasks | 2 files |
 | Phase 87.3 P05 | ~5 | 2 tasks | 2 files |
 | Phase 93.1 P01 | ~3 | 1 task | 1 files |
+| Phase 93.1 P02 | ~10 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 93.1-02]: _homeProposalStatusFilter module-level state drives single-select scorecard filter; reset to null on fresh _loadHomeProposalsTab; _rerenderProposalTable reads from _homeProposalsCache (no Firestore round-trip); renderStageGroupCard import removed from home.js (no longer called); const active = scoped.filter(...) removed; queue uses scoped.filter(pending_internal) directly; commits 59d1090 (helpers) + 13a9566 (wiring)
 
 - [Phase 93.1-01]: Queue row-click: onclick on <tr> calls `window.openProposalModal && window.openProposalModal(escapeHTML(p.id))`; Approve/Reject buttons prefix with `event.stopPropagation()`; hover via inline onmouseenter/onmouseleave toggling style.background to #f8fafc — no new CSS class; T-93.1-01 escapeHTML guard on row onclick; commit 3762af4
 
@@ -605,7 +608,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains.
-Last session: 2026-05-25T06:00:25.382Z
+Last session: 2026-05-25T06:05:48.224Z
 Stopped at: Phase 93.1 context gathered
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
