@@ -552,7 +552,7 @@ function _renderHomeProposalTable(proposals, page = 1) {
             <thead>
                 <tr style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;">
                     <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Status</th>
-                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">PROP-ID</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Proposal ID</th>
                     <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Title</th>
                     <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Project</th>
                     <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Client</th>
