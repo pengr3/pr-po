@@ -479,7 +479,7 @@ function _renderHomeProposalScorecards(proposals, activeFilter) {
  */
 function _renderHomeProposalTable(proposals) {
     if (proposals.length === 0) {
-        return `<div class="card" style="margin-bottom:1rem;"><div class="card-body" style="padding:1.25rem 1.5rem;"><p style="color:#64748b;margin:0;font-size:0.9375rem;">No proposals match the selected filter. Click the active tile to show all.</p></div></div>`;
+        return `<div class="card" style="margin-bottom:1rem;width:100%;"><div class="card-body" style="padding:1.25rem 1.5rem;"><p style="color:#64748b;margin:0;font-size:0.9375rem;">No proposals match the selected filter. Click the active tile to show all.</p></div></div>`;
     }
     const rows = proposals.map(p => {
         const titleTruncated = (p.title || '').length > 40
@@ -578,14 +578,14 @@ async function _loadHomeProposalsTab(canApproveQueue) {
         }
 
         // Unified proposals table with scorecard tiles above
-        const tableSection = `<div id="homeProposalTableSection">
+        const tableSection = `<div id="homeProposalTableSection" style="width:100%;">
             ${_renderHomeProposalScorecards(scoped, null)}
             ${_renderHomeProposalTable(scoped)}
         </div>`;
         const dashboardHtml = tableSection;
 
         mount.innerHTML = `
-            <div style="margin-top:1rem;">
+            <div style="margin-top:1rem;width:100%;">
                 ${queueHtml}
                 ${dashboardHtml}
             </div>
