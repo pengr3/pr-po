@@ -83,6 +83,31 @@
     font-weight: 600;
 }
 
+/* Department Tiles Grid (Phase 93) — 5-tile 3+2 layout */
+.dept-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-width: 1200px;
+    width: 100%;
+    margin-bottom: 2rem;
+}
+
+.dept-cards-row {
+    display: grid;
+    gap: 2rem;
+}
+
+.dept-cards-row--top {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.dept-cards-row--bottom {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: calc((100% - 2rem) * 2 / 3 + 2rem);
+    margin: 0 auto;
+}
+
 /* Quick Stats */
 .quick-stats {
     display: grid;
@@ -312,6 +337,21 @@
         max-width: 500px;
         margin: 0 auto;
     }
+
+    .dept-cards-row--top {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dept-cards-row--bottom {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 100%;
+    }
+
+    .dept-cards-row--bottom .nav-card:last-child {
+        grid-column: 1 / -1;
+        max-width: 500px;
+        margin: 0 auto;
+    }
 }
 
 @media (max-width: 768px) {
@@ -340,6 +380,18 @@
 
     .nav-card:last-child {
         grid-column: 1;
+    }
+
+    .dept-cards-row--top,
+    .dept-cards-row--bottom {
+        grid-template-columns: 1fr;
+        max-width: 100%;
+    }
+
+    .dept-cards-row--bottom .nav-card:last-child {
+        grid-column: 1;
+        max-width: 100%;
+        margin: 0;
     }
 
     .nav-card-icon {
