@@ -35,6 +35,7 @@ let cachedStats = {
 let _homeProposalsCache = [];
 let _homeCanApproveQueue = false;
 let _homeProposalStatusFilter = null; // null = all stages; string = active status key (single-select)
+let _proposalListener = null; // onSnapshot unsubscribe handle for proposals collection
 
 /**
  * Determine dashboard mode based on current user role
@@ -310,7 +311,6 @@ async function _openHomeQueueModal(proposalDocId, mode) {
         const proposal = { id: snap.id, ...snap.data() };
         if (proposal.status !== 'pending_internal') {
             showToast('This proposal is no longer pending approval.', 'error');
-            await _loadHomeProposalsTab(_homeCanApproveQueue);
             return;
         }
 
@@ -426,8 +426,7 @@ async function _homeQueueConfirmAction(proposalDocId, mode) {
 
             document.getElementById('home-queue-action-modal')?.remove();
             showToast(successToast, 'success');
-            // Re-fetch the Proposals sub-tab so the queue + stage groups reflect the new state.
-            await _loadHomeProposalsTab(_homeCanApproveQueue);
+            // onSnapshot fires automatically after Firestore write — no manual re-fetch needed.
         } catch (err) {
             console.error('[Home] _homeQueueConfirmAction transition failed:', err);
             showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
@@ -542,63 +541,73 @@ function _rerenderProposalTable() {
 
 /**
  * Phase 87.1 D-01/D-08 — Load and render the home Proposals sub-tab content.
- * One-time getDocs (NOT onSnapshot) — re-called manually after queue actions to refresh.
+ * Phase 93.2 — Upgraded from one-time getDocs to real-time onSnapshot listener.
+ * Unsubscribe handle stored in _proposalListener; cancelled in destroy() and on re-call.
  *
  * Builds:
  *   - Approval Queue card (only if canApproveQueue) — local home-only queue per Pitfall 7
- *   - Stage group cards (one per stage in STAGE_ORDER that has proposals)
+ *   - Scorecard tiles + unified proposals table
  *
  * Active proposals = status NOT in {'client_approved','loss'}.
  */
-async function _loadHomeProposalsTab(canApproveQueue) {
-    const mount = document.getElementById('homeProposalsContent');
-    if (!mount) return; // navigated away
+function _loadHomeProposalsTab(canApproveQueue) {
     _homeCanApproveQueue = !!canApproveQueue;
     _homeProposalStatusFilter = null;
 
-    try {
-        const snap = await getDocs(collection(db, 'proposals'));
-        const all = [];
-        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+    // Cancel any existing proposals listener before registering a new one (T-93.2-04)
+    _proposalListener?.();
+    _proposalListener = null;
 
-        const scoped = filterProposalsForUser(all);
-        _homeProposalsCache = scoped;
+    _proposalListener = onSnapshot(
+        collection(db, 'proposals'),
+        (snap) => {
+            const mount = document.getElementById('homeProposalsContent');
+            if (!mount) return; // T-93.2-03: navigated away — discard update
 
-        // Queue section — only for approvers (super_admin + operations_admin)
-        let queueHtml = '';
-        if (canApproveQueue) {
-            const pending = scoped
-                .filter(p => p.status === 'pending_internal')
-                .sort((a, b) => {
-                    const tsA = a.current_status_since?.toMillis?.() ?? (a.current_status_since?.seconds != null ? a.current_status_since.seconds * 1000 : 0);
-                    const tsB = b.current_status_since?.toMillis?.() ?? (b.current_status_since?.seconds != null ? b.current_status_since.seconds * 1000 : 0);
-                    return tsA - tsB;
-                });
-            queueHtml = _renderHomeApprovalQueueHtml(pending);
-        }
+            const all = [];
+            snap.forEach(d => all.push({ id: d.id, ...d.data() }));
 
-        // Unified proposals table with scorecard tiles above
-        const tableSection = `<div id="homeProposalTableSection" style="width:100%;">
-            ${_renderHomeProposalScorecards(scoped, null)}
-            ${_renderHomeProposalTable(scoped)}
-        </div>`;
-        const dashboardHtml = tableSection;
+            const scoped = filterProposalsForUser(all);
+            _homeProposalsCache = scoped;
 
-        mount.innerHTML = `
-            <div style="margin-top:1rem;width:100%;">
-                ${queueHtml}
-                ${dashboardHtml}
-            </div>
-        `;
-    } catch (err) {
-        console.error('[Home] _loadHomeProposalsTab failed:', err);
-        mount.innerHTML = `
-            <div class="card" style="margin-top:1rem;">
-                <div class="card-body" style="padding: 1.25rem 1.5rem;">
-                    <p style="color: #ea4335; margin: 0; font-size: 0.9375rem;">Failed to load proposals. Please refresh.</p>
-                </div>
+            // Queue section — only for approvers (super_admin + operations_admin)
+            let queueHtml = '';
+            if (_homeCanApproveQueue) {
+                const pending = scoped
+                    .filter(p => p.status === 'pending_internal')
+                    .sort((a, b) => {
+                        const tsA = a.current_status_since?.toMillis?.() ?? (a.current_status_since?.seconds != null ? a.current_status_since.seconds * 1000 : 0);
+                        const tsB = b.current_status_since?.toMillis?.() ?? (b.current_status_since?.seconds != null ? b.current_status_since.seconds * 1000 : 0);
+                        return tsA - tsB;
+                    });
+                queueHtml = _renderHomeApprovalQueueHtml(pending);
+            }
+
+            // Unified proposals table with scorecard tiles above
+            const tableSection = `<div id="homeProposalTableSection" style="width:100%;">
+                ${_renderHomeProposalScorecards(scoped, null)}
+                ${_renderHomeProposalTable(scoped)}
             </div>`;
-    }
+
+            mount.innerHTML = `
+                <div style="margin-top:1rem;width:100%;">
+                    ${queueHtml}
+                    ${tableSection}
+                </div>
+            `;
+        },
+        (err) => {
+            console.error('[Home] proposals onSnapshot error:', err);
+            const mount = document.getElementById('homeProposalsContent');
+            if (!mount) return;
+            mount.innerHTML = `
+                <div class="card" style="margin-top:1rem;">
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        <p style="color: #ea4335; margin: 0; font-size: 0.9375rem;">Failed to load proposals. Please refresh.</p>
+                    </div>
+                </div>`;
+        }
+    );
 }
 
 /**
@@ -748,6 +757,11 @@ export async function destroy() {
     }
     _homeProposalsCache = [];
     _homeCanApproveQueue = false;
+    _homeProposalStatusFilter = null;
+
+    // Cancel proposals real-time listener (Phase 93.2)
+    _proposalListener?.();
+    _proposalListener = null;
 
     // Unsubscribe from all Firestore listeners
     statsListeners.forEach(unsubscribe => {
