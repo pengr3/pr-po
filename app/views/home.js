@@ -35,6 +35,7 @@ let cachedStats = {
 // titles/projects when opening the action mini-modal without a re-fetch.
 let _homeProposalsCache = [];
 let _homeCanApproveQueue = false;
+let _homeProposalStatusFilter = null; // null = all stages; string = active status key (single-select)
 
 /**
  * Determine dashboard mode based on current user role
@@ -439,6 +440,105 @@ async function _homeQueueConfirmAction(proposalDocId, mode) {
         showToast(err?.message || 'Failed to record decision.', 'error');
         showLoading(false);
     }
+}
+
+/**
+ * Phase 93.1 D-11/D-12/D-13 — Render five scorecard tiles above the unified proposals table.
+ * One tile per STAGE_ORDER entry. Active tile gets project-scorecard-card--active class.
+ * @param {Array} proposals - All scoped proposals (not filtered by active status)
+ * @param {string|null} activeFilter - The currently active status key, or null for all
+ * @returns {string} HTML string
+ */
+function _renderHomeProposalScorecards(proposals, activeFilter) {
+    const colorMap = {
+        pending_internal: '#f59e0b',
+        pending_client:   '#3b82f6',
+        for_revision:     '#ef4444',
+        client_approved:  '#059669',
+        loss:             '#6b7280'
+    };
+    const tiles = STAGE_ORDER.map(stage => {
+        const color = colorMap[stage.key] || '#6b7280';
+        const count = proposals.filter(p => p.status === stage.key).length;
+        const isActive = activeFilter === stage.key;
+        return `<div class="project-scorecard-card${isActive ? ' project-scorecard-card--active' : ''}"
+            data-status="${stage.key}"
+            style="flex:1;min-width:140px;border-left:3px solid ${color};"
+            onclick="window.handleHomeProposalScorecardClick('${stage.key}')">
+            <span class="scorecard-label">${escapeHTML(stage.label)}</span>
+            <span class="scorecard-count">${count}</span>
+        </div>`;
+    }).join('');
+    return `<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">${tiles}</div>`;
+}
+
+/**
+ * Phase 93.1 D-06/D-08/D-09 — Render the unified proposals table covering all five stages.
+ * Each row is clickable and opens the proposal detail modal.
+ * @param {Array} proposals - Proposals to display (may be filtered by active status)
+ * @returns {string} HTML string
+ */
+function _renderHomeProposalTable(proposals) {
+    if (proposals.length === 0) {
+        return `<div class="card" style="margin-bottom:1rem;"><div class="card-body" style="padding:1.25rem 1.5rem;"><p style="color:#64748b;margin:0;font-size:0.9375rem;">No proposals match the selected filter. Click the active tile to show all.</p></div></div>`;
+    }
+    const rows = proposals.map(p => {
+        const titleTruncated = (p.title || '').length > 40
+            ? escapeHTML((p.title || '').slice(0, 40)) + '…'
+            : escapeHTML(p.title || '—');
+        const amountDisplay = (p.amount != null && p.amount !== '')
+            ? '₱' + formatCurrency(p.amount)
+            : '—';
+        return `<tr style="cursor:pointer;"
+            onclick="window.openProposalModal && window.openProposalModal('${escapeHTML(p.id)}')"
+            onmouseenter="this.style.background='#f8fafc'"
+            onmouseleave="this.style.background=''">
+            <td style="padding:0.6rem 1rem;vertical-align:middle;">${getProposalStatusBadge(p.status)}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;">${escapeHTML(p.proposal_id || p.id)}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.9rem;color:#1e293b;">${titleTruncated}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;">${escapeHTML(p.project_code || '—')}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;">${escapeHTML(p.target_client_name || '(none)')}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;text-align:right;">${amountDisplay}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;">${renderAgeBadge(p)}</td>
+        </tr>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:1rem;"><div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;">
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Status</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">PROP-ID</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Title</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Project</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Client</th>
+                    <th style="padding:0.6rem 1rem;text-align:right;font-size:0.8125rem;color:#64748b;font-weight:600;">Amount</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Age</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div></div>`;
+}
+
+/**
+ * Phase 93.1 D-13/D-14 — Re-render the proposals table section from cache without a Firestore round-trip.
+ * Called by window.handleHomeProposalScorecardClick after toggling _homeProposalStatusFilter.
+ */
+function _rerenderProposalTable() {
+    const mount = document.getElementById('homeProposalsContent');
+    if (!mount) return;
+    const tableContainerId = 'homeProposalTableSection';
+    const existing = document.getElementById(tableContainerId);
+    if (!existing) return;
+    const filtered = _homeProposalStatusFilter
+        ? _homeProposalsCache.filter(p => p.status === _homeProposalStatusFilter)
+        : _homeProposalsCache;
+    existing.innerHTML = _renderHomeProposalScorecards(_homeProposalsCache, _homeProposalStatusFilter)
+        + _renderHomeProposalTable(filtered);
+    // Safety-net: sync active class on re-rendered tiles (already set via template literal above)
+    document.querySelectorAll('#homeProposalTableSection .project-scorecard-card').forEach(card => {
+        card.classList.toggle('project-scorecard-card--active', card.dataset.status === _homeProposalStatusFilter);
+    });
 }
 
 /**
