@@ -818,8 +818,8 @@ Plans:
 **Goal:** Rebrand `app/views/home.js` to a departmental-access dashboard — replace the 3 legacy nav-cards with a 5-tile grid (Clients · Projects · Services · Procurement · Finance) using the existing `.nav-card` pattern in a 3+2 centered desktop layout, restructure the Overview sub-tab to tiles-first then Procurement stats card, and preserve the Phase 87.1 sub-nav (Overview | Engagements | Proposals) intact.
 **Depends on:** Phase 87.1 (home sub-nav structure), Phase 91 (nav restructuring — why Material Request card is dead)
 **Requirements**: TBD
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 93-01-PLAN.md — CSS: .dept-cards / .dept-cards-row grid CSS in hero.css (3+2 desktop, responsive breakpoints) — Wave 1
+- [x] 93-01-PLAN.md — CSS: .dept-cards / .dept-cards-row grid CSS in hero.css (3+2 desktop, responsive breakpoints) — Wave 1
 - [ ] 93-02-PLAN.md — JS: replace 3 legacy nav-cards with 5-tile grid in home.js render(); wrap Overview in #homeOverviewContent; update switchHomeTab() — Wave 1
