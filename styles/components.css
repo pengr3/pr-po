@@ -19,10 +19,13 @@
 .update-strip-slot {
     overflow: hidden;
     height: 0;
-    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .update-strip-slot.open {
     height: 46px;
+    max-height: 46px;
 }
 .update-strip-inner {
     background: #1557b0;
@@ -1995,8 +1998,13 @@ tr:hover {
    Consolidated in this file because the existing .top-nav-content rule lives here. */
 @media (max-width: 768px) {
     /* Update strip: stack text above buttons on narrow viewports (Phase 94) */
+    .update-strip-slot {
+        transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 0;
+    }
     .update-strip-slot.open {
         height: auto;
+        max-height: 120px;
     }
     .update-strip-inner {
         flex-direction: column;
