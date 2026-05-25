@@ -247,7 +247,10 @@ function _renderHomeApprovalQueueHtml(pending) {
             : 'color:#64748b;font-size:13px;';
 
         return `
-            <tr>
+            <tr style="cursor:pointer;"
+                onclick="window.openProposalModal && window.openProposalModal('${escapeHTML(p.id)}')"
+                onmouseenter="this.style.background='#f8fafc'"
+                onmouseleave="this.style.background=''">
                 <td style="padding: 0.75rem 1rem; vertical-align: middle;">
                     <div style="font-weight: 600; color: #1e293b; font-size: 0.9375rem;">${escapeHTML(p.title || '—')}</div>
                     <div style="color: #64748b; font-size: 0.8125rem; margin-top: 2px;">${escapeHTML(projectLabel)}</div>
@@ -259,9 +262,9 @@ function _renderHomeApprovalQueueHtml(pending) {
                 </td>
                 <td style="padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap;">
                     <button class="btn btn-success" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem; margin-right: 6px;"
-                            onclick="window.homeQueueOpenApproveModal('${escapeHTML(p.id)}')">Approve</button>
+                            onclick="event.stopPropagation(); window.homeQueueOpenApproveModal('${escapeHTML(p.id)}')">Approve</button>
                     <button class="btn btn-danger" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem;"
-                            onclick="window.homeQueueOpenRejectModal('${escapeHTML(p.id)}')">Reject</button>
+                            onclick="event.stopPropagation(); window.homeQueueOpenRejectModal('${escapeHTML(p.id)}')">Reject</button>
                 </td>
             </tr>`;
     }).join('');
