@@ -172,19 +172,11 @@ export function renderDropdownRows() {
     const hasUnread = unreadDocs.length > 0;
     const docs = recentDocs.slice(0, 10);
 
-    // Header
-    const headerHtml = `
-        <div class="notif-dropdown-header">
-            <span class="notif-dropdown-title">Notifications</span>
-            <button class="notif-mark-all-btn"
-                    onclick="markAllNotificationsRead()"
-                    ${hasUnread ? '' : 'disabled'}
-                    title="Mark all as read">
-                Mark all read
-            </button>
-        </div>`;
+    // Update the static mark-all button's disabled state imperatively
+    const markAllBtn = document.getElementById('notifMarkAllBtn');
+    if (markAllBtn) markAllBtn.disabled = !hasUnread;
 
-    // Rows
+    // Rows only — header and footer live in static index.html markup
     let rowsHtml = '';
     if (docs.length === 0) {
         rowsHtml = `<div class="notif-empty-state">You're all caught up!</div>`;
@@ -211,25 +203,14 @@ export function renderDropdownRows() {
                             <div class="notif-row-time" title="${absTime}">${timeStr}</div>
                         </div>
                     </div>
-                    <button class="notif-row-read-btn"
+                    ${isUnread ? `<button class="notif-row-read-btn"
                             onclick="event.stopPropagation(); markNotificationRead('${safeId}')"
-                            title="Mark as read"
-                            ${isUnread ? '' : 'style="visibility:hidden;"'}>
-                        ✓
-                    </button>
+                            title="Mark as read">✓</button>` : ''}
                 </div>`;
         }).join('');
     }
 
-    // Footer
-    const footerHtml = `
-        <div class="notif-dropdown-footer">
-            <a href="#/notifications" onclick="toggleNotificationsDropdown(event)">
-                View all notifications
-            </a>
-        </div>`;
-
-    container.innerHTML = headerHtml + '<div class="notif-dropdown-rows-list">' + rowsHtml + '</div>' + footerHtml;
+    container.innerHTML = rowsHtml;
 }
 
 /* ========================================

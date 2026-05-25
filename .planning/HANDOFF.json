@@ -1,45 +1,58 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-25T17:37:10.979Z",
-  "phase": "93",
-  "phase_name": "home-rebrand-department-routing-sub-nav-integration",
-  "phase_dir": ".planning/phases/93-home-rebrand-department-routing-sub-nav-integration",
-  "plan": null,
-  "task": null,
-  "total_tasks": null,
+  "timestamp": "2026-05-25T10:28:11.952Z",
+  "phase": "spike-003",
+  "phase_name": "notification-polish",
+  "phase_dir": ".planning/spikes/003-notification-polish",
+  "plan": 0,
+  "task": 0,
+  "total_tasks": 5,
   "status": "paused",
   "stage": "discuss-complete",
   "completed_tasks": [
-    {"id": 1, "name": "Discuss Area 1 — 5th department identity", "status": "done", "commit": "00d9ae8"},
-    {"id": 2, "name": "Discuss Area 2 — Sub-nav fate", "status": "done", "commit": "00d9ae8"},
-    {"id": 3, "name": "Discuss Area 3 — Tile layout & visual treatment", "status": "done", "commit": "00d9ae8"},
-    {"id": 4, "name": "Discuss Area 4 — Per-role visibility & click behavior", "status": "done", "commit": "00d9ae8"},
-    {"id": 5, "name": "Write 93-CONTEXT.md + 93-DISCUSSION-LOG.md + commit", "status": "done", "commit": "00d9ae8"}
+    {
+      "id": 1,
+      "name": "notification system analysis — full read of notifications.js, views/notifications.js, CSS, index.html",
+      "status": "done",
+      "commit": "pending"
+    },
+    {
+      "id": 2,
+      "name": "double-header bug fix (notifications.js renderDropdownRows + index.html footer onclick)",
+      "status": "done",
+      "commit": "pending"
+    }
   ],
   "remaining_tasks": [
-    {"id": 6, "name": "Run /gsd-plan-phase 93 to break Phase 93 into plans", "status": "not_started"},
-    {"id": 7, "name": "Optional: /gsd-ui-phase 93 for UI design contract (UI hint: yes)", "status": "not_started"}
+    {"id": 3, "name": "spike 003a/b: icon set comparison (SVG vs symbol)", "status": "not_started"},
+    {"id": 4, "name": "spike 004a/b: dropdown animation comparison (slide vs scale)", "status": "not_started"},
+    {"id": 5, "name": "spike 005: unread row indicator design (left-border accent vs full-block)", "status": "not_started"}
   ],
   "blockers": [],
-  "human_actions_pending": [
-    {"action": "Merge v3.3 → main + run `firebase deploy --only firestore:rules`", "context": "Carried over from Phase 87.4 — D-03/D-04 server-side attachment-presence gate not live in production until then", "blocking": false}
-  ],
+  "human_actions_pending": [],
   "decisions": [
-    {"decision": "5 home tiles = Clients, Projects, Services, Procurement, Finance (1:1 with top-nav)", "rationale": "User picked Clients as the 5th; mirror top-nav rather than re-frame as broader department landings", "phase": "93"},
-    {"decision": "All tiles visible to every role; click denied falls through to existing router.js route protection", "rationale": "Simplest model; no new soft-disable state required", "phase": "93"},
-    {"decision": "Phase 87.1 sub-nav (Overview | Engagements | Proposals) retained as-is; Management stays in top nav", "rationale": "User explicitly chose 'remove management' from sub-nav; Management is not a tile or sub-nav entry", "phase": "93"},
-    {"decision": "Overview sub-tab restructured: 5 tiles on top, Procurement stats card below", "rationale": "User: 'No retain tiles in overview. Tiles first then stats'", "phase": "93"},
-    {"decision": "Tile visual = current .nav-card style; layout = 3-on-top + 2-centered-below; descriptions revised per current functionality", "rationale": "User: 'match the current layout of tiles i like it, and just revise their description to much they current functionality'", "phase": "93"}
+    {
+      "decision": "Fix double-header bug immediately without spiking",
+      "rationale": "Clear code bug (renderDropdownRows injecting header into already-headered container), not a design question",
+      "phase": "spike-003"
+    },
+    {
+      "decision": "DOM-omit mark-read button on read rows (not visibility:hidden)",
+      "rationale": "visibility:hidden was causing dead space in every row",
+      "phase": "spike-003"
+    },
+    {
+      "decision": "Prioritize look spikes before feel/function",
+      "rationale": "User explicitly said 'look first and foremost'",
+      "phase": "spike-003"
+    }
   ],
   "uncommitted_files": [
-    ".planning/HANDOFF.json (deleted before this session — being recreated)",
-    ".planning/ROADMAP.md (modified — pre-existing changes)",
-    ".planning/STATE.md (modified — pre-existing changes)",
-    ".planning/debug/86.9-row-misalign-DEBUG.md (untracked — pre-existing)",
-    ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md (untracked — pre-existing)",
-    "debug-diag-86.9.js (untracked — pre-existing)",
-    ".claude/worktrees/ (untracked — pre-existing)"
+    "app/notifications.js",
+    "index.html",
+    ".planning/spikes/003-notification-polish/.continue-here.md",
+    ".planning/HANDOFF.json"
   ],
-  "next_action": "Run /gsd-plan-phase 93 to break Phase 93 into plans. Optionally run /gsd-ui-phase 93 first (UI hint: yes).",
-  "context_notes": "Discuss-phase 93 complete in --batch mode (switched to default interactive mid-flow at user request). CONTEXT.md captures 10 decisions (D-01..D-10) covering 4 areas: department identity, sub-nav fate, tile layout, click behavior. Primary edit target for planning will be app/views/home.js (~650 lines), styles/hero.css (.nav-card + .navigation-cards), and possibly styles/views.css (no regression to .home-sub-nav from Phase 87.1). Pure UI rebrand — no firestore.rules edits, no new collection."
+  "next_action": "Resume spike session, confirm spike table, build 003a/b icon set comparison demos",
+  "context_notes": "In discuss/decompose phase of notification polish spike. User wants to improve look of notification dropdown: inconsistent type badge icons (text chars + emoji mix), heavy unread-state background, and the double-header bug (now fixed). Resume by running /gsd:spike and confirming the spike table before building demos."
 }
