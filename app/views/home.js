@@ -570,8 +570,8 @@ async function _loadHomeProposalsTab(canApproveQueue) {
             const pending = scoped
                 .filter(p => p.status === 'pending_internal')
                 .sort((a, b) => {
-                    const tsA = a.current_status_since?.toMillis?.() ?? a.current_status_since?.seconds * 1000 ?? 0;
-                    const tsB = b.current_status_since?.toMillis?.() ?? b.current_status_since?.seconds * 1000 ?? 0;
+                    const tsA = a.current_status_since?.toMillis?.() ?? (a.current_status_since?.seconds != null ? a.current_status_since.seconds * 1000 : 0);
+                    const tsB = b.current_status_since?.toMillis?.() ?? (b.current_status_since?.seconds != null ? b.current_status_since.seconds * 1000 : 0);
                     return tsA - tsB;
                 });
             queueHtml = _renderHomeApprovalQueueHtml(pending);
