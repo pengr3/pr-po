@@ -9,7 +9,6 @@ import { renderEngagementForm, initEngagementForm, destroyEngagementForm } from 
 import {
     STAGE_ORDER,
     PROPOSAL_RANGE_STATUSES,
-    renderStageGroupCard,
     getProposalStatusBadge,
     renderAgeBadge,
     getAgeInStageDays,
@@ -555,6 +554,7 @@ async function _loadHomeProposalsTab(canApproveQueue) {
     const mount = document.getElementById('homeProposalsContent');
     if (!mount) return; // navigated away
     _homeCanApproveQueue = !!canApproveQueue;
+    _homeProposalStatusFilter = null;
 
     try {
         const snap = await getDocs(collection(db, 'proposals'));
@@ -564,12 +564,10 @@ async function _loadHomeProposalsTab(canApproveQueue) {
         const scoped = filterProposalsForUser(all);
         _homeProposalsCache = scoped;
 
-        const active = scoped.filter(p => p.status !== 'client_approved' && p.status !== 'loss');
-
         // Queue section — only for approvers (super_admin + operations_admin)
         let queueHtml = '';
         if (canApproveQueue) {
-            const pending = active
+            const pending = scoped
                 .filter(p => p.status === 'pending_internal')
                 .sort((a, b) => {
                     const tsA = a.current_status_since?.toMillis?.() ?? a.current_status_since?.seconds * 1000 ?? 0;
@@ -579,22 +577,12 @@ async function _loadHomeProposalsTab(canApproveQueue) {
             queueHtml = _renderHomeApprovalQueueHtml(pending);
         }
 
-        // Stage group cards — one per stage that has at least one proposal
-        let dashboardHtml = '';
-        for (const stage of STAGE_ORDER) {
-            const inStage = active.filter(p => p.status === stage.key);
-            if (inStage.length > 0) {
-                dashboardHtml += renderStageGroupCard(stage.label, inStage);
-            }
-        }
-        if (!dashboardHtml) {
-            dashboardHtml = `
-                <div class="card" style="margin-bottom: 1.5rem;">
-                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
-                        <p style="color: #64748b; margin: 0; font-size: 0.9375rem;">No active proposals in your scope.</p>
-                    </div>
-                </div>`;
-        }
+        // Unified proposals table with scorecard tiles above
+        const tableSection = `<div id="homeProposalTableSection">
+            ${_renderHomeProposalScorecards(scoped, null)}
+            ${_renderHomeProposalTable(scoped)}
+        </div>`;
+        const dashboardHtml = tableSection;
 
         mount.innerHTML = `
             <div style="margin-top:1rem;">
@@ -661,6 +649,10 @@ export async function init() {
         window.homeQueueCancelModal = () => { document.getElementById('home-queue-action-modal')?.remove(); };
         window.homeQueueOpenApproveModal = (id) => _openHomeQueueModal(id, 'approve');
         window.homeQueueOpenRejectModal = (id) => _openHomeQueueModal(id, 'reject');
+        window.handleHomeProposalScorecardClick = (statusKey) => {
+            _homeProposalStatusFilter = (_homeProposalStatusFilter === statusKey) ? null : statusKey;
+            _rerenderProposalTable();
+        };
     } catch (error) {
         console.error('Error initializing home view:', error);
     }
@@ -748,6 +740,7 @@ export async function destroy() {
     delete window.homeQueueCancelModal;
     delete window.homeQueueOpenApproveModal;
     delete window.homeQueueOpenRejectModal;
+    delete window.handleHomeProposalScorecardClick;
     try {
         destroyEngagementForm();
     } catch (err) {
