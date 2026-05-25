@@ -783,6 +783,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 91.2 | v4.0 | 2/2 | Complete   | 2026-05-18 |
 | 92 | v4.0 | 2/2 | Complete | 2026-05-18 |
 | 92.1 | v4.0 | 1/1 | Complete | 2026-05-18 |
+| 94 | v4.0 | 1/1 | Complete | 2026-05-25 |
 
 ### Carry-overs (deferred to v4.1+)
 
@@ -854,6 +855,7 @@ Plans:
 **Depends on:** None
 **Requirements**: None mapped (synthetic UPD-01..UPD-04 in plan frontmatter)
 **Plans:** 1/1 plans complete
+**Status:** ✓ Complete — 2026-05-25
 
 Plans:
 - [x] 94-01-PLAN.md — update-check.js HEAD-poll module + index.html strip banner + components.css slide-in/mobile CSS — Wave 1
