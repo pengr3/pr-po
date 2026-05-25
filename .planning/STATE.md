@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: "Phase 87.4 COMPLETE (2026-05-24) — 3/3 plans landed; verification PASSED (15/15); client UAT approved 2026-05-24 incl. follow-up fix b70593d (white-space:nowrap on pill defensive rule — primary fix exposed flex min-content wrap behavior). PENDING FOLLOW-UP: `firebase deploy --only firestore:rules` deferred to merge-to-main (D-03/D-04 server-side gate not live in prod until deploy)."
-stopped_at: Phase 93 Plan 01 COMPLETE (2026-05-25) — dept-cards CSS landed in hero.css; ready for Plan 02 (home.js render() rewrite)
-last_updated: "2026-05-25T03:00:00.366Z"
+stopped_at: Phase 93 Plan 02 COMPLETE (2026-05-25) — 5-tile dept grid in home.js render() + #homeOverviewContent wrapper + switchHomeTab() selector updated; ready for Plan 03 if exists or phase close
+last_updated: "2026-05-25T03:15:00.000Z"
 last_activity: "2026-05-21 — Phase 87.1 Plan 06 (Wave 6 — route retirement + module cleanup) DONE. Standalone /proposals top-nav tab fully retired: router.js no /proposals route entry, no hard super_admin gate; index.html no Proposals nav anchor (desktop + mobile); auth.js no Proposals visibility block. app/views/proposals.js stripped 2,013 → 395 lines (pure shared module) — preserved all 9 exports consumed externally (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, getProposalStatusBadge, getAgeInStageDays, isOverdueInStage, renderAgeBadge, renderStageGroupCard, _applyProposalStateTransition, renderApprovalQueue) plus render/init/destroy no-op stubs. Stage-card + queue-button onclicks rewritten to window.openProposalModal with && safety guards. Direct nav to #/proposals falls through to #/ via Route-not-found redirect. Commits 4d75b9a (router), 0d06916 (nav + auth), bdc5735 (proposals.js cleanup), 6382a58 (docs follow-up). Phase 87.1 is now fully implemented; only manual UAT (Plan 87.1-07) remains."
 progress:
   total_phases: 28
@@ -174,6 +174,8 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 93-02]: home.js render() replaced .navigation-cards 3-card block with .dept-cards 5-tile grid (Clients/Projects/Services top row, Procurement/Finance bottom row); .quick-stats wrapped in #homeOverviewContent for switchHomeTab() targeting; querySelector('.quick-stats') → getElementById('homeOverviewContent'); getHomeSubTabConfig() byte-for-byte unchanged (D-04 locked); no new window.* functions (tiles use inline location.hash); commit b926260
 
 - [Phase 93-01]: .dept-cards/.dept-cards-row--top/.dept-cards-row--bottom CSS appended to hero.css after Navigation Cards section; responsive overrides inserted inside existing ≤1024px and ≤768px media blocks (not new blocks); calc((100% - 2rem) * 2/3 + 2rem) centers 2-tile bottom row under 3-tile top row on desktop; .navigation-cards and .nav-card rules untouched
 
