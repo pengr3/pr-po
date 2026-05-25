@@ -128,26 +128,40 @@ export function render() {
             <h1 class="hero-title">🏗️ CLMC</h1>
             <p class="hero-subtitle">Management System Portal</p>
 
-            <div class="navigation-cards">
-                <div class="nav-card" onclick="location.hash='#/mrf-form'">
-                    <div class="nav-card-icon">📝</div>
-                    <h3>Material Request</h3>
-                    <p>Submit MRF forms and track status</p>
-                    <button class="btn btn-primary">Enter →</button>
+            <div class="dept-cards">
+                <div class="dept-cards-row dept-cards-row--top">
+                    <div class="nav-card" onclick="location.hash='#/clients'">
+                        <div class="nav-card-icon">📋</div>
+                        <h3>Clients</h3>
+                        <p>Manage client records, contacts, and engagement history</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
+                    <div class="nav-card" onclick="location.hash='#/projects'">
+                        <div class="nav-card-icon">🏗️</div>
+                        <h3>Projects</h3>
+                        <p>Track projects, budgets, Gantt schedules, and financials</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
+                    <div class="nav-card" onclick="location.hash='#/services'">
+                        <div class="nav-card-icon">🔧</div>
+                        <h3>Services</h3>
+                        <p>Manage recurring service contracts and work tracking</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
                 </div>
-
-                <div class="nav-card" onclick="location.hash='#/procurement'">
-                    <div class="nav-card-icon">🛒</div>
-                    <h3>Procurement</h3>
-                    <p>Manage MRFs, suppliers & procurement</p>
-                    <button class="btn btn-primary">Enter →</button>
-                </div>
-
-                <div class="nav-card" onclick="location.hash='#/finance'">
-                    <div class="nav-card-icon">💰</div>
-                    <h3>Finance Dashboard</h3>
-                    <p>Approve PRs and track purchase orders</p>
-                    <button class="btn btn-primary">Enter →</button>
+                <div class="dept-cards-row dept-cards-row--bottom">
+                    <div class="nav-card" onclick="location.hash='#/procurement'">
+                        <div class="nav-card-icon">🛒</div>
+                        <h3>Procurement</h3>
+                        <p>Submit MRFs, manage suppliers, track orders and RFPs</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
+                    <div class="nav-card" onclick="location.hash='#/finance'">
+                        <div class="nav-card-icon">💰</div>
+                        <h3>Finance</h3>
+                        <p>Approve PRs, manage payables, collectibles, and RFPs</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
                 </div>
             </div>
 
@@ -165,8 +179,11 @@ export function render() {
             <div id="homeEngagementsContent" style="display:none;"></div>
             <div id="homeProposalsContent" style="display:none;"></div>
 
-            <div class="quick-stats">
-                ${statsContent}
+            <!-- Phase 93: Overview wrapper — tiles shown above (always visible); stats card shown/hidden by switchHomeTab -->
+            <div id="homeOverviewContent">
+                <div class="quick-stats">
+                    ${statsContent}
+                </div>
             </div>
         </div>
     `;
@@ -178,7 +195,7 @@ export function render() {
  * so calling this with a missing tab id should be a no-op rather than throwing.
  */
 function switchHomeTab(tab) {
-    const overviewEl = document.querySelector('.quick-stats');
+    const overviewEl = document.getElementById('homeOverviewContent');
     const engEl = document.getElementById('homeEngagementsContent');
     const propEl = document.getElementById('homeProposalsContent');
 
