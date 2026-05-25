@@ -845,5 +845,5 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 93.2-01-PLAN.md — Real-time queue via onSnapshot + Client column + attachment link in queue rows — Wave 1
+- [x] 93.2-01-PLAN.md — Real-time queue via onSnapshot + Client column + attachment link in queue rows — Wave 1
 - [ ] 93.2-02-PLAN.md — Active-only default filter + updated_at sort + 10/page pagination + handleHomeProposalScorecardClick behavior update — Wave 2
