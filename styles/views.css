@@ -3077,7 +3077,11 @@
     border-color: #16a34a;
 }
 
-/* Phase 87.1 D-01 — Home dashboard sub-nav */
+/* Phase 87.1 D-01 — Home dashboard sub-nav; content panes stretch full-width inside hero-section flex column */
+#homeProposalsContent,
+#homeEngagementsContent {
+    align-self: stretch;
+}
 .home-sub-nav {
     background: #ffffff;
     border-bottom: 1px solid var(--gray-200);
