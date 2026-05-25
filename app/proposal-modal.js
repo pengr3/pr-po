@@ -907,8 +907,8 @@ async function saveProposal() {
             }
             showToast('Proposal updated.', 'success');
         } else {
-            // CREATE mode: mint PROP ID, build full doc, write to Firestore.
-            const proposalId = await generateProposalId();
+            // CREATE mode: mint PROPOSAL ID, build full doc, write to Firestore.
+            const proposalId = await generateProposalId(client?.client_code || null);
             const createdAuditEntry = {
                 entry_id: cryptoRandomUuid(),
                 ts: new Date().toISOString(), // ISO string — serverTimestamp() sentinel not allowed inside array elements
