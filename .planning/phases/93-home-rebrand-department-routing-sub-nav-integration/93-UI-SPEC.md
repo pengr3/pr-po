@@ -52,11 +52,13 @@ Exceptions:
 
 Sourced from main.css `:root` and hero.css — no changes introduced in this phase.
 
+Declared weights: **400** (body, label) and **700** (heading, display). Size alone distinguishes label (14px) from body (16px); weight distinction is not needed. Both h3 and h1 use 700 — existing `.nav-card h3` and `.btn` rendered at weight 600 are bumped to 700 as a non-breaking tightening.
+
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body / card description (p) | 16px (1rem) | 400 (normal) | 1.6 (from `.nav-card p`) |
-| Label / stat label | 14px (0.875rem) | 500 | 1.5 |
-| Heading / card title (h3) | 24px (1.5rem) | 600 | 1.2 |
+| Body / card description (p) | 16px (1rem) | 400 | 1.6 (from `.nav-card p`) |
+| Label / stat label | 14px (0.875rem) | 400 | 1.5 |
+| Heading / card title (h3) | 24px (1.5rem) | 700 | 1.2 |
 | Display / hero title (h1) | 48px (3rem) | 700 | 1.1 |
 
 Mobile overrides (already in hero.css — executor must not regress):
@@ -89,9 +91,9 @@ Accent reserved for: active state of `home-sub-nav-tab--active`, the `btn-primar
 |-------|------|-------|
 | `.nav-card` | styles/hero.css | Tile container — use verbatim per D-08. 12px border-radius, white bg, 4px 16px shadow, 2px transparent border → hover: border-color: var(--primary), translateY(-8px), heavier shadow, icon bounce animation. |
 | `.nav-card-icon` | styles/hero.css | 64px (4rem) emoji, margin-bottom 24px (1.5rem). Mobile: 48px, 40px at ≤480px. |
-| `.nav-card h3` | styles/hero.css | 24px, weight 600, var(--gray-900), margin-bottom 16px. |
+| `.nav-card h3` | styles/hero.css | 24px, weight 700 (bumped from 600 to match declared 2-weight scale), var(--gray-900), margin-bottom 16px. |
 | `.nav-card p` | styles/hero.css | 16px, var(--gray-700), margin-bottom 32px (2rem), line-height 1.6. Description must be ≤80 chars. |
-| `.nav-card .btn` | styles/hero.css | Full-width, padding 12px 24px, 16px text, weight 600. |
+| `.nav-card .btn` | styles/hero.css | Full-width, padding 12px 24px, 16px text, weight 700 (bumped from 600 to match declared 2-weight scale). |
 | `.home-sub-nav` | styles/views.css | White bg, 1px border-bottom var(--gray-200), margin-bottom 24px. Preserved as-is. |
 | `.home-sub-nav-tab` | styles/views.css | Active: var(--primary) bg, white text. Preserved as-is. |
 | `.hs-stat-card` | styles/hero.css | Procurement stats card — unchanged. |
