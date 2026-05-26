@@ -871,3 +871,11 @@ Plans:
 
 Plans:
 - [x] 94-01-PLAN.md — update-check.js HEAD-poll module + index.html strip banner + components.css slide-in/mobile CSS — Wave 1
+
+### Phase 95: Notification Row Redesign — 3-Line Anatomy + Schema Upgrade (object_name + actor_name)
+
+**Goal:** Upgrade notification rows from the current flat `message` blob to the validated 3-line anatomy (spike 006/007): event title + optional "● Action needed" chip + relative time / objectId · objectName / actor name. Add `object_name` and `actor_name` fields at every notification write site (27 call sites across 8 files). Deprecate the `message` blob (stop writing it; keep reading as fallback for existing docs).
+**Depends on:** Phase 83 (notification plumbing), Phase 94 (bell + dropdown already rendered)
+**Requirements**: None mapped (synthetic NOTIF-R01..NOTIF-R05 in plan frontmatter)
+**Plans:** 0 plans complete
+**Status:** Planned
