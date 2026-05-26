@@ -891,5 +891,5 @@ Plans:
 
 Plans:
 - [x] 96-01-PLAN.md — New CSS classes for progress track, stat chips, and card heading
-- [ ] 96-02-PLAN.md — Rewrite renderInlineProposalCard() in project-detail.js
+- [x] 96-02-PLAN.md — Rewrite renderInlineProposalCard() in project-detail.js
 - [ ] 96-03-PLAN.md — Mirror rewrite to service-detail.js for parity
