@@ -184,12 +184,12 @@ export function renderDropdownRows() {
         rowsHtml = `<div class="notif-empty-state">You're all caught up!</div>`;
     } else {
         rowsHtml = docs.map(n => {
-            const meta = TYPE_META[n.type] || { label: n.type, icon: '•', color: '#64748b' };
+            const meta = TYPE_META[n.type] || { label: escapeHTML(n.type || 'Notification'), icon: '•', color: '#64748b' };
             const safeMsg = escapeHTML(n.message || '');
             const safeLink = escapeHTML(n.link || '');
             const safeId = escapeHTML(n.id || '');
             const timeStr = formatRelativeTime(n.created_at);
-            const absTime = formatTimestamp(n.created_at);
+            const absTime = escapeHTML(formatTimestamp(n.created_at));
             const isUnread = !n.read;
             const unreadClass = isUnread ? ' notif-row--unread' : '';
             return `
