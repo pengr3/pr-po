@@ -1851,7 +1851,8 @@ tr:hover {
 }
 
 .notif-dropdown-menu {
-    display: none;
+    display: flex;
+    flex-direction: column;
     position: absolute;
     top: calc(100% + 6px);
     right: 0;
@@ -1864,11 +1865,19 @@ tr:hover {
     z-index: 200;
     max-height: 70vh;
     overflow: hidden;
-    flex-direction: column;
+    opacity: 0;
+    transform: translateY(-12px);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 200ms ease-out, opacity 200ms ease-out, visibility 0ms 200ms;
 }
 
 .notif-dropdown-menu.open {
-    display: flex;
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 200ms ease-out, opacity 200ms ease-out, visibility 0ms 0ms;
 }
 
 .notif-dropdown-header {
