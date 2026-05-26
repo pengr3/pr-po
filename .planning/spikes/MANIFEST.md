@@ -10,6 +10,10 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 - Notification must be dismissible without forcing a refresh
 - Must not interfere with active workflows (e.g. filling in a form)
 - UX: **Variant A — fixed top strip** (full-width, slides in above nav, stacks vertically on mobile)
+- Notification rows: **3-line anatomy** — event title + optional "● Action needed" chip + relative time / objectId · objectName / actor name (omit if System)
+- Relationship badge: **not used** — noise without proportional value
+- FYI chip: **not used** — silence signals informational
+- Schema delta: only **2 new fields** needed — `object_name` (embedded from source doc) and `actor_name` (embedded from auth.currentUser or "System")
 
 ## Spikes
 
@@ -22,3 +26,5 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 | 004a | animation-slide | comparison | Given dropdown opens via `.open` class, when CSS transition fires, then content slides down via `translateY` smoothly | VALIDATED ✓ WINNER — translateY(-12px→0) + opacity, 200ms ease-out. Content readable throughout. | animation, dropdown, notification |
 | 004b | animation-scale | comparison | Given same open trigger, when transition fires, then content scales from top-right origin via `scaleY` | VALIDATED ✓ — scaleY squashes row text mid-animation; 004a preferred | animation, dropdown, notification |
 | 005 | unread-indicator | standard | Given an unread row, when rendered, then a left-border accent + subtle tint feels distinct without heavy blue fill | VALIDATED ✓ — Variant B wins: 3px #1a73e8 left border + #f8fbff tint. Best balance of signal vs badge-color interference. | unread, ux, notification, design |
+| 006 | notification-row-anatomy | standard | Given the 5W+2 framework applied to a redesigned row, when scanning 8 types, then every row is complete and no slot is redundant | VALIDATED ✓ — 3-line anatomy: event+chip+time / objectId·name / actor. Relationship badge dropped (noise). FYI chip dropped (silence = informational). | notification, ux, layout, content, 5w2 |
+| 007 | notification-copy-templates | standard | Given a 5W+2 data contract for all 16 types, then every slot fills without faking data and schema gap is minimal | VALIDATED ✓ — 2 new fields only (object_name, actor_name); all 16 types fill cleanly; message blob can be deprecated | notification, content, schema, copy, 5w2 |
