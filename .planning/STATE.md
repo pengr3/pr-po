@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: "Phase 95 Plan 02 COMPLETE (2026-05-26). All 27 createNotification* call sites across 8 files upgraded with object_name and actor_name."
-stopped_at: "Phase 95 Plan 02 complete (2026-05-26)"
-last_updated: "2026-05-26T09:00:00.000Z"
+status: "Phase 96 PLANNED (2026-05-26). 3 plans in 2 waves: CSS classes (96-01), project-detail.js rewrite (96-02), service-detail.js parity (96-03). Ready to execute."
+stopped_at: "Phase 96 planned (2026-05-26) — ready to execute"
+last_updated: "2026-05-26T10:00:00.000Z"
 last_activity: 2026-05-26
 progress:
-  total_phases: 29
+  total_phases: 30
   completed_phases: 26
   total_plans: 106
   completed_plans: 106
