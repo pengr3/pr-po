@@ -425,7 +425,9 @@ async function _homeQueueConfirmAction(proposalDocId, mode) {
                         message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
                         link: `#/`,
                         source_collection: 'proposals',
-                        source_id: proposal.proposal_id
+                        source_id: proposal.proposal_id,
+                        object_name: proposal.title,
+                        actor_name: window.getCurrentUser?.()?.full_name || 'System'
                     });
                 }
             } catch (notifErr) {

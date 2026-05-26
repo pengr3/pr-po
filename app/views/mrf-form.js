@@ -1742,6 +1742,8 @@ async function handleFormSubmit(e) {
                 link: '#/procurement/mrfs',
                 source_collection: 'mrfs',
                 source_id: mrfId,
+                object_name: projectOrServiceLabel,
+                actor_name: window.getCurrentUser?.()?.full_name || 'System',
                 excludeActor: true   // if a procurement user submits an MRF themselves, skip self-notify
             });
         } catch (notifErr) {

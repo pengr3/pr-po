@@ -994,6 +994,8 @@ async function submitProposalForApproval(proposalDocId) {
                 link: `#/proposals?id=${proposal.proposal_id}`,
                 source_collection: 'proposals',
                 source_id: proposal.proposal_id,
+                object_name: proposal.title,
+                actor_name: actorName,
                 excludeActor: true
             });
         } catch (notifErr) {
@@ -1160,7 +1162,9 @@ async function submitProposalApproval(proposalDocId, mode) {
                     message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
                     link: `#/proposals?id=${proposal.proposal_id}`,
                     source_collection: 'proposals',
-                    source_id: proposal.proposal_id
+                    source_id: proposal.proposal_id,
+                    object_name: proposal.title,
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {

@@ -280,6 +280,8 @@ async function handleRegister(e) {
                 link: '#/admin?section=user-management',
                 source_collection: 'users',
                 source_id: userId,
+                object_name: email || '',
+                actor_name: 'System',
                 excludeActor: false
             });
         } catch (notifErr) {
