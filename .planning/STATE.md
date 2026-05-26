@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 83.1 — Plan 02 COMPLETE. Wave 2/3 done: translateY slide animation for dropdown shipped. Plan 03 remains."
-stopped_at: "Phase 83.1 Plan 02 — complete"
-last_updated: "2026-05-26T00:00:00.000Z"
+status: "Phase 83.1 — ALL 3 PLANS COMPLETE. Wave 3/3 done: left-border unread indicator shipped. Phase 83.1 complete."
+stopped_at: "Phase 83.1 Plan 03 — complete"
+last_updated: "2026-05-26T06:02:00.000Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 29
-  completed_phases: 25
+  completed_phases: 26
   total_plans: 106
-  completed_plans: 103
-  percent: 86
+  completed_plans: 104
+  percent: 90
 ---
 
 # Project State
@@ -172,12 +172,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 93.1 P02 | ~10 | 2 tasks | 1 files |
 | Phase 83.1 P01 | ~5 | 2 tasks | 2 files |
 | Phase 83.1 P02 | ~3 | 2 tasks (1 CSS, 1 verify) | 1 files |
+| Phase 83.1 P03 | ~5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 83.1-03]: D-03 left-border unread indicator replaces full-block #eff6ff wash; .notif-row--unread gets background: #f8fbff + border-left: 3px solid #1a73e8 + padding-left: calc(1rem - 3px); .notif-row gets border-left: 3px solid transparent as alignment anchor so content never shifts; history page row div inline style trimmed (padding + border-bottom removed) so CSS now owns padding and the calc compensation takes effect on unread rows
 
 - [Phase 83.1-02]: display:flex moved to .notif-dropdown-menu base rule (always in layout flow); closed state uses opacity:0+visibility:hidden+pointer-events:none; close transition uses visibility 0ms 200ms (deferred — element hides after fade completes); open transition uses visibility 0ms 0ms (immediate reveal before slide-in plays); JS toggleNotificationsDropdown already class-only; outside-click listener pre-existing at module level (no change needed per plan)
 
