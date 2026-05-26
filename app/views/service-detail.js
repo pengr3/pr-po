@@ -1128,44 +1128,85 @@ function _renderCardLatestComms(proposal) {
     return `<div class="proposal-info-row"><span>💬</span><span>${escapeHTML(date)} · ${escapeHTML(desc)}</span></div>`;
 }
 
+// Phase 96 — 4-node progress track HTML builder
+function _buildProposalTrack(status) {
+    const meta = STATUS_META[status] || { trackIdx: 0 };
+    if (meta.trackIdx === -1) {
+        return `<div class="proposal-loss-badge-wrap"><div class="proposal-loss-badge">✕ Loss — Proposal closed</div></div>`;
+    }
+    const trackIdx = meta.trackIdx;
+    const isWarn = !!meta.warn;
+    const nodes = TRACK_NODES.map((n, i) => {
+        let stateCls = '';
+        if (i < trackIdx) {
+            stateCls = 't-passed';
+        } else if (i === trackIdx) {
+            stateCls = isWarn ? 't-active-warn' : 't-active';
+        }
+        const dot = stateCls === 't-passed'
+            ? `<div class="t-dot">${_PROPOSAL_CHECK_SVG}</div>`
+            : `<div class="t-dot"></div>`;
+        return `<div class="proposal-track-node ${stateCls}">${dot}<div class="t-label">${n.label}</div></div>`;
+    }).join('');
+    return `<div class="proposal-card-track"><div class="proposal-track">${nodes}</div></div>`;
+}
+
 function renderInlineProposalCard(proposal, canDrive) {
+    // Overdue detection: current_status_since > 7 days, fallback to created_at (D-04)
     let overdueBorder = '';
+    let ageDays = 0;
     try {
-        const since = proposal.current_status_since;
+        const since = proposal.current_status_since || proposal.created_at;
         if (since) {
             const sinceMs = since?.seconds ? since.seconds * 1000 : (typeof since === 'string' ? Date.parse(since) : 0);
             if (sinceMs > 0) {
-                const ageDays = (Date.now() - sinceMs) / 86400000;
-                if (ageDays > 7) overdueBorder = 'border-left: 3px solid #f59e0b;';
+                ageDays = (Date.now() - sinceMs) / 86400000;
             }
         }
-    } catch (_) { /* ignore */ }
+    } catch (_) { /* ignore — defensive against missing/malformed field */ }
 
-    const showSubmit = canDrive && ['draft', 'for_revision'].includes(proposal.status);
+    const status = proposal.status || 'draft';
+    const isOverdue = ageDays > 7 && status !== 'client_approved' && status !== 'loss';
+    if (isOverdue) overdueBorder = 'border-left: 3px solid #f59e0b;';
+
+    // Stage age chip values
+    const ageLabel = ageDays > 0 ? Math.round(ageDays) + ' days' : '—';
+    const ageChipClass = isOverdue ? 'proposal-stat-chip chip-warn' : 'proposal-stat-chip';
+    const ageSubHtml = isOverdue ? `<div class="proposal-chip-sub">needs attention</div>` : '';
+
+    // Value chip
+    const valueLabel = proposal.amount != null ? 'PHP ' + formatCurrency(proposal.amount) : '—';
+
+    // Buttons
+    const showSubmit = canDrive && ['draft', 'for_revision'].includes(status);
     const submitBtnHtml = showSubmit
         ? `<button class="btn btn-primary" id="proposalInlineSubmitBtn" onclick="window.openProposalInlineSubmitModal('${escapeHTML(proposal.id)}')">Submit for Approval</button>`
         : '';
 
     return `
         <div class="proposal-inline-card" style="${overdueBorder}">
-            <div class="proposal-inline-card__header">
-                <span class="proposal-inline-card__status-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${_proposalStatusDotColor(proposal.status)};margin-right:6px;flex-shrink:0;"></span>
-                <span class="proposal-inline-card__label">${_proposalStageLabel(proposal.status)}</span>
-            </div>
-            <div class="proposal-inline-card__body">
-                <div style="font-size:13px;color:#1a73e8;font-weight:600;display:flex;align-items:center;gap:8px;">
-                    <span>${escapeHTML(proposal.proposal_id || proposal.id)}</span>
-                    <span style="color:#94a3b8;font-weight:400;">v${proposal.version || 1}</span>
+            <div class="proposal-card-heading">PROPOSAL</div>
+            ${_buildProposalTrack(status)}
+            <div class="proposal-card-body">
+                <div class="proposal-card-title">${escapeHTML(proposal.title || '(Untitled proposal)')}</div>
+                <div class="proposal-card-id">${escapeHTML(proposal.proposal_id || proposal.id)}</div>
+                <div class="proposal-chip-row">
+                    <div class="proposal-stat-chip">
+                        <div class="proposal-chip-label">VALUE</div>
+                        <div class="proposal-chip-val">${escapeHTML(valueLabel)}</div>
+                    </div>
+                    <div class="${ageChipClass}">
+                        <div class="proposal-chip-label">STAGE AGE</div>
+                        <div class="proposal-chip-val">${ageLabel}</div>
+                        ${ageSubHtml}
+                    </div>
                 </div>
-                <div style="font-size:15px;color:#1e293b;font-weight:600;margin-top:2px;">${escapeHTML(proposal.title || '(Untitled proposal)')}</div>
-                <div style="font-size:13px;color:#475569;margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                    <span>${proposal.amount != null ? 'PHP ' + formatCurrency(proposal.amount) : '—'}</span>
-                    ${renderAgeBadge(proposal)}
+                <div class="proposal-info-gap">
+                    ${_renderCardAttachment(proposal)}
+                    ${_renderCardLatestComms(proposal)}
                 </div>
-                ${_renderCardAttachment(proposal)}
-                ${_renderCardLatestComms(proposal)}
             </div>
-            <div class="proposal-inline-card__footer" style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+            <div class="proposal-card-footer">
                 ${submitBtnHtml}
                 <button class="btn btn-outline" onclick="window.openProposalModal('${escapeHTML(proposal.id)}')">View Proposal</button>
             </div>
