@@ -877,5 +877,5 @@ Plans:
 **Goal:** Upgrade notification rows from the current flat `message` blob to the validated 3-line anatomy (spike 006/007): event title + optional "● Action needed" chip + relative time / objectId · objectName / actor name. Add `object_name` and `actor_name` fields at every notification write site (27 call sites across 8 files). Deprecate the `message` blob (stop writing it; keep reading as fallback for existing docs).
 **Depends on:** Phase 83 (notification plumbing), Phase 94 (bell + dropdown already rendered)
 **Requirements**: None mapped (synthetic NOTIF-R01..NOTIF-R05 in plan frontmatter)
-**Plans:** 1 plan complete (95-01: core module — TYPE_META, renderDropdownRows 3-line anatomy, .na-* CSS, creation API object_name+actor_name)
-**Status:** In Progress
+**Plans:** 2 plans complete (95-01: core module — TYPE_META, renderDropdownRows 3-line anatomy, .na-* CSS, creation API object_name+actor_name; 95-02: all 27 call sites across 8 files upgraded with object_name+actor_name)
+**Status:** Complete (2026-05-26)

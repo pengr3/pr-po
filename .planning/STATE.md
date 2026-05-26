@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: "Phase 95 Plan 01 COMPLETE (2026-05-26). TYPE_META+action_required+target_route, 3-line .na-body anatomy, .na-* CSS shipped."
-stopped_at: "Phase 95 Plan 01 complete (2026-05-26)"
-last_updated: "2026-05-26T08:30:00.000Z"
+status: "Phase 95 Plan 02 COMPLETE (2026-05-26). All 27 createNotification* call sites across 8 files upgraded with object_name and actor_name."
+stopped_at: "Phase 95 Plan 02 complete (2026-05-26)"
+last_updated: "2026-05-26T09:00:00.000Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 29
   completed_phases: 26
   total_plans: 106
-  completed_plans: 105
-  percent: 91
+  completed_plans: 106
+  percent: 92
 ---
 
 # Project State
@@ -175,12 +175,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 83.1 P03 | ~5 | 2 tasks | 2 files |
 | Phase 83.1 quick/WR-01+WR-02 CSS fix | ~2 | add notif-row-body/content/read-btn CSS, fix unread border-left-color | 1 file |
 | Phase 95 P01 | ~15 | 3 tasks (TYPE_META, renderDropdownRows, .na-* CSS) | 2 files |
+| Phase 95 P02 | ~20 | 3 tasks (27 call sites, 8 files: object_name+actor_name) | 8 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 95-02]: All 27 createNotification* call sites across 8 files upgraded with object_name and actor_name; 25 sites use human-actor pattern (getCurrentUser?.()?.full_name||'System'); PO_DELIVERED and REGISTRATION_PENDING use actor_name='System' (automated/self-service events); finance.js PR_DECIDED/TR_DECIDED use pr.mrf_id/tr.mrf_id as object_name fallback (MRF project name not on PR/TR docs)
 
 - [Phase 95-01]: TYPE_META extended with action_required (bool) + target_route (string) on all 16 entries; 5 action_required=true types: PR_REVIEW_NEEDED, TR_REVIEW_NEEDED, RFP_REVIEW_NEEDED, PROPOSAL_SUBMITTED, REGISTRATION_PENDING; createNotification/createNotificationForRoles/createNotificationForUsers all accept object_name='' + actor_name='' optional params; renderDropdownRows replaced with 3-line .na-body anatomy (event+chip+time / source_id·object_name / by ActorName); safeObjName fallback n.object_name||n.message for old docs; handleNotificationClick falls back to TYPE_META[type]?.target_route when stored link absent
 
