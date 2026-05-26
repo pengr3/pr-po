@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: "Phase 96 PLANNED (2026-05-26). 3 plans in 2 waves: CSS classes (96-01), project-detail.js rewrite (96-02), service-detail.js parity (96-03). Ready to execute."
-stopped_at: "Phase 96 planned (2026-05-26) — ready to execute"
-last_updated: "2026-05-26T10:00:00.000Z"
-last_activity: 2026-05-26
+status: "Phase 96 IN PROGRESS (2026-05-26). Plan 01 complete (CSS classes). Plans 02-03 pending (JS rewrites for project-detail.js and service-detail.js)."
+stopped_at: "Phase 96 Plan 01 complete — ready for Plan 02"
+last_updated: "2026-05-26T10:59:02.319Z"
+last_activity: 2026-05-25
 progress:
-  total_phases: 30
+  total_phases: 29
   completed_phases: 26
   total_plans: 106
-  completed_plans: 106
-  percent: 92
+  completed_plans: 104
+  percent: 90
 ---
 
 # Project State
@@ -176,12 +176,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 83.1 quick/WR-01+WR-02 CSS fix | ~2 | add notif-row-body/content/read-btn CSS, fix unread border-left-color | 1 file |
 | Phase 95 P01 | ~15 | 3 tasks (TYPE_META, renderDropdownRows, .na-* CSS) | 2 files |
 | Phase 95 P02 | ~20 | 3 tasks (27 call sites, 8 files: object_name+actor_name) | 8 files |
+| Phase 96 P01 | ~8 | 3 tasks (card base, progress track, stat chips — CSS only) | 1 file |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 96-01]: CSS-only plan — .proposal-inline-card loses padding:1rem in favor of section-level padding; overflow:hidden added; .proposal-inline-card__header+__label removed; .proposal-card-heading, progress track (14 rules), stat chips, info rows all added under .proposal- namespace; .proposal-inline-card--start preserved for D-08 CTA card
 
 - [Phase 95-02]: All 27 createNotification* call sites across 8 files upgraded with object_name and actor_name; 25 sites use human-actor pattern (getCurrentUser?.()?.full_name||'System'); PO_DELIVERED and REGISTRATION_PENDING use actor_name='System' (automated/self-service events); finance.js PR_DECIDED/TR_DECIDED use pr.mrf_id/tr.mrf_id as object_name fallback (MRF project name not on PR/TR docs)
 
@@ -626,7 +629,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T06:35:42.432Z
+Last session: 2026-05-26T10:58:58.218Z
 Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.

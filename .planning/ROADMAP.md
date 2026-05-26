@@ -886,10 +886,10 @@ Plans:
 **Goal:** Redesign the inline proposal card in project/service detail to match the polished Project Plan card — replace the current dot+label status with a 4-node progress track (Draft → Internal Review → Client Review → Approved), reorder data section to title-first with stat chips (Value + Stage Age), silence empty-state noise (no "No attachment"/"No comms yet" text), and add a proper "PROPOSAL" card heading.
 **Depends on:** Phase 87.3 (renderInlineProposalCard baseline in project-detail.js/service-detail.js)
 **Requirements**: None mapped (spike-validated design phase — Spike 009 VALIDATED ✓)
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **UI hint**: yes
 
 Plans:
-- [ ] 96-01-PLAN.md — New CSS classes for progress track, stat chips, and card heading
+- [x] 96-01-PLAN.md — New CSS classes for progress track, stat chips, and card heading
 - [ ] 96-02-PLAN.md — Rewrite renderInlineProposalCard() in project-detail.js
 - [ ] 96-03-PLAN.md — Mirror rewrite to service-detail.js for parity
