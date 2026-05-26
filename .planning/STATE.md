@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 96 IN PROGRESS (2026-05-26). Plans 01-02 complete (CSS classes + project-detail.js rewrite). Plan 03 pending (service-detail.js rewrite).
-stopped_at: Phase 96 Plan 02 complete — ready for Plan 03 (service-detail.js renderInlineProposalCard)
+status: Phase 96 COMPLETE (2026-05-26). All 3 plans done — CSS classes (01), project-detail.js rewrite (02), service-detail.js rewrite (03). D-10 parity achieved.
+stopped_at: Phase 96 Plan 03 complete — phase 96 all plans complete
 last_updated: "2026-05-26T11:30:00.000Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 29
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 106
-  completed_plans: 104
-  percent: 90
+  completed_plans: 105
+  percent: 91
 ---
 
 # Project State
@@ -178,12 +178,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 95 P02 | ~20 | 3 tasks (27 call sites, 8 files: object_name+actor_name) | 8 files |
 | Phase 96 P01 | ~8 | 3 tasks (card base, progress track, stat chips — CSS only) | 1 file |
 | Phase 96 P02 | ~12 | 2 tasks (STATUS_META/helpers Task 1, renderInlineProposalCard rewrite Task 2) | 1 file |
+| Phase 96 P03 | ~10 | 2 tasks (STATUS_META/helpers mirror Task 1, renderInlineProposalCard rewrite Task 2) | 1 file |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 96-03]: STATUS_META/TRACK_NODES/_PROPOSAL_CHECK_SVG mirrored from project-detail.js to service-detail.js; _buildProposalTrack helper added; renderInlineProposalCard fully rewritten matching project-detail.js; _proposalStageLabel/_proposalStatusDotColor removed; renderAgeBadge import removed; empty-state noise gone; all user strings through escapeHTML(); D-10 parity achieved between project-detail.js and service-detail.js
 
 - [Phase 96-02]: STATUS_META/TRACK_NODES/_PROPOSAL_CHECK_SVG hoisted to module scope; _buildProposalTrack() renders 4-node progress track (t-passed/t-active/t-active-warn per STATUS_META.trackIdx); renderInlineProposalCard fully rewritten with PROPOSAL heading + track + Alt B stat chips; _proposalStageLabel/_proposalStatusDotColor removed; renderAgeBadge import removed; empty-state noise gone; all user strings through escapeHTML()
 
@@ -632,7 +635,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T11:04:57.667Z
+Last session: 2026-05-26T11:10:07.520Z
 Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
