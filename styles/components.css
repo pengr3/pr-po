@@ -2357,3 +2357,91 @@ tr:hover {
     font-weight: 600;
 }
 
+/* Phase 96 — Stat chips + data body (Alt B layout from spike 009) */
+.proposal-card-body {
+    padding: 12px 14px;
+}
+.proposal-card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.35;
+    margin-bottom: 2px;
+}
+.proposal-card-id {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    margin-bottom: 10px;
+}
+.proposal-chip-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.proposal-stat-chip {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+.proposal-stat-chip.chip-warn {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+.proposal-stat-chip .proposal-chip-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+}
+.proposal-stat-chip.chip-warn .proposal-chip-label {
+    color: #92400e;
+}
+.proposal-stat-chip .proposal-chip-val {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.2;
+}
+.proposal-stat-chip.chip-warn .proposal-chip-val {
+    color: #92400e;
+}
+.proposal-stat-chip .proposal-chip-sub {
+    font-size: 0.65rem;
+    color: #92400e;
+    margin-top: 1px;
+}
+.proposal-info-gap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.proposal-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #475569;
+    line-height: 1.4;
+}
+.proposal-info-link {
+    color: #1a73e8;
+    text-decoration: none;
+}
+.proposal-info-link:hover {
+    text-decoration: underline;
+}
+.proposal-card-footer {
+    padding: 10px 14px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
