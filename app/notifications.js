@@ -184,31 +184,32 @@ export function renderDropdownRows() {
         rowsHtml = `<div class="notif-empty-state">You're all caught up!</div>`;
     } else {
         rowsHtml = docs.map(n => {
-            const meta = TYPE_META[n.type] || { label: escapeHTML(n.type || 'Notification'), icon: '•', color: '#64748b' };
-            const safeMsg = escapeHTML(n.message || '');
+            const meta = TYPE_META[n.type] || { label: escapeHTML(n.type || 'Notification'), icon: '•', color: '#64748b', action_required: false, target_route: '' };
             const safeLink = escapeHTML(n.link || '');
             const safeId = escapeHTML(n.id || '');
             const timeStr = formatRelativeTime(n.created_at);
             const absTime = escapeHTML(formatTimestamp(n.created_at));
             const isUnread = !n.read;
             const unreadClass = isUnread ? ' notif-row--unread' : '';
-            return `
-                <div class="notif-row${unreadClass}" role="menuitem">
-                    <div class="notif-row-body" onclick="handleNotificationClick('${safeId}')" title="${safeLink}">
-                        <span class="notif-type-badge"
-                              style="background:${meta.color}15;color:${meta.color};"
-                              title="${meta.label}">
-                            ${meta.icon}
-                        </span>
-                        <div class="notif-row-content">
-                            <div class="notif-row-message">${safeMsg}</div>
-                            <div class="notif-row-time" title="${absTime}">${timeStr}</div>
-                        </div>
-                    </div>
-                    ${isUnread ? `<button class="notif-row-read-btn"
-                            onclick="event.stopPropagation(); markNotificationRead('${safeId}')"
-                            title="Mark as read">✓</button>` : ''}
-                </div>`;
+
+            // 3-line anatomy variables (T-95-01: escapeHTML all user-supplied strings)
+            const safeTargetId = escapeHTML(n.source_id || '');
+            const safeObjName  = escapeHTML(n.object_name || n.message || '');
+            const safeActor    = escapeHTML(n.actor_name || '');
+
+            // Line 1: event title + optional action chip + relative time
+            const chip = meta.action_required ? '<span class="na-chip">● Action needed</span>' : '';
+            const l1 = '<div class="na-l1"><span class="na-event">' + escapeHTML(meta.label) + '</span>' + chip + '<span class="na-time" title="' + absTime + '">' + timeStr + '</span></div>';
+
+            // Line 2: objectId · objectName — omit entire div when both empty
+            const l2 = (safeTargetId || safeObjName)
+                ? '<div class="na-l2"><span class="na-obj-id">' + safeTargetId + '</span>' + (safeObjName ? '<span class="na-sep">·</span><span class="na-obj-name">' + safeObjName + '</span>' : '') + '</div>'
+                : '';
+
+            // Line 3: actor — omit entirely when actor_name is 'System' or absent
+            const l3 = (safeActor && safeActor !== 'System') ? '<div class="na-l3">by ' + safeActor + '</div>' : '';
+
+            return '<div class="notif-row' + unreadClass + '" role="menuitem"><div class="notif-row-body" onclick="handleNotificationClick(\'' + safeId + '\')" title="' + safeLink + '"><span class="notif-type-badge" style="background:' + meta.color + '15;color:' + meta.color + ';" title="' + escapeHTML(meta.label) + '">' + meta.icon + '</span><div class="na-body">' + l1 + l2 + l3 + '</div></div>' + (isUnread ? '<button class="notif-row-read-btn" onclick="event.stopPropagation(); markNotificationRead(\'' + safeId + '\')" title="Mark as read">✓</button>' : '') + '</div>';
         }).join('');
     }
 
@@ -436,7 +437,7 @@ export async function handleNotificationClick(docId) {
     try {
         // Find link from cached docs (recentDocs covers 10 most recent in dropdown)
         const cached = recentDocs.find(d => d.id === docId) || unreadDocs.find(d => d.id === docId);
-        const link = cached?.link;
+        const link = cached?.link || TYPE_META[cached?.type]?.target_route || '';
 
         // Mark read first (await so the listener-side update is consistent)
         await updateDoc(doc(db, 'notifications', docId), {
