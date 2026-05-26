@@ -244,6 +244,7 @@
 - [x] **Phase 91: Navigation Restructuring � MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** � Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure
  (completed 2026-05-13)
 - [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
+- [ ] **Phase 96: Proposal Card Redesign — Progress Track + Stat Chips** — Redesign the inline proposal card in project/service detail with spike-009-validated layout: 4-node progress track (Draft → Internal Review → Client Review → Approved), title-first stat chips (Value + Stage Age), and silenced empty-state noise
 
 ## Phase Details
 
@@ -879,3 +880,16 @@ Plans:
 **Requirements**: None mapped (synthetic NOTIF-R01..NOTIF-R05 in plan frontmatter)
 **Plans:** 2 plans complete (95-01: core module — TYPE_META, renderDropdownRows 3-line anatomy, .na-* CSS, creation API object_name+actor_name; 95-02: all 27 call sites across 8 files upgraded with object_name+actor_name)
 **Status:** Complete (2026-05-26)
+
+### Phase 96: Proposal Card Redesign — Progress Track + Stat Chips (Spike 009)
+
+**Goal:** Redesign the inline proposal card in project/service detail to match the polished Project Plan card — replace the current dot+label status with a 4-node progress track (Draft → Internal Review → Client Review → Approved), reorder data section to title-first with stat chips (Value + Stage Age), silence empty-state noise (no "No attachment"/"No comms yet" text), and add a proper "PROPOSAL" card heading.
+**Depends on:** Phase 87.3 (renderInlineProposalCard baseline in project-detail.js/service-detail.js)
+**Requirements**: None mapped (spike-validated design phase — Spike 009 VALIDATED ✓)
+**Plans:** 3 plans
+**UI hint**: yes
+
+Plans:
+- [ ] 96-01-PLAN.md — New CSS classes for progress track, stat chips, and card heading
+- [ ] 96-02-PLAN.md — Rewrite renderInlineProposalCard() in project-detail.js
+- [ ] 96-03-PLAN.md — Mirror rewrite to service-detail.js for parity
