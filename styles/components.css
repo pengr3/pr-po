@@ -1936,8 +1936,7 @@ tr:hover {
 
 .notif-row--unread {
     background: #f8fbff;
-    border-left: 3px solid #1a73e8;
-    padding-left: calc(1rem - 3px);
+    border-left-color: #1a73e8;
 }
 
 .notif-row--unread:hover {
@@ -1963,6 +1962,39 @@ tr:hover {
     stroke-linecap: round;
     stroke-linejoin: round;
     flex-shrink: 0;
+}
+
+.notif-row-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.notif-row-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-row-read-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+    font-size: 0.875rem;
+    line-height: 1;
+    margin-left: 0.25rem;
+}
+
+.notif-row-read-btn:hover {
+    background: #fff;
+    border-color: #e2e8f0;
+    color: #1a73e8;
 }
 
 .notif-row-message {
