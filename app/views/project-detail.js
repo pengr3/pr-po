@@ -44,6 +44,22 @@ const UNIFIED_STATUS_OPTIONS = [
     'Loss'
 ];
 
+function _getProjectStatusColor(status) {
+    const map = {
+        'For Inspection':                 '#64748b',
+        'For Proposal':                   '#1a73e8',
+        'Proposal for Internal Approval': '#f59e0b',
+        'Proposal Under Client Review':   '#f59e0b',
+        'For Revision':                   '#ef4444',
+        'Client Approved':                '#059669',
+        'For Mobilization':               '#0ea5e9',
+        'On-going':                       '#0ea5e9',
+        'Completed':                      '#16a34a',
+        'Loss':                           '#7f1d1d',
+    };
+    return map[status] || '#64748b';
+}
+
 // Render view HTML
 export function render(activeTab = null, param = null) {
     return `
@@ -347,23 +363,6 @@ function checkProjectAccess() {
     return false;
 }
 
-// Status color map for the pill-shaped select in the header strip
-function getStatusStyle(status) {
-    const map = {
-        'For Inspection':                  'background:#f1f5f9;color:#475569;border-color:#cbd5e1;',
-        'For Proposal':                    'background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;',
-        'Proposal for Internal Approval':  'background:#fffbeb;color:#d97706;border-color:#fcd34d;',
-        'Proposal Under Client Review':    'background:#eef2ff;color:#4338ca;border-color:#a5b4fc;',
-        'For Revision':                    'background:#fff7ed;color:#ea580c;border-color:#fdba74;',
-        'Client Approved':                 'background:#f0fdf4;color:#059669;border-color:#6ee7b7;',
-        'For Mobilization':                'background:#f5f3ff;color:#6d28d9;border-color:#c4b5fd;',
-        'On-going':                        'background:#ecfdf5;color:#047857;border-color:#34d399;',
-        'Completed':                       'background:#f0fdf4;color:#065f46;border-color:#6ee7b7;',
-        'Loss':                            'background:#fef2f2;color:#ef4444;border-color:#fca5a5;',
-    };
-    return map[status] || 'background:#f8fafc;color:#1e293b;border-color:#e2e8f0;';
-}
-
 // Render project detail
 function renderProjectDetail() {
     const container = document.getElementById('projectDetailContainer');
@@ -385,9 +384,9 @@ function renderProjectDetail() {
 
     // ----- Project Plan summary card (Phase 86 D-03) -----
     const planCardHtml = `
-        <div class="card project-plan-card" style="display:flex;flex-direction:column;">
+        <div class="card project-plan-card">
             <div class="card-header"><h3>Project Plan</h3></div>
-            <div class="card-body" style="display:flex;flex-direction:column;flex:1;">
+            <div class="card-body">
                 <div class="plan-card-stats">
                     <div class="plan-card-stat">
                         <div class="plan-card-stat-value" id="planCardTaskCount">${currentProjectProgress.taskCount}</div>
@@ -415,7 +414,7 @@ function renderProjectDetail() {
                 ${currentProjectProgress.taskCount === 0
                     ? `<div class="empty-state" style="padding: 16px; text-align: center;"><strong>No tasks yet.</strong><br><span>Open the plan to get started.</span></div>`
                     : ''}
-                <div style="margin-top: auto; padding-top: 16px; text-align: right;">
+                <div style="margin-top: 16px; text-align: right;">
                     <a href="#/projects/${encodeURIComponent(currentProject?.project_code || '')}/plan" class="btn btn-primary"
                        ${!currentProject?.project_code ? 'style="pointer-events: none; opacity: 0.5;" title="No project code"' : ''}>
                         Open Plan
@@ -426,40 +425,6 @@ function renderProjectDetail() {
     `;
 
     container.innerHTML = `
-        <style>
-            #projectDetailContainer .pd-field-label {
-                display: block;
-                font-size: 0.72rem;
-                font-weight: 700;
-                color: #64748b;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-                margin-bottom: 0.3rem;
-            }
-            #projectDetailContainer .pd-field-input {
-                width: 100%;
-                padding: 0.45rem 0.65rem;
-                border: 1.5px solid #e2e8f0;
-                border-radius: 6px;
-                font-size: 0.875rem;
-                color: #1e293b;
-                background: #ffffff;
-                box-sizing: border-box;
-                font-family: inherit;
-                transition: border-color 0.15s, box-shadow 0.15s;
-            }
-            #projectDetailContainer .pd-field-input:focus {
-                outline: none;
-                border-color: #1a73e8;
-                box-shadow: 0 0 0 3px rgba(26,115,232,0.10);
-            }
-            #projectDetailContainer .pd-field-input:disabled {
-                background: #f8fafc;
-                color: #94a3b8;
-                cursor: not-allowed;
-                border-color: #f1f5f9;
-            }
-        </style>
         <div class="container" style="margin-top: 1rem;">
             ${canEdit === false ? `
                 <div class="view-only-notice">
@@ -478,23 +443,23 @@ function renderProjectDetail() {
                 <span style="color:#cbd5e1;">·</span>
                 <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;">${escapeHTML(currentProject.project_code || '—')}</span>
                 <span style="color:#cbd5e1;">·</span>
-                <div style="display:flex;align-items:center;gap:0.35rem;">
-                    <span style="font-size:0.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.07em;white-space:nowrap;">Status</span>
-                    <select data-field="project_status" onchange="window.saveField('project_status', this.value)"
-                            style="padding:0.3rem 0.7rem;border:1.5px solid;border-radius:20px;font-size:0.82rem;font-weight:600;cursor:pointer;appearance:auto;${getStatusStyle(currentProject.project_status || '')}"
-                            ${!showEditControls ? 'disabled' : ''}>
-                        ${(() => {
-                            const current = currentProject.project_status || '';
-                            const isLegacy = current && !UNIFIED_STATUS_OPTIONS.includes(current);
-                            const legacyOption = isLegacy
-                                ? `<option value="${escapeHTML(current)}" selected style="color: #94a3b8; font-style: italic;">${escapeHTML(current)} (legacy)</option>`
-                                : '';
-                            return legacyOption + UNIFIED_STATUS_OPTIONS.map(s =>
-                                `<option value="${s}" ${current === s ? 'selected' : ''}>${s}</option>`
-                            ).join('');
-                        })()}
-                    </select>
-                </div>
+                ${(() => {
+                    const statusColor = _getProjectStatusColor(currentProject.project_status);
+                    const current = currentProject.project_status || '';
+                    const isLegacy = current && !UNIFIED_STATUS_OPTIONS.includes(current);
+                    const legacyOption = isLegacy
+                        ? `<option value="${escapeHTML(current)}" selected>${escapeHTML(current)} (legacy)</option>`
+                        : '';
+                    const options = legacyOption + UNIFIED_STATUS_OPTIONS.map(s =>
+                        `<option value="${s}" ${current === s ? 'selected' : ''}>${s}</option>`
+                    ).join('');
+                    return `<div style="position:relative;display:inline-flex;align-items:center;">
+                        <select data-field="project_status" onchange="window.saveField('project_status', this.value)"
+                                style="appearance:none;-webkit-appearance:none;padding:0.3rem ${showEditControls ? '1.85rem' : '0.85rem'} 0.3rem 0.85rem;border:none;border-radius:20px;font-size:0.82rem;font-weight:600;color:#fff;background:${statusColor};box-shadow:0 1px 4px rgba(0,0,0,0.2);cursor:${showEditControls ? 'pointer' : 'default'};outline:none;max-width:220px;"
+                                ${!showEditControls ? 'disabled' : ''}>${options}</select>
+                        ${showEditControls ? `<span style="position:absolute;right:0.6rem;pointer-events:none;color:rgba(255,255,255,0.85);font-size:0.65rem;">▼</span>` : ''}
+                    </div>`;
+                })()}
                 <span style="flex:1;"></span>
                 <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space:nowrap;">Edit History</button>
                 <button class="btn btn-sm btn-secondary" onclick="window.exportProjectExpenseCSV()"
@@ -513,11 +478,11 @@ function renderProjectDetail() {
                         <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;">Project Information</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;">
                             <div>
-                                <label class="pd-field-label">Project Name *</label>
-                                <input type="text" class="pd-field-input" data-field="project_name" value="${escapeHTML(currentProject.project_name || '')}" onblur="window.saveField('project_name', this.value)" placeholder="Enter project name" ${!showEditControls ? 'disabled' : ''}>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Project Name *</label>
+                                <input type="text" class="detail-field" data-field="project_name" value="${escapeHTML(currentProject.project_name || '')}" onblur="window.saveField('project_name', this.value)" placeholder="Enter project name" ${!showEditControls ? 'disabled' : ''}>
                             </div>
                             <div>
-                                <label class="pd-field-label">Client</label>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Client</label>
                                 ${(!currentProject.client_code && showEditControls) ? `
                                     <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
                                         <select id="clientAssignSelect" style="flex:1;min-width:120px;padding:0.35rem 0.5rem;border:2px solid #dadce0;border-radius:4px;background:#fff;font-size:0.8rem;">
@@ -532,8 +497,8 @@ function renderProjectDetail() {
                                 `}
                             </div>
                             <div style="grid-column:1/-1;">
-                                <label class="pd-field-label">Location</label>
-                                <input type="text" class="pd-field-input" data-field="location" value="${escapeHTML(currentProject.location || '')}" onblur="window.saveField('location', this.value)" placeholder="(Not set)" ${!showEditControls ? 'disabled' : ''}>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Location</label>
+                                <input type="text" class="detail-field" data-field="location" value="${escapeHTML(currentProject.location || '')}" onblur="window.saveField('location', this.value)" placeholder="(Not set)" ${!showEditControls ? 'disabled' : ''}>
                             </div>
                             <div style="grid-column:1/-1;">
                                 ${renderPersonnelPills(canEditPersonnel)}
@@ -546,76 +511,67 @@ function renderProjectDetail() {
                 <!-- Financial card -->
                 <div class="card">
                     <div class="card-body" style="padding:0.75rem 1rem;">
-                        <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.65rem;">Financial Summary</div>
+                        <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.6rem;">Financial Summary</div>
 
-                        <!-- 3-group layout: Budget | Payables | Collectibles -->
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.55rem;">
-
-                            <!-- BUDGET group -->
-                            <div style="background:#f8fafc;border-radius:8px;padding:0.6rem 0.65rem;display:flex;flex-direction:column;">
-                                <div style="font-size:0.62rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.45rem;padding-bottom:0.3rem;border-bottom:1px solid #e2e8f0;">Budget</div>
-                                <div style="margin-bottom:0.45rem;">
-                                    <label class="pd-field-label" style="margin-bottom:0.2rem;">Target${currentProject.budget ? ` · <span style="font-weight:400;text-transform:none;">PHP ${formatCurrency(currentProject.budget)}</span>` : ''}</label>
-                                    <input type="number" class="pd-field-input" data-field="budget" value="${currentProject.budget || ''}" onblur="window.saveField('budget', this.value)" placeholder="(Not set)" min="0" step="0.01" ${!showEditControls ? 'disabled' : ''}>
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-top:auto;">
-                                    <div style="background:#fff;border-radius:5px;padding:0.3rem 0.4rem;">
-                                        <div style="font-size:0.6rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Projected</div>
-                                        <div style="display:flex;align-items:center;gap:0.2rem;">
-                                            <span style="font-weight:700;color:#1e293b;font-size:0.8rem;cursor:pointer;" onclick="window.showExpenseModal()">
-                                                ${currentExpense.total > 0 ? formatCurrency(currentExpense.total) : '—'}
-                                            </span>
-                                            <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowExpenseModal()" style="padding:0.05rem 0.25rem;font-size:0.58rem;line-height:1.4;flex-shrink:0;">&#x1F504;</button>
-                                        </div>
-                                    </div>
-                                    <div style="background:#fff;border-radius:5px;padding:0.3rem 0.4rem;">
-                                        <div style="font-size:0.6rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Budget</div>
-                                        ${(() => {
-                                            const budget = parseFloat(currentProject.budget || 0);
-                                            const remaining = budget - currentExpense.total;
-                                            const color = remaining >= 0 ? '#059669' : '#ef4444';
-                                            return budget > 0
-                                                ? `<div style="font-weight:700;color:${color};font-size:0.8rem;">${formatCurrency(remaining)}</div>`
-                                                : `<div style="font-weight:700;color:#94a3b8;font-size:0.8rem;">—</div>`;
-                                        })()}
-                                    </div>
+                        <!-- Budget group -->
+                        <div style="font-size:0.65rem;font-weight:700;color:#1a73e8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Budget</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-bottom:0.4rem;">
+                            <div>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Budget</label>
+                                <input type="number" class="detail-field" data-field="budget" value="${currentProject.budget || ''}" onblur="window.saveField('budget', this.value)" placeholder="(Not set)" min="0" step="0.01" ${!showEditControls ? 'disabled' : ''}>
+                            </div>
+                            <div>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Contract Cost</label>
+                                <input type="number" class="detail-field" data-field="contract_cost" value="${currentProject.contract_cost || ''}" onblur="window.saveField('contract_cost', this.value)" placeholder="(Not set)" min="0" step="0.01" ${!showEditControls ? 'disabled' : ''}>
+                            </div>
+                            <div style="background:#f0f7ff;border-radius:5px;padding:0.3rem 0.5rem;">
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Projected Expense</div>
+                                <div style="display:flex;align-items:center;gap:0.3rem;">
+                                    <span style="font-weight:700;color:#1e293b;font-size:0.85rem;cursor:pointer;" onclick="window.showExpenseModal()">
+                                        ${currentExpense.total > 0 ? formatCurrency(currentExpense.total) : '—'}
+                                    </span>
+                                    <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowExpenseModal()" style="padding:0.1rem 0.3rem;font-size:0.6rem;line-height:1.4;">&#x1F504;</button>
                                 </div>
                             </div>
-
-                            <!-- PAYABLES group -->
-                            <div style="background:#f8fafc;border-radius:8px;padding:0.6rem 0.65rem;display:flex;flex-direction:column;">
-                                <div style="font-size:0.62rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.45rem;padding-bottom:0.3rem;border-bottom:1px solid #e2e8f0;">Payables</div>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-top:auto;">
-                                    <div style="background:#fff;border-radius:5px;padding:0.3rem 0.4rem;">
-                                        <div style="font-size:0.6rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Paid</div>
-                                        <div style="font-weight:700;color:#059669;font-size:0.8rem;">${formatCurrency(currentExpense.totalPaid)}</div>
-                                    </div>
-                                    <div style="background:#fff;border-radius:5px;padding:0.3rem 0.4rem;">
-                                        <div style="font-size:0.6rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Payable</div>
-                                        <div style="font-weight:700;color:${currentExpense.remainingPayable > 0 ? '#ef4444' : '#059669'};font-size:0.8rem;">${formatCurrency(currentExpense.remainingPayable)}</div>
-                                    </div>
-                                </div>
+                            <div style="background:#f0f7ff;border-radius:5px;padding:0.3rem 0.5rem;">
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Budget</div>
+                                ${(() => {
+                                    const budget = parseFloat(currentProject.budget || 0);
+                                    const remaining = budget - currentExpense.total;
+                                    const color = remaining >= 0 ? '#059669' : '#ef4444';
+                                    return budget > 0
+                                        ? `<div style="font-weight:700;color:${color};font-size:0.85rem;">${formatCurrency(remaining)}</div>`
+                                        : `<div style="font-weight:700;color:#94a3b8;font-size:0.85rem;">—</div>`;
+                                })()}
                             </div>
+                        </div>
 
-                            <!-- COLLECTIBLES group -->
-                            <div style="background:#f8fafc;border-radius:8px;padding:0.6rem 0.65rem;display:flex;flex-direction:column;">
-                                <div style="font-size:0.62rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.45rem;padding-bottom:0.3rem;border-bottom:1px solid #e2e8f0;">Collectibles</div>
-                                <div style="margin-bottom:0.45rem;">
-                                    <label class="pd-field-label" style="margin-bottom:0.2rem;">Contract Cost${currentProject.contract_cost ? ` · <span style="font-weight:400;text-transform:none;">PHP ${formatCurrency(currentProject.contract_cost)}</span>` : ''}</label>
-                                    <input type="number" class="pd-field-input" data-field="contract_cost" value="${currentProject.contract_cost || ''}" onblur="window.saveField('contract_cost', this.value)" placeholder="(Not set)" min="0" step="0.01" ${!showEditControls ? 'disabled' : ''}>
-                                </div>
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;margin-top:auto;">
-                                    <div style="background:#fff;border-radius:5px;padding:0.3rem 0.4rem;">
-                                        <div style="font-size:0.6rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Collected</div>
-                                        <div style="font-weight:700;color:#059669;font-size:0.8rem;">${formatCurrency(currentCollectibles.totalCollected)}</div>
-                                    </div>
-                                    <div style="background:#fff;border-radius:5px;padding:0.3rem 0.4rem;">
-                                        <div style="font-size:0.6rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Collectible</div>
-                                        <div style="font-weight:700;color:${currentCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'};font-size:0.8rem;">${formatCurrency(currentCollectibles.remainingCollectible)}</div>
-                                    </div>
-                                </div>
+                        <!-- Payables group -->
+                        <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+                        <div style="font-size:0.65rem;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Payables</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-bottom:0.4rem;">
+                            <div style="background:#fff5f5;border-radius:5px;padding:0.3rem 0.5rem;">
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Paid</div>
+                                <div style="font-weight:700;color:#059669;font-size:0.85rem;">${formatCurrency(currentExpense.totalPaid)}</div>
                             </div>
+                            <div style="background:#fff5f5;border-radius:5px;padding:0.3rem 0.5rem;">
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Payable</div>
+                                <div style="font-weight:700;color:${currentExpense.remainingPayable > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentExpense.remainingPayable)}</div>
+                            </div>
+                        </div>
 
+                        <!-- Collectibles group -->
+                        <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+                        <div style="font-size:0.65rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Collectibles</div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;">
+                            <div style="background:#f0fdf4;border-radius:5px;padding:0.3rem 0.5rem;">
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Collected</div>
+                                <div style="font-weight:700;color:#059669;font-size:0.85rem;">${formatCurrency(currentCollectibles.totalCollected)}</div>
+                            </div>
+                            <div style="background:#f0fdf4;border-radius:5px;padding:0.3rem 0.5rem;">
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Collectible</div>
+                                <div style="font-weight:700;color:${currentCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentCollectibles.remainingCollectible)}</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -623,7 +579,7 @@ function renderProjectDetail() {
 
             <!-- Bottom row: proposal + plan cards, layout synced by syncBottomRow() -->
             <div id="projectDetailBottomRow" style="margin-bottom:0.75rem;">
-                <div id="proposalInlineCard" style="display:flex;flex-direction:column;"></div>
+                <div id="proposalInlineCard"></div>
                 ${showPlanCard ? planCardHtml : ''}
             </div>
 
@@ -1453,7 +1409,7 @@ function renderInlineProposalCard(proposal, canDrive) {
         : '';
 
     return `
-        <div class="proposal-inline-card" style="display:flex;flex-direction:column;height:100%;box-sizing:border-box;${overdueBorder}">
+        <div class="proposal-inline-card" style="${overdueBorder}">
             <div class="proposal-inline-card__header">
                 <span class="proposal-inline-card__status-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${_proposalStatusDotColor(proposal.status)};margin-right:6px;flex-shrink:0;"></span>
                 <span class="proposal-inline-card__label">${_proposalStageLabel(proposal.status)}</span>
@@ -1471,7 +1427,7 @@ function renderInlineProposalCard(proposal, canDrive) {
                 ${_renderCardAttachment(proposal)}
                 ${_renderCardLatestComms(proposal)}
             </div>
-            <div class="proposal-inline-card__footer" style="display:flex;gap:8px;margin-top:auto;padding-top:12px;justify-content:flex-end;">
+            <div class="proposal-inline-card__footer" style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
                 ${submitBtnHtml}
                 <button class="btn btn-outline" onclick="window.openProposalModal('${escapeHTML(proposal.id)}')">View Proposal</button>
             </div>
@@ -1559,7 +1515,7 @@ function syncBottomRow() {
     bottomRow.style.display = proposalVisible ? 'grid' : 'block';
     bottomRow.style.gridTemplateColumns = proposalVisible ? '1fr 1fr' : '';
     bottomRow.style.gap = proposalVisible ? '0.75rem' : '';
-    bottomRow.style.alignItems = proposalVisible ? 'stretch' : '';
+    bottomRow.style.alignItems = 'stretch';
 }
 
 async function loadProposalCard(parentDocId, parentCollection) {

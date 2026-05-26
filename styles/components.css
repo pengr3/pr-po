@@ -457,6 +457,36 @@ textarea.form-control {
     min-height: 80px;
 }
 
+/* Inline detail-field: styled editable input for project/service detail cards */
+.detail-field {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #1e293b;
+    background: #f8fafc;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.detail-field:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    background: #fff;
+}
+.detail-field:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+    background: #fff;
+}
+.detail-field:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+}
+
 .form-actions {
     display: flex;
     gap: 0.5rem;
@@ -2198,7 +2228,6 @@ tr:hover {
     border-radius: 8px;
     padding: 1rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    margin-top: 1rem;
 }
 .proposal-inline-card--start {
     border: 1.5px dashed #cbd5e1;
