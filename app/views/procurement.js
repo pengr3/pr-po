@@ -1639,7 +1639,9 @@ async function submitRFP(poDocId) {
                 message: `New RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
                 link: '#/finance/pending',
                 source_collection: 'rfps',
-                source_id: rfpId
+                source_id: rfpId,
+                object_name: po.supplier_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 submitRFP notification failed:', notifErr);
@@ -1752,7 +1754,9 @@ async function submitTRRFP(trDocId) {
                 message: `New TR RFP pending Finance review: ${rfpId} for TR ${tr.tr_id}`,
                 link: '#/finance/pending',
                 source_collection: 'rfps',
-                source_id: rfpId
+                source_id: rfpId,
+                object_name: tr.supplier_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 submitTRRFP notification failed:', notifErr);
@@ -1847,7 +1851,9 @@ async function submitDeliveryFeeRFP(poDocId) {
                 message: `New Delivery Fee RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
                 link: '#/finance/pending',
                 source_collection: 'rfps',
-                source_id: rfpId
+                source_id: rfpId,
+                object_name: po.supplier_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 submitDeliveryFeeRFP notification failed:', notifErr);
@@ -4299,6 +4305,8 @@ async function saveNewMRF() {
                 link: '#/procurement/mrfs',
                 source_collection: 'mrfs',
                 source_id: mrfId,
+                object_name: projectOrServiceLabel,
+                actor_name: window.getCurrentUser?.()?.full_name || 'System',
                 excludeActor: true
             });
         } catch (notifErr) {
@@ -4681,7 +4689,9 @@ async function rejectMRF() {
                     message: `Your MRF ${rejectedMrfSnap.mrf_id} has been rejected by Procurement${reason && reason.trim() ? `: ${reason.trim()}` : ''}`,
                     link: '#/procurement/mrfs',
                     source_collection: 'mrfs',
-                    source_id: rejectedMrfSnap.mrf_id
+                    source_id: rejectedMrfSnap.mrf_id,
+                    object_name: rejectedMrfSnap.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {
@@ -6356,7 +6366,9 @@ async function submitTransportRequest() {
                 message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
                 link: '#/finance/pending',
                 source_collection: 'transport_requests',
-                source_id: trId
+                source_id: trId,
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 submitTransportRequest notification failed:', notifErr);
@@ -6655,7 +6667,9 @@ async function generatePR() {
                     message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} created` : ''}`,
                     link: '#/procurement/records',
                     source_collection: 'mrfs',
-                    source_id: mrfData.mrf_id
+                    source_id: mrfData.mrf_id,
+                    object_name: mrfData.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {
@@ -6671,7 +6685,9 @@ async function generatePR() {
                 message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
                 link: '#/finance/pending',
                 source_collection: 'prs',
-                source_id: generatedPRIds[0] || ''
+                source_id: generatedPRIds[0] || '',
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 generatePR notification failed:', notifErr);
@@ -7028,7 +7044,9 @@ async function generatePRandTR() {
                     message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} + TR ${trId} created` : ''}`,
                     link: '#/procurement/records',
                     source_collection: 'mrfs',
-                    source_id: mrfData.mrf_id
+                    source_id: mrfData.mrf_id,
+                    object_name: mrfData.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {
@@ -7044,7 +7062,9 @@ async function generatePRandTR() {
                 message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
                 link: '#/finance/pending',
                 source_collection: 'prs',
-                source_id: generatedPRIds[0] || ''
+                source_id: generatedPRIds[0] || '',
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 generatePRandTR PR notification failed:', notifErr);
@@ -7056,7 +7076,9 @@ async function generatePRandTR() {
                 message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
                 link: '#/finance/pending',
                 source_collection: 'transport_requests',
-                source_id: trId
+                source_id: trId,
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Procurement] NOTIF-08 generatePRandTR TR notification failed:', notifErr);
@@ -7660,6 +7682,8 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
                         link: '#/procurement/records',
                         source_collection: 'pos',
                         source_id: poDataFresh.po_id || '',
+                        object_name: poDataFresh.supplier_name || '',
+                        actor_name: 'System',
                         excludeActor: true
                     });
                 }

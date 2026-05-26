@@ -508,7 +508,9 @@ async function submitPaymentRecord(rfpDocId) {
                     message: `RFP ${rfp.rfp_id} for PO ${rfp.po_id || rfp.tr_id || ''} has been marked Paid`,
                     link: '#/finance/payables',
                     source_collection: 'rfps',
-                    source_id: rfp.rfp_id || ''
+                    source_id: rfp.rfp_id || '',
+                    object_name: rfp.supplier_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {
@@ -1819,7 +1821,9 @@ async function submitCollectible() {
                 message: `New collectible filed: ${collId} (${tranche.label}, PHP ${formatCurrency(amountRequested)}) on ${labelType} ${targetName}`,
                 link: '#/finance/collectibles',
                 source_collection: 'collectibles',
-                source_id: collId
+                source_id: collId,
+                object_name: targetName || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             });
         } catch (notifErr) {
             console.error('[Collectibles] COLLECTIBLE_CREATED notification failed:', notifErr);
@@ -5234,7 +5238,9 @@ async function approvePRWithSignature(prId) {
                     message: `PR ${pr.pr_id} has been Approved by Finance`,
                     link: '#/procurement/records',
                     source_collection: 'prs',
-                    source_id: pr.pr_id || ''
+                    source_id: pr.pr_id || '',
+                    object_name: pr.mrf_id || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {
@@ -5412,7 +5418,9 @@ async function approveTR(trId) {
                     message: `TR ${tr.tr_id} has been Approved by Finance`,
                     link: '#/procurement/records',
                     source_collection: 'transport_requests',
-                    source_id: tr.tr_id || ''
+                    source_id: tr.tr_id || '',
+                    object_name: tr.mrf_id || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 });
             }
         } catch (notifErr) {
@@ -5579,7 +5587,9 @@ async function submitRejection() {
                         message: `TR ${request.tr_id} has been Rejected${reason ? `: ${reason}` : ''}`,
                         link: '#/procurement/records',
                         source_collection: 'transport_requests',
-                        source_id: request.tr_id || ''
+                        source_id: request.tr_id || '',
+                        object_name: request.mrf_id || '',
+                        actor_name: window.getCurrentUser?.()?.full_name || 'System'
                     });
                 }
             } catch (notifErr) {
@@ -5630,7 +5640,9 @@ async function submitRejection() {
                         message: `PR ${request.pr_id} has been Rejected${reason ? `: ${reason}` : ''}`,
                         link: '#/procurement/records',
                         source_collection: 'prs',
-                        source_id: request.pr_id || ''
+                        source_id: request.pr_id || '',
+                        object_name: request.mrf_id || '',
+                        actor_name: window.getCurrentUser?.()?.full_name || 'System'
                     });
                 }
             } catch (notifErr) {
