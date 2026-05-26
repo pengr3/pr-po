@@ -2017,6 +2017,91 @@ tr:hover {
     white-space: nowrap;
 }
 
+/* ========================================
+   NOTIFICATION ROW ANATOMY — Phase 95
+   3-line structure: event title / objectId·objectName / actor
+   .na-* classes sit inside .notif-row-body alongside the badge
+   ======================================== */
+
+.na-body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Line 1: event title + action chip + time */
+.na-l1 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.na-event {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.na-chip {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.na-time {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Line 2: objectId · objectName */
+.na-l2 {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+.na-obj-id {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1a73e8;
+    font-family: 'Consolas', monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.na-sep {
+    font-size: 11px;
+    color: #cbd5e1;
+    flex-shrink: 0;
+}
+
+.na-obj-name {
+    font-size: 11px;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Line 3: actor */
+.na-l3 {
+    font-size: 11px;
+    color: #64748b;
+}
+
 .notif-row-mark-read {
     background: transparent;
     border: 1px solid transparent;
