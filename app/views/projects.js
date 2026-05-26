@@ -952,7 +952,7 @@ function renderProjectsTable() {
                 ${showEditControls ? `
                     <td style="white-space: nowrap;" onclick="event.stopPropagation()">
                         <button class="btn btn-sm btn-primary" onclick="editProject('${escapeHTML(project.id)}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${escapeHTML(project.id)}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${escapeHTML(project.id)}', '${(project.project_name || '').replace(/'/g, "\\'")}')">Delete</button>
                     </td>
                 ` : `
                     <td class="actions-cell" onclick="event.stopPropagation()">
