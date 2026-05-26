@@ -10,7 +10,7 @@ import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
 // Phase 87.1 D-05 — inline proposal card
-import { renderAgeBadge, _applyProposalStateTransition } from './proposals.js';
+import { _applyProposalStateTransition } from './proposals.js';
 import { openProposalModal, openCreateProposalModal } from '../proposal-modal.js';
 
 let currentService = null;
@@ -1071,6 +1071,7 @@ async function exportServiceExpenseCSV() {
 
 // ============================================================
 // Phase 87.1 D-05 — Inline proposal card (service detail)
+// Phase 96 — Redesigned with Concept B (progress track) + Alt B (stat chips)
 // ============================================================
 // Mirror of project-detail.js. Uses currentServiceDocId as the parentDocId and
 // passes 'services' as parentCollection. The proposal doc carries
@@ -1080,60 +1081,51 @@ async function exportServiceExpenseCSV() {
 // The fresh getDoc() in confirmProposalInlineSubmit ensures the latest
 // parent_collection value is read at write time.
 
+// Phase 96 — STATUS_META: maps proposal status → track position
+const STATUS_META = {
+    draft:            { trackIdx: 0 },
+    pending_internal: { trackIdx: 1 },
+    pending_client:   { trackIdx: 2 },
+    for_revision:     { trackIdx: 2, warn: true },
+    client_approved:  { trackIdx: 3 },
+    loss:             { trackIdx: -1 },
+};
+
+// Phase 96 — TRACK_NODES: 4 stage labels for the progress track
+const TRACK_NODES = [
+    { label: 'Draft' },
+    { label: 'Internal<br>Review' },
+    { label: 'Client<br>Review' },
+    { label: 'Approved' },
+];
+
+// Phase 96 — inline SVG checkmark for passed nodes
+const _PROPOSAL_CHECK_SVG = '<svg class="proposal-check-icon" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg>';
+
 function _renderCardAttachment(proposal) {
-    if (!proposal.attachment_kind) {
-        return `<div style="font-size:12px;color:#94a3b8;margin-top:4px;">No attachment</div>`;
-    }
+    if (!proposal.attachment_kind) return '';
     if (proposal.attachment_kind === 'link') {
         const url = proposal.attachment_url || '';
-        let label = 'View link';
-        try { label = new URL(url).hostname; } catch (_) { /* keep default */ }
-        return `<div style="font-size:12px;margin-top:4px;"><a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;">${escapeHTML(label)}</a></div>`;
+        let host = 'View link';
+        try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (_) { /* keep default */ }
+        return `<div class="proposal-info-row"><span>📎</span><a class="proposal-info-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(host)}</a></div>`;
     }
     if (proposal.attachment_kind === 'file') {
         const filename = proposal.attachment_filename || 'Download file';
         const url = proposal.attachment_url || '#';
-        return `<div style="font-size:12px;margin-top:4px;"><a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;">${escapeHTML(filename)}</a></div>`;
+        return `<div class="proposal-info-row"><span>📎</span><a class="proposal-info-link" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(filename)}</a></div>`;
     }
     return '';
 }
 
 function _renderCardLatestComms(proposal) {
     const log = proposal.comms_log || [];
-    if (log.length === 0) {
-        return `<div style="font-size:12px;color:#94a3b8;margin-top:4px;">No comms yet</div>`;
-    }
+    if (log.length === 0) return '';
     const last = log[log.length - 1];
     const date = last.date || '—';
     const rawDesc = last.description || '';
-    const desc = rawDesc.length > 80 ? rawDesc.slice(0, 80) + '…' : rawDesc;
-    return `<div style="font-size:12px;color:#475569;margin-top:4px;">${escapeHTML(date)} · ${escapeHTML(desc)}</div>`;
-}
-
-// Phase 87.3 D-12 — map proposal status to human-readable stage label
-function _proposalStageLabel(status) {
-    const labels = {
-        draft: 'Draft Proposal',
-        pending_internal: 'For Internal Approval',
-        pending_client: 'Under Client Review',
-        for_revision: 'Revision Requested',
-        client_approved: 'Client Approved',
-        loss: 'Loss',
-    };
-    return labels[status] || 'Proposal';
-}
-
-// Phase 87.3 D-13 — dot color per proposal status
-function _proposalStatusDotColor(status) {
-    const colors = {
-        draft: '#94a3b8',
-        pending_internal: '#f59e0b',
-        pending_client: '#1a73e8',
-        for_revision: '#f59e0b',
-        client_approved: '#059669',
-        loss: '#ef4444',
-    };
-    return colors[status] || '#94a3b8';
+    const desc = rawDesc.length > 60 ? rawDesc.slice(0, 60) + '…' : rawDesc;
+    return `<div class="proposal-info-row"><span>💬</span><span>${escapeHTML(date)} · ${escapeHTML(desc)}</span></div>`;
 }
 
 function renderInlineProposalCard(proposal, canDrive) {
