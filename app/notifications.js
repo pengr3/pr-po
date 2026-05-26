@@ -69,7 +69,7 @@ let recentDocs = [];
 
 const svg = (path) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 
-const TYPE_META = {
+export const TYPE_META = {
     MRF_APPROVED:          { label: 'MRF Approved',          icon: svg('<path d="M4.5 12.75l6 6 9-13.5"/>'), color: '#059669' },
     MRF_REJECTED:          { label: 'MRF Rejected',          icon: svg('<path d="M6 18L18 6M6 6l12 12"/>'), color: '#ef4444' },
     PR_REVIEW_NEEDED:      { label: 'PR Review Needed',      icon: svg('<path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>'), color: '#f59e0b' },

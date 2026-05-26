@@ -7,7 +7,7 @@
    ======================================== */
 import { db, collection, query, where, orderBy, limit, startAfter, getDocs } from '../firebase.js';
 import { escapeHTML, formatTimestamp, showLoading } from '../utils.js';
-import { NOTIFICATION_TYPES } from '../notifications.js';
+import { NOTIFICATION_TYPES, TYPE_META } from '../notifications.js';
 
 /* ========================================
    MODULE-SCOPE STATE
@@ -36,28 +36,7 @@ let currentSnapshot = null;
  */
 let listeners = [];
 
-/* ========================================
-   TYPE → ICON / LABEL MAPPING
-   ======================================== */
-
-const TYPE_META = {
-    MRF_APPROVED:           { label: 'MRF Approved',           icon: '✓', color: '#059669' },
-    MRF_REJECTED:           { label: 'MRF Rejected',           icon: '✕', color: '#ef4444' },
-    PR_REVIEW_NEEDED:       { label: 'PR Review Needed',       icon: '!', color: '#f59e0b' },
-    TR_REVIEW_NEEDED:       { label: 'TR Review Needed',       icon: '!', color: '#f59e0b' },
-    RFP_REVIEW_NEEDED:      { label: 'RFP Review Needed',      icon: '!', color: '#f59e0b' },
-    PROJECT_STATUS_CHANGED: { label: 'Project Status Changed', icon: '↻', color: '#1a73e8' },
-    PROJECT_COST_CHANGED:   { label: 'Project Cost',           icon: '$', color: '#1a73e8' },
-    REGISTRATION_PENDING:   { label: 'Registration Pending',   icon: '⏳', color: '#64748b' },
-    PROPOSAL_SUBMITTED:     { label: 'Proposal Submitted',     icon: '→', color: '#1a73e8' },
-    PROPOSAL_DECIDED:       { label: 'Proposal Decided',       icon: '★', color: '#059669' },
-    // Phase 84.1 — procurement-side audience triggers
-    MRF_SUBMITTED:          { label: 'New MRF',                icon: '+', color: '#1a73e8' },
-    PR_DECIDED:             { label: 'PR Decision',            icon: '✓', color: '#059669' },
-    TR_DECIDED:             { label: 'TR Decision',            icon: '✓', color: '#059669' },
-    RFP_PAID:               { label: 'RFP Paid',               icon: '$', color: '#059669' },
-    PO_DELIVERED:           { label: 'PO Delivered',           icon: '📦', color: '#2563eb' }
-};
+// TYPE_META imported from app/notifications.js — single source of truth for all 16 types + SVG icons
 
 /* ========================================
    RENDER
@@ -292,10 +271,11 @@ function renderRows() {
             <div class="notif-row ${isUnread ? 'notif-row--unread' : ''}"
                  style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;"
                  onclick="window.handleNotificationClick('${docId}')">
-                <div class="notif-row-icon"
-                     style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:${meta.color}20;color:${meta.color};font-size:0.875rem;display:flex;align-items:center;justify-content:center;font-weight:700;">
+                <span class="notif-type-badge"
+                      style="background:${meta.color}15;color:${meta.color};"
+                      title="${escapeHTML(meta.label)}">
                     ${meta.icon}
-                </div>
+                </span>
                 <div class="notif-row-body" style="flex:1;min-width:0;">
                     <div class="notif-row-label"
                          style="font-size:0.7rem;font-weight:600;color:${meta.color};text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.2rem;">
