@@ -290,7 +290,7 @@ function renderRows() {
 
         return `
             <div class="notif-row ${isUnread ? 'notif-row--unread' : ''}"
-                 style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.875rem 1rem;border-bottom:1px solid #e5e7eb;cursor:pointer;"
+                 style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;"
                  onclick="window.handleNotificationClick('${docId}')">
                 <div class="notif-row-icon"
                      style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:${meta.color}20;color:${meta.color};font-size:0.875rem;display:flex;align-items:center;justify-content:center;font-weight:700;">
