@@ -1,39 +1,45 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-25T10:28:11.952Z",
+  "timestamp": "2026-05-26T00:00:00.000Z",
   "phase": "spike-003",
   "phase_name": "notification-polish",
   "phase_dir": ".planning/spikes/003-notification-polish",
   "plan": 0,
-  "task": 0,
+  "task": 3,
   "total_tasks": 5,
   "status": "paused",
-  "stage": "discuss-complete",
+  "stage": "spike-in-progress",
   "completed_tasks": [
     {
       "id": 1,
       "name": "notification system analysis — full read of notifications.js, views/notifications.js, CSS, index.html",
       "status": "done",
-      "commit": "pending"
+      "commit": "f44df1e"
     },
     {
       "id": 2,
       "name": "double-header bug fix (notifications.js renderDropdownRows + index.html footer onclick)",
       "status": "done",
-      "commit": "pending"
+      "commit": "f44df1e"
+    },
+    {
+      "id": 3,
+      "name": "spike 003a/b: icon set comparison (SVG inline vs symbol)",
+      "status": "done",
+      "commit": "c95a33c",
+      "verdict": "VALIDATED — 003a inline SVG wins. All 16 types distinct at badge size. Resolved ✓×3, $×3, !×3 icon conflicts. Eliminated emoji (⏳→user-plus, 📦→archive)."
     }
   ],
   "remaining_tasks": [
-    {"id": 3, "name": "spike 003a/b: icon set comparison (SVG vs symbol)", "status": "not_started"},
-    {"id": 4, "name": "spike 004a/b: dropdown animation comparison (slide vs scale)", "status": "not_started"},
-    {"id": 5, "name": "spike 005: unread row indicator design (left-border accent vs full-block)", "status": "not_started"}
+    {"id": 4, "name": "spike 004a/b: dropdown animation comparison (slide-translateY vs scale-scaleY)", "status": "not_started"},
+    {"id": 5, "name": "spike 005: unread row indicator design (left-border accent vs full-block #eff6ff)", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [],
   "decisions": [
     {
       "decision": "Fix double-header bug immediately without spiking",
-      "rationale": "Clear code bug (renderDropdownRows injecting header into already-headered container), not a design question",
+      "rationale": "Clear code bug, not a design question",
       "phase": "spike-003"
     },
     {
@@ -45,14 +51,19 @@
       "decision": "Prioritize look spikes before feel/function",
       "rationale": "User explicitly said 'look first and foremost'",
       "phase": "spike-003"
+    },
+    {
+      "decision": "003a inline SVG wins over 003b symbol defs",
+      "rationale": "Identical visual output; 003a self-contained, no index.html changes needed",
+      "phase": "spike-003"
+    },
+    {
+      "decision": "Heroicons outline set (24x24, stroke-width 1.75, round linecap/linejoin) chosen for all 16 types",
+      "rationale": "Uniform visual weight, resolves all 3 icon conflicts, eliminates emoji, validated at badge size",
+      "phase": "spike-003"
     }
   ],
-  "uncommitted_files": [
-    "app/notifications.js",
-    "index.html",
-    ".planning/spikes/003-notification-polish/.continue-here.md",
-    ".planning/HANDOFF.json"
-  ],
-  "next_action": "Resume spike session, confirm spike table, build 003a/b icon set comparison demos",
-  "context_notes": "In discuss/decompose phase of notification polish spike. User wants to improve look of notification dropdown: inconsistent type badge icons (text chars + emoji mix), heavy unread-state background, and the double-header bug (now fixed). Resume by running /gsd:spike and confirming the spike table before building demos."
+  "uncommitted_files": [],
+  "next_action": "Build spike 004a/b: dropdown animation comparison. Create .planning/spikes/004-dropdown-animation/spike.html with side-by-side slide (translateY) vs scale (scaleY) demo. Then spike 005 unread indicator.",
+  "context_notes": "Spike 003 complete and committed (c95a33c). Icon set fully validated. Next: build 004 animation spike (simple CSS comparison, ~30min) then 005 unread indicator. All spikes use the same mock dropdown HTML pattern from spike 003. Reuse TYPES_SVG_INLINE data from 003 spike for mock rows."
 }
