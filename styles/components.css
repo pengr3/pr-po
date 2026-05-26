@@ -2248,3 +2248,112 @@ tr:hover {
     letter-spacing: 0.05em;
 }
 
+/* Phase 96 — Progress track (Concept B from spike 009) */
+.proposal-card-track {
+    padding: 12px 12px 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.proposal-track {
+    display: flex;
+    align-items: flex-start;
+}
+.proposal-track-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+.proposal-track-node:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: calc(50% + 10px);
+    right: calc(-50% + 10px);
+    height: 2px;
+    background: #e2e8f0;
+    z-index: 0;
+}
+.proposal-track-node.t-passed:not(:last-child)::after {
+    background: #1a73e8;
+}
+.proposal-track-node .t-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: white;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.proposal-track-node.t-passed .t-dot {
+    background: #1a73e8;
+    border-color: #1a73e8;
+}
+.proposal-track-node.t-active .t-dot {
+    border-color: #1a73e8;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.18);
+    width: 20px;
+    height: 20px;
+}
+.proposal-track-node.t-active-warn .t-dot {
+    border-color: #f97316;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.18);
+    width: 20px;
+    height: 20px;
+}
+.proposal-track-node .t-label {
+    font-size: 0.6375rem;
+    font-weight: 500;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.25;
+    max-width: 50px;
+}
+.proposal-track-node.t-passed .t-label {
+    color: #475569;
+    font-weight: 600;
+}
+.proposal-track-node.t-active .t-label {
+    color: #1a73e8;
+    font-weight: 700;
+    font-size: 0.65rem;
+}
+.proposal-track-node.t-active-warn .t-label {
+    color: #f97316;
+    font-weight: 700;
+    font-size: 0.65rem;
+}
+.proposal-check-icon {
+    width: 9px;
+    height: 9px;
+    stroke: white;
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.proposal-loss-badge-wrap {
+    padding: 10px 14px 4px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.proposal-loss-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
