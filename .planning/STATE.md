@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 83.1 — Plan 01 COMPLETE. Wave 1/3 done: SVG icons in TYPE_META + badge CSS shipped. Plans 02 and 03 remain."
-stopped_at: "Phase 83.1 Plan 01 — complete"
+status: "Phase 83.1 — Plan 02 COMPLETE. Wave 2/3 done: translateY slide animation for dropdown shipped. Plan 03 remains."
+stopped_at: "Phase 83.1 Plan 02 — complete"
 last_updated: "2026-05-26T00:00:00.000Z"
 last_activity: 2026-05-26
 progress:
-  total_phases: 28
-  completed_phases: 26
-  total_plans: 103
+  total_phases: 29
+  completed_phases: 25
+  total_plans: 106
   completed_plans: 103
-  percent: 91
+  percent: 86
 ---
 
 # Project State
@@ -171,12 +171,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 93.1 P01 | ~3 | 1 task | 1 files |
 | Phase 93.1 P02 | ~10 | 2 tasks | 1 files |
 | Phase 83.1 P01 | ~5 | 2 tasks | 2 files |
+| Phase 83.1 P02 | ~3 | 2 tasks (1 CSS, 1 verify) | 1 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 83.1-02]: display:flex moved to .notif-dropdown-menu base rule (always in layout flow); closed state uses opacity:0+visibility:hidden+pointer-events:none; close transition uses visibility 0ms 200ms (deferred — element hides after fade completes); open transition uses visibility 0ms 0ms (immediate reveal before slide-in plays); JS toggleNotificationsDropdown already class-only; outside-click listener pre-existing at module level (no change needed per plan)
 
 - [Phase 83.1-01]: svg() helper defined once at module scope (not inline SVG per entry) per D-01 Claude's Discretion; all 16 TYPE_META entries use unique Heroicons outline SVG paths; .notif-type-badge and .notif-type-badge svg CSS rules inserted after .notif-row--unread:hover block in components.css; renderDropdownRows template unchanged (already interpolates meta.icon as raw HTML)
 
@@ -613,7 +616,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-25T07:56:07.493Z
+Last session: 2026-05-26T05:58:17.111Z
 Stopped at: Phase 93.1 context gathered
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
