@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.0
-milestone_name: Procurement → Full Management Portal
-status: "Phase 83.1 — ALL 3 PLANS COMPLETE. Wave 3/3 done: left-border unread indicator shipped. Phase 83.1 complete."
-stopped_at: "Phase 83.1 Plan 03 — complete"
-last_updated: "2026-05-26T06:02:00.000Z"
-last_activity: 2026-05-26
+milestone_name: Procurement ? Full Management Portal
+status: "Phase 83.1 COMPLETE + UAT PASSED (2026-05-26). CSS layout fix (WR-01+WR-02) landed post-UAT. Phase closed."
+stopped_at: user moving on (2026-05-26)
+last_updated: "2026-05-26T06:35:42.449Z"
+last_activity: 2026-05-25
 progress:
-  total_phases: 29
-  completed_phases: 26
-  total_plans: 106
+  total_phases: 28
+  completed_phases: 24
+  total_plans: 108
   completed_plans: 104
-  percent: 90
+  percent: 86
 ---
 
 # Project State
@@ -173,6 +173,7 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 83.1 P01 | ~5 | 2 tasks | 2 files |
 | Phase 83.1 P02 | ~3 | 2 tasks (1 CSS, 1 verify) | 1 files |
 | Phase 83.1 P03 | ~5 | 2 tasks | 2 files |
+| Phase 83.1 quick/WR-01+WR-02 CSS fix | ~2 | add notif-row-body/content/read-btn CSS, fix unread border-left-color | 1 file |
 
 ## Accumulated Context
 
@@ -619,8 +620,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T05:58:17.111Z
-Stopped at: Phase 93.1 context gathered
+Last session: 2026-05-26T06:35:42.432Z
+Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
