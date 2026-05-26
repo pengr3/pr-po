@@ -1087,7 +1087,7 @@ const STATUS_META = {
     pending_internal: { trackIdx: 1 },
     pending_client:   { trackIdx: 2 },
     for_revision:     { trackIdx: 2, warn: true },
-    client_approved:  { trackIdx: 3 },
+    client_approved:  { trackIdx: 4 },
     loss:             { trackIdx: -1 },
 };
 
@@ -1170,7 +1170,8 @@ function renderInlineProposalCard(proposal, canDrive) {
     if (isOverdue) overdueBorder = 'border-left: 3px solid #f59e0b;';
 
     // Stage age chip values
-    const ageLabel = ageDays > 0 ? Math.round(ageDays) + ' days' : '—';
+    const ageDaysRounded = Math.round(ageDays);
+    const ageLabel = ageDays <= 0 ? '—' : ageDaysRounded < 1 ? '< 1 day' : ageDaysRounded === 1 ? '1 day' : ageDaysRounded + ' days';
     const ageChipClass = isOverdue ? 'proposal-stat-chip chip-warn' : 'proposal-stat-chip';
     const ageSubHtml = isOverdue ? `<div class="proposal-chip-sub">needs attention</div>` : '';
 
@@ -1197,7 +1198,7 @@ function renderInlineProposalCard(proposal, canDrive) {
                     </div>
                     <div class="${ageChipClass}">
                         <div class="proposal-chip-label">STAGE AGE</div>
-                        <div class="proposal-chip-val">${ageLabel}</div>
+                        <div class="proposal-chip-val">${escapeHTML(ageLabel)}</div>
                         ${ageSubHtml}
                     </div>
                 </div>

@@ -2233,6 +2233,10 @@ tr:hover {
     border: 1.5px dashed #cbd5e1;
     background: #f8fafc;
 }
+.proposal-inline-card__body {
+    text-align: center;
+    padding: 1rem 0;
+}
 
 /* Phase 96 — Card heading (matches PROJECT PLAN card style) */
 .proposal-card-heading {
