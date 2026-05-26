@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 004a/b — Dropdown Animation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+    padding: 2rem 1rem 6rem;
+  }
+
+  h1 { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+  .section-label {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 0.75rem;
+  }
+
+  /* ── LAYOUT ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto 2.5rem;
+  }
+  @media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  /* ── MOCK NAV BAR ── */
+  .mock-nav {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    height: 52px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .mock-nav-brand {
+    font-weight: 700; font-size: 0.9375rem; color: #1e293b; letter-spacing: -0.01em;
+  }
+  .mock-nav-right { display: flex; align-items: center; gap: 0.5rem; }
+
+  /* ── BELL BUTTON ── */
+  .bell-btn {
+    position: relative;
+    background: transparent; border: none;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    color: #475569;
+    transition: background 0.1s, color 0.1s;
+  }
+  .bell-btn:hover { background: #f1f5f9; color: #1e293b; }
+  .bell-btn.active { background: #eff6ff; color: #1a73e8; }
+  .bell-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .bell-badge {
+    position: absolute; top: 5px; right: 5px;
+    width: 8px; height: 8px;
+    background: #ef4444; border-radius: 50%;
+    border: 1.5px solid #fff;
+  }
+
+  /* ── DROPDOWN WRAPPER (scroll context + clip boundary) ── */
+  .dropdown-wrap {
+    position: relative;
+    height: 420px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.5rem;
+  }
+  .dropdown-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #cbd5e1;
+    font-size: 0.8125rem;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ── DROPDOWN PANEL (shared structure) ── */
+  .notif-dropdown {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 340px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    overflow: hidden;
+    /* visibility toggled by JS via .open class */
+    pointer-events: none;
+    visibility: hidden;
+  }
+  .notif-dropdown.open {
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  /* ── 004a: slide translateY ── */
+  .anim-slide {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  .anim-slide.open {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── 004b: scale scaleY from top-right ── */
+  .anim-scale {
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: top right;
+  }
+  .anim-scale.open {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  /* ── DROPDOWN INTERNALS ── */
+  .nd-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .nd-title { font-weight: 600; color: #1e293b; font-size: 0.9375rem; }
+  .nd-mark-all {
+    background: transparent; border: none; color: #1a73e8;
+    font-size: 0.8125rem; cursor: pointer; padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+  }
+  .nd-rows { max-height: 310px; overflow-y: auto; }
+  .nd-row {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .nd-row:hover { background: #f8fafc; }
+  .nd-row.unread { background: #eff6ff; }
+  .nd-row.unread:hover { background: #dbeafe; }
+  .nd-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px;
+    flex-shrink: 0; padding-top: 2px;
+  }
+  .nd-badge svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+  .nd-body { flex: 1; min-width: 0; }
+  .nd-msg { font-size: 0.875rem; color: #1e293b; line-height: 1.4; }
+  .nd-time { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+  .nd-read-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem; border-radius: 4px; flex-shrink: 0; font-size: 0.75rem; }
+  .nd-footer { padding: 0.75rem 1rem; border-top: 1px solid #e5e7eb; text-align: center; }
+  .nd-footer a { color: #1a73e8; font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+
+  /* ── CODE COMPARISON ── */
+  .code-compare {
+    max-width: 900px; margin: 0 auto 2rem;
+    background: #1e293b; border-radius: 8px; overflow: hidden;
+  }
+  .code-tabs { display: flex; border-bottom: 1px solid #334155; }
+  .code-tab {
+    padding: 0.6rem 1.25rem; font-size: 0.8125rem; font-weight: 600;
+    color: #94a3b8; cursor: pointer; border: none; background: transparent;
+  }
+  .code-tab.active { color: #e2e8f0; border-bottom: 2px solid #1a73e8; }
+  .code-body { padding: 1.25rem; overflow-x: auto; display: none; }
+  .code-body.active { display: block; }
+  pre { font-family: 'Consolas', 'SF Mono', monospace; font-size: 0.8125rem; color: #e2e8f0; line-height: 1.6; white-space: pre-wrap; }
+  .c-key { color: #7dd3fc; }
+  .c-str { color: #86efac; }
+  .c-cmt { color: #64748b; font-style: italic; }
+  .c-prop { color: #fbbf24; }
+
+  /* ── VERDICT BOX ── */
+  .verdict {
+    max-width: 900px; margin: 0 auto 2rem;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+  }
+  .verdict h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: #1e293b; }
+  .verdict ul { font-size: 0.875rem; color: #475569; line-height: 1.7; padding-left: 1.25rem; }
+  .verdict li { margin-bottom: 0.25rem; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    position: fixed; bottom: 1.5rem; left: 1.5rem;
+    background: #1e293b; color: #e2e8f0;
+    border-radius: 8px; padding: 0.875rem 1.125rem;
+    font-size: 0.8125rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; gap: 0.5rem; z-index: 999;
+    min-width: 220px;
+  }
+  .controls strong { color: #7dd3fc; display: block; margin-bottom: 0.25rem; }
+  .ctrl-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .ctrl-label { color: #94a3b8; white-space: nowrap; min-width: 60px; }
+  .ctrl-btn {
+    padding: 0.3rem 0.75rem; border-radius: 4px; border: 1px solid #475569;
+    background: #334155; color: #e2e8f0; font-size: 0.75rem;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .ctrl-btn:hover { background: #475569; }
+  .ctrl-btn.active { background: #1a73e8; border-color: #1a73e8; }
+
+  /* ── TIMING INDICATOR ── */
+  .timing-badge {
+    display: inline-block;
+    background: #334155; color: #7dd3fc;
+    font-size: 0.75rem; font-family: monospace;
+    padding: 0.15rem 0.5rem; border-radius: 4px;
+    margin-left: auto;
+  }
+</style>
+</head>
+<body>
+
+<div style="max-width:900px;margin:0 auto;">
+  <h1>Spike 004a/b — Dropdown Animation</h1>
+  <p class="subtitle">Given the notification dropdown opens via an <code>.open</code> class, which CSS transition feels better — slide (translateY) or scale (scaleY)?</p>
+</div>
+
+<div class="compare-grid">
+  <!-- 004a: slide -->
+  <div>
+    <div class="section-label">004a — slide: translateY(-12px → 0)</div>
+    <div class="mock-nav">
+      <span class="mock-nav-brand">CLMC Ops</span>
+      <div class="mock-nav-right">
+        <button class="bell-btn" id="bell-a" onclick="toggleDropdown('a')">
+          <svg viewBox="0 0 24 24"><path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+          <span class="bell-badge"></span>
+        </button>
+      </div>
+    </div>
+    <div class="dropdown-wrap">
+      <div class="dropdown-placeholder">click the bell ↗</div>
+      <div class="notif-dropdown anim-slide" id="dd-a">
+        <div class="nd-header">
+          <span class="nd-title">Notifications</span>
+          <button class="nd-mark-all">Mark all read</button>
+        </div>
+        <div class="nd-rows" id="rows-a"></div>
+        <div class="nd-footer"><a href="#">View all notifications</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 004b: scale -->
+  <div>
+    <div class="section-label">004b — scale: scaleY(0 → 1), origin top-right</div>
+    <div class="mock-nav">
+      <span class="mock-nav-brand">CLMC Ops</span>
+      <div class="mock-nav-right">
+        <button class="bell-btn" id="bell-b" onclick="toggleDropdown('b')">
+          <svg viewBox="0 0 24 24"><path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>
+          <span class="bell-badge"></span>
+        </button>
+      </div>
+    </div>
+    <div class="dropdown-wrap">
+      <div class="dropdown-placeholder">click the bell ↗</div>
+      <div class="notif-dropdown anim-scale" id="dd-b">
+        <div class="nd-header">
+          <span class="nd-title">Notifications</span>
+          <button class="nd-mark-all">Mark all read</button>
+        </div>
+        <div class="nd-rows" id="rows-b"></div>
+        <div class="nd-footer"><a href="#">View all notifications</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CODE COMPARISON -->
+<div style="max-width:900px;margin:0 auto 1.5rem;">
+  <div class="section-label">CSS IMPLEMENTATION</div>
+</div>
+<div class="code-compare">
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="showCode('a')">004a — slide (translateY)</button>
+    <button class="code-tab" onclick="showCode('b')">004b — scale (scaleY)</button>
+  </div>
+  <div class="code-body active" id="code-a">
+    <pre><span class="c-cmt">/* ── 004a: slide — translate down from -12px ── */</span>
+
+<span class="c-key">.notif-dropdown</span> {
+  <span class="c-prop">opacity</span>: <span class="c-str">0</span>;
+  <span class="c-prop">transform</span>: <span class="c-str">translateY(-12px)</span>;
+  <span class="c-prop">visibility</span>: <span class="c-str">hidden</span>;
+  <span class="c-prop">pointer-events</span>: <span class="c-str">none</span>;
+  <span class="c-prop">transition</span>: <span class="c-str">transform 200ms ease-out,
+              opacity 200ms ease-out,
+              visibility 0ms 200ms</span>;
+}
+<span class="c-key">.notif-dropdown.open</span> {
+  <span class="c-prop">opacity</span>: <span class="c-str">1</span>;
+  <span class="c-prop">transform</span>: <span class="c-str">translateY(0)</span>;
+  <span class="c-prop">visibility</span>: <span class="c-str">visible</span>;
+  <span class="c-prop">pointer-events</span>: <span class="c-str">auto</span>;
+  <span class="c-prop">transition</span>: <span class="c-str">transform 200ms ease-out,
+              opacity 200ms ease-out,
+              visibility 0ms 0ms</span>;
+}
+
+<span class="c-cmt">/* Pros:
+ - Content reads top-to-bottom as it enters — feels natural
+ - Works regardless of dropdown height
+ - No content squash during animation
+ - -12px offset is subtle — feels "snappy" not "floaty"
+
+ Cons:
+ - Slightly less "originating from the bell" visual metaphor
+ - Same opacity fade on all axes (no focal point) */</span></pre>
+  </div>
+  <div class="code-body" id="code-b">
+    <pre><span class="c-cmt">/* ── 004b: scale — grow from top-right origin ── */</span>
+
+<span class="c-key">.notif-dropdown</span> {
+  <span class="c-prop">opacity</span>: <span class="c-str">0</span>;
+  <span class="c-prop">transform</span>: <span class="c-str">scaleY(0)</span>;
+  <span class="c-prop">transform-origin</span>: <span class="c-str">top right</span>;
+  <span class="c-prop">visibility</span>: <span class="c-str">hidden</span>;
+  <span class="c-prop">pointer-events</span>: <span class="c-str">none</span>;
+  <span class="c-prop">transition</span>: <span class="c-str">transform 200ms ease-out,
+              opacity 200ms ease-out,
+              visibility 0ms 200ms</span>;
+}
+<span class="c-key">.notif-dropdown.open</span> {
+  <span class="c-prop">opacity</span>: <span class="c-str">1</span>;
+  <span class="c-prop">transform</span>: <span class="c-str">scaleY(1)</span>;
+  <span class="c-prop">transform-origin</span>: <span class="c-str">top right</span>;
+  <span class="c-prop">visibility</span>: <span class="c-str">visible</span>;
+  <span class="c-prop">pointer-events</span>: <span class="c-str">auto</span>;
+  <span class="c-prop">transition</span>: <span class="c-str">transform 200ms ease-out,
+              opacity 200ms ease-out,
+              visibility 0ms 0ms</span>;
+}
+
+<span class="c-cmt">/* Pros:
+ - Visually "opens from" the bell button — strong affordance
+ - Familiar pattern (macOS Notification Center, GitHub bell)
+
+ Cons:
+ - scaleY squashes text/rows mid-animation — rows look crushed
+ - scaleY(0) collapses height, then rows "snap" into place
+ - transform-origin: top right works, but top left may look
+   wrong when panel is on the far right edge of a wider page
+ - Content animates distorted (not clean entry) */</span></pre>
+  </div>
+</div>
+
+<!-- VERDICT -->
+<div class="verdict" id="verdict-box">
+  <h3>Observations</h3>
+  <ul>
+    <li><strong>Slide (004a):</strong> Clean, content-respecting entry. Rows appear readable throughout. The -12px offset keeps it subtle — not a long travel distance. Works well with the opacity fade.</li>
+    <li><strong>Scale (004b):</strong> The squash effect on rows during scaleY is visually jarring — rows appear distorted before settling. The "opens from bell" metaphor is nice in theory but the content crush undermines it.</li>
+    <li><strong>scaleY fix exists</strong> — adding <code>transition: transform 150ms, opacity 150ms</code> and a faster duration reduces the squash window, but doesn't eliminate it without also scaling the <em>children</em> inversely (overly complex).</li>
+    <li><strong>Timing:</strong> 150ms feels snappy but abrupt. 250ms feels laggy on repeat opens. 200ms is the sweet spot for this panel size.</li>
+    <li><strong>Easing:</strong> <code>ease-out</code> on open (decelerates to final position) + <code>ease-in</code> on close (accelerates away) = most natural feel. Use duration controls to validate.</li>
+  </ul>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <strong>Controls</strong>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Toggle:</span>
+    <button class="ctrl-btn" onclick="toggleBoth()">both at once</button>
+    <button class="ctrl-btn" onclick="toggleDropdown('a')">004a only</button>
+    <button class="ctrl-btn" onclick="toggleDropdown('b')">004b only</button>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Duration:</span>
+    <button class="ctrl-btn" id="dur-100" onclick="setDuration(100)">100ms</button>
+    <button class="ctrl-btn active" id="dur-200" onclick="setDuration(200)">200ms</button>
+    <button class="ctrl-btn" id="dur-300" onclick="setDuration(300)">300ms</button>
+    <button class="ctrl-btn" id="dur-400" onclick="setDuration(400)">400ms</button>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Easing:</span>
+    <button class="ctrl-btn active" id="ease-easeout" onclick="setEasing('ease-out')">ease-out</button>
+    <button class="ctrl-btn" id="ease-linear" onclick="setEasing('linear')">linear</button>
+    <button class="ctrl-btn" id="ease-spring" onclick="setEasing('cubic-bezier(0.34,1.56,0.64,1)')">spring</button>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Offset A:</span>
+    <button class="ctrl-btn" id="off-6" onclick="setOffset(6)">-6px</button>
+    <button class="ctrl-btn active" id="off-12" onclick="setOffset(12)">-12px</button>
+    <button class="ctrl-btn" id="off-20" onclick="setOffset(20)">-20px</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// DATA: reuse TYPES from spike 003
+// ─────────────────────────────────────────
+const svg = (path) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+
+const ROWS = [
+  { color: '#ef4444', icon: svg('<path d="M6 18L18 6M6 6l12 12"/>'),                                                                              label: 'MRF Rejected',     msg: 'MRF-2026-008 rejected — budget exceeded.',         unread: true  },
+  { color: '#f59e0b', icon: svg('<path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>'),                          label: 'PR Review Needed', msg: 'PR-2026-014 is awaiting your Finance review.',     unread: true  },
+  { color: '#1a73e8', icon: svg('<path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>'),        label: 'Proposal',         msg: 'PROP-2026-009 submitted for internal review.',     unread: true  },
+  { color: '#059669', icon: svg('<path d="M4.5 12.75l6 6 9-13.5"/>'),                                                                              label: 'MRF Approved',     msg: 'MRF-2026-011 approved by Procurement.',            unread: false },
+  { color: '#1a73e8', icon: svg('<path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>'), label: 'Project Status', msg: 'Metro Retail Hub → For Mobilization.', unread: false },
+  { color: '#059669', icon: svg('<path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'),                                        label: 'PR Decision',      msg: 'PR-2026-011 approved. PO generation pending.',     unread: false },
+  { color: '#2563eb', icon: svg('<path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>'), label: 'PO Delivered', msg: 'PO-2026-003 marked Delivered.', unread: false },
+];
+
+function buildRows(containerId) {
+  const html = ROWS.map(r => `
+    <div class="nd-row${r.unread ? ' unread' : ''}">
+      <span class="nd-badge" style="background:${r.color}18;color:${r.color};" title="${r.label}">${r.icon}</span>
+      <div class="nd-body">
+        <div class="nd-msg">${r.msg}</div>
+        <div class="nd-time">${r.label} · ${r.unread ? '5m' : '2h'} ago</div>
+      </div>
+      ${r.unread ? '<button class="nd-read-btn" title="Mark read">✓</button>' : ''}
+    </div>`).join('');
+  document.getElementById(containerId).innerHTML = html;
+}
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let openA = false;
+let openB = false;
+let duration = 200;
+let easing = 'ease-out';
+let offset = 12;
+
+function applyTransitions() {
+  const ddA = document.getElementById('dd-a');
+  const ddB = document.getElementById('dd-b');
+  const t = `transform ${duration}ms ${easing}, opacity ${duration}ms ${easing}, visibility 0ms ${openA ? 0 : duration}ms`;
+  const tB = `transform ${duration}ms ${easing}, opacity ${duration}ms ${easing}, visibility 0ms ${openB ? 0 : duration}ms`;
+  ddA.style.transition = t;
+  ddB.style.transition = tB;
+  // Update slide offset on closed state only
+  if (!openA) {
+    ddA.style.transform = `translateY(-${offset}px)`;
+  }
+}
+
+function toggleDropdown(id) {
+  const dd = document.getElementById(`dd-${id}`);
+  const bell = document.getElementById(`bell-${id}`);
+  const isOpen = dd.classList.contains('open');
+
+  if (id === 'a') {
+    openA = !isOpen;
+    // Set correct transition with closing delay
+    dd.style.transition = `transform ${duration}ms ${easing}, opacity ${duration}ms ${easing}, visibility 0ms ${openA ? 0 : duration}ms`;
+    if (!openA) {
+      // Apply offset before removing .open so it animates back to offset
+      dd.style.transform = `translateY(-${offset}px)`;
+    }
+  } else {
+    openB = !isOpen;
+    dd.style.transition = `transform ${duration}ms ${easing}, opacity ${duration}ms ${easing}, visibility 0ms ${openB ? 0 : duration}ms`;
+  }
+
+  dd.classList.toggle('open', !isOpen);
+  bell.classList.toggle('active', !isOpen);
+
+  if (id === 'a' && !isOpen) {
+    // Once open, make sure transform is cleared for proper animation
+    dd.style.transform = '';
+  }
+}
+
+function toggleBoth() {
+  // Sync state: both open or both close based on current state of A
+  const shouldOpen = !openA;
+  ['a', 'b'].forEach(id => {
+    const dd = document.getElementById(`dd-${id}`);
+    const bell = document.getElementById(`bell-${id}`);
+    const isCurrentlyOpen = dd.classList.contains('open');
+    if (id === 'a') openA = shouldOpen; else openB = shouldOpen;
+    dd.style.transition = `transform ${duration}ms ${easing}, opacity ${duration}ms ${easing}, visibility 0ms ${shouldOpen ? 0 : duration}ms`;
+    if (!shouldOpen && id === 'a') {
+      dd.style.transform = `translateY(-${offset}px)`;
+    }
+    dd.classList.toggle('open', shouldOpen);
+    bell.classList.toggle('active', shouldOpen);
+    if (shouldOpen && id === 'a') dd.style.transform = '';
+  });
+}
+
+function setDuration(d) {
+  duration = d;
+  document.querySelectorAll('[id^="dur-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById(`dur-${d}`)?.classList.add('active');
+}
+
+function setEasing(e) {
+  easing = e;
+  document.querySelectorAll('[id^="ease-"]').forEach(b => b.classList.remove('active'));
+  const key = e === 'ease-out' ? 'easeout' : e === 'linear' ? 'linear' : 'spring';
+  document.getElementById(`ease-${key}`)?.classList.add('active');
+}
+
+function setOffset(o) {
+  offset = o;
+  document.querySelectorAll('[id^="off-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById(`off-${o}`)?.classList.add('active');
+  // Update anim-slide closed-state immediately
+  const ddA = document.getElementById('dd-a');
+  if (!openA) ddA.style.transform = `translateY(-${offset}px)`;
+}
+
+function showCode(tab) {
+  document.querySelectorAll('.code-tab').forEach((t, i) =>
+    t.classList.toggle('active', (i === 0 && tab === 'a') || (i === 1 && tab === 'b')));
+  document.getElementById('code-a').classList.toggle('active', tab === 'a');
+  document.getElementById('code-b').classList.toggle('active', tab === 'b');
+}
+
+// Init
+buildRows('rows-a');
+buildRows('rows-b');
+
+// Set initial closed transform for slide variant
+document.getElementById('dd-a').style.transform = `translateY(-${offset}px)`;
+</script>
+</body>
+</html>

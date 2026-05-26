@@ -1,14 +1,14 @@
 {
   "version": "1.0",
   "timestamp": "2026-05-26T00:00:00.000Z",
-  "phase": "spike-003",
-  "phase_name": "notification-polish",
-  "phase_dir": ".planning/spikes/003-notification-polish",
+  "phase": "spike-notification-polish",
+  "phase_name": "notification-polish — spike series complete",
+  "phase_dir": ".planning/spikes",
   "plan": 0,
-  "task": 3,
+  "task": 5,
   "total_tasks": 5,
   "status": "paused",
-  "stage": "spike-in-progress",
+  "stage": "spike-complete-pending-implementation",
   "completed_tasks": [
     {
       "id": 1,
@@ -27,43 +27,59 @@
       "name": "spike 003a/b: icon set comparison (SVG inline vs symbol)",
       "status": "done",
       "commit": "c95a33c",
-      "verdict": "VALIDATED — 003a inline SVG wins. All 16 types distinct at badge size. Resolved ✓×3, $×3, !×3 icon conflicts. Eliminated emoji (⏳→user-plus, 📦→archive)."
+      "verdict": "VALIDATED — 003a inline SVG wins. All 16 types distinct at badge size."
+    },
+    {
+      "id": 4,
+      "name": "spike 004a/b: dropdown animation comparison (slide-translateY vs scale-scaleY)",
+      "status": "done",
+      "verdict": "VALIDATED — 004a translateY(-12px→0) wins. scaleY squashes row text mid-animation."
+    },
+    {
+      "id": 5,
+      "name": "spike 005: unread row indicator design (left-border accent vs full-block #eff6ff vs dot)",
+      "status": "done",
+      "verdict": "VALIDATED — Variant B wins: 3px #1a73e8 left-border + #f8fbff pale tint. Best signal/interference balance."
     }
   ],
-  "remaining_tasks": [
-    {"id": 4, "name": "spike 004a/b: dropdown animation comparison (slide-translateY vs scale-scaleY)", "status": "not_started"},
-    {"id": 5, "name": "spike 005: unread row indicator design (left-border accent vs full-block #eff6ff)", "status": "not_started"}
-  ],
+  "remaining_tasks": [],
   "blockers": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    "Open .planning/spikes/004-dropdown-animation/spike.html in browser — validate animation feel (especially 004a vs 004b side-by-side). Adjust duration/easing controls to confirm 200ms ease-out.",
+    "Open .planning/spikes/005-unread-indicator/spike.html in browser — validate Variant B (left-border) vs A (full-block) vs C (dot). Confirm border width (3px) and tint (#f8fbff)."
+  ],
   "decisions": [
     {
-      "decision": "Fix double-header bug immediately without spiking",
-      "rationale": "Clear code bug, not a design question",
-      "phase": "spike-003"
-    },
-    {
-      "decision": "DOM-omit mark-read button on read rows (not visibility:hidden)",
-      "rationale": "visibility:hidden was causing dead space in every row",
-      "phase": "spike-003"
-    },
-    {
-      "decision": "Prioritize look spikes before feel/function",
-      "rationale": "User explicitly said 'look first and foremost'",
-      "phase": "spike-003"
-    },
-    {
       "decision": "003a inline SVG wins over 003b symbol defs",
-      "rationale": "Identical visual output; 003a self-contained, no index.html changes needed",
+      "rationale": "Self-contained, no index.html changes needed",
       "phase": "spike-003"
     },
     {
-      "decision": "Heroicons outline set (24x24, stroke-width 1.75, round linecap/linejoin) chosen for all 16 types",
-      "rationale": "Uniform visual weight, resolves all 3 icon conflicts, eliminates emoji, validated at badge size",
+      "decision": "Heroicons outline set (24x24, stroke-width 1.75, round linecap/linejoin) for all 16 types",
+      "rationale": "Uniform visual weight, resolves all icon conflicts, eliminates emoji",
       "phase": "spike-003"
+    },
+    {
+      "decision": "004a slide (translateY -12px→0 + opacity) wins over 004b scaleY",
+      "rationale": "Content readable throughout animation; scaleY squashes text rows",
+      "phase": "spike-004"
+    },
+    {
+      "decision": "200ms ease-out for open, same for close",
+      "rationale": "Snappy without feeling abrupt; validated via duration control",
+      "phase": "spike-004"
+    },
+    {
+      "decision": "Variant B unread indicator: 3px #1a73e8 left-border + #f8fbff tint",
+      "rationale": "Best signal without tinting badge zone; transparent border anchor keeps alignment",
+      "phase": "spike-005"
     }
   ],
-  "uncommitted_files": [],
-  "next_action": "Build spike 004a/b: dropdown animation comparison. Create .planning/spikes/004-dropdown-animation/spike.html with side-by-side slide (translateY) vs scale (scaleY) demo. Then spike 005 unread indicator.",
-  "context_notes": "Spike 003 complete and committed (c95a33c). Icon set fully validated. Next: build 004 animation spike (simple CSS comparison, ~30min) then 005 unread indicator. All spikes use the same mock dropdown HTML pattern from spike 003. Reuse TYPES_SVG_INLINE data from 003 spike for mock rows."
+  "uncommitted_files": [
+    ".planning/spikes/004-dropdown-animation/spike.html",
+    ".planning/spikes/005-unread-indicator/spike.html",
+    ".planning/spikes/MANIFEST.md"
+  ],
+  "next_action": "USER: open both spike HTMLs in browser to validate animation feel and unread indicator variant. Then: /gsd:plan-phase for the notification polish implementation phase (apply all 5 spike decisions to notifications.js + notifications-history view + components.css).",
+  "context_notes": "All 5 spikes complete. Implementation decisions locked: inline SVG icons (003a), translateY slide animation 200ms ease-out (004a), left-border + pale tint unread indicator (005). The double-header bug was fixed inline during spike 003 (commit f44df1e). Ready to plan the implementation phase."
 }
