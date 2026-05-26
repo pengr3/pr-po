@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: "Phase 83.1 COMPLETE + UAT PASSED (2026-05-26). CSS layout fix (WR-01+WR-02) landed post-UAT. Phase closed."
-stopped_at: user moving on (2026-05-26)
-last_updated: "2026-05-26T06:35:42.449Z"
-last_activity: 2026-05-25
+status: "Phase 95 Plan 01 COMPLETE (2026-05-26). TYPE_META+action_required+target_route, 3-line .na-body anatomy, .na-* CSS shipped."
+stopped_at: "Phase 95 Plan 01 complete (2026-05-26)"
+last_updated: "2026-05-26T08:30:00.000Z"
+last_activity: 2026-05-26
 progress:
-  total_phases: 28
-  completed_phases: 24
-  total_plans: 108
-  completed_plans: 104
-  percent: 86
+  total_phases: 29
+  completed_phases: 26
+  total_plans: 106
+  completed_plans: 105
+  percent: 91
 ---
 
 # Project State
@@ -174,12 +174,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 83.1 P02 | ~3 | 2 tasks (1 CSS, 1 verify) | 1 files |
 | Phase 83.1 P03 | ~5 | 2 tasks | 2 files |
 | Phase 83.1 quick/WR-01+WR-02 CSS fix | ~2 | add notif-row-body/content/read-btn CSS, fix unread border-left-color | 1 file |
+| Phase 95 P01 | ~15 | 3 tasks (TYPE_META, renderDropdownRows, .na-* CSS) | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 95-01]: TYPE_META extended with action_required (bool) + target_route (string) on all 16 entries; 5 action_required=true types: PR_REVIEW_NEEDED, TR_REVIEW_NEEDED, RFP_REVIEW_NEEDED, PROPOSAL_SUBMITTED, REGISTRATION_PENDING; createNotification/createNotificationForRoles/createNotificationForUsers all accept object_name='' + actor_name='' optional params; renderDropdownRows replaced with 3-line .na-body anatomy (event+chip+time / source_id·object_name / by ActorName); safeObjName fallback n.object_name||n.message for old docs; handleNotificationClick falls back to TYPE_META[type]?.target_route when stored link absent
 
 - [Phase 83.1-03]: D-03 left-border unread indicator replaces full-block #eff6ff wash; .notif-row--unread gets background: #f8fbff + border-left: 3px solid #1a73e8 + padding-left: calc(1rem - 3px); .notif-row gets border-left: 3px solid transparent as alignment anchor so content never shifts; history page row div inline style trimmed (padding + border-bottom removed) so CSS now owns padding and the calc compensation takes effect on unread rows
 
