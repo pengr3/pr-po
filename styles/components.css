@@ -1932,6 +1932,27 @@ tr:hover {
     background: #dbeafe;
 }
 
+.notif-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.notif-type-badge svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+}
+
 .notif-row-message {
     flex: 1 1 auto;
     font-size: 0.875rem;
