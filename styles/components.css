@@ -2221,31 +2221,29 @@ tr:hover {
     }
 }
 
-/* Phase 87.1 D-05 / Phase 87.3 D-15 — Inline proposal card in project/service detail */
+/* Phase 87.1 D-05 / Phase 87.3 D-15 / Phase 96 — Inline proposal card in project/service detail */
 .proposal-inline-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    padding: 1rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
 }
 .proposal-inline-card--start {
     border: 1.5px dashed #cbd5e1;
     background: #f8fafc;
 }
-.proposal-inline-card__header {
+
+/* Phase 96 — Card heading (matches PROJECT PLAN card style) */
+.proposal-card-heading {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 600;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.72rem;
+    font-weight: 700;
     color: #1e293b;
-}
-.proposal-inline-card__label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
