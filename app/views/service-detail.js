@@ -800,7 +800,9 @@ async function saveServiceField(fieldName, newValue) {
                 message: `Service "${notifServiceName}" status changed to: ${valueToSave}`,
                 link: notifServiceLink,
                 source_collection: 'services',
-                source_id: notifSourceId
+                source_id: notifSourceId,
+                object_name: notifServiceName || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             }).catch(err => console.error('[ServiceDetail] NOTIF-11 notification failed:', err));
         }
         // Phase 84.1 NOTIF-19: notify personnel of meaningful service cost change (D-03: fire-and-forget)
@@ -811,7 +813,9 @@ async function saveServiceField(fieldName, newValue) {
                 message: `Service "${notifServiceName}" ${notifCostFieldLabel} changed: ${notifCostOldDisplay} → ${notifCostNewDisplay}`,
                 link: notifServiceLink,
                 source_collection: 'services',
-                source_id: notifSourceId
+                source_id: notifSourceId,
+                object_name: notifServiceName || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
             }).catch(err => console.error('[ServiceDetail] NOTIF-19 cost-change notification failed:', err));
         }
         return true;

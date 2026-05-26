@@ -841,7 +841,9 @@ async function saveField(fieldName, newValue) {
                     message: `Project "${currentProject.project_name}" status changed to: ${valueToSave}`,
                     link: projectLink,
                     source_collection: 'projects',
-                    source_id: currentProject.project_code || currentProject.id
+                    source_id: currentProject.project_code || currentProject.id,
+                    object_name: currentProject.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 }).catch(err => console.error('[ProjectDetail] NOTIF-11 notification failed:', err));
             }
         }
@@ -862,7 +864,9 @@ async function saveField(fieldName, newValue) {
                     message: `Project "${currentProject.project_name}" ${fieldLabel} changed: ${oldDisplay} → ${newDisplay}`,
                     link: projectLink,
                     source_collection: 'projects',
-                    source_id: currentProject.project_code || currentProject.id
+                    source_id: currentProject.project_code || currentProject.id,
+                    object_name: currentProject.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 }).catch(err => console.error('[ProjectDetail] NOTIF-19 cost-change notification failed:', err));
             }
         }
