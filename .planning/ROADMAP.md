@@ -265,6 +265,18 @@
   - [x] 83-05-PLAN.md � UAT + production deploy + STATE/ROADMAP updates
 **UI hint**: yes
 
+### Phase 83.1: Notification UI Polish — SVG Icons, Dropdown Animation, Unread Indicator (INSERTED)
+
+**Goal**: Apply all 5 spike-validated improvements to the live notification system: replace text/emoji type badges with 16 unique Heroicons inline SVGs, add a `translateY` slide-open animation to the dropdown, replace the full `#eff6ff` unread row tint with a left-border + pale tint indicator, and apply the same row style to the notification history page.
+**Depends on**: Phase 83 (notification system foundation)
+**Requirements**: None mapped (INSERTED UI polish — spike-validated decisions)
+**Plans**: 3 plans
+
+Plans:
+- [ ] 83.1-01-PLAN.md — SVG icons: TYPE_META svg() helper + .notif-type-badge CSS sizing (D-01, D-04)
+- [ ] 83.1-02-PLAN.md — Dropdown animation: translateY slide CSS + bell toggle verification (D-02)
+- [ ] 83.1-03-PLAN.md — Unread row indicator: left-border CSS + history page parity (D-03, D-05)
+
 ### Phase 84: Notification Triggers � Existing Events
 **Goal**: The notification plumbing from Phase 83 fires automatically on the approval, status, and registration events that already exist in the v3.2 system � no proposal events yet.
 **Depends on**: Phase 83
