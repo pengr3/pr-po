@@ -273,7 +273,7 @@
 **Plans**: 3 plans
 
 Plans:
-- [ ] 83.1-01-PLAN.md — SVG icons: TYPE_META svg() helper + .notif-type-badge CSS sizing (D-01, D-04)
+- [x] 83.1-01-PLAN.md — SVG icons: TYPE_META svg() helper + .notif-type-badge CSS sizing (D-01, D-04)
 - [ ] 83.1-02-PLAN.md — Dropdown animation: translateY slide CSS + bell toggle verification (D-02)
 - [ ] 83.1-03-PLAN.md — Unread row indicator: left-border CSS + history page parity (D-03, D-05)
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
-status: "Phase 94 Plan 01 — COMPLETE. ETag HEAD-poll update-check.js + strip banner shipped. SUMMARY at 94-01-SUMMARY.md. Human-verify checkpoint approved. Ready for next phase."
-stopped_at: "Phase 94 Plan 01 complete — awaiting next phase"
-last_updated: "2026-05-25T18:00:00.000Z"
-last_activity: 2026-05-25
+status: "Phase 83.1 — Plan 01 COMPLETE. Wave 1/3 done: SVG icons in TYPE_META + badge CSS shipped. Plans 02 and 03 remain."
+stopped_at: "Phase 83.1 Plan 01 — complete"
+last_updated: "2026-05-26T00:00:00.000Z"
+last_activity: 2026-05-26
 progress:
   total_phases: 28
   completed_phases: 26
   total_plans: 103
-  completed_plans: 102
+  completed_plans: 103
   percent: 91
 ---
 
@@ -170,12 +170,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 87.3 P05 | ~5 | 2 tasks | 2 files |
 | Phase 93.1 P01 | ~3 | 1 task | 1 files |
 | Phase 93.1 P02 | ~10 | 2 tasks | 1 files |
+| Phase 83.1 P01 | ~5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 83.1-01]: svg() helper defined once at module scope (not inline SVG per entry) per D-01 Claude's Discretion; all 16 TYPE_META entries use unique Heroicons outline SVG paths; .notif-type-badge and .notif-type-badge svg CSS rules inserted after .notif-row--unread:hover block in components.css; renderDropdownRows template unchanged (already interpolates meta.icon as raw HTML)
 
 - [Phase 93.2-01]: _loadHomeProposalsTab rewritten as synchronous onSnapshot setup; _proposalListener module-level handle cancelled in destroy() and on re-call (T-93.2-04 duplicate-listener guard); null-mount guard at top of snapshot callback (T-93.2-03); two manual re-fetch calls removed from _openHomeQueueModal and _homeQueueConfirmAction; Client column inserted between Submitted By and Amount (D-06); attachment link in Proposal cell uses escapeHTML + stopPropagation + target=_blank + rel=noopener noreferrer (D-07/T-93.2-01/T-93.2-02)
 
