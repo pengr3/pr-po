@@ -2602,6 +2602,12 @@
 .tg-row.tg-row-not-started { background: #f8fafc; }
 .tg-row.tg-row-not-started:hover { background: #f1f5f9; }
 
+/* Phase 86.11 — milestone row tint (amber) + ◆ prefix */
+/* Double-class selector beats .tg-row.tg-row-overdue etc. when both appear via cascade order */
+.tg-row.tg-row-milestone { background: #fffbeb; box-shadow: inset 3px 0 0 0 #f59e0b; }
+.tg-row.tg-row-milestone:hover { background: #fef3c7; }
+.tg-row.tg-row-milestone .tg-name::before { content: "◆ "; color: #f59e0b; font-size: 0.9em; }
+
 
 .gantt-pane {
     /* Phase 86.9: Absolute overlay — slides left/right over the task-grid-rail like a curtain.

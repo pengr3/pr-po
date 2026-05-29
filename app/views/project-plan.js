@@ -742,6 +742,8 @@ function renderTaskGrid() {
         const contextClass = filterMeta.isContextOnly ? ' tg-row-context' : '';
         // Phase 86.11 Plan 01 — status tinting for leaf rows only; parents are exempt.
         const statusClass = isParent ? '' : (' tg-row-' + computeStatus(t, today));
+        // Phase 86.11 Plan 02 — milestone class appended last so CSS cascade can override status tint.
+        const milestoneClass = t.is_milestone ? ' tg-row-milestone' : '';
 
         const parentLockAttr = isParent ? ' data-parent-locked="1"' : '';
         const parentStyle = isParent ? 'style="color:var(--gray-700,#475569);font-style:italic;"' : '';
@@ -750,7 +752,7 @@ function renderTaskGrid() {
             : '';
 
         return `
-          <tr class="tg-row${contextClass}${statusClass}" data-task-id="${escapeHTML(t.task_id)}">
+          <tr class="tg-row${contextClass}${statusClass}${milestoneClass}" data-task-id="${escapeHTML(t.task_id)}">
             <td class="tg-rn" draggable="true">${rowNum}</td>
             <td class="tg-name" style="padding-left:${indent}px;">
               <div class="tg-name-inner">${collapseToggle}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
