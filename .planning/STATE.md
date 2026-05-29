@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 96 COMPLETE (2026-05-26). All 3 plans done — CSS classes (01), project-detail.js rewrite (02), service-detail.js rewrite (03). D-10 parity achieved.
-stopped_at: Phase 96 Plan 03 complete — phase 96 all plans complete
-last_updated: "2026-05-26T11:30:00.000Z"
-last_activity: 2026-05-26
+status: Phase 86.11 Plan 01 COMPLETE (2026-05-29). computeStatus() helper added, leaf row status tinting wired, CSS rules added for overdue/complete/not-started.
+stopped_at: Phase 86.11 Plan 01 complete — Completed 86.11-01-PLAN.md
+last_updated: "2026-05-29T07:02:49.796Z"
+last_activity: 2026-05-29
 progress:
-  total_phases: 29
-  completed_phases: 27
-  total_plans: 106
+  total_phases: 31
+  completed_phases: 26
+  total_plans: 111
   completed_plans: 105
-  percent: 91
+  percent: 84
 ---
 
 # Project State
@@ -179,12 +179,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 96 P01 | ~8 | 3 tasks (card base, progress track, stat chips — CSS only) | 1 file |
 | Phase 96 P02 | ~12 | 2 tasks (STATUS_META/helpers Task 1, renderInlineProposalCard rewrite Task 2) | 1 file |
 | Phase 96 P03 | ~10 | 2 tasks (STATUS_META/helpers mirror Task 1, renderInlineProposalCard rewrite Task 2) | 1 file |
+| Phase 86.11 P01 | ~2 | 2 tasks (computeStatus helper + row wiring, CSS status tinting rules) | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 86.11-01]: computeStatus(task, today) pure function added at module scope in project-plan.js; isParent guard ensures parent rows never receive status class; today computed once per renderTaskGrid() call; CSS uses inset box-shadow for left accent to avoid layout shift; pre-existing milestoneClass/tg-row-milestone removals captured in commits (Plan 02 prep work already in working tree)
 
 - [Phase 96-03]: STATUS_META/TRACK_NODES/_PROPOSAL_CHECK_SVG mirrored from project-detail.js to service-detail.js; _buildProposalTrack helper added; renderInlineProposalCard fully rewritten matching project-detail.js; _proposalStageLabel/_proposalStatusDotColor removed; renderAgeBadge import removed; empty-state noise gone; all user strings through escapeHTML(); D-10 parity achieved between project-detail.js and service-detail.js
 
@@ -635,7 +638,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-26T11:10:07.520Z
+Last session: 2026-05-29T07:02:49.776Z
 Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.

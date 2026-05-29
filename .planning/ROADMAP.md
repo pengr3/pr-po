@@ -396,10 +396,10 @@ Plans:
 - (3) `computeStatus(task, today)` helper derives: `complete` (progress ≥ 100), `overdue` (end_date < today && progress < 100), `not-started` (start_date > today && progress === 0), `in-progress` (otherwise)
 - (4) Grid rows get CSS class by status: `tg-row-overdue` (red tint #fff5f5 + 3px red left border), `tg-row-complete` (green tint #f0fdf4), `tg-row-not-started` (light gray fill); Gantt bars colored by status (overdue=red, complete=green, in-progress=blue, not-started=gray)
 **Depends on:** Phase 86.10
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
-- [ ] 86.11-01-PLAN.md — computeStatus() helper + grid row status tinting (REQ-86.11-3, REQ-86.11-4) — Wave 1
+- [x] 86.11-01-PLAN.md — computeStatus() helper + grid row status tinting (REQ-86.11-3, REQ-86.11-4) — Wave 1
 - [ ] 86.11-02-PLAN.md — Milestone context menu + amber row tint + ◆ prefix (REQ-86.11-1, REQ-86.11-2) — Wave 2
 - [ ] 86.11-03-PLAN.md — Gantt bar colors by status (REQ-86.11-4) — Wave 3
 
