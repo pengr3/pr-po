@@ -235,7 +235,7 @@
   - [x] 86.9-01-PLAN.md � Curtain divider: rewrite initPanelResize() + CSS from grid to position:absolute overlay; _paneDividerPct var (GANTT-UX-CURTAIN-DIVIDER) � Wave 1 � completed 2026-05-11
   - [x] 86.9-02-PLAN.md � PDF Export: exportGanttPDF() + Export toolbar button + @media print CSS (GANTT-UX-PDF-EXPORT) � Wave 1 � completed 2026-05-11 (UAT approved)
 - [x] **Phase 86.11: Project Plan — Milestone UX + Overdue Status Visual** (INSERTED) — Right-click "Mark as Milestone / Remove Milestone"; amber row tint + ◆ prefix; Gantt diamond bar for milestones; `computeStatus()` helper; row tinting by status (overdue red, complete green, not-started gray); bar colors by status. Pure `project-plan.js` + `views.css` — no new Firestore collections. (completed 2026-05-29)
-- [ ] **Phase 86.12: Project Plan — Baseline Snapshot** (INSERTED) — "Set Baseline" toolbar button snapshots task dates to `projects/{id}/baselines/{id}`; slip summary row (X behind / Y ahead / Z on track); dashed outline + slip badge overlay on Gantt after `gantt.refresh()`; bar colors untouched (owned by Phase 86.11). Firestore Security Rules for `baselines` subcollection.
+- [x] **Phase 86.12: Project Plan — Baseline Snapshot** (INSERTED) — "Set Baseline" toolbar button snapshots task dates to `projects/{id}/baselines/{id}`; slip summary row (X behind / Y ahead / Z on track); dashed outline + slip badge overlay on Gantt after `gantt.refresh()`; bar colors untouched (owned by Phase 86.11). Firestore Security Rules for `baselines` subcollection. (code-complete 2026-05-29, browser UAT pending)
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** � `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred � Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions � completed 2026-05-11
 - [x] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED, REDESIGN) � DONE 2026-05-21. Home page gained Overview | Engagements | Proposals sub-tabs; top-level Proposals nav retired; proposals.js reduced to pure module (2,013 ? 395 lines); proposal modal extracted to app/proposal-modal.js; enriched inline proposal card on project/service detail. UAT approved.
 - [x] **Phase 87.4: Proposal Modal Polish Pass 2 � Attachment-Required Submission, Action Button Colors, Audit Pill Background Fix, PROP-ID/Version Field Decisions** (INSERTED) � completed 2026-05-24, client UAT approved (firestore.rules deploy deferred to merge-to-main). Attachment-gate (3-layer: disabled Submit + hint, handler guard, Firestore rule); Request Revision recolored to `#f59e0b` orange via inline style; dead `<div>v1</div>` Version field removed + grid restructured to 3-column bottom row (Strategy A); root-cause CSS fix in `styles/components.css` � primary triad `display:inline-block` + `width:fit-content` + `white-space:nowrap` (the third property added post-UAT via b70593d after primary fix exposed flex-min-content text-wrap behavior); PROP-ID stays visible in modal H2 (decision-record only, D-06).
@@ -418,7 +418,7 @@ Plans:
 
 Plans:
 - [x] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
-- [ ] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2)
+- [x] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2)
 
 ### Phase 86.8: Gantt UX expansion: arrow right-click to remove predecessor, collapsible parent tasks with drag-parent-moves-children, critical-path highlight, progress percent per bar, task search/filter bar, and keyboard shortcuts (Delete to remove) (INSERTED) ?
 
@@ -851,7 +851,7 @@ These are tracked but explicitly out of scope for v4.0 per the milestone definit
 
 Plans:
 - [x] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
-- [ ] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2) (run /gsd-plan-phase 92.2 to break down)
+- [x] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2)
 
 ### Phase 92.1: Scorecard improvements: color-coded status cards (Loss=Red, Completed=Blue, On-going=Yellow, For Mobilization=Orange, Client Approved=Green) and filter scorecards to match MRF Records user-visibility scope (INSERTED)
 

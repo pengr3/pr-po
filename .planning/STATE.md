@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: "Phase 86.12 Plan 01 complete (2026-05-29). Firestore baselines subcollection rules deployed; saveBaseline()/loadBaseline() data layer wired in project-plan.js; toolbar 'Set Baseline' button present. Plan 02 (visual overlay) is next."
-stopped_at: Phase 86.12 Plan 01 complete — ready for Plan 02 (baseline visual overlay)
-last_updated: "2026-05-29T00:20:00.000Z"
+status: Phase 86.12 Plan 02 complete (2026-05-29). Baseline visual overlay shipped — dateToX/injectBaselineOverlay/renderSlipSummary wired in renderGantt+setGanttZoom; dashed outline rects, slip badge pills, slip summary row. Phase 86.12 code-complete; browser UAT remaining.
+stopped_at: Phase 86.12 Plan 02 complete — ready for browser UAT (set baseline, modify tasks, verify overlay + badges + summary row)
+last_updated: "2026-05-29T00:35:00.000Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 31
-  completed_phases: 27
-  total_plans: 112
-  completed_plans: 109
-  percent: 87
+  completed_phases: 28
+  total_plans: 111
+  completed_plans: 110
+  percent: 90
 ---
 
 # Project State
@@ -183,12 +183,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 86.11 P02 | ~8 | 2 tasks (gridToggleMilestone + context menu, milestoneClass + CSS amber tint) | 2 files |
 | Phase 86.11 P03 | ~5 | 2 tasks (renderGantt statusClassMap + today closure, bar-status CSS fill rules) | 2 files |
 | Phase 86.12 P01 | ~12 | 2 tasks (baselines rules + saveBaseline/loadBaseline data layer) | 2 files |
+| Phase 86.12 P02 | ~15 | 2 tasks (CSS overlay rules + dateToX/injectBaselineOverlay/renderSlipSummary) | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 86.12-02]: Overlay is additive SVG only — never modifies .bar fill, .bar class, or bar-status-* attributes (Phase 86.11 fills remain authoritative); badge positioned at curX2+4px (right of current bar end); on-track tasks (diffDays=0) get dashed outline only, no badge; per-task try/catch prevents one bad date string from aborting rest of overlay; escapeHTML on baseline label in renderSlipSummary innerHTML (T-86.12-05 mitigated)
 
 - [Phase 86.12-01]: baselines subcollection nested inside match /projects/{projectId} with allow update: if false (immutable); label derived from countSnap.size + 1 (sequential Baseline 1, 2, …); loadBaseline() uses orderBy('created_at','desc')+limit(1) for the most-recent-only fetch; saveBaseline() refreshes _baselineData in-memory immediately post-write; _baselineData cleared to null in destroy(); window.saveBaseline deleted in destroy(); toolbar "Set Baseline" button uses plan-export-btn plan-baseline-btn classes for Plan 02 targeting
 
