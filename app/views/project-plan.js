@@ -2116,8 +2116,7 @@ function injectMilestoneDiamonds() {
         diamond.setAttribute('width', size);
         diamond.setAttribute('height', size);
         diamond.setAttribute('rx', '1');
-        diamond.setAttribute('fill', '#ffffff');
-        diamond.setAttribute('fill-opacity', '0.85');
+        diamond.setAttribute('fill', '#f59e0b');
         diamond.setAttribute('transform', `rotate(45, ${cx}, ${cy})`);
         diamond.style.pointerEvents = 'none';
         wrapper.appendChild(diamond);
