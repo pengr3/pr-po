@@ -1933,6 +1933,7 @@ function renderGantt() {
     }
 
     // 3. Build Frappe task array (depth-first to preserve list order)
+    const today = new Date().toISOString().slice(0, 10);
     const frappeTasks = [];
 
     function appendNode(t) {
@@ -1947,6 +1948,12 @@ function renderGantt() {
         let customClass = '';
         if (t.is_milestone) customClass = 'milestone-marker';
         else if (isParent) customClass = 'parent-summary-bar';
+        else {
+            // Phase 86.11 — leaf task bar coloring by status
+            const status = computeStatus(t, today);
+            const statusClassMap = { overdue: 'bar-status-overdue', complete: 'bar-status-complete', 'not-started': 'bar-status-not-started' };
+            customClass = statusClassMap[status] || '';
+        }
 
         // Phase 86.8 Feature 5: parents pass the weighted rollup; leaves pass their own progress.
         // Frappe paints .bar-progress from this number; for parents the visual is suppressed by
