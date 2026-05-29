@@ -2107,7 +2107,7 @@ function injectMilestoneDiamonds() {
         const y = parseFloat(bar.getAttribute('y') || 0);
         const w = parseFloat(bar.getAttribute('width') || 0);
         const h = parseFloat(bar.getAttribute('height') || 20);
-        const cx = x + w / 2;
+        const cx = x;
         const cy = y + h / 2;
         const diamond = document.createElementNS(SVG_NS, 'rect');
         diamond.setAttribute('class', 'milestone-diamond');
