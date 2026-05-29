@@ -1,85 +1,55 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-26T00:00:00.000Z",
-  "phase": "spike-notification-polish",
-  "phase_name": "notification-polish — spike series complete",
-  "phase_dir": ".planning/spikes",
-  "plan": 0,
-  "task": 5,
-  "total_tasks": 5,
+  "timestamp": "2026-05-29T10:25:25Z",
+  "phase": "86.12",
+  "phase_name": "project-plan-baseline-snapshot",
+  "phase_dir": ".planning/phases/86.12-project-plan-baseline-snapshot",
+  "plan": 2,
+  "task": "UAT",
+  "total_tasks": "UAT",
   "status": "paused",
-  "stage": "spike-complete-pending-implementation",
   "completed_tasks": [
+    {"id": 1, "name": "Plan 01 — data layer (saveBaseline, loadBaseline, Firestore rules)", "status": "done", "commit": "62f9ebd"},
+    {"id": 2, "name": "Plan 02 — visual overlay (dateToX, injectBaselineOverlay, renderSlipSummary)", "status": "done", "commit": "62f9ebd"},
+    {"id": 3, "name": "Code review fixes WR-01 + WR-02", "status": "done", "commit": "6a2b685"},
+    {"id": 4, "name": "Verification — 13/13 truths verified", "status": "done", "commit": "af22e19"},
+    {"id": 5, "name": "UAT started — Set Baseline confirmed working in browser", "status": "done", "commit": null}
+  ],
+  "remaining_tasks": [
+    {"id": 6, "name": "Fix UX gap: single-baseline model (overwrite vs accumulate)", "status": "not_started"},
+    {"id": 7, "name": "Fix UX gap: Clear Baseline capability (toggle or separate button)", "status": "not_started"},
+    {"id": 8, "name": "Re-run UAT checks 1–7 after fixes", "status": "not_started"},
+    {"id": 9, "name": "Close phase — commit, update ROADMAP.md", "status": "not_started"}
+  ],
+  "blockers": [
     {
-      "id": 1,
-      "name": "notification system analysis — full read of notifications.js, views/notifications.js, CSS, index.html",
-      "status": "done",
-      "commit": "f44df1e"
-    },
-    {
-      "id": 2,
-      "name": "double-header bug fix (notifications.js renderDropdownRows + index.html footer onclick)",
-      "status": "done",
-      "commit": "f44df1e"
-    },
-    {
-      "id": 3,
-      "name": "spike 003a/b: icon set comparison (SVG inline vs symbol)",
-      "status": "done",
-      "commit": "c95a33c",
-      "verdict": "VALIDATED — 003a inline SVG wins. All 16 types distinct at badge size."
-    },
-    {
-      "id": 4,
-      "name": "spike 004a/b: dropdown animation comparison (slide-translateY vs scale-scaleY)",
-      "status": "done",
-      "verdict": "VALIDATED — 004a translateY(-12px→0) wins. scaleY squashes row text mid-animation."
-    },
-    {
-      "id": 5,
-      "name": "spike 005: unread row indicator design (left-border accent vs full-block #eff6ff vs dot)",
-      "status": "done",
-      "verdict": "VALIDATED — Variant B wins: 3px #1a73e8 left-border + #f8fbff pale tint. Best signal/interference balance."
+      "description": "UX design decision pending: user needs to choose single-baseline vs multi-baseline model and clear-baseline UX pattern",
+      "type": "human_action",
+      "workaround": "Ask user two questions at session start: (1) single overwrite vs multi with selector, (2) toggle button vs separate clear button"
     }
   ],
-  "remaining_tasks": [],
-  "blockers": [],
   "human_actions_pending": [
-    "Open .planning/spikes/004-dropdown-animation/spike.html in browser — validate animation feel (especially 004a vs 004b side-by-side). Adjust duration/easing controls to confirm 200ms ease-out.",
-    "Open .planning/spikes/005-unread-indicator/spike.html in browser — validate Variant B (left-border) vs A (full-block) vs C (dot). Confirm border width (3px) and tint (#f8fbff)."
+    {
+      "action": "Answer two design questions: (1) baseline model — single overwrite vs multi with selector, (2) clear UX — toggle button vs separate button",
+      "context": "UAT revealed clicking 'Set Baseline' twice creates Baseline 2 silently replacing Baseline 1, and there is no way to dismiss the overlay. Fix requires a design decision before implementation.",
+      "blocking": true
+    },
+    {
+      "action": "Re-run UAT checks 1–7 in browser after fixes are implemented",
+      "context": "7 browser-observable items in 86.12-VERIFICATION.md require visual confirmation",
+      "blocking": true
+    }
   ],
   "decisions": [
-    {
-      "decision": "003a inline SVG wins over 003b symbol defs",
-      "rationale": "Self-contained, no index.html changes needed",
-      "phase": "spike-003"
-    },
-    {
-      "decision": "Heroicons outline set (24x24, stroke-width 1.75, round linecap/linejoin) for all 16 types",
-      "rationale": "Uniform visual weight, resolves all icon conflicts, eliminates emoji",
-      "phase": "spike-003"
-    },
-    {
-      "decision": "004a slide (translateY -12px→0 + opacity) wins over 004b scaleY",
-      "rationale": "Content readable throughout animation; scaleY squashes text rows",
-      "phase": "spike-004"
-    },
-    {
-      "decision": "200ms ease-out for open, same for close",
-      "rationale": "Snappy without feeling abrupt; validated via duration control",
-      "phase": "spike-004"
-    },
-    {
-      "decision": "Variant B unread indicator: 3px #1a73e8 left-border + #f8fbff tint",
-      "rationale": "Best signal without tinting badge zone; transparent border anchor keeps alignment",
-      "phase": "spike-005"
-    }
+    {"decision": "Baseline overlay is additive SVG only — never modifies bar fills", "rationale": "Phase 86.11 bar-status colours remain authoritative", "phase": "86.12"},
+    {"decision": "Badge positioned at curX2 + 4px", "rationale": "User sees current position and drift, not baseline position", "phase": "86.12"},
+    {"decision": "WR-01 fix: injectBaselineOverlay called immediately after saveBaseline()", "rationale": "Overlay must render on first save without waiting for next snapshot", "phase": "86.12"},
+    {"decision": "WR-02 fix: dateToX clones gantt.gantt_start", "rationale": "Prevents mutation of Frappe's internal state", "phase": "86.12"}
   ],
   "uncommitted_files": [
-    ".planning/spikes/004-dropdown-animation/spike.html",
-    ".planning/spikes/005-unread-indicator/spike.html",
-    ".planning/spikes/MANIFEST.md"
+    ".planning/phases/86.12-project-plan-baseline-snapshot/.continue-here.md",
+    ".planning/phases/86.12-project-plan-baseline-snapshot/86.12-VERIFICATION.md"
   ],
-  "next_action": "USER: open both spike HTMLs in browser to validate animation feel and unread indicator variant. Then: /gsd:plan-phase for the notification polish implementation phase (apply all 5 spike decisions to notifications.js + notifications-history view + components.css).",
-  "context_notes": "All 5 spikes complete. Implementation decisions locked: inline SVG icons (003a), translateY slide animation 200ms ease-out (004a), left-border + pale tint unread indicator (005). The double-header bug was fixed inline during spike 003 (commit f44df1e). Ready to plan the implementation phase."
+  "next_action": "Ask user two design questions about baseline model and clear UX, then implement fix via /gsd:quick, re-run UAT, close phase",
+  "context_notes": "Phase is code-complete and most UAT checks are likely fine. The two UX gaps are small fixes — single-baseline overwrite is probably 10-20 lines, clear/toggle button is another 10-20 lines. Quick task, just needs design decision first."
 }
