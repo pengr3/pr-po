@@ -2593,9 +2593,14 @@
 /* Three-rule visibility (D-Q6): parents kept around because a descendant matched are greyed. */
 .tg-row.tg-row-context { opacity: 0.55; }
 .tg-row.tg-row-context:hover { opacity: 0.85; }
-.tg-row.tg-row-milestone { background: #fffbeb; }
-.tg-row.tg-row-milestone:hover { background: #fef3c7; }
-.tg-milestone-icon { color: #d97706; font-size: 10px; flex-shrink: 0; pointer-events: none; }
+
+/* Phase 86.11 — row status tinting (overdue, complete, not-started) */
+.tg-row.tg-row-overdue { background: #fff5f5; box-shadow: inset 3px 0 0 0 #ef4444; }
+.tg-row.tg-row-overdue:hover { background: #fee2e2; }
+.tg-row.tg-row-complete { background: #f0fdf4; box-shadow: inset 3px 0 0 0 #059669; }
+.tg-row.tg-row-complete:hover { background: #dcfce7; }
+.tg-row.tg-row-not-started { background: #f8fafc; }
+.tg-row.tg-row-not-started:hover { background: #f1f5f9; }
 
 
 .gantt-pane {
