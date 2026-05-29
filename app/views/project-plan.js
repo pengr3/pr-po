@@ -144,6 +144,7 @@ export function render(activeTab = null, param = null) {
                     <button class="tg-search-clear" title="Clear search" type="button" style="display:none">×</button>
                 </div>
             </div>
+            <div class="baseline-slip-summary" id="baselineSlipSummary" style="display:none"></div>
             <div class="plan-split-pane" id="planSplitPane">
                 <div class="task-grid-rail" id="taskGridRail" aria-label="Task grid">
                     <div class="empty-state"><h3>Loading…</h3></div>
