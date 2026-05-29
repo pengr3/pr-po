@@ -234,6 +234,8 @@
   **Plans:** 2 plans (planned 2026-05-11)
   - [x] 86.9-01-PLAN.md � Curtain divider: rewrite initPanelResize() + CSS from grid to position:absolute overlay; _paneDividerPct var (GANTT-UX-CURTAIN-DIVIDER) � Wave 1 � completed 2026-05-11
   - [x] 86.9-02-PLAN.md � PDF Export: exportGanttPDF() + Export toolbar button + @media print CSS (GANTT-UX-PDF-EXPORT) � Wave 1 � completed 2026-05-11 (UAT approved)
+- [ ] **Phase 86.11: Project Plan — Milestone UX + Overdue Status Visual** (INSERTED) — Right-click "Mark as Milestone / Remove Milestone"; amber row tint + ◆ prefix; Gantt diamond bar for milestones; `computeStatus()` helper; row tinting by status (overdue red, complete green, not-started gray); bar colors by status. Pure `project-plan.js` + `views.css` — no new Firestore collections.
+- [ ] **Phase 86.12: Project Plan — Baseline Snapshot** (INSERTED) — "Set Baseline" toolbar button snapshots task dates to `projects/{id}/baselines/{id}`; slip summary row (X behind / Y ahead / Z on track); dashed outline + slip badge overlay on Gantt after `gantt.refresh()`; bar colors untouched (owned by Phase 86.11). Firestore Security Rules for `baselines` subcollection.
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** � `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred � Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions � completed 2026-05-11
 - [x] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED, REDESIGN) � DONE 2026-05-21. Home page gained Overview | Engagements | Proposals sub-tabs; top-level Proposals nav retired; proposals.js reduced to pure module (2,013 ? 395 lines); proposal modal extracted to app/proposal-modal.js; enriched inline proposal card on project/service detail. UAT approved.
 - [x] **Phase 87.4: Proposal Modal Polish Pass 2 � Attachment-Required Submission, Action Button Colors, Audit Pill Background Fix, PROP-ID/Version Field Decisions** (INSERTED) � completed 2026-05-24, client UAT approved (firestore.rules deploy deferred to merge-to-main). Attachment-gate (3-layer: disabled Submit + hint, handler guard, Firestore rule); Request Revision recolored to `#f59e0b` orange via inline style; dead `<div>v1</div>` Version field removed + grid restructured to 3-column bottom row (Strategy A); root-cause CSS fix in `styles/components.css` � primary triad `display:inline-block` + `width:fit-content` + `white-space:nowrap` (the third property added post-UAT via b70593d after primary fix exposed flex-min-content text-wrap behavior); PROP-ID stays visible in modal H2 (decision-record only, D-06).
@@ -384,6 +386,36 @@ Plans:
 - [x] 86.10-01-PLAN.md � Smart indent inheritance: handleNewRowCommit inherits parent_task_id from row above (REQ-86.10-1) � completed 2026-05-12
 - [x] 86.10-02-PLAN.md � Shift+click multi-select with .tg-multi-selected highlight + handleGroupDrop for group drag (REQ-86.10-2) � completed 2026-05-12
 - [x] 86.10-03-PLAN.md � Group right-click actions (indent/outdent/delete/insert) + Copy/Paste rows via _clipboardTasks (REQ-86.10-3, REQ-86.10-4) � completed 2026-05-12 (UAT defects 1-4 fixed)
+
+### Phase 86.11: Project Plan — Milestone UX + Overdue Status Visual (Spikes 010 + 012) (INSERTED)
+
+**Goal:** Surface milestone and overdue state visually in the project-plan view — no new Firestore collections, pure `project-plan.js` + `views.css` changes.
+**Requirements**:
+- (1) Right-click context menu gains "Mark as Milestone / Remove Milestone" entry (amber); toggling sets `is_milestone: true/false` on the task doc
+- (2) Milestone rows: amber row tint + ◆ prefix prepended to task name in the grid; Gantt bar renders as a diamond shape instead of a rectangle
+- (3) `computeStatus(task, today)` helper derives: `complete` (progress ≥ 100), `overdue` (end_date < today && progress < 100), `not-started` (start_date > today && progress === 0), `in-progress` (otherwise)
+- (4) Grid rows get CSS class by status: `tg-row-overdue` (red tint #fff5f5 + 3px red left border), `tg-row-complete` (green tint #f0fdf4), `tg-row-not-started` (light gray fill); Gantt bars colored by status (overdue=red, complete=green, in-progress=blue, not-started=gray)
+**Depends on:** Phase 86.10
+**Plans:** TBD (run /gsd:plan-phase 86.11 to break down)
+
+Plans:
+- [ ] TBD
+
+### Phase 86.12: Project Plan — Baseline Snapshot (Spike 014) (INSERTED)
+
+**Goal:** Users can save a baseline snapshot of current task dates and see schedule drift (dashed outline + slip badge) overlaid on the live Gantt without disrupting bar-color signals from Phase 86.11.
+**Requirements**:
+- (1) "Set Baseline" toolbar button calls `saveBaseline()` — snapshots all task `start_date`/`end_date` into Firestore `projects/{projectId}/baselines/{baselineId}` with `label`, `created_at`, and `tasks` map
+- (2) `loadBaseline()` called on init — fetches the latest baseline doc and stores in memory; slip state derived at render time
+- (3) Slip summary row above the Gantt: "X behind / Y ahead / Z on track" counts, derived from current `end_date` vs baseline `end` for each task
+- (4) After every `gantt.refresh()`: inject dashed-border outline rects at baseline date ranges + slip badge pills (`+8d` / `−3d`) beside bars with drift; on-track tasks show outline only
+- (5) Bar color NOT changed by baseline overlay — owned by Phase 86.11 status classes
+- (6) Firestore Security Rules: add `baselines` subcollection under `projects` (read: active users; write: PM/Super Admin)
+**Depends on:** Phase 86.11
+**Plans:** TBD (run /gsd:plan-phase 86.12 to break down)
+
+Plans:
+- [ ] TBD
 
 ### Phase 86.8: Gantt UX expansion: arrow right-click to remove predecessor, collapsible parent tasks with drag-parent-moves-children, critical-path highlight, progress percent per bar, task search/filter bar, and keyboard shortcuts (Delete to remove) (INSERTED) ?
 
