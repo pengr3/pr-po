@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 86.11 Plan 01 COMPLETE (2026-05-29). computeStatus() helper added, leaf row status tinting wired, CSS rules added for overdue/complete/not-started.
-stopped_at: Phase 86.11 Plan 01 complete — Completed 86.11-01-PLAN.md
-last_updated: "2026-05-29T07:02:49.796Z"
+status: Phase 86.11 Plan 02 COMPLETE (2026-05-29). gridToggleMilestone added, amber context menu entry wired, tg-row-milestone CSS rules (tint + ◆ prefix) applied.
+stopped_at: Completed 86.11-02-PLAN.md
+last_updated: "2026-05-29T07:20:00.000Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 31
   completed_phases: 26
   total_plans: 111
-  completed_plans: 105
+  completed_plans: 107
   percent: 84
 ---
 
@@ -188,6 +188,8 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
 - [Phase 86.11-01]: computeStatus(task, today) pure function added at module scope in project-plan.js; isParent guard ensures parent rows never receive status class; today computed once per renderTaskGrid() call; CSS uses inset box-shadow for left accent to avoid layout shift; pre-existing milestoneClass/tg-row-milestone removals captured in commits (Plan 02 prep work already in working tree)
+
+- [Phase 86.11-02]: gridToggleMilestone async function toggles is_milestone via Firestore updateDoc + optimistic local patch; window-registered in init() + deleted in destroy(); milestoneClass appended LAST on <tr> class string so cascade order (milestone rules after status rules in CSS) handles amber override of overdue/complete/not-started tints without !important; ::before on .tg-name td inserts ◆ symbol purely decoratively without touching Firestore name value; context menu milestone entry in single-task branch only
 
 - [Phase 96-03]: STATUS_META/TRACK_NODES/_PROPOSAL_CHECK_SVG mirrored from project-detail.js to service-detail.js; _buildProposalTrack helper added; renderInlineProposalCard fully rewritten matching project-detail.js; _proposalStageLabel/_proposalStatusDotColor removed; renderAgeBadge import removed; empty-state noise gone; all user strings through escapeHTML(); D-10 parity achieved between project-detail.js and service-detail.js
 
