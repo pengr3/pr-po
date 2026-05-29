@@ -2883,7 +2883,7 @@ function ganttXPerDay() {
 function dateToX(dateStr) {
     if (!gantt || !dateStr) return 0;
     try {
-        const anchor = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
+        const anchor = new Date(gantt.gantt_start instanceof Date ? gantt.gantt_start.getTime() : gantt.gantt_start);
         anchor.setHours(0, 0, 0, 0);
         const d = new Date(dateStr + 'T00:00:00');
         d.setHours(0, 0, 0, 0);
@@ -3058,8 +3058,11 @@ async function saveBaseline() {
             created_at: serverTimestamp(),
             tasks: tasksMap
         });
-        // Refresh in-memory baseline
+        // Refresh in-memory baseline and re-render overlay immediately (WR-01: baselines write
+        // does not trigger project_tasks snapshot, so overlay must be pushed manually)
         await loadBaseline();
+        injectBaselineOverlay();
+        renderSlipSummary();
         showToast(`Baseline "${label}" saved`, 'success');
     } catch (e) {
         console.error('[Plan] saveBaseline error:', e);
