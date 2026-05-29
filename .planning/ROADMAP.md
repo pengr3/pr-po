@@ -234,7 +234,7 @@
   **Plans:** 2 plans (planned 2026-05-11)
   - [x] 86.9-01-PLAN.md � Curtain divider: rewrite initPanelResize() + CSS from grid to position:absolute overlay; _paneDividerPct var (GANTT-UX-CURTAIN-DIVIDER) � Wave 1 � completed 2026-05-11
   - [x] 86.9-02-PLAN.md � PDF Export: exportGanttPDF() + Export toolbar button + @media print CSS (GANTT-UX-PDF-EXPORT) � Wave 1 � completed 2026-05-11 (UAT approved)
-- [ ] **Phase 86.11: Project Plan — Milestone UX + Overdue Status Visual** (INSERTED) — Right-click "Mark as Milestone / Remove Milestone"; amber row tint + ◆ prefix; Gantt diamond bar for milestones; `computeStatus()` helper; row tinting by status (overdue red, complete green, not-started gray); bar colors by status. Pure `project-plan.js` + `views.css` — no new Firestore collections.
+- [x] **Phase 86.11: Project Plan — Milestone UX + Overdue Status Visual** (INSERTED) — Right-click "Mark as Milestone / Remove Milestone"; amber row tint + ◆ prefix; Gantt diamond bar for milestones; `computeStatus()` helper; row tinting by status (overdue red, complete green, not-started gray); bar colors by status. Pure `project-plan.js` + `views.css` — no new Firestore collections. (completed 2026-05-29)
 - [ ] **Phase 86.12: Project Plan — Baseline Snapshot** (INSERTED) — "Set Baseline" toolbar button snapshots task dates to `projects/{id}/baselines/{id}`; slip summary row (X behind / Y ahead / Z on track); dashed outline + slip badge overlay on Gantt after `gantt.refresh()`; bar colors untouched (owned by Phase 86.11). Firestore Security Rules for `baselines` subcollection.
 - [x] **Phase 87: Proposal Lifecycle (with proposal-event notifications)** � `proposals` collection, internal approval workflow + audit trail, link-only attachment (Firebase Storage deferred � Blaze upgrade required), client communication log, proposal-event notifications (NOTIF-09, NOTIF-10), proposal-driven project-status transitions � completed 2026-05-11
 - [x] **Phase 87.1: Proposal Lifecycle Integration** (INSERTED, REDESIGN) � DONE 2026-05-21. Home page gained Overview | Engagements | Proposals sub-tabs; top-level Proposals nav retired; proposals.js reduced to pure module (2,013 ? 395 lines); proposal modal extracted to app/proposal-modal.js; enriched inline proposal card on project/service detail. UAT approved.
@@ -396,12 +396,12 @@ Plans:
 - (3) `computeStatus(task, today)` helper derives: `complete` (progress ≥ 100), `overdue` (end_date < today && progress < 100), `not-started` (start_date > today && progress === 0), `in-progress` (otherwise)
 - (4) Grid rows get CSS class by status: `tg-row-overdue` (red tint #fff5f5 + 3px red left border), `tg-row-complete` (green tint #f0fdf4), `tg-row-not-started` (light gray fill); Gantt bars colored by status (overdue=red, complete=green, in-progress=blue, not-started=gray)
 **Depends on:** Phase 86.10
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 86.11-01-PLAN.md — computeStatus() helper + grid row status tinting (REQ-86.11-3, REQ-86.11-4) — Wave 1
 - [x] 86.11-02-PLAN.md — Milestone context menu + amber row tint + ◆ prefix (REQ-86.11-1, REQ-86.11-2) — Wave 2
-- [ ] 86.11-03-PLAN.md — Gantt bar colors by status (REQ-86.11-4) — Wave 3
+- [x] 86.11-03-PLAN.md — Gantt bar colors by status (REQ-86.11-4) — Wave 3
 
 ### Phase 86.12: Project Plan — Baseline Snapshot (Spike 014) (INSERTED)
 

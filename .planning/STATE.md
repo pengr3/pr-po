@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 86.11 Plan 02 COMPLETE (2026-05-29). gridToggleMilestone added, amber context menu entry wired, tg-row-milestone CSS rules (tint + ◆ prefix) applied.
-stopped_at: Completed 86.11-02-PLAN.md
-last_updated: "2026-05-29T07:20:00.000Z"
+status: Phase 86.11 Plan 03 COMPLETE (2026-05-29). Gantt bar status fill colors added — overdue=red, complete=green, not-started=gray; today computed once in renderGantt() via closure; computeStatus() reused from Plan 01. Full REQ-86.11-4 satisfied.
+stopped_at: Completed 86.11-03-PLAN.md
+last_updated: "2026-05-29T07:30:00.000Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 31
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 111
-  completed_plans: 107
-  percent: 84
+  completed_plans: 108
+  percent: 87
 ---
 
 # Project State
@@ -190,6 +190,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 86.11-01]: computeStatus(task, today) pure function added at module scope in project-plan.js; isParent guard ensures parent rows never receive status class; today computed once per renderTaskGrid() call; CSS uses inset box-shadow for left accent to avoid layout shift; pre-existing milestoneClass/tg-row-milestone removals captured in commits (Plan 02 prep work already in working tree)
 
 - [Phase 86.11-02]: gridToggleMilestone async function toggles is_milestone via Firestore updateDoc + optimistic local patch; window-registered in init() + deleted in destroy(); milestoneClass appended LAST on <tr> class string so cascade order (milestone rules after status rules in CSS) handles amber override of overdue/complete/not-started tints without !important; ::before on .tg-name td inserts ◆ symbol purely decoratively without touching Firestore name value; context menu milestone entry in single-task branch only
+
+- [Phase 86.11-03]: today computed once in renderGantt() before frappeTasks (closure, not per-task) — consistent with Plan 01 pattern in renderTaskGrid(); else branch after isParent guard so milestone+parent short-circuit first; statusClassMap object lookup maps overdue/complete/not-started to bar-status-* CSS classes; in-progress maps to '' so Frappe default blue (#3b82f6) applies; no bar-status-in-progress rule added; computeStatus() reused from Plan 01 with zero duplication
 
 - [Phase 96-03]: STATUS_META/TRACK_NODES/_PROPOSAL_CHECK_SVG mirrored from project-detail.js to service-detail.js; _buildProposalTrack helper added; renderInlineProposalCard fully rewritten matching project-detail.js; _proposalStageLabel/_proposalStatusDotColor removed; renderAgeBadge import removed; empty-state noise gone; all user strings through escapeHTML(); D-10 parity achieved between project-detail.js and service-detail.js
 
@@ -640,7 +642,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-29T07:02:49.776Z
+Last session: 2026-05-29T07:08:31.200Z
 Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
