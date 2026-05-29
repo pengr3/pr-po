@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.0
-milestone_name: Procurement ? Full Management Portal
-status: Phase 86.11 Plan 03 COMPLETE (2026-05-29). Gantt bar status fill colors added — overdue=red, complete=green, not-started=gray; today computed once in renderGantt() via closure; computeStatus() reused from Plan 01. Full REQ-86.11-4 satisfied.
-stopped_at: Completed 86.11-03-PLAN.md
-last_updated: "2026-05-29T07:30:00.000Z"
+milestone_name: Procurement — Full Management Portal
+status: Phase 86.11 VERIFIED (2026-05-29). All 13 must-haves verified; 4 human UAT checks pending (row tinting visuals, milestone context menu, amber override, Gantt bar colors). ROADMAP already marks 86.11 [x] complete. Next phase: 86.12 (Baseline Snapshot) or other queued work.
+stopped_at: Phase 86.11 VERIFICATION complete — awaiting browser UAT
+last_updated: "2026-05-29T07:45:00.000Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 31
-  completed_phases: 27
+  completed_phases: 28
   total_plans: 111
-  completed_plans: 108
-  percent: 87
+  completed_plans: 111
+  percent: 90
 ---
 
 # Project State
@@ -180,6 +180,8 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 96 P02 | ~12 | 2 tasks (STATUS_META/helpers Task 1, renderInlineProposalCard rewrite Task 2) | 1 file |
 | Phase 96 P03 | ~10 | 2 tasks (STATUS_META/helpers mirror Task 1, renderInlineProposalCard rewrite Task 2) | 1 file |
 | Phase 86.11 P01 | ~2 | 2 tasks (computeStatus helper + row wiring, CSS status tinting rules) | 2 files |
+| Phase 86.11 P02 | ~8 | 2 tasks (gridToggleMilestone + context menu, milestoneClass + CSS amber tint) | 2 files |
+| Phase 86.11 P03 | ~5 | 2 tasks (renderGantt statusClassMap + today closure, bar-status CSS fill rules) | 2 files |
 
 ## Accumulated Context
 
