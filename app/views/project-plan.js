@@ -2091,6 +2091,35 @@ function renderGantt() {
 
     // 11. Phase 86.7 — re-attach bar drag guard (Frappe rebuilds SVG on every refresh)
     mountGanttBarDragGuard();
+
+    // 12. CSS ::before doesn't work on SVG <g> elements — inject diamond as native SVG rect
+    injectMilestoneDiamonds();
+}
+
+function injectMilestoneDiamonds() {
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const size = 14;
+    document.querySelectorAll('#ganttPane .bar-wrapper.milestone-marker').forEach(wrapper => {
+        wrapper.querySelector('.milestone-diamond')?.remove();
+        const bar = wrapper.querySelector('.bar');
+        if (!bar) return;
+        const x = parseFloat(bar.getAttribute('x') || 0);
+        const y = parseFloat(bar.getAttribute('y') || 0);
+        const h = parseFloat(bar.getAttribute('height') || 20);
+        const cx = x;
+        const cy = y + h / 2;
+        const diamond = document.createElementNS(SVG_NS, 'rect');
+        diamond.setAttribute('class', 'milestone-diamond');
+        diamond.setAttribute('x', cx - size / 2);
+        diamond.setAttribute('y', cy - size / 2);
+        diamond.setAttribute('width', size);
+        diamond.setAttribute('height', size);
+        diamond.setAttribute('rx', '2');
+        diamond.setAttribute('fill', '#f59e0b');
+        diamond.setAttribute('transform', `rotate(45, ${cx}, ${cy})`);
+        diamond.style.pointerEvents = 'none';
+        wrapper.appendChild(diamond);
+    });
 }
 
 function mountGanttBarDragGuard() {
