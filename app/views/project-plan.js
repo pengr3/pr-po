@@ -248,6 +248,8 @@ export async function init(activeTab = null, param = null) {
         window.gridGroupIndent = gridGroupIndent;
         window.gridGroupOutdent = gridGroupOutdent;
         window.gridGroupDelete = gridGroupDelete;
+        // Phase 86.11 Plan 02: milestone toggle
+        window.gridToggleMilestone = gridToggleMilestone;
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -484,6 +486,8 @@ export async function destroy() {
     delete window.gridGroupOutdent;
     delete window.gridGroupDelete;
     _clipboardTasks = [];
+    // Phase 86.11 Plan 02: milestone toggle cleanup
+    delete window.gridToggleMilestone;
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -1329,6 +1333,12 @@ function showTaskContextMenu(event, taskId) {
                  ${hasPaste ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
                  onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridPasteRows('${escapeHTML(taskId)}')"` : ''}>
                 Paste
+            </div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#f59e0b;"
+                 onmouseenter="this.style.background='#fffbeb'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridToggleMilestone('${escapeHTML(taskId)}')">
+                ${t.is_milestone ? 'Remove Milestone' : 'Mark as Milestone'}
             </div>
         `;
     }
@@ -3610,5 +3620,27 @@ async function editTaskProgress(taskId, valueRaw) {
             showToast('Could not save task. Please try again.', 'error');
         }
         renderGantt(); // revert UI to last-known-good
+    }
+}
+
+// ---- Phase 86.11 Plan 02 — milestone toggle ----
+
+async function gridToggleMilestone(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    const newVal = !t.is_milestone;
+    try {
+        await updateDoc(doc(db, 'project_tasks', taskId), {
+            is_milestone: newVal,
+            updated_at: serverTimestamp()
+        });
+        // Optimistic local patch — onSnapshot will confirm/correct
+        const i = tasks.findIndex(x => x.task_id === taskId);
+        if (i >= 0) tasks[i] = { ...tasks[i], is_milestone: newVal };
+    } catch (err) {
+        console.error('[ProjectPlan] gridToggleMilestone failed:', err);
+        showToast(err?.code === 'permission-denied'
+            ? `You don't have permission to change milestone status on this project.`
+            : 'Could not update milestone. Please try again.', 'error');
     }
 }
