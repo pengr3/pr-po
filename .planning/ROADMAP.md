@@ -417,7 +417,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
+- [x] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
 - [ ] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2)
 
 ### Phase 86.8: Gantt UX expansion: arrow right-click to remove predecessor, collapsible parent tasks with drag-parent-moves-children, critical-path highlight, progress percent per bar, task search/filter bar, and keyboard shortcuts (Delete to remove) (INSERTED) ?
@@ -850,7 +850,7 @@ These are tracked but explicitly out of scope for v4.0 per the milestone definit
 **Plans:** 0 plans
 
 Plans:
-- [ ] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
+- [x] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
 - [ ] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2) (run /gsd-plan-phase 92.2 to break down)
 
 ### Phase 92.1: Scorecard improvements: color-coded status cards (Loss=Red, Completed=Blue, On-going=Yellow, For Mobilization=Orange, Client Approved=Green) and filter scorecards to match MRF Records user-visibility scope (INSERTED)

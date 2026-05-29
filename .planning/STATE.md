@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 86.11 VERIFIED (2026-05-29). All 13 must-haves verified; 4 human UAT checks pending (row tinting visuals, milestone context menu, amber override, Gantt bar colors). ROADMAP already marks 86.11 [x] complete. Next phase: 86.12 (Baseline Snapshot) or other queued work.
-stopped_at: Phase 86.11 VERIFICATION complete — awaiting browser UAT
-last_updated: "2026-05-29T07:45:00.000Z"
+status: "Phase 86.12 Plan 01 complete (2026-05-29). Firestore baselines subcollection rules deployed; saveBaseline()/loadBaseline() data layer wired in project-plan.js; toolbar 'Set Baseline' button present. Plan 02 (visual overlay) is next."
+stopped_at: Phase 86.12 Plan 01 complete — ready for Plan 02 (baseline visual overlay)
+last_updated: "2026-05-29T00:20:00.000Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 31
-  completed_phases: 28
-  total_plans: 111
-  completed_plans: 111
-  percent: 90
+  completed_phases: 27
+  total_plans: 112
+  completed_plans: 109
+  percent: 87
 ---
 
 # Project State
@@ -182,12 +182,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 86.11 P01 | ~2 | 2 tasks (computeStatus helper + row wiring, CSS status tinting rules) | 2 files |
 | Phase 86.11 P02 | ~8 | 2 tasks (gridToggleMilestone + context menu, milestoneClass + CSS amber tint) | 2 files |
 | Phase 86.11 P03 | ~5 | 2 tasks (renderGantt statusClassMap + today closure, bar-status CSS fill rules) | 2 files |
+| Phase 86.12 P01 | ~12 | 2 tasks (baselines rules + saveBaseline/loadBaseline data layer) | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 86.12-01]: baselines subcollection nested inside match /projects/{projectId} with allow update: if false (immutable); label derived from countSnap.size + 1 (sequential Baseline 1, 2, …); loadBaseline() uses orderBy('created_at','desc')+limit(1) for the most-recent-only fetch; saveBaseline() refreshes _baselineData in-memory immediately post-write; _baselineData cleared to null in destroy(); window.saveBaseline deleted in destroy(); toolbar "Set Baseline" button uses plan-export-btn plan-baseline-btn classes for Plan 02 targeting
 
 - [Phase 86.11-01]: computeStatus(task, today) pure function added at module scope in project-plan.js; isParent guard ensures parent rows never receive status class; today computed once per renderTaskGrid() call; CSS uses inset box-shadow for left accent to avoid layout shift; pre-existing milestoneClass/tg-row-milestone removals captured in commits (Plan 02 prep work already in working tree)
 
