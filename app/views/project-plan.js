@@ -1336,12 +1336,12 @@ function showTaskContextMenu(event, taskId) {
                  onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridPasteRows('${escapeHTML(taskId)}')"` : ''}>
                 Paste
             </div>
-            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            ${!hasChildren ? `<div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
             <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#f59e0b;"
                  onmouseenter="this.style.background='#fffbeb'" onmouseleave="this.style.background='transparent'"
                  onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridToggleMilestone('${escapeHTML(taskId)}')">
                 ${t.is_milestone ? 'Remove Milestone' : 'Mark as Milestone'}
-            </div>
+            </div>` : ''}
         `;
     }
 
@@ -1946,8 +1946,8 @@ function renderGantt() {
         // Frappe deps must be a comma-joined string of task ids; null/empty array → ''
         const depsArr = Array.isArray(t.dependencies) ? t.dependencies : [];
         let customClass = '';
-        if (t.is_milestone) customClass = 'milestone-marker';
-        else if (isParent) customClass = 'parent-summary-bar';
+        if (isParent) customClass = 'parent-summary-bar';
+        else if (t.is_milestone) customClass = 'milestone-marker';
         else {
             // Phase 86.11 — leaf task bar coloring by status
             const status = computeStatus(t, today);
