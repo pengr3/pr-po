@@ -248,6 +248,8 @@ export async function init(activeTab = null, param = null) {
         window.gridGroupIndent = gridGroupIndent;
         window.gridGroupOutdent = gridGroupOutdent;
         window.gridGroupDelete = gridGroupDelete;
+        window.gridToggleMilestone = gridToggleMilestone;
+        window.gridGroupToggleMilestone = gridGroupToggleMilestone;
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -483,6 +485,8 @@ export async function destroy() {
     delete window.gridGroupIndent;
     delete window.gridGroupOutdent;
     delete window.gridGroupDelete;
+    delete window.gridToggleMilestone;
+    delete window.gridGroupToggleMilestone;
     _clipboardTasks = [];
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
@@ -741,12 +745,14 @@ function renderTaskGrid() {
         const collapseToggle = isParent
             ? `<span class="tg-collapse-toggle" data-task-id="${escapeHTML(t.task_id)}" data-collapsed="${_collapsedParents.has(t.task_id) ? '1' : '0'}">▼</span>`
             : '';
+        const milestoneClass = t.is_milestone ? ' tg-row-milestone' : '';
+        const milestoneIcon = t.is_milestone ? '<span class="tg-milestone-icon" title="Milestone">◆</span>' : '';
 
         return `
-          <tr class="tg-row${contextClass}" data-task-id="${escapeHTML(t.task_id)}">
+          <tr class="tg-row${contextClass}${milestoneClass}" data-task-id="${escapeHTML(t.task_id)}">
             <td class="tg-rn" draggable="true">${rowNum}</td>
             <td class="tg-name" style="padding-left:${indent}px;">
-              <div class="tg-name-inner">${collapseToggle}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
+              <div class="tg-name-inner">${collapseToggle}${milestoneIcon}<input class="tg-input tg-name-input" value="${escapeHTML(t.name || '')}" data-col="name"
                      data-task-id="${escapeHTML(t.task_id)}"></div>
             </td>
             <td class="tg-dur"${parentLockAttr}>
@@ -1233,6 +1239,13 @@ function showTaskContextMenu(event, taskId) {
 
         menu.innerHTML = `
             <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${_selectedRowIds.size} tasks selected</div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#d97706;"
+                 onmouseenter="this.style.background='#fffbeb'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridGroupToggleMilestone('${selectedIdsJson}')">
+                ◆ Toggle Milestone
+            </div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
             <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
                  onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
                  onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridGroupIndent('${selectedIdsJson}')">
@@ -1285,6 +1298,13 @@ function showTaskContextMenu(event, taskId) {
 
         menu.innerHTML = `
             <div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(t.name || taskId)}</div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#d97706;"
+                 onmouseenter="this.style.background='#fffbeb'" onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridToggleMilestone('${escapeHTML(taskId)}')">
+                ◆ ${t.is_milestone ? 'Remove Milestone' : 'Mark as Milestone'}
+            </div>
+            <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
             <div style="padding:8px 16px;cursor:${canIndent ? 'pointer' : 'not-allowed'};font-size:0.875rem;color:${canIndent ? '#1e293b' : '#9ca3af'};"
                  ${canIndent ? `onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='transparent'"
                  onclick="document.getElementById('taskGridContextMenu')?.remove(); window.gridIndentTask('${escapeHTML(taskId)}')"` : ''}>
@@ -1493,6 +1513,20 @@ function showDeleteConfirmModal(taskId, childCount) {
     modal.querySelector('#planDeleteNo').addEventListener('click', () => modal.remove());
     modal.querySelector('#planDeleteYes').addEventListener('click', () => { modal.remove(); deleteTaskNow(taskId); });
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+async function gridToggleMilestone(taskId) {
+    const t = tasks.find(x => x.task_id === taskId);
+    if (!t) return;
+    const newVal = !t.is_milestone;
+    await updateDoc(doc(db, 'project_tasks', taskId), { is_milestone: newVal, updated_at: serverTimestamp() });
+    showToast(newVal ? 'Marked as milestone' : 'Milestone removed', 'success');
+}
+
+async function gridGroupToggleMilestone(taskIdsJson) {
+    const ids = JSON.parse(taskIdsJson);
+    if (!ids.length) return;
+    await Promise.all(ids.map(id => gridToggleMilestone(id)));
 }
 
 // ---- Phase 86.10 Plan 03: Copy/Paste + Group operations ----

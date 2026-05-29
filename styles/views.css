@@ -2593,6 +2593,9 @@
 /* Three-rule visibility (D-Q6): parents kept around because a descendant matched are greyed. */
 .tg-row.tg-row-context { opacity: 0.55; }
 .tg-row.tg-row-context:hover { opacity: 0.85; }
+.tg-row.tg-row-milestone { background: #fffbeb; }
+.tg-row.tg-row-milestone:hover { background: #fef3c7; }
+.tg-milestone-icon { color: #d97706; font-size: 10px; flex-shrink: 0; pointer-events: none; }
 
 
 .gantt-pane {
