@@ -414,10 +414,11 @@ Plans:
 - (5) Bar color NOT changed by baseline overlay — owned by Phase 86.11 status classes
 - (6) Firestore Security Rules: add `baselines` subcollection under `projects` (read: active users; write: PM/Super Admin)
 **Depends on:** Phase 86.11
-**Plans:** TBD (run /gsd:plan-phase 86.12 to break down)
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD
+- [ ] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
+- [ ] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2)
 
 ### Phase 86.8: Gantt UX expansion: arrow right-click to remove predecessor, collapsible parent tasks with drag-parent-moves-children, critical-path highlight, progress percent per bar, task search/filter bar, and keyboard shortcuts (Delete to remove) (INSERTED) ?
 
@@ -849,7 +850,8 @@ These are tracked but explicitly out of scope for v4.0 per the milestone definit
 **Plans:** 0 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 92.2 to break down)
+- [ ] 86.12-01-PLAN.md — Security rules + data layer + toolbar button (Wave 1)
+- [ ] 86.12-02-PLAN.md — Visual overlay + slip summary + CSS (Wave 2) (run /gsd-plan-phase 92.2 to break down)
 
 ### Phase 92.1: Scorecard improvements: color-coded status cards (Loss=Red, Completed=Blue, On-going=Yellow, For Mobilization=Orange, Client Approved=Green) and filter scorecards to match MRF Records user-visibility scope (INSERTED)
 
