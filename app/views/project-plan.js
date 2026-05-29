@@ -2084,6 +2084,10 @@ function renderGantt() {
     // Runs AFTER tagArrowsWithFromTo (5b) so arrow data-from/data-to is fresh.
     applyCriticalPathStyles();
 
+    // Phase 86.12: baseline overlay — dashed outline rects, slip badge pills, summary row
+    injectBaselineOverlay();
+    renderSlipSummary();
+
     // 6. Today line + one-shot scroll-to-today
     renderTodayLine();
     if (!__ganttInitialScrollDone) {
@@ -2484,6 +2488,9 @@ function setGanttZoom(mode) {
     mountGanttArrowClickSelect();
     // Phase 86.8 Feature 4: re-apply critical-path highlight (Frappe rebuilds SVG on zoom).
     applyCriticalPathStyles();
+    // Phase 86.12: re-apply baseline overlay after Frappe SVG rebuild on zoom change
+    injectBaselineOverlay();
+    renderSlipSummary();
 }
 
 function handleGanttDateChange(task, start, end) {
@@ -2868,6 +2875,138 @@ function ganttXPerDay() {
     const unitDays = { day: 1, week: 7, month: 30, year: 365 };
     const daysPerColumn = (unitDays[gantt.config.unit] || 1) * (gantt.config.step || 1);
     return (gantt.config.column_width || 45) / daysPerColumn;
+}
+
+// Phase 86.12: Convert a YYYY-MM-DD date string to an SVG x-coordinate.
+// Uses gantt.gantt_start as anchor — same math as renderTodayLine().
+// Returns 0 (fail-open) if gantt is null or dateStr is falsy.
+function dateToX(dateStr) {
+    if (!gantt || !dateStr) return 0;
+    try {
+        const anchor = gantt.gantt_start instanceof Date ? gantt.gantt_start : new Date(gantt.gantt_start);
+        anchor.setHours(0, 0, 0, 0);
+        const d = new Date(dateStr + 'T00:00:00');
+        d.setHours(0, 0, 0, 0);
+        return Math.round((d - anchor) / (1000 * 60 * 60 * 24)) * ganttXPerDay();
+    } catch (e) {
+        return 0;
+    }
+}
+
+// Phase 86.12: Inject dashed outline rects and slip badge pills into the Gantt SVG
+// for each task that has a baseline entry in _baselineData.
+// Bar fill colors (.bar, .bar-status-*) are NOT modified — overlay is additive SVG only.
+function injectBaselineOverlay() {
+    if (!_baselineData || !_baselineData.tasks) return;
+    if (!gantt) return;
+    const ganttSvg = document.querySelector('#ganttPane svg');
+    if (!ganttSvg) return;
+    try {
+        const ns = 'http://www.w3.org/2000/svg';
+        // Remove previous overlay elements before re-injecting
+        ganttSvg.querySelectorAll('.gantt-baseline-outline, .gantt-slip-badge, .gantt-slip-badge-bg').forEach(el => el.remove());
+        for (const task of tasks) {
+            try {
+                const tid = task.task_id;
+                const bl = _baselineData.tasks[tid];
+                if (!bl || !bl.start || !bl.end) continue;
+                const wrapper = ganttSvg.querySelector(`.bar-wrapper[data-id="${CSS.escape(tid)}"]`);
+                if (!wrapper) continue;
+                // Read bar y and height from the inner .bar rect (already rendered by Frappe)
+                const barRect = wrapper.querySelector('.bar');
+                if (!barRect) continue;
+                const barY = parseFloat(barRect.getAttribute('y') || '0');
+                const barH = parseFloat(barRect.getAttribute('height') || '20');
+                // Compute baseline x extents
+                const x1 = dateToX(bl.start);
+                const x2 = dateToX(bl.end);
+                if (x2 <= x1) continue; // degenerate range — skip
+                // Inject dashed outline rect at baseline date range
+                const rect = document.createElementNS(ns, 'rect');
+                rect.setAttribute('class', 'gantt-baseline-outline');
+                rect.setAttribute('x', x1);
+                rect.setAttribute('y', barY);
+                rect.setAttribute('width', x2 - x1);
+                rect.setAttribute('height', barH);
+                rect.setAttribute('rx', '3');
+                ganttSvg.appendChild(rect);
+                // Compute slip badge — compare current end_date vs baseline end
+                if (!task.end_date) continue;
+                const curEnd = new Date(task.end_date + 'T00:00:00');
+                const blEnd  = new Date(bl.end + 'T00:00:00');
+                curEnd.setHours(0, 0, 0, 0);
+                blEnd.setHours(0, 0, 0, 0);
+                const diffDays = Math.round((curEnd - blEnd) / (1000 * 60 * 60 * 24));
+                if (diffDays === 0) continue; // on-track — outline only, no badge
+                // Badge text and color
+                const badgeText  = diffDays > 0 ? `+${diffDays}d` : `${diffDays}d`;
+                const badgeColor = diffDays > 0 ? '#ef4444' : '#059669';
+                const badgeBg    = diffDays > 0 ? '#fee2e2' : '#d1fae5';
+                // Position badge to the right of the current bar's end x (not baseline)
+                const curX2 = dateToX(task.end_date);
+                const bx = curX2 + 4;
+                const by = barY + barH / 2;
+                // Background rect
+                const badgeWidth = badgeText.length * 6 + 6;
+                const bg = document.createElementNS(ns, 'rect');
+                bg.setAttribute('class', 'gantt-slip-badge-bg');
+                bg.setAttribute('x', bx);
+                bg.setAttribute('y', by - 8);
+                bg.setAttribute('width', badgeWidth);
+                bg.setAttribute('height', 16);
+                bg.setAttribute('rx', '3');
+                bg.setAttribute('fill', badgeBg);
+                ganttSvg.appendChild(bg);
+                // Text label
+                const text = document.createElementNS(ns, 'text');
+                text.setAttribute('class', 'gantt-slip-badge');
+                text.setAttribute('x', bx + badgeWidth / 2);
+                text.setAttribute('y', by + 4);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('fill', badgeColor);
+                text.textContent = badgeText;
+                ganttSvg.appendChild(text);
+            } catch (e) {
+                // Per-task error — log silently, continue with remaining tasks
+                console.warn('[Plan] injectBaselineOverlay task error:', e);
+            }
+        }
+    } catch (e) {
+        console.error('[Plan] injectBaselineOverlay error:', e);
+    }
+}
+
+// Phase 86.12: Update the #baselineSlipSummary element with behind/ahead/on-track counts.
+// Hides the element when no baseline is loaded.
+function renderSlipSummary() {
+    const el = document.getElementById('baselineSlipSummary');
+    if (!el) return;
+    try {
+        if (!_baselineData || !_baselineData.tasks) {
+            el.style.display = 'none';
+            return;
+        }
+        let behind = 0, ahead = 0, onTrack = 0;
+        for (const task of tasks) {
+            const bl = _baselineData.tasks[task.task_id];
+            if (!bl || !bl.end) continue;
+            if (!task.end_date) continue;
+            const diffDays = Math.round(
+                (new Date(task.end_date + 'T00:00:00') - new Date(bl.end + 'T00:00:00')) / (1000 * 60 * 60 * 24)
+            );
+            if (diffDays > 0) behind++;
+            else if (diffDays < 0) ahead++;
+            else onTrack++;
+        }
+        el.innerHTML = `<span class="slip-behind">${behind} behind</span>
+            <span class="slip-ahead">${ahead} ahead</span>
+            <span class="slip-label">${onTrack} on track</span>
+            <span class="slip-label" style="margin-left:auto;color:#94a3b8;">Baseline: ${escapeHTML(_baselineData.label || '')}</span>`;
+        el.style.display = 'flex';
+    } catch (e) {
+        console.error('[Plan] renderSlipSummary error:', e);
+        el.style.display = 'none';
+    }
 }
 
 // ---- Phase 86.12: Baseline Snapshot ----
