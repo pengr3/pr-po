@@ -2799,6 +2799,11 @@
 /* on the path itself (not the layer group), matching how applyCriticalPathStyles tags it. */
 .gantt-container g.arrow path.critical { stroke: #ef4444; stroke-width: 2; }
 
+/* Phase 86.11 — bar status fills (leaf tasks only; milestone + parent bars untouched) */
+.gantt-container .bar-wrapper.bar-status-overdue .bar { fill: #ef4444; }
+.gantt-container .bar-wrapper.bar-status-complete .bar { fill: #059669; }
+.gantt-container .bar-wrapper.bar-status-not-started .bar { fill: #94a3b8; }
+
 /* Toolbar checkbox for critical-path toggle (sits to the right of the zoom pill group). */
 .plan-toolbar-toggle {
     display: inline-flex;
