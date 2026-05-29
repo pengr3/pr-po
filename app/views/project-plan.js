@@ -4,7 +4,7 @@
    Standalone route #/projects/:code/plan. Projects-only this phase (D-04).
    ======================================== */
 
-import { db, collection, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, serverTimestamp } from '../firebase.js';
+import { db, collection, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, serverTimestamp, orderBy, limit } from '../firebase.js';
 import { formatDate, showLoading, showToast, normalizePersonnel, escapeHTML } from '../utils.js';
 import { generateTaskId } from '../task-id.js';
 
@@ -14,6 +14,7 @@ let projectCode = null;
 let tasks = [];                       // raw task docs from onSnapshot (project-scoped)
 let _pendingOptimistic = new Map();   // Phase 86.5-08: taskId → optimistic task object, awaiting setDoc resolution
 let listeners = [];                   // onSnapshot unsubscribers — destroy() loops this
+let _baselineData = null;  // Phase 86.12: latest baseline {label, created_at, tasks:{taskId:{start,end}}} or null
 let gantt = null;                     // Frappe Gantt instance — Plan 03 sets this
 
 // Phase 86.1 — grid state
@@ -131,6 +132,10 @@ export function render(activeTab = null, param = null) {
                     <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
                     <span>Critical path</span>
                 </label>
+                <button type="button" class="plan-export-btn plan-baseline-btn"
+                    onclick="window.saveBaseline()" title="Snapshot current task dates as a baseline">
+                    Set Baseline
+                </button>
                 <!-- Phase 86.8 Feature 6 — search lives in the toolbar so it doesn't push grid
                      headers down and break left/right vertical alignment. Bound once in init(),
                      not re-rendered by renderTaskGrid, so caret state survives every keystroke. -->
@@ -184,6 +189,9 @@ export async function init(activeTab = null, param = null) {
             }
             return;
         }
+
+        // 2.5 Phase 86.12: fetch latest baseline into _baselineData
+        await loadBaseline();
 
         // 3. Subscribe to project_tasks (project-scoped at JS query layer per D-18)
         // __snapshotCount is module-scoped; destroy() resets it alongside __lastViolationFingerprint
@@ -250,6 +258,8 @@ export async function init(activeTab = null, param = null) {
         window.gridGroupDelete = gridGroupDelete;
         // Phase 86.11 Plan 02: milestone toggle
         window.gridToggleMilestone = gridToggleMilestone;
+        // Phase 86.12: baseline snapshot
+        window.saveBaseline = saveBaseline;
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -355,6 +365,7 @@ export async function destroy() {
     gantt = null;
     ganttDragState = null;
     tasks = [];
+    _baselineData = null;   // Phase 86.12
     _pendingOptimistic.clear(); // Phase 86.5-08
     currentProject = null;
     projectCode = null;
@@ -488,6 +499,8 @@ export async function destroy() {
     _clipboardTasks = [];
     // Phase 86.11 Plan 02: milestone toggle cleanup
     delete window.gridToggleMilestone;
+    // Phase 86.12: baseline snapshot cleanup
+    delete window.saveBaseline;
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -2854,6 +2867,64 @@ function ganttXPerDay() {
     const unitDays = { day: 1, week: 7, month: 30, year: 365 };
     const daysPerColumn = (unitDays[gantt.config.unit] || 1) * (gantt.config.step || 1);
     return (gantt.config.column_width || 45) / daysPerColumn;
+}
+
+// ---- Phase 86.12: Baseline Snapshot ----
+
+async function loadBaseline() {
+    if (!currentProject) {
+        _baselineData = null;
+        return;
+    }
+    try {
+        const snap = await getDocs(query(
+            collection(db, 'projects', currentProject.id, 'baselines'),
+            orderBy('created_at', 'desc'),
+            limit(1)
+        ));
+        if (snap.empty) {
+            _baselineData = null;
+            return;
+        }
+        _baselineData = { id: snap.docs[0].id, ...snap.docs[0].data() };
+    } catch (e) {
+        console.error('[Plan] loadBaseline error:', e);
+        _baselineData = null;
+    }
+}
+
+async function saveBaseline() {
+    if (!currentProject || tasks.length === 0) {
+        showToast('No tasks to snapshot', 'warning');
+        return;
+    }
+    try {
+        // Build tasks map — all tasks with a task_id and at least one date
+        const tasksMap = {};
+        for (const task of tasks) {
+            if (task.task_id && (task.start_date || task.end_date)) {
+                tasksMap[task.task_id] = {
+                    start: task.start_date || '',
+                    end: task.end_date || ''
+                };
+            }
+        }
+        // Derive label from existing baseline count
+        const countSnap = await getDocs(collection(db, 'projects', currentProject.id, 'baselines'));
+        const label = `Baseline ${countSnap.size + 1}`;
+        // Write the baseline doc
+        await addDoc(collection(db, 'projects', currentProject.id, 'baselines'), {
+            label,
+            created_at: serverTimestamp(),
+            tasks: tasksMap
+        });
+        // Refresh in-memory baseline
+        await loadBaseline();
+        showToast(`Baseline "${label}" saved`, 'success');
+    } catch (e) {
+        console.error('[Plan] saveBaseline error:', e);
+        showToast('Failed to save baseline', 'error');
+    }
 }
 
 function renderTodayLine() {
