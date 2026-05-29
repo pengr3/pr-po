@@ -2744,8 +2744,7 @@
    Milestone diamond, parent summary bar, today line, FS-violation arrow.
    ======================================== */
 
-/* Milestone tasks: hide default Frappe rect bar; diamond injected via injectMilestoneDiamonds() */
-.gantt-container .bar-wrapper.milestone-marker .bar,
+/* Milestone tasks: bar stays visible (inherits status color); progress fill hidden; diamond injected via JS */
 .gantt-container .bar-wrapper.milestone-marker .bar-progress {
     display: none;
 }
