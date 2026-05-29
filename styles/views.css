@@ -2788,9 +2788,14 @@
 .gantt-container g.arrow path.critical { stroke: #ef4444; stroke-width: 2; }
 
 /* Phase 86.11 — bar status fills (leaf tasks only; milestone + parent bars untouched) */
-.gantt-container .bar-wrapper.bar-status-overdue .bar { fill: #ef4444; }
-.gantt-container .bar-wrapper.bar-status-complete .bar { fill: #059669; }
-.gantt-container .bar-wrapper.bar-status-not-started .bar { fill: #94a3b8; }
+/* Both .bar (background) and .bar-progress (progress overlay) must be colored —
+   .bar-progress renders on top in Frappe SVG and hides .bar for high-progress tasks */
+.gantt-container .bar-wrapper.bar-status-overdue .bar,
+.gantt-container .bar-wrapper.bar-status-overdue .bar-progress { fill: #ef4444; }
+.gantt-container .bar-wrapper.bar-status-complete .bar,
+.gantt-container .bar-wrapper.bar-status-complete .bar-progress { fill: #059669; }
+.gantt-container .bar-wrapper.bar-status-not-started .bar,
+.gantt-container .bar-wrapper.bar-status-not-started .bar-progress { fill: #94a3b8; }
 
 /* Toolbar checkbox for critical-path toggle (sits to the right of the zoom pill group). */
 .plan-toolbar-toggle {
