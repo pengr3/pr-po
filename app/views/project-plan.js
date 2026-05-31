@@ -4,7 +4,7 @@
    Standalone route #/projects/:code/plan. Projects-only this phase (D-04).
    ======================================== */
 
-import { db, collection, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, serverTimestamp, orderBy, limit } from '../firebase.js';
+import { db, collection, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, serverTimestamp, orderBy } from '../firebase.js';
 import { formatDate, showLoading, showToast, normalizePersonnel, escapeHTML } from '../utils.js';
 import { generateTaskId } from '../task-id.js';
 
@@ -14,7 +14,9 @@ let projectCode = null;
 let tasks = [];                       // raw task docs from onSnapshot (project-scoped)
 let _pendingOptimistic = new Map();   // Phase 86.5-08: taskId → optimistic task object, awaiting setDoc resolution
 let listeners = [];                   // onSnapshot unsubscribers — destroy() loops this
-let _baselineData = null;  // Phase 86.12: latest baseline {label, created_at, tasks:{taskId:{start,end}}} or null
+let _baselineData = null;  // Phase 86.12: currently-selected baseline doc (drives overlay). null = no overlay.
+let _baselines = [];       // Phase 86.12 (mbl): all baselines, ordered created_at desc. Populated by loadBaselines().
+let _activeBaselineId = null; // Phase 86.12 (mbl): id of the baseline driving the overlay. null = overlay hidden.
 let gantt = null;                     // Frappe Gantt instance — Plan 03 sets this
 
 // Phase 86.1 — grid state
@@ -132,8 +134,13 @@ export function render(activeTab = null, param = null) {
                     <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
                     <span>Critical path</span>
                 </label>
-                <button type="button" class="plan-export-btn plan-baseline-btn"
-                    onclick="window.saveBaseline()" title="Snapshot current task dates as a baseline">
+                <select id="baselineSelect" class="plan-baseline-select"
+                    onchange="window.selectBaseline(this.value)"
+                    title="Select which saved baseline drives the overlay">
+                    <option value="">— none —</option>
+                </select>
+                <button type="button" id="baselineToggleBtn" class="plan-export-btn plan-baseline-btn"
+                    onclick="window.toggleBaseline()" title="Snapshot current task dates as a baseline">
                     Set Baseline
                 </button>
                 <!-- Phase 86.8 Feature 6 — search lives in the toolbar so it doesn't push grid
@@ -191,8 +198,8 @@ export async function init(activeTab = null, param = null) {
             return;
         }
 
-        // 2.5 Phase 86.12: fetch latest baseline into _baselineData
-        await loadBaseline();
+        // 2.5 Phase 86.12 (mbl): fetch all baselines; auto-select most recent into _baselineData
+        await loadBaselines();
 
         // 3. Subscribe to project_tasks (project-scoped at JS query layer per D-18)
         // __snapshotCount is module-scoped; destroy() resets it alongside __lastViolationFingerprint
@@ -261,6 +268,13 @@ export async function init(activeTab = null, param = null) {
         window.gridToggleMilestone = gridToggleMilestone;
         // Phase 86.12: baseline snapshot
         window.saveBaseline = saveBaseline;
+        // Phase 86.12 (mbl): multi-baseline selector + toggle
+        window.toggleBaseline = toggleBaseline;
+        window.selectBaseline = selectBaseline;
+        window.clearBaseline = clearBaseline;
+        // Populate the toolbar selector + button label from the freshly loaded _baselines.
+        // The select is in the DOM after render() — safe to update here, before listeners attach.
+        updateBaselineToolbarUI();
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -367,6 +381,8 @@ export async function destroy() {
     ganttDragState = null;
     tasks = [];
     _baselineData = null;   // Phase 86.12
+    _baselines = [];        // Phase 86.12 (mbl)
+    _activeBaselineId = null; // Phase 86.12 (mbl)
     _pendingOptimistic.clear(); // Phase 86.5-08
     currentProject = null;
     projectCode = null;
@@ -502,6 +518,10 @@ export async function destroy() {
     delete window.gridToggleMilestone;
     // Phase 86.12: baseline snapshot cleanup
     delete window.saveBaseline;
+    // Phase 86.12 (mbl): multi-baseline cleanup
+    delete window.toggleBaseline;
+    delete window.selectBaseline;
+    delete window.clearBaseline;
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -3011,24 +3031,34 @@ function renderSlipSummary() {
 
 // ---- Phase 86.12: Baseline Snapshot ----
 
-async function loadBaseline() {
+// Phase 86.12 (mbl): Load ALL baselines for the current project, ordered created_at desc.
+// Auto-selects the most-recent baseline as the active overlay (back-compat with single-baseline
+// behavior). Populates _baselines[], _activeBaselineId, and _baselineData together so they
+// never drift out of sync.
+async function loadBaselines() {
     if (!currentProject) {
+        _baselines = [];
+        _activeBaselineId = null;
         _baselineData = null;
         return;
     }
     try {
         const snap = await getDocs(query(
             collection(db, 'projects', currentProject.id, 'baselines'),
-            orderBy('created_at', 'desc'),
-            limit(1)
+            orderBy('created_at', 'desc')
         ));
-        if (snap.empty) {
+        _baselines = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (_baselines.length > 0) {
+            _activeBaselineId = _baselines[0].id;
+            _baselineData = _baselines[0];
+        } else {
+            _activeBaselineId = null;
             _baselineData = null;
-            return;
         }
-        _baselineData = { id: snap.docs[0].id, ...snap.docs[0].data() };
     } catch (e) {
-        console.error('[Plan] loadBaseline error:', e);
+        console.error('[Plan] loadBaselines error:', e);
+        _baselines = [];
+        _activeBaselineId = null;
         _baselineData = null;
     }
 }
@@ -3058,15 +3088,84 @@ async function saveBaseline() {
             created_at: serverTimestamp(),
             tasks: tasksMap
         });
-        // Refresh in-memory baseline and re-render overlay immediately (WR-01: baselines write
-        // does not trigger project_tasks snapshot, so overlay must be pushed manually)
-        await loadBaseline();
+        // Refresh in-memory baselines and re-render overlay immediately (WR-01: baselines write
+        // does not trigger project_tasks snapshot, so overlay must be pushed manually).
+        // loadBaselines() auto-selects the newest doc — which is the one we just wrote.
+        await loadBaselines();
         injectBaselineOverlay();
         renderSlipSummary();
+        updateBaselineToolbarUI();
         showToast(`Baseline "${label}" saved`, 'success');
     } catch (e) {
         console.error('[Plan] saveBaseline error:', e);
         showToast('Failed to save baseline', 'error');
+    }
+}
+
+// Phase 86.12 (mbl): single toggle button. When no baseline is active in the overlay,
+// "Set Baseline" creates a new one. When one is active, "Clear Baseline" hides it
+// (without deleting any Firestore docs).
+function toggleBaseline() {
+    if (_activeBaselineId) {
+        clearBaseline();
+    } else {
+        saveBaseline();
+    }
+}
+
+// Phase 86.12 (mbl): selector change — switch which baseline drives the overlay.
+// Empty value means "— none —" and routes through clearBaseline().
+function selectBaseline(id) {
+    if (!id) {
+        clearBaseline();
+        return;
+    }
+    const found = _baselines.find(b => b.id === id);
+    if (!found) {
+        console.warn('[Plan] selectBaseline: unknown id', id);
+        return;
+    }
+    _activeBaselineId = id;
+    _baselineData = found;
+    injectBaselineOverlay();
+    renderSlipSummary();
+    updateBaselineToolbarUI();
+}
+
+// Phase 86.12 (mbl): hide the active overlay without touching Firestore.
+// Saved baselines remain in _baselines[] (still selectable from the dropdown).
+function clearBaseline() {
+    _activeBaselineId = null;
+    _baselineData = null;
+    const ganttSvg = document.querySelector('#ganttPane svg');
+    if (ganttSvg) {
+        ganttSvg.querySelectorAll('.gantt-baseline-outline, .gantt-slip-badge, .gantt-slip-badge-bg').forEach(el => el.remove());
+    }
+    renderSlipSummary();
+    updateBaselineToolbarUI();
+}
+
+// Phase 86.12 (mbl): repopulate the toolbar selector and flip the toggle button label
+// to match current state. Called whenever _baselines or _activeBaselineId changes.
+function updateBaselineToolbarUI() {
+    const sel = document.getElementById('baselineSelect');
+    if (sel) {
+        let html = '<option value="">— none —</option>';
+        for (const b of _baselines) {
+            const selected = b.id === _activeBaselineId ? ' selected' : '';
+            html += `<option value="${escapeHTML(b.id)}"${selected}>${escapeHTML(b.label || '(unnamed)')}</option>`;
+        }
+        sel.innerHTML = html;
+    }
+    const btn = document.getElementById('baselineToggleBtn');
+    if (btn) {
+        if (_activeBaselineId) {
+            btn.textContent = 'Clear Baseline';
+            btn.title = 'Hide baseline overlay (does not delete saved baselines)';
+        } else {
+            btn.textContent = 'Set Baseline';
+            btn.title = 'Snapshot current task dates as a baseline';
+        }
     }
 }
 
