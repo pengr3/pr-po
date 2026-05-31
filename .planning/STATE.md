@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 86.12 CLOSED 2026-06-01 — multi-baseline UX fix UAT approved. Naming polish (quick 20260601-bnm, commit cfcc620) shipped same day: saveBaseline() prompts user for custom name with Baseline N default; Cancel aborts, empty falls back, 60-char cap. Browser UAT pending for naming.
-stopped_at: Quick task 20260601-bnm committed. Awaiting browser confirmation that the prompt behaves correctly across the five cases in the SUMMARY.
+status: Paused mid-spike (2026-06-01). /gsd-spike series "iterations (015-018)" exploring user's "save plan iterations" idea. 015a/b/c restore-semantics variants built and committed (29de95b); awaiting user winner verdict before proceeding to 016/017/018. Phase 86.12 closed + naming polish (cfcc620) UAT pending separately.
+stopped_at: 015 winner checkpoint — three browser URLs shared (015a destructive, 015b preview, 015c auto-snapshot+undo). See .planning/spikes/.continue-here.md + HANDOFF.json.
 last_updated: "2026-06-01T00:00:00.000Z"
 last_activity: 2026-06-01
 progress:

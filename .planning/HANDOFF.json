@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-01T00:00:00Z",
+  "context": "spike",
+  "series": "iterations (015a/b/c, 016, 017, 018)",
+  "spike_dir": ".planning/spikes/",
+  "current_spike": "015 (a/b/c) — awaiting user winner checkpoint",
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Add 6 spike rows to MANIFEST.md + new Idea section", "status": "done", "commit": "29de95b"},
+    {"id": 2, "name": "Build spike 015a (destructive replace + confirm modal)", "status": "done", "commit": "29de95b"},
+    {"id": 3, "name": "Build spike 015b (read-only preview banner)", "status": "done", "commit": "29de95b"},
+    {"id": 4, "name": "Build spike 015c (auto-snapshot then restore, with Undo)", "status": "done", "commit": "29de95b"},
+    {"id": 5, "name": "Present 015 winner checkpoint to user", "status": "in_progress", "progress": "Three URLs shared; user has not yet given a verdict — paused here"}
+  ],
+  "remaining_tasks": [
+    {"id": 6, "name": "Capture 015 winner from user (could be hybrid: 015b for casual viewing + 015c for actual swaps)", "status": "not_started"},
+    {"id": 7, "name": "Spike 016 — snapshot scope (dates only vs dates+deps vs full task doc)", "status": "not_started"},
+    {"id": 8, "name": "Spike 017 — history UX (modal vs right rail vs toolbar dropdown)", "status": "not_started"},
+    {"id": 9, "name": "Spike 018 — diff view (current vs iteration, no load)", "status": "not_started"},
+    {"id": 10, "name": "Update CONVENTIONS.md with patterns from this series", "status": "not_started"},
+    {"id": 11, "name": "Consolidated /gsd-spike final report + Next Up routing", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {
+      "action": "Open all three 015 spike URLs in a browser and pick a winner (or describe a hybrid).",
+      "context": "Dev server already running on port 8000. URLs: localhost:8000/.planning/spikes/015a-restore-destructive-replace/spike.html (+ 015b + 015c). The verdict determines whether iterations need destructive restore at all (which gates the rest of the series).",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {"decision": "Iterations are conceptually distinct from baselines: baselines are immutable comparison anchors; iterations are save-states the user can rewind to", "rationale": "Avoided rebuilding the baseline mechanic by accident", "phase": "spike-015"},
+    {"decision": "Linear history assumed for MVP — no branching/parallel iteration lines", "rationale": "Branching is a separate, much larger feature; not in this spike series", "phase": "spike-015"},
+    {"decision": "Build all 6 spikes in risk order, 015 first because it has the highest kill risk", "rationale": "User picked 'All six in risk order' at the alignment checkpoint", "phase": "spike-015"},
+    {"decision": "Spike 015c includes Undo via toast link with 5s window + auto-removes the auto-snapshot on undo to limit sidebar clutter", "rationale": "Direct response to the 'auto cards stack up' concern", "phase": "spike-015c"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Wait for user's 015 winner verdict (or hybrid description), update each 015a/b/c README Results section accordingly, then proceed to Spike 016 (snapshot scope). The winner shapes 016: if 015b (preview-only) wins, 016 changes scope to 'what's the minimum data needed to render the saved tasks as a preview.' If 015a or 015c wins, 016 stays as 'what's preserved for a true restore.'",
+  "context_notes": "Series is exploring 'extend baselining to save iterations / save-states of the project plan' (user's idea). Spikes 015a/015b/015c probe restore semantics; 016 probes snapshot scope; 017 probes history UX; 018 is a diff-view nice-to-have. All spike HTMLs use the same 5 mocked tasks + 3 mocked iterations so the user can compare interactions directly. Dev server on port 8000 is already running (started earlier this session for Phase 86.12 UAT). Branch v3.3."
+}
