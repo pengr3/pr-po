@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 86.12 CLOSED 2026-06-01 — multi-baseline UX fix UAT approved. Follow-up improvement queued as new quick task: let users name their own baselines (currently auto-named "Baseline N"). Design questions in flight.
-stopped_at: Awaiting user answers on baseline naming UX (prompt vs inline input vs modal; required vs optional; editing after creation).
+status: Phase 86.12 CLOSED 2026-06-01 — multi-baseline UX fix UAT approved. Naming polish (quick 20260601-bnm, commit cfcc620) shipped same day: saveBaseline() prompts user for custom name with Baseline N default; Cancel aborts, empty falls back, 60-char cap. Browser UAT pending for naming.
+stopped_at: Quick task 20260601-bnm committed. Awaiting browser confirmation that the prompt behaves correctly across the five cases in the SUMMARY.
 last_updated: "2026-06-01T00:00:00.000Z"
 last_activity: 2026-06-01
 progress:
@@ -647,6 +647,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260511-k4f | Strip Firebase Storage file upload — link-only attachments in proposal + comms widgets | 2026-05-11 | 9eec78f | Verified | [260511-k4f-strip-file-upload-link-only-proposals](.planning/quick/260511-k4f-strip-file-upload-link-only-proposals/) |
 | 260516-bg3 | Phase 91 UAT Bug 3 — scope PO scoreboard input on MRF Records tab to POs whose mrf_id matches a visible MRF (fixes operations_user / services_user seeing unscoped counts). Initial T1–T3 missed a second scoreboard writer; T4 (557a764) scoped renderPOTrackingTable which was overwriting the scoped value via the loadPOTracking snapshot listener. | 2026-05-16..17 | 2c28d15, 713e735, 7215c95, 557a764 | Awaiting browser UAT | [260516-bg3-scoreboard-scoping](.planning/quick/260516-bg3-scoreboard-scoping/) |
 | 20260531-mbl | Phase 86.12 UAT follow-up — multi-baseline selector + Set/Clear toggle in project-plan.js. loadBaseline → loadBaselines (all docs, ordered desc), _baselines[] + _activeBaselineId state, #baselineSelect + #baselineToggleBtn toolbar, toggleBaseline/selectBaseline/clearBaseline window functions. Clear hides overlay without deleting Firestore docs. | 2026-06-01 | 0d39f80 | UAT approved 2026-06-01 | [20260531-mbl-multi-baseline-selector-toggle](.planning/quick/20260531-mbl-multi-baseline-selector-toggle/) |
+| 20260601-bnm | Phase 86.12 polish — prompt user for baseline name when clicking Set Baseline; default Baseline N, Cancel aborts, empty falls back, 60-char cap. saveBaseline() only — no rules/schema changes. | 2026-06-01 | cfcc620 | Awaiting browser UAT | [20260601-bnm-baseline-naming](.planning/quick/20260601-bnm-baseline-naming/) |
 
 ## Session Continuity
 
