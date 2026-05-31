@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 86.12 multi-baseline UX fix shipped (quick 20260531-mbl, 2026-06-01, commit 0d39f80). loadBaselines fetches all baselines, toolbar gets selector + Set/Clear toggle button, Clear hides overlay without deleting Firestore docs. Browser UAT remaining — both the original 7 checks from 86.12-VERIFICATION.md and the 4 new multi-baseline scenarios in the quick task SUMMARY.
-stopped_at: Quick task 20260531-mbl committed. Phase 86.12 close-out (ROADMAP update + HANDOFF.json deletion) pending browser UAT pass.
+status: Phase 86.12 CLOSED 2026-06-01 — multi-baseline UX fix UAT approved. Follow-up improvement queued as new quick task: let users name their own baselines (currently auto-named "Baseline N"). Design questions in flight.
+stopped_at: Awaiting user answers on baseline naming UX (prompt vs inline input vs modal; required vs optional; editing after creation).
 last_updated: "2026-06-01T00:00:00.000Z"
 last_activity: 2026-06-01
 progress:
@@ -646,7 +646,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260508-g2p | Phase 86.6 Plan 02: Fix Gantt/grid vertical alignment — Bug H2 (.tg-locked nowrap+ellipsis, 42px row height) and Bug H1 (diff-based paddingBottom equalization in fixGanttContainerScroll, eliminates 17px bar drift at max scroll) | 2026-05-08 | c00a3fd, ef795c9 | Awaiting browser UAT | [260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a](.planning/quick/260508-g2p-phase-86-6-plan-02-gantt-grid-vertical-a/) |
 | 260511-k4f | Strip Firebase Storage file upload — link-only attachments in proposal + comms widgets | 2026-05-11 | 9eec78f | Verified | [260511-k4f-strip-file-upload-link-only-proposals](.planning/quick/260511-k4f-strip-file-upload-link-only-proposals/) |
 | 260516-bg3 | Phase 91 UAT Bug 3 — scope PO scoreboard input on MRF Records tab to POs whose mrf_id matches a visible MRF (fixes operations_user / services_user seeing unscoped counts). Initial T1–T3 missed a second scoreboard writer; T4 (557a764) scoped renderPOTrackingTable which was overwriting the scoped value via the loadPOTracking snapshot listener. | 2026-05-16..17 | 2c28d15, 713e735, 7215c95, 557a764 | Awaiting browser UAT | [260516-bg3-scoreboard-scoping](.planning/quick/260516-bg3-scoreboard-scoping/) |
-| 20260531-mbl | Phase 86.12 UAT follow-up — multi-baseline selector + Set/Clear toggle in project-plan.js. loadBaseline → loadBaselines (all docs, ordered desc), _baselines[] + _activeBaselineId state, #baselineSelect + #baselineToggleBtn toolbar, toggleBaseline/selectBaseline/clearBaseline window functions. Clear hides overlay without deleting Firestore docs. | 2026-06-01 | 0d39f80 | Awaiting browser UAT | [20260531-mbl-multi-baseline-selector-toggle](.planning/quick/20260531-mbl-multi-baseline-selector-toggle/) |
+| 20260531-mbl | Phase 86.12 UAT follow-up — multi-baseline selector + Set/Clear toggle in project-plan.js. loadBaseline → loadBaselines (all docs, ordered desc), _baselines[] + _activeBaselineId state, #baselineSelect + #baselineToggleBtn toolbar, toggleBaseline/selectBaseline/clearBaseline window functions. Clear hides overlay without deleting Firestore docs. | 2026-06-01 | 0d39f80 | UAT approved 2026-06-01 | [20260531-mbl-multi-baseline-selector-toggle](.planning/quick/20260531-mbl-multi-baseline-selector-toggle/) |
 
 ## Session Continuity
 
