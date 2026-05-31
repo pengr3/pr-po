@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Spike 015a — Restore: Destructive Replace</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .topbar .meta { color: var(--muted); font-size: 12px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    height: calc(100vh - 51px);
+  }
+  .main {
+    overflow: auto;
+    padding: 20px;
+  }
+  .sidebar {
+    background: #fff;
+    border-left: 1px solid var(--border);
+    overflow: auto;
+    padding: 16px;
+  }
+  .sidebar h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 0 0 12px 0;
+    font-weight: 600;
+  }
+  .task-table {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .task-table th, .task-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    font-size: 13px;
+  }
+  .task-table th {
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .task-table tr:last-child td { border-bottom: none; }
+  .task-table tr.replaced {
+    animation: flash 1.5s ease-out;
+  }
+  @keyframes flash {
+    0%   { background: #fef3c7; }
+    100% { background: transparent; }
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-overdue { background: #fee2e2; color: var(--danger); }
+  .badge-ontrack { background: #dbeafe; color: var(--primary); }
+  .badge-done    { background: #d1fae5; color: var(--success); }
+  .iteration-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #fff;
+    transition: border-color 0.15s;
+  }
+  .iteration-card:hover { border-color: var(--primary); }
+  .iteration-card .name { font-weight: 600; font-size: 14px; }
+  .iteration-card .meta { color: var(--muted); font-size: 12px; margin: 4px 0 10px 0; }
+  .iteration-card .actions { display: flex; gap: 8px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+  .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .btn-danger:hover { background: #dc2626; border-color: #dc2626; }
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(2px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 18px 22px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .modal-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #fee2e2;
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .modal h2 { margin: 0; font-size: 17px; }
+  .modal-body { padding: 14px 22px 8px 22px; color: var(--muted); line-height: 1.5; }
+  .modal-body strong { color: var(--text); }
+  .modal-body .summary {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+  }
+  .modal-footer {
+    padding: 14px 22px 22px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1e293b;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .log-panel {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  .log-panel h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 0 0 8px 0;
+  }
+  .log-line { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); padding: 2px 0; }
+  .log-line.event-restore { color: var(--danger); }
+  .log-line.event-save    { color: var(--success); }
+  .danger-text { color: var(--danger); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Project Plan — Tower B Construction</h1>
+  <span class="meta">Spike 015a · Destructive Replace + Confirm</span>
+</div>
+
+<div class="layout">
+  <div class="main">
+    <table class="task-table" id="taskTable">
+      <thead>
+        <tr>
+          <th style="width:50%">Task</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="taskBody"></tbody>
+    </table>
+
+    <div class="log-panel">
+      <h3>Event log</h3>
+      <div id="logLines"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h2>Saved Iterations</h2>
+    <div id="iterationList"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon">!</div>
+      <h2>Replace current plan?</h2>
+    </div>
+    <div class="modal-body">
+      You're about to overwrite the <strong>current 5 tasks</strong> with the saved snapshot
+      <strong id="modalIterationName">Iteration X</strong>. The current plan will be
+      <span class="danger-text">permanently lost</span> unless you've saved it as another iteration.
+      <div class="summary" id="modalSummary"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelBtn">Cancel</button>
+      <button class="btn btn-danger" id="confirmBtn">Replace plan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LIVE_PLAN = [
+  { id: 't1', name: 'Mobilization & site setup',      start: '2026-06-01', end: '2026-06-07', status: 'done' },
+  { id: 't2', name: 'Excavation & dewatering',        start: '2026-06-08', end: '2026-06-20', status: 'ontrack' },
+  { id: 't3', name: 'Foundation pour (slab + columns)', start: '2026-06-21', end: '2026-07-10', status: 'overdue' },
+  { id: 't4', name: 'Structural steel — floors 1-5',  start: '2026-07-11', end: '2026-08-15', status: 'ontrack' },
+  { id: 't5', name: 'MEP rough-in — floors 1-3',      start: '2026-08-01', end: '2026-09-10', status: 'ontrack' }
+];
+
+const ITERATIONS = [
+  {
+    id: 'it1',
+    name: 'Pre-scope-change (May 12)',
+    saved: '2026-05-12',
+    note: 'Before client added basement parking',
+    tasks: [
+      { id: 't1', name: 'Mobilization & site setup',          start: '2026-05-15', end: '2026-05-21', status: 'ontrack' },
+      { id: 't2', name: 'Excavation (no basement)',           start: '2026-05-22', end: '2026-05-30', status: 'ontrack' },
+      { id: 't3', name: 'Foundation pour (slab only)',        start: '2026-05-31', end: '2026-06-12', status: 'ontrack' },
+      { id: 't4', name: 'Structural steel — floors 1-5',      start: '2026-06-13', end: '2026-07-18', status: 'ontrack' }
+    ]
+  },
+  {
+    id: 'it2',
+    name: 'Q3 plan freeze',
+    saved: '2026-05-20',
+    note: 'Approved by PM before mobilization',
+    tasks: [
+      { id: 't1', name: 'Mobilization & site setup',          start: '2026-06-01', end: '2026-06-07', status: 'ontrack' },
+      { id: 't2', name: 'Excavation & dewatering',            start: '2026-06-08', end: '2026-06-18', status: 'ontrack' },
+      { id: 't3', name: 'Foundation pour (slab + columns)',   start: '2026-06-19', end: '2026-07-08', status: 'ontrack' },
+      { id: 't4', name: 'Structural steel — floors 1-5',      start: '2026-07-09', end: '2026-08-12', status: 'ontrack' },
+      { id: 't5', name: 'MEP rough-in — floors 1-3',          start: '2026-07-25', end: '2026-09-05', status: 'ontrack' }
+    ]
+  },
+  {
+    id: 'it3',
+    name: 'Conservative re-plan',
+    saved: '2026-05-29',
+    note: '+2 weeks on foundation per geotech report',
+    tasks: [
+      { id: 't1', name: 'Mobilization & site setup',          start: '2026-06-01', end: '2026-06-07', status: 'done' },
+      { id: 't2', name: 'Excavation & dewatering',            start: '2026-06-08', end: '2026-06-22', status: 'ontrack' },
+      { id: 't3', name: 'Foundation pour (incl. piles)',      start: '2026-06-23', end: '2026-07-24', status: 'ontrack' },
+      { id: 't4', name: 'Structural steel — floors 1-5',      start: '2026-07-25', end: '2026-08-29', status: 'ontrack' },
+      { id: 't5', name: 'MEP rough-in — floors 1-3',          start: '2026-08-15', end: '2026-09-25', status: 'ontrack' }
+    ]
+  }
+];
+
+let current = LIVE_PLAN.slice();
+let pendingIterationId = null;
+const log = [];
+
+function renderTasks(highlight) {
+  const body = document.getElementById('taskBody');
+  body.innerHTML = current.map(t => {
+    const statusLabel = t.status === 'done' ? 'Done' : t.status === 'overdue' ? 'Overdue' : 'On track';
+    const statusClass = 'badge-' + t.status;
+    const trClass = highlight ? 'replaced' : '';
+    return `<tr class="${trClass}">
+      <td>${t.name}</td>
+      <td>${t.start}</td>
+      <td>${t.end}</td>
+      <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderIterations() {
+  const list = document.getElementById('iterationList');
+  list.innerHTML = ITERATIONS.map(it => `
+    <div class="iteration-card">
+      <div class="name">${it.name}</div>
+      <div class="meta">Saved ${it.saved} · ${it.tasks.length} tasks<br>${it.note}</div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="openConfirm('${it.id}')">Load</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function pushLog(msg, category) {
+  const time = new Date().toLocaleTimeString();
+  log.push({ time, msg, category });
+  const lines = document.getElementById('logLines');
+  lines.innerHTML = log.slice().reverse().map(l =>
+    `<div class="log-line event-${l.category}">[${l.time}] ${l.msg}</div>`
+  ).join('');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function openConfirm(itId) {
+  pendingIterationId = itId;
+  const it = ITERATIONS.find(x => x.id === itId);
+  document.getElementById('modalIterationName').textContent = '"' + it.name + '"';
+  document.getElementById('modalSummary').innerHTML =
+    `<strong>${it.name}</strong><br>` +
+    `Saved ${it.saved} · ${it.tasks.length} tasks<br>` +
+    `<em style="color:var(--muted)">${it.note}</em>`;
+  document.getElementById('confirmModal').classList.add('open');
+  pushLog('Opened confirm modal for ' + it.name, 'event');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('open');
+  pendingIterationId = null;
+}
+
+document.getElementById('cancelBtn').onclick = () => {
+  pushLog('Cancelled restore', 'event');
+  closeConfirm();
+};
+
+document.getElementById('confirmBtn').onclick = () => {
+  const it = ITERATIONS.find(x => x.id === pendingIterationId);
+  if (!it) return;
+  const lost = current.length;
+  current = it.tasks.slice();
+  pushLog('RESTORE → ' + it.name + ' (overwrote ' + lost + ' tasks, ' + it.tasks.length + ' tasks now live)', 'restore');
+  closeConfirm();
+  renderTasks(true);
+  showToast('Loaded "' + it.name + '" · ' + it.tasks.length + ' tasks now live');
+};
+
+renderTasks(false);
+renderIterations();
+pushLog('Spike loaded — 5 live tasks, 3 saved iterations available', 'event');
+</script>
+
+</body>
+</html>

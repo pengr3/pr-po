@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Spike 015c — Restore: Auto-snapshot then Replace</title>
+<style>
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  .topbar .meta { color: var(--muted); font-size: 12px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    height: calc(100vh - 51px);
+  }
+  .main { overflow: auto; padding: 20px; }
+  .sidebar {
+    background: #fff;
+    border-left: 1px solid var(--border);
+    overflow: auto;
+    padding: 16px;
+  }
+  .sidebar h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 0 0 12px 0;
+    font-weight: 600;
+  }
+  .task-table {
+    width: 100%;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .task-table th, .task-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    font-size: 13px;
+  }
+  .task-table th {
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .task-table tr:last-child td { border-bottom: none; }
+  .task-table tr.replaced { animation: flash 1.5s ease-out; }
+  @keyframes flash {
+    0%   { background: #e0f2fe; }
+    100% { background: transparent; }
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-overdue { background: #fee2e2; color: var(--danger); }
+  .badge-ontrack { background: #dbeafe; color: var(--primary); }
+  .badge-done    { background: #d1fae5; color: var(--success); }
+  .iteration-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #fff;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .iteration-card.fresh { animation: cardSlide 0.4s ease-out; }
+  @keyframes cardSlide {
+    0%   { transform: translateX(20px); opacity: 0; background: #ecfdf5; }
+    100% { transform: translateX(0); opacity: 1; background: #fff; }
+  }
+  .iteration-card:hover { border-color: var(--primary); }
+  .iteration-card .header { display: flex; align-items: center; gap: 8px; }
+  .iteration-card .name { font-weight: 600; font-size: 14px; }
+  .iteration-card .meta { color: var(--muted); font-size: 12px; margin: 4px 0 10px 0; }
+  .iteration-card .actions { display: flex; gap: 8px; }
+  .auto-pill {
+    display: inline-block;
+    background: #f1f5f9;
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 440px;
+    width: 90%;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    overflow: hidden;
+  }
+  .modal-header {
+    padding: 18px 22px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .modal-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: #dbeafe;
+    color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .modal h2 { margin: 0; font-size: 17px; }
+  .modal-body { padding: 14px 22px 8px 22px; color: var(--muted); line-height: 1.5; }
+  .modal-body strong { color: var(--text); }
+  .modal-body .safety {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #f0fdf4;
+    border-radius: 6px;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    font-size: 13px;
+  }
+  .modal-footer {
+    padding: 14px 22px 22px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1e293b;
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 200;
+    max-width: 440px;
+    line-height: 1.4;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast .undo-link {
+    color: #93c5fd;
+    text-decoration: underline;
+    pointer-events: auto;
+    cursor: pointer;
+    margin-left: 8px;
+    font-weight: 600;
+  }
+  .log-panel {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+  .log-panel h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 0 0 8px 0;
+  }
+  .log-line { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); padding: 2px 0; }
+  .log-line.event-restore { color: var(--primary); }
+  .log-line.event-auto    { color: var(--success); }
+  .log-line.event-undo    { color: var(--warning); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Project Plan — Tower B Construction</h1>
+  <span class="meta">Spike 015c · Auto-snapshot then Restore</span>
+</div>
+
+<div class="layout">
+  <div class="main">
+    <table class="task-table" id="taskTable">
+      <thead>
+        <tr>
+          <th style="width:50%">Task</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="taskBody"></tbody>
+    </table>
+
+    <div class="log-panel">
+      <h3>Event log</h3>
+      <div id="logLines"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h2>Saved Iterations</h2>
+    <div id="iterationList"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-icon">↺</div>
+      <h2>Load this iteration?</h2>
+    </div>
+    <div class="modal-body">
+      Switch your live plan to <strong id="modalIterationName">"Iteration X"</strong>.
+      <div class="safety">
+        <strong>Safe by default:</strong> your current plan will be saved as
+        <em id="autoLabel">Iteration N (auto)</em> before the swap, so you can always
+        roll back.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn">Load &amp; auto-save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const LIVE_PLAN = [
+  { id: 't1', name: 'Mobilization & site setup',      start: '2026-06-01', end: '2026-06-07', status: 'done' },
+  { id: 't2', name: 'Excavation & dewatering',        start: '2026-06-08', end: '2026-06-20', status: 'ontrack' },
+  { id: 't3', name: 'Foundation pour (slab + columns)', start: '2026-06-21', end: '2026-07-10', status: 'overdue' },
+  { id: 't4', name: 'Structural steel — floors 1-5',  start: '2026-07-11', end: '2026-08-15', status: 'ontrack' },
+  { id: 't5', name: 'MEP rough-in — floors 1-3',      start: '2026-08-01', end: '2026-09-10', status: 'ontrack' }
+];
+
+const INITIAL_ITERATIONS = [
+  {
+    id: 'it1',
+    name: 'Pre-scope-change (May 12)',
+    saved: '2026-05-12',
+    note: 'Before client added basement parking',
+    auto: false,
+    tasks: [
+      { id: 't1', name: 'Mobilization & site setup',          start: '2026-05-15', end: '2026-05-21', status: 'ontrack' },
+      { id: 't2', name: 'Excavation (no basement)',           start: '2026-05-22', end: '2026-05-30', status: 'ontrack' },
+      { id: 't3', name: 'Foundation pour (slab only)',        start: '2026-05-31', end: '2026-06-12', status: 'ontrack' },
+      { id: 't4', name: 'Structural steel — floors 1-5',      start: '2026-06-13', end: '2026-07-18', status: 'ontrack' }
+    ]
+  },
+  {
+    id: 'it2',
+    name: 'Q3 plan freeze',
+    saved: '2026-05-20',
+    note: 'Approved by PM before mobilization',
+    auto: false,
+    tasks: [
+      { id: 't1', name: 'Mobilization & site setup',          start: '2026-06-01', end: '2026-06-07', status: 'ontrack' },
+      { id: 't2', name: 'Excavation & dewatering',            start: '2026-06-08', end: '2026-06-18', status: 'ontrack' },
+      { id: 't3', name: 'Foundation pour (slab + columns)',   start: '2026-06-19', end: '2026-07-08', status: 'ontrack' },
+      { id: 't4', name: 'Structural steel — floors 1-5',      start: '2026-07-09', end: '2026-08-12', status: 'ontrack' },
+      { id: 't5', name: 'MEP rough-in — floors 1-3',          start: '2026-07-25', end: '2026-09-05', status: 'ontrack' }
+    ]
+  },
+  {
+    id: 'it3',
+    name: 'Conservative re-plan',
+    saved: '2026-05-29',
+    note: '+2 weeks on foundation per geotech report',
+    auto: false,
+    tasks: [
+      { id: 't1', name: 'Mobilization & site setup',          start: '2026-06-01', end: '2026-06-07', status: 'done' },
+      { id: 't2', name: 'Excavation & dewatering',            start: '2026-06-08', end: '2026-06-22', status: 'ontrack' },
+      { id: 't3', name: 'Foundation pour (incl. piles)',      start: '2026-06-23', end: '2026-07-24', status: 'ontrack' },
+      { id: 't4', name: 'Structural steel — floors 1-5',      start: '2026-07-25', end: '2026-08-29', status: 'ontrack' },
+      { id: 't5', name: 'MEP rough-in — floors 1-3',          start: '2026-08-15', end: '2026-09-25', status: 'ontrack' }
+    ]
+  }
+];
+
+let current = LIVE_PLAN.slice();
+let iterations = INITIAL_ITERATIONS.slice();
+let pendingIterationId = null;
+let lastAutoSavedId = null; // for undo link
+let lastPreviousState = null;
+let freshCardId = null;
+const log = [];
+
+function nextAutoLabel() {
+  const n = iterations.length + 1;
+  const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  return 'Iteration ' + n + ' (auto · ' + time + ')';
+}
+
+function renderTasks(highlight) {
+  const body = document.getElementById('taskBody');
+  body.innerHTML = current.map(t => {
+    const statusLabel = t.status === 'done' ? 'Done' : t.status === 'overdue' ? 'Overdue' : 'On track';
+    const statusClass = 'badge-' + t.status;
+    const trClass = highlight ? 'replaced' : '';
+    return `<tr class="${trClass}">
+      <td>${t.name}</td>
+      <td>${t.start}</td>
+      <td>${t.end}</td>
+      <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderIterations() {
+  const list = document.getElementById('iterationList');
+  list.innerHTML = iterations.slice().reverse().map(it => {
+    const isFresh = it.id === freshCardId;
+    const autoPill = it.auto ? '<span class="auto-pill">auto</span>' : '';
+    return `<div class="iteration-card ${isFresh ? 'fresh' : ''}">
+      <div class="header">
+        <div class="name">${it.name}</div>
+        ${autoPill}
+      </div>
+      <div class="meta">Saved ${it.saved} · ${it.tasks.length} tasks<br>${it.note}</div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="openConfirm('${it.id}')">Load</button>
+      </div>
+    </div>`;
+  }).join('');
+  freshCardId = null;
+}
+
+function pushLog(msg, category) {
+  const time = new Date().toLocaleTimeString();
+  log.push({ time, msg, category });
+  const lines = document.getElementById('logLines');
+  lines.innerHTML = log.slice().reverse().map(l =>
+    `<div class="log-line event-${l.category}">[${l.time}] ${l.msg}</div>`
+  ).join('');
+}
+
+function showToastWithUndo(msg, autoLabel, autoId) {
+  const t = document.getElementById('toast');
+  t.innerHTML = msg + ' <span class="undo-link" id="undoLink">Undo</span>';
+  t.classList.add('show');
+  const undo = document.getElementById('undoLink');
+  if (undo) undo.onclick = () => doUndo(autoId);
+  setTimeout(() => t.classList.remove('show'), 5000);
+}
+
+function openConfirm(itId) {
+  pendingIterationId = itId;
+  const it = iterations.find(x => x.id === itId);
+  document.getElementById('modalIterationName').textContent = '"' + it.name + '"';
+  document.getElementById('autoLabel').textContent = nextAutoLabel();
+  document.getElementById('confirmModal').classList.add('open');
+  pushLog('Opened confirm modal for ' + it.name, 'event');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('open');
+  pendingIterationId = null;
+}
+
+document.getElementById('cancelBtn').onclick = () => {
+  pushLog('Cancelled load', 'event');
+  closeConfirm();
+};
+
+document.getElementById('confirmBtn').onclick = () => {
+  const it = iterations.find(x => x.id === pendingIterationId);
+  if (!it) return;
+
+  // Step 1 — auto-save current state
+  const autoId = 'auto_' + Date.now();
+  const autoLabel = nextAutoLabel();
+  const autoSnapshot = {
+    id: autoId,
+    name: autoLabel,
+    saved: '2026-06-01',
+    note: 'Auto-saved before loading "' + it.name + '"',
+    auto: true,
+    tasks: current.slice()
+  };
+  iterations.push(autoSnapshot);
+  lastAutoSavedId = autoId;
+  lastPreviousState = current.slice();
+  freshCardId = autoId;
+  pushLog('AUTO-SAVE → ' + autoLabel + ' (' + current.length + ' tasks captured)', 'auto');
+
+  // Step 2 — load chosen iteration
+  current = it.tasks.slice();
+  pushLog('RESTORE → ' + it.name + ' (' + it.tasks.length + ' tasks now live)', 'restore');
+
+  closeConfirm();
+  renderTasks(true);
+  renderIterations();
+  showToastWithUndo(
+    'Loaded "' + it.name + '". Previous saved as "' + autoLabel + '".',
+    autoLabel,
+    autoId
+  );
+};
+
+function doUndo(autoId) {
+  const snap = iterations.find(x => x.id === autoId);
+  if (!snap) return;
+  current = snap.tasks.slice();
+  // Remove the auto-snapshot so the sidebar doesn't accumulate noise on quick toggles
+  iterations = iterations.filter(x => x.id !== autoId);
+  pushLog('UNDO ← restored ' + snap.tasks.length + ' tasks from ' + snap.name + ' (auto-snapshot removed)', 'undo');
+  renderTasks(true);
+  renderIterations();
+  document.getElementById('toast').classList.remove('show');
+}
+
+renderTasks(false);
+renderIterations();
+pushLog('Spike loaded — 5 live tasks, 3 saved iterations. Load creates an auto-snapshot first.', 'event');
+</script>
+
+</body>
+</html>
