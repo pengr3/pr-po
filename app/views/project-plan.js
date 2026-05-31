@@ -3079,9 +3079,14 @@ async function saveBaseline() {
                 };
             }
         }
-        // Derive label from existing baseline count
+        // Derive default label from existing baseline count, then let the user override
+        // via a native prompt (Phase 86.12 polish, quick task 20260601-bnm). Cancel aborts
+        // the save entirely; empty/whitespace OK falls back to the auto-name.
         const countSnap = await getDocs(collection(db, 'projects', currentProject.id, 'baselines'));
-        const label = `Baseline ${countSnap.size + 1}`;
+        const defaultLabel = `Baseline ${countSnap.size + 1}`;
+        const userInput = window.prompt('Name this baseline:', defaultLabel);
+        if (userInput === null) return;
+        const label = (userInput.trim() || defaultLabel).substring(0, 60);
         // Write the baseline doc
         await addDoc(collection(db, 'projects', currentProject.id, 'baselines'), {
             label,
