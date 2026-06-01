@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-01T00:00:00Z",
+  "timestamp": "2026-06-02T00:00:00Z",
   "context": "spike",
   "series": "iterations (015a/b/c, 016, 017, 018)",
   "spike_dir": ".planning/spikes/",
@@ -37,5 +37,5 @@
   ],
   "uncommitted_files": [],
   "next_action": "Wait for user's 015 winner verdict (or hybrid description), update each 015a/b/c README Results section accordingly, then proceed to Spike 016 (snapshot scope). The winner shapes 016: if 015b (preview-only) wins, 016 changes scope to 'what's the minimum data needed to render the saved tasks as a preview.' If 015a or 015c wins, 016 stays as 'what's preserved for a true restore.'",
-  "context_notes": "Series is exploring 'extend baselining to save iterations / save-states of the project plan' (user's idea). Spikes 015a/015b/015c probe restore semantics; 016 probes snapshot scope; 017 probes history UX; 018 is a diff-view nice-to-have. All spike HTMLs use the same 5 mocked tasks + 3 mocked iterations so the user can compare interactions directly. Dev server on port 8000 is already running (started earlier this session for Phase 86.12 UAT). Branch v3.3."
+  "context_notes": "Series is exploring 'extend baselining to save iterations / save-states of the project plan' (user's idea). Spikes 015a/015b/015c probe restore semantics; 016 probes snapshot scope; 017 probes history UX; 018 is a diff-view nice-to-have. All spike HTMLs use the same 5 mocked tasks + 3 mocked iterations so the user can compare interactions directly. Dev server on port 8000 CONFIRMED LIVE this session (all three 015 spike.html URLs return 200). Resumed 2026-06-02, re-shared the three URLs, and explained what spike 015 is about — but user still has not given a winner verdict. No code/state changes this session; checkpoint unchanged. Branch v3.3."
 }
