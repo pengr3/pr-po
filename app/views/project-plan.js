@@ -3173,11 +3173,47 @@ async function loadBaselines() {
     }
 }
 
-async function saveBaseline() {
+async function saveBaseline(precomputedLabel = null) {
     if (!currentProject || tasks.length === 0) {
         showToast('No tasks to snapshot', 'warning');
         return;
     }
+    if (precomputedLabel === null) {
+        // Show styled modal for baseline name (matches openIterConfirm/iterSaveModal pattern)
+        try {
+            const countSnap = await getDocs(collection(db, 'projects', currentProject.id, 'baselines'));
+            const defaultLabel = `Baseline ${countSnap.size + 1}`;
+            document.getElementById('baselineSaveModal')?.remove();
+            const modal = document.createElement('div');
+            modal.id = 'baselineSaveModal';
+            modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                    <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px;">Save Baseline</h3>
+                    <label style="font-size:13px;color:#475569;display:block;margin-bottom:6px;">Name:</label>
+                    <input id="baselineSaveLabelInput" type="text" value="${escapeHTML(defaultLabel)}"
+                        style="width:100%;padding:7px 10px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;margin-bottom:16px;"
+                        onkeydown="if(event.key==='Enter'){this.closest('#baselineSaveModal').querySelector('.baseline-save-confirm-btn').click();}">
+                    <div style="display:flex;justify-content:flex-end;gap:8px;">
+                        <button onclick="document.getElementById('baselineSaveModal')?.remove()" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
+                        <button class="baseline-save-confirm-btn" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;font-weight:600;">Save</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            document.getElementById('baselineSaveLabelInput')?.select();
+            modal.querySelector('.baseline-save-confirm-btn').addEventListener('click', () => {
+                const inp = document.getElementById('baselineSaveLabelInput');
+                const lbl = (inp?.value?.trim() || defaultLabel).substring(0, 60);
+                document.getElementById('baselineSaveModal')?.remove();
+                saveBaseline(lbl);
+            });
+        } catch (e) {
+            console.error('[Plan] saveBaseline modal error:', e);
+            showToast('Failed to open baseline save dialog.', 'error');
+        }
+        return;
+    }
+    const label = precomputedLabel.substring(0, 60);
     try {
         // Build tasks map — all tasks with a task_id and at least one date
         const tasksMap = {};
@@ -3189,14 +3225,6 @@ async function saveBaseline() {
                 };
             }
         }
-        // Derive default label from existing baseline count, then let the user override
-        // via a native prompt (Phase 86.12 polish, quick task 20260601-bnm). Cancel aborts
-        // the save entirely; empty/whitespace OK falls back to the auto-name.
-        const countSnap = await getDocs(collection(db, 'projects', currentProject.id, 'baselines'));
-        const defaultLabel = `Baseline ${countSnap.size + 1}`;
-        const userInput = window.prompt('Name this baseline:', defaultLabel);
-        if (userInput === null) return;
-        const label = (userInput.trim() || defaultLabel).substring(0, 60);
         // Write the baseline doc
         await addDoc(collection(db, 'projects', currentProject.id, 'baselines'), {
             label,
@@ -3314,8 +3342,32 @@ async function loadIterations() {
 
 async function saveIteration(label = null) {
     if (label === null) {
-        label = window.prompt(`Save iteration as:`, `Iteration ${_iterSeq + 1}`);
-        if (label === null) return; // user cancelled
+        // Remove any existing save modal
+        document.getElementById('iterSaveModal')?.remove();
+        const modal = document.createElement('div');
+        modal.id = 'iterSaveModal';
+        modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
+        modal.innerHTML = `
+            <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px;">Save Iteration</h3>
+                <label style="font-size:13px;color:#475569;display:block;margin-bottom:6px;">Name:</label>
+                <input id="iterSaveLabelInput" type="text" value="Iteration ${_iterSeq + 1}"
+                    style="width:100%;padding:7px 10px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;margin-bottom:16px;"
+                    onkeydown="if(event.key==='Enter'){this.closest('#iterSaveModal').querySelector('.iter-save-confirm-btn').click();}">
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button onclick="document.getElementById('iterSaveModal')?.remove()" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
+                    <button class="iter-save-confirm-btn" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;font-weight:600;">Save</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        document.getElementById('iterSaveLabelInput')?.select();
+        modal.querySelector('.iter-save-confirm-btn').addEventListener('click', () => {
+            const lbl = document.getElementById('iterSaveLabelInput')?.value?.trim();
+            if (!lbl) return;
+            document.getElementById('iterSaveModal')?.remove();
+            saveIteration(lbl);
+        });
+        return;
     }
     label = label.trim();
     if (!label) return;
