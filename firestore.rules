@@ -249,6 +249,21 @@ service cloud.firestore {
     }
 
     // =============================================
+    // project_iterations collection (Phase 97 — rewindable plan save-states)
+    // =============================================
+    // Top-level collection; project_id field used for project-scoping at JS query layer.
+    // Read: all active users.
+    // Write: super_admin, operations_admin (same write gate as project_tasks creates).
+    // Delete: allowed for auto-snapshot cleanup on Undo (operations_admin creates these).
+    // Note: iterations are NOT immutable — auto-snapshots are deleted on Undo.
+    match /project_iterations/{iterationId} {
+      allow read: if isActiveUser();
+      allow create: if hasRole(['super_admin', 'operations_admin']);
+      allow update: if false;          // iterations are write-once (no editing labels/tasks)
+      allow delete: if hasRole(['super_admin', 'operations_admin']); // needed for Undo mechanic
+    }
+
+    // =============================================
     // clients collection
     // =============================================
     match /clients/{clientId} {
