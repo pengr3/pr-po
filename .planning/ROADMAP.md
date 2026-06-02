@@ -251,6 +251,7 @@
  (completed 2026-06-02)
 - **Phase 97.1: Project Plan Iterations UX Fixes** (INSERTED) — Three post-ship fixes: (1) Baseline persistence bug — cleared baseline re-selects most-recent on refresh; (2) Auto-save flood — loading a named iteration auto-saves prior state as a new entry, causing exponential history growth when switching between named iterations; (3) Toolbar UX redesign — Day/Week/Month + Export + Critical Path + baseline + Save Iteration + History controls are cramped; redesign for clarity.
   - [x] Plan 01: Baseline persistence + auto-snapshot flood guard (completed 2026-06-02) — commit 7918702
+  - [x] Plan 02: Toolbar group redesign — 4 clusters with dividers (completed 2026-06-02) — commit cc3ba99
 
 ## Phase Details
 

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Active. Phase 97.1 Plan 02 complete (2026-06-02) — toolbar redesign with 4 grouped clusters and dividers; Plan 01 + Plan 02 done.
-stopped_at: Completed 97.1-02-PLAN.md — toolbar group redesign
-last_updated: "2026-06-02T08:15:00Z"
+status: Phase 97.1 code-complete (2026-06-02). Both plans done, VERIFICATION.md created (6/6 must-haves pass). Awaiting browser UAT: baseline persistence on refresh, auto-restore no-flood, manual-restore undo still works, toolbar 4-group render. WR-01 open (stale undo toast interleave — low priority fix).
+stopped_at: Phase 97.1 verification — pending browser UAT
+last_updated: "2026-06-02T08:30:00Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 31
   completed_phases: 28
-  total_plans: 111
-  completed_plans: 110
-  percent: 90
+  total_plans: 113
+  completed_plans: 111
+  percent: 91
 ---
 
 # Project State
