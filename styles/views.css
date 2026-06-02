@@ -2721,6 +2721,21 @@
     color: #1a73e8;
 }
 
+/* Phase 97.1 — Toolbar groups */
+.plan-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.plan-toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--gray-200, #dadce0);
+    margin: 0 2px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
 /* ========================================
    PHASE 86.1 — TASK GRID (inline spreadsheet)
    Left rail: editable table replacing task-tree
