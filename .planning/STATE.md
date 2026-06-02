@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.1 complete (2026-06-02). All UAT passed: baseline persistence, auto-restore no-flood, manual-restore undo works, toolbar 4-group render confirmed. WR-01 open (stale undo toast — low-priority follow-up). Next: /gsd:ship or next phase.
-stopped_at: Phase 97.1 — UAT passed, phase closed
-last_updated: "2026-06-02T08:30:00Z"
-last_activity: 2026-06-02
+status: "Phase 97.2 inserted (2026-06-02) — Iterations Save Model Overhaul. Phase 97.1 complete. Next: /gsd:discuss-phase 97.2 or /gsd:plan-phase 97.2"
+stopped_at: Phase 97.2 context gathered
+last_updated: "2026-06-02T08:52:49.571Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 31
   completed_phases: 28
-  total_plans: 113
-  completed_plans: 111
-  percent: 91
+  total_plans: 111
+  completed_plans: 109
+  percent: 90
 ---
 
 # Project State
@@ -189,6 +189,10 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 97.1 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 97.2 inserted after 97.1 (2026-06-02, URGENT) — Iterations Save Model Overhaul: current "save (Automatically)" label and implicit save-as-on-load is confusing; iteration rail UX needs a full overhaul to a deliberate named-save model.
 
 ### Decisions
 
@@ -660,9 +664,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-06-02T08:00:19.835Z
-Stopped at: context exhaustion at 82% (2026-05-26)
-Resume file: None
+Last session: 2026-06-02T08:52:49.544Z
+Stopped at: Phase 97.2 context gathered
+Resume file: .planning/phases/97.2-project-plan-iterations-save-ux-overhaul/97.2-CONTEXT.md
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
