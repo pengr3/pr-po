@@ -1,29 +1,42 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-02T08:45:00Z",
-  "phase": "97.1",
-  "phase_name": "project-plan-iterations-ux-fixes",
-  "phase_dir": ".planning/phases/97.1-project-plan-iterations-ux-fixes",
-  "plan": 2,
-  "task": 2,
-  "total_tasks": 2,
-  "status": "complete",
+  "timestamp": "2026-06-02T10:57:34.060Z",
+  "phase": "97.2",
+  "phase_name": "project-plan-iterations-save-ux-overhaul",
+  "phase_dir": ".planning/phases/97.2-project-plan-iterations-save-ux-overhaul",
+  "plan": 3,
+  "task": "UAT",
+  "total_tasks": "UAT only (all code-complete)",
+  "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Plan 01 — Baseline persistence + auto-snapshot flood guard", "status": "done", "commit": "7918702"},
-    {"id": 2, "name": "Plan 02 — Toolbar group redesign (CSS + HTML)", "status": "done", "commit": "cc3ba99"}
+    {"id": 1, "name": "97.2-01: auto-snapshot cleanup on undo-dismiss", "status": "done"},
+    {"id": 2, "name": "97.2-02: dismissUndoToast() cleanup refactor", "status": "done", "commit": "82e6b5c"},
+    {"id": 3, "name": "97.2-03: styled iterSaveModal replacing window.prompt()", "status": "done", "commit": "6133e20"},
+    {"id": 4, "name": "UAT fix pass 1 — indicator badge, save-before-switch modal, delete button", "status": "done", "commit": "724f122"},
+    {"id": 5, "name": "260602-q50: UAT fix pass 2 — initial-load indicator persistence + save-overwrite vs save-as", "status": "done", "commit": "feeb81c"}
   ],
-  "remaining_tasks": [],
+  "remaining_tasks": [
+    {"id": "UAT-1", "name": "History rail shows only named saves (no auto-tag entries)", "status": "not_started"},
+    {"id": "UAT-2", "name": "Relative timestamps on rail cards", "status": "not_started"},
+    {"id": "UAT-3", "name": "Delete button confirm modal (user confirmed working)", "status": "done_per_user"},
+    {"id": "UAT-4", "name": "Restore named iteration — undo toast copy correct", "status": "not_started"},
+    {"id": "UAT-5", "name": "Undo toast expires — auto-snapshot deleted from Firestore", "status": "not_started"},
+    {"id": "UAT-6", "name": "Save via toolbar AND '+ Save current state' button", "status": "not_started"},
+    {"id": "UAT-7", "name": "Initial-load indicator shows without manual Load", "status": "not_started"},
+    {"id": "UAT-8", "name": "Save on loaded named iter = silent overwrite", "status": "not_started"},
+    {"id": "UAT-9", "name": "Save & Load chain works in overwrite path", "status": "not_started"},
+    {"id": "UAT-10", "name": "Fresh/baseline state Save opens 'Save Iteration As' modal", "status": "not_started"},
+    {"id": "UAT-11", "name": "Zero console errors throughout", "status": "not_started"}
+  ],
   "blockers": [],
-  "human_actions_pending": [],
+  "human_actions_pending": [
+    {"action": "Run 11-step browser UAT checklist", "context": "All code shipped; browser testing required to close phase 97.2", "blocking": true}
+  ],
   "decisions": [
-    {"decision": "localStorage key baselineCleared_{projectId} persists until explicit user action (save or select baseline)", "rationale": "UX preference, not auth data — acceptable to persist across sessions", "phase": "97.1"},
-    {"decision": "Divider-only grouping (no text labels) for toolbar", "rationale": "Matches SPA's simple toolbar style; labels would add vertical height and break fixed 56px toolbar height", "phase": "97.1"},
-    {"decision": "Search input stays ungrouped as last .plan-toolbar child", "rationale": "Floats rightmost, visually distinct from the 4 control clusters", "phase": "97.1"}
+    {"decision": "last_loaded_iteration_id field in project Firestore doc", "rationale": "Persists loaded iteration across page refreshes — cleanest approach without inference", "phase": "97.2"},
+    {"decision": "Save vs Save As distinguished by _loadedIterationId being set", "rationale": "No extra UX prompts; modal label changes to 'Save Iteration As' for the new-name path", "phase": "97.2"}
   ],
   "uncommitted_files": [],
-  "open_findings": [
-    {"id": "WR-01", "severity": "warning", "description": "restoreIteration() doesn't call dismissUndoToast() when iter.auto===true — stale undo toast from prior manual restore can persist and undo to wrong snapshot", "fix": "Add dismissUndoToast() unconditionally at top of restoreIteration()"}
-  ],
-  "next_action": "Phase 97.1 complete — next: /gsd:ship to merge v3.3 to main, or start next phase",
-  "context_notes": "All 4 browser UAT checks passed by user. Phase fully closed. WR-01 is low-priority and does not block shipping."
+  "next_action": "Start dev server, open project with saved iterations, run UAT check #7 first (initial-load indicator)",
+  "context_notes": "Phase 97.2 had 2 UAT fix passes. First pass (724f122) addressed indicator badge + save-before-switch + delete. User confirmed delete works but indicator and save-overwrite still had issues. Second pass (feeb81c via quick task 260602-q50) adds persistence-based indicator and true overwrite-save path. 11 browser UAT checks remain before phase close."
 }
