@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.2 complete (2026-06-02) — All 3 plans shipped. window.prompt() eliminated from project-plan.js.
-stopped_at: Phase 97.2 Plan 03 complete — saveIteration() + saveBaseline() now use styled inline modals
-last_updated: "2026-06-02T09:35:00.000Z"
+status: Phase 97.2 UAT fixes shipped (2026-06-02) — active iteration indicator, save-before-switch prompt, baseline delete.
+stopped_at: Quick task uat-iter-baseline-fixes complete (724f122) — browser UAT pending
+last_updated: "2026-06-02T10:00:00.000Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 31
@@ -654,6 +654,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
+| 20260602-uat-iter | Phase 97.2 UAT fixes: active iteration indicator, save-before-switch prompt, baseline delete | 2026-06-02 | 724f122 | Awaiting browser UAT | [20260602-uat-iter-baseline-fixes](.planning/quick/20260602-uat-iter-baseline-fixes/) |
 | 260522-g3fix | Fix firestore.rules projects allow update for operations_user project_status writes (87.2 G3 gap) | 2026-05-22 | aa18750 | ✅ | firestore.rules |
 | 260319-gkf | Improve RFP payment fill progress bar color scheme to match text label colors like PRs column | 2026-03-19 | e369df7 | | [260319-gkf-improve-rfp-payment-fill-progress-bar-co](.planning/quick/260319-gkf-improve-rfp-payment-fill-progress-bar-co/) |
 | 260319-j18 | Fix PO ID link font color in MRF Records table from green (#34a853) to primary blue (#1a73e8) | 2026-03-19 | 7f5c841 | | [260319-j18-fix-po-id-link-font-color-in-mrf-records](.planning/quick/260319-j18-fix-po-id-link-font-color-in-mrf-records/) |
