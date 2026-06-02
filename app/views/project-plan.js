@@ -142,34 +142,45 @@ export function render(activeTab = null, param = null) {
                 <a href="#/projects/detail/${escapeHTML(projectCode || '')}" class="plan-back-link">‹ Back</a>
                 <h2 class="plan-title" id="planTitle">Plan</h2>
                 <div class="plan-toolbar-spacer"></div>
-                <div class="zoom-pill-group" id="zoomPillGroup" role="group" aria-label="Zoom">
-                    <button type="button" class="zoom-pill" data-zoom="Day" onclick="window.setGanttZoom('Day')">Day</button>
-                    <button type="button" class="zoom-pill active" data-zoom="Week" onclick="window.setGanttZoom('Week')">Week</button>
-                    <button type="button" class="zoom-pill" data-zoom="Month" onclick="window.setGanttZoom('Month')">Month</button>
+                <div class="plan-toolbar-group">
+                    <div class="zoom-pill-group" id="zoomPillGroup" role="group" aria-label="Zoom">
+                        <button type="button" class="zoom-pill" data-zoom="Day" onclick="window.setGanttZoom('Day')">Day</button>
+                        <button type="button" class="zoom-pill active" data-zoom="Week" onclick="window.setGanttZoom('Week')">Week</button>
+                        <button type="button" class="zoom-pill" data-zoom="Month" onclick="window.setGanttZoom('Month')">Month</button>
+                    </div>
                 </div>
-                <button type="button" class="plan-export-btn" onclick="window.exportGanttPDF()" title="Export Gantt as PDF">Export</button>
-                <label class="plan-toolbar-toggle" title="Critical path&#10;&#10;The longest dependency chain that drives the project finish date. Slip any task on it and the project slips.&#10;&#10;A task qualifies when:&#10;  1. It has zero schedule slack (no buffer), AND&#10;  2. At least one neighbor is also zero-slack with a tight dependency edge (predecessor finishes the day before this task starts).&#10;&#10;Isolated tasks with no dependencies are never on the critical path.">
-                    <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
-                    <span>Critical path</span>
-                </label>
-                <select id="baselineSelect" class="plan-baseline-select"
-                    onchange="window.selectBaseline(this.value)"
-                    title="Select which saved baseline drives the overlay">
-                    <option value="">— none —</option>
-                </select>
-                <button type="button" id="baselineToggleBtn" class="plan-export-btn plan-baseline-btn"
-                    onclick="window.toggleBaseline()" title="Snapshot current task dates as a baseline">
-                    Set Baseline
-                </button>
+                <div class="plan-toolbar-divider" aria-hidden="true"></div>
+                <div class="plan-toolbar-group">
+                    <button type="button" class="plan-export-btn" onclick="window.exportGanttPDF()" title="Export Gantt as PDF">Export</button>
+                    <label class="plan-toolbar-toggle" title="Critical path&#10;&#10;The longest dependency chain that drives the project finish date. Slip any task on it and the project slips.&#10;&#10;A task qualifies when:&#10;  1. It has zero schedule slack (no buffer), AND&#10;  2. At least one neighbor is also zero-slack with a tight dependency edge (predecessor finishes the day before this task starts).&#10;&#10;Isolated tasks with no dependencies are never on the critical path.">
+                        <input type="checkbox" id="cpToggle" checked onclick="window.toggleCriticalPath(this.checked)">
+                        <span>Critical path</span>
+                    </label>
+                </div>
+                <div class="plan-toolbar-divider" aria-hidden="true"></div>
+                <div class="plan-toolbar-group">
+                    <select id="baselineSelect" class="plan-baseline-select"
+                        onchange="window.selectBaseline(this.value)"
+                        title="Select which saved baseline drives the overlay">
+                        <option value="">— none —</option>
+                    </select>
+                    <button type="button" id="baselineToggleBtn" class="plan-export-btn plan-baseline-btn"
+                        onclick="window.toggleBaseline()" title="Snapshot current task dates as a baseline">
+                        Set Baseline
+                    </button>
+                </div>
+                <div class="plan-toolbar-divider" aria-hidden="true"></div>
                 <!-- Phase 97: Iteration controls — after baseline button, before search -->
-                <button type="button" class="plan-export-btn plan-iter-save-btn"
-                    onclick="window.saveIteration()" title="Save a named snapshot of the current plan">
-                    Save Iteration
-                </button>
-                <button type="button" id="iterHistoryBtn" class="plan-export-btn plan-iter-history-btn"
-                    onclick="window.toggleIterRail()" title="Browse saved iterations">
-                    History
-                </button>
+                <div class="plan-toolbar-group">
+                    <button type="button" class="plan-export-btn plan-iter-save-btn"
+                        onclick="window.saveIteration()" title="Save a named snapshot of the current plan">
+                        Save Iteration
+                    </button>
+                    <button type="button" id="iterHistoryBtn" class="plan-export-btn plan-iter-history-btn"
+                        onclick="window.toggleIterRail()" title="Browse saved iterations">
+                        History
+                    </button>
+                </div>
                 <!-- Phase 86.8 Feature 6 — search lives in the toolbar so it doesn't push grid
                      headers down and break left/right vertical alignment. Bound once in init(),
                      not re-rendered by renderTaskGrid, so caret state survives every keystroke. -->
