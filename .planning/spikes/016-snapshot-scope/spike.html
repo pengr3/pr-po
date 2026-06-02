@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spike 016 — Snapshot Scope</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1a73e8; --primary-dark: #1557b0;
+      --success: #059669; --warning: #f59e0b; --danger: #ef4444;
+      --text: #1e293b; --muted: #64748b; --border: #e2e8f0;
+      --bg: #f8fafc; --white: #fff;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Nav */
+    .app-nav { background: var(--primary); color: white; padding: 0 16px; height: 48px; display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+    .app-nav .logo { font-weight: 700; font-size: 15px; }
+    .app-nav .nav-item { font-size: 13px; opacity: 0.8; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .app-nav .nav-item.active { opacity: 1; background: rgba(255,255,255,0.15); }
+
+    /* Scope bar */
+    .scope-bar { background: white; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .scope-bar .label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+    .scope-btn { padding: 5px 14px; border-radius: 6px; border: 1.5px solid var(--border); background: white; color: var(--text); font-size: 12px; cursor: pointer; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+    .scope-btn.active { border-color: var(--primary); background: #e8f0fe; color: var(--primary); }
+    .scope-desc { margin-left: auto; font-size: 11px; color: var(--muted); max-width: 380px; text-align: right; line-height: 1.4; }
+
+    /* Legend */
+    .legend-bar { display: flex; gap: 14px; padding: 5px 16px; background: white; border-bottom: 1px solid var(--border); font-size: 11px; align-items: center; color: var(--muted); flex-shrink: 0; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* Layout */
+    .main { display: flex; flex: 1; overflow: hidden; }
+    .plan-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar { width: 290px; border-left: 1px solid var(--border); background: white; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+
+    /* Toolbar */
+    .plan-toolbar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: white; }
+    .plan-toolbar .title { font-weight: 600; font-size: 14px; }
+    .plan-toolbar .save-btn { margin-left: auto; padding: 6px 14px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .plan-toolbar .save-btn:hover { background: var(--primary-dark); }
+
+    /* Task table */
+    .task-table-wrap { flex: 1; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; border-bottom: 1px solid var(--border); white-space: nowrap; transition: opacity 0.2s; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; transition: background 0.2s; }
+    tr:hover td { background: #f8fafc; }
+    .task-name { font-weight: 500; }
+    .task-id { font-size: 10px; color: var(--muted); }
+    .dep-badge { display: inline-block; background: #e8f0fe; color: var(--primary); font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; margin-right: 2px; }
+    .progress-wrap { display: flex; align-items: center; gap: 5px; }
+    .progress-bar { width: 50px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--success); border-radius: 3px; }
+    .nil { color: #cbd5e1; }
+
+    /* Cell states */
+    td.captured { background: #f0fdf4 !important; }
+    td.lost { background: #fef2f2 !important; opacity: 0.55; }
+
+    /* Sidebar */
+    .sidebar-header { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .iter-count { background: #e8f0fe; color: var(--primary); font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 700; }
+    .iter-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .iter-card { border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; background: white; }
+    .iter-card.auto-card { border-color: #a7f3d0; background: #f0fdf4; }
+    .iter-head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .iter-name { font-weight: 600; font-size: 12px; flex: 1; }
+    .iter-date { font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .auto-pill { background: #d1fae5; color: #065f46; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; text-transform: uppercase; }
+    .iter-meta { font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+    .field-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; }
+    .fchip { font-size: 9px; padding: 2px 6px; border-radius: 8px; font-weight: 600; }
+    .fchip.in { background: #dcfce7; color: #166534; }
+    .fchip.out { background: #fee2e2; color: #991b1b; text-decoration: line-through; }
+    .iter-actions { display: flex; gap: 6px; }
+    .iter-btn { flex: 1; padding: 5px 0; border-radius: 5px; border: none; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .iter-btn.load { background: var(--primary); color: white; }
+    .iter-btn.load:hover { background: var(--primary-dark); }
+
+    /* Log */
+    .log-pane { height: 100px; border-top: 1px solid var(--border); background: #0f172a; overflow-y: auto; padding: 6px 12px; flex-shrink: 0; }
+    .log-row { font-family: 'Cascadia Code', Consolas, monospace; font-size: 10px; line-height: 1.8; }
+    .log-row.event   { color: #94a3b8; }
+    .log-row.save    { color: #6ee7b7; }
+    .log-row.restore { color: #93c5fd; }
+    .log-row.undo    { color: #fbbf24; }
+
+    /* Modal */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal-backdrop.hidden { display: none; }
+    .modal { background: white; border-radius: 12px; padding: 20px 24px; width: 430px; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    .modal-title { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+    .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+    .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; }
+    .field-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 12px; gap: 8px; }
+    .field-row:last-child { border-bottom: none; }
+    .field-label { flex: 1; }
+    .field-note { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+    .fstatus { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; white-space: nowrap; }
+    .fstatus.saved { background: #dcfce7; color: #166534; }
+    .fstatus.not-saved { background: #fee2e2; color: #991b1b; }
+    .fstatus.stays-live { background: #fef3c7; color: #92400e; }
+    .modal-note { background: #f8fafc; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: var(--muted); margin: 12px 0; line-height: 1.5; }
+    .restore-note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #1d4ed8; margin: 12px 0; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+    .btn { padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-cancel { background: #f1f5f9; color: var(--text); }
+    .btn-cancel:hover { background: #e2e8f0; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 116px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 9px 18px; border-radius: 8px; font-size: 12px; display: flex; align-items: center; gap: 10px; z-index: 200; box-shadow: 0 4px 16px rgba(0,0,0,0.25); white-space: nowrap; }
+    .toast.hidden { display: none; }
+    .toast-undo { color: #60a5fa; cursor: pointer; font-weight: 700; text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="app-nav">
+  <span class="logo">CLMC Operations</span>
+  <span class="nav-item">Home</span>
+  <span class="nav-item active">Projects</span>
+  <span class="nav-item">Procurement</span>
+  <span class="nav-item">Finance</span>
+</div>
+
+<div class="scope-bar">
+  <span class="label">Snapshot Scope</span>
+  <button class="scope-btn" id="btnDates" onclick="setScope('dates')">Dates only</button>
+  <button class="scope-btn" id="btnDatesDeps" onclick="setScope('dates-deps')">Dates + deps</button>
+  <button class="scope-btn active" id="btnFull" onclick="setScope('full')">Full task doc</button>
+  <span class="scope-desc" id="scopeDesc"></span>
+</div>
+
+<div class="legend-bar">
+  <span style="font-weight:600;">Table cells:</span>
+  <span class="legend-dot" style="background:#bbf7d0;"></span><span>Saved in snapshot</span>
+  <span class="legend-dot" style="background:#fecaca;"></span><span>NOT saved — stays live on restore</span>
+</div>
+
+<div class="main">
+  <div class="plan-pane">
+    <div class="plan-toolbar">
+      <span class="title">Project Plan — Elias Tower Block A</span>
+      <button class="save-btn" onclick="openSaveModal()">Save Iteration…</button>
+    </div>
+    <div class="task-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th id="thStart">Start</th>
+            <th id="thEnd">End</th>
+            <th id="thDeps">Deps</th>
+            <th id="thAssignee">Assignee</th>
+            <th id="thProgress">Progress</th>
+            <th id="thNotes">Notes</th>
+          </tr>
+        </thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header">
+      Iterations <span class="iter-count" id="iterCount">3</span>
+    </div>
+    <div class="iter-list" id="iterList"></div>
+  </div>
+</div>
+
+<div class="log-pane" id="logPane"></div>
+
+<!-- Save modal -->
+<div class="modal-backdrop hidden" id="saveModal">
+  <div class="modal">
+    <div class="modal-title">Save Iteration</div>
+    <div class="modal-sub">Capture the current plan as a rewindable save-point.</div>
+    <div class="section-label">What gets saved</div>
+    <div id="saveFieldList"></div>
+    <div class="modal-note" id="saveNote"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeSaveModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSave()">Save Iteration</button>
+    </div>
+  </div>
+</div>
+
+<!-- Restore modal -->
+<div class="modal-backdrop hidden" id="restoreModal">
+  <div class="modal">
+    <div class="modal-title" id="restoreTitle">Load Iteration</div>
+    <div class="modal-sub" id="restoreSub"></div>
+    <div class="restore-note">↺ &nbsp;Safe by default — current state is auto-saved before loading. You can undo within 5 seconds.</div>
+    <div class="section-label">What gets restored</div>
+    <div id="restoreFieldList"></div>
+    <div class="modal-note" id="restoreNote"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeRestoreModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmRestore()">Load &amp; auto-save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast">
+  <span id="toastMsg"></span>
+  <span class="toast-undo" onclick="undoRestore()">Undo</span>
+</div>
+
+<script>
+// ── Mock data ─────────────────────────────────────────────────────────────────
+
+const BASE_TASKS = [
+  { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:100, notes:'Permits secured'       },
+  { id:'T002', name:'Site clearing',    start:'Jun 8',  end:'Jun 15', deps:['T001'], assignee:'Maria T.', progress:60,  notes:'NW corner pending'     },
+  { id:'T003', name:'Foundation pour',  start:'Jun 16', end:'Jun 30', deps:['T002'], assignee:'Pedro L.', progress:0,   notes:'Concrete order placed' },
+  { id:'T004', name:'Structural steel', start:'Jul 1',  end:'Jul 20', deps:['T003'], assignee:'',         progress:0,   notes:''                      },
+  { id:'T005', name:'MEP rough-in',     start:'Jul 21', end:'Aug 10', deps:['T004'], assignee:'',         progress:0,   notes:''                      },
+];
+
+const SAVED_ITERS = [
+  {
+    id:'i1', label:'Pre-scope-change', savedAt:'May 15', auto:false,
+    tasks:[
+      { id:'T001', name:'Mobilization',     start:'May 25', end:'Jun 2',  deps:[],       assignee:'Juan R.',  progress:100, notes:'Permits secured' },
+      { id:'T002', name:'Site clearing',    start:'Jun 3',  end:'Jun 10', deps:['T001'], assignee:'Maria T.', progress:0,   notes:'' },
+      { id:'T003', name:'Foundation pour',  start:'Jun 11', end:'Jun 25', deps:['T002'], assignee:'',         progress:0,   notes:'' },
+      { id:'T004', name:'Structural steel', start:'Jun 26', end:'Jul 15', deps:['T003'], assignee:'',         progress:0,   notes:'' },
+      { id:'T005', name:'MEP rough-in',     start:'Jul 16', end:'Aug 5',  deps:['T004'], assignee:'',         progress:0,   notes:'' },
+    ]
+  },
+  {
+    id:'i2', label:'Q3 plan freeze', savedAt:'May 28', auto:false,
+    tasks:[
+      { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:80,  notes:'Permits secured' },
+      { id:'T002', name:'Site clearing',    start:'Jun 8',  end:'Jun 18', deps:['T001'], assignee:'Maria T.', progress:0,   notes:'' },
+      { id:'T003', name:'Foundation pour',  start:'Jun 19', end:'Jul 3',  deps:['T002'], assignee:'Pedro L.', progress:0,   notes:'Awaiting concrete quote' },
+      { id:'T004', name:'Structural steel', start:'Jul 4',  end:'Jul 23', deps:['T003'], assignee:'',         progress:0,   notes:'' },
+      { id:'T005', name:'MEP rough-in',     start:'Jul 24', end:'Aug 13', deps:['T004'], assignee:'',         progress:0,   notes:'' },
+    ]
+  },
+  {
+    id:'i3', label:'Conservative re-plan', savedAt:'Jun 1', auto:false,
+    tasks:[
+      { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:100, notes:'Permits secured' },
+      { id:'T002', name:'Site clearing',    start:'Jun 10', end:'Jun 20', deps:['T001'], assignee:'Maria T.', progress:20,  notes:'Rain delay +3 days' },
+      { id:'T003', name:'Foundation pour',  start:'Jun 23', end:'Jul 7',  deps:['T002'], assignee:'Pedro L.', progress:0,   notes:'Concrete order placed' },
+      { id:'T004', name:'Structural steel', start:'Jul 10', end:'Jul 30', deps:['T003'], assignee:'',         progress:0,   notes:'' },
+      { id:'T005', name:'MEP rough-in',     start:'Aug 1',  end:'Aug 20', deps:['T004'], assignee:'',         progress:0,   notes:'' },
+    ]
+  },
+];
+
+// ── Scope config ──────────────────────────────────────────────────────────────
+
+const SCOPES = {
+  'dates': {
+    desc: 'Dates only — start & end captured. Task names, deps, assignees, progress, and notes are NOT saved.',
+    fields: [
+      { label:'Task name',    key:'name',     saved:false, restoreLabel:'Stays live', note:'If a task is renamed after saving, the old date lands under the current name.' },
+      { label:'Start date',   key:'start',    saved:true,  restoreLabel:'Restored' },
+      { label:'End date',     key:'end',      saved:true,  restoreLabel:'Restored' },
+      { label:'Dependencies', key:'deps',     saved:false, restoreLabel:'Stays live', note:'Dep links stay as-is in the live plan.' },
+      { label:'Assignee',     key:'assignee', saved:false, restoreLabel:'Stays live' },
+      { label:'Progress',     key:'progress', saved:false, restoreLabel:'Stays live' },
+      { label:'Notes',        key:'notes',    saved:false, restoreLabel:'Stays live' },
+    ],
+    restoreNote:'Only start and end dates are swapped in. Everything else — deps, assignees, progress, notes — stays as-is in the live plan.',
+  },
+  'dates-deps': {
+    desc: 'Dates + dependencies — start, end, and predecessor links. Assignee, progress, and notes are NOT saved.',
+    fields: [
+      { label:'Task name',    key:'name',     saved:false, restoreLabel:'Stays live' },
+      { label:'Start date',   key:'start',    saved:true,  restoreLabel:'Restored' },
+      { label:'End date',     key:'end',      saved:true,  restoreLabel:'Restored' },
+      { label:'Dependencies', key:'deps',     saved:true,  restoreLabel:'Restored' },
+      { label:'Assignee',     key:'assignee', saved:false, restoreLabel:'Stays live' },
+      { label:'Progress',     key:'progress', saved:false, restoreLabel:'Stays live' },
+      { label:'Notes',        key:'notes',    saved:false, restoreLabel:'Stays live' },
+    ],
+    restoreNote:'Dates and dependency links are restored. Assignee, progress, and notes remain live.',
+  },
+  'full': {
+    desc: 'Full task doc — every field captured. Nothing is lost on restore.',
+    fields: [
+      { label:'Task name',    key:'name',     saved:true, restoreLabel:'Restored' },
+      { label:'Start date',   key:'start',    saved:true, restoreLabel:'Restored' },
+      { label:'End date',     key:'end',      saved:true, restoreLabel:'Restored' },
+      { label:'Dependencies', key:'deps',     saved:true, restoreLabel:'Restored' },
+      { label:'Assignee',     key:'assignee', saved:true, restoreLabel:'Restored' },
+      { label:'Progress',     key:'progress', saved:true, restoreLabel:'Restored' },
+      { label:'Notes',        key:'notes',    saved:true, restoreLabel:'Restored' },
+    ],
+    restoreNote:'Full restore — the live plan is completely replaced with the saved iteration state.',
+  },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let scope = 'full';
+let iters = SAVED_ITERS.map(i => ({ ...i, tasks: i.tasks.map(t => ({...t})) }));
+let liveTasks = BASE_TASKS.map(t => ({...t}));
+let pendingRestoreId = null;
+let autoSnapshot = null;
+let toastTimer = null;
+let iterSeq = 3;
+
+// ── Scope ─────────────────────────────────────────────────────────────────────
+
+function setScope(s) {
+  scope = s;
+  ['btnDates','btnDatesDeps','btnFull'].forEach(id => document.getElementById(id).classList.remove('active'));
+  const idMap = { 'dates':'btnDates', 'dates-deps':'btnDatesDeps', 'full':'btnFull' };
+  document.getElementById(idMap[s]).classList.add('active');
+  document.getElementById('scopeDesc').textContent = SCOPES[s].desc;
+
+  // Dim column headers for unsaved fields
+  const saved = savedSet(s);
+  const colMap = { thStart:'start', thEnd:'end', thDeps:'deps', thAssignee:'assignee', thProgress:'progress', thNotes:'notes' };
+  Object.entries(colMap).forEach(([id, key]) => {
+    document.getElementById(id).style.opacity = saved.has(key) ? '1' : '0.4';
+  });
+
+  renderTable();
+  renderIters();
+  log('event', `Scope → ${s}`);
+}
+
+function savedSet(s) {
+  return new Set(SCOPES[s].fields.filter(f => f.saved).map(f => f.key));
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+function renderTable() {
+  const saved = savedSet(scope);
+  const cls = key => saved.has(key) ? 'captured' : 'lost';
+  document.getElementById('taskBody').innerHTML = liveTasks.map(t => `
+    <tr>
+      <td><span class="task-name">${t.name}</span><br><span class="task-id">${t.id}</span></td>
+      <td class="${cls('start')}">${t.start}</td>
+      <td class="${cls('end')}">${t.end}</td>
+      <td class="${cls('deps')}">${t.deps.length ? t.deps.map(d=>`<span class="dep-badge">${d}</span>`).join('') : '<span class="nil">—</span>'}</td>
+      <td class="${cls('assignee')}">${t.assignee || '<span class="nil">—</span>'}</td>
+      <td class="${cls('progress')}">
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+          ${t.progress}%
+        </div>
+      </td>
+      <td class="${cls('notes')}">${t.notes || '<span class="nil">—</span>'}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Iterations sidebar ────────────────────────────────────────────────────────
+
+function renderIters() {
+  document.getElementById('iterCount').textContent = iters.length;
+  document.getElementById('iterList').innerHTML = iters.map(it => `
+    <div class="iter-card ${it.auto ? 'auto-card' : ''}">
+      <div class="iter-head">
+        <span class="iter-name">${it.label}</span>
+        ${it.auto ? '<span class="auto-pill">auto</span>' : ''}
+        <span class="iter-date">${it.savedAt}</span>
+      </div>
+      <div class="iter-meta">${it.tasks.length} tasks · ${scopeShortLabel()}</div>
+      <div class="field-chips">${fieldChips()}</div>
+      <div class="iter-actions">
+        <button class="iter-btn load" onclick="openRestoreModal('${it.id}')">Load</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function scopeShortLabel() {
+  return { 'dates':'dates only', 'dates-deps':'dates + deps', 'full':'full doc' }[scope];
+}
+
+function fieldChips() {
+  return SCOPES[scope].fields.map(f =>
+    `<span class="fchip ${f.saved ? 'in' : 'out'}">${f.label}</span>`
+  ).join('');
+}
+
+// ── Save modal ────────────────────────────────────────────────────────────────
+
+function openSaveModal() {
+  const cfg = SCOPES[scope];
+  document.getElementById('saveFieldList').innerHTML = cfg.fields.map(f => `
+    <div class="field-row">
+      <div class="field-label">
+        ${f.label}
+        ${f.note && !f.saved ? `<div class="field-note">${f.note}</div>` : ''}
+      </div>
+      <span class="fstatus ${f.saved ? 'saved' : 'not-saved'}">${f.saved ? 'Saved' : 'Not saved'}</span>
+    </div>
+  `).join('');
+  const unsaved = cfg.fields.filter(f => !f.saved);
+  document.getElementById('saveNote').textContent = unsaved.length
+    ? `${unsaved.length} field${unsaved.length > 1 ? 's' : ''} not captured with "${scopeShortLabel()}" scope. On restore, those fields keep their live values.`
+    : 'Full doc — every field is captured. Restore will be a complete replacement.';
+  document.getElementById('saveModal').classList.remove('hidden');
+  log('event', `Save modal opened (scope: ${scope})`);
+}
+function closeSaveModal() { document.getElementById('saveModal').classList.add('hidden'); }
+
+function confirmSave() {
+  closeSaveModal();
+  iterSeq++;
+  iters.unshift({
+    id: `i${Date.now()}`,
+    label: `Iteration ${iterSeq}`,
+    savedAt: 'Just now',
+    auto: false,
+    tasks: liveTasks.map(t => ({...t})),
+  });
+  renderIters();
+  log('save', `Saved "Iteration ${iterSeq}" (scope: ${scope}, ${liveTasks.length} tasks)`);
+}
+
+// ── Restore modal ─────────────────────────────────────────────────────────────
+
+function openRestoreModal(id) {
+  pendingRestoreId = id;
+  const it = iters.find(i => i.id === id);
+  const cfg = SCOPES[scope];
+  document.getElementById('restoreTitle').textContent = `Load "${it.label}"`;
+  document.getElementById('restoreSub').textContent = `Saved ${it.savedAt} · ${it.tasks.length} tasks · ${scopeShortLabel()} scope`;
+  document.getElementById('restoreFieldList').innerHTML = cfg.fields.map(f => `
+    <div class="field-row">
+      <span class="field-label">${f.label}</span>
+      <span class="fstatus ${f.saved ? 'saved' : 'stays-live'}">${f.restoreLabel}</span>
+    </div>
+  `).join('');
+  document.getElementById('restoreNote').textContent = cfg.restoreNote;
+  document.getElementById('restoreModal').classList.remove('hidden');
+  log('event', `Restore modal opened for "${it.label}"`);
+}
+function closeRestoreModal() {
+  document.getElementById('restoreModal').classList.add('hidden');
+  pendingRestoreId = null;
+}
+
+function confirmRestore() {
+  const it = iters.find(i => i.id === pendingRestoreId);
+  closeRestoreModal();
+
+  // Auto-snapshot
+  const autoLabel = `Auto-save before "${it.label}"`;
+  autoSnapshot = {
+    id: `auto-${Date.now()}`,
+    label: autoLabel,
+    savedAt: 'Just now',
+    auto: true,
+    tasks: liveTasks.map(t => ({...t})),
+  };
+  iters.unshift(autoSnapshot);
+  log('save', `Auto-snapshot: "${autoLabel}"`);
+
+  // Apply restore (scope-aware)
+  const saved = savedSet(scope);
+  liveTasks = liveTasks.map(live => {
+    const snap = it.tasks.find(t => t.id === live.id);
+    if (!snap) return live;
+    const merged = {...live};
+    saved.forEach(key => { merged[key] = snap[key]; });
+    return merged;
+  });
+
+  renderTable();
+  renderIters();
+  log('restore', `Loaded "${it.label}" — scope: ${scope}. ${saved.size} field(s) restored; ${7 - saved.size} stayed live.`);
+  showToast(`Loaded "${it.label}". Previous auto-saved.`);
+}
+
+// ── Undo ──────────────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toast').classList.remove('hidden');
+  toastTimer = setTimeout(dismissToast, 5000);
+}
+function dismissToast() {
+  document.getElementById('toast').classList.add('hidden');
+  autoSnapshot = null;
+}
+function undoRestore() {
+  if (!autoSnapshot) return;
+  clearTimeout(toastTimer);
+  document.getElementById('toast').classList.add('hidden');
+  liveTasks = autoSnapshot.tasks.map(t => ({...t}));
+  iters = iters.filter(i => i.id !== autoSnapshot.id);
+  log('undo', `Undone — rolled back. Auto-snapshot removed.`);
+  autoSnapshot = null;
+  renderTable();
+  renderIters();
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+
+function log(type, msg) {
+  const pane = document.getElementById('logPane');
+  const t = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const row = document.createElement('div');
+  row.className = `log-row ${type}`;
+  row.textContent = `[${t}] [${type.toUpperCase().padEnd(7)}] ${msg}`;
+  pane.appendChild(row);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+setScope('full');
+log('event', 'Spike 016 — try each scope tab, then click "Save Iteration…" or "Load" on a saved iteration to see what gets captured/restored.');
+</script>
+</body>
+</html>
