@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.2 in progress (2026-06-02) — Plan 02/3 complete. Plan 03 (save modal + delete UX) next.
-stopped_at: Phase 97.2 Plan 02 complete — dismissUndoToast Firestore cleanup + WR-01 fix
-last_updated: "2026-06-02T09:18:06.250Z"
-last_activity: 2026-05-25
+status: Phase 97.2 complete (2026-06-02) — All 3 plans shipped. window.prompt() eliminated from project-plan.js.
+stopped_at: Phase 97.2 Plan 03 complete — saveIteration() + saveBaseline() now use styled inline modals
+last_updated: "2026-06-02T09:35:00.000Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 31
   completed_phases: 28
   total_plans: 111
-  completed_plans: 109
-  percent: 90
+  completed_plans: 110
+  percent: 91
 ---
 
 # Project State
@@ -199,6 +199,8 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 97.2-03]: saveIteration(null) shows iterSaveModal via document.createElement (matching openIterConfirm pattern); modal Save button calls saveIteration(lbl) re-entering the non-null path — two-phase pattern keeps existing try/catch intact; iter-save-confirm-btn class enables Enter key handler; 60-char truncation preserved; saveBaseline() also replaced (same pattern, precomputedLabel param) to satisfy must_haves "window.prompt( no longer appears in project-plan.js"
 
 - [Phase 97.2-02]: dismissUndoToast() made async; _autoSnapId nulled BEFORE await deleteDoc to prevent re-entrance race (D-05); redundant _autoSnapId = null removed from showUndoToast setTimeout callback; await dismissUndoToast() (not fire-and-forget) used in restoreIteration so prior auto-snapshot deleted before new one created in STEP 1 (WR-01 / D-06); toast copy updated to "Undo to revert." removing "Previous state auto-saved." (D-04)
 
@@ -670,7 +672,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-06-02T09:18:06.230Z
+Last session: 2026-06-02T09:23:34.637Z
 Stopped at: Phase 97.2 context gathered
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
