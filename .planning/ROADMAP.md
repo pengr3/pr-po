@@ -247,7 +247,7 @@
  (completed 2026-05-13)
 - [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
 - [x] **Phase 96: Proposal Card Redesign — Progress Track + Stat Chips** — Redesign the inline proposal card in project/service detail with spike-009-validated layout: 4-node progress track (Draft → Internal Review → Client Review → Approved), title-first stat chips (Value + Stage Age), and silenced empty-state noise (completed 2026-05-26)
-- [ ] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection.
+- [x] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection. (completed 2026-06-02)
 
 ## Phase Details
 
@@ -939,11 +939,11 @@ Plans:
 **Goal:** Users can save named snapshots of the project plan as rewindable iterations and restore any of them safely. History is browsed via a right-rail panel. Before any restore, the current state is auto-saved and a 5-second undo toast appears. An inline diff view shows adds/changes/deletes between the live plan and any saved iteration without loading it.
 **Depends on:** Phase 86.12 (project_tasks collection + baseline subcollection pattern), Phase 86 (project-plan.js architecture)
 **Requirements**: Spike-validated — 015c (restore mechanic), 016 (full-doc scope), 017B (right-rail history), 018 (diff view)
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 97-01-PLAN.md — Firestore Security Rules for project_iterations collection
 - [x] 97-02-PLAN.md — HTML/CSS/state variable scaffolding (render() + views.css)
 - [x] 97-03-PLAN.md — Data layer: loadIterations(), saveIteration(), renderIterRail(), toggleIterRail()
 - [x] 97-04-PLAN.md — Restore mechanic: restoreIteration(), showUndoToast(), undoIterRestore()
-- [ ] 97-05-PLAN.md — Diff view: computeDiff(), toggleIterDiff(), closeIterDiff()
+- [x] 97-05-PLAN.md — Diff view: computeDiff(), toggleIterDiff(), closeIterDiff()
