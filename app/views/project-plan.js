@@ -3141,7 +3141,11 @@ async function loadBaselines() {
             orderBy('created_at', 'desc')
         ));
         _baselines = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        if (_baselines.length > 0) {
+        const wasCleared = !!localStorage.getItem('baselineCleared_' + currentProject.id);
+        if (wasCleared) {
+            _activeBaselineId = null;
+            _baselineData = null;
+        } else if (_baselines.length > 0) {
             _activeBaselineId = _baselines[0].id;
             _baselineData = _baselines[0];
         } else {
@@ -3189,6 +3193,7 @@ async function saveBaseline() {
         // Refresh in-memory baselines and re-render overlay immediately (WR-01: baselines write
         // does not trigger project_tasks snapshot, so overlay must be pushed manually).
         // loadBaselines() auto-selects the newest doc — which is the one we just wrote.
+        if (currentProject?.id) localStorage.removeItem('baselineCleared_' + currentProject.id);
         await loadBaselines();
         injectBaselineOverlay();
         renderSlipSummary();
@@ -3223,6 +3228,7 @@ function selectBaseline(id) {
         console.warn('[Plan] selectBaseline: unknown id', id);
         return;
     }
+    if (currentProject?.id) localStorage.removeItem('baselineCleared_' + currentProject.id);
     _activeBaselineId = id;
     _baselineData = found;
     injectBaselineOverlay();
@@ -3234,6 +3240,7 @@ function selectBaseline(id) {
 // Saved baselines remain in _baselines[] (still selectable from the dropdown).
 function clearBaseline() {
     _activeBaselineId = null;
+    if (currentProject?.id) localStorage.setItem('baselineCleared_' + currentProject.id, '1');
     _baselineData = null;
     const ganttSvg = document.querySelector('#ganttPane svg');
     if (ganttSvg) {
@@ -3434,36 +3441,38 @@ async function restoreIteration(iterationId) {
     const iter = _iterations.find(i => i.id === iterationId);
     if (!iter) return;
     try {
-        // STEP 1 — Auto-snapshot current state BEFORE restore
-        const autoLabel = `Auto-save before "${iter.label}"`;
-        const snapshot = tasks.map(t => ({
-            id:             t.id,
-            task_id:        t.task_id        ?? null,
-            project_id:     t.project_id,
-            project_code:   t.project_code   ?? null,
-            name:           t.name,
-            start_date:     t.start_date     ?? null,
-            end_date:       t.end_date       ?? null,
-            progress:       t.progress       ?? 0,
-            is_milestone:   t.is_milestone   ?? false,
-            parent_task_id: t.parent_task_id ?? null,
-            dependencies:   t.dependencies   || [],
-            assignees:      t.assignees      || [],
-            row_order:      t.row_order      ?? null,
-            notes:          t.notes          || '',
-            status:         t.status         ?? null,
-            created_at:     t.created_at     ?? null,
-            updated_at:     t.updated_at     ?? null,
-            created_by:     t.created_by     ?? null,
-        }));
-        const autoRef = await addDoc(collection(db, 'project_iterations'), {
-            project_id: currentProject.id,
-            label:      autoLabel,
-            saved_at:   serverTimestamp(),
-            auto:       true,
-            tasks:      snapshot,
-        });
-        _autoSnapId = autoRef.id;
+        if (!iter.auto) {
+            // STEP 1 — Auto-snapshot current state BEFORE restore (only for non-auto iterations)
+            const autoLabel = `Auto-save before "${iter.label}"`;
+            const snapshot = tasks.map(t => ({
+                id:             t.id,
+                task_id:        t.task_id        ?? null,
+                project_id:     t.project_id,
+                project_code:   t.project_code   ?? null,
+                name:           t.name,
+                start_date:     t.start_date     ?? null,
+                end_date:       t.end_date       ?? null,
+                progress:       t.progress       ?? 0,
+                is_milestone:   t.is_milestone   ?? false,
+                parent_task_id: t.parent_task_id ?? null,
+                dependencies:   t.dependencies   || [],
+                assignees:      t.assignees      || [],
+                row_order:      t.row_order      ?? null,
+                notes:          t.notes          || '',
+                status:         t.status         ?? null,
+                created_at:     t.created_at     ?? null,
+                updated_at:     t.updated_at     ?? null,
+                created_by:     t.created_by     ?? null,
+            }));
+            const autoRef = await addDoc(collection(db, 'project_iterations'), {
+                project_id: currentProject.id,
+                label:      autoLabel,
+                saved_at:   serverTimestamp(),
+                auto:       true,
+                tasks:      snapshot,
+            });
+            _autoSnapId = autoRef.id;
+        }
 
         // STEP 2 — Batch-write: delete all current project_tasks, write iteration tasks back
         const existingSnap = await getDocs(
@@ -3487,8 +3496,12 @@ async function restoreIteration(iterationId) {
         await loadIterations();
         renderIterRail();
 
-        // STEP 4 — Show undo toast
-        showUndoToast(`Loaded "${iter.label}". Previous state auto-saved.`);
+        // STEP 4 — Show undo toast (only when a new auto-snapshot was created)
+        if (!iter.auto) {
+            showUndoToast(`Loaded "${iter.label}". Previous state auto-saved.`);
+        } else {
+            showToast('Auto-save restored.', 'success');
+        }
     } catch (e) {
         console.error('[Plan] restoreIteration error:', e);
         // Do not clear _autoSnapId — auto-snapshot may have already been written
