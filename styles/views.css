@@ -2505,6 +2505,36 @@
     background: #ef4444;
     color: #fff;
 }
+.iter-tl-loaded-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 3px;
+    background: #dcfce7;
+    color: #15803d;
+    vertical-align: middle;
+    margin-left: 4px;
+    letter-spacing: 0.02em;
+}
+.iter-loaded-label {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #15803d;
+    background: #f0fdf4;
+    border-bottom: 1px solid #dcfce7;
+}
+.plan-baseline-delete-btn {
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    background: #fff5f5;
+}
+.plan-baseline-delete-btn:hover {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+}
 .iter-tl-btn {
     padding: 3px 8px;
     border: none;

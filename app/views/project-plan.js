@@ -116,6 +116,9 @@ let _undoToastTimer = null;           // setTimeout handle for the 5s undo toast
 let _activeDiffIterationId = null;    // iteration id currently shown in diff panel; null if diff closed
 let _iterRailOpen = false;            // whether the right rail is currently open
 let _iterSeq = 0;                     // counter for default label "Iteration N"; updated from non-auto iterations count on load
+let _loadedIterationId = null;        // id of the last successfully restored named iteration; null = working from scratch
+let _loadedIterationLabel = '';       // label of the loaded iteration (for UI display)
+let _pendingLoadAfterSave = null;     // iterationId to load after "Save & Load" flow; null = no pending load
 
 // Phase 97: window function handler refs for destroy() cleanup
 let _iterSaveHandler = null;
@@ -168,6 +171,11 @@ export function render(activeTab = null, param = null) {
                         onclick="window.toggleBaseline()" title="Snapshot current task dates as a baseline">
                         Set Baseline
                     </button>
+                    <button type="button" id="baselineDeleteBtn" class="plan-export-btn plan-baseline-delete-btn"
+                        onclick="window.deleteBaseline(document.getElementById('baselineSelect').value)"
+                        title="Permanently delete selected baseline" style="display:none">
+                        Delete
+                    </button>
                 </div>
                 <div class="plan-toolbar-divider" aria-hidden="true"></div>
                 <!-- Phase 97: Iteration controls — after baseline button, before search -->
@@ -209,6 +217,7 @@ export function render(activeTab = null, param = null) {
                     <div class="iter-rail-save-row">
                         <button class="iter-rail-save-btn" onclick="window.saveIteration()">+ Save current state</button>
                     </div>
+                    <div class="iter-loaded-label" id="iterLoadedLabel" hidden></div>
                     <div class="iter-rail-timeline" id="iterRailTimeline"></div>
                 </div>
             </div>
@@ -346,6 +355,7 @@ export async function init(activeTab = null, param = null) {
         window.toggleBaseline = toggleBaseline;
         window.selectBaseline = selectBaseline;
         window.clearBaseline = clearBaseline;
+        window.deleteBaseline = deleteBaseline;
         // Phase 97: Iteration history window functions
         window.saveIteration  = saveIteration;
         window.toggleIterRail = toggleIterRail;
@@ -609,6 +619,7 @@ export async function destroy() {
     delete window.toggleBaseline;
     delete window.selectBaseline;
     delete window.clearBaseline;
+    delete window.deleteBaseline;
     // Phase 97: Iteration history cleanup
     delete window.saveIteration;
     delete window.toggleIterRail;
@@ -622,12 +633,17 @@ export async function destroy() {
     window._activeDiffIterationId = null; // clear window global (not just module scope)
     document.getElementById('iterDiffPanel')?.setAttribute('hidden', ''); // hide diff panel on navigation
     dismissUndoToast(); // dismiss toast + clear timer (defined in Plan 04, same file — safe)
-    document.getElementById('iterConfirmModal')?.remove(); // clean up any open confirm modal
+    document.getElementById('iterConfirmModal')?.remove();
+    document.getElementById('iterSwitchModal')?.remove();
+    document.getElementById('baselineDeleteModal')?.remove();
     _autoSnapId = null;
     _iterations = [];
     _activeDiffIterationId = null;
     _iterRailOpen = false;
     _iterSeq = 0;
+    _loadedIterationId = null;
+    _loadedIterationLabel = '';
+    _pendingLoadAfterSave = null;
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -3291,6 +3307,44 @@ function clearBaseline() {
     updateBaselineToolbarUI();
 }
 
+async function deleteBaseline(id) {
+    if (!id || !currentProject) return;
+    const bl = _baselines.find(b => b.id === id);
+    if (!bl) return;
+    document.getElementById('baselineDeleteModal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'baselineDeleteModal';
+    modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+            <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:#1e293b;">Delete Baseline</h3>
+            <p style="margin:0 0 20px;font-size:13px;color:#475569;line-height:1.5;">
+                Delete <strong>${escapeHTML(bl.label || '(unnamed)')}</strong>? This cannot be undone.
+            </p>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button id="blDeleteCancel" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
+                <button id="blDeleteConfirm" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-weight:600;">Delete</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#blDeleteCancel').addEventListener('click', () => modal.remove());
+    modal.querySelector('#blDeleteConfirm').addEventListener('click', async () => {
+        modal.remove();
+        try {
+            await deleteDoc(doc(db, 'projects', currentProject.id, 'baselines', id));
+            if (_activeBaselineId === id) clearBaseline();
+            await loadBaselines();
+            injectBaselineOverlay();
+            renderSlipSummary();
+            updateBaselineToolbarUI();
+            showToast('Baseline deleted.', 'success');
+        } catch (e) {
+            console.error('[Plan] deleteBaseline error:', e);
+            showToast('Failed to delete baseline.', 'error');
+        }
+    });
+}
+
 // Phase 86.12 (mbl): repopulate the toolbar selector and flip the toggle button label
 // to match current state. Called whenever _baselines or _activeBaselineId changes.
 function updateBaselineToolbarUI() {
@@ -3313,6 +3367,8 @@ function updateBaselineToolbarUI() {
             btn.title = 'Snapshot current task dates as a baseline';
         }
     }
+    const delBtn = document.getElementById('baselineDeleteBtn');
+    if (delBtn) delBtn.style.display = _activeBaselineId ? 'inline-block' : 'none';
 }
 
 // ---- Phase 97: Iteration history ----
@@ -3403,7 +3459,14 @@ async function saveIteration(label = null) {
         await loadIterations();
         renderIterRail();
         showToast(`Iteration "${label}" saved.`, 'success');
+        // If triggered by "Save & Load" flow, now open the load confirm for the pending iteration
+        if (_pendingLoadAfterSave) {
+            const targetId = _pendingLoadAfterSave;
+            _pendingLoadAfterSave = null;
+            openIterConfirm(targetId);
+        }
     } catch (e) {
+        _pendingLoadAfterSave = null;
         console.error('[Plan] saveIteration error:', e);
         showToast('Failed to save iteration.', 'error');
     }
@@ -3432,6 +3495,17 @@ function renderIterRail() {
 
     if (badge) badge.textContent = visible.length;
 
+    // Update the "currently loaded" label
+    const loadedLabelEl = document.getElementById('iterLoadedLabel');
+    if (loadedLabelEl) {
+        if (_loadedIterationId) {
+            loadedLabelEl.textContent = `On: ${_loadedIterationLabel}`;
+            loadedLabelEl.removeAttribute('hidden');
+        } else {
+            loadedLabelEl.setAttribute('hidden', '');
+        }
+    }
+
     if (visible.length === 0) {
         timeline.innerHTML = '<div style="padding:12px;font-size:12px;color:#64748b;text-align:center;">No saved iterations yet.</div>';
         return;
@@ -3441,11 +3515,12 @@ function renderIterRail() {
         const savedLabel = _formatIterTimestamp(iter.saved_at);
         const taskCount  = iter.tasks?.length ?? 0;
         const isActive   = _activeDiffIterationId === iter.id;
+        const isLoaded   = _loadedIterationId === iter.id;
         return `
           <div class="iter-timeline-item">
             <div class="iter-tl-dot">${visible.length - idx}</div>
             <div class="iter-tl-content">
-              <div class="iter-tl-name">${escapeHTML(iter.label)}</div>
+              <div class="iter-tl-name">${escapeHTML(iter.label)}${isLoaded ? ' <span class="iter-tl-loaded-badge">&#10003; Current</span>' : ''}</div>
               <div class="iter-tl-meta">${savedLabel} · ${taskCount} tasks</div>
               <div class="iter-tl-actions">
                 <button class="iter-tl-btn diff-btn ${isActive ? 'active' : ''}"
@@ -3525,6 +3600,42 @@ function closeIterRail() {
 function openIterConfirm(iterationId) {
     const iter = _iterations.find(i => i.id === iterationId);
     if (!iter) return;
+
+    // If a different named iteration is loaded, offer to save changes first
+    if (_loadedIterationId && _loadedIterationId !== iterationId) {
+        document.getElementById('iterSwitchModal')?.remove();
+        const switchModal = document.createElement('div');
+        switchModal.id = 'iterSwitchModal';
+        switchModal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
+        switchModal.innerHTML = `
+            <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+                <h3 style="margin:0 0 8px;font-size:16px;font-weight:700;color:#1e293b;">Load Iteration</h3>
+                <p style="margin:0 0 4px;font-size:12px;color:#64748b;">Currently on: <strong>${escapeHTML(_loadedIterationLabel)}</strong></p>
+                <p style="margin:0 0 20px;font-size:13px;color:#475569;line-height:1.5;">
+                    Load <strong>${escapeHTML(iter.label)}</strong>? Save your current changes first?
+                </p>
+                <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+                    <button id="iterSwitchCancel" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
+                    <button id="iterSwitchLoad" style="padding:7px 16px;font-size:13px;border:1px solid #1a73e8;border-radius:6px;background:#fff;color:#1a73e8;cursor:pointer;">Load without saving</button>
+                    <button id="iterSwitchSaveLoad" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;font-weight:600;">Save &amp; Load</button>
+                </div>
+            </div>`;
+        document.body.appendChild(switchModal);
+        switchModal.querySelector('#iterSwitchCancel').addEventListener('click', () => switchModal.remove());
+        switchModal.querySelector('#iterSwitchLoad').addEventListener('click', () => {
+            switchModal.remove();
+            _loadedIterationId = null;
+            _loadedIterationLabel = '';
+            openIterConfirm(iterationId);  // re-call; no switch modal this time
+        });
+        switchModal.querySelector('#iterSwitchSaveLoad').addEventListener('click', () => {
+            switchModal.remove();
+            _pendingLoadAfterSave = iterationId;
+            saveIteration(null);  // open save modal; after save, openIterConfirm(targetId) is called
+        });
+        return;
+    }
+
     // Remove any existing confirm modal
     document.getElementById('iterConfirmModal')?.remove();
     const modal = document.createElement('div');
@@ -3605,6 +3716,10 @@ async function restoreIteration(iterationId) {
             chunk.forEach(op => op.type === 'delete' ? batch.delete(op.ref) : batch.set(op.ref, op.data));
             await batch.commit();
         }
+
+        // Mark which named iteration is now active in the rail
+        _loadedIterationId = iter.auto ? null : iterationId;
+        _loadedIterationLabel = iter.auto ? '' : (iter.label || '');
 
         // STEP 3 — Refresh iterations rail (auto-snapshot now appears)
         await loadIterations();
