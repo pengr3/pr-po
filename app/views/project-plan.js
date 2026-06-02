@@ -3388,6 +3388,102 @@ function closeIterRail() {
     btn?.classList.remove('active');
 }
 
+// Phase 97 Plan 04: Restore mechanic — confirm modal, restore, auto-snapshot, undo toast
+
+function openIterConfirm(iterationId) {
+    const iter = _iterations.find(i => i.id === iterationId);
+    if (!iter) return;
+    // Remove any existing confirm modal
+    document.getElementById('iterConfirmModal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'iterConfirmModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-panel" style="max-width:420px;padding:28px 24px;">
+            <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:#1e293b;">Load Iteration</h3>
+            <p style="margin:0 0 20px;font-size:13px;color:#475569;line-height:1.5;">
+                Load <strong>${escapeHTML(iter.label)}</strong>?
+                Your current plan will be auto-saved first so you can undo within 5 seconds.
+            </p>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button class="btn-secondary" onclick="document.getElementById('iterConfirmModal')?.remove()" style="padding:7px 16px;font-size:13px;">Cancel</button>
+                <button class="btn-primary" onclick="window.confirmIterLoad('${escapeHTML(iter.id)}');document.getElementById('iterConfirmModal')?.remove()" style="padding:7px 16px;font-size:13px;">Load</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+}
+
+async function confirmIterLoad(iterationId) {
+    document.getElementById('iterConfirmModal')?.remove();
+    await restoreIteration(iterationId);
+}
+
+async function restoreIteration(iterationId) {
+    const iter = _iterations.find(i => i.id === iterationId);
+    if (!iter) return;
+    try {
+        // STEP 1 — Auto-snapshot current state BEFORE restore
+        const autoLabel = `Auto-save before "${iter.label}"`;
+        const snapshot = tasks.map(t => ({
+            id:             t.id,
+            task_id:        t.task_id,
+            project_id:     t.project_id,
+            project_code:   t.project_code,
+            name:           t.name,
+            start_date:     t.start_date,
+            end_date:       t.end_date,
+            progress:       t.progress,
+            is_milestone:   t.is_milestone,
+            parent_task_id: t.parent_task_id,
+            dependencies:   t.dependencies || [],
+            assignees:      t.assignees || [],
+            row_order:      t.row_order,
+            notes:          t.notes || '',
+            status:         t.status,
+            created_at:     t.created_at,
+            updated_at:     t.updated_at,
+            created_by:     t.created_by,
+        }));
+        const autoRef = await addDoc(collection(db, 'project_iterations'), {
+            project_id: currentProject.id,
+            label:      autoLabel,
+            saved_at:   serverTimestamp(),
+            auto:       true,
+            tasks:      snapshot,
+        });
+        _autoSnapId = autoRef.id;
+
+        // STEP 2 — Batch-write: delete all current project_tasks, write iteration tasks back
+        const existingSnap = await getDocs(
+            query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id))
+        );
+        const toDelete = existingSnap.docs;
+        const toWrite  = iter.tasks;
+        const OPS_PER_BATCH = 450;
+        const allOps = [
+            ...toDelete.map(d => ({ type: 'delete', ref: d.ref })),
+            ...toWrite.map(t  => ({ type: 'set', ref: doc(db, 'project_tasks', t.id), data: (({ id, ...rest }) => rest)(t) })),
+        ];
+        for (let i = 0; i < allOps.length; i += OPS_PER_BATCH) {
+            const chunk = allOps.slice(i, i + OPS_PER_BATCH);
+            const batch = writeBatch(db);
+            chunk.forEach(op => op.type === 'delete' ? batch.delete(op.ref) : batch.set(op.ref, op.data));
+            await batch.commit();
+        }
+
+        // STEP 3 — Refresh iterations rail (auto-snapshot now appears)
+        await loadIterations();
+        renderIterRail();
+
+        // STEP 4 — Show undo toast
+        showUndoToast(`Loaded "${escapeHTML(iter.label)}". Previous state auto-saved.`);
+    } catch (e) {
+        console.error('[Plan] restoreIteration error:', e);
+        showToast('Restore failed. No changes made.', 'error');
+        _autoSnapId = null;
+    }
+}
+
 function renderTodayLine() {
     const ganttSvg = document.querySelector('#ganttPane svg');
     if (!ganttSvg) return;
