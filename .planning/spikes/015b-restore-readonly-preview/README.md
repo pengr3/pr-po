@@ -3,7 +3,7 @@ spike: 015b
 name: restore-readonly-preview
 type: comparison
 validates: "Given a saved iteration, when user clicks Preview, then the Plan view shows the saved tasks in a read-only banner mode (Exit Preview to return) — project_tasks untouched"
-verdict: PENDING
+verdict: REJECTED
 related: [014-baseline, 015a-restore-destructive-replace, 015c-restore-auto-snapshot]
 tags: [iteration, restore, save-state, project-plan, ux]
 ---
@@ -60,4 +60,6 @@ while previewing, that signals they expected restore semantics, not preview.
 
 ## Results
 
-(Pending user verdict at the 015 winner checkpoint.)
+**Verdict: REJECTED** (2026-06-02)
+
+Preview-only is a dead end — useful for browsing but the feature has no teeth if you can never actually load an iteration into your live plan. Users will eventually want restore semantics, so 015b defers the hard question rather than answering it. Keep the amber "Viewing" banner concept as a post-restore state indicator (see 015c hybrid note), but not as the primary mechanic.

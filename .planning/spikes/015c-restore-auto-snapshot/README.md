@@ -3,7 +3,7 @@ spike: 015c
 name: restore-auto-snapshot
 type: comparison
 validates: "Given a saved iteration, when user clicks Load, then current state is auto-saved as Iteration N+1 (auto) first, then the chosen iteration overwrites tasks — no data loss possible"
-verdict: PENDING
+verdict: WINNER
 related: [014-baseline, 015a-restore-destructive-replace, 015b-restore-readonly-preview]
 tags: [iteration, restore, save-state, undo, project-plan, ux]
 ---
@@ -64,4 +64,10 @@ up — that's the trade-off being surfaced.
 
 ## Results
 
-(Pending user verdict at the 015 winner checkpoint.)
+**Verdict: WINNER** (2026-06-02)
+
+Auto-snapshot before restore is the right mental model: restore confidently because you can always undo. The 5s undo toast gives immediate escape for accidental restores, and auto-removing the snapshot on undo prevents sidebar clutter. The light blue confirm modal (reassuring, not scary) felt better than 015a's red modal.
+
+**Hybrid enhancement noted:** Surface a light "Restored from [Iteration 2]" banner after the restore lands (borrowing 015b's amber bar concept) so the user knows what state they're in after the toast disappears.
+
+**Open concern for Spike 016:** Auto-snapshots stack up if the user restores frequently without undoing. Could be addressed by labeling auto-snapshots distinctly and/or auto-pruning them (e.g. keep only the last N auto-snapshots).

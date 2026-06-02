@@ -3,7 +3,7 @@ spike: 015a
 name: restore-destructive-replace
 type: comparison
 validates: "Given a saved iteration, when user clicks Load, then a confirm modal warns 'Replace current plan with this version?' → tasks in project_tasks are batched-overwritten"
-verdict: PENDING
+verdict: REJECTED
 related: [014-baseline, 015b-restore-readonly-preview, 015c-restore-auto-snapshot]
 tags: [iteration, restore, save-state, project-plan, ux]
 ---
@@ -51,4 +51,6 @@ Useful for asking: how many cancels happen before the user gets comfortable conf
 
 ## Results
 
-(Pending user verdict at the 015 winner checkpoint.)
+**Verdict: REJECTED** (2026-06-02)
+
+Lost to 015c. The confirm modal puts cognitive burden on the user every single restore — and the protection becomes theater once users click through it habitually. The destructive mechanic is right (you do need to actually replace the plan), but the safety guarantee belongs in the system (auto-snapshot), not in a warning dialog.
