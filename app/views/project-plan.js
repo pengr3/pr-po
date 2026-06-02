@@ -3237,6 +3237,81 @@ function updateBaselineToolbarUI() {
     }
 }
 
+// ---- Phase 97: Iteration history ----
+
+async function loadIterations() {
+    if (!currentProject) { _iterations = []; return; }
+    try {
+        const snap = await getDocs(
+            query(
+                collection(db, 'project_iterations'),
+                where('project_id', '==', currentProject.id)
+            )
+        );
+        _iterations = snap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => {
+                const aMs = a.saved_at?.toMillis?.() ?? 0;
+                const bMs = b.saved_at?.toMillis?.() ?? 0;
+                return bMs - aMs; // newest first
+            });
+        _iterSeq = _iterations.filter(i => !i.auto).length;
+    } catch (e) {
+        console.error('[Plan] loadIterations error:', e);
+        _iterations = [];
+    }
+}
+
+async function saveIteration(label = null) {
+    if (label === null) {
+        label = window.prompt(`Save iteration as:`, `Iteration ${_iterSeq + 1}`);
+        if (label === null) return; // user cancelled
+    }
+    label = label.trim();
+    if (!label) return;
+    label = label.substring(0, 60); // V5: truncate to 60 chars
+    try {
+        const snapshot = tasks.map(t => ({
+            id:             t.id,
+            task_id:        t.task_id,
+            project_id:     t.project_id,
+            project_code:   t.project_code,
+            name:           t.name,
+            start_date:     t.start_date,
+            end_date:       t.end_date,
+            progress:       t.progress,
+            is_milestone:   t.is_milestone,
+            parent_task_id: t.parent_task_id,
+            dependencies:   t.dependencies || [],
+            assignees:      t.assignees || [],
+            row_order:      t.row_order,
+            notes:          t.notes || '',
+            status:         t.status,
+            created_at:     t.created_at,   // resolved Timestamp — do NOT use serverTimestamp() here
+            updated_at:     t.updated_at,   // resolved Timestamp — do NOT use serverTimestamp() here
+            created_by:     t.created_by,
+        }));
+        await addDoc(collection(db, 'project_iterations'), {
+            project_id: currentProject.id,
+            label:      label,
+            saved_at:   serverTimestamp(),
+            auto:       false,
+            tasks:      snapshot,
+        });
+        await loadIterations();
+        renderIterRail();
+        showToast(`Iteration "${label}" saved.`, 'success');
+    } catch (e) {
+        console.error('[Plan] saveIteration error:', e);
+        showToast('Failed to save iteration.', 'error');
+    }
+}
+
+// promptSaveIteration() — alias/entry point for saveIteration() called from the rail + Save button
+function promptSaveIteration() {
+    return saveIteration(null);
+}
+
 function renderTodayLine() {
     const ganttSvg = document.querySelector('#ganttPane svg');
     if (!ganttSvg) return;
