@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.1 code-complete (2026-06-02). Both plans done, VERIFICATION.md created (6/6 must-haves pass). Awaiting browser UAT: baseline persistence on refresh, auto-restore no-flood, manual-restore undo still works, toolbar 4-group render. WR-01 open (stale undo toast interleave — low priority fix).
-stopped_at: Phase 97.1 verification — pending browser UAT
+status: Phase 97.1 complete (2026-06-02). All UAT passed: baseline persistence, auto-restore no-flood, manual-restore undo works, toolbar 4-group render confirmed. WR-01 open (stale undo toast — low-priority follow-up). Next: /gsd:ship or next phase.
+stopped_at: Phase 97.1 — UAT passed, phase closed
 last_updated: "2026-06-02T08:30:00Z"
 last_activity: 2026-06-02
 progress:
