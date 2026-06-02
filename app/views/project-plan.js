@@ -342,6 +342,8 @@ export async function init(activeTab = null, param = null) {
         window.openIterConfirm = openIterConfirm;
         window.confirmIterLoad = confirmIterLoad;
         window.undoIterRestore = undoIterRestore;
+        window.toggleIterDiff  = toggleIterDiff;
+        window.closeIterDiff   = closeIterDiff;
         // Populate the toolbar selector + button label from the freshly loaded _baselines.
         // The select is in the DOM after render() — safe to update here, before listeners attach.
         updateBaselineToolbarUI();
@@ -602,6 +604,10 @@ export async function destroy() {
     delete window.openIterConfirm;
     delete window.confirmIterLoad;
     delete window.undoIterRestore;
+    delete window.toggleIterDiff;
+    delete window.closeIterDiff;
+    window._activeDiffIterationId = null; // clear window global (not just module scope)
+    document.getElementById('iterDiffPanel')?.setAttribute('hidden', ''); // hide diff panel on navigation
     dismissUndoToast(); // dismiss toast + clear timer (defined in Plan 04, same file — safe)
     document.getElementById('iterConfirmModal')?.remove(); // clean up any open confirm modal
     _autoSnapId = null;
@@ -3607,6 +3613,27 @@ function renderDiffPanel(iter, diffRows) {
     }).join('');
 
     panel.removeAttribute('hidden');
+}
+
+function toggleIterDiff(iterationId) {
+    if (_activeDiffIterationId === iterationId) {
+        closeIterDiff();
+        return;
+    }
+    const iter = _iterations.find(i => i.id === iterationId);
+    if (!iter) return;
+    _activeDiffIterationId = iterationId;
+    window._activeDiffIterationId = iterationId; // CRITICAL: must be on window for diff panel "Load this →" inline onclick
+    const diffRows = computeDiff(tasks, iter.tasks);
+    renderDiffPanel(iter, diffRows);
+    renderIterRail(); // re-render rail to show "▶ Diffing" active state on the button
+}
+
+function closeIterDiff() {
+    _activeDiffIterationId = null;
+    window._activeDiffIterationId = null;
+    document.getElementById('iterDiffPanel')?.setAttribute('hidden', '');
+    renderIterRail(); // re-render rail to clear active state
 }
 
 function renderTodayLine() {
