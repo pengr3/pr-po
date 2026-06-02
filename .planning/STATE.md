@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.2 planned (2026-06-02) — 3 plans (3 waves). Ready to execute.
-stopped_at: Phase 97.2 context gathered
-last_updated: "2026-06-02T09:14:26.260Z"
+status: Phase 97.2 in progress (2026-06-02) — Plan 02/3 complete. Plan 03 (save modal + delete UX) next.
+stopped_at: Phase 97.2 Plan 02 complete — dismissUndoToast Firestore cleanup + WR-01 fix
+last_updated: "2026-06-02T09:18:06.250Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 31
@@ -187,6 +187,8 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 97.1 P01 | ~8 | 2 tasks (localStorage baseline persistence + iter.auto flood guard) | 1 file |
 | Phase 97.1 P02 | ~5 | 2 tasks (toolbar group CSS + render() HTML restructure) | 2 files |
 | Phase 97.1 P02 | 5 | 2 tasks | 2 files |
+| Phase 97.2 P01 | ~8 | 2 tasks (renderIterRail overhaul: filter auto-snapshots, relative timestamps, delete btn; CSS cleanup) | 1 file |
+| Phase 97.2 P02 | ~10 | 2 tasks (async dismissUndoToast + deleteDoc; WR-01 fix await dismissUndoToast in restoreIteration) | 1 file |
 
 ## Accumulated Context
 
@@ -197,6 +199,10 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 97.2-02]: dismissUndoToast() made async; _autoSnapId nulled BEFORE await deleteDoc to prevent re-entrance race (D-05); redundant _autoSnapId = null removed from showUndoToast setTimeout callback; await dismissUndoToast() (not fire-and-forget) used in restoreIteration so prior auto-snapshot deleted before new one created in STEP 1 (WR-01 / D-06); toast copy updated to "Undo to revert." removing "Previous state auto-saved." (D-04)
+
+- [Phase 97.2-01]: renderIterRail filters .filter(i => !i.auto) before .map() so auto-snapshots never appear in the timeline; iter-auto-tag chip and .iter-tl-dot.auto CSS removed entirely; relative timestamp helper: <1h→"< 1h ago", 1–23h→"Xh ago", ≥24h→toLocaleDateString(); delete button per card with openIterDeleteConfirm() inline-confirm modal pattern
 
 - [Phase 97.1-02]: Divider-only grouping (no text labels) chosen for toolbar — labels would add vertical height and break the 56px fixed toolbar height; search input stays ungrouped as rightmost direct child of .plan-toolbar; Phase 97 comment preserved inside Iterations group wrapper
 
@@ -664,7 +670,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-06-02T09:14:26.238Z
+Last session: 2026-06-02T09:18:06.230Z
 Stopped at: Phase 97.2 context gathered
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.

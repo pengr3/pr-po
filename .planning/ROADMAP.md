@@ -255,7 +255,7 @@
 - [ ] **Phase 97.2: Project Plan Iterations — Save Model Overhaul** (INSERTED) — Rework the iteration save/restore UX: hide auto-snapshots from the rail, add per-card delete buttons, relative timestamps, re-sequenced numbering, and replace window.prompt() with a styled save modal. **Plans:** 3 plans
   Plans:
   - [x] 97.2-01-PLAN.md — Rail render overhaul (filter auto-snapshots, relative timestamps, delete button, re-sequenced numbering, remove auto-tag CSS)
-  - [ ] 97.2-02-PLAN.md — Undo cleanup (dismissUndoToast deleteDoc extension, WR-01 fix in restoreIteration, toast copy update)
+  - [x] 97.2-02-PLAN.md — Undo cleanup (dismissUndoToast deleteDoc extension, WR-01 fix in restoreIteration, toast copy update)
   - [ ] 97.2-03-PLAN.md — Save modal (replace window.prompt() with styled inline modal in saveIteration)
 
 ## Phase Details
