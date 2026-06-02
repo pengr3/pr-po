@@ -355,6 +355,7 @@ export async function init(activeTab = null, param = null) {
         window.undoIterRestore = undoIterRestore;
         window.toggleIterDiff  = toggleIterDiff;
         window.closeIterDiff   = closeIterDiff;
+        window.deleteIteration = deleteIteration;
         // Populate the toolbar selector + button label from the freshly loaded _baselines.
         // The select is in the DOM after render() — safe to update here, before listeners attach.
         updateBaselineToolbarUI();
@@ -617,6 +618,7 @@ export async function destroy() {
     delete window.undoIterRestore;
     delete window.toggleIterDiff;
     delete window.closeIterDiff;
+    delete window.deleteIteration;
     window._activeDiffIterationId = null; // clear window global (not just module scope)
     document.getElementById('iterDiffPanel')?.setAttribute('hidden', ''); // hide diff panel on navigation
     dismissUndoToast(); // dismiss toast + clear timer (defined in Plan 04, same file — safe)
@@ -3360,27 +3362,38 @@ function promptSaveIteration() {
     return saveIteration(null);
 }
 
+function _formatIterTimestamp(savedAt) {
+    if (!savedAt || typeof savedAt.toDate !== 'function') return 'Just now';
+    const date = savedAt.toDate();
+    const diff = Date.now() - date.getTime();
+    if (diff < 3600000) return '< 1h ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return date.toLocaleDateString();
+}
+
 function renderIterRail() {
     const timeline = document.getElementById('iterRailTimeline');
     const badge    = document.getElementById('iterCountBadge');
     if (!timeline) return;
 
-    if (badge) badge.textContent = _iterations.length;
+    const visible = _iterations.filter(i => !i.auto);
 
-    if (_iterations.length === 0) {
+    if (badge) badge.textContent = visible.length;
+
+    if (visible.length === 0) {
         timeline.innerHTML = '<div style="padding:12px;font-size:12px;color:#64748b;text-align:center;">No saved iterations yet.</div>';
         return;
     }
 
-    timeline.innerHTML = _iterations.map((iter, idx) => {
-        const savedLabel = iter.saved_at?.toDate?.().toLocaleDateString() ?? 'Just now';
+    timeline.innerHTML = visible.map((iter, idx) => {
+        const savedLabel = _formatIterTimestamp(iter.saved_at);
         const taskCount  = iter.tasks?.length ?? 0;
         const isActive   = _activeDiffIterationId === iter.id;
         return `
           <div class="iter-timeline-item">
-            <div class="iter-tl-dot ${iter.auto ? 'auto' : ''}">${_iterations.length - idx}</div>
+            <div class="iter-tl-dot">${visible.length - idx}</div>
             <div class="iter-tl-content">
-              <div class="iter-tl-name">${escapeHTML(iter.label)}${iter.auto ? ' <span class="iter-auto-tag">auto</span>' : ''}</div>
+              <div class="iter-tl-name">${escapeHTML(iter.label)}</div>
               <div class="iter-tl-meta">${savedLabel} · ${taskCount} tasks</div>
               <div class="iter-tl-actions">
                 <button class="iter-tl-btn diff-btn ${isActive ? 'active' : ''}"
@@ -3389,10 +3402,47 @@ function renderIterRail() {
                 </button>
                 <button class="iter-tl-btn load-btn"
                     onclick="window.openIterConfirm('${iter.id}')">Load &#x2192;</button>
+                <button class="iter-tl-delete-btn"
+                    onclick="window.deleteIteration('${iter.id}')"
+                    title="Delete iteration">&#xD7;</button>
               </div>
             </div>
           </div>`;
     }).join('');
+}
+
+async function deleteIteration(iterationId) {
+    const iter = _iterations.find(i => i.id === iterationId);
+    if (!iter) return;
+    // Remove any existing delete modal
+    document.getElementById('iterDeleteModal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'iterDeleteModal';
+    modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
+    modal.innerHTML = `
+        <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+            <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:#1e293b;">Delete Iteration</h3>
+            <p style="margin:0 0 20px;font-size:13px;color:#475569;line-height:1.5;">
+                Delete <strong>${escapeHTML(iter.label)}</strong>? This cannot be undone.
+            </p>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button id="iterDeleteCancel" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
+                <button id="iterDeleteConfirm" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#ef4444;color:#fff;cursor:pointer;font-weight:600;">Delete</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#iterDeleteCancel').addEventListener('click', () => modal.remove());
+    modal.querySelector('#iterDeleteConfirm').addEventListener('click', async () => {
+        modal.remove();
+        try {
+            await deleteDoc(doc(db, 'project_iterations', iterationId));
+            await loadIterations();
+            renderIterRail();
+        } catch (e) {
+            console.error('[Plan] deleteIteration error:', e);
+            showToast('Failed to delete iteration.', 'error');
+        }
+    });
 }
 
 function toggleIterRail() {
