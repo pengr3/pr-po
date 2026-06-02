@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Active. Phase 97.1 Plan 01 complete (2026-06-02) — baseline persistence + auto-snapshot flood guard fixed in project-plan.js.
-stopped_at: Phase 97.1 Plan 01 complete
-last_updated: "2026-06-02T07:56:29Z"
+status: Active. Phase 97.1 Plan 02 complete (2026-06-02) — toolbar redesign with 4 grouped clusters and dividers; Plan 01 + Plan 02 done.
+stopped_at: Completed 97.1-02-PLAN.md — toolbar group redesign
+last_updated: "2026-06-02T08:15:00Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 31
   completed_phases: 28
-  total_plans: 112
+  total_plans: 111
   completed_plans: 110
   percent: 90
 ---
@@ -185,12 +185,16 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 86.12 P01 | ~12 | 2 tasks (baselines rules + saveBaseline/loadBaseline data layer) | 2 files |
 | Phase 86.12 P02 | ~15 | 2 tasks (CSS overlay rules + dateToX/injectBaselineOverlay/renderSlipSummary) | 2 files |
 | Phase 97.1 P01 | ~8 | 2 tasks (localStorage baseline persistence + iter.auto flood guard) | 1 file |
+| Phase 97.1 P02 | ~5 | 2 tasks (toolbar group CSS + render() HTML restructure) | 2 files |
+| Phase 97.1 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 97.1-02]: Divider-only grouping (no text labels) chosen for toolbar — labels would add vertical height and break the 56px fixed toolbar height; search input stays ungrouped as rightmost direct child of .plan-toolbar; Phase 97 comment preserved inside Iterations group wrapper
 
 - [Phase 97.1-01]: localStorage key baselineCleared_{projectId} is UX preference, not auth data — cleared state resets to auto-select if user clears browser storage (T-97.1-01 accepted); saveBaseline() removes the flag before calling loadBaselines() so removal happens even if loadBaselines() fails; iter.auto guard wraps STEP 1 addDoc and STEP 4 undo toast together in restoreIteration(); STEP 2 batch-write and STEP 3 rail refresh remain unconditional; fallback showToast fires for auto-snapshot loads so user still gets feedback
 
@@ -656,7 +660,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-06-02T06:42:04.902Z
+Last session: 2026-06-02T08:00:19.835Z
 Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
