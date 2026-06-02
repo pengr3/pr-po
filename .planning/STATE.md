@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Paused mid-spike (2026-06-01). /gsd-spike series "iterations (015-018)" exploring user's "save plan iterations" idea. 015a/b/c restore-semantics variants built and committed (29de95b); awaiting user winner verdict before proceeding to 016/017/018. Phase 86.12 closed + naming polish (cfcc620) UAT pending separately.
-stopped_at: context exhaustion at 82% (2026-05-26)
-last_updated: "2026-06-02T06:42:04.935Z"
-last_activity: 2026-05-25
+status: Active. Phase 97.1 Plan 01 complete (2026-06-02) — baseline persistence + auto-snapshot flood guard fixed in project-plan.js.
+stopped_at: Phase 97.1 Plan 01 complete
+last_updated: "2026-06-02T07:56:29Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 31
   completed_phases: 28
-  total_plans: 111
-  completed_plans: 109
+  total_plans: 112
+  completed_plans: 110
   percent: 90
 ---
 
@@ -184,12 +184,15 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 86.11 P03 | ~5 | 2 tasks (renderGantt statusClassMap + today closure, bar-status CSS fill rules) | 2 files |
 | Phase 86.12 P01 | ~12 | 2 tasks (baselines rules + saveBaseline/loadBaseline data layer) | 2 files |
 | Phase 86.12 P02 | ~15 | 2 tasks (CSS overlay rules + dateToX/injectBaselineOverlay/renderSlipSummary) | 2 files |
+| Phase 97.1 P01 | ~8 | 2 tasks (localStorage baseline persistence + iter.auto flood guard) | 1 file |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
+
+- [Phase 97.1-01]: localStorage key baselineCleared_{projectId} is UX preference, not auth data — cleared state resets to auto-select if user clears browser storage (T-97.1-01 accepted); saveBaseline() removes the flag before calling loadBaselines() so removal happens even if loadBaselines() fails; iter.auto guard wraps STEP 1 addDoc and STEP 4 undo toast together in restoreIteration(); STEP 2 batch-write and STEP 3 rail refresh remain unconditional; fallback showToast fires for auto-snapshot loads so user still gets feedback
 
 - [Phase 86.12-02]: Overlay is additive SVG only — never modifies .bar fill, .bar class, or bar-status-* attributes (Phase 86.11 fills remain authoritative); badge positioned at curX2+4px (right of current bar end); on-track tasks (diffDays=0) get dashed outline only, no badge; per-task try/catch prevents one bad date string from aborting rest of overlay; escapeHTML on baseline label in renderSlipSummary innerHTML (T-86.12-05 mitigated)
 
@@ -629,6 +632,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - Phase 87.3 inserted after Phase 87: Proposal Card Polish — create from detail, edit permissions, inline card redesign (URGENT)
 - Phase 87.4 inserted after Phase 87 (URGENT, 2026-05-23) — Proposal Modal Polish Pass 2: 5 items from post-87.3 walkthrough — (1) block Submit for Approval when no attachment present; (2) confirm PROP-YYYY-NNN proposal_id surface intent (investigation: ID is in active use by audit trail / NOTIF-09/10 / queue / home cards — recommend keep); (3) recolor Request Revision button red → orange so red stays uniquely the Mark-as-Loss affordance; (4) remove or wire up hardcoded `<div>v1</div>` Version field in `buildHeader()` at `app/proposal-modal.js:484` (no backing data, recommend remove); (5) fix "REVISION REQUESTED" audit-trail type-pill background filling full row width — audit all `AUDIT_ACTION_LABELS` + `COMMS_TYPE_META` pills for the same overflow bug
 - Phase 93.1 inserted after Phase 93: Proposal Queue UX — Row-Click Modal + Unified Status Table with Filterable Scorecards (URGENT)
+- Phase 97.1 inserted after Phase 97: Baseline persistence fix, iteration load auto-save flood fix, toolbar UX redesign (URGENT)
 
 ### Quick Tasks Completed
 

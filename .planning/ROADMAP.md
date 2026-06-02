@@ -247,7 +247,10 @@
  (completed 2026-05-13)
 - [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
 - [x] **Phase 96: Proposal Card Redesign — Progress Track + Stat Chips** — Redesign the inline proposal card in project/service detail with spike-009-validated layout: 4-node progress track (Draft → Internal Review → Client Review → Approved), title-first stat chips (Value + Stage Age), and silenced empty-state noise (completed 2026-05-26)
-- [x] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection. (completed 2026-06-02)
+- [x] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection.
+ (completed 2026-06-02)
+- **Phase 97.1: Project Plan Iterations UX Fixes** (INSERTED) — Three post-ship fixes: (1) Baseline persistence bug — cleared baseline re-selects most-recent on refresh; (2) Auto-save flood — loading a named iteration auto-saves prior state as a new entry, causing exponential history growth when switching between named iterations; (3) Toolbar UX redesign — Day/Week/Month + Export + Critical Path + baseline + Save Iteration + History controls are cramped; redesign for clarity.
+  - [x] Plan 01: Baseline persistence + auto-snapshot flood guard (completed 2026-06-02) — commit 7918702
 
 ## Phase Details
 
