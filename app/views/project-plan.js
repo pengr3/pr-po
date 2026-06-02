@@ -3501,6 +3501,7 @@ async function confirmIterLoad(iterationId) {
 async function restoreIteration(iterationId) {
     const iter = _iterations.find(i => i.id === iterationId);
     if (!iter) return;
+    await dismissUndoToast();   // WR-01: always clear stale undo from any prior restore
     try {
         if (!iter.auto) {
             // STEP 1 — Auto-snapshot current state BEFORE restore (only for non-auto iterations)
