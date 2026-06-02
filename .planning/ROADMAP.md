@@ -939,11 +939,11 @@ Plans:
 **Goal:** Users can save named snapshots of the project plan as rewindable iterations and restore any of them safely. History is browsed via a right-rail panel. Before any restore, the current state is auto-saved and a 5-second undo toast appears. An inline diff view shows adds/changes/deletes between the live plan and any saved iteration without loading it.
 **Depends on:** Phase 86.12 (project_tasks collection + baseline subcollection pattern), Phase 86 (project-plan.js architecture)
 **Requirements**: Spike-validated — 015c (restore mechanic), 016 (full-doc scope), 017B (right-rail history), 018 (diff view)
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [x] 97-01-PLAN.md — Firestore Security Rules for project_iterations collection
 - [x] 97-02-PLAN.md — HTML/CSS/state variable scaffolding (render() + views.css)
-- [ ] 97-03-PLAN.md — Data layer: loadIterations(), saveIteration(), renderIterRail(), toggleIterRail()
+- [x] 97-03-PLAN.md — Data layer: loadIterations(), saveIteration(), renderIterRail(), toggleIterRail()
 - [ ] 97-04-PLAN.md — Restore mechanic: restoreIteration(), showUndoToast(), undoIterRestore()
 - [ ] 97-05-PLAN.md — Diff view: computeDiff(), toggleIterDiff(), closeIterDiff()
