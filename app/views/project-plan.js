@@ -335,9 +335,16 @@ export async function init(activeTab = null, param = null) {
         window.toggleBaseline = toggleBaseline;
         window.selectBaseline = selectBaseline;
         window.clearBaseline = clearBaseline;
+        // Phase 97: Iteration history window functions
+        window.saveIteration  = saveIteration;
+        window.toggleIterRail = toggleIterRail;
+        window.closeIterRail  = closeIterRail;
         // Populate the toolbar selector + button label from the freshly loaded _baselines.
         // The select is in the DOM after render() — safe to update here, before listeners attach.
         updateBaselineToolbarUI();
+        // Phase 97: load iterations and render the rail (after baselines already loaded above)
+        await loadIterations();
+        renderIterRail();
         initPanelResize();
 
         // Phase 86.8 Feature 7 — window-level keydown for Delete / Up/Down / Enter / Escape.
@@ -585,6 +592,17 @@ export async function destroy() {
     delete window.toggleBaseline;
     delete window.selectBaseline;
     delete window.clearBaseline;
+    // Phase 97: Iteration history cleanup
+    delete window.saveIteration;
+    delete window.toggleIterRail;
+    delete window.closeIterRail;
+    // dismissUndoToast is defined in Plan 04 — called here as a forward reference; safe at runtime
+    if (typeof dismissUndoToast === 'function') dismissUndoToast();
+    _autoSnapId = null;
+    _iterations = [];
+    _activeDiffIterationId = null;
+    _iterRailOpen = false;
+    _iterSeq = 0;
     // Phase 86.8 Feature 6 — search/filter cleanup (toolbar-bound)
     _searchQuery = '';
     const _searchInputForCleanup = document.querySelector('.tg-search-input');
@@ -3310,6 +3328,64 @@ async function saveIteration(label = null) {
 // promptSaveIteration() — alias/entry point for saveIteration() called from the rail + Save button
 function promptSaveIteration() {
     return saveIteration(null);
+}
+
+function renderIterRail() {
+    const timeline = document.getElementById('iterRailTimeline');
+    const badge    = document.getElementById('iterCountBadge');
+    if (!timeline) return;
+
+    if (badge) badge.textContent = _iterations.length;
+
+    if (_iterations.length === 0) {
+        timeline.innerHTML = '<div style="padding:12px;font-size:12px;color:#64748b;text-align:center;">No saved iterations yet.</div>';
+        return;
+    }
+
+    timeline.innerHTML = _iterations.map((iter, idx) => {
+        const savedLabel = iter.saved_at?.toDate?.().toLocaleDateString() ?? 'Just now';
+        const taskCount  = iter.tasks?.length ?? 0;
+        const isActive   = _activeDiffIterationId === iter.id;
+        return `
+          <div class="iter-timeline-item">
+            <div class="iter-tl-dot ${iter.auto ? 'auto' : ''}">${_iterations.length - idx}</div>
+            <div class="iter-tl-content">
+              <div class="iter-tl-name">${escapeHTML(iter.label)}${iter.auto ? ' <span class="iter-auto-tag">auto</span>' : ''}</div>
+              <div class="iter-tl-meta">${savedLabel} · ${taskCount} tasks</div>
+              <div class="iter-tl-actions">
+                <button class="iter-tl-btn diff-btn ${isActive ? 'active' : ''}"
+                    onclick="window.toggleIterDiff('${iter.id}')">
+                  ${isActive ? '&#x25B6; Diffing' : '&#x27F7; Diff'}
+                </button>
+                <button class="iter-tl-btn load-btn"
+                    onclick="window.openIterConfirm('${iter.id}')">Load &#x2192;</button>
+              </div>
+            </div>
+          </div>`;
+    }).join('');
+}
+
+function toggleIterRail() {
+    const rail = document.getElementById('iterRail');
+    const btn  = document.getElementById('iterHistoryBtn');
+    if (!rail) return;
+    if (rail.hasAttribute('hidden')) {
+        rail.removeAttribute('hidden');
+        _iterRailOpen = true;
+        btn?.classList.add('active');
+    } else {
+        rail.setAttribute('hidden', '');
+        _iterRailOpen = false;
+        btn?.classList.remove('active');
+    }
+}
+
+function closeIterRail() {
+    const rail = document.getElementById('iterRail');
+    const btn  = document.getElementById('iterHistoryBtn');
+    rail?.setAttribute('hidden', '');
+    _iterRailOpen = false;
+    btn?.classList.remove('active');
 }
 
 function renderTodayLine() {
