@@ -109,6 +109,24 @@ let _searchQuery = '';                // current search query (lowercased); '' =
 let _searchInputHandler = null;       // input event handler on the search box (toolbar-bound)
 let _searchClearHandler = null;       // click handler on the clear button (toolbar-bound)
 
+// Phase 97 — Iteration history
+let _iterations = [];                 // array of iteration docs loaded from project_iterations
+let _autoSnapId = null;               // Firestore doc ID of the auto-snapshot created before last restore; null if no undo available
+let _undoToastTimer = null;           // setTimeout handle for the 5s undo toast auto-dismiss
+let _activeDiffIterationId = null;    // iteration id currently shown in diff panel; null if diff closed
+let _iterRailOpen = false;            // whether the right rail is currently open
+let _iterSeq = 0;                     // counter for default label "Iteration N"; updated from non-auto iterations count on load
+
+// Phase 97: window function handler refs for destroy() cleanup
+let _iterSaveHandler = null;
+let _iterToggleRailHandler = null;
+let _iterCloseRailHandler = null;
+let _iterOpenConfirmHandler = null;
+let _iterToggleDiffHandler = null;
+let _iterCloseIterDiffHandler = null;
+let _iterUndoRestoreHandler = null;
+let _iterConfirmLoadHandler = null;
+
 // ---- Lifecycle ----
 
 export function render(activeTab = null, param = null) {
