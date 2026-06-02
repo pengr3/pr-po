@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.2 UAT fixes shipped (2026-06-02) — active iteration indicator, save-before-switch prompt, baseline delete.
-stopped_at: Quick task uat-iter-baseline-fixes complete (724f122) — browser UAT pending
-last_updated: "2026-06-02T10:00:00.000Z"
+status: Phase 97.2 complete (2026-06-02) — All 3 plans shipped. window.prompt() eliminated from project-plan.js.
+stopped_at: Phase 97.2 Plan 03 complete — saveIteration() + saveBaseline() now use styled inline modals
+last_updated: "2026-06-02T09:35:00.000Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 31
@@ -654,7 +654,6 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
-| 20260602-uat-iter | Phase 97.2 UAT fixes: active iteration indicator, save-before-switch prompt, baseline delete | 2026-06-02 | 724f122 | Awaiting browser UAT | [20260602-uat-iter-baseline-fixes](.planning/quick/20260602-uat-iter-baseline-fixes/) |
 | 260522-g3fix | Fix firestore.rules projects allow update for operations_user project_status writes (87.2 G3 gap) | 2026-05-22 | aa18750 | ✅ | firestore.rules |
 | 260319-gkf | Improve RFP payment fill progress bar color scheme to match text label colors like PRs column | 2026-03-19 | e369df7 | | [260319-gkf-improve-rfp-payment-fill-progress-bar-co](.planning/quick/260319-gkf-improve-rfp-payment-fill-progress-bar-co/) |
 | 260319-j18 | Fix PO ID link font color in MRF Records table from green (#34a853) to primary blue (#1a73e8) | 2026-03-19 | 7f5c841 | | [260319-j18-fix-po-id-link-font-color-in-mrf-records](.planning/quick/260319-j18-fix-po-id-link-font-color-in-mrf-records/) |
@@ -669,10 +668,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260516-bg3 | Phase 91 UAT Bug 3 — scope PO scoreboard input on MRF Records tab to POs whose mrf_id matches a visible MRF (fixes operations_user / services_user seeing unscoped counts). Initial T1–T3 missed a second scoreboard writer; T4 (557a764) scoped renderPOTrackingTable which was overwriting the scoped value via the loadPOTracking snapshot listener. | 2026-05-16..17 | 2c28d15, 713e735, 7215c95, 557a764 | Awaiting browser UAT | [260516-bg3-scoreboard-scoping](.planning/quick/260516-bg3-scoreboard-scoping/) |
 | 20260531-mbl | Phase 86.12 UAT follow-up — multi-baseline selector + Set/Clear toggle in project-plan.js. loadBaseline → loadBaselines (all docs, ordered desc), _baselines[] + _activeBaselineId state, #baselineSelect + #baselineToggleBtn toolbar, toggleBaseline/selectBaseline/clearBaseline window functions. Clear hides overlay without deleting Firestore docs. | 2026-06-01 | 0d39f80 | UAT approved 2026-06-01 | [20260531-mbl-multi-baseline-selector-toggle](.planning/quick/20260531-mbl-multi-baseline-selector-toggle/) |
 | 20260601-bnm | Phase 86.12 polish — prompt user for baseline name when clicking Set Baseline; default Baseline N, Cancel aborts, empty falls back, 60-char cap. saveBaseline() only — no rules/schema changes. | 2026-06-01 | cfcc620 | Awaiting browser UAT | [20260601-bnm-baseline-naming](.planning/quick/20260601-bnm-baseline-naming/) |
+| 260602-q50 | Phase 97.2 UAT follow-up: iteration indicator on load, save overwrite vs save-as, delete baseline | 2026-06-02 | feeb81c | Awaiting browser UAT | [260602-q50-phase-97-2-uat-follow-up-iteration-indic](.planning/quick/260602-q50-phase-97-2-uat-follow-up-iteration-indic/) |
 
 ## Session Continuity
 
-Last activity: 2026-05-25
+Last activity: 2026-06-02 - Completed quick task 260602-q50: Phase 97.2 UAT follow-up: iteration indicator on load, save overwrite vs save-as, delete baseline
 Last session: 2026-06-02T09:23:34.637Z
 Stopped at: Phase 97.2 context gathered
 Resume file: None
