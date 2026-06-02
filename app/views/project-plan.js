@@ -161,6 +161,15 @@ export function render(activeTab = null, param = null) {
                     onclick="window.toggleBaseline()" title="Snapshot current task dates as a baseline">
                     Set Baseline
                 </button>
+                <!-- Phase 97: Iteration controls — after baseline button, before search -->
+                <button type="button" class="plan-export-btn plan-iter-save-btn"
+                    onclick="window.saveIteration()" title="Save a named snapshot of the current plan">
+                    Save Iteration
+                </button>
+                <button type="button" id="iterHistoryBtn" class="plan-export-btn plan-iter-history-btn"
+                    onclick="window.toggleIterRail()" title="Browse saved iterations">
+                    History
+                </button>
                 <!-- Phase 86.8 Feature 6 — search lives in the toolbar so it doesn't push grid
                      headers down and break left/right vertical alignment. Bound once in init(),
                      not re-rendered by renderTaskGrid, so caret state survives every keystroke. -->
@@ -170,13 +179,49 @@ export function render(activeTab = null, param = null) {
                 </div>
             </div>
             <div class="baseline-slip-summary" id="baselineSlipSummary" style="display:none"></div>
-            <div class="plan-split-pane" id="planSplitPane">
-                <div class="task-grid-rail" id="taskGridRail" aria-label="Task grid">
-                    <div class="empty-state"><h3>Loading…</h3></div>
+            <div class="plan-body-row" id="planBodyRow">
+                <div class="plan-split-pane" id="planSplitPane">
+                    <div class="task-grid-rail" id="taskGridRail" aria-label="Task grid">
+                        <div class="empty-state"><h3>Loading…</h3></div>
+                    </div>
+                    <div class="plan-divider" id="planDivider" aria-hidden="true"></div>
+                    <div class="gantt-pane">
+                        <div id="ganttPane"></div>
+                    </div>
                 </div>
-                <div class="plan-divider" id="planDivider" aria-hidden="true"></div>
-                <div class="gantt-pane">
-                    <div id="ganttPane"></div>
+                <!-- Phase 97: iteration history right rail -->
+                <div class="iter-rail" id="iterRail" aria-label="Iteration history" hidden>
+                    <div class="iter-rail-head">
+                        History <span class="iter-count-badge" id="iterCountBadge">0</span>
+                        <button class="iter-rail-close" onclick="window.closeIterRail()" aria-label="Close history">×</button>
+                    </div>
+                    <div class="iter-rail-save-row">
+                        <button class="iter-rail-save-btn" onclick="window.saveIteration()">+ Save current state</button>
+                    </div>
+                    <div class="iter-rail-timeline" id="iterRailTimeline"></div>
+                </div>
+            </div>
+            <!-- Phase 97: diff panel (inside plan surface, below body row — NOT inside plan-split-pane which has overflow:hidden) -->
+            <div class="iter-diff-panel" id="iterDiffPanel" hidden>
+                <div class="iter-diff-head">
+                    <span class="iter-diff-title" id="iterDiffTitle">Comparing with …</span>
+                    <span class="iter-diff-summary" id="iterDiffSummary"></span>
+                    <button class="iter-diff-load-btn" onclick="window.openIterConfirm(window._activeDiffIterationId)">Load this →</button>
+                    <button class="iter-diff-close" onclick="window.closeIterDiff()">×</button>
+                </div>
+                <div class="iter-diff-legend">
+                    <span class="iter-diff-dot iter-diff-dot-chg"></span>Changed
+                    <span class="iter-diff-dot iter-diff-dot-add"></span>Added in iteration
+                    <span class="iter-diff-dot iter-diff-dot-del"></span>Removed in iteration
+                    <span class="iter-diff-dot iter-diff-dot-same"></span>Unchanged
+                </div>
+                <div class="iter-diff-table-wrap">
+                    <table class="iter-diff-table">
+                        <thead>
+                            <tr><th>Status</th><th>Task</th><th>Start</th><th>End</th><th>Deps</th><th>Assignees</th><th>Progress</th></tr>
+                        </thead>
+                        <tbody id="iterDiffBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
