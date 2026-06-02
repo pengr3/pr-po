@@ -3,7 +3,7 @@ spike: 018
 name: iteration-diff-view
 type: standard
 validates: "Given an iteration in the history rail, when user clicks Diff, then a panel shows adds/changes/deletes between current and that iteration — without loading it"
-verdict: PENDING
+verdict: VALIDATED — diff view will ship with the feature
 related: [015c-restore-auto-snapshot, 016-snapshot-scope, 017-iteration-history-ux]
 tags: [iteration, diff, comparison, ux, project-plan]
 ---
@@ -58,4 +58,6 @@ python -m http.server 8000
 
 ## Results
 
-(Pending user verdict at the 018 checkpoint.)
+**Verdict: VALIDATED** (2026-06-02) — diff view will ship with the feature.
+
+Diff view earns its surface area: users accumulate iterations over time and lose track of what each one contains. Inline `old → new` per field in an amber row is readable at a glance. "Load this →" directly from the diff panel is the natural next action — no need to close and re-click in the rail. Position (bottom panel sliding up) works well without obscuring the rail.

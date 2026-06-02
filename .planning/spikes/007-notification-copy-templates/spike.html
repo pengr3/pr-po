@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spike 007: Notification Copy Templates</title>
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --bg: #f8fafc;
+      --white: #fff;
+      --stored:  #d1fae5; --stored-c:  #065f46;
+      --derived: #dbeafe; --derived-c: #1e40af;
+      --missing: #fef3c7; --missing-c: #92400e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: var(--text); font-size: 13px; }
+
+    .page-header {
+      padding: 14px 24px; background: white; border-bottom: 1px solid var(--border);
+      display: flex; align-items: baseline; gap: 16px;
+    }
+    .page-header h1 { font-size: 15px; font-weight: 700; }
+    .page-header p { font-size: 12px; color: var(--muted); }
+
+    /* tabs */
+    .tabs { display: flex; gap: 0; background: white; border-bottom: 2px solid var(--border); padding: 0 24px; }
+    .tab {
+      padding: 10px 16px; cursor: pointer; font-size: 12px; font-weight: 600;
+      color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .tab-content { display: none; padding: 20px 24px 60px; }
+    .tab-content.active { display: block; }
+
+    /* Legend */
+    .legend { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+    .leg { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; }
+    .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* Matrix table */
+    .matrix { width: 100%; border-collapse: collapse; font-size: 11px; background: white;
+               border-radius: 8px; overflow: hidden; border: 1px solid var(--border);
+               box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .matrix th {
+      background: #f8fafc; padding: 8px 10px; text-align: left;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    .matrix td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top;
+      line-height: 1.4;
+    }
+    .matrix tr:last-child td { border-bottom: none; }
+    .matrix tr:hover td { background: #fafafa; }
+
+    .type-name { font-family: monospace; font-size: 10px; font-weight: 700; color: #334155; white-space: nowrap; }
+    .event-title { font-weight: 600; color: var(--text); }
+
+    .tag {
+      display: inline-block; padding: 1px 6px; border-radius: 3px;
+      font-size: 10px; font-weight: 600; white-space: nowrap;
+    }
+    .tag.stored  { background: var(--stored);  color: var(--stored-c); }
+    .tag.derived { background: var(--derived); color: var(--derived-c); }
+    .tag.missing { background: var(--missing); color: var(--missing-c); }
+    .tag.action  { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .tag.fyi     { background: #f1f5f9; color: #94a3b8; border: 1px solid var(--border); }
+
+    .route { font-family: monospace; font-size: 10px; color: var(--primary); }
+
+    /* Preview rows */
+    .preview-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px;
+    }
+    .preview-card {
+      background: white; border-radius: 8px; border: 1px solid var(--border);
+      overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .preview-card-label {
+      padding: 6px 12px; background: #f8fafc; border-bottom: 1px solid var(--border);
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+    }
+
+    /* Notification row (anatomy from spike 006) */
+    .na-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 12px; cursor: pointer;
+    }
+    .na-row.unread { background: #f8fbff; border-left: 3px solid #1a73e8; padding-left: 9px; }
+    .na-icon {
+      width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .na-icon svg { width: 15px; height: 15px; }
+    .na-body { flex: 1; min-width: 0; }
+    .na-l1 { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+    .na-event { font-size: 13px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .na-chip { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; white-space: nowrap; flex-shrink: 0; }
+    .na-time { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+    .na-l2 { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+    .na-obj-id { font-size: 11px; font-weight: 700; color: var(--primary); font-family: monospace; white-space: nowrap; flex-shrink: 0; }
+    .na-sep { font-size: 11px; color: #cbd5e1; }
+    .na-obj-name { font-size: 11px; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .na-l3 { font-size: 11px; color: var(--muted); }
+
+    /* Schema tab */
+    .schema-block {
+      background: white; border-radius: 8px; border: 1px solid var(--border);
+      padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.06); max-width: 720px;
+    }
+    .schema-block h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+    .schema-block h4 { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 16px 0 8px; }
+    pre {
+      background: #f8fafc; border: 1px solid var(--border); border-radius: 6px;
+      padding: 12px 14px; font-size: 12px; line-height: 1.6; overflow-x: auto;
+      font-family: 'Consolas', monospace; color: #334155;
+    }
+    .field-row { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; font-size: 12px; }
+    .field-name { font-family: monospace; font-weight: 700; color: #1e40af; width: 140px; flex-shrink: 0; }
+    .field-desc { color: var(--text); }
+    .field-source { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .summary-bar {
+      display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .summary-chip {
+      padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Spike 007 — Notification Copy Templates</h1>
+  <p>5W+2 framework applied to all 16 types · schema gap analysis</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="matrix">Content Matrix</div>
+  <div class="tab" data-tab="preview">Rendered Preview</div>
+  <div class="tab" data-tab="schema">Schema Gap</div>
+</div>
+
+<!-- ─── TAB 1: Content Matrix ─── -->
+<div class="tab-content active" id="tab-matrix">
+  <div class="legend">
+    <span class="leg"><span class="leg-dot" style="background:var(--stored)"></span><span style="color:var(--stored-c)">STORED</span> — already in notification doc</span>
+    <span class="leg"><span class="leg-dot" style="background:var(--derived)"></span><span style="color:var(--derived-c)">DERIVED</span> — computable from event_type + target_id</span>
+    <span class="leg"><span class="leg-dot" style="background:var(--missing)"></span><span style="color:var(--missing-c)">NEW FIELD</span> — must be embedded at write time</span>
+  </div>
+
+  <table class="matrix" id="matrixTable"></table>
+</div>
+
+<!-- ─── TAB 2: Rendered Preview ─── -->
+<div class="tab-content" id="tab-preview">
+  <div class="preview-grid" id="previewGrid"></div>
+</div>
+
+<!-- ─── TAB 3: Schema Gap ─── -->
+<div class="tab-content" id="tab-schema">
+  <div class="schema-block">
+    <h3>Schema Delta</h3>
+
+    <div class="summary-bar">
+      <div class="summary-chip" style="background:var(--stored);color:var(--stored-c)">4 fields already stored</div>
+      <div class="summary-chip" style="background:var(--derived);color:var(--derived-c)">3 fields fully derivable</div>
+      <div class="summary-chip" style="background:var(--missing);color:var(--missing-c)">2 new fields needed</div>
+    </div>
+
+    <h4>Current notification document</h4>
+    <pre>{
+  event_type:   "MRF_APPROVED",          // stored
+  target_id:    "MRF-2026-041",          // stored → objectId
+  message:      "Your MRF has been...",  // stored (blob — to be replaced)
+  timestamp:    Timestamp,               // stored → time
+  read:         false,                   // stored
+  user_id:      "uid_abc"               // stored (recipient)
+}</pre>
+
+    <h4>New fields to add</h4>
+    <div class="field-row">
+      <div>
+        <div class="field-name">object_name</div>
+        <div class="field-source tag missing">NEW FIELD</div>
+      </div>
+      <div>
+        <div class="field-desc">Human-readable label for the target document — e.g. the project name on an MRF, proposal title, or supplier name on a PO. Embedded at write time from the source document.</div>
+      </div>
+    </div>
+    <div class="field-row" style="margin-top:10px">
+      <div>
+        <div class="field-name">actor_name</div>
+        <div class="field-source tag missing">NEW FIELD</div>
+      </div>
+      <div>
+        <div class="field-desc">Display name of who triggered the event. "System" for automated events (PO status updates, cost recalculations). Embedded at write time from the authenticated user's displayName.</div>
+      </div>
+    </div>
+
+    <h4>Fully derivable at render time (no new fields)</h4>
+    <div class="field-row">
+      <div style="width:140px;flex-shrink:0"><span class="tag derived">DERIVED</span></div>
+      <div class="field-desc"><b>action_required</b> — hardcoded per event_type in TYPE_META</div>
+    </div>
+    <div class="field-row">
+      <div style="width:140px;flex-shrink:0"><span class="tag derived">DERIVED</span></div>
+      <div class="field-desc"><b>target_route</b> — hardcoded per event_type in TYPE_META</div>
+    </div>
+    <div class="field-row">
+      <div style="width:140px;flex-shrink:0"><span class="tag derived">DERIVED</span></div>
+      <div class="field-desc"><b>event_title</b> — already in TYPE_META.label</div>
+    </div>
+
+    <h4>Updated notification document</h4>
+    <pre>{
+  event_type:   "MRF_APPROVED",
+  target_id:    "MRF-2026-041",
+  object_name:  "Office Supplies Q2",   // NEW — embed at write time
+  actor_name:   "Maria Santos",         // NEW — embed at write time
+  timestamp:    Timestamp,
+  read:         false,
+  user_id:      "uid_abc"
+  // message field: can be dropped (all info now structured)
+}</pre>
+
+    <h4>Write-time pattern</h4>
+    <pre>// When writing a notification, embed the context:
+await addDoc(collection(db, 'notifications'), {
+  event_type:  'MRF_APPROVED',
+  target_id:   mrf.mrf_id,
+  object_name: mrf.project_name,        // from source doc
+  actor_name:  auth.currentUser.displayName || 'System',
+  timestamp:   serverTimestamp(),
+  read:        false,
+  user_id:     recipientUid,
+});</pre>
+  </div>
+</div>
+
+<script>
+const TC = {
+  MRF_SUBMITTED:        { bg:'#dbeafe', c:'#1e40af' },
+  MRF_APPROVED:         { bg:'#d1fae5', c:'#065f46' },
+  MRF_REJECTED:         { bg:'#fee2e2', c:'#991b1b' },
+  PR_REVIEW_NEEDED:     { bg:'#fef3c7', c:'#92400e' },
+  PR_DECIDED:           { bg:'#d1fae5', c:'#065f46' },
+  TR_REVIEW_NEEDED:     { bg:'#fef3c7', c:'#92400e' },
+  TR_DECIDED:           { bg:'#d1fae5', c:'#065f46' },
+  RFP_REVIEW_NEEDED:    { bg:'#fef3c7', c:'#92400e' },
+  RFP_PAID:             { bg:'#d1fae5', c:'#065f46' },
+  PO_DELIVERED:         { bg:'#e0e7ff', c:'#3730a3' },
+  PROPOSAL_SUBMITTED:   { bg:'#dbeafe', c:'#1e40af' },
+  PROPOSAL_DECIDED:     { bg:'#d1fae5', c:'#065f46' },
+  PROJECT_STATUS_CHANGED:{ bg:'#fef9c3', c:'#713f12' },
+  PROJECT_COST_CHANGED: { bg:'#fef9c3', c:'#713f12' },
+  REGISTRATION_PENDING: { bg:'#f3e8ff', c:'#6b21a8' },
+  COLLECTIBLE_CREATED:  { bg:'#dcfce7', c:'#166534' },
+};
+
+const ICON = {
+  MRF_SUBMITTED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`,
+  MRF_APPROVED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  MRF_REJECTED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  PR_REVIEW_NEEDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  PR_DECIDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  TR_REVIEW_NEEDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+  TR_DECIDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-5.82 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
+  RFP_REVIEW_NEEDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11" cy="15" r="3"/><path d="M13.27 17.27L17 21"/></svg>`,
+  RFP_PAID:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+  PO_DELIVERED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+  PROPOSAL_SUBMITTED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
+  PROPOSAL_DECIDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+  PROJECT_STATUS_CHANGED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  PROJECT_COST_CHANGED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+  REGISTRATION_PENDING:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`,
+  COLLECTIBLE_CREATED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+};
+
+// All 16 types with full 5W+2 data contract
+const TYPES = [
+  {
+    type:'MRF_SUBMITTED',
+    eventTitle:'MRF Submitted',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'mrf.project_name',          objectNameSource:'missing',
+    actorField:'mrf.requestor_name',             actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/procurement/mrfs',
+    // Preview example
+    exId:'MRF-2026-041', exName:'Office Supplies Q2', exActor:'John Reyes', exTime:'10m ago', unread:true,
+  },
+  {
+    type:'MRF_APPROVED',
+    eventTitle:'MRF Approved',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'mrf.project_name',          objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/procurement/records',
+    exId:'MRF-2026-041', exName:'Office Supplies Q2', exActor:'Maria Santos', exTime:'3d ago', unread:false,
+  },
+  {
+    type:'MRF_REJECTED',
+    eventTitle:'MRF Rejected',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'mrf.project_name',          objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/procurement/records',
+    exId:'MRF-2026-038', exName:'Plumbing Fixtures Phase 2', exActor:'Grace Tan', exTime:'4d ago', unread:false,
+  },
+  {
+    type:'PR_REVIEW_NEEDED',
+    eventTitle:'PR Needs Your Review',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'pr.mrf.project_name',       objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:true,
+    targetRoute:'#/finance',
+    exId:'PR-2026-023', exName:'Electrical Supplies — Block C', exActor:'John Reyes', exTime:'2h ago', unread:true,
+  },
+  {
+    type:'PR_DECIDED',
+    eventTitle:'PR Decision: Approved',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'pr.mrf.project_name',       objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/procurement/records',
+    exId:'PR-2026-019', exName:'Roofing Materials — Main Building', exActor:'Finance', exTime:'5d ago', unread:false,
+  },
+  {
+    type:'TR_REVIEW_NEEDED',
+    eventTitle:'Transport Request Review',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'tr.mrf.project_name',       objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:true,
+    targetRoute:'#/finance',
+    exId:'TR-2026-008', exName:'Cement Delivery — Batangas Site', exActor:'Carlo Mendoza', exTime:'5h ago', unread:false,
+  },
+  {
+    type:'TR_DECIDED',
+    eventTitle:'Transport Request Approved',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'tr.mrf.project_name',       objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/procurement/records',
+    exId:'TR-2026-005', exName:'Steel Delivery — Batangas', exActor:'Finance', exTime:'1w ago', unread:false,
+  },
+  {
+    type:'RFP_REVIEW_NEEDED',
+    eventTitle:'RFP Needs Your Review',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'rfp.supplier_name',         objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:true,
+    targetRoute:'#/finance',
+    exId:'RFP-2026-003', exName:'Sunrise Hardware Supply', exActor:'Ben Cruz', exTime:'1d ago', unread:false,
+  },
+  {
+    type:'RFP_PAID',
+    eventTitle:'RFP Marked Paid',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'rfp.supplier_name',         objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/procurement/records',
+    exId:'RFP-2026-001', exName:'ABC Steel Corp', exActor:'Finance', exTime:'3d ago', unread:false,
+  },
+  {
+    type:'PO_DELIVERED',
+    eventTitle:'PO Delivered',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'po.supplier_name',          objectNameSource:'missing',
+    actorField:'"System"',                       actorSource:'derived',
+    actionRequired:false,
+    targetRoute:'#/procurement/records',
+    exId:'PO-2026-015', exName:'ABC Steel Corp', exActor:'System', exTime:'2d ago', unread:false,
+  },
+  {
+    type:'PROPOSAL_SUBMITTED',
+    eventTitle:'New Proposal Submitted',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'proposal.title',            objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:true,
+    targetRoute:'#/proposals',
+    exId:'PROPOSAL-CLMC-2026-007', exName:'Website Redesign', exActor:'Ana Reyes', exTime:'1d ago', unread:false,
+  },
+  {
+    type:'PROPOSAL_DECIDED',
+    eventTitle:'Proposal Decision',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'proposal.title',            objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/proposals',
+    exId:'PROPOSAL-CLMC-2026-005', exName:'HVAC System Overhaul', exActor:'Admin', exTime:'2d ago', unread:false,
+  },
+  {
+    type:'PROJECT_STATUS_CHANGED',
+    eventTitle:'Project Status Changed',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'project.project_name',      objectNameSource:'missing',
+    actorField:'current_user.displayName',       actorSource:'missing',
+    actionRequired:false,
+    targetRoute:'#/projects',
+    exId:'PROJ-001', exName:'Block C Renovation', exActor:'Admin', exTime:'1w ago', unread:false,
+  },
+  {
+    type:'PROJECT_COST_CHANGED',
+    eventTitle:'Project Cost Updated',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'project.project_name',      objectNameSource:'missing',
+    actorField:'"System"',                       actorSource:'derived',
+    actionRequired:false,
+    targetRoute:'#/projects',
+    exId:'PROJ-002', exName:'Main Building Phase 3', exActor:'System', exTime:'1w ago', unread:false,
+  },
+  {
+    type:'REGISTRATION_PENDING',
+    eventTitle:'New User Registration',
+    objectIdField:'target_id (user uid)',        objectIdSource:'stored',
+    objectNameField:'new_user.email',            objectNameSource:'missing',
+    actorField:'"System"',                       actorSource:'derived',
+    actionRequired:true,
+    targetRoute:'#/admin/users',
+    exId:'user@clmc.com', exName:'New account request', exActor:'System', exTime:'20m ago', unread:true,
+  },
+  {
+    type:'COLLECTIBLE_CREATED',
+    eventTitle:'New Collectible Created',
+    objectIdField:'target_id',                   objectIdSource:'stored',
+    objectNameField:'collectible.client_name',   objectNameSource:'missing',
+    actorField:'"System"',                       actorSource:'derived',
+    actionRequired:false,
+    targetRoute:'#/finance',
+    exId:'COL-2026-012', exName:'Santos Residence', exActor:'System', exTime:'3d ago', unread:false,
+  },
+];
+
+// ─── Content Matrix ───
+function renderMatrix() {
+  const rows = TYPES.map(t => {
+    const s = (v, cls) => `<span class="tag ${cls}">${v}</span>`;
+    const actorTag = t.actorSource === 'derived' ? s('DERIVED','derived') : s('NEW FIELD','missing');
+    return `<tr>
+      <td><div class="type-name">${t.type}</div></td>
+      <td><div class="event-title">${t.eventTitle}</div></td>
+      <td>${s('STORED','stored')} <span style="font-size:10px;color:#64748b">target_id</span></td>
+      <td>${s('NEW FIELD','missing')} <span style="font-size:10px;color:#64748b">${t.objectNameField}</span></td>
+      <td>${actorTag} <span style="font-size:10px;color:#64748b">${t.actorField}</span></td>
+      <td>${t.actionRequired ? s('● Action','action') : '<span style="color:#94a3b8;font-size:11px">—</span>'}</td>
+      <td><span class="route">${t.targetRoute}</span> ${s('DERIVED','derived')}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('matrixTable').innerHTML = `
+    <thead><tr>
+      <th>Type</th>
+      <th>1 What? (event_title)</th>
+      <th>2 About? (objectId)</th>
+      <th>2 About? (objectName)</th>
+      <th>3 Who? (actor)</th>
+      <th>6 Do what?</th>
+      <th>7 Go where? (route)</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  `;
+}
+
+// ─── Preview ───
+function icon(type) {
+  const t = TC[type] || { bg:'#f1f5f9', c:'#475569' };
+  return `<div class="na-icon" style="background:${t.bg};color:${t.c}">${ICON[type]||''}</div>`;
+}
+
+function renderPreview() {
+  const cards = TYPES.map(t => {
+    const chip = t.actionRequired
+      ? `<span class="na-chip">● Action needed</span>` : '';
+    const actor = t.exActor !== 'System'
+      ? `<div class="na-l3">by ${t.exActor}</div>` : '';
+
+    return `<div class="preview-card">
+      <div class="preview-card-label">${t.type}</div>
+      <div class="na-row ${t.unread?'unread':''}">
+        ${icon(t.type)}
+        <div class="na-body">
+          <div class="na-l1">
+            <span class="na-event">${t.eventTitle}</span>
+            ${chip}
+            <span class="na-time">${t.exTime}</span>
+          </div>
+          <div class="na-l2">
+            <span class="na-obj-id">${t.exId}</span>
+            <span class="na-sep">·</span>
+            <span class="na-obj-name">${t.exName}</span>
+          </div>
+          ${actor}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('previewGrid').innerHTML = cards;
+}
+
+// ─── Tabs ───
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+renderMatrix();
+renderPreview();
+</script>
+</body>
+</html>

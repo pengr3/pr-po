@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spike 012 — Overdue &amp; Status Visual</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ---- Top bar ---- */
+    .top-bar {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .top-bar .badge { background: #1a73e8; color: #fff; border-radius: 4px; padding: 2px 8px; font-weight: 700; font-size: 11px; }
+    .top-bar .label { color: #94a3b8; }
+    .top-bar .today-badge { margin-left: auto; background: #334155; border-radius: 4px; padding: 2px 10px; font-size: 11px; color: #cbd5e1; }
+
+    /* ---- Layout ---- */
+    .page {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      align-items: start;
+    }
+
+    /* ---- Variant shell ---- */
+    .variant-wrap {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .variant-header {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .variant-header h3 { font-size: 13px; font-weight: 700; color: #1e293b; }
+    .variant-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .tag-a { background: #dbeafe; color: #1e40af; }
+    .tag-b { background: #fef3c7; color: #92400e; }
+    .variant-desc { font-size: 11px; color: #64748b; padding: 8px 14px; border-bottom: 1px solid #f1f5f9; line-height: 1.5; }
+
+    /* ---- Task grid ---- */
+    .task-grid-wrap { overflow-x: auto; }
+    table.tg {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.tg thead th {
+      background: #f8fafc;
+      color: #64748b;
+      font-weight: 700;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 8px;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+      text-align: left;
+    }
+    table.tg tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
+    table.tg tbody tr:hover { filter: brightness(0.97); }
+    table.tg td {
+      padding: 6px 8px;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+    .tg-rn { width: 28px; color: #94a3b8; font-size: 11px; text-align: center; }
+    .tg-name { min-width: 130px; }
+    .tg-date { width: 80px; color: #475569; font-size: 11.5px; }
+    .tg-prog { width: 70px; }
+    .tg-status { width: 100px; }
+    .tg-res { min-width: 90px; color: #64748b; font-size: 11.5px; }
+
+    /* Progress bar mini */
+    .prog-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .prog-label { font-size: 11px; color: #64748b; }
+    .prog-bar { height: 4px; background: #e2e8f0; border-radius: 2px; }
+    .prog-fill { height: 100%; border-radius: 2px; }
+
+    /* Status chip (Variant A) */
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 10.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Variant A: overdue row gets subtle left border only */
+    tr.va-overdue { border-left: 3px solid #ef4444; }
+    tr.va-complete { border-left: 3px solid #059669; }
+
+    /* Variant B: row tinting */
+    tr.vb-overdue { background: #fff5f5 !important; border-left: 3px solid #ef4444; }
+    tr.vb-complete { background: #f0fdf4 !important; border-left: 3px solid #059669; }
+    tr.vb-not-started { background: #f8fafc !important; }
+
+    /* ---- Gantt mock ---- */
+    .gantt-section {
+      border-top: 1px solid #f1f5f9;
+      padding: 10px 14px;
+    }
+    .gantt-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gantt-legend {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .gantt-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      color: #64748b;
+    }
+    .legend-bar {
+      width: 16px;
+      height: 6px;
+      border-radius: 2px;
+    }
+    .gantt-rail {
+      position: relative;
+      background: #f8fafc;
+      border: 1px solid #f1f5f9;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .gantt-header-row {
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f1f5f9;
+    }
+    .gantt-month {
+      flex: 1;
+      text-align: center;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      padding: 3px 0;
+      border-right: 1px solid #e2e8f0;
+    }
+    .gantt-month:last-child { border-right: none; }
+    .gantt-task-row {
+      display: flex;
+      align-items: center;
+      height: 28px;
+      border-bottom: 1px solid #f1f5f9;
+      position: relative;
+    }
+    .gantt-task-row:last-child { border-bottom: none; }
+    .gantt-row-name {
+      width: 110px;
+      flex-shrink: 0;
+      padding: 0 8px;
+      font-size: 10.5px;
+      color: #475569;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border-right: 1px solid #e2e8f0;
+    }
+    .gantt-bars {
+      flex: 1;
+      position: relative;
+      height: 100%;
+    }
+    .gantt-bar {
+      position: absolute;
+      height: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-radius: 3px;
+      opacity: 0.9;
+    }
+    .bar-complete    { background: #059669; }
+    .bar-in-progress { background: #1a73e8; }
+    .bar-overdue     { background: #ef4444; }
+    .bar-not-started { background: #cbd5e1; }
+    .today-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1.5px;
+      background: #ef4444;
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .today-tick {
+      position: absolute;
+      top: 0;
+      font-size: 8px;
+      color: #ef4444;
+      transform: translateX(-50%);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* Overdue row in gantt */
+    .gantt-task-row.gr-overdue { background: #fff5f5; }
+    .gantt-task-row.gr-complete { background: #f0fdf4; }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="badge">SPIKE 012</span>
+  <span>Overdue &amp; Status Visual</span>
+  <span class="label">G3 (Tier 1 — overdue invisible) + G4 (Tier 2 — no status column)</span>
+  <span class="today-badge">Today: 2026-05-29</span>
+</div>
+
+<div class="page">
+  <!-- Variant A -->
+  <div class="variant-wrap">
+    <div class="variant-header">
+      <span class="variant-tag tag-a">Variant A</span>
+      <h3>Status Chip Column</h3>
+    </div>
+    <div class="variant-desc">
+      Auto-computed <strong>Status</strong> column added between Progress and Predecessors.
+      Chips: ● Not Started · ● In Progress · ● Overdue (red) · ● Complete (green).
+      Overdue rows get a subtle red left-border accent. No row fill color.
+    </div>
+    <div class="task-grid-wrap" id="gridA"></div>
+    <div class="gantt-section" id="ganttA"></div>
+  </div>
+
+  <!-- Variant B -->
+  <div class="variant-wrap">
+    <div class="variant-header">
+      <span class="variant-tag tag-b">Variant B</span>
+      <h3>Row Tint + Bar Color</h3>
+    </div>
+    <div class="variant-desc">
+      No Status column — saves grid width. Overdue rows: <strong>red tint + red left border</strong>.
+      Complete rows: <strong>green tint</strong>. Not Started: <strong>light gray</strong>.
+      Gantt bars colored by status. Status is ambient — no explicit label.
+    </div>
+    <div class="task-grid-wrap" id="gridB"></div>
+    <div class="gantt-section" id="ganttB"></div>
+  </div>
+</div>
+
+<script>
+  const TODAY = '2026-05-29';
+
+  const tasks = [
+    { id: 1, name: 'Foundation Work',    start: '2026-04-01', end: '2026-04-20', progress: 100, resources: 'K. Reyes' },
+    { id: 2, name: 'Structural Steel',   start: '2026-04-18', end: '2026-05-05', progress: 100, resources: 'J. Santos' },
+    { id: 3, name: 'MEP Rough-in',       start: '2026-04-28', end: '2026-05-15', progress: 45,  resources: 'L. Cruz' },
+    { id: 4, name: 'Concrete Slab',      start: '2026-05-10', end: '2026-06-20', progress: 60,  resources: 'R. Lim' },
+    { id: 5, name: 'Electrical Panel',   start: '2026-06-01', end: '2026-06-30', progress: 0,   resources: '' },
+    { id: 6, name: 'Final Inspection',   start: '2026-05-01', end: '2026-05-22', progress: 0,   resources: '' },
+    { id: 7, name: 'Interior Fit-out',   start: '2026-05-20', end: '2026-07-15', progress: 20,  resources: 'K. Reyes' },
+  ];
+
+  function computeStatus(t) {
+    if (t.progress >= 100) return 'complete';
+    if (t.end < TODAY) return 'overdue';
+    if (t.start > TODAY && t.progress === 0) return 'not-started';
+    return 'in-progress';
+  }
+
+  const STATUS_META = {
+    'complete':    { label: 'Complete',    color: '#059669', chipBg: '#dcfce7', barClass: 'bar-complete' },
+    'overdue':     { label: 'Overdue',     color: '#ef4444', chipBg: '#fee2e2', barClass: 'bar-overdue' },
+    'in-progress': { label: 'In Progress', color: '#1a73e8', chipBg: '#dbeafe', barClass: 'bar-in-progress' },
+    'not-started': { label: 'Not Started', color: '#94a3b8', chipBg: '#f1f5f9', barClass: 'bar-not-started' },
+  };
+
+  // Gantt timeline: Apr 1 → Aug 1 (122 days)
+  const T0 = new Date('2026-04-01');
+  const T1 = new Date('2026-08-01');
+  const SPAN = (T1 - T0);
+
+  function pct(ds) {
+    return Math.max(0, Math.min(100, (new Date(ds) - T0) / SPAN * 100));
+  }
+
+  const todayPct = pct(TODAY);
+
+  function progFillColor(status) {
+    if (status === 'complete') return '#059669';
+    if (status === 'overdue')  return '#ef4444';
+    return '#1a73e8';
+  }
+
+  // ---- Render Variant A (chip column) ----
+  function renderGridA() {
+    const rows = tasks.map((t, i) => {
+      const s = computeStatus(t);
+      const meta = STATUS_META[s];
+      const rowClass = s === 'overdue' ? 'va-overdue' : s === 'complete' ? 'va-complete' : '';
+      const fillColor = progFillColor(s);
+      return `
+        <tr class="${rowClass}">
+          <td class="tg-rn">${i + 1}</td>
+          <td class="tg-name">${t.name}</td>
+          <td class="tg-date">${t.start}</td>
+          <td class="tg-date">${t.end}</td>
+          <td class="tg-prog">
+            <div class="prog-wrap">
+              <span class="prog-label">${t.progress}%</span>
+              <div class="prog-bar"><div class="prog-fill" style="width:${t.progress}%;background:${fillColor};"></div></div>
+            </div>
+          </td>
+          <td class="tg-status">
+            <span class="status-chip" style="background:${meta.chipBg};color:${meta.color};">
+              <span class="chip-dot" style="background:${meta.color};"></span>
+              ${meta.label}
+            </span>
+          </td>
+          <td class="tg-res">${t.resources || '—'}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('gridA').innerHTML = `
+      <table class="tg">
+        <thead>
+          <tr>
+            <th class="tg-rn">#</th>
+            <th class="tg-name">Name</th>
+            <th class="tg-date">Start</th>
+            <th class="tg-date">End</th>
+            <th class="tg-prog">Progress</th>
+            <th class="tg-status">Status</th>
+            <th class="tg-res">Resources</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // ---- Render Variant B (row tinting, no column) ----
+  function renderGridB() {
+    const rows = tasks.map((t, i) => {
+      const s = computeStatus(t);
+      const fillColor = progFillColor(s);
+      const rowClass = `vb-${s}`;
+      return `
+        <tr class="${rowClass}">
+          <td class="tg-rn">${i + 1}</td>
+          <td class="tg-name">${t.name}</td>
+          <td class="tg-date">${t.start}</td>
+          <td class="tg-date">${t.end}</td>
+          <td class="tg-prog">
+            <div class="prog-wrap">
+              <span class="prog-label">${t.progress}%</span>
+              <div class="prog-bar"><div class="prog-fill" style="width:${t.progress}%;background:${fillColor};"></div></div>
+            </div>
+          </td>
+          <td class="tg-res">${t.resources || '—'}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('gridB').innerHTML = `
+      <table class="tg">
+        <thead>
+          <tr>
+            <th class="tg-rn">#</th>
+            <th class="tg-name">Name</th>
+            <th class="tg-date">Start</th>
+            <th class="tg-date">End</th>
+            <th class="tg-prog">Progress</th>
+            <th class="tg-res">Resources</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // ---- Render Gantt mock (shared logic, different row tinting) ----
+  function renderGantt(mountId, tintRows) {
+    const months = ['Apr', 'May', 'Jun', 'Jul'];
+    const monthCols = months.map(m => `<div class="gantt-month">${m}</div>`).join('');
+
+    const taskRows = tasks.map(t => {
+      const s = computeStatus(t);
+      const meta = STATUS_META[s];
+      const left = pct(t.start);
+      const right = pct(t.end);
+      const width = Math.max(1, right - left);
+      const rowClass = tintRows
+        ? (s === 'overdue' ? 'gr-overdue' : s === 'complete' ? 'gr-complete' : '')
+        : '';
+      return `
+        <div class="gantt-task-row ${rowClass}">
+          <div class="gantt-row-name" title="${t.name}">${t.name}</div>
+          <div class="gantt-bars">
+            <div class="today-line" style="left:${todayPct}%;"></div>
+            <div class="gantt-bar ${meta.barClass}"
+                 style="left:${left}%;width:${width}%;"
+                 title="${t.name}: ${t.start} → ${t.end} (${t.progress}%)"></div>
+          </div>
+        </div>`;
+    }).join('');
+
+    const legend = Object.entries(STATUS_META).map(([, m]) =>
+      `<div class="gantt-legend-item"><div class="legend-bar ${m.barClass}"></div>${m.label}</div>`
+    ).join('');
+
+    document.getElementById(mountId).innerHTML = `
+      <div class="gantt-section-label">
+        Gantt Preview
+        <span style="font-size:9px;color:#cbd5e1;font-weight:400;">bars colored by status</span>
+      </div>
+      <div class="gantt-legend">${legend}</div>
+      <div class="gantt-rail">
+        <div class="gantt-header-row">${monthCols}</div>
+        ${taskRows}
+      </div>`;
+  }
+
+  renderGridA();
+  renderGridB();
+  renderGantt('ganttA', false);  // Variant A: no row tinting on gantt (chip column does the work)
+  renderGantt('ganttB', true);   // Variant B: gantt rows tinted to match grid
+</script>
+</body>
+</html>

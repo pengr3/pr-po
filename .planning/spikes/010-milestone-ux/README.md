@@ -3,7 +3,7 @@ spike: 010
 name: milestone-ux
 type: comparison
 validates: "Given a task row in the grid, when the user wants to mark it as a milestone, then which UX (context menu addition vs inline column toggle) feels more natural — and the project-detail plan card highlights update in real-time"
-verdict: PENDING
+verdict: "VALIDATED ✓ WINNER — Variant A (context menu right-click): Mark as Milestone / Remove Milestone entry, amber color. Zero grid columns added; consistent with existing right-click UX."
 related: [008-project-detail-layout, 009-proposal-card-redesign]
 tags: [gantt, milestone, ux, project-plan, project-detail]
 ---
@@ -70,12 +70,13 @@ rows are always scannable in the grid even without looking at the column.
 
 ## Results
 
-VALIDATED ✓ — **Variant A chosen** (context menu right-click).
+**VALIDATED ✓ — 2026-05-29**
 
-Implemented in `app/views/project-plan.js` and `styles/views.css`:
-- `gridToggleMilestone(taskId)` + `gridGroupToggleMilestone(idsJson)` functions
-- Single context menu: "◆ Mark as Milestone" / "◆ Remove Milestone" item (amber, after header)
-- Group context menu: "◆ Toggle Milestone" item for multi-select
-- `tg-row-milestone` class on grid rows → amber tint (#fffbeb / #fef3c7 hover)
-- `tg-milestone-icon` span (◆, amber #d97706) in name cell before input
-- Gantt diamond already handled by existing `milestone-marker` CSS class
+**Verdict: Variant A (context menu right-click)**
+
+Right-click context menu adds "Mark as Milestone / Remove Milestone" entry (amber). Zero extra grid columns. Consistent with existing right-click UX pattern in project-plan.js. Diamond prefix on row name retained regardless (scannable at-a-glance).
+
+**Implementation targets:**
+- `app/views/project-plan.js` — add milestone toggle to context menu handler; apply amber row tint + ◆ prefix to task name on milestone rows
+- Gantt bar rail — render diamond shape for milestone tasks instead of bar
+- `app/views/project-detail.js` — no changes needed; `computeProjectProgress()` already reads `is_milestone` correctly once tasks are flagged

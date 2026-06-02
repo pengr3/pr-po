@@ -18,3 +18,8 @@ Patterns and stack choices established across spike sessions.
 - **Interactive by default:** build something the user can feel, not just console output
 - **Mock with app colors:** UX spikes mock the actual app nav/layout using project CSS vars
 - **Controls overlay:** floating bottom-left panel for triggering demo states
+- **Shared mock data across a series:** use the same 5 mocked tasks + same iteration names across all spikes in a series so the user compares interactions, not data
+- **Comparison spikes (A/B/C):** put all variants in one spike.html with a top variant-switcher bar — avoids tab-juggling and makes the difference immediately obvious
+- **Log pane:** dark `#0f172a` strip at the bottom with monospace entries; type-color coded (`event`=muted, `save`=green, `restore`=blue, `undo`=amber, `diff`=yellow) — use in every interactive spike
+- **015c restore mechanic is canonical:** all future iteration spikes should use auto-snapshot + 5s undo toast as the restore mechanic; do not re-probe it
+- **Right rail (017B) is canonical history UX:** the persistent side panel is the agreed surface for iteration history; do not re-probe modal vs dropdown

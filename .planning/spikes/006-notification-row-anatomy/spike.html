@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spike 006: Notification Row Anatomy — 5W+2 Framework</title>
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1557b0;
+      --success: #059669;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --bg: #f8fafc;
+      --white: #ffffff;
+      --unread-bg: #f8fbff;
+      --unread-border: #1a73e8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: var(--text); }
+
+    .page-header {
+      padding: 14px 24px;
+      background: white;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-header h1 { font-size: 15px; font-weight: 700; }
+    .page-header p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .page-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 20px 24px 100px;
+    }
+
+    .col-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    /* Shared panel */
+    .panel {
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .panel-header {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    /* ─── BEFORE rows ─── */
+    .nb-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .nb-row:last-child { border-bottom: none; }
+    .nb-row:hover { background: #f8fafc; }
+    .nb-row.unread { background: var(--unread-bg); border-left: 3px solid var(--unread-border); padding-left: 11px; }
+
+    .nb-badge {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 9px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .nb-body { flex: 1; min-width: 0; }
+    .nb-msg { font-size: 13px; color: var(--text); line-height: 1.45; }
+    .nb-time { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ─── AFTER rows ─── */
+    .na-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      position: relative;
+    }
+    .na-row:last-child { border-bottom: none; }
+    .na-row:hover { background: #f8fafc; }
+    .na-row.unread { background: var(--unread-bg); border-left: 3px solid var(--unread-border); padding-left: 11px; }
+
+    .na-icon {
+      width: 30px; height: 30px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .na-icon svg { width: 16px; height: 16px; }
+
+    .na-body { flex: 1; min-width: 0; }
+
+    /* Line 1 */
+    .na-l1 { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+    .na-event {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .na-chip {
+      font-size: 10px; font-weight: 700;
+      padding: 1px 6px; border-radius: 3px; white-space: nowrap; flex-shrink: 0;
+    }
+    .na-chip.action { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+    .na-chip.fyi    { background: #f1f5f9; color: #94a3b8; border: 1px solid var(--border); }
+    .na-time {
+      font-size: 11px; color: var(--text-muted);
+      white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* Line 2 */
+    .na-l2 { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
+    .na-obj-id {
+      font-size: 11px; font-weight: 700; color: var(--primary);
+      font-family: 'Consolas', monospace; white-space: nowrap; flex-shrink: 0;
+    }
+    .na-sep { font-size: 11px; color: #cbd5e1; flex-shrink: 0; }
+    .na-obj-name {
+      font-size: 11px; color: #334155;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Line 3 */
+    .na-l3 { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .na-actor { font-size: 11px; color: var(--text-muted); }
+    .na-rel {
+      font-size: 10px; color: #64748b;
+      background: #f1f5f9; border: 1px solid #e2e8f0;
+      padding: 0 5px; border-radius: 3px; font-style: italic;
+    }
+
+    /* Mark-read ghost button */
+    .na-mark-read {
+      position: absolute; right: 8px; top: 8px;
+      width: 18px; height: 18px; border: none; background: none; cursor: pointer;
+      opacity: 0; display: flex; align-items: center; justify-content: center;
+      border-radius: 3px; color: var(--text-muted);
+    }
+    .na-row:hover .na-mark-read { opacity: 1; }
+    .na-mark-read:hover { background: var(--border); }
+
+    /* Anatomy legend */
+    .anatomy {
+      background: white; border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;
+      font-size: 12px;
+    }
+    .anatomy h3 { font-size: 12px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+    .anatomy-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+    .anatomy-num {
+      width: 20px; height: 20px; border-radius: 50%; background: var(--primary);
+      color: white; font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .anatomy-q { font-weight: 600; color: var(--text); margin-right: 2px; }
+    .anatomy-v { color: var(--text-muted); }
+
+    /* Controls */
+    .controls {
+      position: fixed; bottom: 20px; left: 20px;
+      background: white; border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 16px; box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 100;
+      font-size: 12px; min-width: 200px;
+    }
+    .controls h4 { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 8px; }
+    .controls label { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; cursor: pointer; color: var(--text); }
+    .controls label:last-child { margin-bottom: 0; }
+    .controls input[type=checkbox] { cursor: pointer; width: 13px; height: 13px; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Spike 006 — Notification Row Anatomy</h1>
+  <p>Before (current blob message) vs After (5W+2 framework). Toggle signals bottom-left.</p>
+</div>
+
+<div class="page-layout">
+
+  <!-- BEFORE -->
+  <div>
+    <div class="col-label">Before — Current format</div>
+    <div class="panel" id="beforePanel"></div>
+  </div>
+
+  <!-- AFTER -->
+  <div>
+    <div class="col-label">After — 5W+2 framework</div>
+
+    <div class="anatomy">
+      <h3>Row anatomy</h3>
+      <div class="anatomy-row"><span class="anatomy-num">1</span><span class="anatomy-q">What?</span><span class="anatomy-v">Event title · line 1, bold</span></div>
+      <div class="anatomy-row"><span class="anatomy-num">2</span><span class="anatomy-q">About?</span><span class="anatomy-v">Object ID + name · line 2</span></div>
+      <div class="anatomy-row"><span class="anatomy-num">3</span><span class="anatomy-q">Who?</span><span class="anatomy-v">Actor · line 3</span></div>
+      <div class="anatomy-row"><span class="anatomy-num">4</span><span class="anatomy-q">When?</span><span class="anatomy-v">Relative time · line 1 right (hover for absolute)</span></div>
+      <div class="anatomy-row"><span class="anatomy-num">5</span><span class="anatomy-q">Why me?</span><span class="anatomy-v">Relationship badge · line 3</span></div>
+      <div class="anatomy-row"><span class="anatomy-num">6</span><span class="anatomy-q">Do what?</span><span class="anatomy-v">Action / FYI chip · line 1</span></div>
+      <div class="anatomy-row"><span class="anatomy-num">7</span><span class="anatomy-q">Go where?</span><span class="anatomy-v">Whole row is clickable</span></div>
+    </div>
+
+    <div class="panel" id="afterPanel"></div>
+  </div>
+
+</div>
+
+<div class="controls">
+  <h4>Toggle signals</h4>
+  <label><input type="checkbox" id="ckAction"   checked> <b>Do what?</b> — Action/FYI chip</label>
+  <label><input type="checkbox" id="ckObjId"    checked> <b>About?</b> — Object ID + name</label>
+  <label><input type="checkbox" id="ckActor"    checked> <b>Who?</b> — Actor name</label>
+  <label><input type="checkbox" id="ckRel"      checked> <b>Why me?</b> — Relationship badge</label>
+</div>
+
+<script>
+// Type colour map
+const TC = {
+  MRF_APPROVED:          { bg:'#d1fae5', c:'#065f46' },
+  MRF_REJECTED:          { bg:'#fee2e2', c:'#991b1b' },
+  MRF_SUBMITTED:         { bg:'#dbeafe', c:'#1e40af' },
+  PR_REVIEW_NEEDED:      { bg:'#fef3c7', c:'#92400e' },
+  PR_DECIDED:            { bg:'#d1fae5', c:'#065f46' },
+  TR_REVIEW_NEEDED:      { bg:'#fef3c7', c:'#92400e' },
+  TR_DECIDED:            { bg:'#d1fae5', c:'#065f46' },
+  RFP_REVIEW_NEEDED:     { bg:'#fef3c7', c:'#92400e' },
+  PO_DELIVERED:          { bg:'#e0e7ff', c:'#3730a3' },
+  PROPOSAL_SUBMITTED:    { bg:'#dbeafe', c:'#1e40af' },
+  PROPOSAL_DECIDED:      { bg:'#d1fae5', c:'#065f46' },
+  PROJECT_COST_CHANGED:  { bg:'#fef9c3', c:'#713f12' },
+};
+
+// Heroicons outline SVGs
+const ICON = {
+  MRF_APPROVED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  MRF_REJECTED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  MRF_SUBMITTED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`,
+  PR_REVIEW_NEEDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  PR_DECIDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  TR_REVIEW_NEEDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+  TR_DECIDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-5.82 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
+  RFP_REVIEW_NEEDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="11" cy="15" r="3"/><path d="M13.27 17.27L17 21"/></svg>`,
+  PO_DELIVERED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+  PROPOSAL_SUBMITTED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
+  PROPOSAL_DECIDED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+  PROJECT_COST_CHANGED:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+};
+
+// Notification data with full 5W+2 fields
+const DATA = [
+  {
+    type:'PR_REVIEW_NEEDED', unread:true,
+    event:'PR Needs Your Review',
+    objectId:'PR-2026-023', objectName:'Electrical Supplies — Block C',
+    actor:'John Reyes',
+    time:'2h ago', timeAbs:'Today, 08:42',
+    relationship:'You are the approver',
+    actionRequired:true,
+    oldMsg:'PR-2026-023 for Electrical Supplies — Block C requires Finance approval.',
+  },
+  {
+    type:'MRF_APPROVED', unread:true,
+    event:'MRF Approved',
+    objectId:'MRF-2026-041', objectName:'Office Supplies Q2',
+    actor:'Maria Santos',
+    time:'3d ago', timeAbs:'May 23, 14:15',
+    relationship:'You submitted this',
+    actionRequired:false,
+    oldMsg:'Your MRF-2026-041 (Office Supplies Q2) has been approved.',
+  },
+  {
+    type:'PROPOSAL_SUBMITTED', unread:false,
+    event:'New Proposal Submitted',
+    objectId:'PROPOSAL-CLMC-2026-007', objectName:'Website Redesign',
+    actor:'Ana Reyes',
+    time:'1d ago', timeAbs:'May 25, 11:00',
+    relationship:'You manage this client',
+    actionRequired:true,
+    oldMsg:'New proposal PROPOSAL-CLMC-2026-007 submitted for Website Redesign.',
+  },
+  {
+    type:'TR_REVIEW_NEEDED', unread:false,
+    event:'Transport Request Review',
+    objectId:'TR-2026-008', objectName:'Cement Delivery — Batangas Site',
+    actor:'Carlo Mendoza',
+    time:'5h ago', timeAbs:'Today, 05:31',
+    relationship:'You are the approver',
+    actionRequired:true,
+    oldMsg:'TR-2026-008 (Cement Delivery — Batangas Site) requires Finance review.',
+  },
+  {
+    type:'MRF_REJECTED', unread:false,
+    event:'MRF Rejected',
+    objectId:'MRF-2026-038', objectName:'Plumbing Fixtures Phase 2',
+    actor:'Grace Tan',
+    time:'4d ago', timeAbs:'May 22, 16:05',
+    relationship:'You submitted this',
+    actionRequired:false,
+    oldMsg:'MRF-2026-038 (Plumbing Fixtures Phase 2) was rejected.',
+  },
+  {
+    type:'PO_DELIVERED', unread:false,
+    event:'PO Delivered',
+    objectId:'PO-2026-015', objectName:'Steel Bars — 100 pcs',
+    actor:'System',
+    time:'2d ago', timeAbs:'May 24, 09:22',
+    relationship:'Your project',
+    actionRequired:false,
+    oldMsg:'PO-2026-015 (Steel Bars — 100 pcs) has been marked as Delivered.',
+  },
+  {
+    type:'PR_DECIDED', unread:false,
+    event:'PR Decision: Approved',
+    objectId:'PR-2026-019', objectName:'Roofing Materials — Main Building',
+    actor:'Finance',
+    time:'5d ago', timeAbs:'May 21, 13:45',
+    relationship:'You submitted this',
+    actionRequired:false,
+    oldMsg:'PR-2026-019 (Roofing Materials — Main Building) approved by Finance.',
+  },
+  {
+    type:'PROJECT_COST_CHANGED', unread:false,
+    event:'Project Cost Updated',
+    objectId:'PROJ-001', objectName:'Block C Renovation',
+    actor:'System',
+    time:'1w ago', timeAbs:'May 19, 10:00',
+    relationship:'You are assigned',
+    actionRequired:false,
+    oldMsg:'Project cost for Block C Renovation has been updated.',
+  },
+];
+
+function icon(type) {
+  const t = TC[type] || { bg:'#f1f5f9', c:'#475569' };
+  return `<div class="na-icon" style="background:${t.bg};color:${t.c}">${ICON[type]||''}</div>`;
+}
+
+function renderBefore() {
+  const rows = DATA.map(n => {
+    const t = TC[n.type] || { bg:'#f1f5f9', c:'#475569' };
+    const abbr = n.type.split('_').map(w=>w[0]).join('').slice(0,3);
+    return `<div class="nb-row ${n.unread?'unread':''}">
+      <div class="nb-badge" style="background:${t.bg};color:${t.c}">${abbr}</div>
+      <div class="nb-body">
+        <div class="nb-msg">${n.oldMsg}</div>
+        <div class="nb-time">${n.time}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('beforePanel').innerHTML = `<div class="panel-header">Notifications</div>${rows}`;
+}
+
+function renderAfter() {
+  const showAct = document.getElementById('ckAction').checked;
+  const showObj = document.getElementById('ckObjId').checked;
+  const showWho = document.getElementById('ckActor').checked;
+  const showRel = document.getElementById('ckRel').checked;
+
+  const rows = DATA.map(n => {
+    // Line 1
+    const chip = showAct
+      ? (n.actionRequired
+          ? `<span class="na-chip action">● Action needed</span>`
+          : `<span class="na-chip fyi">FYI</span>`)
+      : '';
+    const l1 = `<div class="na-l1">
+      <span class="na-event">${n.event}</span>
+      ${chip}
+      <span class="na-time" title="${n.timeAbs}">${n.time}</span>
+    </div>`;
+
+    // Line 2
+    const l2 = showObj ? `<div class="na-l2">
+      <span class="na-obj-id">${n.objectId}</span>
+      <span class="na-sep">·</span>
+      <span class="na-obj-name">${n.objectName}</span>
+    </div>` : '';
+
+    // Line 3
+    const parts = [];
+    if (showWho && n.actor !== 'System') parts.push(`<span class="na-actor">by ${n.actor}</span>`);
+    if (showRel) {
+      if (parts.length) parts.push(`<span class="na-sep">·</span>`);
+      parts.push(`<span class="na-rel">${n.relationship}</span>`);
+    }
+    const l3 = parts.length ? `<div class="na-l3">${parts.join('')}</div>` : '';
+
+    const markRead = n.unread
+      ? `<button class="na-mark-read" title="Mark as read">
+           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+         </button>`
+      : '';
+
+    return `<div class="na-row ${n.unread?'unread':''}">
+      ${icon(n.type)}
+      <div class="na-body">${l1}${l2}${l3}</div>
+      ${markRead}
+    </div>`;
+  }).join('');
+
+  document.getElementById('afterPanel').innerHTML = `<div class="panel-header">Notifications</div>${rows}`;
+}
+
+function render() { renderBefore(); renderAfter(); }
+
+['ckAction','ckObjId','ckActor','ckRel'].forEach(id =>
+  document.getElementById(id).addEventListener('change', renderAfter)
+);
+
+render();
+</script>
+</body>
+</html>
