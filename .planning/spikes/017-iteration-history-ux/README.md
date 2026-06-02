@@ -3,7 +3,7 @@ spike: 017
 name: iteration-history-ux
 type: comparison
 validates: "Given multiple saved iterations, when user wants to browse and load one, then A (modal list) vs B (right rail timeline) vs C (toolbar dropdown) — which makes the right tradeoff between discoverability, context, and surface area"
-verdict: PENDING
+verdict: WINNER — Variant B (right rail)
 related: [015c-restore-auto-snapshot, 016-snapshot-scope, 018-iteration-diff-view]
 tags: [iteration, ux, history, project-plan]
 ---
@@ -59,4 +59,6 @@ python -m http.server 8000
 
 ## Results
 
-(Pending user verdict at the 017 checkpoint.)
+**Verdict: WINNER — Variant B (right rail)** (2026-06-02)
+
+Rail wins because the core use case is compare-and-decide, not just load. Users glance at an iteration name, look back at the live plan to orient themselves, then decide whether to load. Modal (A) forces a context switch on every glance. Dropdown (C) is too cramped for 10+ iterations and buries the feature. Rail keeps both visible simultaneously — the right interaction for how history actually gets used. Toggle behavior (same button to open/close) prevents it feeling sticky.

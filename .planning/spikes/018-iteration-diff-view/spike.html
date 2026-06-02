@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spike 018 — Iteration Diff View</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1a73e8; --primary-dark: #1557b0;
+      --success: #059669; --warning: #f59e0b; --danger: #ef4444;
+      --text: #1e293b; --muted: #64748b; --border: #e2e8f0;
+      --bg: #f8fafc; --white: #fff;
+      --add: #dcfce7; --add-text: #166534; --add-border: #86efac;
+      --del: #fee2e2; --del-text: #991b1b; --del-border: #fca5a5;
+      --chg: #fef3c7; --chg-text: #92400e; --chg-border: #fcd34d;
+      --same: #f8fafc;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Nav */
+    .app-nav { background: var(--primary); color: white; padding: 0 16px; height: 48px; display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+    .app-nav .logo { font-weight: 700; font-size: 15px; }
+    .app-nav .nav-item { font-size: 13px; opacity: 0.8; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .app-nav .nav-item.active { opacity: 1; background: rgba(255,255,255,0.15); }
+
+    /* Main layout */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Plan pane */
+    .plan-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .plan-toolbar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: white; }
+    .plan-toolbar .title { font-weight: 600; font-size: 14px; flex: 1; }
+    .tbtn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--text); white-space: nowrap; }
+    .tbtn:hover { background: #f1f5f9; }
+    .tbtn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .tbtn.primary:hover { background: var(--primary-dark); }
+
+    /* Task table (live pane) */
+    .task-table-wrap { flex: 1; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:hover td { background: #f8fafc; }
+    .task-name { font-weight: 500; }
+    .task-id { font-size: 10px; color: var(--muted); }
+    .dep-badge { display: inline-block; background: #e8f0fe; color: var(--primary); font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; margin-right: 2px; }
+    .nil { color: #cbd5e1; }
+    .progress-wrap { display: flex; align-items: center; gap: 5px; }
+    .progress-bar { width: 50px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--success); border-radius: 3px; }
+
+    /* Right rail */
+    .right-rail { width: 300px; border-left: 1px solid var(--border); background: white; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+    .rail-head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .iter-count-badge { background: #e8f0fe; color: var(--primary); font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 700; }
+    .rail-save-row { padding: 8px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .rail-save-btn { width: 100%; padding: 6px 0; background: var(--primary); color: white; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .rail-save-btn:hover { background: var(--primary-dark); }
+    .rail-timeline { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+    .timeline-item { display: flex; gap: 10px; padding-bottom: 14px; position: relative; }
+    .timeline-item:not(:last-child)::before { content:''; position:absolute; left:11px; top:24px; bottom:0; width:2px; background:var(--border); }
+    .tl-dot { width:24px; height:24px; border-radius:50%; background:#e8f0fe; border:2px solid var(--primary); display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--primary); font-weight:700; flex-shrink:0; margin-top:2px; }
+    .tl-dot.auto-dot { background:#d1fae5; border-color:var(--success); color:var(--success); }
+    .tl-content { flex:1; min-width:0; }
+    .tl-name { font-weight:600; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tl-meta { font-size:10px; color:var(--muted); margin-top:2px; }
+    .auto-tag { background:#d1fae5; color:#065f46; font-size:9px; font-weight:700; padding:1px 5px; border-radius:6px; text-transform:uppercase; }
+    .tl-actions { display:flex; gap:4px; margin-top:5px; }
+    .tl-btn { padding:3px 8px; border:none; border-radius:4px; font-size:10px; font-weight:600; cursor:pointer; }
+    .tl-btn.diff { background:#f1f5f9; color:var(--text); }
+    .tl-btn.diff:hover { background:#e2e8f0; }
+    .tl-btn.diff.active { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+    .tl-btn.load { background:var(--primary); color:white; }
+    .tl-btn.load:hover { background:var(--primary-dark); }
+
+    /* Diff overlay panel */
+    .diff-panel { display:none; flex-direction:column; overflow:hidden; border-top:2px solid var(--warning); background:white; flex-shrink:0; }
+    .diff-panel.open { display:flex; flex:1; max-height:55%; }
+    .diff-head { padding:8px 16px; background:#fffbeb; border-bottom:1px solid #fcd34d; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .diff-head-title { font-size:12px; font-weight:700; flex:1; }
+    .diff-head-close { background:none; border:none; font-size:16px; cursor:pointer; color:var(--muted); line-height:1; }
+    .diff-head-close:hover { color:var(--text); }
+    .diff-legend { display:flex; gap:12px; padding:5px 16px; background:#fffbeb; border-bottom:1px solid #fcd34d; font-size:11px; align-items:center; flex-shrink:0; }
+    .diff-dot { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+    .diff-table-wrap { flex:1; overflow:auto; }
+    .diff-table { width:100%; border-collapse:collapse; }
+    .diff-table th { background:#f1f5f9; padding:6px 12px; text-align:left; font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; position:sticky; top:0; border-bottom:1px solid var(--border); white-space:nowrap; }
+    .diff-table td { padding:6px 12px; border-bottom:1px solid #f1f5f9; font-size:12px; vertical-align:middle; }
+    .diff-row-same td { background:var(--same); }
+    .diff-row-changed td { background:var(--chg); }
+    .diff-row-added td { background:var(--add); }
+    .diff-row-removed td { background:var(--del); }
+    .diff-badge { font-size:9px; font-weight:700; padding:2px 6px; border-radius:8px; white-space:nowrap; }
+    .diff-badge.changed { background:var(--chg); color:var(--chg-text); border:1px solid var(--chg-border); }
+    .diff-badge.added   { background:var(--add); color:var(--add-text); border:1px solid var(--add-border); }
+    .diff-badge.removed { background:var(--del); color:var(--del-text); border:1px solid var(--del-border); }
+    .diff-badge.same    { background:#f1f5f9; color:var(--muted); }
+    .diff-field-change { font-size:10px; color:var(--muted); margin-top:2px; }
+    .diff-old { text-decoration:line-through; color:#ef4444; }
+    .diff-new { color:#059669; font-weight:600; }
+    .diff-empty { padding:24px; text-align:center; color:var(--muted); font-size:12px; }
+
+    /* Log */
+    .log-pane { height:80px; border-top:1px solid var(--border); background:#0f172a; overflow-y:auto; padding:5px 12px; flex-shrink:0; }
+    .log-row { font-family:'Cascadia Code',Consolas,monospace; font-size:10px; line-height:1.8; }
+    .log-row.event   { color:#94a3b8; }
+    .log-row.save    { color:#6ee7b7; }
+    .log-row.diff    { color:#fbbf24; }
+    .log-row.restore { color:#93c5fd; }
+    .log-row.undo    { color:#f87171; }
+
+    /* Restore confirm */
+    .confirm-back { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:100; }
+    .confirm-back.hidden { display:none; }
+    .confirm-box { background:white; border-radius:12px; padding:20px 24px; width:360px; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+    .confirm-title { font-size:14px; font-weight:700; margin-bottom:8px; }
+    .confirm-note { background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 12px; font-size:11px; color:#1d4ed8; margin-bottom:14px; line-height:1.5; }
+    .confirm-actions { display:flex; gap:8px; justify-content:flex-end; }
+    .btn { padding:7px 16px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:none; }
+    .btn-primary { background:var(--primary); color:white; }
+    .btn-primary:hover { background:var(--primary-dark); }
+    .btn-cancel { background:#f1f5f9; color:var(--text); }
+    .btn-cancel:hover { background:#e2e8f0; }
+
+    /* Toast */
+    .toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:#1e293b; color:white; padding:9px 18px; border-radius:8px; font-size:12px; display:flex; align-items:center; gap:10px; z-index:200; box-shadow:0 4px 16px rgba(0,0,0,0.25); white-space:nowrap; }
+    .toast.hidden { display:none; }
+    .toast-undo { color:#60a5fa; cursor:pointer; font-weight:700; text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<div class="app-nav">
+  <span class="logo">CLMC Operations</span>
+  <span class="nav-item">Home</span>
+  <span class="nav-item active">Projects</span>
+  <span class="nav-item">Procurement</span>
+</div>
+
+<div class="main">
+
+  <!-- Plan pane -->
+  <div class="plan-pane">
+    <div class="plan-toolbar">
+      <span class="title">Project Plan — Elias Tower Block A</span>
+      <button class="tbtn primary" onclick="saveIter()">Save Iteration</button>
+    </div>
+    <div class="task-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Deps</th>
+            <th>Assignee</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Diff panel (slides up from bottom of plan pane) -->
+    <div class="diff-panel" id="diffPanel">
+      <div class="diff-head">
+        <span class="diff-head-title" id="diffHeadTitle">Comparing with …</span>
+        <span style="font-size:11px;color:var(--muted);margin-right:auto;" id="diffSummary"></span>
+        <button class="tl-btn load" style="font-size:11px;padding:4px 10px;" onclick="openConfirm(activeDiffId)">Load this →</button>
+        <button class="diff-head-close" onclick="closeDiff()">×</button>
+      </div>
+      <div class="diff-legend">
+        <span style="color:var(--muted);font-weight:600;">Legend:</span>
+        <span class="diff-dot" style="background:var(--chg-border);"></span><span>Changed</span>
+        <span class="diff-dot" style="background:var(--add-border);"></span><span>Added in iteration</span>
+        <span class="diff-dot" style="background:var(--del-border);"></span><span>Removed in iteration</span>
+        <span class="diff-dot" style="background:#e2e8f0;"></span><span>Unchanged</span>
+      </div>
+      <div class="diff-table-wrap">
+        <table class="diff-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Task</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Deps</th>
+              <th>Assignee</th>
+              <th>Progress</th>
+            </tr>
+          </thead>
+          <tbody id="diffBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right rail (history — Variant B from spike 017) -->
+  <div class="right-rail">
+    <div class="rail-head">
+      History <span class="iter-count-badge" id="iterCount">3</span>
+    </div>
+    <div class="rail-save-row">
+      <button class="rail-save-btn" onclick="saveIter()">+ Save current state</button>
+    </div>
+    <div class="rail-timeline" id="railTimeline"></div>
+  </div>
+
+</div>
+
+<div class="log-pane" id="logPane"></div>
+
+<!-- Restore confirm -->
+<div class="confirm-back hidden" id="confirmBack">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">Load iteration?</div>
+    <div class="confirm-note">↺ &nbsp;Safe by default — current state auto-saved before loading. Undo within 5 seconds.</div>
+    <div class="confirm-actions">
+      <button class="btn btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmLoad()">Load &amp; auto-save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast">
+  <span id="toastMsg"></span>
+  <span class="toast-undo" onclick="undoLoad()">Undo</span>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+function cloneTasks(arr) { return arr.map(t => ({...t, deps:[...t.deps]})); }
+
+const BASE_TASKS = [
+  { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:100 },
+  { id:'T002', name:'Site clearing',    start:'Jun 8',  end:'Jun 15', deps:['T001'], assignee:'Maria T.', progress:60  },
+  { id:'T003', name:'Foundation pour',  start:'Jun 16', end:'Jun 30', deps:['T002'], assignee:'Pedro L.', progress:0   },
+  { id:'T004', name:'Structural steel', start:'Jul 1',  end:'Jul 20', deps:['T003'], assignee:'',         progress:0   },
+  { id:'T005', name:'MEP rough-in',     start:'Jul 21', end:'Aug 10', deps:['T004'], assignee:'',         progress:0   },
+];
+
+const INIT_ITERS = [
+  { id:'i1', label:'Pre-scope-change',    savedAt:'May 15', auto:false, tasks: cloneTasks([
+    { id:'T001', name:'Mobilization',     start:'May 25', end:'Jun 2',  deps:[],       assignee:'Juan R.',  progress:100 },
+    { id:'T002', name:'Site clearing',    start:'Jun 3',  end:'Jun 10', deps:['T001'], assignee:'Maria T.', progress:0   },
+    { id:'T003', name:'Foundation pour',  start:'Jun 11', end:'Jun 25', deps:['T002'], assignee:'',         progress:0   },
+    { id:'T004', name:'Structural steel', start:'Jun 26', end:'Jul 15', deps:['T003'], assignee:'',         progress:0   },
+    { id:'T005', name:'MEP rough-in',     start:'Jul 16', end:'Aug 5',  deps:['T004'], assignee:'',         progress:0   },
+  ])},
+  { id:'i2', label:'Q3 plan freeze',      savedAt:'May 28', auto:false, tasks: cloneTasks([
+    { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:80  },
+    { id:'T002', name:'Site clearing',    start:'Jun 8',  end:'Jun 18', deps:['T001'], assignee:'Maria T.', progress:0   },
+    { id:'T003', name:'Foundation pour',  start:'Jun 19', end:'Jul 3',  deps:['T002'], assignee:'Pedro L.', progress:0   },
+    // T004 intentionally missing — was not in plan at this point
+    { id:'T005', name:'MEP rough-in',     start:'Jul 24', end:'Aug 13', deps:['T003'], assignee:'',         progress:0   },
+  ])},
+  { id:'i3', label:'Conservative re-plan',savedAt:'Jun 1', auto:false, tasks: cloneTasks([
+    { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:100 },
+    { id:'T002', name:'Site clearing',    start:'Jun 10', end:'Jun 20', deps:['T001'], assignee:'Maria T.', progress:20  },
+    { id:'T003', name:'Foundation pour',  start:'Jun 23', end:'Jul 7',  deps:['T002'], assignee:'Pedro L.', progress:0   },
+    { id:'T004', name:'Structural steel', start:'Jul 10', end:'Jul 30', deps:['T003'], assignee:'',         progress:0   },
+    { id:'T005', name:'MEP rough-in',     start:'Aug 1',  end:'Aug 20', deps:['T004'], assignee:'',         progress:0   },
+  ])},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let iters = INIT_ITERS.map(i => ({...i, tasks: cloneTasks(i.tasks)}));
+let liveTasks = cloneTasks(BASE_TASKS);
+let activeDiffId = null;
+let pendingLoadId = null;
+let autoSnap = null;
+let toastTimer = null;
+let iterSeq = 3;
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+function renderTable() {
+  document.getElementById('taskBody').innerHTML = liveTasks.map(t => `
+    <tr>
+      <td><span class="task-name">${t.name}</span><br><span class="task-id">${t.id}</span></td>
+      <td>${t.start}</td>
+      <td>${t.end}</td>
+      <td>${t.deps.length ? t.deps.map(d=>`<span class="dep-badge">${d}</span>`).join('') : '<span class="nil">—</span>'}</td>
+      <td>${t.assignee || '<span class="nil">—</span>'}</td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+          ${t.progress}%
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── Rail ──────────────────────────────────────────────────────────────────────
+
+function renderRail() {
+  document.getElementById('iterCount').textContent = iters.length;
+  document.getElementById('railTimeline').innerHTML = iters.map((it, idx) => `
+    <div class="timeline-item">
+      <div class="tl-dot ${it.auto ? 'auto-dot' : ''}">${iters.length - idx}</div>
+      <div class="tl-content">
+        <div class="tl-name">${it.label} ${it.auto ? '<span class="auto-tag">auto</span>' : ''}</div>
+        <div class="tl-meta">${it.savedAt} · ${it.tasks.length} tasks</div>
+        <div class="tl-actions">
+          <button class="tl-btn diff ${activeDiffId === it.id ? 'active' : ''}" onclick="toggleDiff('${it.id}')">
+            ${activeDiffId === it.id ? '▶ Diffing' : '⟷ Diff'}
+          </button>
+          <button class="tl-btn load" onclick="openConfirm('${it.id}')">Load →</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Diff ──────────────────────────────────────────────────────────────────────
+
+function toggleDiff(id) {
+  if (activeDiffId === id) {
+    closeDiff();
+  } else {
+    activeDiffId = id;
+    showDiff(id);
+    renderRail(); // update active state on diff buttons
+  }
+}
+
+function closeDiff() {
+  activeDiffId = null;
+  document.getElementById('diffPanel').classList.remove('open');
+  renderRail();
+  log('diff', 'Diff closed');
+}
+
+function showDiff(id) {
+  const it = iters.find(i => i.id === id);
+  document.getElementById('diffHeadTitle').textContent = `Current vs "${it.label}" (${it.savedAt})`;
+
+  const rows = computeDiff(liveTasks, it.tasks);
+  const changed = rows.filter(r => r.status !== 'same').length;
+  document.getElementById('diffSummary').textContent =
+    changed === 0 ? 'No differences' : `${changed} difference${changed > 1 ? 's' : ''}`;
+
+  document.getElementById('diffBody').innerHTML = rows.length === 0
+    ? `<tr><td colspan="7" class="diff-empty">No tasks to compare.</td></tr>`
+    : rows.map(r => renderDiffRow(r)).join('');
+
+  document.getElementById('diffPanel').classList.add('open');
+  log('diff', `Diffing current vs "${it.label}" — ${changed} difference(s)`);
+}
+
+function computeDiff(live, snap) {
+  const allIds = [...new Set([...live.map(t=>t.id), ...snap.map(t=>t.id)])];
+  return allIds.map(id => {
+    const l = live.find(t => t.id === id);
+    const s = snap.find(t => t.id === id);
+    if (!l && s)  return { status:'added',   snap:s, live:null, changes:[] };
+    if (l && !s)  return { status:'removed',  snap:null, live:l, changes:[] };
+    const changes = [];
+    const fields = ['name','start','end','deps','assignee','progress'];
+    fields.forEach(f => {
+      const lv = Array.isArray(l[f]) ? l[f].join(',') : String(l[f]);
+      const sv = Array.isArray(s[f]) ? s[f].join(',') : String(s[f]);
+      if (lv !== sv) changes.push({ field:f, live:l[f], snap:s[f] });
+    });
+    return { status: changes.length ? 'changed' : 'same', live:l, snap:s, changes };
+  });
+}
+
+function fmtVal(v) {
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  if (v === '' || v === null || v === undefined) return '—';
+  if (typeof v === 'number') return v + '%';
+  return v;
+}
+
+function renderDiffRow(r) {
+  const cls = `diff-row-${r.status}`;
+  const badge = `<span class="diff-badge ${r.status}">${{same:'Unchanged',changed:'Changed',added:'Added',removed:'Removed'}[r.status]}</span>`;
+  const t = r.live || r.snap;
+
+  // Build per-field cells with inline old→new for changed rows
+  function cell(field) {
+    if (r.status === 'same' || r.status === 'added' || r.status === 'removed') {
+      return `<td>${fmtVal(t[field])}</td>`;
+    }
+    const chg = r.changes.find(c => c.field === field);
+    if (!chg) return `<td>${fmtVal(t[field])}</td>`;
+    return `<td>
+      <span class="diff-old">${fmtVal(chg.snap)}</span>
+      <span class="diff-new"> → ${fmtVal(chg.live)}</span>
+    </td>`;
+  }
+
+  return `<tr class="${cls}">
+    <td>${badge}${r.changes.length ? `<div class="diff-field-change">${r.changes.map(c=>c.field).join(', ')}</div>` : ''}</td>
+    <td><span class="task-name">${t.name}</span><br><span class="task-id">${t.id}</span></td>
+    ${cell('start')}
+    ${cell('end')}
+    <td>${(r.live||r.snap).deps?.length ? (r.live||r.snap).deps.map(d=>`<span class="dep-badge">${d}</span>`).join('') : '<span class="nil">—</span>'}</td>
+    ${cell('assignee')}
+    ${cell('progress')}
+  </tr>`;
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+
+function saveIter() {
+  iterSeq++;
+  iters.unshift({
+    id: `i${Date.now()}`,
+    label: `Iteration ${iterSeq}`,
+    savedAt: 'Just now',
+    auto: false,
+    tasks: cloneTasks(liveTasks),
+  });
+  renderRail();
+  log('save', `Saved "Iteration ${iterSeq}" (${liveTasks.length} tasks)`);
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+
+function openConfirm(id) {
+  pendingLoadId = id;
+  const it = iters.find(i => i.id === id);
+  document.getElementById('confirmTitle').textContent = `Load "${it.label}"?`;
+  document.getElementById('confirmBack').classList.remove('hidden');
+  log('event', `Confirm modal opened for "${it.label}"`);
+}
+function closeConfirm() {
+  document.getElementById('confirmBack').classList.add('hidden');
+  pendingLoadId = null;
+}
+function confirmLoad() {
+  const it = iters.find(i => i.id === pendingLoadId);
+  closeConfirm();
+  closeDiff();
+
+  const autoLabel = `Auto-save before "${it.label}"`;
+  autoSnap = { id:`auto-${Date.now()}`, label:autoLabel, savedAt:'Just now', auto:true, tasks:cloneTasks(liveTasks) };
+  iters.unshift(autoSnap);
+  log('save', `Auto-snapshot: "${autoLabel}"`);
+
+  liveTasks = cloneTasks(it.tasks);
+  renderTable();
+  renderRail();
+  log('restore', `Loaded "${it.label}" — ${it.tasks.length} tasks`);
+  showToast(`Loaded "${it.label}". Previous auto-saved.`);
+}
+
+// ── Undo ──────────────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toast').classList.remove('hidden');
+  toastTimer = setTimeout(dismissToast, 5000);
+}
+function dismissToast() { document.getElementById('toast').classList.add('hidden'); autoSnap = null; }
+function undoLoad() {
+  if (!autoSnap) return;
+  clearTimeout(toastTimer);
+  document.getElementById('toast').classList.add('hidden');
+  liveTasks = cloneTasks(autoSnap.tasks);
+  iters = iters.filter(i => i.id !== autoSnap.id);
+  log('undo', 'Undone — auto-snapshot removed.');
+  autoSnap = null;
+  renderTable();
+  renderRail();
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+
+function log(type, msg) {
+  const pane = document.getElementById('logPane');
+  const t = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const row = document.createElement('div');
+  row.className = `log-row ${type}`;
+  row.textContent = `[${t}] [${type.toUpperCase().padEnd(7)}] ${msg}`;
+  pane.appendChild(row);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderTable();
+renderRail();
+log('event', 'Spike 018 — click "⟷ Diff" on any iteration in the rail to see a live diff without loading. "Load →" uses the 015c mechanic.');
+</script>
+</body>
+</html>
