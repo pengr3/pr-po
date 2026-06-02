@@ -3559,7 +3559,7 @@ async function restoreIteration(iterationId) {
 
         // STEP 4 — Show undo toast (only when a new auto-snapshot was created)
         if (!iter.auto) {
-            showUndoToast(`Loaded "${iter.label}". Previous state auto-saved.`);
+            showUndoToast(`Loaded "${iter.label}" — Undo to revert.`);
         } else {
             showToast('Auto-save restored.', 'success');
         }
@@ -3581,13 +3581,21 @@ function showUndoToast(msg) {
     document.body.appendChild(el);
     _undoToastTimer = setTimeout(() => {
         dismissUndoToast();
-        _autoSnapId = null; // undo window closed — no longer available
     }, 5000);
 }
 
-function dismissUndoToast() {
+async function dismissUndoToast() {
     clearTimeout(_undoToastTimer);
     document.getElementById('iterUndoToast')?.remove();
+    if (_autoSnapId) {
+        const snapId = _autoSnapId;
+        _autoSnapId = null;
+        try {
+            await deleteDoc(doc(db, 'project_iterations', snapId));
+        } catch (e) {
+            // silent — auto-snapshot cleanup is best-effort
+        }
+    }
 }
 
 async function undoIterRestore() {
