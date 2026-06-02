@@ -3411,15 +3411,15 @@ function openIterConfirm(iterationId) {
     modal.id = 'iterConfirmModal';
     modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
     modal.innerHTML = `
-        <div class="modal-panel" style="max-width:420px;padding:28px 24px;">
+        <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
             <h3 style="margin:0 0 12px;font-size:16px;font-weight:700;color:#1e293b;">Load Iteration</h3>
             <p style="margin:0 0 20px;font-size:13px;color:#475569;line-height:1.5;">
                 Load <strong>${escapeHTML(iter.label)}</strong>?
                 Your current plan will be auto-saved first so you can undo within 5 seconds.
             </p>
             <div style="display:flex;justify-content:flex-end;gap:8px;">
-                <button class="btn-secondary" onclick="document.getElementById('iterConfirmModal')?.remove()" style="padding:7px 16px;font-size:13px;">Cancel</button>
-                <button class="btn-primary" onclick="window.confirmIterLoad('${escapeHTML(iter.id)}');document.getElementById('iterConfirmModal')?.remove()" style="padding:7px 16px;font-size:13px;">Load</button>
+                <button onclick="document.getElementById('iterConfirmModal')?.remove()" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
+                <button onclick="window.confirmIterLoad('${escapeHTML(iter.id)}');document.getElementById('iterConfirmModal')?.remove()" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;font-weight:600;">Load</button>
             </div>
         </div>`;
     document.body.appendChild(modal);
