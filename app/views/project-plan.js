@@ -371,6 +371,7 @@ export async function init(activeTab = null, param = null) {
         updateBaselineToolbarUI();
         // Phase 97: load iterations and render the rail (after baselines already loaded above)
         await loadIterations();
+        applyLastLoadedFromProject(); // restore active-iteration indicator from project doc (bug-fix: q50)
         renderIterRail();
         initPanelResize();
 
@@ -3373,6 +3374,71 @@ function updateBaselineToolbarUI() {
 
 // ---- Phase 97: Iteration history ----
 
+// applyLastLoadedFromProject — synchronous helper called in init() after loadIterations().
+// Reads last_loaded_iteration_id from currentProject and sets _loadedIterationId / _loadedIterationLabel
+// so the "On: {label}" strip + "Current" badge appear immediately on page load without a manual Load.
+function applyLastLoadedFromProject() {
+    if (!currentProject) return;
+    const storedId = currentProject.last_loaded_iteration_id;
+    if (!storedId) return;
+    const iter = _iterations.find(i => i.id === storedId);
+    if (!iter || iter.auto) {
+        // Stale reference — iteration deleted or is an auto-snapshot; clear the persisted field
+        updateDoc(doc(db, 'projects', currentProject.id), { last_loaded_iteration_id: null })
+            .catch(() => {});
+        return;
+    }
+    _loadedIterationId    = iter.id;
+    _loadedIterationLabel = iter.label || '';
+}
+
+// overwriteLoadedIteration — replaces the tasks snapshot of the currently-loaded named iteration
+// in Firestore without prompting for a new name. Called from saveIteration(null) when _loadedIterationId
+// is set (Save vs Save-As logic, bug-fix: q50).
+async function overwriteLoadedIteration() {
+    if (!_loadedIterationId) return;
+    const labelToSave = _loadedIterationLabel;
+    try {
+        const snapshot = tasks.map(t => ({
+            id:             t.id,
+            task_id:        t.task_id        ?? null,
+            project_id:     t.project_id,
+            project_code:   t.project_code   ?? null,
+            name:           t.name,
+            start_date:     t.start_date     ?? null,
+            end_date:       t.end_date       ?? null,
+            progress:       t.progress       ?? 0,
+            is_milestone:   t.is_milestone   ?? false,
+            parent_task_id: t.parent_task_id ?? null,
+            dependencies:   t.dependencies   || [],
+            assignees:      t.assignees      || [],
+            row_order:      t.row_order      ?? null,
+            notes:          t.notes          || '',
+            status:         t.status         ?? null,
+            created_at:     t.created_at     ?? null,
+            updated_at:     t.updated_at     ?? null,
+            created_by:     t.created_by     ?? null,
+        }));
+        await updateDoc(doc(db, 'project_iterations', _loadedIterationId), {
+            tasks:    snapshot,
+            saved_at: serverTimestamp(),
+            // label, project_id, and auto are intentionally NOT mutated
+        });
+        await loadIterations();
+        renderIterRail();
+        showToast(`Iteration "${labelToSave}" updated.`, 'success');
+        if (_pendingLoadAfterSave) {
+            const targetId = _pendingLoadAfterSave;
+            _pendingLoadAfterSave = null;
+            openIterConfirm(targetId);
+        }
+    } catch (e) {
+        _pendingLoadAfterSave = null;
+        console.error('[Plan] overwriteLoadedIteration error:', e);
+        showToast('Failed to update iteration.', 'error');
+    }
+}
+
 async function loadIterations() {
     if (!currentProject) { _iterations = []; return; }
     try {
@@ -3398,21 +3464,25 @@ async function loadIterations() {
 
 async function saveIteration(label = null) {
     if (label === null) {
-        // Remove any existing save modal
+        // When a named iteration is loaded, overwrite it directly (no modal prompt)
+        if (_loadedIterationId) {
+            return overwriteLoadedIteration();
+        }
+        // No named iteration loaded — show Save As modal so user provides a name
         document.getElementById('iterSaveModal')?.remove();
         const modal = document.createElement('div');
         modal.id = 'iterSaveModal';
         modal.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:10001;';
         modal.innerHTML = `
             <div style="background:#fff;border-radius:8px;padding:28px 24px;min-width:320px;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-                <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px;">Save Iteration</h3>
+                <h3 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 12px;">Save Iteration As</h3>
                 <label style="font-size:13px;color:#475569;display:block;margin-bottom:6px;">Name:</label>
                 <input id="iterSaveLabelInput" type="text" value="Iteration ${_iterSeq + 1}"
                     style="width:100%;padding:7px 10px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;box-sizing:border-box;margin-bottom:16px;"
                     onkeydown="if(event.key==='Enter'){this.closest('#iterSaveModal').querySelector('.iter-save-confirm-btn').click();}">
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button onclick="document.getElementById('iterSaveModal')?.remove()" style="padding:7px 16px;font-size:13px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#475569;cursor:pointer;">Cancel</button>
-                    <button class="iter-save-confirm-btn" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;font-weight:600;">Save</button>
+                    <button class="iter-save-confirm-btn" style="padding:7px 16px;font-size:13px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;font-weight:600;">Save As</button>
                 </div>
             </div>`;
         document.body.appendChild(modal);
@@ -3720,6 +3790,16 @@ async function restoreIteration(iterationId) {
         // Mark which named iteration is now active in the rail
         _loadedIterationId = iter.auto ? null : iterationId;
         _loadedIterationLabel = iter.auto ? '' : (iter.label || '');
+
+        // Persist the active iteration to the project doc so page-reload restores the indicator
+        try {
+            await updateDoc(doc(db, 'projects', currentProject.id), {
+                last_loaded_iteration_id: iter.auto ? null : iterationId,
+            });
+        } catch (persistErr) {
+            console.error('[Plan] restoreIteration: failed to persist last_loaded_iteration_id:', persistErr);
+            // Non-fatal — in-memory state is already correct; rail will still show correctly
+        }
 
         // STEP 3 — Refresh iterations rail (auto-snapshot now appears)
         await loadIterations();
