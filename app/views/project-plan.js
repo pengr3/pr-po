@@ -218,7 +218,7 @@ export function render(activeTab = null, param = null) {
                 <div class="iter-diff-table-wrap">
                     <table class="iter-diff-table">
                         <thead>
-                            <tr><th>Status</th><th>Task</th><th>Start</th><th>End</th><th>Deps</th><th>Assignees</th><th>Progress</th></tr>
+                            <tr><th>Status</th><th>Task</th><th>Start</th><th>End</th><th>Predecessors</th><th>Resources</th><th>Progress</th></tr>
                         </thead>
                         <tbody id="iterDiffBody"></tbody>
                     </table>
@@ -3470,7 +3470,7 @@ async function restoreIteration(iterationId) {
             query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id))
         );
         const toDelete = existingSnap.docs;
-        const toWrite  = iter.tasks;
+        const toWrite  = Array.isArray(iter.tasks) ? iter.tasks : [];
         const OPS_PER_BATCH = 450;
         const allOps = [
             ...toDelete.map(d => ({ type: 'delete', ref: d.ref })),
@@ -3488,11 +3488,13 @@ async function restoreIteration(iterationId) {
         renderIterRail();
 
         // STEP 4 — Show undo toast
-        showUndoToast(`Loaded "${escapeHTML(iter.label)}". Previous state auto-saved.`);
+        showUndoToast(`Loaded "${iter.label}". Previous state auto-saved.`);
     } catch (e) {
         console.error('[Plan] restoreIteration error:', e);
-        showToast('Restore failed. No changes made.', 'error');
-        _autoSnapId = null;
+        // Do not clear _autoSnapId — auto-snapshot may have already been written
+        showToast('Restore failed. Plan may be partially updated — check history rail.', 'error');
+        await loadIterations();
+        renderIterRail();
     }
 }
 
@@ -3549,13 +3551,14 @@ async function undoIterRestore() {
 
 // Phase 97 Plan 05: Diff view — computeDiff() + renderDiffPanel() + toggleIterDiff() + closeIterDiff()
 
-const DIFF_FIELDS = ['name', 'start_date', 'end_date', 'dependencies', 'assignees', 'progress', 'is_milestone', 'notes', 'row_order'];
+const DIFF_FIELDS = ['name', 'start_date', 'end_date', 'dependencies', 'resources', 'progress', 'is_milestone', 'notes', 'row_order'];
 
 function computeDiff(liveTasks, snapTasks) {
-    const allIds = [...new Set([...liveTasks.map(t => t.id), ...snapTasks.map(t => t.id)])];
+    const safeSnap = Array.isArray(snapTasks) ? snapTasks : [];
+    const allIds = [...new Set([...liveTasks.map(t => t.id), ...safeSnap.map(t => t.id)])];
     return allIds.map(id => {
         const l = liveTasks.find(t => t.id === id);
-        const s = snapTasks.find(t => t.id === id);
+        const s = safeSnap.find(t => t.id === id);
         if (!l && s) return { status: 'added',   snap: s, live: null, changes: [] };
         if (l && !s) return { status: 'removed',  snap: null, live: l, changes: [] };
         const changes = DIFF_FIELDS
@@ -3598,7 +3601,7 @@ function renderDiffPanel(iter, diffRows) {
         const getStart = () => { const c = row.changes.find(f => f.field === 'start_date'); return c ? `<span class="iter-diff-old">${escapeHTML(String(c.snap ?? ''))}</span> <span class="iter-diff-new">${escapeHTML(String(c.live ?? ''))}</span>` : escapeHTML(String(task?.start_date ?? '')); };
         const getEnd   = () => { const c = row.changes.find(f => f.field === 'end_date');   return c ? `<span class="iter-diff-old">${escapeHTML(String(c.snap ?? ''))}</span> <span class="iter-diff-new">${escapeHTML(String(c.live ?? ''))}</span>` : escapeHTML(String(task?.end_date ?? '')); };
         const getDeps  = () => escapeHTML(String((task?.dependencies || []).join(', ')));
-        const getAsgn  = () => escapeHTML(String((task?.assignees || []).join(', ')));
+        const getRes   = () => escapeHTML(String(task?.resources ?? ''));
         const getProg  = () => escapeHTML(String(task?.progress ?? ''));
 
         return `<tr class="${sc}">
@@ -3607,7 +3610,7 @@ function renderDiffPanel(iter, diffRows) {
           <td>${getStart()}</td>
           <td>${getEnd()}</td>
           <td>${getDeps()}</td>
-          <td>${getAsgn()}</td>
+          <td>${getRes()}</td>
           <td>${getProg()}%</td>
         </tr>`;
     }).join('');
