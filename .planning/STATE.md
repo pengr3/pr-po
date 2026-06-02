@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: "Phase 97.2 planned (2026-06-02) — 3 plans (3 waves). Ready to execute."
-stopped_at: Phase 97.2 planned — ready for /gsd:execute-phase 97.2
-last_updated: "2026-06-02T09:30:00.000Z"
+status: Phase 97.2 planned (2026-06-02) — 3 plans (3 waves). Ready to execute.
+stopped_at: Phase 97.2 context gathered
+last_updated: "2026-06-02T09:14:26.260Z"
 last_activity: 2026-05-25
 progress:
   total_phases: 31
@@ -664,9 +664,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-06-02T08:52:49.544Z
+Last session: 2026-06-02T09:14:26.238Z
 Stopped at: Phase 97.2 context gathered
-Resume file: .planning/phases/97.2-project-plan-iterations-save-ux-overhaul/97.2-CONTEXT.md
+Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
