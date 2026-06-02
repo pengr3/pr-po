@@ -3,7 +3,7 @@ spike: 016
 name: snapshot-scope
 type: standard
 validates: "Given the user wants to restore an iteration (015c mechanic), when a snapshot is saved, then the scope — dates only / dates+deps / full task doc — determines what's preserved vs. what stays live on restore"
-verdict: PENDING
+verdict: WINNER — full task doc
 related: [015c-restore-auto-snapshot, 017-iteration-history-ux, 018-iteration-diff-view]
 tags: [iteration, snapshot, storage, schema, project-plan]
 ---
@@ -55,4 +55,6 @@ python -m http.server 8000
 
 ## Results
 
-(Pending user verdict at the 016 checkpoint.)
+**Verdict: WINNER — full task doc** (2026-06-02)
+
+Full doc is the only scope that makes restore trustworthy. Partial scopes (dates-only, dates+deps) create a confusing partial restore where some fields come from the snapshot and others silently stay live — hard to explain, easy to misunderstand. Storage cost is negligible (2–3 KB per iteration even at 20 tasks × 7 fields). Full doc also handles task additions/deletions cleanly — the snapshot is self-contained, no dangling IDs. No user-configurable scope needed: always save everything.

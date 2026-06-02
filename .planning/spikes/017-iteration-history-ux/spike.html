@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Spike 017 — Iteration History UX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1a73e8; --primary-dark: #1557b0;
+      --success: #059669; --warning: #f59e0b; --danger: #ef4444;
+      --text: #1e293b; --muted: #64748b; --border: #e2e8f0;
+      --bg: #f8fafc; --white: #fff;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Nav */
+    .app-nav { background: var(--primary); color: white; padding: 0 16px; height: 48px; display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+    .app-nav .logo { font-weight: 700; font-size: 15px; }
+    .app-nav .nav-item { font-size: 13px; opacity: 0.8; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .app-nav .nav-item.active { opacity: 1; background: rgba(255,255,255,0.15); }
+
+    /* Variant bar */
+    .variant-bar { background: white; border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .variant-bar .label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+    .vbtn { padding: 5px 14px; border-radius: 6px; border: 1.5px solid var(--border); background: white; color: var(--text); font-size: 12px; cursor: pointer; font-weight: 500; transition: all 0.15s; white-space: nowrap; }
+    .vbtn.active { border-color: var(--primary); background: #e8f0fe; color: var(--primary); }
+    .variant-desc { margin-left: auto; font-size: 11px; color: var(--muted); max-width: 400px; text-align: right; line-height: 1.4; }
+
+    /* Main layout */
+    .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+    .plan-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; transition: margin-right 0.25s; }
+
+    /* Plan toolbar */
+    .plan-toolbar { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: white; }
+    .plan-toolbar .title { font-weight: 600; font-size: 14px; flex: 1; }
+
+    /* Toolbar buttons row */
+    .toolbar-actions { display: flex; gap: 6px; align-items: center; }
+    .tbtn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--text); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .tbtn:hover { background: #f1f5f9; }
+    .tbtn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .tbtn.primary:hover { background: var(--primary-dark); }
+    /* Variant C: dropdown trigger that looks like baseline btn */
+    .dropdown-wrap { position: relative; }
+    .dropdown-menu { position: absolute; top: calc(100% + 4px); right: 0; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); min-width: 220px; z-index: 50; overflow: hidden; }
+    .dropdown-menu.hidden { display: none; }
+    .dropdown-header { padding: 8px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); background: #f8fafc; }
+    .dropdown-item { padding: 9px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .dropdown-item:hover { background: #f1f5f9; }
+    .dropdown-item-name { font-size: 12px; font-weight: 500; }
+    .dropdown-item-date { font-size: 10px; color: var(--muted); }
+    .dropdown-item-load { font-size: 10px; font-weight: 700; color: var(--primary); opacity: 0; transition: opacity 0.15s; }
+    .dropdown-item:hover .dropdown-item-load { opacity: 1; }
+    .dropdown-item.auto-item { background: #f0fdf4; }
+    .dropdown-divider { height: 1px; background: var(--border); }
+    .dropdown-save-row { padding: 8px 12px; border-top: 1px solid var(--border); }
+    .dropdown-save-btn { width: 100%; padding: 6px 0; background: var(--primary); color: white; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .dropdown-save-btn:hover { background: var(--primary-dark); }
+
+    /* Task table */
+    .task-table-wrap { flex: 1; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:hover td { background: #f8fafc; }
+    .task-name { font-weight: 500; }
+    .task-id { font-size: 10px; color: var(--muted); }
+    .dep-badge { display: inline-block; background: #e8f0fe; color: var(--primary); font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 600; margin-right: 2px; }
+    .progress-wrap { display: flex; align-items: center; gap: 5px; }
+    .progress-bar { width: 50px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--success); border-radius: 3px; }
+    .nil { color: #cbd5e1; }
+
+    /* ── Variant A: Modal ─────────────────────────────────── */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal-backdrop.hidden { display: none; }
+    .modal { background: white; border-radius: 12px; width: 480px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
+    .modal-head { padding: 18px 20px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .modal-head .title { font-size: 15px; font-weight: 700; flex: 1; }
+    .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--muted); line-height: 1; padding: 0 4px; }
+    .modal-close:hover { color: var(--text); }
+    .modal-save-row { padding: 10px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .modal-save-btn { width: 100%; padding: 7px 0; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .modal-save-btn:hover { background: var(--primary-dark); }
+    .modal-list { overflow-y: auto; flex: 1; }
+    .modal-iter-row { padding: 12px 20px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .modal-iter-row:hover { background: #f8fafc; }
+    .iter-icon { width: 32px; height: 32px; border-radius: 8px; background: #e8f0fe; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .iter-icon.auto-icon { background: #d1fae5; }
+    .iter-info { flex: 1; }
+    .iter-info-name { font-weight: 600; font-size: 13px; }
+    .iter-info-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .auto-tag { background: #d1fae5; color: #065f46; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 6px; text-transform: uppercase; }
+    .modal-load-btn { padding: 5px 12px; background: var(--primary); color: white; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .modal-load-btn:hover { background: var(--primary-dark); }
+
+    /* ── Variant B: Right rail ───────────────────────────── */
+    .right-rail { width: 0; overflow: hidden; border-left: 1px solid transparent; background: white; display: flex; flex-direction: column; transition: width 0.25s, border-color 0.25s; flex-shrink: 0; }
+    .right-rail.open { width: 260px; border-left-color: var(--border); }
+    .rail-head { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap; }
+    .rail-close { margin-left: auto; background: none; border: none; font-size: 16px; cursor: pointer; color: var(--muted); line-height: 1; }
+    .rail-close:hover { color: var(--text); }
+    .rail-save-row { padding: 8px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .rail-save-btn { width: 100%; padding: 6px 0; background: var(--primary); color: white; border: none; border-radius: 5px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .rail-save-btn:hover { background: var(--primary-dark); }
+    .rail-timeline { flex: 1; overflow-y: auto; padding: 8px 12px; }
+    .timeline-item { display: flex; gap: 10px; padding-bottom: 16px; position: relative; }
+    .timeline-item:not(:last-child)::before { content: ''; position: absolute; left: 11px; top: 24px; bottom: 0; width: 2px; background: var(--border); }
+    .tl-dot { width: 24px; height: 24px; border-radius: 50%; background: #e8f0fe; border: 2px solid var(--primary); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--primary); font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+    .tl-dot.auto-dot { background: #d1fae5; border-color: var(--success); color: var(--success); }
+    .tl-content { flex: 1; min-width: 0; }
+    .tl-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tl-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .tl-load { margin-top: 5px; padding: 3px 10px; background: var(--primary); color: white; border: none; border-radius: 4px; font-size: 10px; font-weight: 600; cursor: pointer; }
+    .tl-load:hover { background: var(--primary-dark); }
+
+    /* Log */
+    .log-pane { height: 90px; border-top: 1px solid var(--border); background: #0f172a; overflow-y: auto; padding: 5px 12px; flex-shrink: 0; }
+    .log-row { font-family: 'Cascadia Code', Consolas, monospace; font-size: 10px; line-height: 1.8; }
+    .log-row.event   { color: #94a3b8; }
+    .log-row.save    { color: #6ee7b7; }
+    .log-row.restore { color: #93c5fd; }
+    .log-row.undo    { color: #fbbf24; }
+
+    /* Restore confirm modal */
+    .confirm-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+    .confirm-modal-backdrop.hidden { display: none; }
+    .confirm-modal { background: white; border-radius: 12px; padding: 20px 24px; width: 380px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+    .confirm-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .confirm-note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 8px 12px; font-size: 11px; color: #1d4ed8; margin-bottom: 14px; line-height: 1.5; }
+    .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn { padding: 7px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-cancel { background: #f1f5f9; color: var(--text); }
+    .btn-cancel:hover { background: #e2e8f0; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 9px 18px; border-radius: 8px; font-size: 12px; display: flex; align-items: center; gap: 10px; z-index: 300; box-shadow: 0 4px 16px rgba(0,0,0,0.25); white-space: nowrap; }
+    .toast.hidden { display: none; }
+    .toast-undo { color: #60a5fa; cursor: pointer; font-weight: 700; text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<div class="app-nav">
+  <span class="logo">CLMC Operations</span>
+  <span class="nav-item">Home</span>
+  <span class="nav-item active">Projects</span>
+  <span class="nav-item">Procurement</span>
+</div>
+
+<div class="variant-bar">
+  <span class="label">Variant</span>
+  <button class="vbtn active" id="vbtnA" onclick="setVariant('A')">A — Modal list</button>
+  <button class="vbtn" id="vbtnB" onclick="setVariant('B')">B — Right rail</button>
+  <button class="vbtn" id="vbtnC" onclick="setVariant('C')">C — Toolbar dropdown</button>
+  <span class="variant-desc" id="variantDesc"></span>
+</div>
+
+<div class="main">
+  <div class="plan-pane" id="planPane">
+
+    <!-- Toolbar — content swapped per variant -->
+    <div class="plan-toolbar" id="planToolbar">
+      <!-- injected by setVariant() -->
+    </div>
+
+    <div class="task-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Deps</th>
+            <th>Assignee</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Variant B: right rail (hidden by default) -->
+  <div class="right-rail" id="rightRail">
+    <div class="rail-head">
+      History
+      <button class="rail-close" onclick="closeRail()">×</button>
+    </div>
+    <div class="rail-save-row">
+      <button class="rail-save-btn" onclick="saveIter()">+ Save current state</button>
+    </div>
+    <div class="rail-timeline" id="railTimeline"></div>
+  </div>
+</div>
+
+<div class="log-pane" id="logPane"></div>
+
+<!-- Variant A: Modal -->
+<div class="modal-backdrop hidden" id="historyModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="title">Iteration History</span>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-save-row">
+      <button class="modal-save-btn" onclick="saveIter()">+ Save current state</button>
+    </div>
+    <div class="modal-list" id="modalList"></div>
+  </div>
+</div>
+
+<!-- Restore confirm -->
+<div class="confirm-modal-backdrop hidden" id="confirmModal">
+  <div class="confirm-modal">
+    <div class="confirm-title" id="confirmTitle">Load iteration?</div>
+    <div class="confirm-note">↺ &nbsp;Safe by default — current state will be auto-saved before loading. Undo within 5 seconds.</div>
+    <div class="confirm-actions">
+      <button class="btn btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmLoad()">Load &amp; auto-save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast">
+  <span id="toastMsg"></span>
+  <span class="toast-undo" onclick="undoLoad()">Undo</span>
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+
+const BASE_TASKS = [
+  { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:100 },
+  { id:'T002', name:'Site clearing',    start:'Jun 8',  end:'Jun 15', deps:['T001'], assignee:'Maria T.', progress:60  },
+  { id:'T003', name:'Foundation pour',  start:'Jun 16', end:'Jun 30', deps:['T002'], assignee:'Pedro L.', progress:0   },
+  { id:'T004', name:'Structural steel', start:'Jul 1',  end:'Jul 20', deps:['T003'], assignee:'',         progress:0   },
+  { id:'T005', name:'MEP rough-in',     start:'Jul 21', end:'Aug 10', deps:['T004'], assignee:'',         progress:0   },
+];
+
+const INIT_ITERS = [
+  { id:'i1', label:'Pre-scope-change',    savedAt:'May 15', auto:false, tasks: cloneTasks([
+    { id:'T001', name:'Mobilization',     start:'May 25', end:'Jun 2',  deps:[],       assignee:'Juan R.',  progress:100 },
+    { id:'T002', name:'Site clearing',    start:'Jun 3',  end:'Jun 10', deps:['T001'], assignee:'Maria T.', progress:0   },
+    { id:'T003', name:'Foundation pour',  start:'Jun 11', end:'Jun 25', deps:['T002'], assignee:'',         progress:0   },
+    { id:'T004', name:'Structural steel', start:'Jun 26', end:'Jul 15', deps:['T003'], assignee:'',         progress:0   },
+    { id:'T005', name:'MEP rough-in',     start:'Jul 16', end:'Aug 5',  deps:['T004'], assignee:'',         progress:0   },
+  ])},
+  { id:'i2', label:'Q3 plan freeze',      savedAt:'May 28', auto:false, tasks: cloneTasks([
+    { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:80  },
+    { id:'T002', name:'Site clearing',    start:'Jun 8',  end:'Jun 18', deps:['T001'], assignee:'Maria T.', progress:0   },
+    { id:'T003', name:'Foundation pour',  start:'Jun 19', end:'Jul 3',  deps:['T002'], assignee:'Pedro L.', progress:0   },
+    { id:'T004', name:'Structural steel', start:'Jul 4',  end:'Jul 23', deps:['T003'], assignee:'',         progress:0   },
+    { id:'T005', name:'MEP rough-in',     start:'Jul 24', end:'Aug 13', deps:['T004'], assignee:'',         progress:0   },
+  ])},
+  { id:'i3', label:'Conservative re-plan',savedAt:'Jun 1',  auto:false, tasks: cloneTasks([
+    { id:'T001', name:'Mobilization',     start:'Jun 1',  end:'Jun 7',  deps:[],       assignee:'Juan R.',  progress:100 },
+    { id:'T002', name:'Site clearing',    start:'Jun 10', end:'Jun 20', deps:['T001'], assignee:'Maria T.', progress:20  },
+    { id:'T003', name:'Foundation pour',  start:'Jun 23', end:'Jul 7',  deps:['T002'], assignee:'Pedro L.', progress:0   },
+    { id:'T004', name:'Structural steel', start:'Jul 10', end:'Jul 30', deps:['T003'], assignee:'',         progress:0   },
+    { id:'T005', name:'MEP rough-in',     start:'Aug 1',  end:'Aug 20', deps:['T004'], assignee:'',         progress:0   },
+  ])},
+];
+
+function cloneTasks(arr) { return arr.map(t => ({...t, deps:[...t.deps]})); }
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let variant = 'A';
+let iters = INIT_ITERS.map(i => ({...i, tasks: cloneTasks(i.tasks)}));
+let liveTasks = cloneTasks(BASE_TASKS);
+let pendingLoadId = null;
+let autoSnap = null;
+let toastTimer = null;
+let iterSeq = 3;
+let dropdownOpen = false;
+
+// ── Variant switching ─────────────────────────────────────────────────────────
+
+const VARIANT_DESC = {
+  A: 'Modal list — "History" button opens a centered modal with all iterations as rows. Simple, familiar.',
+  B: 'Right rail — "History" button slides open a persistent timeline panel beside the plan. Keeps context visible.',
+  C: 'Toolbar dropdown — iterations live in a dropdown next to the baseline button. Minimal surface area.',
+};
+
+function setVariant(v) {
+  variant = v;
+  ['vbtnA','vbtnB','vbtnC'].forEach(id => document.getElementById(id).classList.remove('active'));
+  document.getElementById(`vbtn${v}`).classList.add('active');
+  document.getElementById('variantDesc').textContent = VARIANT_DESC[v];
+
+  // Close all open panels
+  document.getElementById('historyModal').classList.add('hidden');
+  document.getElementById('rightRail').classList.remove('open');
+  dropdownOpen = false;
+
+  renderToolbar();
+  renderTable();
+  log('event', `Variant → ${v}: ${VARIANT_DESC[v].split('—')[0].trim()}`);
+}
+
+function renderToolbar() {
+  const tb = document.getElementById('planToolbar');
+  if (variant === 'A') {
+    tb.innerHTML = `
+      <span class="title">Project Plan — Elias Tower Block A</span>
+      <div class="toolbar-actions">
+        <button class="tbtn" onclick="openModal()">🕐 History</button>
+        <button class="tbtn primary" onclick="saveIter()">Save Iteration</button>
+      </div>`;
+  } else if (variant === 'B') {
+    tb.innerHTML = `
+      <span class="title">Project Plan — Elias Tower Block A</span>
+      <div class="toolbar-actions">
+        <button class="tbtn" onclick="toggleRail()">📋 History</button>
+        <button class="tbtn primary" onclick="saveIter()">Save Iteration</button>
+      </div>`;
+  } else {
+    tb.innerHTML = `
+      <span class="title">Project Plan — Elias Tower Block A</span>
+      <div class="toolbar-actions">
+        <div class="dropdown-wrap">
+          <button class="tbtn" onclick="toggleDropdown()" id="dropTrigger">⏱ Iterations ▾</button>
+          <div class="dropdown-menu hidden" id="dropMenu">
+            <div class="dropdown-header">Saved Iterations</div>
+            <div id="dropItems"></div>
+            <div class="dropdown-save-row">
+              <button class="dropdown-save-btn" onclick="saveIter();closeDropdown()">+ Save current state</button>
+            </div>
+          </div>
+        </div>
+        <button class="tbtn">📊 Baseline</button>
+      </div>`;
+    renderDropdown();
+  }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+
+function renderTable() {
+  document.getElementById('taskBody').innerHTML = liveTasks.map(t => `
+    <tr>
+      <td><span class="task-name">${t.name}</span><br><span class="task-id">${t.id}</span></td>
+      <td>${t.start}</td>
+      <td>${t.end}</td>
+      <td>${t.deps.length ? t.deps.map(d=>`<span class="dep-badge">${d}</span>`).join('') : '<span class="nil">—</span>'}</td>
+      <td>${t.assignee || '<span class="nil">—</span>'}</td>
+      <td>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" style="width:${t.progress}%"></div></div>
+          ${t.progress}%
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ── Variant A: Modal ──────────────────────────────────────────────────────────
+
+function openModal() {
+  renderModalList();
+  document.getElementById('historyModal').classList.remove('hidden');
+  log('event', 'History modal opened');
+}
+function closeModal() { document.getElementById('historyModal').classList.add('hidden'); }
+
+function renderModalList() {
+  document.getElementById('modalList').innerHTML = iters.map(it => `
+    <div class="modal-iter-row">
+      <div class="iter-icon ${it.auto ? 'auto-icon' : ''}">↺</div>
+      <div class="iter-info">
+        <div class="iter-info-name">
+          ${it.label}
+          ${it.auto ? '<span class="auto-tag">auto</span>' : ''}
+        </div>
+        <div class="iter-info-meta">${it.savedAt} · ${it.tasks.length} tasks</div>
+      </div>
+      <button class="modal-load-btn" onclick="openConfirm('${it.id}');closeModal()">Load</button>
+    </div>
+  `).join('');
+}
+
+// ── Variant B: Right rail ─────────────────────────────────────────────────────
+
+function toggleRail() {
+  const rail = document.getElementById('rightRail');
+  if (rail.classList.contains('open')) {
+    closeRail();
+  } else {
+    renderRailTimeline();
+    rail.classList.add('open');
+    log('event', 'History rail opened');
+  }
+}
+function closeRail() { document.getElementById('rightRail').classList.remove('open'); }
+
+function renderRailTimeline() {
+  document.getElementById('railTimeline').innerHTML = iters.map((it, idx) => `
+    <div class="timeline-item">
+      <div class="tl-dot ${it.auto ? 'auto-dot' : ''}">${iters.length - idx}</div>
+      <div class="tl-content">
+        <div class="tl-name">${it.label} ${it.auto ? '<span class="auto-tag">auto</span>' : ''}</div>
+        <div class="tl-meta">${it.savedAt} · ${it.tasks.length} tasks</div>
+        <button class="tl-load" onclick="openConfirm('${it.id}')">Load →</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Variant C: Dropdown ───────────────────────────────────────────────────────
+
+function toggleDropdown() {
+  dropdownOpen = !dropdownOpen;
+  document.getElementById('dropMenu').classList.toggle('hidden', !dropdownOpen);
+  if (dropdownOpen) {
+    renderDropdown();
+    log('event', 'Iterations dropdown opened');
+  }
+}
+function closeDropdown() {
+  dropdownOpen = false;
+  const m = document.getElementById('dropMenu');
+  if (m) m.classList.add('hidden');
+}
+
+function renderDropdown() {
+  const el = document.getElementById('dropItems');
+  if (!el) return;
+  el.innerHTML = iters.map(it => `
+    <div class="dropdown-item ${it.auto ? 'auto-item' : ''}" onclick="openConfirm('${it.id}');closeDropdown()">
+      <div>
+        <div class="dropdown-item-name">${it.label} ${it.auto ? '<span class="auto-tag">auto</span>' : ''}</div>
+        <div class="dropdown-item-date">${it.savedAt} · ${it.tasks.length} tasks</div>
+      </div>
+      <span class="dropdown-item-load">Load →</span>
+    </div>
+  `).join('');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e => {
+  if (variant !== 'C') return;
+  const wrap = e.target.closest('.dropdown-wrap');
+  if (!wrap && dropdownOpen) closeDropdown();
+});
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+
+function saveIter() {
+  iterSeq++;
+  const newIter = {
+    id: `i${Date.now()}`,
+    label: `Iteration ${iterSeq}`,
+    savedAt: 'Just now',
+    auto: false,
+    tasks: cloneTasks(liveTasks),
+  };
+  iters.unshift(newIter);
+  // Re-render whichever panel is open
+  if (variant === 'A') { if (!document.getElementById('historyModal').classList.contains('hidden')) renderModalList(); }
+  if (variant === 'B') { if (document.getElementById('rightRail').classList.contains('open')) renderRailTimeline(); }
+  if (variant === 'C') renderDropdown();
+  log('save', `Saved "Iteration ${iterSeq}" (${liveTasks.length} tasks)`);
+}
+
+// ── Load / confirm ────────────────────────────────────────────────────────────
+
+function openConfirm(id) {
+  pendingLoadId = id;
+  const it = iters.find(i => i.id === id);
+  document.getElementById('confirmTitle').textContent = `Load "${it.label}"?`;
+  document.getElementById('confirmModal').classList.remove('hidden');
+  log('event', `Confirm modal opened for "${it.label}"`);
+}
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.add('hidden');
+  pendingLoadId = null;
+}
+
+function confirmLoad() {
+  const it = iters.find(i => i.id === pendingLoadId);
+  closeConfirm();
+
+  // Auto-snapshot
+  const autoLabel = `Auto-save before "${it.label}"`;
+  autoSnap = {
+    id: `auto-${Date.now()}`,
+    label: autoLabel,
+    savedAt: 'Just now',
+    auto: true,
+    tasks: cloneTasks(liveTasks),
+  };
+  iters.unshift(autoSnap);
+  log('save', `Auto-snapshot: "${autoLabel}"`);
+
+  liveTasks = cloneTasks(it.tasks);
+  renderTable();
+  if (variant === 'B' && document.getElementById('rightRail').classList.contains('open')) renderRailTimeline();
+  if (variant === 'C') renderDropdown();
+
+  log('restore', `Loaded "${it.label}" — ${it.tasks.length} tasks restored`);
+  showToast(`Loaded "${it.label}". Previous auto-saved.`);
+}
+
+// ── Undo ──────────────────────────────────────────────────────────────────────
+
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toast').classList.remove('hidden');
+  toastTimer = setTimeout(dismissToast, 5000);
+}
+function dismissToast() { document.getElementById('toast').classList.add('hidden'); autoSnap = null; }
+function undoLoad() {
+  if (!autoSnap) return;
+  clearTimeout(toastTimer);
+  document.getElementById('toast').classList.add('hidden');
+  liveTasks = cloneTasks(autoSnap.tasks);
+  iters = iters.filter(i => i.id !== autoSnap.id);
+  log('undo', 'Undone — auto-snapshot removed.');
+  autoSnap = null;
+  renderTable();
+  if (variant === 'B' && document.getElementById('rightRail').classList.contains('open')) renderRailTimeline();
+  if (variant === 'C') renderDropdown();
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+
+function log(type, msg) {
+  const pane = document.getElementById('logPane');
+  const t = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const row = document.createElement('div');
+  row.className = `log-row ${type}`;
+  row.textContent = `[${t}] [${type.toUpperCase().padEnd(7)}] ${msg}`;
+  pane.appendChild(row);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+setVariant('A');
+log('event', 'Spike 017 — switch variants to compare how users browse iteration history. Try Save + Load in each.');
+</script>
+</body>
+</html>
