@@ -247,6 +247,7 @@
  (completed 2026-05-13)
 - [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
 - [x] **Phase 96: Proposal Card Redesign — Progress Track + Stat Chips** — Redesign the inline proposal card in project/service detail with spike-009-validated layout: 4-node progress track (Draft → Internal Review → Client Review → Approved), title-first stat chips (Value + Stage Age), and silenced empty-state noise (completed 2026-05-26)
+- [ ] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection.
 
 ## Phase Details
 
@@ -930,3 +931,13 @@ Plans:
 - [x] 96-01-PLAN.md — New CSS classes for progress track, stat chips, and card heading
 - [x] 96-02-PLAN.md — Rewrite renderInlineProposalCard() in project-detail.js
 - [x] 96-03-PLAN.md — Mirror rewrite to service-detail.js for parity
+
+---
+
+### Phase 97: Project Plan Iterations (Spikes 015–018)
+
+**Goal:** Users can save named snapshots of the project plan as rewindable iterations and restore any of them safely. History is browsed via a right-rail panel. Before any restore, the current state is auto-saved and a 5-second undo toast appears. An inline diff view shows adds/changes/deletes between the live plan and any saved iteration without loading it.
+**Depends on:** Phase 86.12 (project_tasks collection + baseline subcollection pattern), Phase 86 (project-plan.js architecture)
+**Requirements**: Spike-validated — 015c (restore mechanic), 016 (full-doc scope), 017B (right-rail history), 018 (diff view)
+**Plans:** TBD (planning next)
+**Status:** Ready to plan
