@@ -3541,6 +3541,74 @@ async function undoIterRestore() {
     }
 }
 
+// Phase 97 Plan 05: Diff view — computeDiff() + renderDiffPanel() + toggleIterDiff() + closeIterDiff()
+
+const DIFF_FIELDS = ['name', 'start_date', 'end_date', 'dependencies', 'assignees', 'progress', 'is_milestone', 'notes', 'row_order'];
+
+function computeDiff(liveTasks, snapTasks) {
+    const allIds = [...new Set([...liveTasks.map(t => t.id), ...snapTasks.map(t => t.id)])];
+    return allIds.map(id => {
+        const l = liveTasks.find(t => t.id === id);
+        const s = snapTasks.find(t => t.id === id);
+        if (!l && s) return { status: 'added',   snap: s, live: null, changes: [] };
+        if (l && !s) return { status: 'removed',  snap: null, live: l, changes: [] };
+        const changes = DIFF_FIELDS
+            .map(f => {
+                const lv = Array.isArray(l[f]) ? (l[f] || []).join(',') : String(l[f] ?? '');
+                const sv = Array.isArray(s[f]) ? (s[f] || []).join(',') : String(s[f] ?? '');
+                return lv !== sv ? { field: f, live: l[f], snap: s[f] } : null;
+            })
+            .filter(Boolean);
+        return { status: changes.length ? 'changed' : 'same', live: l, snap: s, changes };
+    });
+}
+
+function renderDiffPanel(iter, diffRows) {
+    const panel  = document.getElementById('iterDiffPanel');
+    const title  = document.getElementById('iterDiffTitle');
+    const summary = document.getElementById('iterDiffSummary');
+    const tbody  = document.getElementById('iterDiffBody');
+    if (!panel || !tbody) return;
+
+    // Update header
+    if (title)   title.textContent   = `Comparing with "${iter.label}"`;
+    const changed = diffRows.filter(r => r.status === 'changed').length;
+    const added   = diffRows.filter(r => r.status === 'added').length;
+    const removed = diffRows.filter(r => r.status === 'removed').length;
+    if (summary) summary.textContent = `${changed} changed · ${added} added · ${removed} removed`;
+
+    // Build tbody rows
+    const statusClass = { same: 'iter-diff-row-same', changed: 'iter-diff-row-changed', added: 'iter-diff-row-added', removed: 'iter-diff-row-removed' };
+    const badgeClass  = { same: 'same', changed: 'changed', added: 'added', removed: 'removed' };
+    const badgeLabel  = { same: 'Same', changed: 'Changed', added: 'Added', removed: 'Removed' };
+
+    tbody.innerHTML = diffRows.map(row => {
+        const task = row.live || row.snap;
+        const sc  = statusClass[row.status];
+        const bc  = badgeClass[row.status];
+        const bl  = badgeLabel[row.status];
+
+        const getName  = () => { const c = row.changes.find(f => f.field === 'name');       return c ? `<span class="iter-diff-old">${escapeHTML(String(c.snap ?? ''))}</span> <span class="iter-diff-new">${escapeHTML(String(c.live ?? ''))}</span>` : escapeHTML(String(task?.name ?? '')); };
+        const getStart = () => { const c = row.changes.find(f => f.field === 'start_date'); return c ? `<span class="iter-diff-old">${escapeHTML(String(c.snap ?? ''))}</span> <span class="iter-diff-new">${escapeHTML(String(c.live ?? ''))}</span>` : escapeHTML(String(task?.start_date ?? '')); };
+        const getEnd   = () => { const c = row.changes.find(f => f.field === 'end_date');   return c ? `<span class="iter-diff-old">${escapeHTML(String(c.snap ?? ''))}</span> <span class="iter-diff-new">${escapeHTML(String(c.live ?? ''))}</span>` : escapeHTML(String(task?.end_date ?? '')); };
+        const getDeps  = () => escapeHTML(String((task?.dependencies || []).join(', ')));
+        const getAsgn  = () => escapeHTML(String((task?.assignees || []).join(', ')));
+        const getProg  = () => escapeHTML(String(task?.progress ?? ''));
+
+        return `<tr class="${sc}">
+          <td><span class="iter-diff-badge ${bc}">${bl}</span></td>
+          <td>${getName()}</td>
+          <td>${getStart()}</td>
+          <td>${getEnd()}</td>
+          <td>${getDeps()}</td>
+          <td>${getAsgn()}</td>
+          <td>${getProg()}%</td>
+        </tr>`;
+    }).join('');
+
+    panel.removeAttribute('hidden');
+}
+
 function renderTodayLine() {
     const ganttSvg = document.querySelector('#ganttPane svg');
     if (!ganttSvg) return;
