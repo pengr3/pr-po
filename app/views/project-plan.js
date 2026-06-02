@@ -339,6 +339,9 @@ export async function init(activeTab = null, param = null) {
         window.saveIteration  = saveIteration;
         window.toggleIterRail = toggleIterRail;
         window.closeIterRail  = closeIterRail;
+        window.openIterConfirm = openIterConfirm;
+        window.confirmIterLoad = confirmIterLoad;
+        window.undoIterRestore = undoIterRestore;
         // Populate the toolbar selector + button label from the freshly loaded _baselines.
         // The select is in the DOM after render() — safe to update here, before listeners attach.
         updateBaselineToolbarUI();
@@ -596,8 +599,11 @@ export async function destroy() {
     delete window.saveIteration;
     delete window.toggleIterRail;
     delete window.closeIterRail;
-    // dismissUndoToast is defined in Plan 04 — called here as a forward reference; safe at runtime
-    if (typeof dismissUndoToast === 'function') dismissUndoToast();
+    delete window.openIterConfirm;
+    delete window.confirmIterLoad;
+    delete window.undoIterRestore;
+    dismissUndoToast(); // dismiss toast + clear timer (defined in Plan 04, same file — safe)
+    document.getElementById('iterConfirmModal')?.remove(); // clean up any open confirm modal
     _autoSnapId = null;
     _iterations = [];
     _activeDiffIterationId = null;
@@ -3481,6 +3487,57 @@ async function restoreIteration(iterationId) {
         console.error('[Plan] restoreIteration error:', e);
         showToast('Restore failed. No changes made.', 'error');
         _autoSnapId = null;
+    }
+}
+
+function showUndoToast(msg) {
+    dismissUndoToast(); // clear any previous toast first
+    const el = document.createElement('div');
+    el.id = 'iterUndoToast';
+    el.className = 'iter-undo-toast';
+    el.innerHTML = `<span>${escapeHTML(msg)}</span><button class="iter-undo-btn" onclick="window.undoIterRestore()">Undo</button>`;
+    document.body.appendChild(el);
+    _undoToastTimer = setTimeout(() => {
+        dismissUndoToast();
+        _autoSnapId = null; // undo window closed — no longer available
+    }, 5000);
+}
+
+function dismissUndoToast() {
+    clearTimeout(_undoToastTimer);
+    document.getElementById('iterUndoToast')?.remove();
+}
+
+async function undoIterRestore() {
+    if (!_autoSnapId) return;
+    clearTimeout(_undoToastTimer);
+    const autoSnap = _iterations.find(i => i.id === _autoSnapId);
+    if (!autoSnap) { _autoSnapId = null; return; }
+    try {
+        // Restore from auto-snapshot tasks (same batch pattern; no new auto-snapshot)
+        const snap = await getDocs(
+            query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id))
+        );
+        const OPS_PER_BATCH = 450;
+        const allOps = [
+            ...snap.docs.map(d => ({ type: 'delete', ref: d.ref })),
+            ...autoSnap.tasks.map(t => ({ type: 'set', ref: doc(db, 'project_tasks', t.id), data: (({ id, ...rest }) => rest)(t) })),
+        ];
+        for (let i = 0; i < allOps.length; i += OPS_PER_BATCH) {
+            const chunk = allOps.slice(i, i + OPS_PER_BATCH);
+            const batch = writeBatch(db);
+            chunk.forEach(op => op.type === 'delete' ? batch.delete(op.ref) : batch.set(op.ref, op.data));
+            await batch.commit();
+        }
+        // Delete the auto-snapshot from Firestore
+        await deleteDoc(doc(db, 'project_iterations', _autoSnapId));
+        _autoSnapId = null;
+        dismissUndoToast();
+        await loadIterations();
+        renderIterRail();
+    } catch (e) {
+        console.error('[Plan] undoIterRestore error:', e);
+        showToast('Undo failed.', 'error');
     }
 }
 
