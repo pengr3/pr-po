@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
 status: Paused mid-spike (2026-06-01). /gsd-spike series "iterations (015-018)" exploring user's "save plan iterations" idea. 015a/b/c restore-semantics variants built and committed (29de95b); awaiting user winner verdict before proceeding to 016/017/018. Phase 86.12 closed + naming polish (cfcc620) UAT pending separately.
-stopped_at: 015 winner checkpoint — three browser URLs shared (015a destructive, 015b preview, 015c auto-snapshot+undo). See .planning/spikes/.continue-here.md + HANDOFF.json.
-last_updated: "2026-06-01T00:00:00.000Z"
-last_activity: 2026-06-01
+stopped_at: context exhaustion at 82% (2026-05-26)
+last_updated: "2026-06-02T06:25:19.373Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 31
   completed_phases: 28
   total_plans: 111
-  completed_plans: 110
+  completed_plans: 109
   percent: 90
 ---
 
@@ -652,7 +652,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-05-25
-Last session: 2026-05-29T07:08:31.200Z
+Last session: 2026-06-02T06:25:19.341Z
 Stopped at: context exhaustion at 82% (2026-05-26)
 Resume file: None
 Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
