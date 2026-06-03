@@ -1165,11 +1165,12 @@ async function openRFPModal(poDocId) {
                     </div>
                 </div>
                 ${firstAvailable < 0 ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">RFPs have already been submitted for all tranches on this PO. You cannot create another one.</div>' : ''}
+                <div style="${firstAvailable < 0 ? 'opacity:.45;pointer-events:none;' : ''}">
                 ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche</label>
-                        <select id="rfpTrancheSelect" class="form-control" onchange="window.updateRFPAmount('${poDocId}')" style="width:100%;">
+                        <select id="rfpTrancheSelect" class="form-control" onchange="window.updateRFPAmount('${poDocId}')" style="width:100%;" ${firstAvailable < 0 ? 'disabled' : ''}>
                             ${trancheOptions}
                         </select>
                     </div>
@@ -1242,12 +1243,14 @@ async function openRFPModal(poDocId) {
                         <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
                     </div>
                 </div>
+                </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                <div id="rfpFooterAlert" class="fee-footer-alert" style="display:none;">Fix the highlighted fee — amounts must be greater than ₱0.</div>
             </div>
             <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
                 <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitRFP('${poDocId}')" ${firstAvailable < 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
+                <button id="rfpSubmitBtn" class="btn btn-primary" onclick="window.submitRFP('${poDocId}')" ${firstAvailable < 0 ? 'disabled data-locked="1" style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -1280,12 +1283,9 @@ async function openDeliveryFeeRFPModal(poDocId) {
     const deliveryFee = parseFloat(po.delivery_fee) || 0;
     if (deliveryFee <= 0) { showToast('No delivery fee on this PO', 'error'); return; }
 
-    // Double-check dedup
+    // Delivery-fee one-per-PO: render the modal in a LOCKED/dimmed state instead of blocking it (D-17).
     const existingRFPs = rfpsByPO[po.po_id] || [];
-    if (existingRFPs.some(r => r.tranche_label === 'Delivery Fee')) {
-        showToast('A Delivery Fee RFP already exists for this PO', 'error');
-        return;
-    }
+    const dfBlocked = existingRFPs.some(r => r.tranche_label === 'Delivery Fee');
 
     const deptLabel = po.service_code
         ? `Service: ${escapeHTML(po.service_code)}`
@@ -1314,6 +1314,8 @@ async function openDeliveryFeeRFPModal(poDocId) {
                         <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
                     </div>
                 </div>
+                ${dfBlocked ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">A Delivery Fee RFP already exists for this PO. You cannot create another one.</div>' : ''}
+                <div style="${dfBlocked ? 'opacity:.45;pointer-events:none;' : ''}">
                 ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
@@ -1385,12 +1387,14 @@ async function openDeliveryFeeRFPModal(poDocId) {
                         <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
                     </div>
                 </div>
+                </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                <div id="rfpFooterAlert" class="fee-footer-alert" style="display:none;">Fix the highlighted fee — amounts must be greater than ₱0.</div>
             </div>
             <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
                 <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitDeliveryFeeRFP('${poDocId}')">Submit RFP</button>
+                <button id="rfpSubmitBtn" class="btn btn-primary" onclick="window.submitDeliveryFeeRFP('${poDocId}')" ${dfBlocked ? 'disabled data-locked="1" style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -1531,11 +1535,12 @@ async function openTRRFPModal(trDocId) {
                     </div>
                 </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                <div id="rfpFooterAlert" class="fee-footer-alert" style="display:none;">Fix the highlighted fee — amounts must be greater than ₱0.</div>
             </div>
             <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
                 <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')" ${hasExistingRFP ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
+                <button id="rfpSubmitBtn" class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')" ${hasExistingRFP ? 'disabled data-locked="1" style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -1663,6 +1668,7 @@ function recomputeRFPTotal() {
     setText('rtGrand', grand);
     setText('rfpFooterAmt', grand);
     syncFeeSectionVisibility();
+    validateRFPFees(); // Plan 06: live positive-only gate on every fee input
 }
 window.recomputeRFPTotal = recomputeRFPTotal;
 
@@ -1700,6 +1706,65 @@ function readRFPFeesFromModal() {
         + misc_fees.reduce((s, m) => s + m.amount, 0);
     return { transfer_fee: transfer_fee > 0 ? transfer_fee : 0, cash_out_fee: cash_out_fee > 0 ? cash_out_fee : 0, misc_fees, feesTotal };
 }
+
+/* ===== Phase 91.3 — positive-only fee validation + disabled-Submit gate (Plan 06) ===== */
+
+// Insert/update a .field-err message below the offending fee row (full-width, no grid disruption).
+function showFieldErr(el, msg) {
+    if (!el) return;
+    const anchor = el.closest('.fee-row') || el.closest('.fee-amount-wrap') || el;
+    let err = anchor.nextElementSibling;
+    if (!err || !err.classList || !err.classList.contains('field-err')) {
+        err = document.createElement('div');
+        err.className = 'field-err';
+        anchor.insertAdjacentElement('afterend', err);
+    }
+    err.textContent = msg;
+}
+function clearFieldErr(el) {
+    if (!el) return;
+    const anchor = el.closest('.fee-row') || el.closest('.fee-amount-wrap') || el;
+    const err = anchor.nextElementSibling;
+    if (err && err.classList && err.classList.contains('field-err')) err.remove();
+}
+
+// Toggle the Submit button, but a blocked-guard lock (data-locked="1") always wins.
+function setRFPSubmitEnabled(enabled) {
+    const btn = document.getElementById('rfpSubmitBtn');
+    if (!btn) return;
+    if (btn.dataset.locked === '1') { btn.disabled = true; return; }
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '' : '0.5';
+    btn.style.cursor = enabled ? '' : 'not-allowed';
+}
+window.setRFPSubmitEnabled = setRFPSubmitEnabled;
+
+// Live positive-only validation. Empty = ignored (D-05); ≤0/NaN = field error + footer alert + disabled Submit.
+function validateRFPFees() {
+    const inputs = [];
+    ['feeTransferAmount', 'feeCashoutAmount'].forEach(id => {
+        const row = document.getElementById(id === 'feeTransferAmount' ? 'rowTransfer' : 'rowCashout');
+        const el = document.getElementById(id);
+        if (el && row && row.style.display !== 'none') inputs.push(el);
+    });
+    document.querySelectorAll('#miscFeesBody .fee-misc-amount').forEach(el => inputs.push(el));
+
+    let hasError = false;
+    inputs.forEach(el => {
+        const raw = (el.value || '').trim();
+        if (raw === '') { el.classList.remove('err'); clearFieldErr(el); return; } // empty = ignored, not an error (D-05)
+        const n = parseFloat(raw);
+        if (!Number.isFinite(n) || n <= 0) {
+            el.classList.add('err'); showFieldErr(el, 'Amount must be greater than ₱0.'); hasError = true;
+        } else { el.classList.remove('err'); clearFieldErr(el); }
+    });
+
+    const alert = document.getElementById('rfpFooterAlert');
+    if (alert) alert.style.display = hasError ? 'block' : 'none';
+    setRFPSubmitEnabled(!hasError);
+    return !hasError;
+}
+window.validateRFPFees = validateRFPFees;
 
 /**
  * Show/hide bank fields or "Other" specifier based on selected payment mode.
@@ -1752,6 +1817,7 @@ async function submitRFP(poDocId) {
         if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
+    if (!validateRFPFees()) { showToast('Fix the highlighted fee amounts', 'error'); return; }
 
     const tranches = Array.isArray(po.tranches) && po.tranches.length > 0
         ? po.tranches
@@ -1896,6 +1962,7 @@ async function submitTRRFP(trDocId) {
         if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
+    if (!validateRFPFees()) { showToast('Fix the highlighted fee amounts', 'error'); return; }
 
     const trTotal = parseFloat(tr.total_amount) || 0;
     const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
@@ -2000,6 +2067,7 @@ async function submitDeliveryFeeRFP(poDocId) {
         if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
+    if (!validateRFPFees()) { showToast('Fix the highlighted fee amounts', 'error'); return; }
 
     const deliveryFee = parseFloat(po.delivery_fee) || 0;
     const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
