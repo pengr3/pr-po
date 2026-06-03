@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-03T22:45:00.000Z",
+  "phase": "91.3",
+  "phase_name": "rfp-add-fees",
+  "phase_dir": ".planning/phases/91.3-rfp-add-fees",
+  "plan": 6,
+  "task": 6,
+  "total_tasks": 6,
+  "status": "paused",
+  "context_summary": "Phase 91.3 (RFP Fees) fully EXECUTED — all 6 plans committed inline on v3.3. Verification verdict human_needed; 8 browser-UAT items pending before the phase can be marked complete in ROADMAP.",
+  "completed_tasks": [
+    {"id": 1, "name": "Plan 01 — shared legacy-safe fee helpers in utils.js (getRFPTotal/getRFPFees/getRFPFeeBreakdown/RFP_FEE_FIELDS)", "status": "done", "commit": "f18540f"},
+    {"id": 2, "name": "Plan 02 — procurement.js 4-section RFP modals + fee controls + fee write + scoreboard", "status": "done", "commit": "7af7c62"},
+    {"id": 3, "name": "Plan 03 — finance.js compute layer fee-inclusive (derivePOSummary both branches, deriveRFPStatus, record-payment math)", "status": "done", "commit": "9796303"},
+    {"id": 4, "name": "Plan 04 — components.css fee-accent CSS + 44px mobile overrides", "status": "done", "commit": "9d70060"},
+    {"id": 5, "name": "Plan 05 — finance.js display (cue pill + tooltip/tap-toggle + D-07 breakdown card + PO-summary roll-up)", "status": "done", "commit": "dfa9b83"},
+    {"id": 6, "name": "Plan 06 — procurement.js positive-only validation + disabled-Submit gate + blocked-guard dimming banners", "status": "done", "commit": "1fa9a7c"}
+  ],
+  "remaining_tasks": [
+    {"id": 7, "name": "Run 8 browser-UAT items from 91.3-HUMAN-UAT.md (live Firebase — use disposable PO/TR)", "status": "not_started"},
+    {"id": 8, "name": "On UAT pass → mark Phase 91.3 complete in ROADMAP (checkbox line 248 + progress-table row 91.3); on fail → /gsd-plan-phase 91.3 --gaps", "status": "not_started"},
+    {"id": 9, "name": "Optional non-blocking polish: tighten the RFP modal micro-text type ladder (UI-SPEC FLAG — cue pill / error / hint within ~1px)", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Browser UAT of the 8 items in 91.3-HUMAN-UAT.md", "context": "Zero-build static SPA with no UI test harness — runtime behavior (live total, progressive disclosure, mobile touch, blocked dimming, no layout break) can only be confirmed in a browser. Verification was structural-PASS only.", "blocking": true},
+    {"action": "WARNING: RFP creation writes to LIVE Firebase (no staging) — test on a disposable PO/TR or delete test RFPs after", "context": "Production-only writes per CLAUDE.md", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Executed inline sequentially on v3.3 (no subagents, no worktree isolation)", "rationale": "gsd-sdk unavailable on this machine + 2 stale LOCKED agent worktrees (agent-a4222795..., agent-ab5541979...) make the worktree/subagent path unsafe — same as Phase 98 precedent", "phase": "91.3"},
+    {"decision": "Plan 05 cue DOM ids via module counter (_feeCueSeq) not rfp_id", "rationale": "The same RFP renders in BOTH the RFP table and the PO-summary sub-table — rfp_id-keyed ids would be duplicate/invalid and break tap-toggle", "phase": "91.3"},
+    {"decision": "Plan 06 TR blocked-Submit also gets data-locked=1", "rationale": "Required correctness fix — the new validateRFPFees→setRFPSubmitEnabled(true) path would otherwise re-enable TR's already-exists Submit", "phase": "91.3"},
+    {"decision": "Plan 04 inserted mobile overrides into the EXISTING :768px media block", "rationale": "File already had two @media (max-width:768px) blocks; the plan's count==1 acceptance was a stale planning artifact — honored the true requirement (no NEW block opened)", "phase": "91.3"}
+  ],
+  "uncommitted_files": [],
+  "unrelated_untracked": [".claude/worktrees/", ".planning/debug/86.9-row-misalign-DEBUG.md", ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md", "debug-diag-86.9.js"],
+  "git": {"branch": "v3.3", "upstream": "origin/v3.3", "ahead": 36, "all_91_3_work_committed": true},
+  "next_action": "Run the 8 UAT items in 91.3-HUMAN-UAT.md in a browser. If all pass: mark Phase 91.3 complete in ROADMAP.md (checkbox + progress row) and update STATE.md. If any fail: /gsd-plan-phase 91.3 --gaps.",
+  "context_notes": "Phase 91.3 is code-complete and structurally verified (node --check PASS on utils.js/procurement.js/finance.js, CSS balanced, cross-plan import contract intact, pre-write guards + generateRFPId + NOTIF-08 + collectibles untouched, legacy-safe). The ONLY remaining work is human browser UAT, then the bookkeeping to mark complete. Also still open from prior sessions: Phase 98's 8 UAT items, and the deferred `firebase deploy --only firestore:rules` from Phase 87.4 (unrelated — 91.3 added NO rules surface; fees are additive fields on the already-writable rfps collection). gsd-sdk is NOT installed here — do not use `gsd-sdk query ...`; use git directly and inline execution."
+}
