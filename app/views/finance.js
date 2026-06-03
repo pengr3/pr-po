@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc, getAggregateFromServer, sum, count, serverTimestamp, arrayUnion, arrayRemove } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML, getRFPTotal, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
@@ -36,7 +36,8 @@ function deriveRFPStatus(rfp) {
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (r.amount || 0), 0);
     const isOverdue = rfp.due_date && new Date(rfp.due_date) < new Date();
-    if (totalPaid >= rfp.amount_requested && rfp.amount_requested > 0) return 'Fully Paid';
+    const total = getRFPTotal(rfp);
+    if (totalPaid >= total && total > 0) return 'Fully Paid';
     if (isOverdue) return 'Overdue';
     if (totalPaid > 0) return 'Partially Paid';
     return 'Pending';
@@ -392,7 +393,8 @@ function openRecordPaymentModal(rfpDocId) {
 
     // Determine if RFP is fully paid to conditionally show/hide the new-payment form
     const totalActivePaid = activeRecords.reduce((s, r) => s + (r.amount || 0), 0);
-    const isFullyPaid = totalActivePaid >= (rfp.amount_requested || 0) && (rfp.amount_requested || 0) > 0;
+    const rfpTotal = getRFPTotal(rfp);
+    const isFullyPaid = totalActivePaid >= rfpTotal && rfpTotal > 0;
 
     const newPaymentFormHtml = isFullyPaid
         ? `<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#065f46;font-size:0.875rem;">
@@ -401,7 +403,7 @@ function openRecordPaymentModal(rfpDocId) {
         : `<div style="display:flex;flex-direction:column;gap:1rem;">
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount</label>
-                    <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(rfp.amount_requested || 0)}" readonly
+                    <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(getRFPTotal(rfp))}" readonly
                            style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                 </div>
                 <div>
@@ -482,7 +484,7 @@ async function submitPaymentRecord(rfpDocId) {
 
     const paymentRecord = {
         payment_id: `PAY-${Date.now()}`,
-        amount: rfp.amount_requested,
+        amount: getRFPTotal(rfp),
         date: paymentDate,
         method: rfp.mode_of_payment || '',
         reference: reference,
@@ -502,7 +504,8 @@ async function submitPaymentRecord(rfpDocId) {
                 .filter(r => r.status !== 'voided')
                 .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
             const newTotal = priorPaid + (parseFloat(paymentRecord.amount) || 0);
-            const becomesFullyPaid = newTotal >= (rfp.amount_requested || 0) && (rfp.amount_requested || 0) > 0;
+            const rfpTotal = getRFPTotal(rfp);
+            const becomesFullyPaid = newTotal >= rfpTotal && rfpTotal > 0;
             if (becomesFullyPaid && rfp.rfp_creator_user_id) {
                 await createNotification({
                     user_id: rfp.rfp_creator_user_id,
@@ -690,7 +693,7 @@ function buildRFPCard(rfp) {
     const totalPaid = (rfp.payment_records || [])
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (r.amount || 0), 0);
-    const balance = (rfp.amount_requested || 0) - totalPaid;
+    const balance = getRFPTotal(rfp) - totalPaid;
     const isOverdue = status === 'Overdue';
     const deptLabel = rfp.service_code
         ? escapeHTML(rfp.service_code)
@@ -797,7 +800,7 @@ function renderRFPTable() {
         const totalPaid = (rfp.payment_records || [])
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (r.amount || 0), 0);
-        const balance = (rfp.amount_requested || 0) - totalPaid;
+        const balance = getRFPTotal(rfp) - totalPaid;
         const isOverdue = status === 'Overdue';
         const deptCode = rfp.service_code || rfp.project_code || '';
         const poNames = posNameMap.get(rfp.po_id) || {};
@@ -879,7 +882,7 @@ function buildPOMap(rfps) {
 /**
  * Compute aggregate totals and overall status for a PO from its RFP list.
  * D-09: Current Active Tranche = first non-Fully-Paid tranche by tranche_percentage asc.
- * D-10: Total Amount = sum of amount_requested across all RFPs.
+ * D-10: Total Amount = fee-inclusive total (base + supplementary fees) across all RFPs.
  * D-11: Total Paid = sum of non-voided payment records across all RFPs.
  * D-12: Remaining = Total Amount - Total Paid.
  * D-13: Overall Status: Fully Paid > Overdue > Partially Paid > Pending.
@@ -894,9 +897,11 @@ function derivePOSummary(rfpList, poTotalAmount) {
         (a.tranche_percentage || 0) - (b.tranche_percentage || 0)
     );
 
+    // Phase 91.3: fees across the regular (non-Delivery-Fee) RFPs of this PO
+    const feesTotal = regularRFPs.reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
     const totalAmount = (poTotalAmount != null && poTotalAmount > 0)
-        ? poTotalAmount
-        : regularRFPs.reduce((s, r) => s + (r.amount_requested || 0), 0);
+        ? poTotalAmount + feesTotal                              // ⚠ add fees ON TOP of the authoritative PO total
+        : regularRFPs.reduce((s, r) => s + getRFPTotal(r), 0);   // fee-inclusive RFP sum
 
     const totalPaid = regularRFPs.reduce((s, r) => {
         return s + (r.payment_records || [])
@@ -955,7 +960,7 @@ function buildPOTrancheSubCard(rfp) {
     const rfpTotalPaid = (rfp.payment_records || [])
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (r.amount || 0), 0);
-    const rfpBalance = (rfp.amount_requested || 0) - rfpTotalPaid;
+    const rfpBalance = getRFPTotal(rfp) - rfpTotalPaid;
     const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
 
     const canEdit = window.canEditTab?.('finance');
@@ -1119,7 +1124,7 @@ function renderPOSummaryTable() {
             const rfpTotalPaid = (rfp.payment_records || [])
                 .filter(r => r.status !== 'voided')
                 .reduce((s, r) => s + (r.amount || 0), 0);
-            const rfpBalance = (rfp.amount_requested || 0) - rfpTotalPaid;
+            const rfpBalance = getRFPTotal(rfp) - rfpTotalPaid;
             const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
             const rfpIsOverdue = rfpStatus === 'Overdue';
 
