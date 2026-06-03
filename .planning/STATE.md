@@ -4,7 +4,7 @@ milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
 status: Phase 98 COMPLETE (UAT batch-approved) — browser spot-check pending
 stopped_at: Phase 98 complete (4/4 plans on v3.3); 8 UAT items batch-approved, browser spot-check punch list open
-last_updated: "2026-06-03T06:55:00.000Z"
+last_updated: "2026-06-03T10:07:00.000Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 30
@@ -24,6 +24,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 **Current focus:** Phase 89 complete. Two Gantt phases remain: Phase 86.5 (Gantt UI Polish 3) and newly inserted Phase 86.9 (Curtain Divider + PDF Report Export).
 
 ## Current Position
+
+**⏭️ Next up (inserted 2026-06-03 via `/gsd-phase --insert 91`): Phase 91.3 — RFP Fees (add Transfer / Cash-Out / Miscellaneous fees at RFP creation).** Urgent insertion; **CONTEXT gathered 2026-06-03** (`.planning/phases/91.3-rfp-add-fees/91.3-CONTEXT.md`, commit `b8da6c1`) → next: `/gsd-plan-phase 91.3`. Locked: fees on all 3 RFP types (PO-tranche, Delivery-Fee, TR), per-RFP attachment; Transfer/Cash-Out free-entry+optional, Misc repeatable label+amount, positive-only; dense Payables tables show collapsed fee-inclusive total + subtle "incl. fees" cue, full itemization in modal; RFP modal restructured into sections with a live running total. Open research flag: field strategy for the fee-inclusive total — all `amount_requested` consumers in finance.js (`derivePOSummary`, `deriveRFPStatus`, payment math) must track against it while the base stays distinct (primary regression-risk surface). The Phase 98 record below remains the most-recently-completed work; this insert reprioritizes 91.3 ahead of any net-new phase.
 
 Phase: 98 COMPLETE & VERIFIED (2026-06-03, real browser UAT — 98-UAT.md: 7 pass, 1 skip, 0 issues). UAT round 1 found 2 defects automated checks missed, both fixed + re-tested pass: Test 6 (BLOCKER) PO Ref "Failed to load PO details" → RFP docs store empty po_doc_id so doc(db,'pos','') threw "pos has 1 segment"; fixed `9960d99` (resolve doc id from live pos collection by po_id via posDocIdMap + query fallback; TR by tr_id query; call sites pass the human-readable id). Test 4 (cosmetic) notif ✓ over-sized from dropped inline font-size → fixed `9d7d845`. Test 7 (TR link) skipped — no TR row in data, covered by same fix. (Earlier same-day "batch-approved" completion was premature — the real UAT caught the blocker before it shipped.) 4/4 plans landed on v3.3 via inline sequential execution (gsd-sdk unavailable on this machine + 2 stale locked agent worktrees made the subagent/worktree path unsafe → orchestrator executed inline on the main tree). All automated grep/file-read checks PASS; `node --check` PASS on every modified JS module. Commits: 98-01 `37005ff` (clients Phone/Email split), 98-02 `dafac92` + fix `468268d` (notif inline alignment — **shared-class dropdown regression caught & fixed**: `.notif-row`/`.notif-row-body` are shared with the bell dropdown in app/notifications.js, so inline layout was scoped to `.notif-rows-container`), 98-03 `4353f61` (Payables Ref doc-id root-cause fix + ported viewTRDetailsFromRFP, verify-98-03.cjs 18/18), 98-04 `fbc1ae2` (home hero vertical compression, 3+2/1200px/media-blocks preserved). VERIFICATION verdict: `human_needed` — 8 UAT items persisted in 98-HUMAN-UAT.md. Phase NOT yet marked complete in ROADMAP (awaiting UAT approval). Firestore rules test suite NOT run (no rules-surface change in this phase; needs emulator).
 
@@ -200,6 +202,7 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 
 ### Roadmap Evolution
 
+- Phase 91.3 inserted after Phase 91 (2026-06-03, URGENT) — RFP Fees: add Transfer / Cash-Out / Miscellaneous fees that are not covered by the original RFP amount; overhaul the RFP creation flow while keeping it mobile-friendly and 100% error-free. Not planned yet → `/gsd-plan-phase 91.3`.
 - Phase 98 added (2026-06-03) — UI/UX Fixes bundle: (1) Clients split Contact Details into Phone/Email; (2) #/notifications row alignment; (3) Finance Payables PO Ref "Failed to load PO details" bug; (4) Home widgets don't fit on 27" monitor. Not planned yet.
 - Phase 97.2 inserted after 97.1 (2026-06-02, URGENT) — Iterations Save Model Overhaul: current "save (Automatically)" label and implicit save-as-on-load is confusing; iteration rail UX needs a full overhaul to a deliberate named-save model.
 
