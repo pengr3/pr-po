@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement — Full Management Portal
-status: Phase 97.2 complete (2026-06-02) — All 3 plans shipped. window.prompt() eliminated from project-plan.js.
-stopped_at: Phase 97.2 Plan 03 complete — saveIteration() + saveBaseline() now use styled inline modals
-last_updated: "2026-06-02T09:35:00.000Z"
-last_activity: 2026-06-02
+status: Phase 97.2 COMPLETE (2026-06-03) — UAT passed. Iteration overwrite enabled (firestore.rules field-masked update, deployed to clmc-procurement-dev) + Save & Load loop fixed (confirmIterLoad vs openIterConfirm). Commit f785915.
+stopped_at: Phase 97.2 closed after browser UAT on dev. Debug session iter-save-perms-indicator resolved.
+last_updated: "2026-06-03"
+last_activity: 2026-06-03
 progress:
   total_phases: 31
-  completed_phases: 28
+  completed_phases: 29
   total_plans: 111
-  completed_plans: 110
-  percent: 91
+  completed_plans: 111
+  percent: 94
 ---
 
 # Project State
@@ -672,10 +672,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-06-02 - Completed quick task 260602-q50: Phase 97.2 UAT follow-up: iteration indicator on load, save overwrite vs save-as, delete baseline
-Last session: 2026-06-02T09:23:34.637Z
-Stopped at: Phase 97.2 context gathered
+Last activity: 2026-06-03 - Phase 97.2 CLOSED after browser UAT on dev. Fixed iteration overwrite (firestore.rules field-masked project_iterations update rule, deployed to clmc-procurement-dev) + Save & Load infinite loop (confirmIterLoad vs openIterConfirm). Commit f785915. Debug session iter-save-perms-indicator resolved.
+Last session: 2026-06-03
+Stopped at: Phase 97.2 complete. No active phase.
 Resume file: None
-Next action: /clear then /gsd-extract-learnings 87.3 — pull decisions/lessons/patterns/surprises from 87.3-VERIFICATION.md + 87.3-REVIEW.md + 87.3-HUMAN-UAT.md + 5 SUMMARY files. After learnings extracted: update STATE.md last_activity to 87.3, mark ROADMAP Phase 87.3 complete, then commit close-out as a new commit (do NOT amend wip 2c62821 — keep wip as the UAT-pause marker). Carry-over: Phase 86.9 Plan 03 (uncommitted draft + debug-diag-86.9.js); Phase 86.5 still open in v4.0; browser UAT for 91.2 / 91 (Bug 3) / 92.2 still pending.
+Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
