@@ -2169,6 +2169,13 @@ tr:hover {
     padding: 0.25rem;
     border-radius: 4px;
     flex-shrink: 0;
+    /* Phase 98 Slice 2 fix: restore the ✓ to its intended small size + tight line
+       so the action sits on the same middle line as the message/time (the original
+       inline font-size:0.75rem was dropped in the markup rewrite, making ✓ inherit
+       ~1rem and appear over-sized / vertically off). History page only — the bell
+       dropdown uses .notif-row-read-btn, not this class. */
+    font-size: 0.75rem;
+    line-height: 1;
 }
 
 .notif-row-mark-read:hover {
