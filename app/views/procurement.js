@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML, getRFPTotal } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 import { showProofModal, saveProofUrl } from '../proof-modal.js';
 import { createNotification, createNotificationForRoles, createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
@@ -552,7 +552,8 @@ function deriveRFPStatus(rfp) {
         .filter(r => r.status !== 'voided')
         .reduce((sum, r) => sum + (r.amount || 0), 0);
     const isOverdue = rfp.due_date && new Date(rfp.due_date) < new Date();
-    if (totalPaid >= rfp.amount_requested && rfp.amount_requested > 0) return 'Fully Paid';
+    const total = getRFPTotal(rfp);
+    if (totalPaid >= total && total > 0) return 'Fully Paid';
     if (isOverdue) return 'Overdue';
     if (totalPaid > 0) return 'Partially Paid';
     return 'Pending';
@@ -580,8 +581,8 @@ function getPOPaymentFill(poId) {
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (r.amount || 0), 0);
         totalPaidAllRFPs += paid;
-        totalRequested += (rfp.amount_requested || 0);
-        if (paid < rfp.amount_requested) allFullyPaid = false;
+        totalRequested += getRFPTotal(rfp);
+        if (paid < getRFPTotal(rfp)) allFullyPaid = false;
     }
     if (allFullyPaid && rfps.length > 0) {
         return { pct: 100, color: '#d4edda', opacity: 0.7, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
@@ -614,7 +615,7 @@ function getTRPaymentFill(trId, trTotalAmount) {
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (r.amount || 0), 0);
         totalPaidAllRFPs += paid;
-        if (paid < rfp.amount_requested) allFullyPaid = false;
+        if (paid < getRFPTotal(rfp)) allFullyPaid = false;
     }
     if (allFullyPaid && rfps.length > 0) {
         return { pct: 100, color: '#d4edda', opacity: 0.7, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
@@ -1054,6 +1055,47 @@ async function cancelMRFPRs(mrfDocId) {
  * Open RFP creation modal pre-filled with PO data.
  * @param {string} poDocId - Firestore document ID of the PO
  */
+/* ===== Phase 91.3 — RFP fee modal fragments (shared by all 3 RFP modals) ===== */
+// Base amount the running total sits on. Set per modal open; PO updates it on tranche change.
+let _rfpModalBase = 0;
+
+function rfpSectionHead(num, title, suffix = '') {
+    return `<div class="section-head" style="display:flex;align-items:center;gap:8px;margin:1.25rem 0 0.75rem;">
+        <span style="width:20px;height:20px;border-radius:9999px;background:#1a73e8;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">${num}</span>
+        <span style="font-size:0.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">${title}${suffix ? ` <span style="color:#94a3b8;text-transform:none;letter-spacing:0;font-weight:400;">${suffix}</span>` : ''}</span>
+        <span style="flex:1;height:1px;background:#e5e7eb;"></span>
+    </div>`;
+}
+
+// Section 3 (FEES) markup — identical in all 3 RFP modals (progressive disclosure, sketch 001-B).
+function rfpFeeSectionHTML() {
+    const chipStyle = 'padding:6px 12px;min-height:36px;background:#f0f9ff;color:#0369a1;border:1px dashed #bae6fd;border-radius:9999px;font-size:0.8rem;font-weight:600;cursor:pointer;';
+    const xStyle = 'background:none;border:none;color:#64748b;font-size:1.1rem;cursor:pointer;min-height:32px;';
+    return `${rfpSectionHead(3, 'FEES', '— optional')}
+                <div id="feeChips" style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <button type="button" id="chipTransfer" class="btn-ghost-fee" onclick="window.revealFee('transfer')" style="${chipStyle}">+ Transfer fee</button>
+                    <button type="button" id="chipCashout" class="btn-ghost-fee" onclick="window.revealFee('cashout')" style="${chipStyle}">+ Cash-out fee</button>
+                    <button type="button" id="chipMisc" class="btn-ghost-fee" onclick="window.addMiscFeeRow()" style="${chipStyle}">+ Misc fee</button>
+                </div>
+                <div id="feeNoneHint" style="margin-top:8px;font-size:0.8rem;font-style:italic;color:#94a3b8;">No fees added — disbursement equals the base amount.</div>
+                <div id="rowTransfer" class="fee-row" style="display:none;grid-template-columns:1fr 150px 32px;gap:8px;align-items:center;margin-top:8px;">
+                    <label class="fld" style="font-size:0.875rem;font-weight:600;color:#475569;">Transfer Fee</label>
+                    <span class="fee-amount-wrap" style="position:relative;"><input type="text" id="feeTransferAmount" class="form-control fee-amount" inputmode="decimal" placeholder="0.00" oninput="window.recomputeRFPTotal()" style="text-align:right;padding-left:22px;"></span>
+                    <button type="button" onclick="window.removeFee('transfer')" aria-label="Remove transfer fee" style="${xStyle}">×</button>
+                </div>
+                <div id="rowCashout" class="fee-row" style="display:none;grid-template-columns:1fr 150px 32px;gap:8px;align-items:center;margin-top:8px;">
+                    <label class="fld" style="font-size:0.875rem;font-weight:600;color:#475569;">Cash-out Fee</label>
+                    <span class="fee-amount-wrap" style="position:relative;"><input type="text" id="feeCashoutAmount" class="form-control fee-amount" inputmode="decimal" placeholder="0.00" oninput="window.recomputeRFPTotal()" style="text-align:right;padding-left:22px;"></span>
+                    <button type="button" onclick="window.removeFee('cashout')" aria-label="Remove cash-out fee" style="${xStyle}">×</button>
+                </div>
+                <div id="miscFeesBody"></div>
+                <div id="rfpTotalBlock" style="display:none;margin-top:1rem;padding-top:0.75rem;border-top:1px dashed #bae6fd;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.875rem;"><span>Base amount</span><span id="rtBase" style="font-variant-numeric:tabular-nums;">₱0.00</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.875rem;"><span>Fees</span><span id="rtFees" style="font-variant-numeric:tabular-nums;color:#0369a1;">₱0.00</span></div>
+                    <div class="grand" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;"><span style="font-weight:700;">Grand total</span><span id="rtGrand" class="amt" style="font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;">₱0.00</span></div>
+                </div>`;
+}
+
 async function openRFPModal(poDocId) {
     // Close context menu if still open
     const ctx = document.getElementById('rfpContextMenu');
@@ -1107,7 +1149,8 @@ async function openRFPModal(poDocId) {
                 <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="padding:1.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                ${rfpSectionHead(1, 'REFERENCE')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.5rem;">
                     <div>
                         <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.supplier_name)}</div>
@@ -1122,6 +1165,7 @@ async function openRFPModal(poDocId) {
                     </div>
                 </div>
                 ${firstAvailable < 0 ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">RFPs have already been submitted for all tranches on this PO. You cannot create another one.</div>' : ''}
+                ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche</label>
@@ -1130,10 +1174,14 @@ async function openRFPModal(poDocId) {
                         </select>
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested <span style="color:#94a3b8;font-weight:400;">(auto from tranche %)</span></label>
                         <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(defaultAmount)}" readonly
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
+                </div>
+                ${rfpFeeSectionHTML()}
+                ${rfpSectionHead(4, 'PAYMENT DETAILS')}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
                         <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
@@ -1196,7 +1244,8 @@ async function openRFPModal(poDocId) {
                 </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
             </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
                 <button class="btn btn-primary" onclick="window.submitRFP('${poDocId}')" ${firstAvailable < 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
@@ -1207,12 +1256,14 @@ async function openRFPModal(poDocId) {
     const existingModal = document.getElementById('rfpModal');
     if (existingModal) existingModal.remove();
 
+    _rfpModalBase = defaultAmount;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
     // Set the tranche select to the first available
     if (firstAvailable >= 0) {
         document.getElementById('rfpTrancheSelect').value = firstAvailable;
     }
+    recomputeRFPTotal();
 }
 
 /**
@@ -1248,7 +1299,8 @@ async function openDeliveryFeeRFPModal(poDocId) {
                 <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="padding:1.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                ${rfpSectionHead(1, 'REFERENCE')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.5rem;">
                     <div>
                         <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.supplier_name)}</div>
@@ -1262,12 +1314,17 @@ async function openDeliveryFeeRFPModal(poDocId) {
                         <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
                     </div>
                 </div>
+                ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested (Delivery Fee)</label>
                         <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(deliveryFee)}" readonly
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
+                </div>
+                ${rfpFeeSectionHTML()}
+                ${rfpSectionHead(4, 'PAYMENT DETAILS')}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
                         <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
@@ -1330,7 +1387,8 @@ async function openDeliveryFeeRFPModal(poDocId) {
                 </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
             </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
                 <button class="btn btn-primary" onclick="window.submitDeliveryFeeRFP('${poDocId}')">Submit RFP</button>
             </div>
@@ -1341,7 +1399,9 @@ async function openDeliveryFeeRFPModal(poDocId) {
     const existingModal = document.getElementById('rfpModal');
     if (existingModal) existingModal.remove();
 
+    _rfpModalBase = deliveryFee;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    recomputeRFPTotal();
 }
 
 /**
@@ -1383,7 +1443,8 @@ async function openTRRFPModal(trDocId) {
                 <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="padding:1.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                ${rfpSectionHead(1, 'REFERENCE')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.5rem;">
                     <div>
                         <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(tr.supplier_name || '')}</div>
@@ -1398,12 +1459,17 @@ async function openTRRFPModal(trDocId) {
                     </div>
                 </div>
                 ${hasExistingRFP ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">An RFP already exists for this TR. You cannot create another one.</div>' : ''}
+                ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
                         <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(trTotal)}" readonly
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
+                </div>
+                ${rfpFeeSectionHTML()}
+                ${rfpSectionHead(4, 'PAYMENT DETAILS')}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
                         <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
@@ -1466,7 +1532,8 @@ async function openTRRFPModal(trDocId) {
                 </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
             </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
                 <button class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')" ${hasExistingRFP ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
@@ -1475,7 +1542,9 @@ async function openTRRFPModal(trDocId) {
 
     const existingModal = document.getElementById('rfpModal');
     if (existingModal) existingModal.remove();
+    _rfpModalBase = trTotal;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    recomputeRFPTotal();
 }
 
 /**
@@ -1494,6 +1563,8 @@ function updateRFPAmount(poDocId) {
     const poTotal = parseFloat(po.total_amount) || 0;
     const amount = tranche ? (tranche.percentage / 100 * poTotal) : 0;
     document.getElementById('rfpAmount').value = formatCurrency(amount);
+    _rfpModalBase = amount;
+    recomputeRFPTotal();
 }
 
 function showAltBank() {
@@ -1515,6 +1586,120 @@ function removeAltBank() {
     if (btn) btn.style.display = 'block';
 }
 window.removeAltBank = removeAltBank;
+
+/* ===== Phase 91.3 — RFP fee controls (progressive disclosure + live running total) ===== */
+
+// Reveal a fixed fee row (transfer/cashout), hide its chip, focus the input. Mirrors showAltBank().
+function revealFee(kind) {
+    const isTransfer = kind === 'transfer';
+    const row = document.getElementById(isTransfer ? 'rowTransfer' : 'rowCashout');
+    const chip = document.getElementById(isTransfer ? 'chipTransfer' : 'chipCashout');
+    const input = document.getElementById(isTransfer ? 'feeTransferAmount' : 'feeCashoutAmount');
+    if (row) row.style.display = 'grid';
+    if (chip) chip.style.display = 'none';
+    if (input) input.focus();
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+}
+window.revealFee = revealFee;
+
+// Hide a fixed fee row, clear its value, restore the chip. Mirrors removeAltBank().
+function removeFee(kind) {
+    const isTransfer = kind === 'transfer';
+    const row = document.getElementById(isTransfer ? 'rowTransfer' : 'rowCashout');
+    const chip = document.getElementById(isTransfer ? 'chipTransfer' : 'chipCashout');
+    const input = document.getElementById(isTransfer ? 'feeTransferAmount' : 'feeCashoutAmount');
+    if (input) { input.value = ''; input.classList.remove('err'); }
+    if (row) row.style.display = 'none';
+    if (chip) chip.style.display = '';
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+    if (typeof window.validateRFPFees === 'function') window.validateRFPFees(); // Plan 06 layer
+}
+window.removeFee = removeFee;
+
+// Append a repeatable misc fee row (label + amount + ×) and focus the label. Mirrors addLineItem().
+function addMiscFeeRow() {
+    const body = document.getElementById('miscFeesBody');
+    if (!body) return;
+    const row = document.createElement('div');
+    row.className = 'fee-row';
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 150px 32px;gap:8px;align-items:center;margin-top:8px;';
+    row.innerHTML = `
+        <input type="text" class="fee-misc-label form-control" placeholder="Label (e.g. Notary, Courier)" style="font-size:0.875rem;">
+        <span class="fee-amount-wrap" style="position:relative;"><input type="text" class="fee-misc-amount fee-amount form-control" inputmode="decimal" placeholder="0.00" oninput="window.recomputeRFPTotal()" style="text-align:right;padding-left:22px;"></span>
+        <button type="button" onclick="window.removeMiscFeeRow(this)" aria-label="Remove misc fee" style="background:none;border:none;color:#64748b;font-size:1.1rem;cursor:pointer;min-height:32px;">×</button>`;
+    body.appendChild(row);
+    const labelInput = row.querySelector('.fee-misc-label');
+    if (labelInput) labelInput.focus();
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+}
+window.addMiscFeeRow = addMiscFeeRow;
+
+function removeMiscFeeRow(btn) {
+    const row = btn.closest('.fee-row');
+    if (row) row.remove();
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+    if (typeof window.validateRFPFees === 'function') window.validateRFPFees(); // Plan 06 layer
+}
+window.removeMiscFeeRow = removeMiscFeeRow;
+
+// Recompute Base / Fees / Grand total from the current visible fee inputs. Base comes from the
+// computed tranche math (_rfpModalBase), NOT the formatted #rfpAmount string (D-11).
+function recomputeRFPTotal() {
+    const base = parseFloat(_rfpModalBase) || 0;
+    let fees = 0;
+    const rowT = document.getElementById('rowTransfer');
+    if (rowT && rowT.style.display !== 'none') fees += parseFloat(document.getElementById('feeTransferAmount')?.value) || 0;
+    const rowC = document.getElementById('rowCashout');
+    if (rowC && rowC.style.display !== 'none') fees += parseFloat(document.getElementById('feeCashoutAmount')?.value) || 0;
+    document.querySelectorAll('#miscFeesBody .fee-misc-amount').forEach(el => { fees += parseFloat(el.value) || 0; });
+    const grand = base + fees;
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = `₱${formatCurrency(val)}`; };
+    setText('rtBase', base);
+    setText('rtFees', fees);
+    setText('rtGrand', grand);
+    setText('rfpFooterAmt', grand);
+    syncFeeSectionVisibility();
+}
+window.recomputeRFPTotal = recomputeRFPTotal;
+
+// Show the running-total block + footer pill (hide the "No fees" hint) only when a fee has a value.
+function syncFeeSectionVisibility() {
+    let hasFee = false;
+    const rowT = document.getElementById('rowTransfer');
+    if (rowT && rowT.style.display !== 'none' && (parseFloat(document.getElementById('feeTransferAmount')?.value) || 0) !== 0) hasFee = true;
+    const rowC = document.getElementById('rowCashout');
+    if (rowC && rowC.style.display !== 'none' && (parseFloat(document.getElementById('feeCashoutAmount')?.value) || 0) !== 0) hasFee = true;
+    document.querySelectorAll('#miscFeesBody .fee-misc-amount').forEach(el => { if ((parseFloat(el.value) || 0) !== 0) hasFee = true; });
+    const block = document.getElementById('rfpTotalBlock');
+    const pill = document.getElementById('rfpFooterPill');
+    const hint = document.getElementById('feeNoneHint');
+    if (block) block.style.display = hasFee ? 'block' : 'none';
+    if (pill) pill.style.display = hasFee ? 'inline-block' : 'none';
+    if (hint) hint.style.display = hasFee ? 'none' : 'block';
+}
+window.syncFeeSectionVisibility = syncFeeSectionVisibility;
+
+// Read fee inputs from the open RFP modal → { transfer_fee, cash_out_fee, misc_fees, feesTotal }.
+// Reads by CSS class per CLAUDE.md DOM rule (never data attributes). Omits empty/≤0 misc rows (D-05).
+function readRFPFeesFromModal() {
+    const rowT = document.getElementById('rowTransfer');
+    const rowC = document.getElementById('rowCashout');
+    const transfer_fee = (rowT && rowT.style.display !== 'none') ? (parseFloat(document.getElementById('feeTransferAmount')?.value) || 0) : 0;
+    const cash_out_fee = (rowC && rowC.style.display !== 'none') ? (parseFloat(document.getElementById('feeCashoutAmount')?.value) || 0) : 0;
+    const misc_fees = [];
+    document.querySelectorAll('#miscFeesBody .fee-row').forEach(row => {
+        const label = (row.querySelector('.fee-misc-label')?.value || '').trim();
+        const amount = parseFloat(row.querySelector('.fee-misc-amount')?.value) || 0;
+        if (amount > 0) misc_fees.push({ label: label || 'Misc fee', amount });
+    });
+    const feesTotal = (transfer_fee > 0 ? transfer_fee : 0) + (cash_out_fee > 0 ? cash_out_fee : 0)
+        + misc_fees.reduce((s, m) => s + m.amount, 0);
+    return { transfer_fee: transfer_fee > 0 ? transfer_fee : 0, cash_out_fee: cash_out_fee > 0 ? cash_out_fee : 0, misc_fees, feesTotal };
+}
 
 /**
  * Show/hide bank fields or "Other" specifier based on selected payment mode.
@@ -1594,6 +1779,7 @@ async function submitRFP(poDocId) {
 
     const poTotal = parseFloat(po.total_amount) || 0;
     const amountRequested = tranche.percentage / 100 * poTotal;
+    const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
 
     try {
         const rfpId = await generateRFPId(po.po_id);
@@ -1613,6 +1799,10 @@ async function submitRFP(poDocId) {
             tranche_label: tranche.label,
             tranche_percentage: tranche.percentage,
             amount_requested: amountRequested,
+            transfer_fee,
+            cash_out_fee,
+            misc_fees,
+            total_with_fees: amountRequested + feesTotal,
             invoice_number: invoiceNumber,
             due_date: dueDate,
             mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
@@ -1708,6 +1898,7 @@ async function submitTRRFP(trDocId) {
     }
 
     const trTotal = parseFloat(tr.total_amount) || 0;
+    const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
 
     try {
         const rfpId = await generateTRRFPId(tr.tr_id);
@@ -1728,6 +1919,10 @@ async function submitTRRFP(trDocId) {
             tranche_label: 'Full Payment',
             tranche_percentage: 100,
             amount_requested: trTotal,
+            transfer_fee,
+            cash_out_fee,
+            misc_fees,
+            total_with_fees: trTotal + feesTotal,
             invoice_number: invoiceNumber,
             due_date: dueDate,
             mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
@@ -1807,6 +2002,7 @@ async function submitDeliveryFeeRFP(poDocId) {
     }
 
     const deliveryFee = parseFloat(po.delivery_fee) || 0;
+    const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
 
     try {
         const rfpId = await generateRFPId(po.po_id);
@@ -1825,6 +2021,10 @@ async function submitDeliveryFeeRFP(poDocId) {
             tranche_label: 'Delivery Fee',
             tranche_percentage: 0,
             amount_requested: deliveryFee,
+            transfer_fee,
+            cash_out_fee,
+            misc_fees,
+            total_with_fees: deliveryFee + feesTotal,
             invoice_number: invoiceNumber,
             due_date: dueDate,
             mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
@@ -5816,7 +6016,7 @@ async function renderPRPORecords() {
                                 const dfTotalPaid = (dfRFPs[0].payment_records || [])
                                     .filter(r => r.status !== 'voided')
                                     .reduce((sum, r) => sum + (r.amount || 0), 0);
-                                const dfPaid = dfTotalPaid >= dfRFPs[0].amount_requested && dfRFPs[0].amount_requested > 0;
+                                const dfPaid = dfTotalPaid >= getRFPTotal(dfRFPs[0]) && getRFPTotal(dfRFPs[0]) > 0;
                                 chipDotColor = dfPaid ? '#059669' : '#f59e0b';
                                 chipDotLabel = dfPaid ? 'Paid' : 'RFP submitted, not yet paid';
                             }
@@ -7423,7 +7623,7 @@ function renderPOTrackingTable(pos) {
                 const dfTotalPaid = (dfRfp.payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((sum, r) => sum + (r.amount || 0), 0);
-                const dfPaid = dfTotalPaid >= dfRfp.amount_requested && dfRfp.amount_requested > 0;
+                const dfPaid = dfTotalPaid >= getRFPTotal(dfRfp) && getRFPTotal(dfRfp) > 0;
                 dotColor = dfPaid ? '#059669' : '#f59e0b';
                 dotLabel = dfPaid ? 'Paid' : 'RFP submitted, not yet paid';
             }
