@@ -1444,11 +1444,137 @@ tr:hover {
     background-attachment: local, local, scroll, scroll;
 }
 
+/* ===== Phase 91.3 — RFP Fees ===== */
+
+/* Progressive-disclosure add-chips */
+.btn-ghost-fee {
+    padding: 6px 12px;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px dashed #bae6fd;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.btn-ghost-fee:hover { background: #e0f2fe; }
+
+/* Fee row: label / amount / remove-× */
+.fee-row {
+    display: grid;
+    grid-template-columns: 1fr 150px 32px;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+/* ₱ prefix on amount inputs (non-interactive) */
+.fee-amount-wrap { position: relative; display: block; }
+.fee-amount-wrap::before {
+    content: "\20B1"; /* ₱ */
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 0.875rem;
+    pointer-events: none;
+}
+.fee-amount {
+    text-align: right;
+    padding-left: 22px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Invalid-fee state (positive-only, D-05) */
+.fee-amount.err {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+.field-err {
+    margin-top: 4px;
+    font-size: 0.74rem;
+    color: #ef4444;
+}
+.fee-footer-alert {
+    margin-top: 0.75rem;
+    padding: 8px 12px;
+    background: #fef2f2;
+    color: #991b1b;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+/* Running-total / tinted fee card */
+.fee-card {
+    border: 1px dashed #bae6fd;
+    background: #f0f9ff;
+    border-radius: 10px;
+    padding: 0.75rem;
+}
+.fee-card .grand .amt {
+    font-size: 1.3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Downstream "incl. fees" cue pill (tables/cards) */
+.cue {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    border-radius: 9999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.cue:focus-visible { outline: 2px solid #0ea5e9; outline-offset: 1px; }
+
+/* Cue tooltip (desktop hover + JS tap-toggle .cue-open) */
+.cue-tip {
+    position: absolute;
+    z-index: 50;
+    width: 210px;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.75rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    display: none;
+}
+.cue:hover + .cue-tip,
+.cue.cue-open + .cue-tip { display: block; }
+
+/* PO-summary fee sub-note */
+.fee-subnote { font-size: 0.7rem; color: #0369a1; }
+
 /* ========================================
    RESPONSIVE
    ======================================== */
 
 @media (max-width: 768px) {
+    /* Phase 91.3 — fee controls mobile */
+    .btn-ghost-fee { min-height: 44px; }
+    #feeChips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fee-amount { min-height: 44px; }
+    .fee-row button { min-height: 44px; min-width: 44px; }
+    .fee-row { grid-template-columns: 1fr 130px 44px; }
+    .cue {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        /* keep the visible pill small; expand the hit area via padding */
+        padding-top: 0; padding-bottom: 0;
+    }
+    .cue-tip { width: calc(100vw - 48px); max-width: 240px; }
+
     .top-nav-content {
         padding: 0 1rem;
         height: 64px; /* keep fixed height on mobile */
