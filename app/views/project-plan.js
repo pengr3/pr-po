@@ -3428,9 +3428,13 @@ async function overwriteLoadedIteration() {
         renderIterRail();
         showToast(`Iteration "${labelToSave}" updated.`, 'success');
         if (_pendingLoadAfterSave) {
+            // "Save & Load": the overwrite just succeeded — go STRAIGHT to loading the target.
+            // Must call confirmIterLoad (the loader), NOT openIterConfirm (the gate): _loadedIterationId
+            // is still the just-saved iteration, so openIterConfirm would re-detect "different iteration
+            // loaded", re-show the "Save & Load?" switch modal, and loop forever without ever loading.
             const targetId = _pendingLoadAfterSave;
             _pendingLoadAfterSave = null;
-            openIterConfirm(targetId);
+            confirmIterLoad(targetId);
         }
     } catch (e) {
         _pendingLoadAfterSave = null;
@@ -3529,11 +3533,12 @@ async function saveIteration(label = null) {
         await loadIterations();
         renderIterRail();
         showToast(`Iteration "${label}" saved.`, 'success');
-        // If triggered by "Save & Load" flow, now open the load confirm for the pending iteration
+        // If triggered by "Save & Load" flow, load the pending iteration directly.
+        // Use confirmIterLoad (loader), not openIterConfirm (gate) — see overwriteLoadedIteration note.
         if (_pendingLoadAfterSave) {
             const targetId = _pendingLoadAfterSave;
             _pendingLoadAfterSave = null;
-            openIterConfirm(targetId);
+            confirmIterLoad(targetId);
         }
     } catch (e) {
         _pendingLoadAfterSave = null;
@@ -3701,7 +3706,7 @@ function openIterConfirm(iterationId) {
         switchModal.querySelector('#iterSwitchSaveLoad').addEventListener('click', () => {
             switchModal.remove();
             _pendingLoadAfterSave = iterationId;
-            saveIteration(null);  // open save modal; after save, openIterConfirm(targetId) is called
+            saveIteration(null);  // save current changes; after save, confirmIterLoad(targetId) loads the target
         });
         return;
     }

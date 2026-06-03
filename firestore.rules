@@ -259,7 +259,23 @@ service cloud.firestore {
     match /project_iterations/{iterationId} {
       allow read: if isActiveUser();
       allow create: if hasRole(['super_admin', 'operations_admin']);
-      allow update: if false;          // iterations are write-once (no editing labels/tasks)
+      // Update (quick task 260602-q50 — Save vs Save-As): allow overwriting a loaded
+      // iteration's task snapshot IN PLACE. Previously `allow update: if false`, which
+      // denied overwriteLoadedIteration() (project-plan.js:3422 updateDoc → "Missing or
+      // insufficient permissions" on UAT #8/#9). Field-masked so identity fields remain
+      // write-once and the original Phase 97 intent is preserved:
+      //   - label, project_id, auto are PINNED (cannot rename, re-parent to a different
+      //     project, or flip an auto-snapshot ↔ named iteration to smuggle entries between
+      //     the rewind list and the named list).
+      //   - ONLY tasks + saved_at may change (exactly the keys overwriteLoadedIteration writes).
+      // Doc shape at create time is exactly { project_id, label, saved_at, auto, tasks }
+      // (project-plan.js:3522-3528 / :3762-3766) — there is no doc-level created_at/created_by,
+      // so none are referenced (referencing a non-existent field would make the rule fail).
+      allow update: if hasRole(['super_admin', 'operations_admin'])
+        && request.resource.data.label      == resource.data.label
+        && request.resource.data.project_id == resource.data.project_id
+        && request.resource.data.auto       == resource.data.auto
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tasks', 'saved_at']);
       allow delete: if hasRole(['super_admin', 'operations_admin']); // needed for Undo mechanic
     }
 
