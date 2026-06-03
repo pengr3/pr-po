@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.0
-milestone_name: Procurement — Full Management Portal
-status: Phase 97.2 COMPLETE (2026-06-03) — UAT passed. Iteration overwrite enabled (firestore.rules field-masked update, deployed to clmc-procurement-dev) + Save & Load loop fixed (confirmIterLoad vs openIterConfirm). Commit f785915.
-stopped_at: Phase 97.2 closed after browser UAT on dev. Debug session iter-save-perms-indicator resolved.
-last_updated: "2026-06-03"
+milestone_name: Procurement ? Full Management Portal
+status: Phase 98 executed — awaiting browser UAT
+stopped_at: Phase 98 executed (4/4 plans landed on v3.3); 8 human UAT items pending
+last_updated: "2026-06-03T06:50:20.000Z"
 last_activity: 2026-06-03
 progress:
-  total_phases: 31
-  completed_phases: 29
-  total_plans: 111
-  completed_plans: 111
-  percent: 94
+  total_phases: 30
+  completed_phases: 24
+  total_plans: 97
+  completed_plans: 109
+  percent: 100
 ---
 
 # Project State
@@ -24,6 +24,12 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 **Current focus:** Phase 89 complete. Two Gantt phases remain: Phase 86.5 (Gantt UI Polish 3) and newly inserted Phase 86.9 (Curtain Divider + PDF Report Export).
 
 ## Current Position
+
+Phase: 98 EXECUTED — awaiting browser UAT (2026-06-03). 4/4 plans landed on v3.3 via inline sequential execution (gsd-sdk unavailable on this machine + 2 stale locked agent worktrees made the subagent/worktree path unsafe → orchestrator executed inline on the main tree). All automated grep/file-read checks PASS; `node --check` PASS on every modified JS module. Commits: 98-01 `37005ff` (clients Phone/Email split), 98-02 `dafac92` + fix `468268d` (notif inline alignment — **shared-class dropdown regression caught & fixed**: `.notif-row`/`.notif-row-body` are shared with the bell dropdown in app/notifications.js, so inline layout was scoped to `.notif-rows-container`), 98-03 `4353f61` (Payables Ref doc-id root-cause fix + ported viewTRDetailsFromRFP, verify-98-03.cjs 18/18), 98-04 `fbc1ae2` (home hero vertical compression, 3+2/1200px/media-blocks preserved). VERIFICATION verdict: `human_needed` — 8 UAT items persisted in 98-HUMAN-UAT.md. Phase NOT yet marked complete in ROADMAP (awaiting UAT approval). Firestore rules test suite NOT run (no rules-surface change in this phase; needs emulator).
+
+Next: run `/gsd-verify-work 98` (or manually test the 8 items in 98-HUMAN-UAT.md). On approval → mark phase 98 complete. On issues → `/gsd-plan-phase 98 --gaps`.
+
+---
 
 Phase: 87.4 COMPLETE (2026-05-24) — 3/3 plans landed sequentially on v3.3, verification PASSED 15/15, client UAT approved. Plan 01: 3-layer attachment-required Submit gate (UI disable + hint, handler guard, firestore.rules top-level conjunction); D-13 anchor preserved at firestore.rules:637. Plan 02: orange #f59e0b Request Revision via inline style (.btn-warning forbidden — yellow), dead Version cell removed, grid restructured to Strategy A repeat(3, 1fr). Plan 03: defensive rule on all 9 badge-* classes — initial fix `display:inline-block` + `width:fit-content` shipped, then UAT exposed secondary mechanism (flex min-width:auto = min-content was wrapping pill text); follow-up commit b70593d added `white-space:nowrap` to complete the canonical pill triad. Phase 87.3 still pending UAT.
 
@@ -194,6 +200,7 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 
 ### Roadmap Evolution
 
+- Phase 98 added (2026-06-03) — UI/UX Fixes bundle: (1) Clients split Contact Details into Phone/Email; (2) #/notifications row alignment; (3) Finance Payables PO Ref "Failed to load PO details" bug; (4) Home widgets don't fit on 27" monitor. Not planned yet.
 - Phase 97.2 inserted after 97.1 (2026-06-02, URGENT) — Iterations Save Model Overhaul: current "save (Automatically)" label and implicit save-as-on-load is confusing; iteration rail UX needs a full overhaul to a deliberate named-save model.
 
 ### Decisions
@@ -672,10 +679,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-06-03 - Phase 97.2 CLOSED after browser UAT on dev. Fixed iteration overwrite (firestore.rules field-masked project_iterations update rule, deployed to clmc-procurement-dev) + Save & Load infinite loop (confirmIterLoad vs openIterConfirm). Commit f785915. Debug session iter-save-perms-indicator resolved.
-Last session: 2026-06-03
-Stopped at: Phase 97.2 complete. No active phase.
-Resume file: None
+Last activity: 2026-06-03
+Last session: 2026-06-03T05:25:24.479Z
+Stopped at: Phase 98 context gathered
+Resume file: .planning/phases/98-ui-fixes-client-contact-notifications-payables-home/98-CONTEXT.md
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
