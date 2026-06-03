@@ -7,6 +7,11 @@ import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot,
 import { showLoading, showToast, formatCurrency, escapeHTML } from '../utils.js';
 import { createModal, openModal, closeModal, skeletonTableRows } from '../components.js';
 
+// Simple RFC-pragmatic email validator (D-04): blocks obvious malformations, no exotic-address coverage.
+function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 // Global state
 let clientsData = [];
 let editingClient = null;
@@ -75,8 +80,12 @@ export function render(activeTab = null) {
                         <input type="text" id="newContactPerson" required>
                     </div>
                     <div class="form-group">
-                        <label>Contact Details *</label>
-                        <input type="text" id="newContactDetails" required placeholder="Email, phone, address">
+                        <label>Phone</label>
+                        <input type="text" id="newClientPhone" placeholder="e.g. 0917-123-4567">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="newClientEmail" placeholder="e.g. name@company.com">
                     </div>
                     <div class="form-actions">
                         <button class="btn btn-secondary" onclick="window.toggleAddClientForm()">Cancel</button>
@@ -109,12 +118,13 @@ export function render(activeTab = null) {
                             <th onclick="window.sortClients('contact_person')" style="cursor: pointer; user-select: none;">
                                 Contact Person <span class="sort-indicator" data-col="contact_person"></span>
                             </th>
-                            <th>Contact Details</th>
+                            <th>Phone</th>
+                            <th>Email</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="clientsTableBody">
-                        ${skeletonTableRows(5, 5)}
+                        ${skeletonTableRows(6, 5)}
                     </tbody>
                 </table>
             </div>
@@ -256,9 +266,18 @@ async function showClientDetail(clientId) {
                     <span class="modal-detail-value">${escapeHTML(client.contact_person || '—')}</span>
                 </div>
                 <div class="modal-detail-item">
-                    <span class="modal-detail-label">Contact Details</span>
-                    <span class="modal-detail-value">${escapeHTML(client.contact_details || '—')}</span>
+                    <span class="modal-detail-label">Phone</span>
+                    <span class="modal-detail-value">${escapeHTML(client.phone || '—')}</span>
                 </div>
+                <div class="modal-detail-item">
+                    <span class="modal-detail-label">Email</span>
+                    <span class="modal-detail-value">${escapeHTML(client.email || '—')}</span>
+                </div>
+                ${(!client.phone && !client.email && client.contact_details) ? `
+                <div class="modal-detail-item">
+                    <span class="modal-detail-label">Contact (legacy)</span>
+                    <span class="modal-detail-value">${escapeHTML(client.contact_details)}</span>
+                </div>` : ''}
             </div>
         `;
 
@@ -407,7 +426,7 @@ function renderClientsTable() {
     if (filtered.length === 0) {
         const searchTerm = document.getElementById('clientSearchInput')?.value || '';
         const message = searchTerm ? 'No clients match your search.' : 'No clients yet. Add your first client!';
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
         const paginationDiv = document.getElementById('clientsPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
@@ -429,7 +448,8 @@ function renderClientsTable() {
                     <td><input type="text" id="edit-code" value="${escapeHTML(client.client_code)}" style="width: 100%; text-transform: uppercase;"></td>
                     <td><input type="text" id="edit-company" value="${escapeHTML(client.company_name)}" style="width: 100%;"></td>
                     <td><input type="text" id="edit-contact" value="${escapeHTML(client.contact_person)}" style="width: 100%;"></td>
-                    <td><input type="text" id="edit-details" value="${escapeHTML(client.contact_details)}" style="width: 100%;"></td>
+                    <td><input type="text" id="edit-phone" value="${escapeHTML(client.phone || '')}" placeholder="Phone" style="width: 100%;"></td>
+                    <td><input type="email" id="edit-email" value="${escapeHTML(client.email || '')}" placeholder="Email" style="width: 100%;"></td>
                     <td style="white-space: nowrap;">
                         <button class="btn btn-sm btn-success" onclick="saveEdit('${client.id}')">Save</button>
                         <button class="btn btn-sm btn-secondary" onclick="cancelEdit()">Cancel</button>
@@ -442,7 +462,8 @@ function renderClientsTable() {
                     <td><strong>${escapeHTML(client.client_code)}</strong></td>
                     <td>${escapeHTML(client.company_name)}</td>
                     <td>${escapeHTML(client.contact_person)}</td>
-                    <td>${escapeHTML(client.contact_details)}</td>
+                    <td>${escapeHTML(client.phone || (!client.email ? (client.contact_details || '') : ''))}</td>
+                    <td>${escapeHTML(client.email || '')}</td>
                     ${showEditControls ? `
                         <td style="white-space: nowrap;" onclick="event.stopPropagation()">
                             <button class="btn btn-sm btn-primary" onclick="window.editClient('${client.id}')">Edit</button>
@@ -491,7 +512,8 @@ function toggleAddClientForm() {
         document.getElementById('newClientCode').value = '';
         document.getElementById('newCompanyName').value = '';
         document.getElementById('newContactPerson').value = '';
-        document.getElementById('newContactDetails').value = '';
+        document.getElementById('newClientPhone').value = '';
+        document.getElementById('newClientEmail').value = '';
     }
 }
 
@@ -505,10 +527,19 @@ async function addClient() {
     const client_code = document.getElementById('newClientCode').value.trim().toUpperCase();
     const company_name = document.getElementById('newCompanyName').value.trim();
     const contact_person = document.getElementById('newContactPerson').value.trim();
-    const contact_details = document.getElementById('newContactDetails').value.trim();
+    const phone = document.getElementById('newClientPhone').value.trim();
+    const email = document.getElementById('newClientEmail').value.trim();
 
-    if (!client_code || !company_name || !contact_person || !contact_details) {
-        showToast('Please fill in all fields', 'error');
+    if (!client_code || !company_name || !contact_person) {
+        showToast('Please fill in Client Code, Company Name, and Contact Person', 'error');
+        return;
+    }
+    if (!phone && !email) {
+        showToast('Provide at least one of Phone or Email', 'error');
+        return;
+    }
+    if (email && !isValidEmail(email)) {
+        showToast('Email is not a valid address', 'error');
         return;
     }
 
@@ -525,7 +556,8 @@ async function addClient() {
             client_code,
             company_name,
             contact_person,
-            contact_details,
+            phone,
+            email,
             created_at: new Date().toISOString()
         });
 
@@ -565,10 +597,19 @@ async function saveEdit(clientId) {
     const client_code = document.getElementById('edit-code').value.trim().toUpperCase();
     const company_name = document.getElementById('edit-company').value.trim();
     const contact_person = document.getElementById('edit-contact').value.trim();
-    const contact_details = document.getElementById('edit-details').value.trim();
+    const phone = document.getElementById('edit-phone').value.trim();
+    const email = document.getElementById('edit-email').value.trim();
 
-    if (!client_code || !company_name || !contact_person || !contact_details) {
-        showToast('Please fill in all fields', 'error');
+    if (!client_code || !company_name || !contact_person) {
+        showToast('Please fill in Client Code, Company Name, and Contact Person', 'error');
+        return;
+    }
+    if (!phone && !email) {
+        showToast('Provide at least one of Phone or Email', 'error');
+        return;
+    }
+    if (email && !isValidEmail(email)) {
+        showToast('Email is not a valid address', 'error');
         return;
     }
 
@@ -586,7 +627,8 @@ async function saveEdit(clientId) {
             client_code,
             company_name,
             contact_person,
-            contact_details,
+            phone,
+            email,
             updated_at: new Date().toISOString()
         });
 
