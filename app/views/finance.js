@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc, getAggregateFromServer, sum, count, serverTimestamp, arrayUnion, arrayRemove } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML, getRFPTotal, getRFPFees } from '../utils.js';
+import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML, getRFPTotal, getRFPFees, getRFPFeeBreakdown } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
@@ -24,6 +24,61 @@ function debounce(callback, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
+}
+
+/* ===== Phase 91.3 — RFP fee display (cue pill + tooltip + breakdown card) ===== */
+
+// Monotonic id source so each cue gets a UNIQUE DOM id — the same RFP renders in both
+// the RFP table and the PO-summary sub-table, so an rfp_id-keyed id would collide.
+let _feeCueSeq = 0;
+
+// Collapsed "incl. fees" cue pill + breakdown tooltip. Returns '' for legacy/no-fee RFPs.
+// Labels are RAW from the breakdown — ALWAYS escapeHTML before interpolation (T-91.3-02).
+function renderFeeCue(rfp) {
+    const bd = getRFPFeeBreakdown(rfp);
+    if (!bd.hasFees) return '';
+    const cueId = `cue-${++_feeCueSeq}`;
+    const lines = bd.lines.map(l =>
+        `<div style="display:flex;justify-content:space-between;gap:12px;"><span>${escapeHTML(l.label)}</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(l.amount)}</span></div>`
+    ).join('');
+    const totalRow = `<div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid #334155;margin-top:6px;padding-top:6px;font-weight:700;"><span>Total</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(bd.grandTotal)}</span></div>`;
+    return `<span style="position:relative;display:inline-block;">`
+        + `<span id="${cueId}" class="cue" role="button" tabindex="0" aria-expanded="false" `
+        + `onclick="window.toggleFeeCue('${cueId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleFeeCue('${cueId}')}">incl. fees</span>`
+        + `<span class="cue-tip">${lines}${totalRow}</span>`
+        + `</span>`;
+}
+
+// Touch fallback: tap toggles the tooltip open (desktop uses CSS :hover from Plan 04).
+function toggleFeeCue(cueId) {
+    const cue = document.getElementById(cueId);
+    if (!cue) return;
+    const open = cue.classList.toggle('cue-open');
+    cue.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+window.toggleFeeCue = toggleFeeCue;
+
+// D-07 canonical itemization card (Base → fees → Grand total) for the record-payment modal.
+// Legacy/no-fee RFP → Base + Grand total equal, no fee lines, no pill. Labels escaped (T-91.3-02).
+function renderFeeBreakdownCard(rfp) {
+    const bd = getRFPFeeBreakdown(rfp);
+    const feeLines = bd.lines.filter(l => l.kind !== 'base').map(l =>
+        `<div style="display:flex;justify-content:space-between;padding-left:12px;font-size:0.8rem;color:#475569;"><span>${escapeHTML(l.label)}</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(l.amount)}</span></div>`
+    ).join('');
+    const pill = bd.hasFees ? `<span class="cue">incl. fees</span>` : '';
+    return `<div class="fee-card" style="grid-column:span 2;">
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Amount breakdown</div>
+        <div style="display:flex;justify-content:space-between;font-size:0.875rem;"><span>Base amount</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(bd.base)}</span></div>
+        ${feeLines}
+        <div class="grand" style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed #bae6fd;margin-top:6px;padding-top:6px;"><span style="font-weight:700;">Grand total ${pill}</span><span class="amt">${formatCurrency(bd.grandTotal)}</span></div>
+    </div>`;
+}
+
+// PO Payment Summary roll-up note (D-16). Fees summed over regular (non-Delivery-Fee) RFPs —
+// matches the feesTotal derivePOSummary already folded into the fee-inclusive Total payable.
+function renderPOFeeSubnote(po) {
+    const poFees = (po.rfps || []).filter(r => r.tranche_label !== 'Delivery Fee').reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
+    return poFees > 0 ? `<div class="fee-subnote">incl. ${formatCurrency(poFees)} fees</div>` : '';
 }
 
 /**
@@ -435,10 +490,7 @@ function openRecordPaymentModal(rfpDocId) {
                         <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.supplier_name)}</div>
                     </div>
-                    <div>
-                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">RFP Amount</div>
-                        <div style="font-weight:600;color:#1e293b;">${formatCurrency(rfp.amount_requested || 0)}</div>
-                    </div>
+                    ${renderFeeBreakdownCard(rfp)}
                     <div style="grid-column:span 2;">
                         <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Mode of Payment</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.mode_of_payment || 'Not specified')}</div>
@@ -725,7 +777,7 @@ function buildRFPCard(rfp) {
                 <div class="fc-card-row"><span class="fc-label">PO Ref</span><span class="fc-value">${poRefDisplay}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${deptLabel}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Tranche</span><span class="fc-value">${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</span></div>
-                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">${formatCurrency(rfp.amount_requested || 0)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Paid</span><span class="fc-value">${formatCurrency(totalPaid)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Balance</span><span class="fc-value">${formatCurrency(balance)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Due Date</span><span class="fc-value">${rfp.due_date || 'N/A'}</span></div>
@@ -831,7 +883,7 @@ function renderRFPTable() {
                 ? `<a href="${escapeHTML(rfp.invoice_number)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">View</a>`
                 : escapeHTML(rfp.invoice_number || '-')}</td>
             <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
-            <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
+            <td style="text-align:right;">${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</td>
             <td style="text-align:right;">${formatCurrency(totalPaid)}</td>
             <td style="text-align:right;">${formatCurrency(balance)}</td>
             <td>${rfp.due_date || 'N/A'}</td>
@@ -979,7 +1031,7 @@ function buildPOTrancheSubCard(rfp) {
             </div>
             <div style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;">
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Tranche</span><span>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</span></div>
-                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Amount</span><span>${formatCurrency(rfp.amount_requested || 0)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Amount</span><span>${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</span></div>
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Paid</span><span>${formatCurrency(rfpTotalPaid)}</span></div>
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Balance</span><span>${formatCurrency(rfpBalance)}</span></div>
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Due Date</span><span>${rfp.due_date || 'N/A'}</span></div>
@@ -1014,7 +1066,7 @@ function buildPOSummaryCard(po) {
                 <div class="fc-card-row"><span class="fc-label">Supplier</span><span class="fc-value">${escapeHTML(po.supplier || '')}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${po.deptLabel}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Current Active Tranche</span><span class="fc-value">${po.currentTranche}</span></div>
-                <div class="fc-card-row"><span class="fc-label">Total Amount</span><span class="fc-value">${formatCurrency(po.totalAmount)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Total Amount</span><span class="fc-value">${formatCurrency(po.totalAmount)}${renderPOFeeSubnote(po)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Total Paid</span><span class="fc-value">${formatCurrency(po.totalPaid)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Remaining</span><span class="fc-value fc-amount">${formatCurrency(po.remaining)}</span></div>
             </div>
@@ -1138,7 +1190,7 @@ function renderPOSummaryTable() {
             return `<tr style="${rfpIsOverdue ? 'background-color:#fef2f2;' : ''}">
                 <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
                 <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
-                <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
+                <td style="text-align:right;">${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</td>
                 <td style="text-align:right;">${formatCurrency(rfpTotalPaid)}</td>
                 <td style="text-align:right;">${formatCurrency(rfpBalance)}</td>
                 <td>${rfp.due_date || 'N/A'}</td>
@@ -1176,7 +1228,7 @@ function renderPOSummaryTable() {
             <td>${escapeHTML(po.supplier)}</td>
             <td>${po.deptLabel}</td>
             <td>${po.currentTranche}</td>
-            <td style="text-align:right;">${formatCurrency(po.totalAmount)}</td>
+            <td style="text-align:right;">${formatCurrency(po.totalAmount)}${renderPOFeeSubnote(po)}</td>
             <td style="text-align:right;">${formatCurrency(po.totalPaid)}</td>
             <td style="text-align:right;">${formatCurrency(po.remaining)}</td>
             <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${badgeStyle}">${po.overallStatus}</span></td>
