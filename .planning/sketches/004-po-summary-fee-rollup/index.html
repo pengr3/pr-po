@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 004 — PO Summary / Expense Breakdown w/ Fees</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; padding-top:52px; font-family:var(--font-sans); background:var(--color-bg); color:var(--color-text); }
+  #variant-nav { position:fixed; top:0; left:0; right:0; z-index:9998; background:#0f172a; border-bottom:1px solid #1e293b; padding:8px 14px; display:flex; gap:8px; align-items:center; font-size:13px; }
+  #variant-nav .title { color:#94a3b8; font-weight:600; margin-right:6px; }
+  .variant-tab { background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-family:inherit; transition:all .15s; }
+  .variant-tab:hover { background:#334155; color:#fff; }
+  .variant-tab.active { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+
+  #stage-wrap { display:flex; justify-content:center; padding:24px 16px 90px; }
+  #stage { width:100%; max-width:880px; transition:max-width .2s; }
+  .note { margin:0 0 14px; color:#475569; font-size:.82rem; background:#fff; border:1px solid var(--color-border); border-left:3px solid var(--color-primary); border-radius:8px; padding:.6rem .8rem; }
+
+  .panel { background:#fff; border:1px solid var(--color-border); border-radius:12px; overflow:hidden; box-shadow:var(--shadow-sm); }
+  .panel-head { padding:.9rem 1.1rem; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center; }
+  .panel-head h3 { margin:0; font-size:1rem; font-weight:700; }
+  .panel-head .sub { font-size:.78rem; color:var(--color-text-muted); }
+
+  /* stat tiles */
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:14px; }
+  .stat { border:1px solid var(--color-border); border-radius:10px; padding:.8rem .9rem; background:#f8fafc; }
+  .stat .k { font-size:.68rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--color-text-muted); }
+  .stat .v { font-size:1.35rem; font-weight:800; color:var(--color-text); margin-top:3px; font-variant-numeric:tabular-nums; }
+  .stat .sub { font-size:.7rem; color:#0369a1; margin-top:2px; }
+  .stat.remain .v { color:#92400e; }
+  .stat.paid .v { color:#166534; }
+
+  /* breakdown block (variant B header) */
+  .bd { padding:14px; display:flex; gap:14px; flex-wrap:wrap; align-items:stretch; }
+  .bd .calc { flex:1; min-width:240px; border:1px solid var(--color-fee-border); background:var(--color-fee-bg); border-radius:10px; padding:.85rem 1rem; }
+  .bd .calc .line { display:flex; justify-content:space-between; font-size:.86rem; padding:.22rem 0; color:var(--color-text-2); }
+  .bd .calc .line .v { font-weight:600; color:var(--color-text); font-variant-numeric:tabular-nums; }
+  .bd .calc .line.fee .v { color:#0369a1; }
+  .bd .calc .line.tot { border-top:1px dashed var(--color-fee-border); margin-top:.3rem; padding-top:.45rem; font-weight:800; }
+  .bd .calc .line.tot .v { font-size:1.1rem; }
+  .bd .pp { flex:1; min-width:200px; display:flex; flex-direction:column; gap:10px; justify-content:center; }
+  .bd .pp .row { display:flex; justify-content:space-between; font-size:.9rem; }
+  .bd .pp .row .k { color:var(--color-text-muted); font-weight:600; }
+  .bd .pp .row .v { font-weight:800; font-variant-numeric:tabular-nums; }
+  .bd .pp .row.paid .v { color:#166534; } .bd .pp .row.remain .v { color:#92400e; }
+
+  table.sub { width:100%; border-collapse:collapse; font-size:.83rem; }
+  table.sub thead th { background:#f8fafc; text-align:left; padding:.55rem .8rem; font-size:.68rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--color-text-muted); border-top:1px solid var(--color-border); border-bottom:1px solid var(--color-border); }
+  table.sub thead th.r { text-align:right; }
+  table.sub td { padding:.6rem .8rem; border-bottom:1px solid #f1f5f9; }
+  table.sub td.r { text-align:right; font-variant-numeric:tabular-nums; }
+  table.sub tfoot td { padding:.6rem .8rem; font-weight:800; border-top:2px solid var(--color-border); font-variant-numeric:tabular-nums; }
+  .rfp-id { font-weight:700; color:var(--color-primary); }
+  .muted { color:var(--color-text-muted); }
+  .fee-cell { color:#0369a1; font-weight:600; }
+  .fee-zero { color:#cbd5e1; }
+
+  .cue { position:relative; display:inline-flex; align-items:center; gap:4px; margin-left:6px; background:var(--color-fee-bg); color:#0369a1; border:1px solid var(--color-fee-border); border-radius:var(--radius-full); font-size:.6rem; font-weight:700; padding:1px 7px; cursor:default; vertical-align:middle; }
+  .cue .tip { display:none; position:absolute; bottom:130%; right:0; z-index:50; width:200px; background:#0f172a; color:#e2e8f0; border-radius:8px; padding:.55rem .65rem; box-shadow:var(--shadow-md); font-weight:400; }
+  .cue:hover .tip { display:block; }
+  .cue .tip .tl { display:flex; justify-content:space-between; font-size:.72rem; padding:1px 0; }
+  .cue .tip .tl.tot { border-top:1px solid #334155; margin-top:4px; padding-top:4px; font-weight:700; color:#fff; }
+
+  .pill { display:inline-block; padding:2px 9px; border-radius:var(--radius-full); font-size:.68rem; font-weight:700; }
+  .pill.paid { background:#dcfce7; color:#166534; } .pill.partial { background:#fef3c7; color:#92400e; } .pill.pending { background:#e0e7ff; color:#3730a3; }
+
+  .cards { display:none; flex-direction:column; gap:10px; padding:12px; }
+  .rcard { border:1px solid var(--color-border); border-radius:10px; padding:.7rem .8rem; }
+  .rcard .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem; }
+  .rcard .krow { display:flex; justify-content:space-between; font-size:.8rem; padding:2px 0; }
+  .rcard .krow .k { color:var(--color-text-muted); } .rcard .krow .v { font-weight:600; }
+
+  .variant { display:none; } .variant.active { display:block; }
+  #stage.narrow table.sub, #stage.narrow .stats { display:none; }
+  #stage.narrow .cards { display:flex; }
+
+  #sketch-tools { position:fixed; bottom:12px; right:12px; z-index:9999; font-family:system-ui; font-size:12px; background:rgba(15,23,42,.82); color:#fff; padding:8px 10px; border-radius:10px; opacity:.5; transition:opacity .2s; display:flex; gap:6px; align-items:center; }
+  #sketch-tools:hover { opacity:1; }
+  #sketch-tools button { background:#334155; color:#fff; border:none; border-radius:5px; padding:4px 8px; cursor:pointer; font-size:11px; }
+  #sketch-tools button.on { background:var(--color-primary); }
+  #sketch-tools .vw { color:#94a3b8; min-width:62px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <span class="title">Sketch 004 · PO Summary roll-up</span>
+  <button class="variant-tab active" data-v="a" onclick="showVariant('a')">A · Fee-inclusive total + cue</button>
+  <button class="variant-tab" data-v="b" onclick="showVariant('b')">B · Explicit Base/Fees/Total</button>
+</div>
+
+<div id="stage-wrap"><div id="stage">
+
+  <!-- A -->
+  <div id="variant-a" class="variant active">
+    <div class="note"><b>A · Fee-inclusive totals + per-row cue.</b> Minimal change to today's PO Payment Summary: Total / Paid / Remaining just become fee-inclusive, with a small "incl. fees" note. Sub-rows reuse the sketch-002 pill. Least disruptive to the existing layout.</div>
+    <div class="panel">
+      <div class="panel-head"><h3>PO Payment Summary</h3><span class="sub">PO-2026-014 · Prime Hardware &amp; Elec. Supply</span></div>
+      <div class="stats">
+        <div class="stat"><div class="k">Total payable</div><div class="v">₱151,250.00</div><div class="sub">incl. ₱1,250.00 fees</div></div>
+        <div class="stat paid"><div class="k">Paid</div><div class="v">₱20,000.00</div></div>
+        <div class="stat remain"><div class="k">Remaining</div><div class="v">₱131,250.00</div></div>
+      </div>
+      <table class="sub">
+        <thead><tr><th>RFP</th><th>Tranche</th><th class="r">Amount</th><th class="r">Paid</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><span class="rfp-id">…-1</span></td><td>30% Downpayment</td>
+            <td class="r">₱46,250.00 <span class="cue">incl. fees<span class="tip"><span class="tl"><span>Base</span><span>₱45,000.00</span></span><span class="tl"><span>Transfer</span><span>₱750.00</span></span><span class="tl"><span>Cash-out</span><span>₱500.00</span></span><span class="tl tot"><span>Total</span><span>₱46,250.00</span></span></span></span></td>
+            <td class="r">₱20,000.00</td><td><span class="pill partial">Partially Paid</span></td></tr>
+          <tr><td><span class="rfp-id">…-2</span></td><td>40% Upon Delivery</td><td class="r">₱60,000.00</td><td class="r muted">₱0.00</td><td><span class="pill pending">Pending</span></td></tr>
+          <tr><td><span class="rfp-id">DF</span></td><td>Delivery Fee</td><td class="r">₱3,500.00</td><td class="r">₱3,500.00</td><td><span class="pill paid">Fully Paid</span></td></tr>
+          <tr><td class="muted">—</td><td class="muted">30% Final <span style="font-style:italic;">(not yet raised)</span></td><td class="r muted">₱45,000.00</td><td class="r muted">—</td><td class="muted">—</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="2">Total payable <span class="cue" style="margin-left:4px;">incl. ₱1,250 fees</span></td><td class="r">₱151,250.00</td><td class="r">₱23,500.00</td><td></td></tr></tfoot>
+      </table>
+      <div class="cards">
+        <div class="rcard"><div class="top"><b>Total payable</b><b>₱151,250.00</b></div><div class="krow"><span class="k">incl. fees</span><span class="v" style="color:#0369a1;">₱1,250.00</span></div><div class="krow"><span class="k">Paid</span><span class="v" style="color:#166534;">₱20,000.00</span></div><div class="krow"><span class="k">Remaining</span><span class="v" style="color:#92400e;">₱131,250.00</span></div></div>
+        <div class="rcard"><div class="top"><span class="rfp-id">…-1 · 30% Downpayment</span><span class="pill partial">Partial</span></div><div class="krow"><span class="k">Amount</span><span class="v">₱46,250.00 <span class="cue">incl. fees</span></span></div><div class="krow"><span class="k">Paid</span><span class="v">₱20,000.00</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div id="variant-b" class="variant">
+    <div class="note"><b>B · Explicit Base / Fees / Total breakdown.</b> The summary header spells out the aggregation (PO base + fees = total payable), and the sub-table gets a dedicated Fees column. Most transparent for finance reconciliation; adds a column &amp; a calc block.</div>
+    <div class="panel">
+      <div class="panel-head"><h3>Financial Breakdown · Payables</h3><span class="sub">PO-2026-014 · Prime Hardware &amp; Elec. Supply</span></div>
+      <div class="bd">
+        <div class="calc">
+          <div class="line"><span>PO base total</span><span class="v">₱150,000.00</span></div>
+          <div class="line fee"><span>+ Supplementary fees</span><span class="v">+ ₱1,250.00</span></div>
+          <div class="line tot"><span>Total payable</span><span class="v">₱151,250.00</span></div>
+        </div>
+        <div class="pp">
+          <div class="row paid"><span class="k">Paid to date</span><span class="v">₱23,500.00</span></div>
+          <div class="row remain"><span class="k">Remaining</span><span class="v">₱127,750.00</span></div>
+        </div>
+      </div>
+      <table class="sub">
+        <thead><tr><th>RFP</th><th>Tranche</th><th class="r">Base</th><th class="r">Fees</th><th class="r">Total</th><th class="r">Paid</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><span class="rfp-id">…-1</span></td><td>30% Downpayment</td><td class="r">₱45,000.00</td><td class="r fee-cell">₱1,250.00</td><td class="r">₱46,250.00</td><td class="r">₱20,000.00</td><td><span class="pill partial">Partial</span></td></tr>
+          <tr><td><span class="rfp-id">…-2</span></td><td>40% Upon Delivery</td><td class="r">₱60,000.00</td><td class="r fee-zero">—</td><td class="r">₱60,000.00</td><td class="r muted">₱0.00</td><td><span class="pill pending">Pending</span></td></tr>
+          <tr><td><span class="rfp-id">DF</span></td><td>Delivery Fee</td><td class="r">₱3,500.00</td><td class="r fee-zero">—</td><td class="r">₱3,500.00</td><td class="r">₱3,500.00</td><td><span class="pill paid">Paid</span></td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="2">Raised to date</td><td class="r">₱108,500.00</td><td class="r fee-cell">₱1,250.00</td><td class="r">₱109,750.00</td><td class="r">₱23,500.00</td><td></td></tr></tfoot>
+      </table>
+      <div class="cards">
+        <div class="rcard"><div class="top"><b>Total payable</b><b>₱151,250.00</b></div><div class="krow"><span class="k">PO base</span><span class="v">₱150,000.00</span></div><div class="krow"><span class="k">+ Fees</span><span class="v" style="color:#0369a1;">₱1,250.00</span></div><div class="krow"><span class="k">Remaining</span><span class="v" style="color:#92400e;">₱127,750.00</span></div></div>
+        <div class="rcard"><div class="top"><span class="rfp-id">…-1 · 30% Down</span><span class="pill partial">Partial</span></div><div class="krow"><span class="k">Base</span><span class="v">₱45,000.00</span></div><div class="krow"><span class="k">Fees</span><span class="v" style="color:#0369a1;">₱1,250.00</span></div><div class="krow"><span class="k">Total</span><span class="v">₱46,250.00</span></div></div>
+      </div>
+    </div>
+  </div>
+
+</div></div>
+
+<div id="sketch-tools">
+  <span style="color:#94a3b8;">view:</span>
+  <button id="vw-phone" onclick="setVw(390,'vw-phone',true)">Phone</button>
+  <button id="vw-tab" onclick="setVw(768,'vw-tab',false)">Tablet</button>
+  <button id="vw-desk" class="on" onclick="setVw(880,'vw-desk',false)">Desktop</button>
+  <span class="vw" id="vw-label">880px</span>
+</div>
+
+<script>
+  function showVariant(v){
+    document.querySelectorAll('.variant').forEach(e=>e.classList.remove('active'));
+    document.querySelectorAll('.variant-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('variant-'+v).classList.add('active');
+    document.querySelector('.variant-tab[data-v="'+v+'"]').classList.add('active');
+  }
+  function setVw(px,id,narrow){ const st=document.getElementById('stage'); st.style.maxWidth=px+'px'; st.classList.toggle('narrow',!!narrow); document.getElementById('vw-label').textContent=px+'px'; ['vw-phone','vw-tab','vw-desk'].forEach(b=>document.getElementById(b).classList.toggle('on',b===id)); }
+</script>
+</body>
+</html>
