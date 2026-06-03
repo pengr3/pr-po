@@ -1951,13 +1951,22 @@ tr:hover {
 
 .notif-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #f1f5f9;
     border-left: 3px solid transparent;
     cursor: pointer;
     transition: background 0.12s ease;
+}
+
+/* Phase 98 Slice 2: the history page (#/notifications) wraps its rows in
+   .notif-rows-container and uses an inline single-line layout. The dropdown
+   (app/notifications.js) reuses the bare .notif-row / .notif-row-body classes
+   for a stacked .na-body, so the inline alignment is scoped here to the history
+   container only — keeping the bell dropdown visually unchanged (D-10). */
+.notif-rows-container .notif-row {
+    align-items: center;
 }
 
 .notif-row:hover {
@@ -1996,8 +2005,8 @@ tr:hover {
 
 .notif-row-body {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    align-items: flex-start;
+    gap: 0.5rem;
     flex: 1;
     min-width: 0;
     cursor: pointer;
