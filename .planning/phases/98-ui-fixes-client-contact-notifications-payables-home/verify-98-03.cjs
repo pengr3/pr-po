@@ -1,4 +1,8 @@
 // Verification for Phase 98 Slice 3 (Payables Ref Link) — finance.js route-by-type.
+// UPDATED after UAT (2026-06-03): the original plan assumed RFP docs carry a usable
+// po_doc_id/tr_doc_id. They don't (some are empty -> "pos has 1 segment" FirebaseError).
+// Corrected fix: pass the human-readable po_id/tr_id and resolve the Firestore doc id
+// from the live pos collection (posDocIdMap) or a tr_id/po_id query.
 // Run: node .planning/phases/98-ui-fixes-client-contact-notifications-payables-home/verify-98-03.cjs
 // Exit 0 = all checks pass.
 const fs = require('fs');
@@ -7,31 +11,31 @@ const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const c = fs.readFileSync(path.join(repoRoot, 'app/views/finance.js'), 'utf8');
 
 const checks = [
-  // Task 1: ported TR modal + window wiring + doc-id threading
+  // Ported TR modal + window wiring
   ['async function viewTRDetailsFromRFP defined', /async function viewTRDetailsFromRFP/.test(c)],
   ['window.viewTRDetailsFromRFP registered', /window\.viewTRDetailsFromRFP\s*=\s*viewTRDetailsFromRFP/.test(c)],
   ['window.viewTRDetailsFromRFP deleted in cleanup', /delete window\.viewTRDetailsFromRFP/.test(c)],
-  ['buildPOMap entry threads po_doc_id', /po_doc_id:\s*rfp\.po_doc_id/.test(c)],
-  ['buildPOMap entry threads tr_doc_id', /tr_doc_id:\s*rfp\.tr_doc_id/.test(c)],
-  ['poEntries push threads po_doc_id', /po_doc_id:\s*entry\.po_doc_id/.test(c)],
-  ['poEntries push threads tr_doc_id', /tr_doc_id:\s*entry\.tr_doc_id/.test(c)],
   ['TR modal fetches transport_requests', /getDoc\(doc\(db,\s*'transport_requests'/.test(c)],
   ['finance TR modal id used', /financeTRDetailsModal/.test(c)],
 
-  // Task 2: PO Summary template-literal site now passes po.po_doc_id
-  ['PO Summary table passes po.po_doc_id', /viewPODetailsFromRFP\('\$\{po\.po_doc_id/.test(c)],
-  // RFP Processing table still passes rfp.po_doc_id
-  ['RFP Processing table passes rfp.po_doc_id', /viewPODetailsFromRFP\('\$\{rfp\.po_doc_id/.test(c)],
-  // TR links now exist (template-literal sites)
-  ['PO Summary table TR link uses po.tr_doc_id', /viewTRDetailsFromRFP\('\$\{po\.tr_doc_id/.test(c)],
-  ['RFP Processing table TR link uses rfp.tr_doc_id', /viewTRDetailsFromRFP\('\$\{rfp\.tr_doc_id/.test(c)],
-  // String-concat card sites
-  ['PO Summary card passes po.po_doc_id', /viewPODetailsFromRFP\(\\'' \+ \(po\.po_doc_id/.test(c) || /viewPODetailsFromRFP\(\\''\s*\+\s*\(po\.po_doc_id/.test(c)],
-  ['PO Summary card TR link uses po.tr_doc_id', /viewTRDetailsFromRFP\(\\''\s*\+\s*\(po\.tr_doc_id/.test(c)],
+  // Gap fix: resolve PO doc id from the live pos collection, never from RFP.po_doc_id
+  ['posDocIdMap built in pos snapshot', /posDocIdMap\.set\(data\.po_id,\s*docSnap\.id\)/.test(c)],
+  ['viewPODetailsFromRFP resolves via posDocIdMap', /posDocIdMap\.get\(poRef\)/.test(c)],
+  ['viewPODetailsFromRFP query fallback by po_id', /where\('po_id',\s*'=='/.test(c)],
+  ['viewTRDetailsFromRFP resolves by tr_id query', /where\('tr_id',\s*'=='/.test(c)],
 
-  // BUG GONE: no site passes po.poId to the PO loader
-  ['BUG gone: no viewPODetailsFromRFP(${po.poId})', !/viewPODetailsFromRFP\('\$\{po\.poId/.test(c)],
-  ['BUG gone: no viewPODetailsFromRFP concat po.poId', !/viewPODetailsFromRFP\(\\''\s*\+\s*po\.poId/.test(c)],
+  // Call sites pass the human-readable id (resolved server-side) — template-literal sites
+  ['PO Summary table passes po.poId', /viewPODetailsFromRFP\('\$\{po\.poId\}'\)/.test(c)],
+  ['RFP Processing table passes rfp.po_id', /viewPODetailsFromRFP\('\$\{rfp\.po_id\}'\)/.test(c)],
+  ['PO Summary table TR link uses po.poId', /viewTRDetailsFromRFP\('\$\{po\.poId\}'\)/.test(c)],
+  ['RFP Processing table TR link uses rfp.tr_id', /viewTRDetailsFromRFP\('\$\{rfp\.tr_id\}'\)/.test(c)],
+  // String-concat card sites
+  ['PO Summary card passes po.poId', /viewPODetailsFromRFP\(\\'' \+ po\.poId/.test(c)],
+  ['RFP card TR link uses rfp.tr_id', /viewTRDetailsFromRFP\(\\'' \+ rfp\.tr_id/.test(c)],
+
+  // BUG GONE: no reliance on the unreliable RFP doc-id fields anywhere in finance.js
+  ['BUG gone: no po_doc_id reference remains', !/po_doc_id/.test(c)],
+  ['BUG gone: no tr_doc_id reference remains', !/tr_doc_id/.test(c)],
 
   // truly-unlinked plain text still present
   ['truly-unlinked dash span present', /<span style="color:#999;">-<\/span>/.test(c)],

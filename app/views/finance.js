@@ -108,6 +108,7 @@ let currentApprovalTarget = null;
 let rfpsData = [];                // all RFP documents from onSnapshot
 let posAmountMap = new Map();     // po_id -> total_amount from PO document
 let posNameMap = new Map();       // po_id -> { project_name, service_name } from PO document
+let posDocIdMap = new Map();      // po_id (human-readable) -> Firestore doc id (authoritative; the stored RFP doc-id field is unreliable/empty on some docs — Phase 98 gap fix)
 // Table 1 (RFP Processing) filter state
 let rfpStatusFilter = '';
 let rfpDeptFilter = '';
@@ -705,9 +706,9 @@ function buildRFPCard(rfp) {
         : '';
 
     const poRefDisplay = rfp.po_id
-        ? '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + (rfp.po_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.po_id) + '</a>'
+        ? '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + rfp.po_id + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.po_id) + '</a>'
         : rfp.tr_id
-        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + (rfp.tr_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.tr_id) + '</a>'
+        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + rfp.tr_id + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.tr_id) + '</a>'
         : '<span style="color:#999;">-</span>';
 
     return `
@@ -817,9 +818,9 @@ function renderRFPTable() {
             <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
             <td>${escapeHTML(rfp.supplier_name || '')}</td>
             <td>${rfp.po_id
-                ? `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id)}</a>`
+                ? `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_id}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id)}</a>`
                 : rfp.tr_id
-                ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${rfp.tr_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.tr_id)}</a>`
+                ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${rfp.tr_id}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.tr_id)}</a>`
                 : '<span style="color:#999;">-</span>'
             }</td>
             <td>${deptLabel}</td>
@@ -867,8 +868,6 @@ function buildPOMap(rfps) {
                 deptName: dName,
                 isService: !!rfp.service_code,
                 isTR: !rfp.po_id && !!rfp.tr_id,
-                po_doc_id: rfp.po_doc_id || '',
-                tr_doc_id: rfp.tr_doc_id || '',
                 rfps: []
             });
         }
@@ -995,8 +994,8 @@ function buildPOSummaryCard(po) {
     const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     const refDisplay = po.isTR
-        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + (po.tr_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>'
-        : '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + (po.po_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>';
+        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + po.poId + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>'
+        : '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + po.poId + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>';
 
     const subCards = po.sortedRFPs.map(rfp => buildPOTrancheSubCard(rfp)).join('');
 
@@ -1055,8 +1054,6 @@ function renderPOSummaryTable() {
             deptName: entry.deptName || '',
             isService: entry.isService,
             isTR: entry.isTR || false,
-            po_doc_id: entry.po_doc_id || '',
-            tr_doc_id: entry.tr_doc_id || '',
             rfps: entry.rfps,
             ...summary
         });
@@ -1163,8 +1160,8 @@ function renderPOSummaryTable() {
         const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         const refDisplay = po.isTR
-            ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${po.tr_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`
-            : `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${po.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`;
+            ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${po.poId}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`
+            : `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${po.poId}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`;
 
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
             <td style="text-align:center;cursor:pointer;user-select:none;" onclick="window.togglePOExpand('${safePoId}')">
@@ -1212,6 +1209,7 @@ async function initPayablesTab() {
     const posUnsub = onSnapshot(collection(db, 'pos'), (snapshot) => {
         posAmountMap = new Map();
         posNameMap = new Map();
+        posDocIdMap = new Map();
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             if (data.po_id) {
@@ -1222,6 +1220,9 @@ async function initPayablesTab() {
                     project_name: data.project_name || '',
                     service_name: data.service_name || ''
                 });
+                // po_id -> doc id, so the Ref link can resolve the PO without
+                // relying on the stored RFP doc-id field (empty on some RFP docs). Phase 98 gap fix.
+                posDocIdMap.set(data.po_id, docSnap.id);
             }
         });
         // Re-render both tables with updated PO data
@@ -2838,9 +2839,20 @@ function formatDocumentDate(dateString) {
     });
 }
 
-async function viewPODetailsFromRFP(poDocId) {
+async function viewPODetailsFromRFP(poRef) {
     showLoading(true);
     try {
+        // poRef is the human-readable po_id (e.g. "PO-2026-001"). Resolve it to the
+        // Firestore doc id via the live pos collection — RFP docs store an unreliable/
+        // empty doc-id field, so we never pass that straight to getDoc (Phase 98 gap fix:
+        // empty id -> "pos has 1 segment" FirebaseError). Map first, query fallback,
+        // then assume poRef is already a doc id as a last resort.
+        if (!poRef) { showToast('PO not found', 'error'); return; }
+        let poDocId = posDocIdMap.get(poRef) || '';
+        if (!poDocId) {
+            const qSnap = await getDocs(query(collection(db, 'pos'), where('po_id', '==', poRef)));
+            poDocId = qSnap.empty ? poRef : qSnap.docs[0].id;
+        }
         const poDoc = await getDoc(doc(db, 'pos', poDocId));
         if (!poDoc.exists()) {
             showToast('PO not found', 'error');
@@ -2948,9 +2960,16 @@ async function viewPODetailsFromRFP(poDocId) {
  * Firestore doc ID; all rendered fields are escapeHTML'd (D-06/D-12, T-98-05).
  * @param {string} trDocId - Firestore document ID of the transport_requests doc
  */
-async function viewTRDetailsFromRFP(trDocId) {
+async function viewTRDetailsFromRFP(trRef) {
     showLoading(true);
     try {
+        // trRef is the human-readable tr_id (e.g. "TR-2026-001"). transport_requests
+        // are not preloaded in finance, and the stored RFP doc-id field is unreliable, so
+        // resolve the doc id by querying tr_id (fallback: assume trRef is already a doc id).
+        if (!trRef) { showToast('TR not found', 'error'); return; }
+        let trDocId = trRef;
+        const qSnap = await getDocs(query(collection(db, 'transport_requests'), where('tr_id', '==', trRef)));
+        if (!qSnap.empty) trDocId = qSnap.docs[0].id;
         const trDoc = await getDoc(doc(db, 'transport_requests', trDocId));
         if (!trDoc.exists()) { showToast('TR not found', 'error'); return; }
         const tr = { id: trDoc.id, ...trDoc.data() };
