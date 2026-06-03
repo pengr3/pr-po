@@ -8,12 +8,12 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 4rem 2rem;
+    padding: 2rem 2rem;
     background: linear-gradient(135deg, #f5f7fa 0%, #e8eaed 100%);
 }
 
 .hero-title {
-    font-size: 3rem;
+    font-size: 2.25rem;
     font-weight: 700;
     color: var(--gray-900);
     text-align: center;
@@ -22,10 +22,10 @@
 }
 
 .hero-subtitle {
-    font-size: 1.25rem;
+    font-size: 1.05rem;
     color: var(--gray-700);
     text-align: center;
-    margin-bottom: 4rem;
+    margin-bottom: 1.5rem;
     font-weight: 400;
 }
 
@@ -42,7 +42,7 @@
 .nav-card {
     background: white;
     border-radius: 12px;
-    padding: 2.5rem 2rem;
+    padding: 1.5rem 1.5rem;
     text-align: center;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     transition: all 0.3s ease;
@@ -57,28 +57,28 @@
 }
 
 .nav-card-icon {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
+    font-size: 2.75rem;
+    margin-bottom: 0.75rem;
     display: block;
 }
 
 .nav-card h3 {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 600;
     color: var(--gray-900);
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .nav-card p {
-    font-size: 1rem;
+    font-size: 0.9rem;
     color: var(--gray-700);
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
     line-height: 1.6;
 }
 
 .nav-card .btn {
     width: 100%;
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1.5rem;
     font-size: 1rem;
     font-weight: 600;
 }
@@ -87,15 +87,15 @@
 .dept-cards {
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1rem;
     max-width: 1200px;
     width: 100%;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 .dept-cards-row {
     display: grid;
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .dept-cards-row--top {
