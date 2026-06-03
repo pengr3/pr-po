@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 98 executed — awaiting browser UAT
-stopped_at: Phase 98 executed (4/4 plans landed on v3.3); 8 human UAT items pending
-last_updated: "2026-06-03T06:50:20.000Z"
+status: Phase 98 COMPLETE (UAT batch-approved) — browser spot-check pending
+stopped_at: Phase 98 complete (4/4 plans on v3.3); 8 UAT items batch-approved, browser spot-check punch list open
+last_updated: "2026-06-03T06:55:00.000Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 30
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-Phase: 98 EXECUTED — awaiting browser UAT (2026-06-03). 4/4 plans landed on v3.3 via inline sequential execution (gsd-sdk unavailable on this machine + 2 stale locked agent worktrees made the subagent/worktree path unsafe → orchestrator executed inline on the main tree). All automated grep/file-read checks PASS; `node --check` PASS on every modified JS module. Commits: 98-01 `37005ff` (clients Phone/Email split), 98-02 `dafac92` + fix `468268d` (notif inline alignment — **shared-class dropdown regression caught & fixed**: `.notif-row`/`.notif-row-body` are shared with the bell dropdown in app/notifications.js, so inline layout was scoped to `.notif-rows-container`), 98-03 `4353f61` (Payables Ref doc-id root-cause fix + ported viewTRDetailsFromRFP, verify-98-03.cjs 18/18), 98-04 `fbc1ae2` (home hero vertical compression, 3+2/1200px/media-blocks preserved). VERIFICATION verdict: `human_needed` — 8 UAT items persisted in 98-HUMAN-UAT.md. Phase NOT yet marked complete in ROADMAP (awaiting UAT approval). Firestore rules test suite NOT run (no rules-surface change in this phase; needs emulator).
+Phase: 98 COMPLETE (2026-06-03, UAT batch-approved by user — "send all UAT batch"). Browser spot-check still recommended (8 items in 98-HUMAN-UAT.md, disposition: batch-approved-unverified; SPA gates on Firebase Auth + no browser-automation tooling, so agent could not drive the visual UAT). 4/4 plans landed on v3.3 via inline sequential execution (gsd-sdk unavailable on this machine + 2 stale locked agent worktrees made the subagent/worktree path unsafe → orchestrator executed inline on the main tree). All automated grep/file-read checks PASS; `node --check` PASS on every modified JS module. Commits: 98-01 `37005ff` (clients Phone/Email split), 98-02 `dafac92` + fix `468268d` (notif inline alignment — **shared-class dropdown regression caught & fixed**: `.notif-row`/`.notif-row-body` are shared with the bell dropdown in app/notifications.js, so inline layout was scoped to `.notif-rows-container`), 98-03 `4353f61` (Payables Ref doc-id root-cause fix + ported viewTRDetailsFromRFP, verify-98-03.cjs 18/18), 98-04 `fbc1ae2` (home hero vertical compression, 3+2/1200px/media-blocks preserved). VERIFICATION verdict: `human_needed` — 8 UAT items persisted in 98-HUMAN-UAT.md. Phase NOT yet marked complete in ROADMAP (awaiting UAT approval). Firestore rules test suite NOT run (no rules-surface change in this phase; needs emulator).
 
-Next: run `/gsd-verify-work 98` (or manually test the 8 items in 98-HUMAN-UAT.md). On approval → mark phase 98 complete. On issues → `/gsd-plan-phase 98 --gaps`.
+Next: Phase 98 closed. Recommended browser spot-check of the 8 UAT items (surfaces via `/gsd-audit-uat`); if any fails → `/gsd-plan-phase 98 --gaps`. Otherwise pick the next phase, or merge v3.3 → main (then the still-pending `firebase deploy --only firestore:rules` from 87.4 — note: Phase 98 changed NO rules).
 
 ---
 

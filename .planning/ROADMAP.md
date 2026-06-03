@@ -257,7 +257,7 @@
   - [x] 97.2-01-PLAN.md — Rail render overhaul (filter auto-snapshots, relative timestamps, delete button, re-sequenced numbering, remove auto-tag CSS)
   - [x] 97.2-02-PLAN.md — Undo cleanup (dismissUndoToast deleteDoc extension, WR-01 fix in restoreIteration, toast copy update)
   - [ ] 97.2-03-PLAN.md — Save modal (replace window.prompt() with styled inline modal in saveIteration)
-- [ ] **Phase 98: UI/UX Fixes — Client Contact Split, Notifications Alignment, Payables PO Ref, Home Widget Fit** (NEW, added 2026-06-03) — Four-item polish/bug bundle: (1) **Clients tab** — split the single Contact Details field into two separate Phone and Email entries (schema field split + create/edit form + client detail display/modal + CSV export); (2) **#/notifications history page** — align rows perfectly: fixed-width type/icon column so message text starts at a consistent x-position, with right-aligned time + check (mark-read) action (ragged columns visible in attached screenshot — see phase dir `notifications-alignment-screenshot.png`); (3) **Finance → Payables → PO Ref column** — fix the "Failed to load PO details" error raised when opening a PO from the Payables tables (RFP Processing + PO Payment Summary); (4) **Home dashboard** — widgets overflow / don't fit on wide (27") monitors; ensure the default Home view fits its widgets at large viewport widths. **Plans:** TBD (not planned yet).
+- [x] **Phase 98: UI/UX Fixes — Client Contact Split, Notifications Alignment, Payables PO Ref, Home Widget Fit** (NEW, added 2026-06-03) — **(completed 2026-06-03 — 4/4 plans on v3.3; all automated checks PASS + a shared-class dropdown regression caught & fixed; UAT batch-approved by user, browser spot-check pending)** Four-item polish/bug bundle: (1) **Clients tab** — split the single Contact Details field into two separate Phone and Email entries (schema field split + create/edit form + client detail display/modal + CSV export); (2) **#/notifications history page** — align rows perfectly: fixed-width type/icon column so message text starts at a consistent x-position, with right-aligned time + check (mark-read) action (ragged columns visible in attached screenshot — see phase dir `notifications-alignment-screenshot.png`); (3) **Finance → Payables → PO Ref column** — fix the "Failed to load PO details" error raised when opening a PO from the Payables tables (RFP Processing + PO Payment Summary); (4) **Home dashboard** — widgets overflow / don't fit on wide (27") monitors; ensure the default Home view fits its widgets at large viewport widths. **Plans:** TBD (not planned yet).
 
 ## Phase Details
 
@@ -976,9 +976,9 @@ Plans:
   - Home fit: is the target a max-width container, a responsive grid re-flow, or fitting more columns at ≥1920px? Confirm desired layout
 **Plans**: 4 plans (all Wave 1 — independent, no shared files)
 Plans:
-- [ ] 98-01-PLAN.md — Slice 1: Client Contact Split (clients.js) — Phone/Email fields + legacy fallback (form/list/modal); no CSV
-- [ ] 98-02-PLAN.md — Slice 2: Notifications Alignment (notifications.js + components.css) — inline rows, fixed-width label column, right-aligned time/✓
-- [ ] 98-03-PLAN.md — Slice 3: Payables Ref Link (finance.js) — fix po.poId→po_doc_id ID-type bug + route-by-type (PO/TR/plain) + ported TR modal
-- [ ] 98-04-PLAN.md — Slice 4: Home Fit (hero.css) — vertical compression so 5 tiles + title fit above the fold (keep 3+2, keep 1200px cap)
+- [x] 98-01-PLAN.md — Slice 1: Client Contact Split (clients.js) — Phone/Email fields + legacy fallback (form/list/modal); no CSV — `37005ff`
+- [x] 98-02-PLAN.md — Slice 2: Notifications Alignment (notifications.js + components.css) — inline rows, fixed-width label column, right-aligned time/✓ — `dafac92`,`468268d` (dropdown regression fix)
+- [x] 98-03-PLAN.md — Slice 3: Payables Ref Link (finance.js) — fix po.poId→po_doc_id ID-type bug + route-by-type (PO/TR/plain) + ported TR modal — `4353f61` (verify 18/18)
+- [x] 98-04-PLAN.md — Slice 4: Home Fit (hero.css) — vertical compression so 5 tiles + title fit above the fold (keep 3+2, keep 1200px cap) — `fbc1ae2`
 **UI hint**: yes
 **Attachment**: `.planning/phases/98-ui-fixes-client-contact-notifications-payables-home/notifications-alignment-screenshot.png` (item 2 reference)

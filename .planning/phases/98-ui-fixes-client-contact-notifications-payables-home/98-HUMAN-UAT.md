@@ -1,14 +1,16 @@
 ---
-status: partial
+status: accepted
 phase: 98-ui-fixes-client-contact-notifications-payables-home
 source: [98-VERIFICATION.md]
 started: 2026-06-03T06:50:20Z
-updated: 2026-06-03T06:50:20Z
+updated: 2026-06-03T06:55:00Z
+disposition: batch-approved-by-user-2026-06-03
+note: User issued a batch sign-off ("send all UAT batch"). Items NOT browser-verified by the agent (SPA gates on Firebase Auth/PROD login; no browser-automation tooling available). Treat the list below as a recommended browser spot-check punch list, not as machine-verified passes.
 ---
 
 ## Current Test
 
-[awaiting human testing — serve with `python -m http.server 8000`]
+[batch-approved by user 2026-06-03 — browser spot-check recommended; serve with `python -m http.server 8000`]
 
 ## Tests
 
@@ -48,9 +50,12 @@ result: [pending]
 
 total: 8
 passed: 0
+approved_unverified: 8
 issues: 0
-pending: 8
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+None reported. (8 items batch-approved without browser verification — see disposition note. If a spot-check later surfaces an issue, log it here and run `/gsd-plan-phase 98 --gaps`.)
