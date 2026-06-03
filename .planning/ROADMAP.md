@@ -245,6 +245,7 @@
  (completed 2026-05-13)
 - [x] **Phase 91: Navigation Restructuring � MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** � Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure
  (completed 2026-05-13)
+- [ ] **Phase 91.3: RFP Fees — Add Transfer / Cash-Out / Miscellaneous Fees at RFP Creation** (INSERTED) — When creating/processing an RFP, users can add supplementary fees (transfer fees, cash-out fees, and arbitrary miscellaneous fees) that are not covered by the original RFP amount; the RFP total and downstream payables reflect the added fees. The RFP creation flow is overhauled to stay mobile-friendly and ship 100% error-free. **Plans:** TBD (not planned yet).
 - [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
 - [x] **Phase 96: Proposal Card Redesign — Progress Track + Stat Chips** — Redesign the inline proposal card in project/service detail with spike-009-validated layout: 4-node progress track (Draft → Internal Review → Client Review → Approved), title-first stat chips (Value + Stage Age), and silenced empty-state noise (completed 2026-05-26)
 - [x] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection.
@@ -789,6 +790,26 @@ Plans:
 - [x] TBD (run /gsd-plan-phase 91.2 to break down)
  (completed 2026-05-18)
 
+### Phase 91.3: RFP Fees — Add Transfer / Cash-Out / Miscellaneous Fees at RFP Creation (INSERTED)
+**Goal**: When creating/processing an RFP, users can add supplementary fees — Transfer Fee, Cash-Out Fee, and any number of arbitrary Miscellaneous Fee lines — that are NOT part of the original RFP base amount, so the RFP total (and downstream payables / remaining-payable tracking) reflects the true disbursement cost. The RFP creation flow is overhauled to accommodate the new fee controls while remaining mobile-friendly and shipping 100% error-free.
+**Depends on**: Phase 65 (RFP + Payables Tracking — the RFP create/modal infrastructure being extended), Phase 91 (Procurement tab restructure)
+**Requirements**: None mapped (INSERTED procurement-overhaul phase — no REQUIREMENTS.md IDs)
+**Success Criteria** (what must be TRUE):
+  1. The RFP creation UI provides controls to add supplementary fees: a Transfer Fee, a Cash-Out Fee, and one or more arbitrary Miscellaneous Fee lines (each with a label + amount), independent of the original RFP base amount
+  2. Added fees are summed into the persisted RFP total so payables / remaining-payable calculations include them — the base RFP amount stays distinct from the fees breakdown on the RFP document
+  3. The fees breakdown is surfaced wherever the RFP amount appears (RFP modal, Finance → Payables tables, expense/financial breakdown) without breaking existing layouts or totals
+  4. The overhauled RFP creation flow is fully usable on mobile viewports (controls reachable, no horizontal overflow, touch-friendly) consistent with the Phase 73/74 mobile work
+  5. No regressions — the phase ships error-free: existing RFP create / cancel / mark-paid flows, PO-scoped RFP ID generation, and RFP notifications continue to work; `node --check` passes on every modified module
+**Plans**: 6 plans
+Plans:
+- [ ] 91.3-01-PLAN.md — Lock field strategy + shared legacy-safe fee helpers in utils.js (getRFPTotal/getRFPFees/getRFPFeeBreakdown)
+- [ ] 91.3-02-PLAN.md — procurement.js: 4-section RFP modal overhaul + progressive-disclosure fee controls + live total + fee write + scoreboard fills
+- [ ] 91.3-03-PLAN.md — finance.js compute: derivePOSummary/deriveRFPStatus + record-payment math track the fee-inclusive total
+- [ ] 91.3-04-PLAN.md — components.css: fee-accent chips/rows/cue/breakdown card styles + 44px mobile overrides
+- [ ] 91.3-05-PLAN.md — finance.js display: incl.-fees cue pill + tooltip/touch-toggle + D-07 breakdown card + PO-summary roll-up
+- [ ] 91.3-06-PLAN.md — procurement.js: positive-only live validation + disabled-Submit gate + blocked-guard dimming banners
+**UI hint**: yes
+
 ### Phase 92: Projects Tab -- Status Scorecards
 **Goal**: Replace the stacked bar chart on the Home page Projects section with interactive status scorecards surfaced directly in the Projects tab -- giving users a scannable count of every project status at a glance without leaving the Projects view.
 **Depends on**: Nothing (reads existing `projects` collection; self-contained UI addition to `app/views/projects.js`)
@@ -840,6 +861,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 91 | v4.0 | 4/4 | Complete    | 2026-05-13 |
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
 | 91.2 | v4.0 | 2/2 | Complete   | 2026-05-18 |
+| 91.3 | v4.0 | 0/6 | Planned | - |
 | 92 | v4.0 | 2/2 | Complete | 2026-05-18 |
 | 92.1 | v4.0 | 1/1 | Complete | 2026-05-18 |
 | 94 | v4.0 | 1/1 | Complete | 2026-05-25 |
