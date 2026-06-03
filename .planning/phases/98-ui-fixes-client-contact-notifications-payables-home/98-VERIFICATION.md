@@ -6,7 +6,7 @@ plans_verified: 4
 must_haves_total: 23
 must_haves_automated_pass: 23
 must_haves_human_pending: 0
-human_uat_disposition: batch-approved-by-user-2026-06-03 (browser spot-check still recommended; see 98-HUMAN-UAT.md punch list)
+human_uat_disposition: browser-UAT-passed-2026-06-03 (98-UAT.md: 7 pass, 1 skip; round 1 found 2 issues — 1 blocker — both fixed in 9960d99 + 9d7d845 and re-tested pass)
 gaps: 0
 ---
 
@@ -87,4 +87,4 @@ All four plans declare `requirements: []` (no formal REQUIREMENTS.md IDs mapped 
 Persisted to `98-HUMAN-UAT.md` (status: partial). These surface in `/gsd-progress` and `/gsd-audit-uat` until tested via `/gsd-verify-work 98`.
 
 ## Conclusion
-Code is structurally complete and correct per all automated checks; one regression was caught and fixed. The 8 human items were **batch-approved by the user on 2026-06-03** (the SPA hard-gates on Firebase Auth/PROD login and no browser-automation tooling is installed, so the agent could not drive them headlessly). Phase marked **complete**. The 8 browser checks remain a recommended **spot-check punch list** in `98-HUMAN-UAT.md` and will resurface via `/gsd-audit-uat` until run.
+Code is structurally complete and correct per all automated checks. Browser UAT was subsequently run by the user (`98-UAT.md`): **7 pass, 1 skip (no TR row in data), 0 issues**. Round 1 surfaced two real defects that the automated checks could not catch — a **blocker** (PO Ref FirebaseError: RFP `po_doc_id` empty → empty-segment `doc()` call) and a **cosmetic** issue (oversized ✓ from a dropped inline font-size). Both were root-caused and fixed (`9960d99`, `9d7d845`) and **re-tested pass**. Phase is **genuinely verified and complete**. (Note: the earlier same-day "batch-approved" disposition was premature — it would have shipped the PO Ref blocker; running the real UAT corrected that.)
