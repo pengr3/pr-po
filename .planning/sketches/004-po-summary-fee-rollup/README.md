@@ -2,9 +2,11 @@
 sketch: 004
 name: po-summary-fee-rollup
 question: "How should supplementary fees roll up across multiple RFPs into the PO Payment Summary / Financial Breakdown — a fee-inclusive total with a cue, or an explicit Base/Fees/Total breakdown?"
-winner: null
+winner: "A"
 tags: [rfp, payables, fees, po-summary, financial-breakdown, aggregate]
 ---
+
+> **Winner: Variant A — fee-inclusive total + cue.** Total / Paid / Remaining become fee-inclusive with a small "incl. fees" note + the sketch-002 pill on fee-bearing rows. Least disruptive to today's layout, consistent with sketch 002, and degrades best on mobile. The explicit Fees column (B) was rejected as too dense for the PO-level view.
 
 # Sketch 004: PO Summary / Expense Breakdown Fee Roll-up
 

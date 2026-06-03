@@ -13,6 +13,6 @@ Previews for **Phase 91.3 — RFP Fees** (add Transfer / Cash-Out / Miscellaneou
 |---|------|----------------|--------|------|
 | 001 | rfp-creation-modal | How should the new Fees section sit in the overhauled sectioned modal, and how should the live running total read? (incl. mobile 375px) | **B — Progressive disclosure** | rfp, modal, fees, form, mobile |
 | 002 | downstream-fee-display | How should the "incl. fees" cue + breakdown read in the dense Payables table and the RFP detail modal? | **A — pill + tooltip** (needs touch fallback) | rfp, payables, fees, table, disclosure |
-| 003 | other-rfp-modals | Does the progressive-fees pattern fit the no-tranche Delivery-Fee & TR modals; 4-section vs compact 3-section? | TBD | rfp, modal, fees, delivery-fee, transport, consistency |
-| 004 | po-summary-fee-rollup | How should fees roll up in the PO Payment Summary / Financial Breakdown — fee-inclusive total + cue, or explicit Base/Fees/Total? | TBD | rfp, payables, fees, po-summary, aggregate |
-| 005 | fee-edge-validation-states | How should fee controls behave in edge/error states (positive-only validation + existing blocked-RFP guards)? | behavior ref (no fork) | rfp, fees, validation, edge-states, behavior |
+| 003 | other-rfp-modals | Does the progressive-fees pattern fit the no-tranche Delivery-Fee & TR modals; 4-section vs compact 3-section? | **4-section (consistent across all types)** | rfp, modal, fees, delivery-fee, transport, consistency |
+| 004 | po-summary-fee-rollup | How should fees roll up in the PO Payment Summary / Financial Breakdown — fee-inclusive total + cue, or explicit Base/Fees/Total? | **A — fee-inclusive total + cue** | rfp, payables, fees, po-summary, aggregate |
+| 005 | fee-edge-validation-states | How should fee controls behave in edge/error states (positive-only validation + existing blocked-RFP guards)? | **approved (behavior ref)** | rfp, fees, validation, edge-states, behavior |

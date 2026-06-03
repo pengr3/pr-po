@@ -2,9 +2,11 @@
 sketch: 003
 name: other-rfp-modals
 question: "Does the winning progressive-fees + sectioned pattern fit the no-tranche Delivery-Fee and TR RFP modals, and should those collapse to a compact 3-section layout?"
-winner: null
+winner: "A+B (4-section, consistent)"
 tags: [rfp, modal, fees, delivery-fee, transport, consistency]
 ---
+
+> **Winner: 4-section consistent shell (variants A & B).** All three RFP modal types share the same Reference → Base → Fees → Payment structure; the no-tranche modals just render a single read-only base line. Compact C rejected — consistency across modal types preferred over saving one section.
 
 # Sketch 003: Fees on the Delivery-Fee & TR Modals
 

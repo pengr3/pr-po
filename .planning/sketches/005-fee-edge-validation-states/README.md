@@ -2,9 +2,11 @@
 sketch: 005
 name: fee-edge-validation-states
 question: "How should the fee controls behave in edge & error states — positive-only validation, and the existing blocked-RFP guards?"
-winner: null
+winner: "approved (behavior reference)"
 tags: [rfp, fees, validation, edge-states, behavior]
 ---
+
+> **All states approved as the behavior spec.** Invalid fee → inline field error + footer alert + disabled Submit until fixed (D-05 positive-only); empty fee = ignored (not applied); new fee controls coexist with the existing one-per-PO and all-tranches-used blocked guards without layout breakage. Planner implements these behaviors verbatim.
 
 # Sketch 005: Fee Edge & Validation States
 
