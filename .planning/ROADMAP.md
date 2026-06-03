@@ -257,6 +257,7 @@
   - [x] 97.2-01-PLAN.md — Rail render overhaul (filter auto-snapshots, relative timestamps, delete button, re-sequenced numbering, remove auto-tag CSS)
   - [x] 97.2-02-PLAN.md — Undo cleanup (dismissUndoToast deleteDoc extension, WR-01 fix in restoreIteration, toast copy update)
   - [ ] 97.2-03-PLAN.md — Save modal (replace window.prompt() with styled inline modal in saveIteration)
+- [ ] **Phase 98: UI/UX Fixes — Client Contact Split, Notifications Alignment, Payables PO Ref, Home Widget Fit** (NEW, added 2026-06-03) — Four-item polish/bug bundle: (1) **Clients tab** — split the single Contact Details field into two separate Phone and Email entries (schema field split + create/edit form + client detail display/modal + CSV export); (2) **#/notifications history page** — align rows perfectly: fixed-width type/icon column so message text starts at a consistent x-position, with right-aligned time + check (mark-read) action (ragged columns visible in attached screenshot — see phase dir `notifications-alignment-screenshot.png`); (3) **Finance → Payables → PO Ref column** — fix the "Failed to load PO details" error raised when opening a PO from the Payables tables (RFP Processing + PO Payment Summary); (4) **Home dashboard** — widgets overflow / don't fit on wide (27") monitors; ensure the default Home view fits its widgets at large viewport widths. **Plans:** TBD (not planned yet).
 
 ## Phase Details
 
@@ -956,3 +957,28 @@ Plans:
 - [x] 97-03-PLAN.md — Data layer: loadIterations(), saveIteration(), renderIterRail(), toggleIterRail()
 - [x] 97-04-PLAN.md — Restore mechanic: restoreIteration(), showUndoToast(), undoIterRestore()
 - [x] 97-05-PLAN.md — Diff view: computeDiff(), toggleIterDiff(), closeIterDiff()
+
+---
+
+### Phase 98: UI/UX Fixes — Client Contact Split, Notifications Alignment, Payables PO Ref, Home Widget Fit (NEW)
+
+**Goal**: Close four unrelated UI/UX gaps reported during v4.0 use — structured client contact fields, a visually-aligned notifications history page, a working PO Ref link in Finance Payables, and a Home dashboard that fits its widgets on wide monitors.
+**Depends on**: Nothing hard — four independent slices touching `clients.js` (+ client detail surfaces), the notifications history view + `components.css`, the `finance.js` Payables PO-detail loader, and `home.js` + home CSS. Can be planned as parallel waves.
+**Requirements**: None mapped (NEW — operator-reported fixes, no formal REQUIREMENTS.md IDs)
+**Success Criteria** (what must be TRUE):
+  1. A client record stores Phone and Email as two separate fields; the create/edit form has distinct Phone and Email inputs (replacing the single Contact Details field); all client display surfaces (list, detail page/modal, CSV export) show them separately; legacy `contact_details`-only clients still render without error
+  2. On the #/notifications history page every row's type label + icon occupies a fixed-width column so all message text begins at the same x-position, and the relative time + check (mark-read) action are right-aligned consistently across all rows and notification types (matches the alignment intent of `notifications-alignment-screenshot.png`)
+  3. Clicking the PO Ref in the Finance Payables tables (RFP Processing and PO Payment Summary) opens the PO detail view without the "Failed to load PO details" error — the correct PO document is fetched and rendered for every payable row
+  4. On a wide monitor (≈27" / ~2560px, and the common 1920px width) the default Home dashboard lays out so all widgets fit within the view without overflow/clipping or awkward dead space
+**Open questions for discuss/plan**:
+  - Client contact: migrate existing `contact_details` data into the new Phone/Email fields, or leave legacy as-is and only split going forward?
+  - PO Ref bug: root cause unknown — diagnose first (wrong ID field, missing `await`, TR-vs-PO collection mismatch, or Security-Rules permission) before fixing
+  - Home fit: is the target a max-width container, a responsive grid re-flow, or fitting more columns at ≥1920px? Confirm desired layout
+**Plans**: 4 plans (all Wave 1 — independent, no shared files)
+Plans:
+- [ ] 98-01-PLAN.md — Slice 1: Client Contact Split (clients.js) — Phone/Email fields + legacy fallback (form/list/modal); no CSV
+- [ ] 98-02-PLAN.md — Slice 2: Notifications Alignment (notifications.js + components.css) — inline rows, fixed-width label column, right-aligned time/✓
+- [ ] 98-03-PLAN.md — Slice 3: Payables Ref Link (finance.js) — fix po.poId→po_doc_id ID-type bug + route-by-type (PO/TR/plain) + ported TR modal
+- [ ] 98-04-PLAN.md — Slice 4: Home Fit (hero.css) — vertical compression so 5 tiles + title fit above the fold (keep 3+2, keep 1200px cap)
+**UI hint**: yes
+**Attachment**: `.planning/phases/98-ui-fixes-client-contact-notifications-payables-home/notifications-alignment-screenshot.png` (item 2 reference)
