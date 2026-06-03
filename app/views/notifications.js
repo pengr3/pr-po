@@ -269,30 +269,22 @@ function renderRows() {
 
         return `
             <div class="notif-row ${isUnread ? 'notif-row--unread' : ''}"
-                 style="display:flex;align-items:flex-start;gap:0.75rem;cursor:pointer;"
                  onclick="window.handleNotificationClick('${docId}')">
                 <span class="notif-type-badge"
                       style="background:${meta.color}15;color:${meta.color};"
                       title="${escapeHTML(meta.label)}">
                     ${meta.icon}
                 </span>
-                <div class="notif-row-body" style="flex:1;min-width:0;">
-                    <div class="notif-row-label"
-                         style="font-size:0.7rem;font-weight:600;color:${meta.color};text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.2rem;">
-                        ${escapeHTML(meta.label)}
-                    </div>
-                    <div class="notif-row-message"
-                         style="font-size:0.875rem;color:#1e293b;line-height:1.4;${isUnread ? 'font-weight:600;' : ''}">
-                        ${message}
-                    </div>
-                    <div class="notif-row-time"
-                         style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;"
-                         title="${absoluteDate}">
-                        ${relativeTime}
-                    </div>
+                <div class="notif-row-label" style="color:${meta.color};">
+                    ${escapeHTML(meta.label)}
+                </div>
+                <div class="notif-row-message${isUnread ? ' notif-row-message--unread' : ''}">
+                    ${message}
+                </div>
+                <div class="notif-row-time" title="${absoluteDate}">
+                    ${relativeTime}
                 </div>
                 <button class="notif-row-mark-read"
-                        style="flex-shrink:0;background:none;border:1px solid #e2e8f0;border-radius:4px;padding:0.25rem 0.5rem;font-size:0.75rem;color:#64748b;cursor:pointer;white-space:nowrap;"
                         onclick="event.stopPropagation(); window.markNotificationRead('${docId}')"
                         aria-label="Mark as read"
                         title="Mark as read">

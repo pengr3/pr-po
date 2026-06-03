@@ -1951,7 +1951,7 @@ tr:hover {
 
 .notif-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #f1f5f9;
@@ -1996,11 +1996,25 @@ tr:hover {
 
 .notif-row-body {
     display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.75rem;
     flex: 1;
     min-width: 0;
     cursor: pointer;
+}
+
+/* Phase 98 Slice 2: fixed-width inline label column so every history-row
+   message starts at the same x. Sized to fit the longest TYPE_META label
+   "REGISTRATION PENDING" (20 chars uppercase @0.7rem). */
+.notif-row-label {
+    flex: 0 0 160px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .notif-row-content {
@@ -2040,11 +2054,17 @@ tr:hover {
     overflow-wrap: anywhere;
 }
 
+.notif-row-message--unread {
+    font-weight: 600;
+}
+
 .notif-row-time {
     font-size: 0.75rem;
     color: #64748b;
     flex-shrink: 0;
     white-space: nowrap;
+    /* Phase 98 Slice 2: push time + ✓ cluster to the right edge consistently */
+    margin-left: auto;
 }
 
 /* ========================================
