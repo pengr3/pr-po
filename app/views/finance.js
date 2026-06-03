@@ -260,6 +260,7 @@ function attachWindowFunctions() {
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
     window.viewPODetailsFromRFP = viewPODetailsFromRFP;
+    window.viewTRDetailsFromRFP = viewTRDetailsFromRFP;
 
     // Proof URL helper — uses shared modal from proof-modal.js
     window.financeShowProofModal = function(poId, currentUrl, currentRemarks) {
@@ -706,7 +707,7 @@ function buildRFPCard(rfp) {
     const poRefDisplay = rfp.po_id
         ? '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + (rfp.po_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.po_id) + '</a>'
         : rfp.tr_id
-        ? '<span style="color:#1e293b;font-weight:600;">' + escapeHTML(rfp.tr_id) + '</span>'
+        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + (rfp.tr_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.tr_id) + '</a>'
         : '<span style="color:#999;">-</span>';
 
     return `
@@ -818,7 +819,7 @@ function renderRFPTable() {
             <td>${rfp.po_id
                 ? `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id)}</a>`
                 : rfp.tr_id
-                ? `<span style="color:#1e293b;font-weight:600;">${escapeHTML(rfp.tr_id)}</span>`
+                ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${rfp.tr_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.tr_id)}</a>`
                 : '<span style="color:#999;">-</span>'
             }</td>
             <td>${deptLabel}</td>
@@ -866,6 +867,8 @@ function buildPOMap(rfps) {
                 deptName: dName,
                 isService: !!rfp.service_code,
                 isTR: !rfp.po_id && !!rfp.tr_id,
+                po_doc_id: rfp.po_doc_id || '',
+                tr_doc_id: rfp.tr_doc_id || '',
                 rfps: []
             });
         }
@@ -992,8 +995,8 @@ function buildPOSummaryCard(po) {
     const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     const refDisplay = po.isTR
-        ? '<span style="font-weight:600;color:#1e293b;">' + escapeHTML(po.poId) + '</span>'
-        : '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + po.poId + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>';
+        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + (po.tr_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>'
+        : '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + (po.po_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>';
 
     const subCards = po.sortedRFPs.map(rfp => buildPOTrancheSubCard(rfp)).join('');
 
@@ -1052,6 +1055,8 @@ function renderPOSummaryTable() {
             deptName: entry.deptName || '',
             isService: entry.isService,
             isTR: entry.isTR || false,
+            po_doc_id: entry.po_doc_id || '',
+            tr_doc_id: entry.tr_doc_id || '',
             rfps: entry.rfps,
             ...summary
         });
@@ -1158,8 +1163,8 @@ function renderPOSummaryTable() {
         const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         const refDisplay = po.isTR
-            ? `<span style="font-weight:600;color:#1e293b;">${escapeHTML(po.poId)}</span>`
-            : `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${po.poId}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`;
+            ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${po.tr_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`
+            : `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${po.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`;
 
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
             <td style="text-align:center;cursor:pointer;user-select:none;" onclick="window.togglePOExpand('${safePoId}')">
@@ -2937,6 +2942,81 @@ async function viewPODetailsFromRFP(poDocId) {
 }
 
 /**
+ * Read-only Transport Request detail modal, self-contained within finance.js
+ * (ported from mrf-records.js viewTRDetailsLocal so the Payables Ref link does not
+ * depend on window.viewTRDetails being registered by another view). Fetches by
+ * Firestore doc ID; all rendered fields are escapeHTML'd (D-06/D-12, T-98-05).
+ * @param {string} trDocId - Firestore document ID of the transport_requests doc
+ */
+async function viewTRDetailsFromRFP(trDocId) {
+    showLoading(true);
+    try {
+        const trDoc = await getDoc(doc(db, 'transport_requests', trDocId));
+        if (!trDoc.exists()) { showToast('TR not found', 'error'); return; }
+        const tr = { id: trDoc.id, ...trDoc.data() };
+        const items = JSON.parse(tr.items_json || '[]');
+
+        const body = `
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">TR ID</div><div style="font-weight: 600;">${escapeHTML(tr.tr_id || 'N/A')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${escapeHTML(tr.mrf_id || 'N/A')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${escapeHTML(tr.supplier_name || 'Not specified')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Finance Status</div><div><span class="status-badge ${getStatusClass(tr.finance_status || 'Pending')}">${escapeHTML(tr.finance_status || 'Pending')}</span></div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div><div style="font-weight: 600;">${formatCurrency(tr.total_amount || 0)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Date Submitted</div><div>${(tr.date_submitted || tr.date_generated) ? (formatTimestamp(tr.date_submitted || tr.date_generated) || 'N/A') : 'N/A'}</div></div>
+                </div>
+                ${tr.rejection_reason ? `
+                <div style="margin-bottom: 1rem; padding: 0.75rem; background: #fee2e2; border-radius: 4px; border-left: 3px solid #dc2626;">
+                    <div style="font-size: 0.75rem; color: #dc2626; font-weight: 600; margin-bottom: 0.25rem;">Rejection Reason</div>
+                    <div style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(tr.rejection_reason)}</div>
+                </div>` : ''}
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead><tr style="background: #f3f4f6;">
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                        </tr></thead>
+                        <tbody>${items.length > 0 ? items.map(item => `
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name || '')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity || 0))} ${escapeHTML(item.unit || 'pcs')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unit_cost || 0)}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.subtotal || ((item.qty || item.quantity || 0) * (item.unit_cost || 0)))}</td>
+                            </tr>`).join('') : '<tr><td colspan="5" style="padding: 0.5rem; color: #64748b;">No items found</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+        let container = document.getElementById('financeTRDetailsModalContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'financeTRDetailsModalContainer';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = createModal({
+            id: 'financeTRDetailsModal',
+            title: `Transport Request Details: ${escapeHTML(tr.tr_id || '')}`,
+            body,
+            footer: `<button class="btn btn-secondary" onclick="closeModal('financeTRDetailsModal')">Close</button>`,
+            size: 'large'
+        });
+        openModal('financeTRDetailsModal');
+    } catch (err) {
+        console.error('[Finance] viewTRDetailsFromRFP error:', err);
+        showToast('Failed to load TR details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Generate PO Document
  * @param {string} poDocId - Firestore document ID of the PO
  */
@@ -4263,6 +4343,7 @@ export async function destroy() {
     delete window.promptPODocument;
     delete window.generatePODocument;
     delete window.viewPODetailsFromRFP;
+    delete window.viewTRDetailsFromRFP;
     delete window.financeShowProofModal;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
