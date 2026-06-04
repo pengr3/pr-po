@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 91.3 EXECUTED (6/6 plans on v3.3) — verification structural-PASS, browser UAT pending
-stopped_at: Phase 91.3 EXECUTED 2026-06-03 (6/6 plans, 3 waves, inline sequential on v3.3 — gsd-sdk unavailable + 2 stale locked worktrees). node --check PASS on all 3 JS modules; cross-plan contract intact; verifier verdict human_needed → 8 UAT items in 91.3-HUMAN-UAT.md must pass before marking the phase complete. Phase 98 also has 8 UAT items still open.
-last_updated: "2026-06-03T22:30:00.000Z"
-last_activity: 2026-06-03
+status: Phase 91.3 COMPLETE (2026-06-04, UAT passed 8/8) — inserting Phase 91.4 (RFP fee inclusion in financial breakdowns)
+stopped_at: Phase 91.3 closed 2026-06-04 — all 8 browser UAT items passed. Discovered gap: RFP fees (transfer_fee/cash_out_fee/misc_fees) are excluded from project/service expense totals and the expense modal. Phase 91.4 inserted to fix both Tier-1 (RFP-object-in-hand sites: expense-modal.js + service-detail.js) and Tier-2 (Firestore aggregate queries: project-detail.js + finance expense dashboard).
+last_updated: "2026-06-04T00:00:00.000Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 30
   completed_phases: 24
