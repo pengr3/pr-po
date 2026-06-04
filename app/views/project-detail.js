@@ -359,6 +359,13 @@ export async function destroy() {
     // Phase 87.3 D-01 — Start Proposal window functions cleanup
     delete window.openCreateProposalModal;
     delete window._startProposalCallback;
+    // Phase 99 — billing request flow cleanup
+    delete window.openBillingRequestModal;
+    delete window.submitBillingRequest;
+    delete window._onBillingTrancheChange;
+    delete window._selectBillingType;
+    delete window._validateBillingForm;
+    document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
 }
@@ -784,6 +791,88 @@ function _validateBillingForm() {
     btn.disabled = !ok;
     btn.style.opacity = ok ? '1' : '0.5';
     btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+// Phase 99 — write the frozen D-04 billing_requests doc + fire-and-forget Finance notification.
+async function submitBillingRequest() {
+    if (!currentProject) return;
+    const errEl = document.getElementById('billingError');
+    const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+
+    // Re-validate tranche selection (defensive — mirrors _validateBillingForm)
+    const trancheSel = document.getElementById('billingTranche');
+    const trancheIndex = trancheSel ? parseInt(trancheSel.value, 10) : NaN;
+    const tranches = Array.isArray(currentProject.collection_tranches) ? currentProject.collection_tranches : [];
+    const tranche = tranches[trancheIndex];
+    if (!tranche || isNaN(trancheIndex)) { showErr('Select a tranche first.'); return; }
+
+    // Re-validate required docs (defensive)
+    const docDefs = BILLING_DOCS[billingSelectedType] || [];
+    const documents = docDefs.map(d => ({
+        key: d.key,
+        label: d.label,
+        url: (document.querySelector(`#billingDocFields input[data-doc-key="${d.key}"]`)?.value || '').trim()
+    }));
+    if (documents.length === 0 || documents.some(d => !d.url)) {
+        showErr('Fill in all required document links before submitting.');
+        return;
+    }
+
+    const notes = (document.getElementById('billingNotes')?.value || '').trim();
+
+    // Amount math (D-06) — sourced from currentProject (NOT projectsForCollMap, which doesn't exist here).
+    const contractCost = parseFloat(currentProject.contract_cost) || 0;
+    const tranchePct = parseFloat(tranche.percentage) || 0;
+    const amountRequested = (tranchePct / 100) * contractCost;
+
+    // Double-submit guard (mirror finance.js:1842-1847)
+    const submitBtn = document.getElementById('billingSubmitBtn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; submitBtn.style.cursor = 'not-allowed'; }
+
+    try {
+        await addDoc(collection(db, 'billing_requests'), {
+            project_code: currentProject.project_code || '',
+            project_name: currentProject.project_name || '',
+            tranche_index: trancheIndex,
+            tranche_label: tranche.label,            // FROZEN
+            tranche_percentage: tranchePct,          // FROZEN
+            amount_requested: amountRequested,       // FROZEN (advisory; Finance re-derives at approval)
+            billing_type: billingSelectedType,       // 'progress' | 'completion' | 'other'
+            documents,                               // [{ key, label, url }]
+            notes,                                   // optional string
+            status: 'pending',                       // lowercase exact, D-05
+            requested_by_uid: window.getCurrentUser?.()?.uid ?? null,
+            requested_by_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
+            requested_at: serverTimestamp()
+        });
+    } catch (e) {
+        console.error('[ProjectDetail/BillingReq] submit addDoc failed:', e);
+        showErr('Failed to submit billing request. Please try again.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; submitBtn.style.cursor = 'pointer'; }
+        return;
+    }
+
+    // Success — remove modal; the own-requests listener (Task 1) auto-refreshes the status list.
+    document.getElementById('billingRequestModal')?.remove();
+    showToast('Billing request submitted to Finance.', 'success');
+
+    // Fire-and-forget Finance fan-out (D-17 — its OWN try/catch; a notification failure must
+    // NEVER undo the already-committed addDoc). T-99-04: if the users read rule blocks
+    // operations_user, createNotificationForRoles logs + returns 0 (non-fatal).
+    try {
+        await createNotificationForRoles({
+            roles: ['finance'],
+            type: NOTIFICATION_TYPES.BILLING_REQUEST_SUBMITTED,
+            message: `New billing request: ${currentProject.project_name} (${tranche.label}, PHP ${formatCurrency(amountRequested)})`,
+            link: '#/finance/collectibles',
+            source_collection: 'billing_requests',
+            source_id: currentProject.project_code || '',
+            object_name: currentProject.project_name || '',
+            actor_name: window.getCurrentUser?.()?.full_name || 'System'
+        });
+    } catch (notifErr) {
+        console.error('[ProjectDetail/BillingReq] BILLING_REQUEST_SUBMITTED notification failed:', notifErr);
+    }
 }
 
 // Personnel pill rendering helper
@@ -1812,6 +1901,12 @@ function attachWindowFunctions() {
     window.confirmProposalInlineSubmit = confirmProposalInlineSubmit;
     // Phase 87.3 D-01 — Start Proposal button support
     window.openCreateProposalModal = openCreateProposalModal;
+    // Phase 99 — billing request flow
+    window.openBillingRequestModal = openBillingRequestModal;
+    window.submitBillingRequest = submitBillingRequest;
+    window._onBillingTrancheChange = _onBillingTrancheChange;
+    window._selectBillingType = _selectBillingType;
+    window._validateBillingForm = _validateBillingForm;
 }
 
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
