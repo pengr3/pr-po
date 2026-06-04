@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 99 (Billing Request Flow) PLANNED — 3 plans / 2 waves, plan-checker VERIFICATION PASSED (0 blockers). Ready for /gsd-execute-phase 99. Open loop: Phase 86.9 Plan 03 awaiting browser UAT (D1 row-align + D2 PDF, code committed ebbebd9).
-stopped_at: 2026-06-04 — /gsd-plan-phase 99 complete; next is /clear → /gsd-execute-phase 99
-last_updated: "2026-06-04T15:15:00.000Z"
+status: Phase 99 (Billing Request Flow) EXECUTED 2026-06-04 (inline on v3.3, 3/3 plans, 2 waves) — verification `human_needed`, 6 browser-UAT items pending (99-HUMAN-UAT.md) + rules deploy pending. Phase NOT yet marked complete. Open loop: Phase 86.9 Plan 03 awaiting browser UAT (D1 row-align + D2 PDF, code committed ebbebd9).
+stopped_at: 2026-06-04 — /gsd-execute-phase 99 complete (executed); next is browser UAT (deploy rules to dev first), then mark complete or /gsd-plan-phase 99 --gaps
+last_updated: "2026-06-04T15:56:00.000Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 32
   completed_phases: 29
-  total_plans: 119
-  completed_plans: 119
+  total_plans: 122
+  completed_plans: 122
   percent: 94
 ---
 
@@ -24,6 +24,8 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 **Current focus:** Phase 89 complete. Two Gantt phases remain: Phase 86.5 (Gantt UI Polish 3) and newly inserted Phase 86.9 (Curtain Divider + PDF Report Export).
 
 ## Current Position
+
+**◆ Phase 99 (Billing Request Flow) EXECUTED 2026-06-04 — inline on v3.3, 3/3 plans / 2 waves, verification `human_needed`.** Wave 1: 99-01 firestore.rules `billing_requests` block (create=isActiveUser; update/delete=finance) + `BILLING_REQUEST_SUBMITTED`/`_DECIDED` notification types (`0064849`,`de68d76`). Wave 2 (parallel files): 99-02 project-detail.js — "↑ Initiate Billing →" footer link (unconditional) + tranche→pills(auto-hint)→doc-links→notes modal + frozen D-04 `submitBillingRequest` + own-requests status list + SUBMITTED Finance fan-out (`52483ad`,`2fc481b`,`9efc6f5`); 99-03 finance.js — collapsible "Pending Billing Requests" banner + Approve bridge (preselectKey 3rd `:TRANCHE_INDEX` segment + D-11 already-billed hint) + Reject (required reason) + `_notifyBillingDecision` to submitter (`2fe9bea`,`1a9800d`,`9d54e17`). All `node --check` PASS; rules balanced; cross-plan contract intact. **NOT yet marked complete** — 6 browser-UAT items in `99-HUMAN-UAT.md` pending. **DEPLOY REQUIRED before UAT:** `firebase deploy --only firestore:rules --project dev` (CLI active project is PROD — use `--project dev`). Two scoped, plan-sanctioned adjustments documented in 99-02 SUMMARY (listener scoped to `project_code` not the URL param; pills inlined as literal calls). Inline execution chosen per Phase-98/91.3 precedent (gsd-sdk unavailable + 2 stale locked agent worktrees make worktree/subagent path unsafe). If any UAT item fails → `/gsd-plan-phase 99 --gaps`.
 
 **✅ Phase 98 COMPLETE 2026-06-04 — UAT approved.** All 4 plans shipped (commits `37005ff`, `dafac92`+`468268d`, `4353f61`, `fbc1ae2`). UAT approved 2026-06-04.
 

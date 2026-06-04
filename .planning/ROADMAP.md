@@ -1026,10 +1026,10 @@ Plans:
   - Per-tranche rows in project detail (Billed/Unbilled/Pending status, green-tint billed, "Bill" shortcut on unbilled) — ship in this phase or defer? (spike prototyped them)
   - Resolve the spike's open implementation question: `openCreateCollectibleModal` currently picks tranche via dropdown — confirm the preselectKey `projects:CODE:INDEX` extension auto-selects the tranche cleanly
   - Document attach is URL/link only (no Firebase Storage — avoids Blaze plan); confirm acceptable
-**Plans**: 3 plans (2 waves) — planned 2026-06-04 from spike-024 + 99-CONTEXT (D-01..D-21) + 99-PATTERNS. Phase-local req IDs BILL-01..BILL-06 map 1:1 to the 6 Success Criteria.
+**Plans**: 3 plans (2 waves) — planned 2026-06-04 from spike-024 + 99-CONTEXT (D-01..D-21) + 99-PATTERNS. Phase-local req IDs BILL-01..BILL-06 map 1:1 to the 6 Success Criteria. **EXECUTED 2026-06-04 (inline, v3.3) — verification `human_needed`, 6 browser-UAT items pending (99-HUMAN-UAT.md); NOT yet marked complete.**
 Plans:
-- [ ] 99-01-PLAN.md — Wave 1 foundation: firestore.rules `billing_requests` block (create=isActiveUser) + notifications.js BILLING_REQUEST_SUBMITTED/DECIDED types (BILL-06)
-- [ ] 99-02-PLAN.md — Wave 2 (depends 01) project-detail.js: footer link + billing-request modal (tranche→pills→doc links→notes→submit) + own-requests status list + Finance notification (BILL-01, BILL-02, BILL-05 project side)
-- [ ] 99-03-PLAN.md — Wave 2 (depends 01) finance.js: collapsible pending-requests banner + Approve bridge (preselectKey :TRANCHE_INDEX + D-11 edge) + Reject (required reason) + submitter notification (BILL-03, BILL-04, BILL-05 finance side)
+- [x] 99-01-PLAN.md — Wave 1 foundation: firestore.rules `billing_requests` block (create=isActiveUser) + notifications.js BILLING_REQUEST_SUBMITTED/DECIDED types (BILL-06) — `0064849`,`de68d76`
+- [x] 99-02-PLAN.md — Wave 2 (depends 01) project-detail.js: footer link + billing-request modal (tranche→pills→doc links→notes→submit) + own-requests status list + Finance notification (BILL-01, BILL-02, BILL-05 project side) — `52483ad`,`2fc481b`,`9efc6f5`
+- [x] 99-03-PLAN.md — Wave 2 (depends 01) finance.js: collapsible pending-requests banner + Approve bridge (preselectKey :TRANCHE_INDEX + D-11 edge) + Reject (required reason) + submitter notification (BILL-03, BILL-04, BILL-05 finance side) — `2fe9bea`,`1a9800d`,`9d54e17`
 **UI hint**: yes
 **Spike**: `.planning/spikes/024-billing-request-flow/README.md` (VALIDATED — full schema, design decisions, build targets, prototype `index.html`)
