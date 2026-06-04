@@ -246,6 +246,7 @@
 - [x] **Phase 91: Navigation Restructuring � MRF into Procurement, My Requests Filtered View, Role Permission Overhaul** � Consolidate navigation by absorbing the standalone Material Request tab into Procurement as a sub-tab (MRFs belong to the procurement flow); retire the redundant My Requests standalone tab and replace it with a 'My Requests' filter toggle inside MRF Records; revise Firestore Security Rules and role configuration to match the new structure
  (completed 2026-05-13)
 - [x] **Phase 91.3: RFP Fees — Add Transfer / Cash-Out / Miscellaneous Fees at RFP Creation** (INSERTED) — When creating/processing an RFP, users can add supplementary fees (transfer fees, cash-out fees, and arbitrary miscellaneous fees) that are not covered by the original RFP amount; the RFP total and downstream payables reflect the added fees. The RFP creation flow is overhauled to stay mobile-friendly and ship 100% error-free. (completed 2026-06-04)
+- [ ] **Phase 91.4: RFP Fee Inclusion in Financial Breakdowns** (INSERTED) — RFP fees (transfer_fee/cash_out_fee/misc_fees) are excluded from project/service expense totals across the app. Fix: Tier 1 — expense-modal.js + project-detail.js + service-detail.js (swap amount_requested → getRFPTotal; add rfpFeesTotal accumulation); Tier 2 — finance.js project + service expense dashboards (add post-aggregate RFP fee fetch per project/service). **Plans:** 2
 - [x] **Phase 92: Projects Tab -- Status Scorecards** -- Migrate the project status stacked bar chart from the Home page into the Projects tab as a 2x6 scorecard grid (one card per status, 10 statuses) plus a 1x2-wide Total scorecard filling the 12th slot (completed 2026-05-18)
 - [x] **Phase 96: Proposal Card Redesign — Progress Track + Stat Chips** — Redesign the inline proposal card in project/service detail with spike-009-validated layout: 4-node progress track (Draft → Internal Review → Client Review → Approved), title-first stat chips (Value + Stage Age), and silenced empty-state noise (completed 2026-05-26)
 - [x] **Phase 97: Project Plan Iterations** — Users can save named snapshots of the project plan and restore any of them. Right-rail history panel (Spike 017B), full-task-doc snapshots (Spike 016), auto-snapshot safety net before restore + 5s undo toast (Spike 015c), inline diff view (Spike 018). Stored in `project_iterations` Firestore subcollection.
@@ -862,6 +863,7 @@ Independent slices can run in parallel. Phase 84 needs Phase 83. Phase 87 needs 
 | 91.1 | v4.0 | 3/3 | Complete | 2026-05-14 |
 | 91.2 | v4.0 | 2/2 | Complete   | 2026-05-18 |
 | 91.3 | v4.0 | 6/6 | Complete | 2026-06-04 |
+| 91.4 | v4.0 | 0/2 | Planned | - |
 | 92 | v4.0 | 2/2 | Complete | 2026-05-18 |
 | 92.1 | v4.0 | 1/1 | Complete | 2026-05-18 |
 | 94 | v4.0 | 1/1 | Complete | 2026-05-25 |

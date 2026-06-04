@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 91.3 COMPLETE (2026-06-04, UAT passed 8/8) — inserting Phase 91.4 (RFP fee inclusion in financial breakdowns)
-stopped_at: Phase 91.3 closed 2026-06-04 — all 8 browser UAT items passed. Discovered gap: RFP fees (transfer_fee/cash_out_fee/misc_fees) are excluded from project/service expense totals and the expense modal. Phase 91.4 inserted to fix both Tier-1 (RFP-object-in-hand sites: expense-modal.js + service-detail.js) and Tier-2 (Firestore aggregate queries: project-detail.js + finance expense dashboard).
+status: Phase 91.4 PLANNED (2026-06-04, 2 plans) — ready to execute
+stopped_at: Phase 91.4 planned 2026-06-04 (2 plans). Plan 01: expense-modal.js + project-detail.js + service-detail.js (swap amount_requested → getRFPTotal/getRFPFees; add rfpFeesTotal to currentExpense.total/remainingPayable; remove dead rfpTotalRequested). Plan 02: finance.js project + service expense dashboards (add rfpSnap to each Promise.all mapper; sum getRFPFees fees; add to totalExpense). Next: /gsd:execute-phase 91.4.
 last_updated: "2026-06-04T00:00:00.000Z"
 last_activity: 2026-06-04
 progress:
