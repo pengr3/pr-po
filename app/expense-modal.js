@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, getDocs } from './firebase.js';
-import { formatCurrency, downloadCSV, escapeHTML, getRFPTotal } from './utils.js';
+import { formatCurrency, downloadCSV, escapeHTML, getRFPTotal, getRFPFees } from './utils.js';
 
 /**
  * Show unified expense breakdown modal for a project or service.
@@ -410,6 +410,27 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         }
     });
 
+    // Aggregate fee breakdown across an array of RFPs into labelled sub-rows.
+    // Labels from misc_fees are raw — must call escapeHTML at render time.
+    function computeFeeSubRows(rfps) {
+        let transferTotal = 0, cashOutTotal = 0;
+        const miscMap = {};
+        rfps.forEach(rfp => {
+            const { transfer, cashOut, misc } = getRFPFees(rfp);
+            transferTotal += transfer;
+            cashOutTotal += cashOut;
+            misc.forEach(m => {
+                const lbl = String(m?.label || 'Misc fee');
+                miscMap[lbl] = (miscMap[lbl] || 0) + (parseFloat(m?.amount) || 0);
+            });
+        });
+        const rows = [];
+        if (transferTotal > 0) rows.push({ label: 'Transfer fee', amount: transferTotal });
+        if (cashOutTotal > 0) rows.push({ label: 'Cash-out fee', amount: cashOutTotal });
+        Object.entries(miscMap).forEach(([lbl, amt]) => { if (amt > 0) rows.push({ label: lbl, amount: amt }); });
+        return rows;
+    }
+
     // Build payable rows: one per PO, one per Delivery Fee, one per Approved TR (D-01)
     const payablesRows = [];
 
@@ -417,13 +438,15 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         // PO row — total_amount minus delivery fee (delivery fee is its own separate row)
         const poTotalForRow = po.total_amount - po.delivery_fee;
         if (poTotalForRow > 0) {
-            const status = deriveStatusForPO(rfpsByPoId.get(po.po_id) || [], poTotalForRow);
+            const regularRFPs = (rfpsByPoId.get(po.po_id) || []).filter(r => r.tranche_label !== 'Delivery Fee');
+            const status = deriveStatusForPO(regularRFPs, poTotalForRow);
             payablesRows.push({
-                particulars: `${escapeHTML(po.po_id)} \u2014 ${escapeHTML(po.supplier_name || 'N/A')}`,
+                particulars: `${escapeHTML(po.po_id)} — ${escapeHTML(po.supplier_name || 'N/A')}`,
                 statusBucket: status.statusBucket,
                 statusLabel: status.statusLabel,
                 totalPayable: status.totalPayable,
                 totalPaid: status.totalPaid,
+                feeSubRows: computeFeeSubRows(regularRFPs),
                 kind: 'po',
             });
         }
@@ -431,24 +454,27 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         if (po.delivery_fee > 0) {
             const dfStatus = deriveStatusForDeliveryFee(deliveryFeeRfpsByPoId.get(po.po_id) || [], po.delivery_fee);
             payablesRows.push({
-                particulars: `${escapeHTML(po.po_id)} \u2014 Delivery Fee`,
+                particulars: `${escapeHTML(po.po_id)} — Delivery Fee`,
                 statusBucket: dfStatus.statusBucket,
                 statusLabel: dfStatus.statusLabel,
                 totalPayable: dfStatus.totalPayable,
                 totalPaid: dfStatus.totalPaid,
+                feeSubRows: [],
                 kind: 'delivery_fee',
             });
         }
     });
 
     payablesTRs.forEach(tr => {
-        const status = deriveStatusForTR(rfpsByTrId.get(tr.tr_id) || [], tr.total_amount);
+        const trRfps = rfpsByTrId.get(tr.tr_id) || [];
+        const status = deriveStatusForTR(trRfps, tr.total_amount);
         payablesRows.push({
-            particulars: `${escapeHTML(tr.tr_id)} \u2014 ${escapeHTML(tr.supplier_name || 'N/A')}`,
+            particulars: `${escapeHTML(tr.tr_id)} — ${escapeHTML(tr.supplier_name || 'N/A')}`,
             statusBucket: status.statusBucket,
             statusLabel: status.statusLabel,
             totalPayable: status.totalPayable,
             totalPaid: status.totalPaid,
+            feeSubRows: computeFeeSubRows(trRfps),
             kind: 'tr',
         });
     });
@@ -496,13 +522,22 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     <tbody>
                         ${payablesRows.map(row => {
                             const color = statusColors[row.statusBucket] || '#64748b';
+                            const feeRows = row.feeSubRows || [];
+                            const feeHtml = feeRows.map(f => `
+                                <tr style='background:#f8fafc;'>
+                                    <td style='padding-left:2.5rem;color:#94a3b8;font-size:0.82em;'>${escapeHTML(f.label)}</td>
+                                    <td style='color:#94a3b8;font-size:0.82em;font-style:italic;'>fee</td>
+                                    <td style='text-align:right;color:#94a3b8;font-size:0.82em;'>${formatCurrency(f.amount)}</td>
+                                    <td style='text-align:right;color:#94a3b8;font-size:0.82em;'>&#8212;</td>
+                                </tr>
+                            `).join('');
                             return `
                                 <tr>
                                     <td>${row.particulars}</td>
-                                    <td style="color: ${color}; font-weight: 600;">${row.statusLabel}</td>
-                                    <td style="text-align: right;">${formatCurrency(row.totalPayable)}</td>
-                                    <td style="text-align: right;">${formatCurrency(row.totalPaid)}</td>
-                                </tr>
+                                    <td style='color: ${color}; font-weight: 600;'>${row.statusLabel}</td>
+                                    <td style='text-align: right;'>${formatCurrency(row.totalPayable)}</td>
+                                    <td style='text-align: right;'>${formatCurrency(row.totalPaid)}</td>
+                                </tr>${feeHtml}
                             `;
                         }).join('')}
                     </tbody>
