@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 91.4 EXECUTED (2/2 plans, 2026-06-04) — browser UAT pending
-stopped_at: context exhaustion at 83% (2026-06-04); Plan 01 commit 84b3cc5 (expense-modal + project/service detail), Plan 02 commit bb8d840 (finance project/service expense dashboards)
-last_updated: "2026-06-04T06:25:53.741Z"
-last_activity: 2026-06-03
+status: All UATs closed 2026-06-04 (91.2/91.3/91.4/98 complete) — ready to ship v3.3
+stopped_at: spike-019 totalPayable fee-inclusive fix committed a7448be; all outstanding UATs approved
+last_updated: "2026-06-04T00:00:00.000Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 31
-  completed_phases: 27
+  completed_phases: 29
   total_plans: 119
-  completed_plans: 115
-  percent: 87
+  completed_plans: 119
+  percent: 94
 ---
 
 # Project State
@@ -25,7 +25,15 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 
 ## Current Position
 
-**✅ Phase 91.4 EXECUTED 2026-06-04 — RFP Fee Inclusion in Financial Breakdowns (2/2 plans, inline on v3.3).** Plan 01 commit `84b3cc5`: expense-modal.js (`getRFPTotal` in place of `amount_requested`), project-detail.js + service-detail.js (added `rfpFeesTotal` accumulation; dead `rfpTotalRequested` removed; `currentExpense`/`currentServiceExpense` totals and `remainingPayable` now fee-inclusive). Plan 02 commit `bb8d840`: finance.js project-expense and service-expense dashboards — added RFP getDocs to each mapper's `Promise.all`; `rfpFeesTotal` added to `totalExpense` (and thus `remainingBudget`). No new Firestore collections or schema changes. `node --check` PASS on all 4 modified JS modules. Legacy-safe: `getRFPFees` returns 0 for RFPs with no fee fields. **Browser UAT needed**: open a project/service with fee-bearing RFPs, confirm expense totals include fees; open Finance expense dashboards and confirm same.
+**✅ Phase 98 COMPLETE 2026-06-04 — UAT approved.** All 4 plans shipped (commits `37005ff`, `dafac92`+`468268d`, `4353f61`, `fbc1ae2`). UAT approved 2026-06-04.
+
+**✅ Phase 91.4 COMPLETE 2026-06-04 — RFP Fee Inclusion in Financial Breakdowns (2/2 plans + spike-019 fix).** Plan 01 commit `84b3cc5`: expense-modal.js + project/service detail. Plan 02 commit `bb8d840`: finance.js dashboards. Spike-019 fix commit `a7448be`: `deriveStatusForPO`/`deriveStatusForTR` now use fee-inclusive `totalPayable`. UAT approved 2026-06-04.
+
+**✅ Phase 91.3 COMPLETE 2026-06-04.** All 8 UAT items passed.
+
+**✅ Phase 91.2 COMPLETE 2026-05-18.** All 9 UAT items passed.
+
+**Next: ship v3.3 → main.** Run `firebase deploy --only firestore:rules` after merge (Phase 87.4 pending deployment).
 
 ---
 
