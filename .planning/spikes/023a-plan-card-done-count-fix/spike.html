@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 023a — Plan Card Done Count Fix</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+.page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+/* State switcher */
+.switcher { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.switcher button { padding: 7px 16px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; transition: all 0.15s; }
+.switcher button.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+
+/* Side by side columns */
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.col-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
+.col-label.bug { color: #ef4444; }
+.col-label.fix { color: #059669; }
+
+/* Plan card (matching production styles) */
+.project-plan-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.plan-heading-new { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; padding: 14px 16px 10px; border-bottom: 1px solid #f1f5f9; }
+.plan-inner { padding: 16px; }
+
+.plan-progress-wrap { margin-bottom: 14px; }
+.plan-progress-track { height: 8px; border-radius: 99px; background: #f1f5f9; overflow: hidden; margin-bottom: 6px; }
+.plan-progress-fill { height: 100%; border-radius: 99px; background: #1a73e8; transition: width 0.3s; }
+.plan-progress-fill.complete { background: #10b981; }
+.plan-progress-text { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
+.plan-pct { font-weight: 600; }
+
+.plan-combined-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.plan-health-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+.plan-health-badge.on-track { background: #dcfce7; color: #166534; }
+.plan-health-badge.at-risk   { background: #fffbeb; color: #92400e; }
+.plan-health-badge.behind    { background: #fee2e2; color: #991b1b; }
+.phb-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.plan-overdue-pill { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 99px; }
+.pod-count { color: #b45309; }
+
+.plan-overdue-section { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; }
+.plan-overdue-task-row { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; }
+.plan-overdue-name { font-size: 12px; color: #92400e; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plan-overdue-age { font-size: 11px; color: #b45309; flex-shrink: 0; }
+
+.plan-upcoming-section { margin-bottom: 10px; }
+.plan-section-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
+.plan-upcoming-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid #f8fafc; }
+.plan-upcoming-row:last-child { border-bottom: none; }
+.pup-icon { font-size: 11px; flex-shrink: 0; }
+.pup-name { font-size: 12px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pup-due { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
+.pup-date { font-size: 11px; color: #64748b; }
+.pup-rel { font-size: 10px; color: #94a3b8; }
+.pup-rel.very-soon { color: #ef4444; font-weight: 600; }
+.pup-rel.soon      { color: #f59e0b; font-weight: 600; }
+
+.plan-last-done { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-top: 1px solid #f1f5f9; margin-top: 4px; margin-bottom: 10px; }
+.plan-last-done-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8; }
+.plan-last-done-val { font-size: 12px; color: #475569; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.plan-footer { display: flex; align-items: center; justify-content: space-between; }
+.plan-footer-count { font-size: 12px; color: #94a3b8; }
+.btn-primary { display: inline-flex; align-items: center; padding: 6px 14px; font-size: 12px; font-weight: 600; background: #1a73e8; color: #fff; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; }
+
+/* Diff callout */
+.diff-box { margin-top: 12px; padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.6; }
+.diff-box.bug { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+.diff-box.fix { background: #dcfce7; border: 1px solid #86efac; color: #166534; }
+.diff-box strong { font-weight: 700; }
+
+/* Data table */
+.data-table { margin-top: 24px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.data-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { background: #f8fafc; font-weight: 700; color: #64748b; text-align: left; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+.data-table td { padding: 6px 12px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+.data-table td.done  { color: #059669; font-weight: 600; }
+.data-table td.undone { color: #94a3b8; }
+.data-table .parent-row td { background: #f8fafc; font-weight: 600; color: #64748b; font-style: italic; }
+
+/* Formula box */
+.formula-box { background: #0f172a; color: #94a3b8; font-family: monospace; font-size: 11px; border-radius: 6px; padding: 10px 14px; margin: 16px 0; line-height: 1.8; }
+.formula-box .bug-line { color: #f87171; }
+.formula-box .fix-line { color: #4ade80; }
+.formula-box .comment { color: #475569; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Spike 023a — Plan Card Done Count Fix</h1>
+  <p class="subtitle">Bug: "N of M tasks complete" uses derived estimate instead of actual completed leaf count. Left = buggy formula. Right = fixed formula.</p>
+
+  <!-- State switcher -->
+  <div class="switcher">
+    <button class="active" onclick="setState('screenshot')">Screenshot state (your data)</button>
+    <button onclick="setState('moreComplete')">More complete (4/6 done)</button>
+    <button onclick="setState('equalDurations')">Equal durations</button>
+    <button onclick="setState('allDone')">All done (100%)</button>
+    <button onclick="setState('empty')">Empty plan</button>
+  </div>
+
+  <!-- Side by side -->
+  <div class="columns" id="cardColumns">
+    <div>
+      <div class="col-label bug">Buggy formula (current)</div>
+      <div id="bugCard"></div>
+      <div id="bugDiff" class="diff-box bug"></div>
+    </div>
+    <div>
+      <div class="col-label fix">Fixed formula (spike proposal)</div>
+      <div id="fixCard"></div>
+      <div id="fixDiff" class="diff-box fix"></div>
+    </div>
+  </div>
+
+  <!-- Formula comparison -->
+  <div class="formula-box">
+    <div class="comment">// buggy — doneCount is an estimate derived from weighted %</div>
+    <div class="bug-line">const doneCount = Math.round(p.taskCount * pct / 100);</div>
+    <br>
+    <div class="comment">// fixed — add doneCount to computeProjectProgress() output</div>
+    <div class="fix-line">// In computeProjectProgress():</div>
+    <div class="fix-line">result.doneCount  = leaves.filter(l =&gt; (l.progress ?? 0) &gt;= 100).length;</div>
+    <div class="fix-line">result.leafCount  = leaves.length;</div>
+    <br>
+    <div class="comment">// In buildPlanCardHtml() — replace old doneCount line:</div>
+    <div class="fix-line">const { doneCount, leafCount } = p;</div>
+    <div class="comment">// "${doneCount} of ${leafCount} tasks complete"</div>
+  </div>
+
+  <!-- Task data table -->
+  <div class="data-table">
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Type</th><th>Duration</th><th>Progress</th><th>Leaf?</th></tr></thead>
+      <tbody id="taskTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ─── Data states ───────────────────────────────────────────────
+const STATES = {
+  screenshot: {
+    label: 'Screenshot state — your actual data',
+    tasks: [
+      { task_id: 'grp1', name: 'Demo',   parent_task_id: null, start_date: '2026-06-02', end_date: '2026-06-27', progress: 0 },
+      { task_id: 't1',   name: '1',      parent_task_id: 'grp1', start_date: '2026-06-02', end_date: '2026-06-02', progress: 100 },
+      { task_id: 't2',   name: '2',      parent_task_id: 'grp1', start_date: '2026-06-04', end_date: '2026-06-04', progress: 100 },
+      { task_id: 't3',   name: '3',      parent_task_id: 'grp1', start_date: '2026-06-18', end_date: '2026-06-27', progress: 0 },
+      { task_id: 'grp2', name: 'Demo',   parent_task_id: null, start_date: '2026-06-06', end_date: '2026-06-17', progress: 0 },
+      { task_id: 'tA',   name: 'A',      parent_task_id: 'grp2', start_date: '2026-06-06', end_date: '2026-06-06', progress: 0 },
+      { task_id: 'tB',   name: 'B',      parent_task_id: 'grp2', start_date: '2026-06-15', end_date: '2026-06-15', progress: 0 },
+      { task_id: 'tC',   name: 'C',      parent_task_id: 'grp2', start_date: '2026-06-17', end_date: '2026-06-17', progress: 0 },
+    ]
+  },
+  moreComplete: {
+    label: '4 of 6 leaf tasks done',
+    tasks: [
+      { task_id: 'grp1', name: 'Demo',   parent_task_id: null, start_date: '2026-06-01', end_date: '2026-06-27', progress: 0 },
+      { task_id: 't1',   name: '1',      parent_task_id: 'grp1', start_date: '2026-06-02', end_date: '2026-06-02', progress: 100 },
+      { task_id: 't2',   name: '2',      parent_task_id: 'grp1', start_date: '2026-06-04', end_date: '2026-06-04', progress: 100 },
+      { task_id: 't3',   name: '3',      parent_task_id: 'grp1', start_date: '2026-06-18', end_date: '2026-06-27', progress: 0 },
+      { task_id: 'grp2', name: 'Demo',   parent_task_id: null, start_date: '2026-06-06', end_date: '2026-06-17', progress: 0 },
+      { task_id: 'tA',   name: 'A',      parent_task_id: 'grp2', start_date: '2026-06-06', end_date: '2026-06-06', progress: 100 },
+      { task_id: 'tB',   name: 'B',      parent_task_id: 'grp2', start_date: '2026-06-15', end_date: '2026-06-15', progress: 100 },
+      { task_id: 'tC',   name: 'C',      parent_task_id: 'grp2', start_date: '2026-06-17', end_date: '2026-06-17', progress: 0 },
+    ]
+  },
+  equalDurations: {
+    label: 'All tasks 1d — bug disappears here',
+    tasks: [
+      { task_id: 'grp1', name: 'Demo',   parent_task_id: null, start_date: '2026-06-01', end_date: '2026-06-06', progress: 0 },
+      { task_id: 't1',   name: 'Task 1', parent_task_id: 'grp1', start_date: '2026-06-01', end_date: '2026-06-01', progress: 100 },
+      { task_id: 't2',   name: 'Task 2', parent_task_id: 'grp1', start_date: '2026-06-02', end_date: '2026-06-02', progress: 100 },
+      { task_id: 't3',   name: 'Task 3', parent_task_id: 'grp1', start_date: '2026-06-03', end_date: '2026-06-03', progress: 0 },
+      { task_id: 't4',   name: 'Task 4', parent_task_id: 'grp1', start_date: '2026-06-04', end_date: '2026-06-04', progress: 0 },
+      { task_id: 't5',   name: 'Task 5', parent_task_id: 'grp1', start_date: '2026-06-05', end_date: '2026-06-05', progress: 0 },
+      { task_id: 't6',   name: 'Task 6', parent_task_id: 'grp1', start_date: '2026-06-06', end_date: '2026-06-06', progress: 0 },
+    ]
+  },
+  allDone: {
+    label: 'All tasks complete',
+    tasks: [
+      { task_id: 'grp1', name: 'Demo',   parent_task_id: null, start_date: '2026-06-01', end_date: '2026-06-10', progress: 100 },
+      { task_id: 't1',   name: 'Task 1', parent_task_id: 'grp1', start_date: '2026-06-01', end_date: '2026-06-05', progress: 100, updated_at: {seconds: 1748800000} },
+      { task_id: 't2',   name: 'Task 2', parent_task_id: 'grp1', start_date: '2026-06-06', end_date: '2026-06-10', progress: 100, updated_at: {seconds: 1748900000} },
+    ]
+  },
+  empty: {
+    label: 'No tasks',
+    tasks: []
+  }
+};
+
+// ─── Core logic (mirrors production computeProjectProgress) ────
+function computeDurationDays(s, e) {
+  if (!s || !e) return 1;
+  const days = Math.round((new Date(e) - new Date(s)) / 86400000) + 1;
+  return Math.max(1, days);
+}
+
+function todayLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function computeProgress(tasks) {
+  const result = { taskCount: tasks.length, leafCount: 0, percentComplete: 0, doneCount: 0,
+                   health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [],
+                   upcomingTasks: [], recentDone: null };
+  if (tasks.length === 0) return result;
+
+  const childrenByParent = new Map();
+  tasks.forEach(t => {
+    const key = t.parent_task_id || '__root__';
+    if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+    childrenByParent.get(key).push(t);
+  });
+  const leaves = tasks.filter(t => !childrenByParent.has(t.task_id));
+  result.leafCount = leaves.length;
+  if (leaves.length === 0) return result;
+
+  // ✅ FIX: actual doneCount
+  result.doneCount = leaves.filter(l => (l.progress ?? 0) >= 100).length;
+
+  let weightedSum = 0, weightTotal = 0;
+  leaves.forEach(l => {
+    const dur = computeDurationDays(l.start_date, l.end_date);
+    const p = typeof l.progress === 'number' ? l.progress : 0;
+    weightedSum += p * dur;
+    weightTotal += dur;
+  });
+  result.percentComplete = weightTotal > 0 ? Math.round(weightedSum / weightTotal) : 0;
+
+  const today = todayLocal();
+  const overdueFull = leaves.filter(t => t.end_date && t.end_date < today && (t.progress ?? 0) < 100)
+    .sort((a,b) => a.end_date.localeCompare(b.end_date));
+  result.overdueCount = overdueFull.length;
+  result.overdueMore  = overdueFull.length > 2 ? overdueFull.length - 2 : 0;
+  result.overdueTasks = overdueFull.slice(0,2).map(t => ({
+    name: t.name || t.task_id,
+    daysLate: Math.max(1, Math.round((new Date(today) - new Date(t.end_date)) / 86400000)),
+  }));
+  result.health = result.overdueCount === 0 ? 'on-track' : result.overdueCount <= 2 ? 'at-risk' : 'behind';
+  result.upcomingTasks = leaves
+    .filter(t => t.end_date && t.end_date >= today && (t.progress ?? 0) < 100)
+    .sort((a,b) => a.end_date.localeCompare(b.end_date))
+    .slice(0,2)
+    .map(t => ({
+      name: t.name || t.task_id,
+      end_date: t.end_date,
+      daysUntil: Math.max(0, Math.round((new Date(t.end_date) - new Date(today)) / 86400000)),
+      isMilestone: !!t.is_milestone,
+    }));
+  const done = leaves.filter(t => (t.progress ?? 0) >= 100).sort((a,b) => {
+    const as = a.updated_at?.seconds || 0;
+    const bs = b.updated_at?.seconds || 0;
+    return bs - as;
+  });
+  if (done.length > 0) result.recentDone = done[0].name || done[0].task_id;
+  return result;
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Card builders ─────────────────────────────────────────────
+function buildBugCard(p, tasks) {
+  const planUrl = '#';
+  const openBtn = `<a href="${planUrl}" class="btn-primary">Open Plan</a>`;
+  if (p.taskCount === 0) return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner"><p style="font-size:13px;color:#64748b;">No tasks yet.</p></div></div>`;
+
+  const pct = p.percentComplete;
+  // ❌ BUG: derived count
+  const doneCount = Math.round(p.taskCount * pct / 100);
+
+  const barHtml = `<div class="plan-progress-wrap">
+    <div class="plan-progress-track"><div class="plan-progress-fill${pct===100?' complete':''}" style="width:${pct}%"></div></div>
+    <div class="plan-progress-text"><span>${doneCount} of ${p.taskCount} tasks complete</span><span class="plan-pct">${pct}%</span></div>
+  </div>`;
+
+  if (pct === 100) {
+    return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner">${barHtml}<div style="text-align:center;padding:12px 0;color:#059669;font-size:13px;font-weight:600;">✓ All tasks complete</div>${openBtn}</div></div>`;
+  }
+
+  const hm = {on-track:'On Track','at-risk':'At Risk','behind':'Behind'}[p.health] || 'On Track';
+  const hcls = p.health;
+  const topRow = `<div class="plan-combined-top">
+    <span class="plan-health-badge ${hcls}"><span class="phb-dot"></span>${hm}</span>
+    ${p.overdueCount > 0 ? `<span class="plan-overdue-pill"><span class="pod-count">${p.overdueCount}</span> overdue</span>` : ''}
+  </div>`;
+
+  let overdueHtml = '';
+  if (p.overdueTasks.length > 0) {
+    const rows = p.overdueTasks.map(t => `<div class="plan-overdue-task-row"><span style="color:#ef4444;font-size:10px;">!</span><span class="plan-overdue-name">${esc(t.name)}</span><span class="plan-overdue-age">${t.daysLate}d late</span></div>`).join('');
+    overdueHtml = `<div class="plan-overdue-section">${rows}</div>`;
+  }
+
+  let upcomingHtml = '';
+  if (p.upcomingTasks.length > 0) {
+    const rows = p.upcomingTasks.map(t => {
+      const rel = t.daysUntil === 0 ? 'today' : t.daysUntil === 1 ? 'tomorrow' : `in ${t.daysUntil}d`;
+      const rc = t.daysUntil <= 3 ? 'very-soon' : t.daysUntil <= 7 ? 'soon' : '';
+      const d = new Date(t.end_date + 'T00:00:00');
+      const ds = d.toLocaleDateString('en-PH',{month:'short',day:'numeric'});
+      return `<div class="plan-upcoming-row"><span class="pup-icon" style="color:${t.isMilestone?'#1a73e8':'#94a3b8'}">${t.isMilestone?'◆':'○'}</span><span class="pup-name">${esc(t.name)}</span><span class="pup-due"><span class="pup-date">${ds}</span><span class="pup-rel ${rc}">${rel}</span></span></div>`;
+    }).join('');
+    upcomingHtml = `<div class="plan-upcoming-section"><div class="plan-section-lbl">Next Up</div>${rows}</div>`;
+  }
+
+  const lastDone = p.recentDone ? `<div class="plan-last-done"><div class="plan-last-done-lbl">Last completed</div><div class="plan-last-done-val">${esc(p.recentDone)}</div></div>` : '';
+  const footer = `<div class="plan-footer"><span class="plan-footer-count">${p.taskCount} tasks</span>${openBtn}</div>`;
+
+  return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner">${barHtml}${topRow}${overdueHtml}${upcomingHtml}${lastDone}${footer}</div></div>`;
+}
+
+function buildFixCard(p, tasks) {
+  const planUrl = '#';
+  const openBtn = `<a href="${planUrl}" class="btn-primary">Open Plan</a>`;
+  if (p.taskCount === 0) return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner"><p style="font-size:13px;color:#64748b;">No tasks yet.</p></div></div>`;
+
+  const pct = p.percentComplete;
+  // ✅ FIX: actual count from computeProgress()
+  const { doneCount, leafCount } = p;
+
+  const barHtml = `<div class="plan-progress-wrap">
+    <div class="plan-progress-track"><div class="plan-progress-fill${pct===100?' complete':''}" style="width:${pct}%"></div></div>
+    <div class="plan-progress-text"><span>${doneCount} of ${leafCount} tasks complete</span><span class="plan-pct">${pct}%</span></div>
+  </div>`;
+
+  if (pct === 100) {
+    return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner">${barHtml}<div style="text-align:center;padding:12px 0;color:#059669;font-size:13px;font-weight:600;">✓ All tasks complete</div>${openBtn}</div></div>`;
+  }
+
+  const hm = {'on-track':'On Track','at-risk':'At Risk','behind':'Behind'}[p.health] || 'On Track';
+  const hcls = p.health;
+  const topRow = `<div class="plan-combined-top">
+    <span class="plan-health-badge ${hcls}"><span class="phb-dot"></span>${hm}</span>
+    ${p.overdueCount > 0 ? `<span class="plan-overdue-pill"><span class="pod-count">${p.overdueCount}</span> overdue</span>` : ''}
+  </div>`;
+
+  let overdueHtml = '';
+  if (p.overdueTasks.length > 0) {
+    const rows = p.overdueTasks.map(t => `<div class="plan-overdue-task-row"><span style="color:#ef4444;font-size:10px;">!</span><span class="plan-overdue-name">${esc(t.name)}</span><span class="plan-overdue-age">${t.daysLate}d late</span></div>`).join('');
+    overdueHtml = `<div class="plan-overdue-section">${rows}</div>`;
+  }
+
+  let upcomingHtml = '';
+  if (p.upcomingTasks.length > 0) {
+    const rows = p.upcomingTasks.map(t => {
+      const rel = t.daysUntil === 0 ? 'today' : t.daysUntil === 1 ? 'tomorrow' : `in ${t.daysUntil}d`;
+      const rc = t.daysUntil <= 3 ? 'very-soon' : t.daysUntil <= 7 ? 'soon' : '';
+      const d = new Date(t.end_date + 'T00:00:00');
+      const ds = d.toLocaleDateString('en-PH',{month:'short',day:'numeric'});
+      return `<div class="plan-upcoming-row"><span class="pup-icon" style="color:${t.isMilestone?'#1a73e8':'#94a3b8'}">${t.isMilestone?'◆':'○'}</span><span class="pup-name">${esc(t.name)}</span><span class="pup-due"><span class="pup-date">${ds}</span><span class="pup-rel ${rc}">${rel}</span></span></div>`;
+    }).join('');
+    upcomingHtml = `<div class="plan-upcoming-section"><div class="plan-section-lbl">Next Up</div>${rows}</div>`;
+  }
+
+  const lastDone = p.recentDone ? `<div class="plan-last-done"><div class="plan-last-done-lbl">Last completed</div><div class="plan-last-done-val">${esc(p.recentDone)}</div></div>` : '';
+  const footer = `<div class="plan-footer"><span class="plan-footer-count">${leafCount} tasks</span>${openBtn}</div>`;
+
+  return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner">${barHtml}${topRow}${overdueHtml}${upcomingHtml}${lastDone}${footer}</div></div>`;
+}
+
+// ─── Render ────────────────────────────────────────────────────
+let currentState = 'screenshot';
+
+function setState(key) {
+  currentState = key;
+  document.querySelectorAll('.switcher button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  render();
+}
+
+function render() {
+  const { tasks } = STATES[currentState];
+  const p = computeProgress(tasks);
+
+  // Bug card
+  const bugDoneCount = Math.round(p.taskCount * p.percentComplete / 100);
+  document.getElementById('bugCard').innerHTML = buildBugCard(p, tasks);
+  document.getElementById('bugDiff').innerHTML = `<strong>Buggy formula result:</strong><br>
+    taskCount=${p.taskCount} (includes ${p.taskCount - p.leafCount} parents) × pct=${p.percentComplete}% ÷ 100 = <strong>${bugDoneCount}</strong> (rounded)<br>
+    Actual completed leaves: <strong>${p.doneCount}</strong><br>
+    Display: "${bugDoneCount} of ${p.taskCount} tasks complete"`;
+
+  // Fix card
+  document.getElementById('fixCard').innerHTML = buildFixCard(p, tasks);
+  document.getElementById('fixDiff').innerHTML = `<strong>Fixed formula result:</strong><br>
+    doneCount = leaves with progress≥100 = <strong>${p.doneCount}</strong><br>
+    leafCount (denominator) = <strong>${p.leafCount}</strong><br>
+    Display: "${p.doneCount} of ${p.leafCount} tasks complete"`;
+
+  // Task table
+  const childrenByParent = new Map();
+  tasks.forEach(t => {
+    const key = t.parent_task_id || '__root__';
+    if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+    childrenByParent.get(key).push(t);
+  });
+  const isLeaf = t => !childrenByParent.has(t.task_id);
+  const rows = tasks.map(t => {
+    const leaf = isLeaf(t);
+    const dur = computeDurationDays(t.start_date, t.end_date);
+    const rowCls = !leaf ? 'parent-row' : '';
+    const progCls = leaf && t.progress >= 100 ? 'done' : 'undone';
+    return `<tr class="${rowCls}"><td>${esc(t.task_id)}</td><td>${esc(t.name)}</td><td>${leaf ? 'leaf' : 'parent'}</td><td>${dur}d</td><td class="${progCls}">${t.progress ?? 0}%</td><td>${leaf ? '✓' : '—'}</td></tr>`;
+  }).join('');
+  document.getElementById('taskTableBody').innerHTML = rows;
+}
+
+render();
+</script>
+</body>
+</html>
