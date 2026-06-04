@@ -520,24 +520,34 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         </tr>
                     </thead>
                     <tbody>
-                        ${payablesRows.map(row => {
+                        ${payablesRows.map((row, idx) => {
                             const color = statusColors[row.statusBucket] || '#64748b';
                             const feeRows = row.feeSubRows || [];
-                            const feeHtml = feeRows.map(f => `
-                                <tr style='background:#f8fafc;'>
-                                    <td style='padding-left:2.5rem;color:#94a3b8;font-size:0.82em;'>${escapeHTML(f.label)}</td>
-                                    <td style='color:#94a3b8;font-size:0.82em;font-style:italic;'>fee</td>
-                                    <td style='text-align:right;color:#94a3b8;font-size:0.82em;'>${formatCurrency(f.amount)}</td>
-                                    <td style='text-align:right;color:#94a3b8;font-size:0.82em;'>&#8212;</td>
-                                </tr>
-                            `).join('');
+                            const hasFees = feeRows.length > 0;
+                            const accId = `em-fee-acc-${idx}`;
+                            const accIcon = hasFees
+                                ? `<span id='${accId}-icon' style='display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;border:1px solid #e2e8f0;font-size:9px;color:#94a3b8;margin-right:6px;flex-shrink:0;background:#fff;cursor:pointer;'>&#9658;</span>`
+                                : '';
+                            const feeRowsHtml = feeRows.map(f => [
+                                `<tr style='background:linear-gradient(to right,#eff6ff 0px,#f8fafc 20px);`,
+                                `border-bottom:1px solid #dbeafe;'>`,
+                                `<td style='padding:0.4rem 1rem 0.4rem 2.5rem;font-size:12px;color:#1a73e8;font-weight:500;'>${escapeHTML(f.label)}</td>`,
+                                `<td style='font-size:12px;color:#1a73e8;'>fee</td>`,
+                                `<td style='text-align:right;font-size:12px;color:#1a73e8;font-weight:600;font-variant-numeric:tabular-nums;'>${formatCurrency(f.amount)}</td>`,
+                                `<td style='text-align:right;font-size:12px;color:#1a73e8;font-weight:600;font-variant-numeric:tabular-nums;'>${formatCurrency(f.amount)}</td>`,
+                                `</tr>`,
+                            ].join('')).join('');
+                            const feeDetail = hasFees
+                                ? `<tr id='${accId}' style='display:none;'><td colspan='4' style='padding:0;border:none;'><table style='width:100%;border-collapse:collapse;'>${feeRowsHtml}</table></td></tr>`
+                                : '';
+                            const clickAttr = hasFees ? `onclick='window._toggleEMFeeAcc("${accId}")'` : '';
                             return `
-                                <tr>
-                                    <td>${row.particulars}</td>
+                                <tr ${clickAttr} style='${hasFees ? 'cursor:pointer;' : ''}'>
+                                    <td>${accIcon}${row.particulars}</td>
                                     <td style='color: ${color}; font-weight: 600;'>${row.statusLabel}</td>
                                     <td style='text-align: right;'>${formatCurrency(row.totalPayable)}</td>
                                     <td style='text-align: right;'>${formatCurrency(row.totalPaid)}</td>
-                                </tr>${feeHtml}
+                                </tr>${feeDetail}
                             `;
                         }).join('')}
                     </tbody>
@@ -926,5 +936,19 @@ window._toggleEMCollHistory = function(collId) {
     const row = document.getElementById(`em-coll-history-${collId}`);
     if (!row) return;
     row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+};
+
+window._toggleEMFeeAcc = function(accId) {
+    const row = document.getElementById(accId);
+    const icon = document.getElementById(accId + '-icon');
+    if (!row) return;
+    const isOpen = row.style.display !== 'none';
+    row.style.display = isOpen ? 'none' : 'table-row';
+    if (icon) {
+        icon.style.background = isOpen ? '#fff' : '#1a73e8';
+        icon.style.borderColor = isOpen ? '#e2e8f0' : '#1a73e8';
+        icon.style.color = isOpen ? '#94a3b8' : '#fff';
+        icon.innerHTML = isOpen ? '&#9658;' : '&#9660;';
+    }
 };
 
