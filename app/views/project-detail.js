@@ -3,11 +3,11 @@
    Full-page project detail with inline editing
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
-import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+import { createNotificationForUsers, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 // Phase 87.1 D-05 — inline proposal card
 import { _applyProposalStateTransition } from './proposals.js';
 import { openProposalModal, openCreateProposalModal } from '../proposal-modal.js';
@@ -25,6 +25,12 @@ let personnelClickOutsideHandler = null;
 // Phase 78 D-04: clients cache for the issuance client-select control (lazy-loaded when needed)
 let clientsCacheForIssuance = [];
 let clientsCacheLoaded = false;
+
+// Phase 99 — billing requests for THIS project (own-requests status list)
+let currentBillingRequests = [];
+let billingRequestsListenerUnsub = null;
+// Phase 99 — billing-request modal selected type (auto-hinted, overrideable)
+let billingSelectedType = 'progress';
 
 // Phase 86 — Project Plan summary card
 let currentTasks = [];
@@ -178,6 +184,8 @@ export async function init(activeTab = null, param = null) {
                         }
                         // Phase 86 — Project Plan summary listener (idempotent attach)
                         ensureTasksListener();
+                        // Phase 99 — own billing-requests listener (idempotent, scoped to project_code)
+                        ensureBillingRequestsListener();
                         await ensureIterationLabel();
                         if (checkProjectAccess()) {
                             renderProjectDetail();
@@ -214,6 +222,8 @@ export async function init(activeTab = null, param = null) {
 
         // Phase 86 — Project Plan summary listener (idempotent attach once currentProject.id is known)
         ensureTasksListener();
+        // Phase 99 — own billing-requests listener (idempotent, scoped to project_code)
+        ensureBillingRequestsListener();
         await ensureIterationLabel();
 
         // Phase 7: Check project assignment access for operations_user
@@ -241,6 +251,26 @@ function ensureTasksListener() {
                 cardEl.replaceWith(tmp.firstElementChild);
             }
         }
+    );
+}
+
+// Phase 99 — idempotent attach of the own billing-requests listener (D-15 status list).
+// Scoped to currentProject.project_code (the field Task 3's submit writes — NOT the URL
+// `projectCode` param, which can be a Firestore doc id for clientless projects, Phase 78 D-06).
+// Mirrors ensureTasksListener(): runs once per mount, re-renders the detail on change.
+function ensureBillingRequestsListener() {
+    if (billingRequestsListenerUnsub) return;
+    const code = currentProject?.project_code;
+    if (!code) return; // no project_code → no scoped own-requests list (legacy/clientless edge)
+    billingRequestsListenerUnsub = onSnapshot(
+        query(collection(db, 'billing_requests'), where('project_code', '==', code)),
+        (snap) => {
+            currentBillingRequests = [];
+            snap.forEach(d => currentBillingRequests.push({ id: d.id, ...d.data() }));
+            // re-render so the status list reflects new/changed requests
+            if (currentProject) renderProjectDetail();
+        },
+        (err) => { console.error('[ProjectDetail/BillingReq] snapshot error:', err); }
     );
 }
 
@@ -280,6 +310,12 @@ export async function destroy() {
         usersListenerUnsub = null;
     }
     usersData = [];
+
+    // Phase 99 — own billing-requests listener teardown
+    if (billingRequestsListenerUnsub) { try { billingRequestsListenerUnsub(); } catch (e) { /* swallow */ } }
+    billingRequestsListenerUnsub = null;
+    currentBillingRequests = [];
+    billingSelectedType = 'progress';
 
     // Phase 86 — Project Plan summary listener teardown
     if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } }
@@ -544,6 +580,11 @@ function renderProjectDetail() {
                                 <div style="font-weight:700;color:${currentCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentCollectibles.remainingCollectible)}</div>
                             </div>
                         </div>
+                        <!-- Phase 99 D-15 — Initiate Billing footer link (unconditional; operations_user must reach it) -->
+                        <div style="text-align:right;margin-top:0.5rem;">
+                            <span onclick="window.openBillingRequestModal()" style="cursor:pointer;color:#1a73e8;font-size:0.72rem;font-weight:700;user-select:none;">↑ Initiate Billing →</span>
+                        </div>
+                        ${renderOwnBillingRequests()}
                     </div>
                 </div>
             </div>
@@ -576,6 +617,27 @@ function renderProjectDetail() {
             if (field) field.focus();
         }
     }
+}
+
+// Phase 99 D-15 — compact own-requests status list (pending/approved/rejected + reason).
+// Reads the module var populated by ensureBillingRequestsListener(); empty state returns ''.
+// All user strings escaped (D-19); status pills lowercase-exact (D-21).
+function renderOwnBillingRequests() {
+    if (!Array.isArray(currentBillingRequests) || currentBillingRequests.length === 0) return '';
+    const PILL = { pending: '#f59e0b', approved: '#059669', rejected: '#ef4444' };
+    const rows = currentBillingRequests
+        .slice()
+        .sort((a, b) => ((b.requested_at?.seconds || 0) - (a.requested_at?.seconds || 0)))
+        .map(r => {
+            const color = PILL[r.status] || '#64748b'; // exact lowercase match, D-21
+            const reason = (r.status === 'rejected' && r.rejection_reason)
+                ? `<div style="font-size:0.62rem;color:#991b1b;margin-top:0.1rem;">Reason: ${escapeHTML(r.rejection_reason)}</div>` : '';
+            return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;padding:0.2rem 0;border-top:1px solid #f1f5f9;">
+                <div style="font-size:0.66rem;color:#475569;">${escapeHTML(r.tranche_label || '')} · ${formatCurrency(r.amount_requested || 0)}${reason}</div>
+                <span style="font-size:0.6rem;font-weight:700;color:${color};text-transform:capitalize;white-space:nowrap;">${escapeHTML(r.status || '')}</span>
+            </div>`;
+        }).join('');
+    return `<div style="margin-top:0.4rem;">${rows}</div>`;
 }
 
 // Personnel pill rendering helper
