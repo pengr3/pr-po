@@ -28,9 +28,15 @@ python -m http.server 8000
 
 ## What to Expect
 
-- **Current** vs **New: Deadline-Centric** switcher at top
-- Data states: Typical / With overdue / No dates set / All complete / Empty plan
-- The "With overdue" state is the most revealing — shows both overdue section and remaining upcoming task
+Four content variants in one file:
+- **Current** — original milestone slots ("No upcoming milestones." noise)
+- **A: Deadline-Centric** — next 2 tasks by due date + overdue section
+- **B: Health-Centric** — On Track / At Risk / Behind badge + single next deadline row
+- **C: Combined** — health badge + overdue pill + full upcoming task rows
+
+Data states: Typical / With overdue / No dates / All done / Empty
+
+The "With overdue" state is the most revealing — all variants handle it differently.
 
 ## Investigation Trail
 
