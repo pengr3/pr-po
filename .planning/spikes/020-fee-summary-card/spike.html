@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 020 — Fee Summary Card</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --radius: 8px;
+    --fee-amber: #f59e0b;
+    --fee-amber-bg: #fffbeb;
+    --fee-amber-border: #fde68a;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f1f5f9;
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* Variant switcher */
+  .variant-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 1rem;
+    border-bottom: 2px solid #1e293b;
+  }
+  .variant-bar-label {
+    color: #64748b; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin-right: 1rem; white-space: nowrap;
+  }
+  .variant-btn {
+    padding: 0.75rem 1.25rem;
+    background: transparent; border: none;
+    color: #94a3b8; font-size: 13px; font-weight: 500;
+    cursor: pointer; border-bottom: 3px solid transparent;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .variant-btn:hover { color: #e2e8f0; }
+  .variant-btn.active { color: #fff; border-bottom-color: #1a73e8; }
+  .variant-badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle;
+  }
+  .badge-before { background: #1e293b; color: #64748b; }
+  .badge-after { background: #1a73e8; color: #fff; }
+
+  /* Shell */
+  .shell { max-width: 780px; margin: 2rem auto; padding: 0 1rem; }
+  .label-strip {
+    text-align: center; font-size: 11px; color: #64748b;
+    margin-bottom: 0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+  }
+
+  /* Modal */
+  .modal {
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12); overflow: hidden;
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+  }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1px solid var(--border); background: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 16px;
+  }
+
+  /* Cards */
+  .summary-cards {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1rem; padding: 1rem 1.25rem;
+  }
+  .card {
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem;
+  }
+  .card.highlight-green { border-color: #a7f3d0; background: #f0fdf4; }
+  .card.highlight-blue { border-color: #bfdbfe; background: #eff6ff; }
+  .card.highlight-red { border-color: #fca5a5; background: #fef2f2; }
+  .card.highlight-amber { border-color: var(--fee-amber-border); background: var(--fee-amber-bg); }
+  .card-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+  .card-value { font-size: 22px; font-weight: 700; }
+  .card.highlight-green .card-value { color: #059669; }
+  .card.highlight-blue .card-value { color: #1a73e8; }
+  .card.highlight-red .card-value { color: #ef4444; }
+  .card.highlight-amber .card-value { color: #b45309; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 0.25rem; }
+  .card-sub.amber { color: #92400e; }
+
+  /* Small card row - 3 or 4 cols */
+  .summary-small-3 {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem; padding: 0 1.25rem 1rem;
+  }
+  .summary-small-4 {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem; padding: 0 1.25rem 1rem;
+  }
+  .card-sm { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem; }
+  .card-sm.fee-card { border-color: var(--fee-amber-border); background: var(--fee-amber-bg); }
+  .card-sm .card-label { font-size: 10px; }
+  .card-sm .card-value { font-size: 15px; font-weight: 600; }
+  .card-sm .card-value.fee { color: #b45309; }
+  .card-sm .card-sub { font-size: 10px; }
+
+  /* Bottom cards row */
+  .bottom-cards {
+    padding: 0 1.25rem 0.75rem;
+  }
+
+  /* Two-cell bottom row */
+  .bottom-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+  /* Three-cell bottom row (adding fee-inclusive Projected Cost) */
+  .bottom-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+  /* Annotated projected cost */
+  .projected-cost-card { position: relative; }
+  .fee-annotation {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; color: #92400e; font-weight: 600;
+    background: var(--fee-amber-bg); border: 1px solid var(--fee-amber-border);
+    border-radius: 99px; padding: 1px 7px; margin-top: 0.35rem;
+    white-space: nowrap;
+  }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 2px solid var(--border); padding: 0 1.25rem; }
+  .tab {
+    padding: 0.6rem 1rem; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* Payables content (simplified — accordion from 019 winner) */
+  .payables-content { padding: 1rem 1.25rem 1.5rem; }
+  .cat-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .cat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem; background: #fff;
+  }
+  .cat-header-left { display: flex; align-items: center; gap: 0.5rem; }
+  .cat-name { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
+  .cat-amount { font-weight: 700; font-size: 15px; color: var(--primary); }
+
+  .payables-table { width: 100%; border-collapse: collapse; }
+  .payables-table thead th {
+    text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    color: var(--muted); text-transform: uppercase;
+    padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); background: #f8fafc;
+  }
+  .payables-table thead th:nth-child(3),
+  .payables-table thead th:nth-child(4) { text-align: right; }
+  .payables-table td {
+    padding: 0.65rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: 13px;
+  }
+  .payables-table td:nth-child(3),
+  .payables-table td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+  .status-badge { font-weight: 600; }
+
+  /* Accordion fee rows */
+  .acc-trigger { cursor: pointer; }
+  .acc-trigger:hover { background: #f8fafc; }
+  .particulars-wrap { display: flex; align-items: center; gap: 0.5rem; }
+  .acc-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 4px;
+    border: 1px solid var(--border); font-size: 9px; color: var(--muted);
+    transition: all 0.15s; flex-shrink: 0; background: #fff;
+  }
+  .acc-trigger.expanded .acc-icon { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .acc-fee-row td {
+    background: linear-gradient(to right, #eff6ff 0px, #f8fafc 24px);
+    padding: 0.4rem 1rem 0.4rem 2.5rem; font-size: 12px; color: #475569;
+    border-bottom: 1px solid #dbeafe;
+  }
+  .acc-fee-row td:nth-child(3),
+  .acc-fee-row td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+  .acc-fee-label { color: #1a73e8; font-weight: 500; }
+  .acc-fee-amount { color: #1a73e8; font-weight: 600; }
+
+  /* Variant panels */
+  .variant-panel { display: none; }
+  .variant-panel.active { display: block; }
+
+  /* Log pane */
+  .log-pane {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 52px;
+    background: #0f172a; border-top: 1px solid #1e293b;
+    display: flex; align-items: center; padding: 0 1.5rem; gap: 1rem;
+    font-size: 11px; font-family: 'Consolas', 'Courier New', monospace;
+    overflow: hidden; z-index: 50;
+  }
+  .log-pane-label { color: #475569; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0; }
+  .log-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
+  .log-entry { color: #64748b; white-space: nowrap; }
+  .log-entry .ts { color: #334155; margin-right: 0.5rem; }
+  .log-entry.interaction { color: #93c5fd; }
+  .log-spacer { height: 60px; }
+</style>
+</head>
+<body>
+
+<!-- Variant bar -->
+<div class="variant-bar">
+  <span class="variant-bar-label">Spike 020</span>
+  <button class="variant-btn active" data-variant="before" onclick="setVariant('before', this)">
+    Before <span class="variant-badge badge-before">no fee card</span>
+  </button>
+  <button class="variant-btn" data-variant="a" onclick="setVariant('a', this)">
+    A — Fee card in strip <span class="variant-badge badge-after">4th card</span>
+  </button>
+  <button class="variant-btn" data-variant="b" onclick="setVariant('b', this)">
+    B — Fee annotation on totals <span class="variant-badge badge-after">inline</span>
+  </button>
+  <button class="variant-btn" data-variant="c" onclick="setVariant('c', this)">
+    C — Fee-inclusive Projected Cost <span class="variant-badge badge-after">revised card</span>
+  </button>
+</div>
+
+<div class="shell">
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- BEFORE — current state (no fee card)       -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel active" id="panel-before">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="summary-cards">
+        <div class="card highlight-green"><div class="card-label">Budget</div><div class="card-value">₱18,500,000.00</div></div>
+        <div class="card highlight-green"><div class="card-label">Remaining Budget</div><div class="card-value">₱18,259,577.00</div></div>
+      </div>
+      <div class="summary-small-3">
+        <div class="card-sm"><div class="card-label">Material Purchases</div><div class="card-value">₱180,923.00</div><div class="card-sub">2 POs</div></div>
+        <div class="card-sm"><div class="card-label">Transport Fees</div><div class="card-value">₱59,500.00</div><div class="card-sub">1 TR</div></div>
+        <div class="card-sm"><div class="card-label">Subcon Cost</div><div class="card-value">₱0.00</div><div class="card-sub">0 POs</div></div>
+      </div>
+      <div class="bottom-cards">
+        <div class="bottom-2">
+          <div class="card highlight-blue"><div class="card-label">Projected Cost</div><div class="card-value">₱240,423.00</div></div>
+          <div class="card highlight-red"><div class="card-label">Remaining Payable</div><div class="card-value">₱90,200.00</div></div>
+        </div>
+      </div>
+      <div class="tabs"><div class="tab">By Category</div><div class="tab">Transport Fees</div><div class="tab active">Payables</div><div class="tab">Collectibles</div></div>
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header"><div class="cat-header-left"><span class="cat-name">PAYABLES</span></div><span class="cat-amount">240,423.00</span></div>
+          <div><table class="payables-table"><thead><tr><th>PARTICULARS</th><th>STATUS</th><th>TOTAL PAYABLE</th><th>TOTAL PAID</th></tr></thead>
+          <tbody>
+            <tr><td>PO-2026-001 — Metro Construction Materials</td><td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td><td>180,800.00</td><td>90,000.00</td></tr>
+            <tr class="acc-trigger" onclick="toggleAcc('b-fees', this)"><td><div class="particulars-wrap"><span class="acc-icon">▶</span>PO_2026_06-001-ACME — ACME Hardware Supply</div></td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>723.00</td><td>723.00</td></tr>
+            <tr id="b-fees" style="display:none;"><td colspan="4" style="padding:0;border:none;"><table style="width:100%;border-collapse:collapse;"><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Transfer fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">500.00</td><td class="acc-fee-amount" style="text-align:right;">500.00</td></tr><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Cash-out fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">100.00</td><td class="acc-fee-amount" style="text-align:right;">100.00</td></tr></table></td></tr>
+            <tr><td>TR-2026-001 — FastTrack Logistics</td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>59,500.00</td><td>59,500.00</td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Before: no fee presence in header — must drill into Payables tab to discover fees</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VARIANT A — 4th card "RFP Fees" in strip   -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel" id="panel-a">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="summary-cards">
+        <div class="card highlight-green"><div class="card-label">Budget</div><div class="card-value">₱18,500,000.00</div></div>
+        <div class="card highlight-green"><div class="card-label">Remaining Budget</div><div class="card-value">₱18,259,577.00</div></div>
+      </div>
+      <!-- 4-column strip with fees card -->
+      <div class="summary-small-4">
+        <div class="card-sm"><div class="card-label">Material Purchases</div><div class="card-value">₱180,923.00</div><div class="card-sub">2 POs</div></div>
+        <div class="card-sm"><div class="card-label">Transport Fees</div><div class="card-value">₱59,500.00</div><div class="card-sub">1 TR</div></div>
+        <div class="card-sm"><div class="card-label">Subcon Cost</div><div class="card-value">₱0.00</div><div class="card-sub">0 POs</div></div>
+        <div class="card-sm fee-card"><div class="card-label" style="color:#92400e;">RFP Fees</div><div class="card-value fee">₱600.00</div><div class="card-sub amber">2 RFPs</div></div>
+      </div>
+      <div class="bottom-cards">
+        <div class="bottom-2">
+          <div class="card highlight-blue"><div class="card-label">Projected Cost</div><div class="card-value">₱241,023.00</div><div class="card-sub" style="color:#1d4ed8;">incl. ₱600 in RFP fees</div></div>
+          <div class="card highlight-red"><div class="card-label">Remaining Payable</div><div class="card-value">₱90,200.00</div></div>
+        </div>
+      </div>
+      <div class="tabs"><div class="tab">By Category</div><div class="tab">Transport Fees</div><div class="tab active">Payables</div><div class="tab">Collectibles</div></div>
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header"><div class="cat-header-left"><span class="cat-name">PAYABLES</span></div><span class="cat-amount">241,023.00</span></div>
+          <div><table class="payables-table"><thead><tr><th>PARTICULARS</th><th>STATUS</th><th>TOTAL PAYABLE</th><th>TOTAL PAID</th></tr></thead>
+          <tbody>
+            <tr><td>PO-2026-001 — Metro Construction Materials</td><td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td><td>180,800.00</td><td>90,000.00</td></tr>
+            <tr class="acc-trigger" onclick="toggleAcc('a-fees', this)"><td><div class="particulars-wrap"><span class="acc-icon">▶</span>PO_2026_06-001-ACME — ACME Hardware Supply</div></td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>723.00</td><td>723.00</td></tr>
+            <tr id="a-fees" style="display:none;"><td colspan="4" style="padding:0;border:none;"><table style="width:100%;border-collapse:collapse;"><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Transfer fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">500.00</td><td class="acc-fee-amount" style="text-align:right;">500.00</td></tr><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Cash-out fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">100.00</td><td class="acc-fee-amount" style="text-align:right;">100.00</td></tr></table></td></tr>
+            <tr><td>TR-2026-001 — FastTrack Logistics</td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>59,500.00</td><td>59,500.00</td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Variant A: dedicated amber "RFP Fees" card as 4th item in summary strip</p>
+    <p style="text-align:center;color:#64748b;font-size:11px;margin-top:0.25rem;">Projected Cost updated to 241,023 (fee-inclusive); fee sub-text on card</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VARIANT B — annotation under totals        -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel" id="panel-b">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="summary-cards">
+        <div class="card highlight-green"><div class="card-label">Budget</div><div class="card-value">₱18,500,000.00</div></div>
+        <div class="card highlight-green"><div class="card-label">Remaining Budget</div><div class="card-value">₱18,259,577.00</div></div>
+      </div>
+      <!-- 3 col strip unchanged -->
+      <div class="summary-small-3">
+        <div class="card-sm"><div class="card-label">Material Purchases</div><div class="card-value">₱180,923.00</div><div class="card-sub">2 POs</div></div>
+        <div class="card-sm"><div class="card-label">Transport Fees</div><div class="card-value">₱59,500.00</div><div class="card-sub">1 TR</div></div>
+        <div class="card-sm"><div class="card-label">Subcon Cost</div><div class="card-value">₱0.00</div><div class="card-sub">0 POs</div></div>
+      </div>
+      <!-- Annotation on Projected Cost card only -->
+      <div class="bottom-cards">
+        <div class="bottom-2">
+          <div class="card highlight-blue projected-cost-card">
+            <div class="card-label">Projected Cost</div>
+            <div class="card-value">₱241,023.00</div>
+            <div style="margin-top:0.35rem;">
+              <span class="fee-annotation">⊕ ₱600 in RFP fees included</span>
+            </div>
+          </div>
+          <div class="card highlight-red"><div class="card-label">Remaining Payable</div><div class="card-value">₱90,200.00</div></div>
+        </div>
+      </div>
+      <div class="tabs"><div class="tab">By Category</div><div class="tab">Transport Fees</div><div class="tab active">Payables</div><div class="tab">Collectibles</div></div>
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header"><div class="cat-header-left"><span class="cat-name">PAYABLES</span></div><span class="cat-amount">241,023.00</span></div>
+          <div><table class="payables-table"><thead><tr><th>PARTICULARS</th><th>STATUS</th><th>TOTAL PAYABLE</th><th>TOTAL PAID</th></tr></thead>
+          <tbody>
+            <tr><td>PO-2026-001 — Metro Construction Materials</td><td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td><td>180,800.00</td><td>90,000.00</td></tr>
+            <tr class="acc-trigger" onclick="toggleAcc('c-fees', this)"><td><div class="particulars-wrap"><span class="acc-icon">▶</span>PO_2026_06-001-ACME — ACME Hardware Supply</div></td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>723.00</td><td>723.00</td></tr>
+            <tr id="c-fees" style="display:none;"><td colspan="4" style="padding:0;border:none;"><table style="width:100%;border-collapse:collapse;"><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Transfer fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">500.00</td><td class="acc-fee-amount" style="text-align:right;">500.00</td></tr><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Cash-out fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">100.00</td><td class="acc-fee-amount" style="text-align:right;">100.00</td></tr></table></td></tr>
+            <tr><td>TR-2026-001 — FastTrack Logistics</td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>59,500.00</td><td>59,500.00</td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Variant B: amber annotation pill on "Projected Cost" card — no new card, just a sub-label</p>
+    <p style="text-align:center;color:#64748b;font-size:11px;margin-top:0.25rem;">3-col strip unchanged; fee info visible at a glance without restructuring the header</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VARIANT C — fee-inclusive Projected Cost   -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel" id="panel-c">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+      <div class="summary-cards">
+        <div class="card highlight-green"><div class="card-label">Budget</div><div class="card-value">₱18,500,000.00</div></div>
+        <div class="card highlight-green"><div class="card-label">Remaining Budget</div><div class="card-value">₱18,259,577.00</div></div>
+      </div>
+      <div class="summary-small-3">
+        <div class="card-sm"><div class="card-label">Material Purchases</div><div class="card-value">₱180,923.00</div><div class="card-sub">2 POs</div></div>
+        <div class="card-sm"><div class="card-label">Transport Fees</div><div class="card-value">₱59,500.00</div><div class="card-sub">1 TR</div></div>
+        <div class="card-sm"><div class="card-label">Subcon Cost</div><div class="card-value">₱0.00</div><div class="card-sub">0 POs</div></div>
+      </div>
+      <!-- 3-card bottom: subtotal | fees | total -->
+      <div class="bottom-cards">
+        <div class="bottom-3">
+          <div class="card" style="border-color:#e2e8f0;">
+            <div class="card-label">PO + TR Subtotal</div>
+            <div class="card-value" style="font-size:17px;color:#475569;">₱240,423.00</div>
+            <div class="card-sub">before fees</div>
+          </div>
+          <div class="card highlight-amber">
+            <div class="card-label" style="color:#92400e;">+ RFP Fees</div>
+            <div class="card-value" style="font-size:17px;">₱600.00</div>
+            <div class="card-sub amber">2 RFPs · transfer + cash-out</div>
+          </div>
+          <div class="card highlight-blue">
+            <div class="card-label">Total Cost</div>
+            <div class="card-value">₱241,023.00</div>
+            <div class="card-sub" style="color:#1d4ed8;">fee-inclusive</div>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;">
+          <div class="card highlight-red">
+            <div class="card-label">Remaining Payable</div>
+            <div class="card-value">₱90,200.00</div>
+          </div>
+        </div>
+      </div>
+      <div class="tabs"><div class="tab">By Category</div><div class="tab">Transport Fees</div><div class="tab active">Payables</div><div class="tab">Collectibles</div></div>
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header"><div class="cat-header-left"><span class="cat-name">PAYABLES</span></div><span class="cat-amount">241,023.00</span></div>
+          <div><table class="payables-table"><thead><tr><th>PARTICULARS</th><th>STATUS</th><th>TOTAL PAYABLE</th><th>TOTAL PAID</th></tr></thead>
+          <tbody>
+            <tr><td>PO-2026-001 — Metro Construction Materials</td><td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td><td>180,800.00</td><td>90,000.00</td></tr>
+            <tr class="acc-trigger" onclick="toggleAcc('d-fees', this)"><td><div class="particulars-wrap"><span class="acc-icon">▶</span>PO_2026_06-001-ACME — ACME Hardware Supply</div></td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>723.00</td><td>723.00</td></tr>
+            <tr id="d-fees" style="display:none;"><td colspan="4" style="padding:0;border:none;"><table style="width:100%;border-collapse:collapse;"><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Transfer fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">500.00</td><td class="acc-fee-amount" style="text-align:right;">500.00</td></tr><tr class="acc-fee-row"><td class="acc-fee-label" style="padding-left:2.5rem;">Cash-out fee</td><td class="acc-fee-label">fee</td><td class="acc-fee-amount" style="text-align:right;">100.00</td><td class="acc-fee-amount" style="text-align:right;">100.00</td></tr></table></td></tr>
+            <tr><td>TR-2026-001 — FastTrack Logistics</td><td class="status-badge" style="color:#166534;">Fully Paid</td><td>59,500.00</td><td>59,500.00</td></tr>
+          </tbody></table></div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Variant C: 3-card math story — Subtotal + Fees = Total Cost — fees are part of the calculation narrative</p>
+    <p style="text-align:center;color:#64748b;font-size:11px;margin-top:0.25rem;">Most transparent but restructures the entire bottom summary area</p>
+  </div>
+
+</div><!-- /shell -->
+<div class="log-spacer"></div>
+
+<div class="log-pane" id="logPane">
+  <span class="log-pane-label">LOG</span>
+  <div class="log-entries" id="logEntries">
+    <div class="log-entry"><span class="ts">00:00</span>spike-020 ready — compare fee presence in header</div>
+  </div>
+</div>
+
+<script>
+  const startTime = Date.now();
+  function ts() {
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+  }
+  function log(msg) {
+    const el = document.getElementById('logEntries');
+    const div = document.createElement('div');
+    div.className = 'log-entry interaction';
+    div.innerHTML = `<span class="ts">${ts()}</span>${msg}`;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+  function setVariant(v, btn) {
+    document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.variant-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + v).classList.add('active');
+    log('switched to: ' + v);
+  }
+  function toggleAcc(id, triggerRow) {
+    const fees = document.getElementById(id);
+    const icon = triggerRow.querySelector('.acc-icon');
+    const isOpen = fees.style.display !== 'none';
+    fees.style.display = isOpen ? 'none' : '';
+    triggerRow.classList.toggle('expanded', !isOpen);
+    icon.textContent = isOpen ? '▶' : '▼';
+    log('accordion ' + (isOpen ? 'collapsed' : 'expanded') + ': ' + id);
+  }
+</script>
+</body>
+</html>
