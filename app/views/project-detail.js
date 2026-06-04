@@ -29,7 +29,7 @@ let clientsCacheLoaded = false;
 // Phase 86 — Project Plan summary card
 let currentTasks = [];
 let currentTasksListenerUnsub = null;
-let currentProjectProgress = { taskCount: 0, percentComplete: 0, recentDone: null, nextMilestone: null, ongoingMilestone: null };
+let currentProjectProgress = { taskCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -221,10 +221,9 @@ export async function init(activeTab = null, param = null) {
     });
 }
 
-// Phase 86 — idempotent attach of project_tasks listener. Computes summary stats + Highlights
-// and patches the Project Plan card DOM in place (avoids full re-render of project-detail).
+// Phase 86 — idempotent attach of project_tasks listener. Re-renders the plan card in-place.
 function ensureTasksListener() {
-    if (currentTasksListenerUnsub) return; // already attached
+    if (currentTasksListenerUnsub) return;
     if (!currentProject || !currentProject.id) return;
     currentTasksListenerUnsub = onSnapshot(
         query(collection(db, 'project_tasks'), where('project_id', '==', currentProject.id)),
@@ -232,17 +231,12 @@ function ensureTasksListener() {
             currentTasks = [];
             snap.forEach(d => currentTasks.push({ id: d.id, ...d.data() }));
             currentProjectProgress = computeProjectProgress(currentTasks);
-            // Patch DOM in place (avoid full re-render of the project-detail page)
-            const taskCountEl = document.getElementById('planCardTaskCount');
-            if (taskCountEl) taskCountEl.textContent = currentProjectProgress.taskCount;
-            const pctEl = document.getElementById('planCardPctComplete');
-            if (pctEl) pctEl.textContent = `${currentProjectProgress.percentComplete}%`;
-            const recentEl = document.getElementById('planCardRecentDone');
-            if (recentEl) recentEl.textContent = currentProjectProgress.recentDone || 'No completed tasks yet.';
-            const nextEl = document.getElementById('planCardNextMilestone');
-            if (nextEl) nextEl.textContent = currentProjectProgress.nextMilestone || 'No upcoming milestones.';
-            const ongoingEl = document.getElementById('planCardOngoingMilestone');
-            if (ongoingEl) ongoingEl.textContent = currentProjectProgress.ongoingMilestone || 'No active milestones.';
+            const cardEl = document.getElementById('projectPlanCard');
+            if (cardEl) {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = buildPlanCardHtml();
+                cardEl.replaceWith(tmp.firstElementChild);
+            }
         }
     );
 }
@@ -276,7 +270,7 @@ export async function destroy() {
     if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } }
     currentTasksListenerUnsub = null;
     currentTasks = [];
-    currentProjectProgress = { taskCount: 0, percentComplete: 0, recentDone: null, nextMilestone: null, ongoingMilestone: null };
+    currentProjectProgress = { taskCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -382,47 +376,8 @@ function renderProjectDetail() {
     const PLAN_HIDDEN_STATUSES = new Set(['For Inspection', 'Loss']);
     const showPlanCard = !PLAN_HIDDEN_STATUSES.has(currentProject.project_status);
 
-    // ----- Project Plan summary card (Phase 86 D-03) -----
-    const planCardHtml = `
-        <div class="card project-plan-card">
-            <div class="card-header"><h3>Project Plan</h3></div>
-            <div class="card-body">
-                <div class="plan-card-stats">
-                    <div class="plan-card-stat">
-                        <div class="plan-card-stat-value" id="planCardTaskCount">${currentProjectProgress.taskCount}</div>
-                        <div class="plan-card-stat-label">tasks</div>
-                    </div>
-                    <div class="plan-card-stat">
-                        <div class="plan-card-stat-value" id="planCardPctComplete">${currentProjectProgress.percentComplete}%</div>
-                        <div class="plan-card-stat-label">complete</div>
-                    </div>
-                </div>
-                <div class="plan-card-highlights">
-                    <div class="plan-card-highlight">
-                        <div class="plan-card-highlight-label">Most recent accomplishment</div>
-                        <div class="plan-card-highlight-value" id="planCardRecentDone">${escapeHTML(currentProjectProgress.recentDone || 'No completed tasks yet.')}</div>
-                    </div>
-                    <div class="plan-card-highlight">
-                        <div class="plan-card-highlight-label">Next milestone</div>
-                        <div class="plan-card-highlight-value" id="planCardNextMilestone">${escapeHTML(currentProjectProgress.nextMilestone || 'No upcoming milestones.')}</div>
-                    </div>
-                    <div class="plan-card-highlight">
-                        <div class="plan-card-highlight-label">Ongoing milestone</div>
-                        <div class="plan-card-highlight-value" id="planCardOngoingMilestone">${escapeHTML(currentProjectProgress.ongoingMilestone || 'No active milestones.')}</div>
-                    </div>
-                </div>
-                ${currentProjectProgress.taskCount === 0
-                    ? `<div class="empty-state" style="padding: 16px; text-align: center;"><strong>No tasks yet.</strong><br><span>Open the plan to get started.</span></div>`
-                    : ''}
-                <div style="margin-top: 16px; text-align: right;">
-                    <a href="#/projects/${encodeURIComponent(currentProject?.project_code || '')}/plan" class="btn btn-primary"
-                       ${!currentProject?.project_code ? 'style="pointer-events: none; opacity: 0.5;" title="No project code"' : ''}>
-                        Open Plan
-                    </a>
-                </div>
-            </div>
-        </div>
-    `;
+    // ----- Project Plan summary card (Spike 021A + 022C) -----
+    const planCardHtml = buildPlanCardHtml();
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
@@ -1638,7 +1593,7 @@ function attachWindowFunctions() {
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
 
 function computeProjectProgress(tasks) {
-    const result = { taskCount: tasks.length, percentComplete: 0, recentDone: null, nextMilestone: null, ongoingMilestone: null };
+    const result = { taskCount: tasks.length, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
     if (tasks.length === 0) return result;
 
     const childrenByParent = new Map();
@@ -1648,15 +1603,10 @@ function computeProjectProgress(tasks) {
         childrenByParent.get(key).push(t);
     });
 
-    // Leaves = tasks with no children
     const leaves = tasks.filter(t => !childrenByParent.has(t.task_id));
-    if (leaves.length === 0) {
-        result.percentComplete = 0;
-        return result;
-    }
+    if (leaves.length === 0) return result;
 
-    let weightedSum = 0;
-    let weightTotal = 0;
+    let weightedSum = 0, weightTotal = 0;
     leaves.forEach(l => {
         const dur = computeDurationDays(l.start_date, l.end_date);
         const p = typeof l.progress === 'number' ? l.progress : 0;
@@ -1665,24 +1615,116 @@ function computeProjectProgress(tasks) {
     });
     result.percentComplete = weightTotal > 0 ? Math.round(weightedSum / weightTotal) : 0;
 
-    // Highlights (Specifics) — use local-day, not UTC; toISOString() shifts off-by-one in PHT before 08:00.
+    // Use local-day, not UTC — toISOString() shifts off-by-one in PHT before 08:00.
     const today = todayLocal();
-    const completed = tasks.filter(t => t.progress === 100).slice().sort((a, b) => {
+
+    // Overdue leaf tasks
+    const overdueFull = leaves
+        .filter(t => t.end_date && t.end_date < today && (t.progress ?? 0) < 100)
+        .sort((a, b) => a.end_date.localeCompare(b.end_date));
+    result.overdueCount = overdueFull.length;
+    result.overdueMore  = overdueFull.length > 2 ? overdueFull.length - 2 : 0;
+    result.overdueTasks = overdueFull.slice(0, 2).map(t => ({
+        name: t.name || t.task_id,
+        daysLate: Math.max(1, Math.round((new Date(today) - new Date(t.end_date)) / 86400000)),
+    }));
+
+    result.health = result.overdueCount === 0 ? 'on-track' : result.overdueCount <= 2 ? 'at-risk' : 'behind';
+
+    // Upcoming leaf tasks (next 2 by due date)
+    result.upcomingTasks = leaves
+        .filter(t => t.end_date && t.end_date >= today && (t.progress ?? 0) < 100)
+        .sort((a, b) => a.end_date.localeCompare(b.end_date))
+        .slice(0, 2)
+        .map(t => ({
+            name: t.name || t.task_id,
+            end_date: t.end_date,
+            daysUntil: Math.max(0, Math.round((new Date(t.end_date) - new Date(today)) / 86400000)),
+            isMilestone: !!t.is_milestone,
+        }));
+
+    // Most recently completed leaf
+    const done = leaves.filter(t => (t.progress ?? 0) >= 100).sort((a, b) => {
         const at = a.updated_at?.seconds || 0;
         const bt = b.updated_at?.seconds || 0;
         return bt - at;
     });
-    if (completed.length > 0) result.recentDone = completed[0].name || completed[0].task_id;
-
-    const upcomingMilestones = tasks.filter(t => t.is_milestone && t.end_date >= today && (t.progress ?? 0) < 100)
-        .sort((a, b) => (a.end_date || '').localeCompare(b.end_date || ''));
-    if (upcomingMilestones.length > 0) result.nextMilestone = upcomingMilestones[0].name || upcomingMilestones[0].task_id;
-
-    const ongoingMilestones = tasks.filter(t => t.is_milestone && (t.progress ?? 0) < 100 && t.start_date <= today && t.end_date >= today)
-        .sort((a, b) => (a.start_date || '').localeCompare(b.start_date || ''));
-    if (ongoingMilestones.length > 0) result.ongoingMilestone = ongoingMilestones[0].name || ongoingMilestones[0].task_id;
+    if (done.length > 0) result.recentDone = done[0].name || done[0].task_id;
 
     return result;
+}
+
+function buildPlanCardHtml() {
+    const p = currentProjectProgress;
+    const planUrl = `#/projects/${encodeURIComponent(currentProject?.project_code || '')}/plan`;
+    const openPlanBtn = `<a href="${planUrl}" class="btn btn-primary"${!currentProject?.project_code ? ' style="pointer-events:none;opacity:0.5;" title="No project code"' : ''}>Open Plan</a>`;
+
+    if (p.taskCount === 0) {
+        return `<div id="projectPlanCard" class="project-plan-card">
+            <div class="plan-heading-new">Project Plan</div>
+            <div style="padding:16px;">
+                <div class="plan-empty-cta"><p>No tasks yet. Open the plan to get started.</p>${openPlanBtn}</div>
+            </div>
+        </div>`;
+    }
+
+    const pct = p.percentComplete;
+    const doneCount = Math.round(p.taskCount * pct / 100);
+    const progressBarHtml = `<div class="plan-progress-wrap">
+        <div class="plan-progress-track"><div class="plan-progress-fill${pct === 100 ? ' complete' : ''}" style="width:${pct}%"></div></div>
+        <div class="plan-progress-text"><span>${doneCount} of ${p.taskCount} tasks complete</span><span class="plan-pct">${pct}%</span></div>
+    </div>`;
+
+    if (pct === 100) {
+        const completionBlock = `<div class="plan-completion-block">
+            <div class="plan-completion-icon">✓</div>
+            <div><div class="plan-completion-text">All tasks complete</div>${p.recentDone ? `<div class="plan-completion-sub">Last: ${escapeHTML(p.recentDone)}</div>` : ''}</div>
+        </div>`;
+        const footer = `<div class="plan-footer"><span class="plan-footer-count">${p.taskCount} tasks</span>${openPlanBtn}</div>`;
+        return `<div id="projectPlanCard" class="project-plan-card">
+            <div class="plan-heading-new">Project Plan</div>
+            <div style="padding:16px;">${progressBarHtml}${completionBlock}${footer}</div>
+        </div>`;
+    }
+
+    // Normal state — Combined (C): health badge + overdue pill + overdue detail + upcoming + last done
+    const healthMeta = { 'on-track': { label: 'On Track', cls: 'on-track' }, 'at-risk': { label: 'At Risk', cls: 'at-risk' }, 'behind': { label: 'Behind', cls: 'behind' } };
+    const hm = healthMeta[p.health] || healthMeta['on-track'];
+    const overdueChip = p.overdueCount > 0 ? `<span class="plan-overdue-pill"><span class="pod-count">${p.overdueCount}</span> overdue</span>` : '';
+    const topRow = `<div class="plan-combined-top"><span class="plan-health-badge ${hm.cls}"><span class="phb-dot"></span>${hm.label}</span>${overdueChip}</div>`;
+
+    let overdueDetail = '';
+    if (p.overdueTasks.length > 0) {
+        const rows = p.overdueTasks.map(t => `<div class="plan-overdue-task-row"><span style="color:#ef4444;font-size:10px;flex-shrink:0;">!</span><span class="plan-overdue-name">${escapeHTML(t.name)}</span><span class="plan-overdue-age">${t.daysLate}d late</span></div>`).join('');
+        const more = p.overdueMore > 0 ? `<div class="plan-overdue-more">+${p.overdueMore} more</div>` : '';
+        overdueDetail = `<div class="plan-overdue-section">${rows}${more}</div>`;
+    }
+
+    let upcomingHtml = '';
+    if (p.upcomingTasks.length > 0) {
+        const rows = p.upcomingTasks.map(t => {
+            const rel = t.daysUntil === 0 ? 'today' : t.daysUntil === 1 ? 'tomorrow' : `in ${t.daysUntil}d`;
+            const rc  = t.daysUntil <= 3 ? 'very-soon' : t.daysUntil <= 7 ? 'soon' : '';
+            const d   = new Date(t.end_date + 'T00:00:00');
+            const dateStr = d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+            return `<div class="plan-upcoming-row">
+                <span class="pup-icon" style="color:${t.isMilestone ? '#1a73e8' : '#94a3b8'}">${t.isMilestone ? '◆' : '○'}</span>
+                <span class="pup-name">${escapeHTML(t.name)}</span>
+                <span class="pup-due"><span class="pup-date">${escapeHTML(dateStr)}</span><span class="pup-rel ${rc}">${rel}</span></span>
+            </div>`;
+        }).join('');
+        upcomingHtml = `<div class="plan-upcoming-section"><div class="plan-section-lbl">Next Up</div>${rows}</div>`;
+    } else if (p.overdueCount === 0) {
+        upcomingHtml = `<div class="plan-no-dates-hint">Set due dates in the plan to see what's coming up.</div>`;
+    }
+
+    const lastDone = p.recentDone ? `<div class="plan-last-done"><div class="plan-last-done-lbl">Last completed</div><div class="plan-last-done-val">${escapeHTML(p.recentDone)}</div></div>` : '';
+    const footer   = `<div class="plan-footer"><span class="plan-footer-count">${p.taskCount} tasks</span>${openPlanBtn}</div>`;
+
+    return `<div id="projectPlanCard" class="project-plan-card">
+        <div class="plan-heading-new">Project Plan</div>
+        <div style="padding:16px;">${progressBarHtml}${topRow}${overdueDetail}${upcomingHtml}${lastDone}${footer}</div>
+    </div>`;
 }
 
 function computeDurationDays(startDate, endDate) {

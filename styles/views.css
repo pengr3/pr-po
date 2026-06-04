@@ -3259,56 +3259,94 @@
 .plan-toolbar-toggle input { cursor: pointer; }
 
 /* ========================================
-   PHASE 86 — PROJECT PLAN SUMMARY CARD (project-detail.js)
+   SPIKE 021A + 022C — PROJECT PLAN CARD (project-detail.js)
    ======================================== */
 
-.project-plan-card .card-body { padding: 1.5rem; }
-
-.plan-card-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 16px;
+.project-plan-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
 }
-.plan-card-stat {
-    text-align: center;
-    padding: 8px;
-}
-.plan-card-stat-value {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--primary, #1a73e8);
-    line-height: 1.2;
-}
-.plan-card-stat-label {
-    font-size: 14px;
-    color: var(--gray-700, #475569);
+.plan-heading-new {
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #94a3b8;
 }
 
-.plan-card-highlights {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-}
-.plan-card-highlight {
-    background: var(--gray-50, #f8f9fa);
-    padding: 12px;
-    border-radius: 6px;
-}
-.plan-card-highlight-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--gray-700, #475569);
-    margin-bottom: 4px;
-}
-.plan-card-highlight-value {
-    font-size: 14px;
-    color: var(--gray-900, #1e293b);
-}
+/* Progress bar */
+.plan-progress-wrap { margin-bottom: 14px; }
+.plan-progress-track { width: 100%; height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+.plan-progress-fill { height: 100%; border-radius: 99px; background: #1a73e8; transition: width 0.4s cubic-bezier(.4,0,.2,1); }
+.plan-progress-fill.complete { background: #10b981; }
+.plan-progress-text { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; }
+.plan-progress-text .plan-pct { font-weight: 700; color: #1e293b; }
 
-@media (max-width: 768px) {
-    .plan-card-highlights { grid-template-columns: 1fr; }
-}
+/* Combined top row */
+.plan-combined-top { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+
+/* Health badge */
+.plan-health-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+.plan-health-badge .phb-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.plan-health-badge.on-track { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.plan-health-badge.on-track .phb-dot { background: #22c55e; }
+.plan-health-badge.at-risk  { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+.plan-health-badge.at-risk  .phb-dot { background: #f59e0b; }
+.plan-health-badge.behind   { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.plan-health-badge.behind   .phb-dot { background: #ef4444; }
+
+/* Overdue pill */
+.plan-overdue-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; background: #fffbeb; border: 1px solid #fcd34d; font-size: 12px; font-weight: 700; color: #92400e; }
+.plan-overdue-pill .pod-count { font-size: 15px; }
+
+/* Overdue detail section */
+.plan-overdue-section { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.plan-section-lbl { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+.plan-overdue-task-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.plan-overdue-task-row + .plan-overdue-task-row { border-top: 1px solid #fde68a; }
+.plan-overdue-name { flex: 1; color: #78350f; }
+.plan-overdue-age  { font-size: 11px; color: #b45309; font-weight: 600; flex-shrink: 0; }
+.plan-overdue-more { font-size: 11px; color: #b45309; padding-top: 4px; }
+
+/* Upcoming section */
+.plan-upcoming-section { margin-bottom: 14px; }
+.plan-upcoming-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f8fafc; }
+.plan-upcoming-row:last-child { border-bottom: none; }
+.pup-icon { font-size: 12px; flex-shrink: 0; width: 16px; text-align: center; }
+.pup-name { flex: 1; font-size: 13px; color: #1e293b; }
+.pup-due  { font-size: 11px; color: #64748b; flex-shrink: 0; text-align: right; line-height: 1.6; }
+.pup-date { display: block; }
+.pup-rel  { color: #94a3b8; }
+.pup-rel.soon      { color: #f97316; font-weight: 600; }
+.pup-rel.very-soon { color: #ef4444; font-weight: 600; }
+
+/* No dates hint */
+.plan-no-dates-hint { padding: 10px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 14px; font-size: 12px; color: #94a3b8; text-align: center; }
+
+/* Last done */
+.plan-last-done { margin-bottom: 14px; }
+.plan-last-done-lbl { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px; }
+.plan-last-done-val { font-size: 12px; color: #475569; }
+
+/* Completion block */
+.plan-completion-block { display: flex; align-items: center; gap: 10px; padding: 12px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; margin-bottom: 14px; }
+.plan-completion-icon { font-size: 20px; }
+.plan-completion-text { font-size: 13px; color: #166534; font-weight: 600; }
+.plan-completion-sub  { font-size: 11px; color: #4ade80; }
+
+/* Footer */
+.plan-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.plan-footer-count { font-size: 11px; color: #94a3b8; }
+
+/* Empty CTA */
+.plan-empty-cta { text-align: center; padding: 20px 0 10px; }
+.plan-empty-cta p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
 
 .personnel-pills-container {
     display: flex;
