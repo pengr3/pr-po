@@ -8,7 +8,7 @@ import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, ge
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
-import { createNotification, NOTIFICATION_TYPES, createNotificationForRoles } from '../notifications.js';
+import { createNotification, NOTIFICATION_TYPES, createNotificationForRoles, createNotificationForUsers } from '../notifications.js';
 import { generateCollectibleId } from '../coll-id.js';
 
 // ========================================
@@ -392,8 +392,10 @@ function attachWindowFunctions() {
     window.cancelCollectible = cancelCollectible;
     window.showCollectibleContextMenu = showCollectibleContextMenu;
     window.exportCollectiblesCSV = exportCollectiblesCSV;
-    // Phase 99 — billing request review queue (banner collapse toggle; approve/reject registered in Task 3)
+    // Phase 99 — billing request review queue (banner collapse toggle + approve/reject)
     window.toggleBillingBanner = () => { billingBannerCollapsed = !billingBannerCollapsed; renderPendingBillingBanner(); };
+    window.approveBillingRequest = approveBillingRequest;
+    window.rejectBillingRequest = rejectBillingRequest;
 }
 
 // ========================================
@@ -1666,6 +1668,51 @@ async function approveBillingRequest(reqId) {
     }
     // Notify the submitter (shared helper, Task 3). The pending listener drops the row once status flips off 'pending'.
     _notifyBillingDecision(req, 'approved', '');
+}
+
+// Phase 99 D-13 — Reject a billing request (reason REQUIRED). Marks rejected + stores reason.
+async function rejectBillingRequest(reqId) {
+    const req = pendingBillingRequests.find(r => r.id === reqId);
+    if (!req) { showToast('Billing request not found. Refresh and try again.', 'error'); return; }
+
+    const reason = (window.prompt('Reason for rejecting this billing request (required):') || '').trim();
+    if (!reason) { showToast('A rejection reason is required.', 'error'); return; }
+
+    try {
+        await updateDoc(doc(db, 'billing_requests', reqId), {
+            status: 'rejected',
+            rejection_reason: reason,
+            reviewed_by: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown',
+            reviewed_at: serverTimestamp()
+        });
+        showToast('Billing request rejected.', 'success');
+    } catch (e) {
+        console.error('[Finance/BillingReq] reject updateDoc failed:', e);
+        showToast('Failed to reject the request. Try again.', 'error');
+        return;
+    }
+    _notifyBillingDecision(req, 'rejected', reason);
+}
+
+// Phase 99 D-17 — shared submitter decision notification (fire-and-forget, OWN try/catch — a
+// notification failure must NEVER undo the already-committed updateDoc). createNotificationForUsers
+// defaults excludeActor:false, which is correct here (Finance is the actor; the submitter must be notified).
+async function _notifyBillingDecision(req, decision, reason) {
+    if (!req?.requested_by_uid) return; // avoid an empty user_ids call; helper also guards null actor
+    try {
+        await createNotificationForUsers({
+            user_ids: [req.requested_by_uid],
+            type: NOTIFICATION_TYPES.BILLING_REQUEST_DECIDED,
+            message: `Your billing request for ${req.project_name} (${req.tranche_label}) was ${decision}.` + (reason ? ` Reason: ${reason}` : ''),
+            link: `#/projects/detail/${req.project_code}`,
+            source_collection: 'billing_requests',
+            source_id: req.id,
+            object_name: req.project_name || '',
+            actor_name: window.getCurrentUser?.()?.full_name || 'System'
+        });
+    } catch (notifErr) {
+        console.error('[Finance/BillingReq] BILLING_REQUEST_DECIDED notification failed:', notifErr);
+    }
 }
 
 // ========================================
