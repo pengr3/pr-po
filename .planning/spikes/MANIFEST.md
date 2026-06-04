@@ -1,6 +1,9 @@
 # Spike Manifest
 
-## Idea (current series: 015–018)
+## Idea (current series: 019–020)
+Polish how fees appear in the expense breakdown modal. Phase 91.4 added RFP fee totals to expense calculations but fee amounts were invisible in the Payables table breakdown, causing confusing "Total Paid > Total Payable" displays. Spikes explore: optimal in-table treatment for fee sub-rows (019), and whether a fee summary card in the modal header adds scannable value (020).
+
+## Idea (prior series: 015–018)
 Extend the baselining mechanic (spike 014 / Phase 86.12) into **project plan iterations** — let users save the current plan as a named snapshot and later restore one. Conceptually distinct from baselines: baselines are immutable comparison anchors; iterations are save-states the user can rewind to. Open questions: restore semantics (destructive replace vs preview vs auto-snapshot safety net), snapshot scope (dates vs full task doc), history UX, and whether a diff view is worth the surface area.
 
 ## Idea (prior series: 001–010)
@@ -44,4 +47,6 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 | 016 | snapshot-scope | standard | Given the user wants to rewind, when an iteration is saved, then the snapshot must include {dates only / dates+deps / full task doc} — what scope feels like a real save-state without being heavy | WINNER — full task doc; partial scopes create confusing partial restores; storage cost negligible | iteration, snapshot, storage, schema, project-plan |
 | 017 | iteration-history-ux | comparison | Given multiple saved iterations, when user wants to browse, then A (modal with rows) vs B (right rail timeline) vs C (toolbar dropdown like baseline) makes the right tradeoff | WINNER — Variant B (right rail); keeps live plan visible while browsing history; modal forces context switch; dropdown too cramped at scale | iteration, ux, history, project-plan |
 | 018 | iteration-diff-view | standard | Given an iteration in history, when user wants "what's different from now?", then a side-by-side task list with adds/changes/deletes highlighted answers without loading the iteration | VALIDATED — diff ships with the feature; inline old→new per field is readable; "Load this →" from diff panel is the natural next action | iteration, diff, comparison, ux, project-plan |
+| 019 | fee-row-variants | comparison | Given a PO row with RFP fees, when the Payables tab renders, then A (grey sub-rows) vs B (accordion) vs C (chip+popover) — which is clearest without clutter? | VALIDATED ✓ WINNER — Variant B (accordion); parent row gets fee-inclusive totals, click to expand blue-accented fee detail; clean by default | ux, fees, payables, expense-modal, design |
+| 020 | fee-summary-card | standard | Given fees are real project costs, when the modal summary loads, then a "Total Fees" card in the header makes fee impact scannable at a glance | PENDING | ux, fees, expense-modal, summary, design |
 
