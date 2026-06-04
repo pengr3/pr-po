@@ -3759,8 +3759,9 @@ async function refreshProjectExpenses(forceRefresh = false) {
             // Phase 88 D-05 — Draft projects are pre-proposal; exclude from Finance Project List.
             if (project.project_status === 'Draft') return null;
 
-            // Run PO and TR aggregation in parallel for each project
-            const [posAgg, trAgg] = await Promise.all([
+            // Run PO, TR, and RFP fee aggregation in parallel for each project
+            const projectCode = project.project_code || '';
+            const [posAgg, trAgg, rfpSnap] = await Promise.all([
                 getAggregateFromServer(
                     query(collection(db, 'pos'), where('project_name', '==', project.project_name)),
                     { totalExpense: sum('total_amount'), poCount: count() }
@@ -3768,10 +3769,16 @@ async function refreshProjectExpenses(forceRefresh = false) {
                 getAggregateFromServer(
                     query(collection(db, 'transport_requests'), where('project_name', '==', project.project_name), where('finance_status', '==', 'Approved')),
                     { transportTotal: sum('total_amount'), trCount: count() }
-                )
+                ),
+                projectCode
+                    ? getDocs(query(collection(db, 'rfps'), where('project_code', '==', projectCode)))
+                    : Promise.resolve({ docs: [] })
             ]);
 
-            const totalExpense = (posAgg.data().totalExpense || 0) + (trAgg.data().transportTotal || 0);
+            let rfpFeesTotal = 0;
+            rfpSnap.docs.forEach(d => { rfpFeesTotal += getRFPFees(d.data()).feesTotal; });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + (trAgg.data().transportTotal || 0) + rfpFeesTotal;
             const budget = project.budget || 0;
 
             return {
@@ -4000,13 +4007,16 @@ async function refreshServiceExpenses(forceRefresh = false) {
             const service = serviceDoc.data();
             const code = service.service_code || '';
 
-            // Aggregate PO totals + fetch TRs client-side (avoids composite index on transport_requests)
-            const [posAgg, trSnap] = await Promise.all([
+            // Aggregate PO totals + fetch TRs + RFPs in parallel
+            const [posAgg, trSnap, rfpSnap] = await Promise.all([
                 getAggregateFromServer(
                     query(collection(db, 'pos'), where('service_code', '==', code)),
                     { totalExpense: sum('total_amount'), poCount: count() }
                 ),
-                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code)))
+                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code))),
+                code
+                    ? getDocs(query(collection(db, 'rfps'), where('service_code', '==', code)))
+                    : Promise.resolve({ docs: [] })
             ]);
 
             let transportTotal = 0, trCount = 0;
@@ -4017,7 +4027,10 @@ async function refreshServiceExpenses(forceRefresh = false) {
                 }
             });
 
-            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal;
+            let rfpFeesTotal = 0;
+            rfpSnap.docs.forEach(d => { rfpFeesTotal += getRFPFees(d.data()).feesTotal; });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal + rfpFeesTotal;
             const budget = service.budget || 0;
 
             return {
@@ -4065,13 +4078,16 @@ async function refreshRecurringExpenses(forceRefresh = false) {
             const service = serviceDoc.data();
             const code = service.service_code || '';
 
-            // Aggregate PO totals + fetch TRs client-side (avoids composite index on transport_requests)
-            const [posAgg, trSnap] = await Promise.all([
+            // Aggregate PO totals + fetch TRs + RFPs in parallel
+            const [posAgg, trSnap, rfpSnap] = await Promise.all([
                 getAggregateFromServer(
                     query(collection(db, 'pos'), where('service_code', '==', code)),
                     { totalExpense: sum('total_amount'), poCount: count() }
                 ),
-                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code)))
+                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code))),
+                code
+                    ? getDocs(query(collection(db, 'rfps'), where('service_code', '==', code)))
+                    : Promise.resolve({ docs: [] })
             ]);
 
             let transportTotal = 0, trCount = 0;
@@ -4082,7 +4098,10 @@ async function refreshRecurringExpenses(forceRefresh = false) {
                 }
             });
 
-            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal;
+            let rfpFeesTotal = 0;
+            rfpSnap.docs.forEach(d => { rfpFeesTotal += getRFPFees(d.data()).feesTotal; });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal + rfpFeesTotal;
             const budget = service.budget || 0;
 
             return {
