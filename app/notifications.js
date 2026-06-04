@@ -46,7 +46,10 @@ export const NOTIFICATION_TYPES = Object.freeze({
     // Phase 84.1 NOTIF-19 — project/service cost change
     PROJECT_COST_CHANGED: 'PROJECT_COST_CHANGED',
     // Phase 85 D-21 — manual money-in trigger (Finance fan-out on collectible creation)
-    COLLECTIBLE_CREATED: 'COLLECTIBLE_CREATED'
+    COLLECTIBLE_CREATED: 'COLLECTIBLE_CREATED',
+    // Phase 99 D-17 — billing-request flow fan-out
+    BILLING_REQUEST_SUBMITTED: 'BILLING_REQUEST_SUBMITTED',
+    BILLING_REQUEST_DECIDED: 'BILLING_REQUEST_DECIDED'
 });
 
 /* ========================================
@@ -87,7 +90,10 @@ export const TYPE_META = {
     RFP_PAID:              { label: 'RFP Paid',              icon: svg('<path d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/>'), color: '#059669', action_required: false, target_route: '#/procurement/records' },
     PO_DELIVERED:          { label: 'PO Delivered',          icon: svg('<path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>'), color: '#2563eb', action_required: false, target_route: '#/procurement/records' },
     // Phase 85 D-21 — green money-in semantics, parallels RFP_PAID
-    COLLECTIBLE_CREATED:   { label: 'New Collectible',       icon: svg('<path d="M14.25 7.756a4.5 4.5 0 100 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'), color: '#059669', action_required: false, target_route: '#/finance' }
+    COLLECTIBLE_CREATED:   { label: 'New Collectible',       icon: svg('<path d="M14.25 7.756a4.5 4.5 0 100 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'), color: '#059669', action_required: false, target_route: '#/finance' },
+    // Phase 99 D-17 — billing-request flow (SUBMITTED = Finance action needed; DECIDED = submitter info)
+    BILLING_REQUEST_SUBMITTED: { label: 'Billing Request', icon: svg('<path d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/>'), color: '#1a73e8', action_required: true,  target_route: '#/finance/collectibles' },
+    BILLING_REQUEST_DECIDED:   { label: 'Billing Decision', icon: svg('<path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'), color: '#059669', action_required: false, target_route: '#/projects' }
 };
 
 /* ========================================
