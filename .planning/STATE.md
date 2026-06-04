@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: All UATs closed 2026-06-04 (91.2/91.3/91.4/98 complete) — ready to ship v3.3
-stopped_at: spike-019 totalPayable fee-inclusive fix committed a7448be; all outstanding UATs approved
-last_updated: "2026-06-04T00:00:00.000Z"
+status: Phase 99 (Billing Request Flow) PLANNED — 3 plans / 2 waves, plan-checker VERIFICATION PASSED (0 blockers). Ready for /gsd-execute-phase 99. Open loop: Phase 86.9 Plan 03 awaiting browser UAT (D1 row-align + D2 PDF, code committed ebbebd9).
+stopped_at: 2026-06-04 — /gsd-plan-phase 99 complete; next is /clear → /gsd-execute-phase 99
+last_updated: "2026-06-04T15:15:00.000Z"
 last_activity: 2026-06-04
 progress:
-  total_phases: 31
+  total_phases: 32
   completed_phases: 29
   total_plans: 119
   completed_plans: 119
