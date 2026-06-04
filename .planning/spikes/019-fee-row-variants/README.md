@@ -3,7 +3,7 @@ spike: 019
 name: fee-row-variants
 type: comparison
 validates: "Given a PO row with RFP fees, when the Payables tab renders, then A (flat grey sub-rows) vs B (expandable accordion) vs C (fee chip + popover) — which makes fees transparent without cluttering clean rows?"
-verdict: PENDING
+verdict: IMPLEMENTED
 related: []
 tags: [ux, fees, payables, expense-modal, design]
 ---

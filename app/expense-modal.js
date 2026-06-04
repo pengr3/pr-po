@@ -277,7 +277,9 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         // Exclude Delivery Fee RFPs — they belong to a separate Delivery Fee row (D-01)
         const regularRFPs = poRfps.filter(r => r.tranche_label !== 'Delivery Fee');
 
-        const totalPayable = poTotalAmount;
+        // Fee-inclusive per D-11: payment records capture getRFPTotal (base + fees)
+        const totalFees = regularRFPs.reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
+        const totalPayable = poTotalAmount + totalFees;
         const totalPaid = regularRFPs.reduce((s, r) => {
             return s + (r.payment_records || [])
                 .filter(p => p.status !== 'voided')
@@ -338,7 +340,9 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
     // TR status derivation (TRs are single-shot, simpler than PO tranches)
     function deriveStatusForTR(trRfps, trTotalAmount) {
-        const totalPayable = trTotalAmount;
+        // Fee-inclusive per D-11: payment records capture getRFPTotal (base + fees)
+        const totalFees = trRfps.reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
+        const totalPayable = trTotalAmount + totalFees;
         const totalPaid = trRfps.reduce((s, r) => {
             return s + (r.payment_records || [])
                 .filter(p => p.status !== 'voided')
