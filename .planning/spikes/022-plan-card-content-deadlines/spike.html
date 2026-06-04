@@ -35,30 +35,80 @@ body {
 .sbtn:hover { border-color: #475569; color: #94a3b8; }
 .sbtn.active { border-color: #1a73e8; color: #1a73e8; background: #0f2040; }
 
-/* ── Layout ── */
-.page-wrap { max-width: 780px; margin: 0 auto; padding: 20px 20px 0; }
+/* ── Page layout (matches actual project detail) ── */
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 20px 0; }
 
 .header-strip {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 16px;
 }
 .badge-active { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #dcfce7; color: #166534; }
 .mono { font-family: monospace; font-size: 12px; color: #64748b; font-weight: 700; }
 .dot { color: #cbd5e1; }
 .status-pill { padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fff; background: #10b981; border: none; }
+.btn-ghost { padding: 6px 14px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; font-size: 13px; cursor: pointer; color: #374151; }
+
+/* 2-col detail grid */
+.detail-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+}
+@media (max-width: 720px) { .detail-grid { grid-template-columns: 1fr; } }
 
 /* ── Card base ── */
 .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
 
-/* ── Shared: card heading ── */
-.card-heading {
-  padding: 10px 16px 8px; border-bottom: 1px solid #f1f5f9;
-  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8;
-}
-.card-heading-old { padding: 12px 16px 10px; border-bottom: 1px solid #f1f5f9; }
-.card-heading-old h3 { font-size: 14px; font-weight: 600; color: #374151; }
+/* ── Info card ── */
+.info-section-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
+.info-field-label { font-size: 10px; font-weight: 600; color: #94a3b8; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 3px; }
+.info-field-value input { width: 100%; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; color: #1e293b; background: #f8fafc; }
+.info-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.info-chip-tag { display: inline-flex; align-items: center; gap: 5px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 20px; padding: 3px 10px; font-size: 12px; color: #374151; }
+.info-chip-tag .remove { color: #94a3b8; cursor: pointer; font-size: 10px; margin-left: 2px; }
+.info-meta { font-size: 11px; color: #94a3b8; margin-top: 10px; }
 
-/* ── Shared: progress bar (021A) ── */
+/* ── Proposal card (Spike 009 winner) ── */
+.proposal-track { display: flex; align-items: flex-start; gap: 0; padding: 14px 16px 10px; border-bottom: 1px solid #f1f5f9; position: relative; }
+.proposal-track::before { content: ''; position: absolute; top: 26px; left: calc(16px + 20px); right: calc(16px + 20px); height: 2px; background: #e2e8f0; }
+.track-node { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; position: relative; z-index: 1; }
+.track-dot { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.track-dot.done { background: #1a73e8; color: #fff; }
+.track-dot.done::after { content: '✓'; }
+.track-dot.pending { background: #fff; border: 2px solid #e2e8f0; }
+.track-label { font-size: 10px; color: #64748b; text-align: center; line-height: 1.3; }
+.track-label.done { color: #1a73e8; font-weight: 600; }
+.proposal-chips { display: flex; gap: 8px; padding: 12px 16px; }
+.stat-chip { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; }
+.stat-chip-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+.stat-chip-value { font-size: 18px; font-weight: 700; color: #1e293b; line-height: 1; }
+.stat-chip-sub { font-size: 11px; color: #64748b; margin-top: 3px; }
+.stat-chip.chip-warn { background: #fffbeb; border-color: #fcd34d; }
+.stat-chip.chip-warn .stat-chip-label { color: #92400e; }
+.stat-chip.chip-warn .stat-chip-value { color: #b45309; }
+.card-heading-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+.proposal-footer { padding: 12px 16px; border-top: 1px solid #f1f5f9; text-align: right; }
+.btn-outline { padding: 7px 14px; background: #fff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 6px; font-size: 13px; cursor: pointer; }
+
+/* ── Financial Summary ── */
+.fin-section-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; padding: 10px 16px 6px; border-top: 1px solid #f1f5f9; }
+.fin-section-label:first-child { border-top: none; padding-top: 14px; }
+.fin-section-label.green { color: #059669; }
+.fin-two-col { display: grid; grid-template-columns: 1fr 1fr; padding: 4px 16px 10px; gap: 8px; }
+.fin-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.fin-val { font-size: 14px; font-weight: 600; color: #1e293b; }
+.fin-val.green { color: #059669; }
+.fin-bg-green { background: #f0fdf4; }
+.fin-bg-red { background: #fef2f2; }
+
+/* ══════════════════════════════════════════════
+   PLAN CARD: shared elements
+══════════════════════════════════════════════ */
+
+/* Card heading */
+.plan-heading-old { padding: 12px 16px 10px; border-bottom: 1px solid #f1f5f9; }
+.plan-heading-old h3 { font-size: 14px; font-weight: 600; color: #374151; }
+.plan-heading-new { padding: 10px 16px 8px; border-bottom: 1px solid #f1f5f9; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+
+/* Progress bar */
 .progress-wrap { margin-bottom: 14px; }
 .progress-track { width: 100%; height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
 .progress-fill { height: 100%; border-radius: 99px; background: #1a73e8; transition: width 0.4s cubic-bezier(.4,0,.2,1); }
@@ -66,30 +116,26 @@ body {
 .progress-text { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; }
 .progress-text .pct { font-weight: 700; color: #1e293b; }
 
-/* ── Shared: footer row ── */
-.footer-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
-.footer-count { font-size: 11px; color: #94a3b8; }
+/* Section labels */
+.plan-section-lbl { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+
+/* Footer row */
+.plan-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.plan-footer-count { font-size: 11px; color: #94a3b8; }
 .btn-primary { padding: 8px 16px; background: #1a73e8; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500; }
 .btn-primary:hover { background: #1557b0; }
 
-/* ── Shared: section label ── */
-.section-lbl { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+/* Empty state */
+.plan-empty-cta { text-align: center; padding: 20px 0 10px; }
+.plan-empty-cta p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
 
-/* ── Shared: empty CTA ── */
-.empty-cta { text-align: center; padding: 20px 0 10px; }
-.empty-cta p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
-
-/* ── Shared: all-complete block ── */
-.completion-block {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px; background: #f0fdf4; border: 1px solid #86efac;
-  border-radius: 8px; margin-bottom: 14px;
-}
+/* Completion */
+.completion-block { display: flex; align-items: center; gap: 10px; padding: 12px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; margin-bottom: 14px; }
 .completion-icon { font-size: 20px; }
 .completion-text { font-size: 13px; color: #166534; font-weight: 600; }
 .completion-sub { font-size: 11px; color: #4ade80; }
 
-/* ── CURRENT: old content styles ── */
+/* ── CURRENT: old styles ── */
 .old-stats { display: flex; gap: 24px; margin-bottom: 16px; }
 .old-stat-val { font-size: 28px; font-weight: 700; color: #1e293b; line-height: 1; }
 .old-stat-lbl { font-size: 12px; color: #64748b; margin-top: 2px; }
@@ -99,12 +145,9 @@ body {
 .old-empty-box { padding: 14px; text-align: center; border: 1px dashed #e2e8f0; border-radius: 8px; margin-bottom: 14px; color: #64748b; font-size: 13px; }
 .old-empty-box strong { color: #374151; display: block; margin-bottom: 4px; }
 
-/* ── A: Deadline-centric ── */
-.overdue-section {
-  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;
-  padding: 10px 12px; margin-bottom: 12px;
-}
-.overdue-section .section-lbl { color: #92400e; margin-bottom: 6px; }
+/* ── A: Deadline rows ── */
+.overdue-section { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.overdue-section .plan-section-lbl { color: #92400e; margin-bottom: 6px; }
 .overdue-task-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
 .overdue-task-row + .overdue-task-row { border-top: 1px solid #fde68a; }
 .overdue-name { flex: 1; color: #78350f; }
@@ -112,11 +155,11 @@ body {
 .overdue-more { font-size: 11px; color: #b45309; padding-top: 4px; }
 
 .upcoming-section { margin-bottom: 14px; }
-.upcoming-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f8fafc; }
+.upcoming-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f8fafc; }
 .upcoming-row:last-child { border-bottom: none; }
 .task-icon { font-size: 12px; flex-shrink: 0; width: 16px; text-align: center; }
 .task-name { flex: 1; font-size: 13px; color: #1e293b; }
-.task-due { font-size: 11px; color: #64748b; flex-shrink: 0; text-align: right; line-height: 1.4; }
+.task-due { font-size: 11px; color: #64748b; flex-shrink: 0; text-align: right; line-height: 1.6; }
 .task-due .due-date { display: block; }
 .due-rel { color: #94a3b8; }
 .due-rel.soon { color: #f97316; font-weight: 600; }
@@ -128,15 +171,8 @@ body {
 .last-done-lbl { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px; }
 .last-done-val { font-size: 12px; color: #475569; }
 
-/* ── B: Health-centric ── */
-.health-row {
-  display: flex; align-items: center; gap: 12px;
-  margin-bottom: 14px; flex-wrap: wrap;
-}
-.health-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700;
-}
+/* ── B: Health badge + next deadline ── */
+.health-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
 .health-badge .dot-icon { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .health-badge.on-track { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
 .health-badge.on-track .dot-icon { background: #22c55e; }
@@ -145,34 +181,22 @@ body {
 .health-badge.behind { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
 .health-badge.behind .dot-icon { background: #ef4444; }
 
-.health-metrics { display: flex; gap: 20px; flex-wrap: wrap; }
-.health-metric-val { font-size: 18px; font-weight: 700; color: #1e293b; line-height: 1; }
-.health-metric-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+.health-stats-row { display: flex; gap: 24px; margin-bottom: 14px; }
+.health-metric-val { font-size: 22px; font-weight: 700; color: #1e293b; line-height: 1; }
 .health-metric-val.red { color: #ef4444; }
 .health-metric-val.amber { color: #f59e0b; }
+.health-metric-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
 
-.health-next-deadline {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9;
-  margin-bottom: 12px; font-size: 12px; color: #475569;
-}
-.health-next-deadline .dl-label { color: #94a3b8; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; min-width: 90px; }
-.health-next-deadline .dl-name { flex: 1; }
-.health-next-deadline .dl-date { color: #1e293b; font-weight: 600; font-size: 11px; }
-.health-next-deadline .dl-rel { color: #94a3b8; font-size: 11px; margin-left: 4px; }
-.health-next-deadline .dl-rel.soon { color: #f97316; font-weight: 600; }
+.health-next-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 12px; font-size: 12px; }
+.health-next-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #94a3b8; min-width: 80px; flex-shrink: 0; }
+.health-next-name { flex: 1; color: #374151; }
+.health-next-date { color: #1e293b; font-weight: 600; font-size: 11px; }
+.health-next-rel { color: #94a3b8; font-size: 11px; margin-left: 4px; }
+.health-next-rel.soon { color: #f97316; font-weight: 600; }
 
-/* ── C: Combined ── */
-.combined-health-row {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 14px; flex-wrap: wrap;
-}
-.overdue-pill {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px; border-radius: 20px;
-  background: #fffbeb; border: 1px solid #fcd34d;
-  font-size: 12px; font-weight: 700; color: #92400e;
-}
+/* ── C: Combined (health chip + deadline rows) ── */
+.combined-top { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.overdue-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; background: #fffbeb; border: 1px solid #fcd34d; font-size: 12px; font-weight: 700; color: #92400e; }
 .overdue-pill .overdue-count { font-size: 15px; }
 
 /* ── Log pane ── */
@@ -187,58 +211,148 @@ body {
 .log-ts { color: #334155; flex-shrink: 0; }
 .log-type { flex-shrink: 0; min-width: 60px; font-weight: 700; }
 .log-type.variant { color: #60a5fa; }
-.log-type.state { color: #34d399; }
-.log-type.action { color: #fbbf24; }
+.log-type.state   { color: #34d399; }
+.log-type.action  { color: #fbbf24; }
 .log-msg { color: #94a3b8; }
-
-/* Spike label */
-.spike-label {
-  position: fixed; top: 56px; right: 16px;
-  background: #0f172a; border: 1px solid #334155; border-radius: 8px;
-  padding: 10px 14px; font-size: 11px; color: #64748b; z-index: 90; line-height: 1.8;
-}
-.spike-label strong { color: #e2e8f0; display: block; font-size: 12px; margin-bottom: 6px; }
 </style>
 </head>
 <body>
 
+<!-- Variant + State bar -->
 <div id="variantBar">
-  <span class="lbl">Variant:</span>
-  <button class="vbtn ref" id="vbtn-current" onclick="setVariant('current')">Current</button>
-  <button class="vbtn active" id="vbtn-a" onclick="setVariant('a')">A: Deadlines</button>
-  <button class="vbtn" id="vbtn-b" onclick="setVariant('b')">B: Health</button>
-  <button class="vbtn" id="vbtn-c" onclick="setVariant('c')">C: Combined</button>
+  <span class="lbl">Content:</span>
+  <button class="vbtn ref"    id="vbtn-current" onclick="setVariant('current')">Current</button>
+  <button class="vbtn active" id="vbtn-a"       onclick="setVariant('a')">A: Deadlines</button>
+  <button class="vbtn"        id="vbtn-b"       onclick="setVariant('b')">B: Health</button>
+  <button class="vbtn"        id="vbtn-c"       onclick="setVariant('c')">C: Combined</button>
   <div class="sep"></div>
   <span class="lbl">Data:</span>
   <button class="sbtn active" id="sbtn-typical" onclick="setState('typical')">Typical</button>
-  <button class="sbtn" id="sbtn-overdue" onclick="setState('overdue')">With overdue</button>
-  <button class="sbtn" id="sbtn-nodates" onclick="setState('nodates')">No dates</button>
-  <button class="sbtn" id="sbtn-done" onclick="setState('done')">All done</button>
-  <button class="sbtn" id="sbtn-empty" onclick="setState('empty')">Empty</button>
-</div>
-
-<div class="spike-label">
-  <strong>Spike 022 — Content Options</strong>
-  A: Deadlines · B: Health · C: Combined<br>
-  Base visual = Spike 021A (progress bar).
+  <button class="sbtn"        id="sbtn-overdue" onclick="setState('overdue')">With overdue</button>
+  <button class="sbtn"        id="sbtn-nodates" onclick="setState('nodates')">No dates</button>
+  <button class="sbtn"        id="sbtn-done"    onclick="setState('done')">All done</button>
+  <button class="sbtn"        id="sbtn-empty"   onclick="setState('empty')">Empty</button>
 </div>
 
 <div class="page-wrap">
+
+  <!-- Header strip -->
   <div class="header-strip">
     <span class="badge-active">✓ Active</span>
     <span class="dot">·</span>
     <span class="mono">CLMC-SPI-2026001</span>
     <span class="dot">·</span>
     <span class="status-pill">Client Approved</span>
-    <span style="margin-left:auto;font-size:12px;color:#94a3b8;">Project Plan card (right column, below Financial Summary)</span>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="btn-ghost">Edit History</button>
+      <button class="btn-ghost">Export CSV</button>
+    </div>
   </div>
 
-  <div id="planCardMount"></div>
+  <!-- 2-col grid (matches real project detail) -->
+  <div class="detail-grid">
 
-  <div style="font-size:11px;color:#94a3b8;text-align:center;padding:4px 0 20px;">
-    Switch between Current / A / B / C and all data states to compare.
-  </div>
-</div>
+    <!-- LEFT: Info + Proposal -->
+    <div>
+
+      <!-- Info card -->
+      <div class="card">
+        <div style="padding:14px 16px 10px;">
+          <div class="info-section-label">Project Information</div>
+        </div>
+        <div style="padding:0 16px 16px;">
+          <div class="info-two-col">
+            <div>
+              <div class="info-field-label">Project Name *</div>
+              <div class="info-field-value"><input value="Another Sample Project" readonly></div>
+            </div>
+            <div>
+              <div class="info-field-label">Client</div>
+              <div class="info-field-value"><input value="SPI" readonly></div>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div class="info-field-label">Location</div>
+            <div class="info-field-value"><input value="Manila" readonly></div>
+          </div>
+          <div>
+            <div class="info-field-label" style="margin-bottom:6px;">Assigned Personnel</div>
+            <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 10px;background:#f8fafc;min-height:38px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <span class="info-chip-tag">Test <span class="remove">×</span></span>
+            </div>
+          </div>
+          <div class="info-meta">Created: May 26, 2026 · Updated: May 26, 2026</div>
+        </div>
+      </div>
+
+      <!-- Proposal card (Spike 009 winner) -->
+      <div class="card">
+        <div style="padding:10px 16px 8px;border-bottom:1px solid #f1f5f9;">
+          <div class="card-heading-label">Proposal</div>
+        </div>
+        <div class="proposal-track">
+          <div class="track-node"><div class="track-dot done"></div><div class="track-label done">Draft</div></div>
+          <div class="track-node"><div class="track-dot done"></div><div class="track-label done">Internal<br>Review</div></div>
+          <div class="track-node"><div class="track-dot done"></div><div class="track-label done">Client<br>Review</div></div>
+          <div class="track-node"><div class="track-dot done"></div><div class="track-label done">Approved</div></div>
+        </div>
+        <div style="padding:10px 16px 0;font-size:15px;font-weight:600;color:#1e293b;">Sample Proposal 2</div>
+        <div style="padding:2px 16px 8px;font-size:11px;color:#94a3b8;font-family:monospace;">PROPOSAL-SPI-2026-005</div>
+        <div class="proposal-chips">
+          <div class="stat-chip">
+            <div class="stat-chip-label">Value</div>
+            <div class="stat-chip-value" style="font-size:14px;">—</div>
+          </div>
+          <div class="stat-chip chip-warn">
+            <div class="stat-chip-label">Stage Age</div>
+            <div class="stat-chip-value">9 days</div>
+            <div class="stat-chip-sub" style="color:#92400e;font-size:10px;">needs attention</div>
+          </div>
+        </div>
+        <div class="proposal-footer">
+          <button class="btn-outline">View Proposal</button>
+        </div>
+      </div>
+
+    </div><!-- /left col -->
+
+    <!-- RIGHT: Financial Summary + Plan card -->
+    <div>
+
+      <!-- Financial Summary (static) -->
+      <div class="card">
+        <div style="padding:14px 16px 8px;">
+          <div class="info-section-label">Financial Summary</div>
+        </div>
+        <div class="fin-section-label">Budget</div>
+        <div class="fin-two-col">
+          <div><div class="fin-lbl">Budget</div><div class="fin-val">(Not set)</div></div>
+          <div><div class="fin-lbl">Contract Cost</div><div class="fin-val">(Not set)</div></div>
+        </div>
+        <div class="fin-two-col" style="padding-top:0;padding-bottom:4px;">
+          <div><div class="fin-lbl">Projected Expense</div><div class="fin-val" style="color:#f97316;">—</div></div>
+          <div><div class="fin-lbl">Rem. Budget</div><div class="fin-val">—</div></div>
+        </div>
+        <div class="fin-section-label green">Payables</div>
+        <div class="fin-two-col fin-bg-green">
+          <div><div class="fin-lbl">Paid</div><div class="fin-val green">0.00</div></div>
+          <div><div class="fin-lbl">Rem. Payable</div><div class="fin-val green">0.00</div></div>
+        </div>
+        <div class="fin-section-label" style="color:#0891b2;">Collectibles</div>
+        <div class="fin-two-col fin-bg-red">
+          <div><div class="fin-lbl">Collected</div><div class="fin-val green">0.00</div></div>
+          <div><div class="fin-lbl">Rem. Collectible</div><div class="fin-val green">0.00</div></div>
+        </div>
+        <div style="height:12px;"></div>
+      </div>
+
+      <!-- Plan card — swapped by JS -->
+      <div id="planCardMount"></div>
+
+    </div><!-- /right col -->
+
+  </div><!-- /detail-grid -->
+</div><!-- /page-wrap -->
 
 <div id="logPane"></div>
 
@@ -247,16 +361,16 @@ let variant = 'a';
 let dataState = 'typical';
 
 const DATA = {
-  empty:   { taskCount:0,  pct:0,   overdue:0, overdueTasks:[],                       upcomingTasks:[],                                                                               recentDone:null,                               health:'on-track', nextDeadline:null, label:'Empty plan' },
-  nodates: { taskCount:6,  pct:17,  overdue:0, overdueTasks:[],                       upcomingTasks:[],                                                                               recentDone:'Initial site survey',              health:'on-track', nextDeadline:null, label:'6 tasks, no due dates set' },
+  empty:   { taskCount:0,  pct:0,   overdue:0, overdueTasks:[],                                                                   upcomingTasks:[],                                                                                                     recentDone:null,                              health:'on-track', nextDeadline:null,                                                          label:'Empty plan' },
+  nodates: { taskCount:6,  pct:17,  overdue:0, overdueTasks:[],                                                                   upcomingTasks:[],                                                                                                     recentDone:'Initial site survey',             health:'on-track', nextDeadline:null,                                                          label:'6 tasks, no due dates set' },
   typical: { taskCount:8,  pct:13,  overdue:0, overdueTasks:[],
              upcomingTasks:[{name:'Foundation inspection',date:'Jan 20',daysUntil:16,isMilestone:true},{name:'Electrical rough-in',date:'Jan 25',daysUntil:21,isMilestone:false}],
-             recentDone:'Site survey and initial assessment',                           health:'on-track', nextDeadline:{name:'Foundation inspection',date:'Jan 20',daysUntil:16,isMilestone:true}, label:'8 tasks, 2 upcoming, no overdue' },
+             recentDone:'Site survey and initial assessment',                                                                                                                                                                                           health:'on-track', nextDeadline:{name:'Foundation inspection',date:'Jan 20',daysUntil:16,isMilestone:true}, label:'8 tasks, 2 upcoming, no overdue' },
   overdue: { taskCount:12, pct:42,  overdue:3,
              overdueTasks:[{name:'Structural design sign-off',daysLate:5},{name:'Material procurement — Phase 1',daysLate:2}], overdueMore:1,
              upcomingTasks:[{name:'Foundation inspection',date:'Jan 20',daysUntil:4,isMilestone:true}],
-             recentDone:'Site survey and initial assessment',                           health:'behind',   nextDeadline:{name:'Foundation inspection',date:'Jan 20',daysUntil:4,isMilestone:true}, label:'12 tasks, 3 overdue, 1 upcoming' },
-  done:    { taskCount:8,  pct:100, overdue:0, overdueTasks:[],                       upcomingTasks:[],                                                                               recentDone:'Final handover documentation',     health:'on-track', nextDeadline:null, label:'All 8 tasks complete' },
+             recentDone:'Site survey and initial assessment',                                                                                                                                                                                           health:'behind',   nextDeadline:{name:'Foundation inspection',date:'Jan 20',daysUntil:4,isMilestone:true},  label:'12 tasks, 3 overdue, 1 upcoming' },
+  done:    { taskCount:8,  pct:100, overdue:0, overdueTasks:[],                                                                   upcomingTasks:[],                                                                                                     recentDone:'Final handover documentation',    health:'on-track', nextDeadline:null,                                                          label:'All 8 tasks complete' },
 };
 
 // ── Controls ──
@@ -265,7 +379,7 @@ function setVariant(v) {
   document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active','ref'));
   document.getElementById('vbtn-'+v).classList.add(v==='current'?'ref':'active');
   render();
-  const names={current:'Current (baseline)',a:'A: Deadline-Centric',b:'B: Health-Centric',c:'C: Combined (A+B)'};
+  const names={current:'Current (baseline)',a:'A: Deadline-Centric',b:'B: Health-Centric',c:'C: Combined'};
   addLog('variant', names[v]);
 }
 function setState(s) {
@@ -276,304 +390,170 @@ function setState(s) {
   addLog('state', DATA[s].label);
 }
 
-// ── Shared helpers ──
+// ── Shared builders ──
 function progressBar(d) {
-  const doneCount = Math.round(d.taskCount * d.pct / 100);
-  const complete = d.pct === 100;
+  const done = Math.round(d.taskCount * d.pct / 100);
   return `<div class="progress-wrap">
-    <div class="progress-track">
-      <div class="progress-fill ${complete?'complete':''}" style="width:${d.pct}%"></div>
-    </div>
-    <div class="progress-text">
-      <span>${doneCount} of ${d.taskCount} tasks complete</span>
-      <span class="pct">${d.pct}%</span>
-    </div>
+    <div class="progress-track"><div class="progress-fill ${d.pct===100?'complete':''}" style="width:${d.pct}%"></div></div>
+    <div class="progress-text"><span>${done} of ${d.taskCount} tasks complete</span><span class="pct">${d.pct}%</span></div>
   </div>`;
 }
-
 function completionBlock(d) {
   return `<div class="completion-block">
     <div class="completion-icon">✓</div>
-    <div>
-      <div class="completion-text">All tasks complete</div>
-      ${d.recentDone?`<div class="completion-sub">Last: ${d.recentDone}</div>`:''}
-    </div>
+    <div><div class="completion-text">All tasks complete</div>${d.recentDone?`<div class="completion-sub">Last: ${d.recentDone}</div>`:''}</div>
   </div>`;
 }
-
 function footerRow(d) {
-  return `<div class="footer-row">
-    <span class="footer-count">${d.taskCount} tasks</span>
+  return `<div class="plan-footer">
+    <span class="plan-footer-count">${d.taskCount} tasks</span>
     <button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan</button>
   </div>`;
 }
-
 function lastDoneBlock(d) {
   if (!d.recentDone) return '';
-  return `<div class="last-done">
-    <div class="last-done-lbl">Last completed</div>
-    <div class="last-done-val">${d.recentDone}</div>
-  </div>`;
+  return `<div class="last-done"><div class="last-done-lbl">Last completed</div><div class="last-done-val">${d.recentDone}</div></div>`;
 }
-
 function overdueSection(d) {
   if (!d.overdueTasks || d.overdueTasks.length === 0) return '';
-  const rows = d.overdueTasks.map(t => `
+  const rows = d.overdueTasks.map(t=>`
     <div class="overdue-task-row">
-      <span style="color:#ef4444;font-size:10px;">!</span>
+      <span style="color:#ef4444;font-size:10px;flex-shrink:0;">!</span>
       <span class="overdue-name">${t.name}</span>
       <span class="overdue-age">${t.daysLate}d late</span>
     </div>`).join('');
-  const more = d.overdueMore ? `<div class="overdue-more">+${d.overdueMore} more</div>` : '';
-  return `<div class="overdue-section">
-    <div class="section-lbl">Overdue · ${d.overdue}</div>
-    ${rows}${more}
-  </div>`;
+  const more = d.overdueMore?`<div class="overdue-more">+${d.overdueMore} more</div>`:'';
+  return `<div class="overdue-section"><div class="plan-section-lbl">Overdue · ${d.overdue}</div>${rows}${more}</div>`;
 }
-
-function upcomingSection(d, forCombined=false) {
+function upcomingSection(d) {
   if (d.upcomingTasks && d.upcomingTasks.length > 0) {
-    const rows = d.upcomingTasks.map(t => {
-      const rc = t.daysUntil <= 3 ? 'very-soon' : t.daysUntil <= 7 ? 'soon' : '';
-      const rel = t.daysUntil === 0 ? 'today' : t.daysUntil === 1 ? 'tomorrow' : `in ${t.daysUntil}d`;
+    const rows = d.upcomingTasks.map(t=>{
+      const rc = t.daysUntil<=3?'very-soon':t.daysUntil<=7?'soon':'';
+      const rel = t.daysUntil===0?'today':t.daysUntil===1?'tomorrow':`in ${t.daysUntil}d`;
       return `<div class="upcoming-row">
         <span class="task-icon" style="color:${t.isMilestone?'#1a73e8':'#94a3b8'}">${t.isMilestone?'◆':'○'}</span>
         <span class="task-name">${t.name}</span>
-        <span class="task-due">
-          <span class="due-date">${t.date}</span>
-          <span class="due-rel ${rc}">${rel}</span>
-        </span>
+        <span class="task-due"><span class="due-date">${t.date}</span><span class="due-rel ${rc}">${rel}</span></span>
       </div>`;
     }).join('');
-    return `<div class="upcoming-section"><div class="section-lbl">Next Up</div>${rows}</div>`;
+    return `<div class="upcoming-section"><div class="plan-section-lbl">Next Up</div>${rows}</div>`;
   }
-  // No upcoming + no overdue = no dates hint
-  if (d.overdue === 0 && !forCombined) {
-    return `<div class="no-dates-hint">Set due dates in the plan to see what's coming up.</div>`;
-  }
-  return forCombined && d.overdue === 0
-    ? `<div class="no-dates-hint">Set due dates in the plan to see what's coming up.</div>`
-    : '';
+  return d.overdue===0?`<div class="no-dates-hint">Set due dates in the plan to see what's coming up.</div>`:'';
 }
 
 // ── CURRENT ──
 function renderCurrent(d) {
-  if (d.taskCount === 0) return `<div class="card">
-    <div class="card-heading-old"><h3>Project Plan</h3></div>
-    <div class="card-body">
-      <div class="old-stats">
-        <div><div class="old-stat-val">0</div><div class="old-stat-lbl">tasks</div></div>
-        <div><div class="old-stat-val">0%</div><div class="old-stat-lbl">complete</div></div>
-      </div>
-      <div class="old-highlights">
-        <div><div class="old-hl-lbl">Most recent accomplishment</div><div class="old-hl-val" style="color:#94a3b8">No completed tasks yet.</div></div>
-        <div><div class="old-hl-lbl">Next milestone</div><div class="old-hl-val" style="color:#94a3b8">No upcoming milestones.</div></div>
-        <div><div class="old-hl-lbl">Ongoing milestone</div><div class="old-hl-val" style="color:#94a3b8">No active milestones.</div></div>
-      </div>
-      <div class="old-empty-box"><strong>No tasks yet.</strong>Open the plan to get started.</div>
-      <div style="text-align:right"><button class="btn-primary">Open Plan</button></div>
-    </div>
-  </div>`;
-
-  const recent = d.recentDone || 'No completed tasks yet.';
-  return `<div class="card">
-    <div class="card-heading-old"><h3>Project Plan</h3></div>
-    <div class="card-body">
-      <div class="old-stats">
-        <div><div class="old-stat-val">${d.taskCount}</div><div class="old-stat-lbl">tasks</div></div>
-        <div><div class="old-stat-val">${d.pct}%</div><div class="old-stat-lbl">complete</div></div>
-      </div>
-      <div class="old-highlights">
-        <div><div class="old-hl-lbl">Most recent accomplishment</div><div class="old-hl-val">${recent}</div></div>
-        <div><div class="old-hl-lbl">Next milestone</div><div class="old-hl-val" style="color:#94a3b8">No upcoming milestones.</div></div>
-        <div><div class="old-hl-lbl">Ongoing milestone</div><div class="old-hl-val" style="color:#94a3b8">No active milestones.</div></div>
-      </div>
-      <div style="text-align:right"><button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan</button></div>
-    </div>
-  </div>`;
+  const body = d.taskCount===0
+    ? `<div class="old-stats"><div><div class="old-stat-val">0</div><div class="old-stat-lbl">tasks</div></div><div><div class="old-stat-val">0%</div><div class="old-stat-lbl">complete</div></div></div>
+       <div class="old-highlights">
+         <div><div class="old-hl-lbl">Most recent accomplishment</div><div class="old-hl-val" style="color:#94a3b8">No completed tasks yet.</div></div>
+         <div><div class="old-hl-lbl">Next milestone</div><div class="old-hl-val" style="color:#94a3b8">No upcoming milestones.</div></div>
+         <div><div class="old-hl-lbl">Ongoing milestone</div><div class="old-hl-val" style="color:#94a3b8">No active milestones.</div></div>
+       </div>
+       <div class="old-empty-box"><strong>No tasks yet.</strong>Open the plan to get started.</div>
+       <div style="text-align:right"><button class="btn-primary">Open Plan</button></div>`
+    : `<div class="old-stats"><div><div class="old-stat-val">${d.taskCount}</div><div class="old-stat-lbl">tasks</div></div><div><div class="old-stat-val">${d.pct}%</div><div class="old-stat-lbl">complete</div></div></div>
+       <div class="old-highlights">
+         <div><div class="old-hl-lbl">Most recent accomplishment</div><div class="old-hl-val">${d.recentDone||'No completed tasks yet.'}</div></div>
+         <div><div class="old-hl-lbl">Next milestone</div><div class="old-hl-val" style="color:#94a3b8">No upcoming milestones.</div></div>
+         <div><div class="old-hl-lbl">Ongoing milestone</div><div class="old-hl-val" style="color:#94a3b8">No active milestones.</div></div>
+       </div>
+       <div style="text-align:right"><button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan</button></div>`;
+  return `<div class="card"><div class="plan-heading-old"><h3>Project Plan</h3></div><div style="padding:16px;">${body}</div></div>`;
 }
 
-// ── VARIANT A: Deadline-Centric ──
+// ── A: Deadline-Centric ──
 function renderA(d) {
-  if (d.taskCount === 0) return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">
-      <div class="empty-cta"><p>No tasks yet. Open the plan to get started.</p>
-      <button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan →</button></div>
-    </div>
-  </div>`;
-
-  if (d.pct === 100) return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">${progressBar(d)}${completionBlock(d)}${footerRow(d)}</div>
-  </div>`;
-
-  return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">
-      ${progressBar(d)}
-      ${overdueSection(d)}
-      ${upcomingSection(d)}
-      ${lastDoneBlock(d)}
-      ${footerRow(d)}
-    </div>
-  </div>`;
+  if (d.taskCount===0) return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;"><div class="plan-empty-cta"><p>No tasks yet. Open the plan to get started.</p><button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan →</button></div></div></div>`;
+  const inner = d.pct===100
+    ? completionBlock(d)+footerRow(d)
+    : overdueSection(d)+upcomingSection(d)+lastDoneBlock(d)+footerRow(d);
+  return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;">${progressBar(d)}${inner}</div></div>`;
 }
 
-// ── VARIANT B: Health-Centric ──
+// ── B: Health-Centric ──
 function renderB(d) {
-  if (d.taskCount === 0) return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">
-      <div class="empty-cta"><p>No tasks yet. Open the plan to get started.</p>
-      <button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan →</button></div>
-    </div>
-  </div>`;
+  if (d.taskCount===0) return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;"><div class="plan-empty-cta"><p>No tasks yet. Open the plan to get started.</p><button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan →</button></div></div></div>`;
+  if (d.pct===100) return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;">${progressBar(d)}${completionBlock(d)}${footerRow(d)}</div></div>`;
 
-  if (d.pct === 100) return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">${progressBar(d)}${completionBlock(d)}${footerRow(d)}</div>
-  </div>`;
-
-  // Health badge
-  const healthMeta = {
-    'on-track': { label:'On Track', cls:'on-track' },
-    'at-risk':  { label:'At Risk',  cls:'at-risk'  },
-    'behind':   { label:'Behind',   cls:'behind'   },
+  const hMeta = {
+    'on-track':{label:'On Track',cls:'on-track'},
+    'at-risk':{label:'At Risk',cls:'at-risk'},
+    'behind':{label:'Behind',cls:'behind'},
   };
-  const hm = healthMeta[d.health] || healthMeta['on-track'];
-  const healthBadge = `<span class="health-badge ${hm.cls}">
-    <span class="dot-icon"></span>${hm.label}
-  </span>`;
+  const hm = hMeta[d.health]||hMeta['on-track'];
+  const badge = `<div class="health-badge ${hm.cls}"><span class="dot-icon"></span>${hm.label}</div>`;
 
-  // Overdue metric (shown only if > 0)
-  const overdueMetric = d.overdue > 0
-    ? `<div>
-        <div class="health-metric-val ${d.overdue>=3?'red':'amber'}">${d.overdue}</div>
-        <div class="health-metric-lbl">overdue</div>
-      </div>`
+  const overdueMetric = d.overdue>0
+    ? `<div class="health-stats-row"><div><div class="health-metric-val ${d.overdue>=3?'red':'amber'}">${d.overdue}</div><div class="health-metric-lbl">overdue</div></div></div>`
     : '';
 
-  const healthRow = `<div class="health-row">
-    ${healthBadge}
-    <div class="health-metrics">
-      ${overdueMetric}
-    </div>
-  </div>`;
-
-  // Next deadline row
-  let nextDeadlineHtml = '';
+  let nextHtml = '';
   if (d.nextDeadline) {
-    const nd = d.nextDeadline;
-    const rc = nd.daysUntil <= 3 ? 'soon' : '';
-    const rel = nd.daysUntil === 0 ? 'today' : nd.daysUntil === 1 ? 'tomorrow' : `in ${nd.daysUntil}d`;
-    const icon = nd.isMilestone ? '◆' : '○';
-    nextDeadlineHtml = `<div class="health-next-deadline">
-      <span class="dl-label">Next deadline</span>
-      <span class="dl-name">${icon} ${nd.name}</span>
-      <span class="dl-date">${nd.date}</span>
-      <span class="dl-rel ${rc}">${rel}</span>
+    const nd=d.nextDeadline;
+    const rc=nd.daysUntil<=3?'soon':'';
+    const rel=nd.daysUntil===0?'today':nd.daysUntil===1?'tomorrow':`in ${nd.daysUntil}d`;
+    nextHtml=`<div class="health-next-row">
+      <span class="health-next-label">Next deadline</span>
+      <span class="health-next-name">${nd.isMilestone?'◆ ':''} ${nd.name}</span>
+      <span class="health-next-date">${nd.date}</span>
+      <span class="health-next-rel ${rc}">${rel}</span>
     </div>`;
-  } else if (d.overdue === 0) {
-    nextDeadlineHtml = `<div class="no-dates-hint">Set due dates in the plan to track schedule health.</div>`;
+  } else if (d.overdue===0) {
+    nextHtml=`<div class="no-dates-hint">Set due dates in the plan to track schedule health.</div>`;
   }
 
-  return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">
-      ${progressBar(d)}
-      ${healthRow}
-      ${nextDeadlineHtml}
-      ${lastDoneBlock(d)}
-      ${footerRow(d)}
-    </div>
-  </div>`;
+  return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;">${progressBar(d)}${badge}${overdueMetric}${nextHtml}${lastDoneBlock(d)}${footerRow(d)}</div></div>`;
 }
 
-// ── VARIANT C: Combined (Health badge + Deadline rows) ──
+// ── C: Combined ──
 function renderC(d) {
-  if (d.taskCount === 0) return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">
-      <div class="empty-cta"><p>No tasks yet. Open the plan to get started.</p>
-      <button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan →</button></div>
-    </div>
-  </div>`;
+  if (d.taskCount===0) return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;"><div class="plan-empty-cta"><p>No tasks yet. Open the plan to get started.</p><button class="btn-primary" onclick="addLog('action','Open Plan clicked')">Open Plan →</button></div></div></div>`;
+  if (d.pct===100) return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;">${progressBar(d)}${completionBlock(d)}${footerRow(d)}</div></div>`;
 
-  if (d.pct === 100) return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">${progressBar(d)}${completionBlock(d)}${footerRow(d)}</div>
-  </div>`;
+  const hMeta = {'on-track':{label:'On Track',cls:'on-track'},'at-risk':{label:'At Risk',cls:'at-risk'},'behind':{label:'Behind',cls:'behind'}};
+  const hm = hMeta[d.health]||hMeta['on-track'];
 
-  const healthMeta = {
-    'on-track': { label:'On Track', cls:'on-track' },
-    'at-risk':  { label:'At Risk',  cls:'at-risk'  },
-    'behind':   { label:'Behind',   cls:'behind'   },
-  };
-  const hm = healthMeta[d.health] || healthMeta['on-track'];
+  const overdueChip = d.overdue>0
+    ? `<span class="overdue-pill"><span class="overdue-count">${d.overdue}</span> overdue</span>`:'';
 
-  const overdueChip = d.overdue > 0
-    ? `<span class="overdue-pill">
-        <span class="overdue-count">${d.overdue}</span> overdue
-      </span>`
-    : '';
-
-  const topRow = `<div class="combined-health-row">
-    <span class="health-badge ${hm.cls}">
-      <span class="dot-icon"></span>${hm.label}
-    </span>
+  const topRow=`<div class="combined-top">
+    <span class="health-badge ${hm.cls}" style="margin-bottom:0;"><span class="dot-icon"></span>${hm.label}</span>
     ${overdueChip}
   </div>`;
 
-  // Overdue task details (collapsed to 1 line when combined)
-  let overdueDetail = '';
-  if (d.overdueTasks && d.overdueTasks.length > 0) {
-    const rows = d.overdueTasks.map(t => `
-      <div class="overdue-task-row">
-        <span style="color:#ef4444;font-size:10px;">!</span>
-        <span class="overdue-name">${t.name}</span>
-        <span class="overdue-age">${t.daysLate}d late</span>
-      </div>`).join('');
-    const more = d.overdueMore ? `<div class="overdue-more">+${d.overdueMore} more</div>` : '';
-    overdueDetail = `<div class="overdue-section" style="margin-bottom:12px;">${rows}${more}</div>`;
+  let overdueDetail='';
+  if (d.overdueTasks&&d.overdueTasks.length>0) {
+    const rows=d.overdueTasks.map(t=>`<div class="overdue-task-row"><span style="color:#ef4444;font-size:10px;flex-shrink:0;">!</span><span class="overdue-name">${t.name}</span><span class="overdue-age">${t.daysLate}d late</span></div>`).join('');
+    const more=d.overdueMore?`<div class="overdue-more">+${d.overdueMore} more</div>`:'';
+    overdueDetail=`<div class="overdue-section">${rows}${more}</div>`;
   }
 
-  return `<div class="card">
-    <div class="card-heading">Project Plan</div>
-    <div class="card-body">
-      ${progressBar(d)}
-      ${topRow}
-      ${overdueDetail}
-      ${upcomingSection(d, true)}
-      ${lastDoneBlock(d)}
-      ${footerRow(d)}
-    </div>
-  </div>`;
+  return `<div class="card"><div class="plan-heading-new">Project Plan</div><div style="padding:16px;">${progressBar(d)}${topRow}${overdueDetail}${upcomingSection(d)}${lastDoneBlock(d)}${footerRow(d)}</div></div>`;
 }
 
-// ── Render dispatcher ──
+// ── Render ──
 function render() {
-  const d = DATA[dataState];
-  const html = variant==='current' ? renderCurrent(d)
-             : variant==='a'       ? renderA(d)
-             : variant==='b'       ? renderB(d)
-             :                       renderC(d);
-  document.getElementById('planCardMount').innerHTML = html;
+  const d=DATA[dataState];
+  document.getElementById('planCardMount').innerHTML=
+    variant==='current'?renderCurrent(d):
+    variant==='a'?renderA(d):
+    variant==='b'?renderB(d):renderC(d);
 }
 
 // ── Log ──
-function addLog(type, msg) {
-  const pane = document.getElementById('logPane');
-  const ts = new Date().toLocaleTimeString('en-US',{hour12:false});
-  const row = document.createElement('div');
-  row.className = 'log-entry';
-  row.innerHTML = `<span class="log-ts">${ts}</span><span class="log-type ${type}">${type}</span><span class="log-msg">${msg}</span>`;
+function addLog(type,msg) {
+  const pane=document.getElementById('logPane');
+  const ts=new Date().toLocaleTimeString('en-US',{hour12:false});
+  const row=document.createElement('div');
+  row.className='log-entry';
+  row.innerHTML=`<span class="log-ts">${ts}</span><span class="log-type ${type}">${type}</span><span class="log-msg">${msg}</span>`;
   pane.appendChild(row);
-  pane.scrollTop = pane.scrollHeight;
+  pane.scrollTop=pane.scrollHeight;
 }
 
 render();
-addLog('state','Loaded — spike 022 v2. Four content variants. Default: A Deadline-Centric, Typical state.');
+addLog('state','Loaded — spike 022 v3. Full two-column layout. Variant: A Deadlines, State: Typical.');
 </script>
 </body>
 </html>
