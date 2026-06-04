@@ -29,7 +29,8 @@ let clientsCacheLoaded = false;
 // Phase 86 — Project Plan summary card
 let currentTasks = [];
 let currentTasksListenerUnsub = null;
-let currentProjectProgress = { taskCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
+let currentProjectProgress = { taskCount: 0, leafCount: 0, doneCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
+let currentIterationLabel = null;
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -177,6 +178,7 @@ export async function init(activeTab = null, param = null) {
                         }
                         // Phase 86 — Project Plan summary listener (idempotent attach)
                         ensureTasksListener();
+                        await ensureIterationLabel();
                         if (checkProjectAccess()) {
                             renderProjectDetail();
                         }
@@ -212,6 +214,7 @@ export async function init(activeTab = null, param = null) {
 
         // Phase 86 — Project Plan summary listener (idempotent attach once currentProject.id is known)
         ensureTasksListener();
+        await ensureIterationLabel();
 
         // Phase 7: Check project assignment access for operations_user
         if (checkProjectAccess()) {
@@ -239,6 +242,18 @@ function ensureTasksListener() {
             }
         }
     );
+}
+
+// Fetch and cache the label of the currently-loaded named iteration (023b).
+// Called each time the project snapshot fires so the card stays in sync when the
+// user switches iterations in the plan page and navigates back.
+async function ensureIterationLabel() {
+    const iterationId = currentProject?.last_loaded_iteration_id;
+    if (!iterationId) { currentIterationLabel = null; return; }
+    try {
+        const snap = await getDoc(doc(db, 'project_iterations', iterationId));
+        currentIterationLabel = snap.exists() ? (snap.data().label || null) : null;
+    } catch { currentIterationLabel = null; }
 }
 
 // Cleanup
@@ -270,7 +285,8 @@ export async function destroy() {
     if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } }
     currentTasksListenerUnsub = null;
     currentTasks = [];
-    currentProjectProgress = { taskCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
+    currentProjectProgress = { taskCount: 0, leafCount: 0, doneCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
+    currentIterationLabel = null;
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -1593,7 +1609,7 @@ function attachWindowFunctions() {
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
 
 function computeProjectProgress(tasks) {
-    const result = { taskCount: tasks.length, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
+    const result = { taskCount: tasks.length, leafCount: 0, doneCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
     if (tasks.length === 0) return result;
 
     const childrenByParent = new Map();
@@ -1604,7 +1620,10 @@ function computeProjectProgress(tasks) {
     });
 
     const leaves = tasks.filter(t => !childrenByParent.has(t.task_id));
+    result.leafCount = leaves.length;
     if (leaves.length === 0) return result;
+
+    result.doneCount = leaves.filter(l => (l.progress ?? 0) >= 100).length;
 
     let weightedSum = 0, weightTotal = 0;
     leaves.forEach(l => {
@@ -1659,9 +1678,15 @@ function buildPlanCardHtml() {
     const planUrl = `#/projects/${encodeURIComponent(currentProject?.project_code || '')}/plan`;
     const openPlanBtn = `<a href="${planUrl}" class="btn btn-primary"${!currentProject?.project_code ? ' style="pointer-events:none;opacity:0.5;" title="No project code"' : ''}>Open Plan</a>`;
 
+    // 023b — show which named iteration is active (absent in live mode or after auto-save)
+    const iterStrip = currentIterationLabel
+        ? `<div class="plan-iter-strip"><span class="iter-icon">⎇</span><span class="iter-label">On: ${escapeHTML(currentIterationLabel)}</span><a href="${planUrl}" class="iter-open-link">Open Plan →</a></div>`
+        : '';
+
     if (p.taskCount === 0) {
         return `<div id="projectPlanCard" class="project-plan-card">
             <div class="plan-heading-new">Project Plan</div>
+            ${iterStrip}
             <div style="padding:16px;">
                 <div class="plan-empty-cta"><p>No tasks yet. Open the plan to get started.</p>${openPlanBtn}</div>
             </div>
@@ -1669,10 +1694,11 @@ function buildPlanCardHtml() {
     }
 
     const pct = p.percentComplete;
-    const doneCount = Math.round(p.taskCount * pct / 100);
+    // 023a — use actual completed leaf count, not a derived estimate from weighted %
+    const { doneCount, leafCount } = p;
     const progressBarHtml = `<div class="plan-progress-wrap">
         <div class="plan-progress-track"><div class="plan-progress-fill${pct === 100 ? ' complete' : ''}" style="width:${pct}%"></div></div>
-        <div class="plan-progress-text"><span>${doneCount} of ${p.taskCount} tasks complete</span><span class="plan-pct">${pct}%</span></div>
+        <div class="plan-progress-text"><span>${doneCount} of ${leafCount} tasks complete</span><span class="plan-pct">${pct}%</span></div>
     </div>`;
 
     if (pct === 100) {
@@ -1680,9 +1706,10 @@ function buildPlanCardHtml() {
             <div class="plan-completion-icon">✓</div>
             <div><div class="plan-completion-text">All tasks complete</div>${p.recentDone ? `<div class="plan-completion-sub">Last: ${escapeHTML(p.recentDone)}</div>` : ''}</div>
         </div>`;
-        const footer = `<div class="plan-footer"><span class="plan-footer-count">${p.taskCount} tasks</span>${openPlanBtn}</div>`;
+        const footer = `<div class="plan-footer"><span class="plan-footer-count">${leafCount} tasks</span>${openPlanBtn}</div>`;
         return `<div id="projectPlanCard" class="project-plan-card">
             <div class="plan-heading-new">Project Plan</div>
+            ${iterStrip}
             <div style="padding:16px;">${progressBarHtml}${completionBlock}${footer}</div>
         </div>`;
     }
@@ -1719,10 +1746,11 @@ function buildPlanCardHtml() {
     }
 
     const lastDone = p.recentDone ? `<div class="plan-last-done"><div class="plan-last-done-lbl">Last completed</div><div class="plan-last-done-val">${escapeHTML(p.recentDone)}</div></div>` : '';
-    const footer   = `<div class="plan-footer"><span class="plan-footer-count">${p.taskCount} tasks</span>${openPlanBtn}</div>`;
+    const footer   = `<div class="plan-footer"><span class="plan-footer-count">${leafCount} tasks</span>${openPlanBtn}</div>`;
 
     return `<div id="projectPlanCard" class="project-plan-card">
         <div class="plan-heading-new">Project Plan</div>
+        ${iterStrip}
         <div style="padding:16px;">${progressBarHtml}${topRow}${overdueDetail}${upcomingHtml}${lastDone}${footer}</div>
     </div>`;
 }

@@ -3,7 +3,7 @@ spike: 023b
 name: plan-card-iteration-label
 type: standard
 validates: "Given last_loaded_iteration_id is set on the project doc, when the inline plan card renders on project-detail, then a blue 'On: [Iteration Name]' strip appears between the heading and the task content; absent when in live mode or after loading an auto-save"
-verdict: PENDING
+verdict: VALIDATED ✓
 related: [015c, 017, 018, 023a]
 tags: [ux, project-plan, project-detail, iteration, data-accuracy]
 ---
@@ -84,4 +84,10 @@ async function ensureIterationLabel() {
 
 ## Results
 
-PENDING — awaiting user verification
+**Verdict: VALIDATED ✓**
+
+Implemented in `project-detail.js`:
+- `let currentIterationLabel = null` added at module level; reset in `destroy()`
+- `ensureIterationLabel()` async function fetches label via `getDoc` on `project_iterations/{id}`; called with `await` in both `onSnapshot` branches before `renderProjectDetail()`
+- `buildPlanCardHtml()`: `iterStrip` injected between `.plan-heading-new` and inner content when `currentIterationLabel` is set
+- CSS added to `styles/views.css`: `.plan-iter-strip` and child classes

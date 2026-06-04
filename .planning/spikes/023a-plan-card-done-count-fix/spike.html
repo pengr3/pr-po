@@ -286,7 +286,7 @@ function buildBugCard(p, tasks) {
     return `<div class="project-plan-card"><div class="plan-heading-new">Project Plan</div><div class="plan-inner">${barHtml}<div style="text-align:center;padding:12px 0;color:#059669;font-size:13px;font-weight:600;">✓ All tasks complete</div>${openBtn}</div></div>`;
   }
 
-  const hm = {on-track:'On Track','at-risk':'At Risk','behind':'Behind'}[p.health] || 'On Track';
+  const hm = {'on-track':'On Track','at-risk':'At Risk','behind':'Behind'}[p.health] || 'On Track';
   const hcls = p.health;
   const topRow = `<div class="plan-combined-top">
     <span class="plan-health-badge ${hcls}"><span class="phb-dot"></span>${hm}</span>

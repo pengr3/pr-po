@@ -3,7 +3,7 @@ spike: 023a
 name: plan-card-done-count-fix
 type: standard
 validates: "Given leaf tasks have unequal durations (e.g., task 3 = 10d vs 1d others) and 2 of 6 leaves are at 100%, when the plan card renders, then 'doneCount of leafCount tasks complete' shows the accurate leaf count — not the derived estimate from weighted-% × taskCount"
-verdict: PENDING
+verdict: VALIDATED ✓
 related: [021, 022]
 tags: [ux, project-plan, project-detail, bug, data-accuracy]
 ---
@@ -51,4 +51,8 @@ Two cards side by side (Buggy / Fixed) across 5 data states:
 
 ## Results
 
-PENDING — awaiting user verification
+**Verdict: VALIDATED ✓**
+
+Fix implemented in `project-detail.js`:
+- `computeProjectProgress()`: added `result.leafCount = leaves.length` and `result.doneCount = leaves.filter(l => (l.progress ?? 0) >= 100).length`
+- `buildPlanCardHtml()`: replaced `Math.round(p.taskCount * pct / 100)` with `const { doneCount, leafCount } = p`; display now reads `${doneCount} of ${leafCount} tasks complete`; footer count changed from `p.taskCount` to `leafCount`
