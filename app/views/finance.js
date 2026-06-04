@@ -1641,6 +1641,33 @@ function renderPendingBillingBanner() {
         </div>`;
 }
 
+// Phase 99 D-10/D-11/D-12 — Approve a billing request: open the prefilled Create-Collectible
+// modal (tranche pre-selected, already-billed edge hinted) then mark the request approved.
+// Approve does NOT auto-create the collectible — Finance still sets the due date + submits.
+async function approveBillingRequest(reqId) {
+    const req = pendingBillingRequests.find(r => r.id === reqId);
+    if (!req) { showToast('Billing request not found. Refresh and try again.', 'error'); return; }
+
+    // Open the prefilled modal (already gates on hasCollectibleWriteAuthority() — Finance-only).
+    // Billing requests are projects-only this phase, so the dept segment is always 'projects'.
+    window.openCreateCollectibleModal('projects:' + (req.project_code || '') + ':' + req.tranche_index);
+
+    // Mark approved (status lowercase 'approved', D-05; reviewer fields). Pre-fill ≠ collectible creation (D-12).
+    try {
+        await updateDoc(doc(db, 'billing_requests', reqId), {
+            status: 'approved',
+            reviewed_by: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown',
+            reviewed_at: serverTimestamp()
+        });
+    } catch (e) {
+        console.error('[Finance/BillingReq] approve updateDoc failed:', e);
+        showToast('Failed to mark request approved. The Create-Collectible form is still open.', 'error');
+        return;
+    }
+    // Notify the submitter (shared helper, Task 3). The pending listener drops the row once status flips off 'pending'.
+    _notifyBillingDecision(req, 'approved', '');
+}
+
 // ========================================
 // COLLECTIBLES TAB — WRITE-SIDE (Plan 06)
 // CRUD modals + payment recording + voiding + cancel + CSV export.
@@ -1674,13 +1701,16 @@ async function openCreateCollectibleModal(preselectKey = null) {
         return;
     }
 
-    // Parse preselect key if provided (shape: 'projects:CLMC-ACME-001' | 'services:SVC-CLMC-001')
+    // Parse preselect key if provided. Shapes (3rd tranche segment optional, Phase 99 D-10):
+    //   'projects:CLMC-ACME-001' | 'services:SVC-CLMC-001' | 'projects:CLMC-ACME-001:2'
     let selectedDept = '';
     let selectedCode = '';
+    let selectedTrancheIdx = null;
     if (preselectKey && typeof preselectKey === 'string') {
-        const [d, c] = preselectKey.split(':');
+        const [d, c, t] = preselectKey.split(':');
         selectedDept = d || '';
         selectedCode = c || '';
+        selectedTrancheIdx = (t != null && t !== '') ? parseInt(t, 10) : null;
     }
 
     const existing = document.getElementById('createCollectibleModal');
@@ -1736,6 +1766,23 @@ async function openCreateCollectibleModal(preselectKey = null) {
             const projSel = document.getElementById('createCollProject');
             if (projSel) projSel.value = selectedCode;
             _refreshCreateCollTrancheDropdown();
+            // Phase 99 D-10/D-11 — pre-select the requested tranche after the dropdown rebuild.
+            if (selectedTrancheIdx != null && !isNaN(selectedTrancheIdx)) {
+                const trSel = document.getElementById('createCollTranche');
+                if (trSel) {
+                    const opt = trSel.querySelector(`option[value="${selectedTrancheIdx}"]`);
+                    if (opt && opt.disabled) {
+                        // D-11: requested tranche already has a collectible — cannot select a disabled option.
+                        // Surface a hint near the dropdown; do NOT leave an unexplained empty selection.
+                        const area = document.getElementById('createCollTrancheArea');
+                        if (area) area.insertAdjacentHTML('beforeend',
+                            `<small style="display:block;margin-top:0.35rem;color:#ef4444;font-size:0.72rem;">This tranche already has a collectible — it can't be re-billed. Pick another tranche or close.</small>`);
+                    } else if (opt) {
+                        trSel.value = String(selectedTrancheIdx);  // pre-select tranche (D-10)
+                        trSel.dispatchEvent(new Event('change'));    // sync any change-driven state
+                    }
+                }
+            }
         }
     }
 }
