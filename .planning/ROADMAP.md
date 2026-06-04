@@ -1007,3 +1007,29 @@ Plans:
 - [x] 98-04-PLAN.md — Slice 4: Home Fit (hero.css) — vertical compression so 5 tiles + title fit above the fold (keep 3+2, keep 1200px cap) — `fbc1ae2`
 **UI hint**: yes
 **Attachment**: `.planning/phases/98-ui-fixes-client-contact-notifications-payables-home/notifications-alignment-screenshot.png` (item 2 reference)
+
+---
+
+### Phase 99: Billing Request Flow — Project-User Billing Requests → Finance Review Queue (NEW, spike-024 VALIDATED)
+
+**Goal**: Let a project-assigned user (operations_user, who lacks collectible write authority) submit a billing request with supporting documents from the project detail page, so Finance sees it inline in the Collectibles tab and can either approve → pre-fill Create Collectible, or reject with a reason — keeping Finance in control of actual billing while removing the manual hand-off.
+**Depends on**: Existing collectibles infrastructure (`openCreateCollectibleModal(preselectKey)` in `finance.js`), project `collection_tranches` data, and `hasCollectibleWriteAuthority()` role gate. No hard blockers — design fully validated in spike-024.
+**Requirements**: None mapped yet (NEW — spike-validated feature; add REQUIREMENTS.md IDs during plan if needed)
+**Success Criteria** (what must be TRUE):
+  1. A project-assigned user can open a billing request modal from a footer link ("↑ Initiate Billing →") at the bottom of the Collectibles section on Project Detail, pick a tranche, select billing type (pills, auto-hinted from tranche label, overrideable), attach the required document link(s) per type, add optional notes, and submit — creating a `billing_requests` Firestore doc
+  2. Document requirements are enforced before submit: Progress → 1 Progress Report link; Completion → COC + Completion Report (2 links); Other → 1 Supporting Document link
+  3. Finance sees a collapsible blue "Pending Billing Requests" banner above the Collectibles table that auto-appears when requests are pending and collapses/disappears when the queue is empty; each row shows project, tranche, amount, doc links, submitter name + date
+  4. Approve opens `openCreateCollectibleModal('projects:CODE:TRANCHE_INDEX')` with dept + project + tranche pre-filled (preselectKey extended to encode tranche_index); Finance still sets due date and submits; the request is marked approved on both sides
+  5. Reject requires a reason; the request is marked rejected and the reason is visible on both the project and finance sides
+  6. Firestore Security Rules allow project-assigned users to create `billing_requests` and Finance to read + update status; rules added BEFORE code per CLAUDE.md new-collection protocol
+**Open questions for discuss/plan**:
+  - Per-tranche rows in project detail (Billed/Unbilled/Pending status, green-tint billed, "Bill" shortcut on unbilled) — ship in this phase or defer? (spike prototyped them)
+  - Resolve the spike's open implementation question: `openCreateCollectibleModal` currently picks tranche via dropdown — confirm the preselectKey `projects:CODE:INDEX` extension auto-selects the tranche cleanly
+  - Document attach is URL/link only (no Firebase Storage — avoids Blaze plan); confirm acceptable
+**Plans**: 3 plans (2 waves) — planned 2026-06-04 from spike-024 + 99-CONTEXT (D-01..D-21) + 99-PATTERNS. Phase-local req IDs BILL-01..BILL-06 map 1:1 to the 6 Success Criteria.
+Plans:
+- [ ] 99-01-PLAN.md — Wave 1 foundation: firestore.rules `billing_requests` block (create=isActiveUser) + notifications.js BILLING_REQUEST_SUBMITTED/DECIDED types (BILL-06)
+- [ ] 99-02-PLAN.md — Wave 2 (depends 01) project-detail.js: footer link + billing-request modal (tranche→pills→doc links→notes→submit) + own-requests status list + Finance notification (BILL-01, BILL-02, BILL-05 project side)
+- [ ] 99-03-PLAN.md — Wave 2 (depends 01) finance.js: collapsible pending-requests banner + Approve bridge (preselectKey :TRANCHE_INDEX + D-11 edge) + Reject (required reason) + submitter notification (BILL-03, BILL-04, BILL-05 finance side)
+**UI hint**: yes
+**Spike**: `.planning/spikes/024-billing-request-flow/README.md` (VALIDATED — full schema, design decisions, build targets, prototype `index.html`)
