@@ -525,6 +525,34 @@ service cloud.firestore {
     }
 
     // =============================================
+    // billing_requests collection (Phase 99 — BILL-06)
+    // =============================================
+    // Project-assigned users (operations_user) submit billing requests with
+    // supporting doc links from project-detail; Finance reviews inline in the
+    // Collectibles tab and approves (pre-fills Create-Collectible) or rejects
+    // (with a reason). The billing_request amount is ADVISORY only — the
+    // authoritative collectible amount is re-derived by submitCollectible() at
+    // approval time, so create being open to any active user is safe (Finance
+    // review is the gate). Schema (D-04): project_code/name, tranche_index/
+    // label/percentage, amount_requested, billing_type, documents[], notes,
+    // status, requested_by_uid/name, requested_at, reviewed_by/at, rejection_reason.
+    match /billing_requests/{id} {
+      // Read: any active user (Finance banner + project-detail own-requests list both read)
+      allow read: if isActiveUser();
+
+      // Create: any active user (operations_user is the intended creator; they
+      // lack collectible authority — this is their billing surface). Amount is
+      // advisory; Finance re-derives the real collectible amount at approval.
+      allow create: if isActiveUser();
+
+      // Update: status transitions only (approve/reject) — Finance / operations_admin / super_admin
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+
+      // Delete: same finance-authority set (no UI delete path is built this phase, but lock it down)
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'finance']);
+    }
+
+    // =============================================
     // project_tasks collection (Phase 86 — PM-11, D-18)
     // =============================================
     // Native PM tasks for projects. project_code denormalized for project-scoped
