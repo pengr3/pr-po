@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, getDocs } from './firebase.js';
-import { formatCurrency, downloadCSV, escapeHTML } from './utils.js';
+import { formatCurrency, downloadCSV, escapeHTML, getRFPTotal } from './utils.js';
 
 /**
  * Show unified expense breakdown modal for a project or service.
@@ -82,7 +82,7 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     let totalRequested = 0;
     let totalPaid = 0;
     rfpsForPayable.forEach(rfp => {
-        totalRequested += parseFloat(rfp.amount_requested || 0);
+        totalRequested += getRFPTotal(rfp);
         totalPaid += (rfp.payment_records || []).filter(r => r.status !== 'voided').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
     });
 

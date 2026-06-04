@@ -5,7 +5,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
@@ -22,7 +22,7 @@ let selectedDetailPersonnel = []; // Array of { id: string, name: string } for p
 let listener = null;
 let usersListenerUnsub = null;
 let personnelClickOutsideHandler = null;
-let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
+let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, rfpFeesTotal: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 // Phase 85 D-06 / D-01: collectibles aggregation alongside currentServiceExpense (mirror of project-detail.js currentCollectibles)
 let currentServiceCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
@@ -207,7 +207,7 @@ export async function destroy() {
         personnelClickOutsideHandler = null;
     }
     selectedDetailPersonnel = [];
-    currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
+    currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, rfpFeesTotal: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
     // Phase 85 D-06: reset collectibles state alongside currentServiceExpense
     currentServiceCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
@@ -425,7 +425,7 @@ function renderServiceDetail() {
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem; cursor: pointer;"
                                      onclick="window.showServiceExpenseModal()">
-                                    ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal) : '—'}
+                                    ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) : '—'}
                                 </div>
                                 <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowServiceExpenseModal()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">&#x1F504; Refresh</button>
                             </div>
@@ -437,7 +437,7 @@ function renderServiceDetail() {
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Budget</label>
                             ${(() => {
                                 const budget = parseFloat(currentService.budget || 0);
-                                const total = currentServiceExpense.prTotal + currentServiceExpense.poTotal;
+                                const total = currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal;
                                 const remaining = budget - total;
                                 const color = remaining >= 0 ? '#059669' : '#ef4444';
                                 return budget > 0
@@ -942,7 +942,7 @@ async function refreshServiceExpense(silent = false) {
         });
 
         // RFP payables query
-        let rfpTotalRequested = 0;
+        let rfpFeesTotal = 0;
         let rfpTotalPaid = 0;
         let hasRfps = false;
         const serviceCode = currentService.service_code;
@@ -953,7 +953,7 @@ async function refreshServiceExpense(silent = false) {
             hasRfps = rfpSnap.size > 0;
             rfpSnap.forEach(d => {
                 const rfp = d.data();
-                rfpTotalRequested += parseFloat(rfp.amount_requested || 0);
+                rfpFeesTotal += getRFPFees(rfp).feesTotal;
                 rfpTotalPaid += (rfp.payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
@@ -968,8 +968,9 @@ async function refreshServiceExpense(silent = false) {
             poCount: posAgg.data().poCount || 0,
             trTotal: trsAgg.data().totalAmount || 0,
             trCount: trsAgg.data().trCount || 0,
+            rfpFeesTotal,
             totalPaid: rfpTotalPaid,
-            remainingPayable: (posAgg.data().poTotal || 0) + (trsAgg.data().totalAmount || 0) - rfpTotalPaid,
+            remainingPayable: (posAgg.data().poTotal || 0) + (trsAgg.data().totalAmount || 0) + rfpFeesTotal - rfpTotalPaid,
             hasRfps
         };
 

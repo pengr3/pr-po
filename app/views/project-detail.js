@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
@@ -917,7 +917,7 @@ async function refreshExpense(silent = false) {
         const trTotal = trsAggregate.data().totalAmount || 0;
 
         // RFP payables query
-        let rfpTotalRequested = 0;
+        let rfpFeesTotal = 0;
         let rfpTotalPaid = 0;
         let hasRfps = false;
         const projectCode = currentProject.project_code || '';
@@ -928,7 +928,7 @@ async function refreshExpense(silent = false) {
             hasRfps = rfpSnap.size > 0;
             rfpSnap.forEach(d => {
                 const rfp = d.data();
-                rfpTotalRequested += parseFloat(rfp.amount_requested || 0);
+                rfpFeesTotal += getRFPFees(rfp).feesTotal;
                 rfpTotalPaid += (rfp.payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
@@ -936,11 +936,11 @@ async function refreshExpense(silent = false) {
         }
 
         currentExpense = {
-            total: poTotal + trTotal,
+            total: poTotal + trTotal + rfpFeesTotal,
             poCount: posAggregate.data().poCount || 0,
             trCount: trsAggregate.data().trCount || 0,
             totalPaid: rfpTotalPaid,
-            remainingPayable: (poTotal + trTotal) - rfpTotalPaid,
+            remainingPayable: (poTotal + trTotal + rfpFeesTotal) - rfpTotalPaid,
             hasRfps
         };
 
