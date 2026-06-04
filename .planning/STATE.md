@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 91.4 PLANNED (2026-06-04, 2 plans) — ready to execute
-stopped_at: Phase 91.4 planned 2026-06-04 (2 plans). Plan 01: expense-modal.js + project-detail.js + service-detail.js (swap amount_requested → getRFPTotal/getRFPFees; add rfpFeesTotal to currentExpense.total/remainingPayable; remove dead rfpTotalRequested). Plan 02: finance.js project + service expense dashboards (add rfpSnap to each Promise.all mapper; sum getRFPFees fees; add to totalExpense). Next: /gsd:execute-phase 91.4.
-last_updated: "2026-06-04T00:00:00.000Z"
-last_activity: 2026-06-04
+status: Phase 91.4 EXECUTED (2/2 plans, 2026-06-04) — browser UAT pending
+stopped_at: context exhaustion at 83% (2026-06-04); Plan 01 commit 84b3cc5 (expense-modal + project/service detail), Plan 02 commit bb8d840 (finance project/service expense dashboards)
+last_updated: "2026-06-04T06:25:53.741Z"
+last_activity: 2026-06-03
 progress:
-  total_phases: 30
-  completed_phases: 24
-  total_plans: 97
+  total_phases: 31
+  completed_phases: 27
+  total_plans: 119
   completed_plans: 115
-  percent: 100
+  percent: 87
 ---
 
 # Project State
@@ -24,6 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
 **Current focus:** Phase 89 complete. Two Gantt phases remain: Phase 86.5 (Gantt UI Polish 3) and newly inserted Phase 86.9 (Curtain Divider + PDF Report Export).
 
 ## Current Position
+
+**✅ Phase 91.4 EXECUTED 2026-06-04 — RFP Fee Inclusion in Financial Breakdowns (2/2 plans, inline on v3.3).** Plan 01 commit `84b3cc5`: expense-modal.js (`getRFPTotal` in place of `amount_requested`), project-detail.js + service-detail.js (added `rfpFeesTotal` accumulation; dead `rfpTotalRequested` removed; `currentExpense`/`currentServiceExpense` totals and `remainingPayable` now fee-inclusive). Plan 02 commit `bb8d840`: finance.js project-expense and service-expense dashboards — added RFP getDocs to each mapper's `Promise.all`; `rfpFeesTotal` added to `totalExpense` (and thus `remainingBudget`). No new Firestore collections or schema changes. `node --check` PASS on all 4 modified JS modules. Legacy-safe: `getRFPFees` returns 0 for RFPs with no fee fields. **Browser UAT needed**: open a project/service with fee-bearing RFPs, confirm expense totals include fees; open Finance expense dashboards and confirm same.
+
+---
 
 **✅ Phase 91.3 EXECUTED 2026-06-03 — RFP Fees (6/6 plans, 3 waves, inline on v3.3).** All plans committed atomically (01 `f18540f`, 02 `7af7c62`, 03 `9796303`, 04 `9d70060`, 05 `dfa9b83`, 06 `1fa9a7c`). Wave 1: shared legacy-safe helpers `getRFPTotal`/`getRFPFees`/`getRFPFeeBreakdown` + `RFP_FEE_FIELDS` in utils.js. Wave 2: procurement.js 4-section RFP modals (PO/DF/TR) + progressive-disclosure fee chips + live total + fee write (`transfer_fee`/`cash_out_fee`/`misc_fees`/`total_with_fees`, base stays in `amount_requested`) + scoreboard → getRFPTotal; finance.js compute layer (derivePOSummary BOTH branches, deriveRFPStatus, record-payment math) → fee-inclusive; components.css fee-accent CSS + 44px mobile. Wave 3: finance.js display (incl.-fees cue + tooltip/tap-toggle + D-07 breakdown card + PO-summary roll-up note, all labels escaped); procurement.js positive-only live validation + disabled-Submit gate + blocked-guard dimming banners (DF one-per-PO + all-tranches now render dimmed/locked, not closed). **Verification verdict `human_needed`** (zero-build SPA, no UI test harness): node --check PASS on all 3 JS modules, CSS balanced, cross-plan contract intact, pre-write guards + ID-gen + NOTIF-08 untouched, collectibles untouched, legacy-safe. **8 browser-UAT items in `91.3-HUMAN-UAT.md` must pass before the phase is marked complete in ROADMAP** (currently `6/6 | Executed — UAT pending`). Inline execution chosen per Phase-98 precedent (gsd-sdk unavailable on this machine + 2 stale locked agent worktrees made worktree/subagent path unsafe). One scoped deviation per plan, all documented in SUMMARYs (notably: Plan 05 unique cue ids via module counter to avoid duplicate-id across the two finance tables; Plan 06 TR blocked-Submit also gets `data-locked` so the new validation gate can't re-enable it; Plan 04 inserted into the existing :768px media block since the file already had 2). UI-SPEC FLAG (non-blocking) still open: tighten the modal's micro-text type ladder.
 
@@ -686,10 +690,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-06-03
-Last session: 2026-06-03T05:25:24.479Z
-Stopped at: Phase 98 context gathered
-Resume file: .planning/phases/98-ui-fixes-client-contact-notifications-payables-home/98-CONTEXT.md
+Last activity: 2026-06-04
+Last session: 2026-06-04T06:25:53.719Z
+Stopped at: context exhaustion at 83% (2026-06-04); Phase 91.4 code-complete (Plan 01 84b3cc5, Plan 02 bb8d840); bookkeeping done; browser UAT pending
+Resume file: None
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
