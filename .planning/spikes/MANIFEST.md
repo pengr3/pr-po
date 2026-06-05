@@ -1,6 +1,9 @@
 # Spike Manifest
 
-## Idea (current series: 025–026)
+## Idea (current series: 027a–027b)
+Apply the collectible UI revamp from spikes 025/026 to the standalone Finance Collectibles page. Spike 027a adds an aggregate scorecard strip (Total Invoiced / Cash Collected / Outstanding / Overdue) above the table. Spike 027b compares two approaches for surfacing the billing→COLL pipeline: enhanced banner (Variant A) vs ghost rows in the main table (Variant B).
+
+## Idea (prior series: 025–026)
 Polish the collectible lifecycle UI — Phase 99 built the billing request flow but the inline financial card's billing footer only shows billing_request status, with no awareness of whether a collectible doc (COLL-xxx) was created or how much cash was received. Spike 025 designs a per-tranche lifecycle display (pending→approved→invoiced→collecting→collected). Spike 026 revamps the financial breakdown modal entry point (currently buried in "Projected Expense") and adds collectible scorecards to both the modal header and the Collectibles tab.
 
 ## Idea (prior series: 019–020)
@@ -59,4 +62,6 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 | 023b | plan-card-iteration-label | standard | Given last_loaded_iteration_id is set on the project doc, when the inline card renders, then a blue "On: [Iteration Name]" strip appears; absent in live mode or after auto-save | VALIDATED ✓ — ensureIterationLabel() fetches label on project snapshot; blue strip between heading and inner content | ux, project-plan, project-detail, iteration, data-accuracy |
 | 025 | collectible-billing-footer-lifecycle | standard | Given a project with billing_requests + collectible docs at various stages, when the billing footer renders, then each tranche shows full lifecycle (not-filed→pending→approved→billed→collected) with all tranches always visible | VALIDATED ✓ — 4 stages; unfiled tranches grayed; partial payments noted under Billed badge only; 2-chip Collected+Outstanding from collectible docs | collectible, billing, lifecycle, ux, project-detail, finance |
 | 026 | financial-summary-revamp | standard | Given the financial breakdown modal is only accessible via clicking "Projected Expense", when we add a dedicated "Full Breakdown →" button in card header + collectible scorecards in modal, then entry is discoverable and financial health is immediately readable | VALIDATED ✓ — header button only; 2-chip Collected+Outstanding; modal scorecard strip; collectibles tab 3-chip summary + ghost row for approved-not-yet-invoiced | financial-breakdown, entry-point, scorecards, collectible, modal, ux |
+| 027a | collectibles-page-scorecard | standard | Given N collectible docs in the Finance Collectibles tab, when a 4-chip strip (Total Invoiced / Cash Collected / Outstanding / Overdue) is added above the table, then Finance reads aggregate health at a glance — chips react to filter changes | PENDING | collectible, scorecard, finance, ux, dashboard |
+| 027b | collectibles-billing-pipeline | comparison | Given approved billing requests not yet filed as COLL-xxx: A (enhanced banner above table) vs B (ghost rows in main table with divider) — which makes the billing→COLL handoff more actionable without noise | PENDING | collectible, billing-requests, pipeline, finance, ux, ghost-rows |
 

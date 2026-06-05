@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 027a — Collectibles Page Scorecard Strip</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
+
+h1 { font-size: 1.05rem; font-weight: 700; color: #1a73e8; margin-bottom: 0.2rem; }
+.subtitle { font-size: 0.78rem; color: #64748b; margin-bottom: 1.25rem; }
+
+/* Demo wrapper */
+.demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1.5rem; max-width: 1400px; }
+.pane { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+.pane-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.3rem 1rem; }
+.label-before { background: #fee2e2; color: #991b1b; }
+.label-after  { background: #d1fae5; color: #065f46; }
+
+/* Page chrome */
+.page-header { padding: 0.9rem 1.25rem 0; border-bottom: 1px solid #f1f5f9; }
+.page-header-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.page-title { font-size: 1rem; font-weight: 700; }
+.btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.45rem 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: background 0.15s; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-primary:hover { background: #1557b0; }
+.btn-outline { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+.btn-outline:hover { background: #f8fafc; }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
+
+/* Scorecard strip */
+.scorecard-strip {
+  display: flex; gap: 0.75rem; padding: 0.9rem 1.25rem; border-bottom: 1px solid #e5e7eb;
+  flex-wrap: wrap; background: #fff;
+}
+.sc-chip { flex: 1; min-width: 110px; border-radius: 8px; padding: 0.65rem 0.85rem; border: 1px solid; }
+.sc-chip.green  { background: #f0fdf4; border-color: #bbf7d0; }
+.sc-chip.blue   { background: #e0f2fe; border-color: #bae6fd; }
+.sc-chip.orange { background: #fff7ed; border-color: #fed7aa; }
+.sc-chip.red    { background: #fef2f2; border-color: #fecaca; }
+.sc-label { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.2rem; }
+.sc-chip.green  .sc-label { color: #059669; }
+.sc-chip.blue   .sc-label { color: #0369a1; }
+.sc-chip.orange .sc-label { color: #c2410c; }
+.sc-chip.red    .sc-label { color: #991b1b; }
+.sc-val { font-size: 1.05rem; font-weight: 700; }
+.sc-chip.green  .sc-val { color: #059669; }
+.sc-chip.blue   .sc-val { color: #0369a1; }
+.sc-chip.orange .sc-val { color: #c2410c; }
+.sc-chip.red    .sc-val { color: #991b1b; }
+.sc-sub { font-size: 0.62rem; color: #94a3b8; margin-top: 0.1rem; }
+
+/* Filter bar */
+.filter-bar { display: flex; gap: 0.6rem; padding: 0.75rem 1.25rem; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #f1f5f9; }
+.filter-bar select, .filter-bar input { padding: 0.3rem 0.5rem; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 0.78rem; background: #fff; color: #475569; }
+
+/* Table */
+.table-wrap { padding: 0 1.25rem 1.25rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.75rem; }
+th { padding: 0.4rem 0.5rem; text-align: left; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 700; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+th.r { text-align: right; }
+td { padding: 0.5rem 0.5rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+td.r { text-align: right; }
+tr:hover td { background: #f8fafc; }
+
+/* Status badges */
+.badge { font-size: 0.62rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 10px; display: inline-block; white-space: nowrap; }
+.badge-pending    { background: #fff3cd; color: #856404; }
+.badge-overdue    { background: #fee2e2; color: #991b1b; }
+.badge-partial    { background: #dbeafe; color: #1d4ed8; }
+.badge-paid       { background: #d1fae5; color: #065f46; }
+
+/* Overdue row tint */
+tr.row-overdue td { background: #fff8f8; }
+
+/* Progress bar on rows */
+.prog-bar-wrap { display: flex; align-items: center; gap: 0.4rem; }
+.prog-bar { height: 4px; border-radius: 2px; background: #e5e7eb; flex: 1; min-width: 40px; overflow: hidden; }
+.prog-bar-fill { height: 100%; border-radius: 2px; background: #1a73e8; transition: width 0.3s; }
+.prog-bar-fill.full { background: #059669; }
+.prog-bar-fill.overdue { background: #ef4444; }
+.prog-pct { font-size: 0.65rem; color: #94a3b8; white-space: nowrap; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.8rem; }
+
+/* Heading banner */
+.intro { padding: 1.25rem 1.5rem 0; max-width: 1400px; }
+.locked-bar { font-size: 0.75rem; color: #475569; background: #fff; border-radius: 8px; padding: 0.5rem 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 1rem; max-width: 1400px; margin-left: 1.5rem; margin-right: 1.5rem; }
+.locked-bar strong { color: #1e293b; }
+
+/* Controls panel (bottom-left) */
+.controls-panel {
+  position: fixed; bottom: 1.25rem; left: 1.25rem;
+  background: #1e293b; color: #e2e8f0; border-radius: 10px;
+  padding: 0.75rem 1rem; font-size: 0.72rem; z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25); min-width: 200px;
+}
+.controls-panel h3 { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 0.5rem; }
+.ctrl-btn { display: block; width: 100%; background: #334155; border: none; color: #e2e8f0; border-radius: 5px; padding: 0.4rem 0.6rem; font-size: 0.72rem; cursor: pointer; margin-bottom: 0.35rem; text-align: left; }
+.ctrl-btn:hover { background: #475569; }
+.ctrl-btn.active { background: #1a73e8; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Spike 027a — Collectibles Page Aggregate Scorecard Strip</h1>
+  <p class="subtitle">Does a 3-chip header strip make financial health immediately readable when Finance opens the Collectibles tab?</p>
+</div>
+
+<div class="locked-bar">
+  <strong>From spikes 025/026:</strong>
+  &nbsp;·&nbsp; Scorecard chips in modal validated (026)
+  &nbsp;·&nbsp; Balance formula = <code>collectible.amount_requested − sum(non-voided payment_records)</code>
+  &nbsp;·&nbsp; Chips: Total Invoiced (green) · Cash Collected (blue) · Outstanding (orange)
+  &nbsp;·&nbsp; Overdue count chip added here (red) — new for full-page context
+</div>
+
+<div class="demo-grid">
+  <!-- BEFORE -->
+  <div class="pane">
+    <div class="pane-label label-before">BEFORE — Current Design</div>
+    <div class="page-header">
+      <div class="page-header-row" style="padding-bottom:0.75rem;">
+        <h2 class="page-title">Collectibles</h2>
+        <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <select id="beforeStatusFilter" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Partially Paid">Partially Paid</option>
+        <option value="Fully Paid">Fully Paid</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+      <select id="beforeProjectFilter" onchange="applyFilters()">
+        <option value="">All Projects</option>
+        <option value="CLMC New Office">CLMC New Office</option>
+        <option value="Renovation HQ">Renovation HQ</option>
+        <option value="Warehouse Expansion">Warehouse Expansion</option>
+      </select>
+      <button class="btn btn-outline btn-sm">Export CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Project</th>
+            <th>Tranche</th>
+            <th class="r">Amount</th>
+            <th class="r">Paid</th>
+            <th class="r">Balance</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="beforeTableBody"></tbody>
+      </table>
+      <div id="beforeEmptyState" class="empty-state" style="display:none;">No collectibles match your filters.</div>
+    </div>
+  </div>
+
+  <!-- AFTER -->
+  <div class="pane">
+    <div class="pane-label label-after">AFTER — With Scorecard Strip</div>
+    <div class="page-header">
+      <div class="page-header-row" style="padding-bottom:0.75rem;">
+        <h2 class="page-title">Collectibles</h2>
+        <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+      </div>
+    </div>
+
+    <!-- Scorecard strip -->
+    <div class="scorecard-strip" id="scorecardStrip">
+      <div class="sc-chip green">
+        <div class="sc-label">Total Invoiced</div>
+        <div class="sc-val" id="sc-invoiced">—</div>
+        <div class="sc-sub" id="sc-invoiced-sub"></div>
+      </div>
+      <div class="sc-chip blue">
+        <div class="sc-label">Cash Collected</div>
+        <div class="sc-val" id="sc-collected">—</div>
+        <div class="sc-sub" id="sc-collected-sub"></div>
+      </div>
+      <div class="sc-chip orange">
+        <div class="sc-label">Outstanding</div>
+        <div class="sc-val" id="sc-outstanding">—</div>
+        <div class="sc-sub" id="sc-outstanding-sub"></div>
+      </div>
+      <div class="sc-chip red" id="sc-overdue-chip">
+        <div class="sc-label">Overdue</div>
+        <div class="sc-val" id="sc-overdue">—</div>
+        <div class="sc-sub" id="sc-overdue-sub"></div>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <select id="afterStatusFilter" onchange="applyFilters()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Partially Paid">Partially Paid</option>
+        <option value="Fully Paid">Fully Paid</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+      <select id="afterProjectFilter" onchange="applyFilters()">
+        <option value="">All Projects</option>
+        <option value="CLMC New Office">CLMC New Office</option>
+        <option value="Renovation HQ">Renovation HQ</option>
+        <option value="Warehouse Expansion">Warehouse Expansion</option>
+      </select>
+      <button class="btn btn-outline btn-sm">Export CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Project</th>
+            <th>Tranche</th>
+            <th class="r">Amount</th>
+            <th class="r">Paid</th>
+            <th class="r">Balance</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="afterTableBody"></tbody>
+      </table>
+      <div id="afterEmptyState" class="empty-state" style="display:none;">No collectibles match your filters.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls-panel">
+  <h3>Scenario</h3>
+  <button class="ctrl-btn active" id="scen-all" onclick="setScenario('all')">All 5 collectibles</button>
+  <button class="ctrl-btn" id="scen-overdue" onclick="setScenario('overdue')">Heavy overdue (3)</button>
+  <button class="ctrl-btn" id="scen-clean" onclick="setScenario('clean')">All collected</button>
+  <button class="ctrl-btn" id="scen-one" onclick="setScenario('one')">Single project only</button>
+  <h3 style="margin-top:0.75rem;">Toggle</h3>
+  <button class="ctrl-btn" id="toggle-overdue-chip" onclick="toggleOverdueChip()">Hide overdue chip</button>
+</div>
+
+<script>
+const MOCK_ALL = [
+  { id: 'COLL-2026-001', project: 'CLMC New Office',    tranche: 'Mobilization (20%)',     amount: 800000,   paid: 800000,  due: '2026-03-15' },
+  { id: 'COLL-2026-002', project: 'CLMC New Office',    tranche: 'Progress Billing (50%)', amount: 2000000,  paid: 500000,  due: '2026-05-01' },
+  { id: 'COLL-2026-003', project: 'Renovation HQ',      tranche: 'Phase 1 (40%)',          amount: 1200000,  paid: 0,       due: '2026-07-30' },
+  { id: 'COLL-2026-004', project: 'Warehouse Expansion',tranche: 'Mobilization (30%)',     amount: 1500000,  paid: 0,       due: '2026-04-01' },
+  { id: 'COLL-2026-005', project: 'Warehouse Expansion',tranche: 'Progress Billing (40%)', amount: 2000000,  paid: 1000000, due: '2026-07-15' },
+];
+
+const SCENARIOS = {
+  all:    MOCK_ALL,
+  overdue: [
+    { id: 'COLL-2026-002', project: 'CLMC New Office',    tranche: 'Progress Billing (50%)', amount: 2000000, paid: 500000,  due: '2026-05-01' },
+    { id: 'COLL-2026-004', project: 'Warehouse Expansion',tranche: 'Mobilization (30%)',     amount: 1500000, paid: 0,       due: '2026-04-01' },
+    { id: 'COLL-2026-006', project: 'Renovation HQ',      tranche: 'Phase 2 (60%)',          amount: 1800000, paid: 200000,  due: '2026-03-01' },
+  ],
+  clean: [
+    { id: 'COLL-2026-001', project: 'CLMC New Office',    tranche: 'Mobilization (20%)',     amount: 800000,  paid: 800000,  due: '2026-03-15' },
+    { id: 'COLL-2026-002', project: 'CLMC New Office',    tranche: 'Progress Billing (50%)', amount: 2000000, paid: 2000000, due: '2026-05-01' },
+    { id: 'COLL-2026-003', project: 'Renovation HQ',      tranche: 'Phase 1 (40%)',          amount: 1200000, paid: 1200000, due: '2026-07-30' },
+  ],
+  one: MOCK_ALL.filter(c => c.project === 'CLMC New Office'),
+};
+
+let currentData = MOCK_ALL;
+let statusFilter = '';
+let projectFilter = '';
+let showOverdueChip = true;
+const TODAY = new Date();
+
+function deriveStatus(c) {
+  const isOverdue = new Date(c.due) < TODAY;
+  if (c.paid >= c.amount && c.amount > 0) return 'Fully Paid';
+  if (isOverdue) return 'Overdue';
+  if (c.paid > 0) return 'Partially Paid';
+  return 'Pending';
+}
+
+function fmt(n) {
+  if (n >= 1000000) return '₱' + (n/1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return '₱' + (n/1000).toFixed(0) + 'k';
+  return '₱' + n.toLocaleString();
+}
+function fmtFull(n) { return '₱' + n.toLocaleString(); }
+
+function badgeHtml(status) {
+  const cls = { 'Fully Paid': 'badge-paid', 'Overdue': 'badge-overdue', 'Partially Paid': 'badge-partial', 'Pending': 'badge-pending' };
+  return `<span class="badge ${cls[status] || ''}">${status}</span>`;
+}
+
+function getFiltered() {
+  return currentData.filter(c => {
+    if (statusFilter && deriveStatus(c) !== statusFilter) return false;
+    if (projectFilter && c.project !== projectFilter) return false;
+    return true;
+  });
+}
+
+function rowHtml(c, showProgress) {
+  const status = deriveStatus(c);
+  const balance = c.amount - c.paid;
+  const isOverdue = status === 'Overdue';
+  const trClass = isOverdue ? 'row-overdue' : '';
+  const pct = c.amount > 0 ? (c.paid / c.amount * 100) : 0;
+  const barFill = status === 'Fully Paid' ? 'full' : isOverdue ? 'overdue' : '';
+  const dueStyle = isOverdue ? 'color:#ef4444;font-weight:600;' : '';
+
+  return `<tr class="${trClass}">
+    <td><strong style="font-family:monospace;font-size:0.77rem;">${c.id}</strong></td>
+    <td style="font-size:0.77rem;">${c.project}</td>
+    <td style="color:#475569;font-size:0.77rem;">${c.tranche}</td>
+    <td class="r">${fmtFull(c.amount)}</td>
+    <td class="r" style="color:#059669;">${fmtFull(c.paid)}</td>
+    <td class="r" style="color:${balance > 0 ? '#ef4444' : '#059669'};font-weight:600;">${fmtFull(balance)}</td>
+    <td style="font-size:0.77rem;${dueStyle}">${c.due}${isOverdue ? ' ⚠' : ''}</td>
+    <td>${badgeHtml(status)}${showProgress && status !== 'Fully Paid' ? `<div class="prog-bar-wrap" style="margin-top:0.25rem;"><div class="prog-bar"><div class="prog-bar-fill ${barFill}" style="width:${pct}%"></div></div><span class="prog-pct">${pct.toFixed(0)}%</span></div>` : ''}</td>
+    <td><button class="btn btn-outline btn-sm">Record&nbsp;Payment</button></td>
+  </tr>`;
+}
+
+function updateScorecard(rows) {
+  const totalInvoiced = rows.reduce((s, c) => s + c.amount, 0);
+  const totalPaid = rows.reduce((s, c) => s + c.paid, 0);
+  const outstanding = totalInvoiced - totalPaid;
+  const overdueCOLLs = rows.filter(c => deriveStatus(c) === 'Overdue');
+  const overdueAmt = overdueCOLLs.reduce((s, c) => s + (c.amount - c.paid), 0);
+  const collCount = rows.filter(c => deriveStatus(c) !== 'Fully Paid').length;
+
+  document.getElementById('sc-invoiced').textContent = fmt(totalInvoiced);
+  document.getElementById('sc-invoiced-sub').textContent = `${rows.length} collectible${rows.length !== 1 ? 's' : ''}`;
+  document.getElementById('sc-collected').textContent = fmt(totalPaid);
+  document.getElementById('sc-collected-sub').textContent = totalInvoiced > 0 ? `${(totalPaid/totalInvoiced*100).toFixed(0)}% of invoiced` : '—';
+  document.getElementById('sc-outstanding').textContent = fmt(outstanding);
+  document.getElementById('sc-outstanding-sub').textContent = `${collCount} open item${collCount !== 1 ? 's' : ''}`;
+  document.getElementById('sc-overdue').textContent = overdueCOLLs.length > 0 ? fmt(overdueAmt) : '₱0';
+  document.getElementById('sc-overdue-sub').textContent = overdueCOLLs.length > 0 ? `${overdueCOLLs.length} past due` : 'None overdue';
+  document.getElementById('sc-overdue-chip').style.display = (showOverdueChip || overdueCOLLs.length > 0) ? '' : 'none';
+}
+
+function applyFilters() {
+  statusFilter = document.getElementById('beforeStatusFilter').value;
+  projectFilter = document.getElementById('beforeProjectFilter').value;
+  // Sync after-panel filters to match
+  document.getElementById('afterStatusFilter').value = statusFilter;
+  document.getElementById('afterProjectFilter').value = projectFilter;
+  render();
+}
+
+function render() {
+  const rows = getFiltered();
+
+  // Before
+  const bTbody = document.getElementById('beforeTableBody');
+  const bEmpty = document.getElementById('beforeEmptyState');
+  if (rows.length === 0) {
+    bTbody.innerHTML = '';
+    bEmpty.style.display = '';
+  } else {
+    bTbody.innerHTML = rows.map(c => rowHtml(c, false)).join('');
+    bEmpty.style.display = 'none';
+  }
+
+  // After
+  const aTbody = document.getElementById('afterTableBody');
+  const aEmpty = document.getElementById('afterEmptyState');
+  if (rows.length === 0) {
+    aTbody.innerHTML = '';
+    aEmpty.style.display = '';
+  } else {
+    aTbody.innerHTML = rows.map(c => rowHtml(c, true)).join('');
+    aEmpty.style.display = 'none';
+  }
+
+  updateScorecard(rows);
+}
+
+function setScenario(key) {
+  currentData = SCENARIOS[key];
+  statusFilter = '';
+  projectFilter = '';
+  document.getElementById('beforeStatusFilter').value = '';
+  document.getElementById('beforeProjectFilter').value = '';
+  document.getElementById('afterStatusFilter').value = '';
+  document.getElementById('afterProjectFilter').value = '';
+  document.querySelectorAll('.ctrl-btn[id^="scen-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('scen-' + key).classList.add('active');
+  render();
+}
+
+function toggleOverdueChip() {
+  showOverdueChip = !showOverdueChip;
+  const btn = document.getElementById('toggle-overdue-chip');
+  btn.textContent = showOverdueChip ? 'Hide overdue chip' : 'Show overdue chip';
+  document.getElementById('sc-overdue-chip').style.display = showOverdueChip ? '' : 'none';
+}
+
+// Wire after-panel filter changes to the shared filter state
+document.getElementById('afterStatusFilter').addEventListener('change', () => {
+  document.getElementById('beforeStatusFilter').value = document.getElementById('afterStatusFilter').value;
+  applyFilters();
+});
+document.getElementById('afterProjectFilter').addEventListener('change', () => {
+  document.getElementById('beforeProjectFilter').value = document.getElementById('afterProjectFilter').value;
+  applyFilters();
+});
+
+render();
+</script>
+</body>
+</html>
