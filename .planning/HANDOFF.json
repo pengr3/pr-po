@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-04T16:16:52Z",
+  "timestamp": "2026-06-05T12:45:00Z",
   "phase": "99",
   "phase_name": "billing-request-flow",
   "phase_dir": ".planning/phases/99-billing-request-flow",
@@ -16,26 +16,27 @@
     {"id": "99-02-T3", "name": "submitBillingRequest frozen D-04 doc + Finance notif + window wiring", "status": "done", "commit": "9efc6f5"},
     {"id": "99-03-T1", "name": "pending listener + collapsible Pending Billing Requests banner (BILL-03)", "status": "done", "commit": "2fe9bea"},
     {"id": "99-03-T2", "name": "approve bridge (preselectKey 3-seg + D-11 edge + mark approved)", "status": "done", "commit": "1a9800d"},
-    {"id": "99-03-T3", "name": "reject (required reason) + submitter notification + window wiring", "status": "done", "commit": "9d54e17"}
+    {"id": "99-03-T3", "name": "reject (required reason) + submitter notification + window wiring", "status": "done", "commit": "9d54e17"},
+    {"id": "gap-fix-1", "name": "dev console.log blabber removed + billed-tranche guard in modal (a5902d6)", "status": "done", "commit": "a5902d6"},
+    {"id": "gap-fix-2", "name": "DECIDED notification source_id = project_code not req.id (be8afbc)", "status": "done", "commit": "be8afbc"},
+    {"id": "gap-fix-3", "name": "renderer suppresses raw Firestore auto-IDs /^[A-Za-z0-9]{15,}$/ (228f4b7)", "status": "done", "commit": "228f4b7"}
   ],
   "remaining_tasks": [
-    {"id": "uat", "name": "Run 6 browser-UAT items in 99-HUMAN-UAT.md (after rules deploy)", "status": "not_started"},
-    {"id": "mark-complete", "name": "Mark Phase 99 complete in ROADMAP/STATE once UAT passes (or /gsd-plan-phase 99 --gaps if any fail)", "status": "not_started"}
+    {"id": "uat-6-reverify", "name": "Re-verify UAT test 6 with DevTools cache disabled: Network tab → Disable cache → reload → approve/reject a billing request → confirm notification shows 'CLMC-XXX · ProjectName' not a raw auto-ID", "status": "not_started"},
+    {"id": "mark-complete", "name": "Mark Phase 99 complete in ROADMAP + STATE once UAT test 6 re-verify passes", "status": "not_started"}
   ],
-  "blockers": [
-    {"description": "billing_requests writes get permission-denied until the new rules block is deployed", "type": "human_action", "workaround": "firebase deploy --only firestore:rules --project dev (CLI active project is PROD — must use --project dev for UAT)"}
-  ],
+  "blockers": [],
   "human_actions_pending": [
-    {"action": "firebase deploy --only firestore:rules --project dev", "context": "Phase 99 added the billing_requests rules block; without deploy the whole flow errors with permission-denied. CLI active project is PROD — use --project dev for UAT, then prod.", "blocking": true},
-    {"action": "Run the 6 browser-UAT items in 99-HUMAN-UAT.md", "context": "Zero-build SPA with no UI test harness; verification verdict was human_needed. All 6 success criteria need a browser pass.", "blocking": true}
+    {"action": "Open DevTools → Network → tick 'Disable cache' → reload → Finance Collectibles → approve/reject a billing request → check bell notification", "context": "Browser was caching old finance.js so be8afbc hadn't run yet when last tested. With cache disabled, new DECIDED notifications will have source_id=project_code. The renderer (228f4b7) also now suppresses auto-IDs so old broken notifications look clean immediately.", "blocking": true}
   ],
   "decisions": [
-    {"decision": "Executed inline sequentially on v3.3 (no subagents/worktrees)", "rationale": "gsd-sdk unavailable on this machine + 2 stale LOCKED agent worktrees (agent-a4222795..., agent-ab5541...) make the worktree/subagent path unsafe; matches Phase 98/91.3 precedent", "phase": "99"},
-    {"decision": "Own-requests listener scoped to currentProject.project_code via idempotent ensureBillingRequestsListener()", "rationale": "The URL projectCode param can be a Firestore doc id (Phase 78 D-06 clientless fallback) that differs from project_code, which is the field submit writes; plan explicitly offered this alternative", "phase": "99"},
-    {"decision": "Billing-type pills inlined as literal _selectBillingType('progress'|'completion'|'other') calls", "rationale": "A DRY pill(type) helper interpolated ${type} so the literal strings the acceptance criteria grep for were absent; inlining matches the contract and keeps intent grep-able", "phase": "99"},
-    {"decision": "Verification done inline (verdict human_needed); gsd-code-review skill skipped", "rationale": "Both depend on gsd-sdk (unavailable); did inline goal-backward verification + cross-plan contract check; code review is advisory and never blocks", "phase": "99"}
+    {"decision": "Executed inline sequentially on v3.3 (no subagents/worktrees)", "rationale": "gsd-sdk unavailable on this machine + 2 stale LOCKED agent worktrees make the worktree/subagent path unsafe; matches Phase 98/91.3 precedent", "phase": "99"},
+    {"decision": "Own-requests listener scoped to currentProject.project_code via idempotent ensureBillingRequestsListener()", "rationale": "The URL projectCode param can be a Firestore doc id (Phase 78 D-06 clientless fallback) that differs from project_code, which is the field submit writes", "phase": "99"},
+    {"decision": "Billing-type pills inlined as literal _selectBillingType('progress'|'completion'|'other') calls", "rationale": "A DRY pill(type) helper interpolated ${type} so the literal strings the acceptance criteria grep for were absent; inlining matches the contract", "phase": "99"},
+    {"decision": "Auto-ID suppression added to notification renderer (/^[A-Za-z0-9]{15,}$/)", "rationale": "Human-readable IDs always contain dashes (MRF-2026-014, CLMC-BRIDGE-001); Firestore auto-IDs never do. Belt-and-suspenders fix that also cleans up already-written bugged notifications.", "phase": "99"},
+    {"decision": "billedIndices guard added to openBillingRequestModal() — disables already-pending/approved tranches", "rationale": "UAT gap: modal showed all tranches including ones with active billing requests. rejected is re-submittable.", "phase": "99"}
   ],
   "uncommitted_files": [],
-  "next_action": "Deploy rules to dev (firebase deploy --only firestore:rules --project dev), then run the 6 items in .planning/phases/99-billing-request-flow/99-HUMAN-UAT.md. If all pass, mark Phase 99 complete in ROADMAP + STATE; if any fail, /gsd-plan-phase 99 --gaps.",
-  "context_notes": "Phase 99 (Billing Request Flow) is fully EXECUTED and committed on v3.3 — all 8 tasks across 3 plans (2 waves), 14 commits 0064849..e687432. No coding work remains. The pause point is purely 'awaiting human UAT + rules deploy'. Implementation is internally consistent: node --check passes on all 3 JS modules, firestore.rules balanced 61/61, cross-plan contract verified (notification enums defined in 99-01 consumed in 02/03; status:'pending' + project_code written by 02 match 03's query; requested_by_uid round-trips; 3-segment preselectKey built by 03 matches its own parser). The Finance banner listener follows the proven Phase-85 collectibles-listener lifecycle exactly. Other open loops (NOT this phase): merge v3.3 -> main then the pending 87.4 rules deploy (same firestore.rules file now also carries the billing_requests block); Phase 86.9 Plan 03 browser UAT."
+  "next_action": "Re-verify UAT test 6 with DevTools cache disabled. If clean, mark Phase 99 complete in ROADMAP + STATE. See 99-HUMAN-UAT.md for full test log.",
+  "context_notes": "Phase 99 (Billing Request Flow) is fully EXECUTED — all 8 original tasks + 3 UAT gap fixes committed (a5902d6, be8afbc, 228f4b7). Tests 1-5 PASS. Test 6 (notifications) is PARTIAL: the display bug was caused by browser caching old finance.js; fixes are committed and the renderer now suppresses raw auto-IDs as belt-and-suspenders. Single remaining action: re-verify test 6 with cache disabled, then mark phase complete. Other open loops: merge v3.3 -> main + firebase deploy --only firestore:rules (Phase 87.4 pending); Phase 86.9 Plan 03 browser UAT."
 }

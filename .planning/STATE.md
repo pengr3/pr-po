@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 99 (Billing Request Flow) EXECUTED 2026-06-04 (inline on v3.3, 3/3 plans, 2 waves) — verification `human_needed`, 6 browser-UAT items pending (99-HUMAN-UAT.md) + rules deploy pending. Phase NOT yet marked complete. Open loop: Phase 86.9 Plan 03 awaiting browser UAT (D1 row-align + D2 PDF, code committed ebbebd9).
-stopped_at: 2026-06-04 — /gsd-execute-phase 99 complete (executed); next is browser UAT (deploy rules to dev first), then mark complete or /gsd-plan-phase 99 --gaps
-last_updated: "2026-06-04T15:56:00.000Z"
-last_activity: 2026-06-04
+status: Phase 99 mid-UAT 2026-06-05 — tests 1–5 PASS; test 6 (notifications) PARTIAL, 3 gap-fix commits applied (a5902d6 billed-tranche guard + console.log blabber; be8afbc DECIDED source_id=project_code; 228f4b7 renderer suppresses auto-IDs). Needs re-verify test 6 with DevTools cache disabled, then mark complete.
+stopped_at: 2026-06-05 — UAT in progress; re-verify test 6 with Network→Disable Cache→reload then approve/reject a billing request
+last_updated: "2026-06-05T12:45:00.000Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 32
   completed_phases: 29
