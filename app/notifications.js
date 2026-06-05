@@ -719,5 +719,4 @@ if (isLocal) {
             source_id: overrides.source_id ?? 'TEST-001'
         });
     };
-    console.log('[Notifications] Dev mode: window.__createTestNotification() available');
 }

@@ -678,15 +678,30 @@ function openBillingRequestModal() {
         return;
     }
 
-    // Initial auto-hint from the first tranche label (re-derived on tranche change below).
-    billingSelectedType = _hintBillingType(tranches[0]?.label) || 'progress';
+    // Tranches that already have a pending or approved billing request cannot be re-submitted.
+    // (rejected requests are re-submittable — only pending/approved are locked.)
+    const billedIndices = new Set(
+        currentBillingRequests
+            .filter(r => r.status === 'pending' || r.status === 'approved')
+            .map(r => r.tranche_index)
+    );
+    const firstAvailableIdx = tranches.findIndex((_, i) => !billedIndices.has(i));
+    if (firstAvailableIdx < 0) {
+        showToast('All tranches already have a pending or approved billing request.', 'error');
+        return;
+    }
+
+    // Initial auto-hint from the first AVAILABLE tranche label (re-derived on tranche change below).
+    billingSelectedType = _hintBillingType(tranches[firstAvailableIdx]?.label) || 'progress';
 
     const existing = document.getElementById('billingRequestModal');
     if (existing) existing.remove();
 
     const trancheOptions = tranches.map((t, i) => {
         const pct = parseFloat(t.percentage) || 0;
-        return `<option value="${i}">${escapeHTML(t.label || ('Tranche ' + (i + 1)))} (${pct}%)</option>`;
+        const isBilled = billedIndices.has(i);
+        const suffix = isBilled ? ' — already billed' : '';
+        return `<option value="${i}"${isBilled ? ' disabled' : ''}${i === firstAvailableIdx ? ' selected' : ''}>${escapeHTML(t.label || ('Tranche ' + (i + 1)))} (${pct}%)${suffix}</option>`;
     }).join('');
 
     const pillStyle = (type) => {
