@@ -1227,25 +1227,29 @@ async function refreshExpense(silent = false) {
             hasRfps
         };
 
-        // Phase 85 D-06: aggregate collectibles for this project — parallels RFP aggregation
-        let collTotalRequested = 0;
+        // Aggregate collectibles: "filed" = approved billing_requests; "collected" = payments recorded in collectibles docs.
+        // billing_requests.approved represents amounts billed to the client — outstanding until cash is received.
+        // collectibles.payment_records tracks actual cash receipts. Rem. Collectible = filed − received.
+        let collTotalFiled = 0;
         let collTotalCollected = 0;
         if (projectCode) {
-            const collSnap = await getDocs(
-                query(collection(db, 'collectibles'), where('project_code', '==', projectCode))
-            );
+            const [billingSnap, collSnap] = await Promise.all([
+                getDocs(query(collection(db, 'billing_requests'), where('project_code', '==', projectCode), where('status', '==', 'approved'))),
+                getDocs(query(collection(db, 'collectibles'), where('project_code', '==', projectCode)))
+            ]);
+            billingSnap.forEach(d => {
+                collTotalFiled += parseFloat(d.data().amount_requested || 0);
+            });
             collSnap.forEach(d => {
-                const coll = d.data();
-                collTotalRequested += parseFloat(coll.amount_requested || 0);
-                collTotalCollected += (coll.payment_records || [])
+                collTotalCollected += (d.data().payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
             });
         }
         currentCollectibles = {
-            totalRequested: collTotalRequested,
+            totalRequested: collTotalFiled,
             totalCollected: collTotalCollected,
-            remainingCollectible: collTotalRequested - collTotalCollected
+            remainingCollectible: collTotalFiled - collTotalCollected
         };
 
         // Re-render to show updated expense
