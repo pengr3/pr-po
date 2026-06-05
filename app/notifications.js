@@ -199,7 +199,9 @@ export function renderDropdownRows() {
             const unreadClass = isUnread ? ' notif-row--unread' : '';
 
             // 3-line anatomy variables (T-95-01: escapeHTML all user-supplied strings)
-            const safeTargetId = escapeHTML(n.source_id || '');
+            // Suppress raw Firestore auto-IDs (20-char alphanumeric) — they're internal keys, not human labels.
+            const isAutoId = /^[A-Za-z0-9]{15,}$/.test(n.source_id || '');
+            const safeTargetId = isAutoId ? '' : escapeHTML(n.source_id || '');
             const safeObjName  = escapeHTML(n.object_name || n.message || '');
             const safeActor    = escapeHTML(n.actor_name || '');
 
