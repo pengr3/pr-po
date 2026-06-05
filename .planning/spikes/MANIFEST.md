@@ -1,6 +1,9 @@
 # Spike Manifest
 
-## Idea (current series: 019–020)
+## Idea (current series: 025–026)
+Polish the collectible lifecycle UI — Phase 99 built the billing request flow but the inline financial card's billing footer only shows billing_request status, with no awareness of whether a collectible doc (COLL-xxx) was created or how much cash was received. Spike 025 designs a per-tranche lifecycle display (pending→approved→invoiced→collecting→collected). Spike 026 revamps the financial breakdown modal entry point (currently buried in "Projected Expense") and adds collectible scorecards to both the modal header and the Collectibles tab.
+
+## Idea (prior series: 019–020)
 Polish how fees appear in the expense breakdown modal. Phase 91.4 added RFP fee totals to expense calculations but fee amounts were invisible in the Payables table breakdown, causing confusing "Total Paid > Total Payable" displays. Spikes explore: optimal in-table treatment for fee sub-rows (019), and whether a fee summary card in the modal header adds scannable value (020).
 
 ## Idea (prior series: 015–018)
@@ -54,4 +57,6 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 | 022 | plan-card-content-variants | comparison | Given milestone slots are almost always empty, when content replaced with A (deadline rows), B (health badge), or C (combined), then card is genuinely useful for project health at a glance | VALIDATED ✓ WINNER — Variant C (Combined): health badge + overdue pill + overdue detail + upcoming rows + last completed | ux, project-plan, project-detail, content, deadlines, health |
 | 023a | plan-card-done-count-fix | standard | Given leaf tasks have unequal durations and 2 of 6 are at 100%, when card renders with fixed doneCount field, then "2 of 6 tasks complete" — not "1 of 8" | VALIDATED ✓ — add doneCount+leafCount to computeProjectProgress(); use in buildPlanCardHtml() | ux, project-plan, project-detail, bug, data-accuracy |
 | 023b | plan-card-iteration-label | standard | Given last_loaded_iteration_id is set on the project doc, when the inline card renders, then a blue "On: [Iteration Name]" strip appears; absent in live mode or after auto-save | VALIDATED ✓ — ensureIterationLabel() fetches label on project snapshot; blue strip between heading and inner content | ux, project-plan, project-detail, iteration, data-accuracy |
+| 025 | collectible-billing-footer-lifecycle | standard | Given a project with billing_requests + collectible docs at various stages, when the billing footer renders, then each tranche shows full lifecycle (pending→approved→not-invoiced→invoiced→collecting→collected) with cash % visible | PENDING | collectible, billing, lifecycle, ux, project-detail, finance |
+| 026 | financial-summary-revamp | standard | Given the financial breakdown modal is only accessible via clicking "Projected Expense", when we add a dedicated "Full Breakdown →" button + collectible scorecards to the modal, then entry is discoverable and financial health is immediately readable | PENDING | financial-breakdown, entry-point, scorecards, collectible, modal, ux |
 

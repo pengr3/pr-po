@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 025 — Collectible Billing Footer Lifecycle</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; padding: 2rem; color: #1e293b; }
+  h1 { font-size: 1.1rem; font-weight: 700; color: #1a73e8; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.8rem; color: #64748b; margin-bottom: 1.5rem; }
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 1100px; }
+  .panel { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .panel-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin-bottom: 0.75rem; }
+  .label-before { background: #fee2e2; color: #991b1b; }
+  .label-after { background: #d1fae5; color: #065f46; }
+
+  /* ---- Financial card shell ---- */
+  .fin-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1rem; }
+  .fin-card-header { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+  .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.35rem; }
+  .chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.75rem; margin-bottom: 0.4rem; }
+  .chip-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.4rem 0.5rem; margin-bottom: 0.4rem; }
+  .chip { border-radius: 5px; padding: 0.3rem 0.5rem; }
+  .chip-label { font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.1rem; }
+  .chip-val { font-weight: 700; font-size: 0.85rem; }
+  .divider { border-top: 1px solid #f1f5f9; margin: 0.4rem 0; }
+
+  /* ---- Lifecycle rows (NEW design) ---- */
+  .lifecycle-row {
+    display: flex; align-items: flex-start; gap: 0.5rem;
+    padding: 0.35rem 0.5rem; border-radius: 6px;
+    margin-bottom: 0.3rem; border: 1px solid transparent;
+    transition: background 0.15s;
+  }
+  .lifecycle-row:hover { background: #f8fafc; }
+  .lc-tranche { font-size: 0.72rem; color: #1e293b; font-weight: 600; flex: 1; min-width: 0; line-height: 1.3; }
+  .lc-amount { font-size: 0.7rem; color: #64748b; font-weight: 500; white-space: nowrap; }
+  .lc-badge { font-size: 0.6rem; font-weight: 700; padding: 0.18rem 0.45rem; border-radius: 10px; white-space: nowrap; }
+  .lc-meta { font-size: 0.62rem; color: #94a3b8; margin-top: 0.1rem; }
+  .lc-progress { height: 3px; border-radius: 2px; background: #e2e8f0; margin-top: 0.3rem; overflow: hidden; }
+  .lc-progress-fill { height: 100%; border-radius: 2px; background: #1a73e8; transition: width 0.4s; }
+
+  /* ---- Stage badge colors ---- */
+  .badge-pending { background: #fef3c7; color: #92400e; }
+  .badge-approved-uninvoiced { background: #e0e7ff; color: #3730a3; }
+  .badge-invoiced { background: #cffafe; color: #0e7490; }
+  .badge-collecting { background: #fed7aa; color: #c2410c; }
+  .badge-collected { background: #d1fae5; color: #065f46; }
+  .badge-rejected { background: #fee2e2; color: #991b1b; }
+
+  /* ---- OLD design badges ---- */
+  .old-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; padding: 0.2rem 0; border-top: 1px solid #f1f5f9; }
+  .old-info { font-size: 0.66rem; color: #475569; }
+  .old-badge { font-size: 0.6rem; font-weight: 700; text-transform: capitalize; white-space: nowrap; }
+
+  /* ---- Controls ---- */
+  .controls { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 1.5rem; max-width: 1100px; }
+  .controls h2 { font-size: 0.8rem; font-weight: 700; color: #475569; margin-bottom: 0.75rem; }
+  .tranche-editor { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+  .tranche-slot { border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem; }
+  .tranche-slot h3 { font-size: 0.72rem; font-weight: 700; color: #475569; margin-bottom: 0.4rem; }
+  .tranche-slot label { font-size: 0.65rem; color: #64748b; display: block; margin-bottom: 0.15rem; margin-top: 0.3rem; }
+  .tranche-slot select { width: 100%; padding: 0.25rem 0.4rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.72rem; background: #fff; }
+  .tranche-slot input { width: 100%; padding: 0.25rem 0.4rem; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 0.72rem; }
+  .summary-bar { max-width: 1100px; background: #fff; border-radius: 10px; padding: 0.75rem 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 1.5rem; display: flex; gap: 2rem; flex-wrap: wrap; align-items: center; }
+  .summary-bar .sm-chip { text-align: center; }
+  .summary-bar .sm-val { font-size: 1rem; font-weight: 700; color: #1e293b; }
+  .summary-bar .sm-label { font-size: 0.6rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+  .arrow { color: #94a3b8; font-size: 1.2rem; }
+  .note { font-size: 0.7rem; color: #64748b; margin-top: 1rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; border-left: 3px solid #1a73e8; }
+</style>
+</head>
+<body>
+
+<h1>Spike 025 — Collectible Billing Footer Lifecycle</h1>
+<p class="subtitle">Interactive comparison: current vs redesigned per-tranche lifecycle display. Adjust tranche states below.</p>
+
+<!-- ---- Scenario Controls ---- -->
+<div class="controls">
+  <h2>Scenario Builder — set state for each tranche</h2>
+  <div class="tranche-editor" id="trancheEditor"></div>
+</div>
+
+<!-- ---- Summary totals bar ---- -->
+<div class="summary-bar" id="summaryBar">Loading…</div>
+
+<!-- ---- Before / After ---- -->
+<div class="demo-grid">
+  <div class="panel">
+    <span class="panel-label label-before">CURRENT (Before)</span>
+    <div class="fin-card" id="beforeCard">…</div>
+    <div class="note">Only shows billing request status. No awareness of whether a collectible doc exists or cash has been received.</div>
+  </div>
+  <div class="panel">
+    <span class="panel-label label-after">REDESIGNED (After)</span>
+    <div class="fin-card" id="afterCard">…</div>
+    <div class="note">Full lifecycle per tranche. Shows billing request → collectible created → cash received % in one glance.</div>
+  </div>
+</div>
+
+<script>
+const CONTRACT_COST = 5_000_000;
+
+// Tranche definitions (3 collection tranches typical)
+const TRANCHES = [
+  { label: 'Mobilization (20%)',    pct: 20 },
+  { label: 'Progress Billing (50%)', pct: 50 },
+  { label: 'Final / Completion (30%)', pct: 30 },
+];
+
+// State per tranche: billing request status + collectible existence + % cash collected
+const state = TRANCHES.map((t, i) => ({
+  tranche: t,
+  amount: (t.pct / 100) * CONTRACT_COST,
+  billingStatus: i === 0 ? 'approved' : i === 1 ? 'approved' : 'none',
+  collectibleExists: i === 0 ? true : i === 1 ? true : false,
+  pctCollected: i === 0 ? 100 : i === 1 ? 40 : 0,
+}));
+
+function formatCurrency(v) {
+  return '₱' + parseFloat(v).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+// ---- Build scenario controls ----
+function buildControls() {
+  const el = document.getElementById('trancheEditor');
+  el.innerHTML = state.map((s, i) => `
+    <div class="tranche-slot">
+      <h3>${s.tranche.label}</h3>
+      <div><strong>${formatCurrency(s.amount)}</strong> (${s.tranche.pct}%)</div>
+
+      <label>Billing Request Status</label>
+      <select onchange="setState(${i},'billingStatus',this.value)">
+        <option value="none" ${s.billingStatus==='none'?'selected':''}>— No request filed</option>
+        <option value="pending" ${s.billingStatus==='pending'?'selected':''}>Pending Review</option>
+        <option value="approved" ${s.billingStatus==='approved'?'selected':''}>Approved</option>
+        <option value="rejected" ${s.billingStatus==='rejected'?'selected':''}>Rejected</option>
+      </select>
+
+      <label>Collectible Doc Created? ${s.billingStatus !== 'approved' ? '(n/a)' : ''}</label>
+      <select onchange="setState(${i},'collectibleExists',this.value==='true')" ${s.billingStatus !== 'approved' ? 'disabled' : ''}>
+        <option value="false" ${!s.collectibleExists?'selected':''}>No — awaiting finance</option>
+        <option value="true" ${s.collectibleExists?'selected':''}>Yes — COLL-${('00' + (i+1)).slice(-3)}</option>
+      </select>
+
+      <label>Cash Collected % ${!s.collectibleExists ? '(n/a)' : ''}</label>
+      <input type="range" min="0" max="100" step="5" value="${s.pctCollected}"
+             ${!s.collectibleExists ? 'disabled' : ''}
+             oninput="setState(${i},'pctCollected',+this.value);this.nextElementSibling.textContent=this.value+'%'">
+      <span style="font-size:0.7rem;color:#475569;display:inline-block;width:2.5rem;">${s.pctCollected}%</span>
+    </div>
+  `).join('');
+}
+
+function setState(i, key, val) {
+  state[i][key] = val;
+  // Guard: if billing not approved, clear collectible. If no collectible, clear cash.
+  if (state[i].billingStatus !== 'approved') state[i].collectibleExists = false;
+  if (!state[i].collectibleExists) state[i].pctCollected = 0;
+  buildControls();
+  render();
+}
+
+// ---- Derive lifecycle stage ----
+function deriveStage(s) {
+  if (s.billingStatus === 'none') return 'none';
+  if (s.billingStatus === 'rejected') return 'rejected';
+  if (s.billingStatus === 'pending') return 'pending';
+  // approved:
+  if (!s.collectibleExists) return 'approved-uninvoiced';
+  if (s.pctCollected >= 100) return 'collected';
+  if (s.pctCollected > 0) return 'collecting';
+  return 'invoiced';
+}
+
+const STAGE_META = {
+  'none':               { label: '—',                       cls: '',                        },
+  'pending':            { label: 'Pending Review',          cls: 'badge-pending',           },
+  'rejected':           { label: 'Rejected',                cls: 'badge-rejected',          },
+  'approved-uninvoiced':{ label: 'Approved — Not Yet Invoiced', cls: 'badge-approved-uninvoiced' },
+  'invoiced':           { label: 'Invoiced — Awaiting Payment', cls: 'badge-invoiced',      },
+  'collecting':         { label: 'Collecting',              cls: 'badge-collecting',        },
+  'collected':          { label: 'Fully Collected ✓',       cls: 'badge-collected',         },
+};
+
+// ---- Render BEFORE ----
+function renderBefore() {
+  const approved = state.filter(s => s.billingStatus !== 'none');
+  if (!approved.length) {
+    return `
+      <div class="fin-card-header">Financial Summary</div>
+      <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+      <div class="section-label" style="color:#059669;">Collectibles</div>
+      <div class="chip-grid">
+        <div class="chip" style="background:#f0fdf4;"><div class="chip-label">Collected</div><div class="chip-val" style="color:#059669;">₱0</div></div>
+        <div class="chip" style="background:#f0fdf4;"><div class="chip-label">Rem. Collectible</div><div class="chip-val" style="color:#94a3b8;">₱0</div></div>
+      </div>
+      <div style="text-align:right;margin-top:0.5rem;"><span style="color:#1a73e8;font-size:0.72rem;font-weight:700;cursor:pointer;">↑ Initiate Billing →</span></div>
+      <div style="font-size:0.7rem;color:#94a3b8;text-align:center;padding:0.5rem;">No billing requests filed.</div>
+    `;
+  }
+  // Old: sum approved billing requests as "totalCollected" (WRONG LABEL — this is actually totalFiled!)
+  // and sum payment_records as Collected
+  const totalFiled = state.filter(s => s.billingStatus === 'approved').reduce((s, r) => s + r.amount, 0);
+  const totalCash = state.filter(s => s.collectibleExists).reduce((s, r) => s + (r.pctCollected / 100) * r.amount, 0);
+  const remaining = totalFiled - totalCash;
+  const PILL_COLOR = { pending: '#f59e0b', approved: '#059669', rejected: '#ef4444' };
+
+  return `
+    <div class="fin-card-header">Financial Summary</div>
+    <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+    <div class="section-label" style="color:#059669;">Collectibles</div>
+    <div class="chip-grid">
+      <div class="chip" style="background:#f0fdf4;">
+        <div class="chip-label">Collected</div>
+        <div class="chip-val" style="color:#059669;">${formatCurrency(totalCash)}</div>
+      </div>
+      <div class="chip" style="background:#f0fdf4;">
+        <div class="chip-label">Rem. Collectible</div>
+        <div class="chip-val" style="color:${remaining > 0 ? '#ef4444' : '#059669'};">${formatCurrency(remaining)}</div>
+      </div>
+    </div>
+    <div style="text-align:right;margin-top:0.5rem;"><span style="color:#1a73e8;font-size:0.72rem;font-weight:700;cursor:pointer;">↑ Initiate Billing →</span></div>
+    ${approved.map(s => `
+      <div class="old-row">
+        <div class="old-info">${s.tranche.label} · ${formatCurrency(s.amount)}</div>
+        <span class="old-badge" style="color:${PILL_COLOR[s.billingStatus] || '#64748b'};">${s.billingStatus}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+// ---- Render AFTER ----
+function renderAfter() {
+  // New scorecards: Billed (approved billing requests) | Invoiced (collectibles created) | Cash Received
+  const totalBilled = state.filter(s => s.billingStatus === 'approved').reduce((s, r) => s + r.amount, 0);
+  const totalInvoiced = state.filter(s => s.collectibleExists).reduce((s, r) => s + r.amount, 0);
+  const totalCash = state.filter(s => s.collectibleExists).reduce((s, r) => s + (r.pctCollected / 100) * r.amount, 0);
+  const outstanding = totalInvoiced - totalCash;
+  const awaitingInvoice = totalBilled - totalInvoiced;
+
+  const hasAny = state.some(s => s.billingStatus !== 'none');
+
+  return `
+    <div class="fin-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Financial Summary</span>
+      <span style="color:#1a73e8;font-size:0.65rem;font-weight:700;cursor:pointer;">Full Breakdown →</span>
+    </div>
+    <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+    <div class="section-label" style="color:#059669;">Collectibles</div>
+
+    <!-- 3 scorecards: Billed / Invoiced / Cash Received -->
+    <div class="chip-grid-3">
+      <div class="chip" style="background:#f0fdf4;">
+        <div class="chip-label">Billed</div>
+        <div class="chip-val" style="color:#059669;font-size:0.78rem;">${formatCurrency(totalBilled)}</div>
+        <div class="lc-meta">Approved requests</div>
+      </div>
+      <div class="chip" style="background:#e0f2fe;">
+        <div class="chip-label">Invoiced</div>
+        <div class="chip-val" style="color:#0369a1;font-size:0.78rem;">${formatCurrency(totalInvoiced)}</div>
+        <div class="lc-meta">${awaitingInvoice > 0 ? '↑ ' + formatCurrency(awaitingInvoice) + ' pending' : 'All invoiced ✓'}</div>
+      </div>
+      <div class="chip" style="background:#fef9c3;">
+        <div class="chip-label">Cash Received</div>
+        <div class="chip-val" style="color:${outstanding > 0 ? '#92400e' : '#065f46'};font-size:0.78rem;">${formatCurrency(totalCash)}</div>
+        <div class="lc-meta">${outstanding > 0 ? formatCurrency(outstanding) + ' outstanding' : 'Fully settled ✓'}</div>
+      </div>
+    </div>
+
+    <!-- Per-tranche lifecycle rows -->
+    <div style="margin-top:0.5rem;">
+      ${state.map((s, i) => {
+        const stage = deriveStage(s);
+        const meta = STAGE_META[stage];
+        if (stage === 'none') return ''; // Hide unfiled tranches (clean by default)
+        const cashAmt = s.collectibleExists ? (s.pctCollected / 100) * s.amount : 0;
+        const progressHtml = (stage === 'collecting') ? `
+          <div class="lc-progress"><div class="lc-progress-fill" style="width:${s.pctCollected}%;background:#f97316;"></div></div>
+          <div class="lc-meta">${s.pctCollected}% collected · ${formatCurrency(cashAmt)} of ${formatCurrency(s.amount)}</div>
+        ` : stage === 'collected' ? `<div class="lc-meta">₱${formatCurrency(cashAmt)} received in full</div>` :
+            stage === 'approved-uninvoiced' ? `<div class="lc-meta">Awaiting COLL-xxx creation by finance</div>` :
+            stage === 'invoiced' ? `<div class="lc-meta">COLL-${('00'+(i+1)).slice(-3)} created · no payments yet</div>` : '';
+        return `
+          <div class="lifecycle-row" style="background:${stage==='collected'?'#f0fdf4':stage==='rejected'?'#fff5f5':stage==='pending'?'#fffbeb':stage==='approved-uninvoiced'?'#eef2ff':stage==='collecting'?'#fff7ed':'#f0fdfa'};">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="lc-tranche">${s.tranche.label}</div>
+                <div style="display:flex;align-items:center;gap:0.4rem;">
+                  <span class="lc-amount">${formatCurrency(s.amount)}</span>
+                  <span class="lc-badge ${meta.cls}">${meta.label}</span>
+                </div>
+              </div>
+              ${progressHtml}
+            </div>
+          </div>
+        `;
+      }).join('')}
+      ${!hasAny ? '<div style="font-size:0.7rem;color:#94a3b8;text-align:center;padding:0.5rem;">No billing requests filed yet.</div>' : ''}
+    </div>
+
+    <!-- Actions footer -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;border-top:1px solid #f1f5f9;padding-top:0.4rem;">
+      <span style="color:#64748b;font-size:0.68rem;cursor:pointer;">📊 Full Breakdown</span>
+      <span style="color:#1a73e8;font-size:0.72rem;font-weight:700;cursor:pointer;">↑ Initiate Billing →</span>
+    </div>
+  `;
+}
+
+// ---- Summary bar ----
+function renderSummary() {
+  const totalBilled = state.filter(s => s.billingStatus === 'approved').reduce((s, r) => s + r.amount, 0);
+  const totalInvoiced = state.filter(s => s.collectibleExists).reduce((s, r) => s + r.amount, 0);
+  const totalCash = state.filter(s => s.collectibleExists).reduce((s, r) => s + (r.pctCollected / 100) * r.amount, 0);
+  const outstanding = totalInvoiced - totalCash;
+  const awaitingInvoice = totalBilled - totalInvoiced;
+  document.getElementById('summaryBar').innerHTML = `
+    <div class="sm-chip"><div class="sm-val" style="color:#059669;">${formatCurrency(CONTRACT_COST)}</div><div class="sm-label">Contract Cost</div></div>
+    <span class="arrow">→</span>
+    <div class="sm-chip"><div class="sm-val" style="color:#059669;">${formatCurrency(totalBilled)}</div><div class="sm-label">Approved (Billed)</div></div>
+    <span class="arrow">→</span>
+    <div class="sm-chip"><div class="sm-val" style="color:#0369a1;">${formatCurrency(totalInvoiced)}</div><div class="sm-label">Invoiced (COLL-xxx)</div></div>
+    ${awaitingInvoice > 0 ? `<div class="sm-chip"><div class="sm-val" style="color:#7c3aed;">${formatCurrency(awaitingInvoice)}</div><div class="sm-label">Awaiting Invoice</div></div>` : ''}
+    <span class="arrow">→</span>
+    <div class="sm-chip"><div class="sm-val" style="color:#92400e;">${formatCurrency(totalCash)}</div><div class="sm-label">Cash Received</div></div>
+    <div class="sm-chip"><div class="sm-val" style="color:${outstanding > 0 ? '#ef4444' : '#059669'};">${formatCurrency(outstanding)}</div><div class="sm-label">Outstanding</div></div>
+  `;
+}
+
+function render() {
+  document.getElementById('beforeCard').innerHTML = renderBefore();
+  document.getElementById('afterCard').innerHTML = renderAfter();
+  renderSummary();
+}
+
+buildControls();
+render();
+</script>
+</body>
+</html>
