@@ -1,42 +1,32 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-05T12:45:00Z",
-  "phase": "99",
-  "phase_name": "billing-request-flow",
-  "phase_dir": ".planning/phases/99-billing-request-flow",
-  "plan": 3,
-  "task": 3,
-  "total_tasks": 8,
-  "status": "executed_awaiting_uat",
+  "timestamp": "2026-06-05T08:41:55Z",
+  "phase": null,
+  "phase_name": "collectibles-finance-revamp-spikes",
+  "phase_dir": ".planning/spikes/027c-collectibles-table-redesign",
+  "plan": null,
+  "task": null,
+  "status": "paused",
   "completed_tasks": [
-    {"id": "99-01-T1", "name": "billing_requests Security Rules block (BILL-06)", "status": "done", "commit": "0064849"},
-    {"id": "99-01-T2", "name": "BILLING_REQUEST_SUBMITTED/DECIDED notification types (D-17)", "status": "done", "commit": "de68d76"},
-    {"id": "99-02-T1", "name": "Initiate Billing footer link + own-requests listener/list", "status": "done", "commit": "52483ad"},
-    {"id": "99-02-T2", "name": "billing-request modal (tranche/pills/doc fields/validation)", "status": "done", "commit": "2fc481b"},
-    {"id": "99-02-T3", "name": "submitBillingRequest frozen D-04 doc + Finance notif + window wiring", "status": "done", "commit": "9efc6f5"},
-    {"id": "99-03-T1", "name": "pending listener + collapsible Pending Billing Requests banner (BILL-03)", "status": "done", "commit": "2fe9bea"},
-    {"id": "99-03-T2", "name": "approve bridge (preselectKey 3-seg + D-11 edge + mark approved)", "status": "done", "commit": "1a9800d"},
-    {"id": "99-03-T3", "name": "reject (required reason) + submitter notification + window wiring", "status": "done", "commit": "9d54e17"},
-    {"id": "gap-fix-1", "name": "dev console.log blabber removed + billed-tranche guard in modal (a5902d6)", "status": "done", "commit": "a5902d6"},
-    {"id": "gap-fix-2", "name": "DECIDED notification source_id = project_code not req.id (be8afbc)", "status": "done", "commit": "be8afbc"},
-    {"id": "gap-fix-3", "name": "renderer suppresses raw Firestore auto-IDs /^[A-Za-z0-9]{15,}$/ (228f4b7)", "status": "done", "commit": "228f4b7"}
+    {"id": 1, "name": "spike-027a collectibles page scorecard", "status": "done", "commit": "d27c5a1", "verdict": "VALIDATED — overdue chip kept"},
+    {"id": 2, "name": "spike-027b billing pipeline visibility", "status": "done", "commit": "d27c5a1", "verdict": "VALIDATED — Variant A banner, unified pending+approved sections"},
+    {"id": 3, "name": "spike-027c collectibles table redesign", "status": "built_pending_verification", "commit": "d27c5a1"}
   ],
   "remaining_tasks": [
-    {"id": "uat-6-reverify", "name": "Re-verify UAT test 6 with DevTools cache disabled: Network tab → Disable cache → reload → approve/reject a billing request → confirm notification shows 'CLMC-XXX · ProjectName' not a raw auto-ID", "status": "not_started"},
-    {"id": "mark-complete", "name": "Mark Phase 99 complete in ROADMAP + STATE once UAT test 6 re-verify passes", "status": "not_started"}
+    {"id": 4, "name": "verify spike-027c in browser", "status": "not_started"},
+    {"id": 5, "name": "record 027c verdict in README + MANIFEST", "status": "not_started"},
+    {"id": 6, "name": "spike --wrap-up or plan-phase for implementation", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Open DevTools → Network → tick 'Disable cache' → reload → Finance Collectibles → approve/reject a billing request → check bell notification", "context": "Browser was caching old finance.js so be8afbc hadn't run yet when last tested. With cache disabled, new DECIDED notifications will have source_id=project_code. The renderer (228f4b7) also now suppresses auto-IDs so old broken notifications look clean immediately.", "blocking": true}
+    {"action": "Open http://localhost:8000/.planning/spikes/027c-collectibles-table-redesign/spike.html and verify the redesigned table", "context": "Spike built and committed but verdict is PENDING. User paused before UAT.", "blocking": true}
   ],
   "decisions": [
-    {"decision": "Executed inline sequentially on v3.3 (no subagents/worktrees)", "rationale": "gsd-sdk unavailable on this machine + 2 stale LOCKED agent worktrees make the worktree/subagent path unsafe; matches Phase 98/91.3 precedent", "phase": "99"},
-    {"decision": "Own-requests listener scoped to currentProject.project_code via idempotent ensureBillingRequestsListener()", "rationale": "The URL projectCode param can be a Firestore doc id (Phase 78 D-06 clientless fallback) that differs from project_code, which is the field submit writes", "phase": "99"},
-    {"decision": "Billing-type pills inlined as literal _selectBillingType('progress'|'completion'|'other') calls", "rationale": "A DRY pill(type) helper interpolated ${type} so the literal strings the acceptance criteria grep for were absent; inlining matches the contract", "phase": "99"},
-    {"decision": "Auto-ID suppression added to notification renderer (/^[A-Za-z0-9]{15,}$/)", "rationale": "Human-readable IDs always contain dashes (MRF-2026-014, CLMC-BRIDGE-001); Firestore auto-IDs never do. Belt-and-suspenders fix that also cleans up already-written bugged notifications.", "phase": "99"},
-    {"decision": "billedIndices guard added to openBillingRequestModal() — disables already-pending/approved tranches", "rationale": "UAT gap: modal showed all tranches including ones with active billing requests. rejected is re-submittable.", "phase": "99"}
+    {"decision": "027a: 4-chip scorecard with overdue chip kept", "rationale": "User approved all 4 chips"},
+    {"decision": "027b: Variant A (banner), extended to show both pending-review AND approved-not-filed in one unified banner with two collapsible sections", "rationale": "User chose banner over ghost rows; wants pending-from-ops visible too"},
+    {"decision": "027c: 10-col to 5-col table with urgency left-border accents, progress bars, relative dates, last payment, fully-paid hidden by default", "rationale": "Design spike addressing 10 identified gaps in current table"}
   ],
   "uncommitted_files": [],
-  "next_action": "Re-verify UAT test 6 with DevTools cache disabled. If clean, mark Phase 99 complete in ROADMAP + STATE. See 99-HUMAN-UAT.md for full test log.",
-  "context_notes": "Phase 99 (Billing Request Flow) is fully EXECUTED — all 8 original tasks + 3 UAT gap fixes committed (a5902d6, be8afbc, 228f4b7). Tests 1-5 PASS. Test 6 (notifications) is PARTIAL: the display bug was caused by browser caching old finance.js; fixes are committed and the renderer now suppresses raw auto-IDs as belt-and-suspenders. Single remaining action: re-verify test 6 with cache disabled, then mark phase complete. Other open loops: merge v3.3 -> main + firebase deploy --only firestore:rules (Phase 87.4 pending); Phase 86.9 Plan 03 browser UAT."
+  "next_action": "Open http://localhost:8000/.planning/spikes/027c-collectibles-table-redesign/spike.html to verify the table redesign. Record verdict, then /gsd:spike --wrap-up to package findings before planning implementation.",
+  "context_notes": "Spike series 025-027c is a complete design exploration for the Finance Collectibles page revamp. 025/026 covered project detail card + expense modal. 027a/b/c cover the standalone Finance Collectibles page (scorecard + unified banner + table redesign). Implementation target is app/views/finance.js. Previous HANDOFF.json (Phase 99) is superseded — Phase 99 UAT test 6 still pending separately (see context_notes in previous state)."
 }
