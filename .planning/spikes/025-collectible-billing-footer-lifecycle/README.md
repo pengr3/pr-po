@@ -3,7 +3,7 @@ spike: 025
 name: collectible-billing-footer-lifecycle
 type: standard
 validates: "Given a project with billing_requests + collectible docs at various lifecycle stages, when the billing footer in the inline financial card renders, then each tranche shows its full lifecycle (pending→approved→not-yet-invoiced→invoiced→collecting→collected) with cash % visible — distinguishing 'approved on paper' from 'invoiced' from 'cash received'"
-verdict: PENDING
+verdict: VALIDATED
 related: [024-billing-request-flow]
 tags: [collectible, billing, lifecycle, ux, project-detail, finance]
 ---
@@ -67,4 +67,12 @@ Key findings:
 
 ## Results
 
-PENDING — browser verification needed.
+VALIDATED ✓
+
+**Confirmed design:**
+- 4 lifecycle stages: Not Filed (grayed) → Pending → Approved → Billed → Collected ✓
+- All tranches always visible; unfiled rows grayed out at 45% opacity with dashed "— Not Filed" badge
+- Partial payments (edge case) shown as a note under "Billed" badge, not a separate stage — because tranche amounts are pre-determined, full payment is the expectation
+- 2-chip scorecard: "Collected" + "Outstanding" (formula unified to collectible docs, not billing_requests)
+- "Full Breakdown →" button in card header (only entry point — no bottom link)
+- "Initiate Billing →" retained at footer right

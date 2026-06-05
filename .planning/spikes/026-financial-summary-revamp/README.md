@@ -3,7 +3,7 @@ spike: 026
 name: financial-summary-revamp
 type: standard
 validates: "Given the financial card's modal entry point is buried in the 'Projected Expense' chip and the modal lacks collectible scorecards, when we add (a) a dedicated 'Full Breakdown →' button to the card header and (b) scorecard chips at the modal top + collectibles tab top, then financial health is immediately readable without digging and the entry point is discoverable"
-verdict: PENDING
+verdict: VALIDATED
 related: [019-fee-row-variants, 020-fee-summary-card, 025-collectible-billing-footer-lifecycle]
 tags: [financial-breakdown, entry-point, scorecards, collectible, modal, ux, project-detail, expense-modal]
 ---
@@ -70,4 +70,11 @@ Open `.planning/spikes/026-financial-summary-revamp/index.html` in a browser.
 
 ## Results
 
-PENDING — browser verification needed.
+VALIDATED ✓
+
+**Confirmed design:**
+- Entry point: single "Full Breakdown →" button in the financial card header (no hidden click on Projected Expense, no bottom link)
+- Collectibles 2-chip: "Collected" + "Outstanding" — both sourced from collectible docs
+- Modal scorecard strip: Expense / Rem. Payable / Billed to Client / Invoiced (COLLs) / Cash Received
+- Collectibles tab: 3-chip summary (Total Billed / Cash Collected / Outstanding) + balance formula note + "awaiting COLL-xxx" ghost row for approved-but-not-yet-invoiced tranches
+- Formula unification: inline card uses collectible.amount_requested; modal uses collectible.amount_requested; both consistent
