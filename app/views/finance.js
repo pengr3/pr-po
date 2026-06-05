@@ -1706,7 +1706,7 @@ async function _notifyBillingDecision(req, decision, reason) {
             message: `Your billing request for ${req.project_name} (${req.tranche_label}) was ${decision}.` + (reason ? ` Reason: ${reason}` : ''),
             link: `#/projects/detail/${req.project_code}`,
             source_collection: 'billing_requests',
-            source_id: req.id,
+            source_id: req.project_code || '',
             object_name: req.project_name || '',
             actor_name: window.getCurrentUser?.()?.full_name || 'System'
         });
