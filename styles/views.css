@@ -2262,6 +2262,16 @@
 }
 .coll-dp-fixed input[type="date"]:focus { outline: none; border-color: #1a73e8; }
 
+/* 8. Grouped-by-project accordion view (Phase 99.3) */
+.coll-group-header { cursor: pointer; }
+.coll-group-header:hover td { background: #f0f4ff; }
+.coll-group-child td { background: #f8fafc; }
+.coll-group-child:hover td { background: #f1f5f9; }
+.coll-group-count-chip {
+    font-size: 0.6rem; font-weight: 700; background: #f1f5f9; color: #475569;
+    border-radius: 10px; padding: 0.05rem 0.45rem;
+}
+
 /* ========================================
    FINANCE MODALS — MOBILE RESPONSIVE (Phase 73.2)
    Targets Financial Breakdown Modal (#expenseBreakdownModal).

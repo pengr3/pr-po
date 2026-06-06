@@ -429,6 +429,9 @@ function attachWindowFunctions() {
     window.toggleCollDatePicker = toggleCollDatePicker;
     window.selectCollDuePreset = selectCollDuePreset;
     window.onCollFixedRangeChange = onCollFixedRangeChange;
+    // Phase 99.3 — group-by-Project accordion
+    window.toggleCollGroupBy = toggleCollGroupBy;
+    window.toggleCollGroup = toggleCollGroup;
 
     // Collectibles tab — write-side (Plan 06): direct assignments override any
     // pre-existing Plan 05 defensive stubs. Unconditional per Plan 06 contract.
@@ -1446,6 +1449,23 @@ function onCollFixedRangeChange() {
     collDuePreset = 'fixed';
     refreshCollDatePickerUI();
     collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+
+// Phase 99.3 — Group-by-Project toggle + per-group expand (spike-027c).
+function toggleCollGroupBy() {
+    collGroupBy = !collGroupBy;
+    collGroupExpanded = {};                 // every group starts collapsed
+    collCurrentPage = 1;
+    const btn = document.getElementById('collGroupByBtn');
+    if (btn) {
+        btn.textContent = collGroupBy ? '⊟ Ungroup' : '⊞ Group by Project';
+        btn.classList.toggle('active', collGroupBy);
+    }
+    renderCollectiblesTable();
+}
+function toggleCollGroup(key) {
+    collGroupExpanded[key] = !collGroupExpanded[key];
     renderCollectiblesTable();
 }
 
@@ -4271,6 +4291,7 @@ export function render(activeTab = 'approvals') {
                                     </div>
                                 </div>
                             </div>
+                            <button id="collGroupByBtn" class="btn btn-outline btn-sm" onclick="window.toggleCollGroupBy()" style="font-size:0.8125rem;">⊞ Group by Project</button>
                             <button class="btn btn-outline btn-sm" onclick="window.exportCollectiblesCSV()"
                                     id="exportCollectiblesBtn" style="font-size:0.8125rem;">Export CSV</button>
                         </div>
@@ -5189,6 +5210,8 @@ export async function destroy() {
     delete window.toggleCollDatePicker;      // Phase 99.3
     delete window.selectCollDuePreset;       // Phase 99.3
     delete window.onCollFixedRangeChange;    // Phase 99.3
+    delete window.toggleCollGroupBy;         // Phase 99.3
+    delete window.toggleCollGroup;           // Phase 99.3
     // Plan 06 Task 1 — create + edit
     delete window.openCreateCollectibleModal;
     delete window.submitCollectible;
@@ -5226,6 +5249,8 @@ export async function destroy() {
     collShowCompleted = false;   // D-05b — must reset so fully-paid rows stay hidden by default on remount
     collSearchQuery = '';        // Phase 99.3
     collDuePreset = '';          // Phase 99.3 — date label resets to "Due: Any time" on remount
+    collGroupBy = false;         // Phase 99.3 — flat default on remount
+    collGroupExpanded = {};      // Phase 99.3 — no groups expanded on remount
     collStatusFilter = '';
     collDeptFilter = '';
     collDueFromFilter = '';
