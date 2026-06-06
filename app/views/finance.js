@@ -111,11 +111,56 @@ function deriveCollectibleStatus(coll) {
     const totalPaid = (coll.payment_records || [])
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-    const isOverdue = coll.due_date && new Date(coll.due_date) < new Date();
+    const isOverdue = getCollectibleUrgency(coll).isOverdue;
     if (totalPaid >= coll.amount_requested && coll.amount_requested > 0) return 'Fully Paid';
     if (isOverdue) return 'Overdue';
     if (totalPaid > 0) return 'Partially Paid';
     return 'Pending';
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH for collectible urgency + the overdue definition (Phase 99.2, D-08b).
+ * The scorecard Overdue chip, the 6 row urgency tiers, the relative-due string, and the mobile
+ * card border ALL consume this — the overdue threshold is defined here and nowhere else.
+ * Returns { tier, daysOverdue, daysUntilDue, isOverdue } where
+ *   tier ∈ 'critical'|'overdue'|'near-due'|'partial'|'healthy'|'paid' → CSS class `coll-urgency-${tier}`.
+ * A collectible with no due_date is never overdue/critical/near-due (returns healthy or partial).
+ */
+function getCollectibleUrgency(coll) {
+    const totalPaid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const amt = parseFloat(coll.amount_requested) || 0;
+    const fullyPaid = totalPaid >= amt && amt > 0;
+    // ONE overdue definition (D-08b). Day-granularity diff from today (local midnight).
+    let daysOverdue = 0, daysUntilDue = null, isOverdue = false;
+    if (coll.due_date) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const due = new Date(coll.due_date + 'T00:00:00');
+        const diffDays = Math.round((due - today) / 86400000);
+        if (diffDays < 0) { isOverdue = !fullyPaid; daysOverdue = -diffDays; }
+        else { daysUntilDue = diffDays; }
+    }
+    let tier;
+    if (fullyPaid) tier = 'paid';
+    else if (isOverdue && daysOverdue >= 30) tier = 'critical';
+    else if (isOverdue) tier = 'overdue';                 // 1–29
+    else if (daysUntilDue !== null && daysUntilDue <= 7) tier = 'near-due';
+    else if (totalPaid > 0) tier = 'partial';
+    else tier = 'healthy';
+    return { tier, daysOverdue, daysUntilDue, isOverdue };
+}
+
+/**
+ * Newest non-voided payment record for a collectible (Phase 99.2, D-08a) — drives the
+ * Last Payment column. Filters out voided records BEFORE picking the max by `date`.
+ * Returns the record { amount, date, method, status } or null when none.
+ */
+function getCollectibleLastPayment(coll) {
+    const recs = (coll.payment_records || []).filter(r => r.status !== 'voided');
+    if (recs.length === 0) return null;
+    return recs.reduce((latest, r) =>
+        (!latest || (r.date || '') > (latest.date || '')) ? r : latest, null);
 }
 
 // Status badge color map — shared by renderRFPTable and renderPOSummaryTable
