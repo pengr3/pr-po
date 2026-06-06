@@ -1620,7 +1620,7 @@ function renderPendingBillingBanner() {
         const submitter = `${escapeHTML(req.requested_by_name || 'Unknown')} · ${req.requested_at ? formatTimestamp(req.requested_at) : ''}`;
         return `<div style="border-top:1px solid #dbeafe;padding:0.6rem 0;display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
             <div style="flex:1;min-width:240px;">
-                <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || '')}</div>
+                <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || req.service_name || '')}<span style="font-size:0.62rem;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:0.05rem 0.45rem;margin-left:0.4rem;">${req.department === 'services' ? 'Service' : 'Project'}</span></div>
                 <div style="color:#475569;font-size:0.74rem;margin-top:0.1rem;">${escapeHTML(req.tranche_label || '')} (${pct}%) · ${formatCurrency(req.amount_requested || 0)}</div>
                 <div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;">${submitter}</div>
                 ${docLinks ? `<div style="margin-top:0.25rem;">${docLinks}</div>` : ''}
@@ -1651,8 +1651,12 @@ async function approveBillingRequest(reqId) {
     if (!req) { showToast('Billing request not found. Refresh and try again.', 'error'); return; }
 
     // Open the prefilled modal (already gates on hasCollectibleWriteAuthority() — Finance-only).
-    // Billing requests are projects-only this phase, so the dept segment is always 'projects'.
-    window.openCreateCollectibleModal('projects:' + (req.project_code || '') + ':' + req.tranche_index);
+    // Phase 99.1 D-25 — dept-aware preselectKey (missing department → projects, D-22 back-compat).
+    const isService = req.department === 'services';
+    const preselectKey = isService
+        ? 'services:' + (req.service_code || '') + ':' + req.tranche_index
+        : 'projects:' + (req.project_code || '') + ':' + req.tranche_index;
+    window.openCreateCollectibleModal(preselectKey);
 
     // Mark approved (status lowercase 'approved', D-05; reviewer fields). Pre-fill ≠ collectible creation (D-12).
     try {
@@ -1699,15 +1703,21 @@ async function rejectBillingRequest(reqId) {
 // defaults excludeActor:false, which is correct here (Finance is the actor; the submitter must be notified).
 async function _notifyBillingDecision(req, decision, reason) {
     if (!req?.requested_by_uid) return; // avoid an empty user_ids call; helper also guards null actor
+    // Phase 99.1 D-26 — dept-aware link/message/source so service decisions don't dead-end on #/projects
+    // (missing department → projects, D-22 back-compat).
+    const isService = req.department === 'services';
+    const name = isService ? (req.service_name || '') : (req.project_name || '');
+    const link = isService ? ('#/services/detail/' + (req.service_code || '')) : ('#/projects/detail/' + (req.project_code || ''));
+    const sourceId = isService ? (req.service_code || '') : (req.project_code || '');
     try {
         await createNotificationForUsers({
             user_ids: [req.requested_by_uid],
             type: NOTIFICATION_TYPES.BILLING_REQUEST_DECIDED,
-            message: `Your billing request for ${req.project_name} (${req.tranche_label}) was ${decision}.` + (reason ? ` Reason: ${reason}` : ''),
-            link: `#/projects/detail/${req.project_code}`,
+            message: `Your billing request for ${name} (${req.tranche_label}) was ${decision}.` + (reason ? ` Reason: ${reason}` : ''),
+            link,
             source_collection: 'billing_requests',
-            source_id: req.project_code || '',
-            object_name: req.project_name || '',
+            source_id: sourceId,
+            object_name: name,
             actor_name: window.getCurrentUser?.()?.full_name || 'System'
         });
     } catch (notifErr) {
