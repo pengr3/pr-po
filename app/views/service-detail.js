@@ -245,8 +245,6 @@ export async function destroy() {
     delete window.filterDetailServicePersonnelDropdown;
     delete window.showDetailServicePersonnelDropdown;
     delete window.refreshServiceExpense;
-    delete window.showServiceExpenseModal;
-    delete window.refreshAndShowServiceExpenseModal;
     delete window.showEditHistory;
     delete window.exportServiceExpenseCSV;
     // Phase 87.1 D-05 — inline proposal card window functions cleanup
@@ -577,6 +575,38 @@ async function submitBillingRequest() {
     }
 }
 
+// Phase 99.1 D-06..D-09 — per-tranche lifecycle rows for services (mirror of project-detail.js
+// renderTrancheLifecycleRows). Iterates EVERY collection_tranche; unfiled → 45% opacity + dashed
+// badge (D-08); collecting → "₱X of ₱Y · Z%" note (D-09). All user strings escaped (D-19).
+// Includes the "↑ Initiate Billing →" entry (D-11 — new on services) at footer right.
+function renderServiceTrancheLifecycle() {
+    const tranches = Array.isArray(currentService?.collection_tranches) ? currentService.collection_tranches : [];
+    const rows = tranches.map((tranche, i) => {
+        const lc = computeTrancheLifecycle(tranche, i, currentBillingRequests, currentCollectibleDocs);
+        const br = currentBillingRequests.find(r => r.tranche_index === i);
+        const reason = (lc.stage === 'rejected' && br?.rejection_reason)
+            ? `<div style="font-size:0.62rem;color:#991b1b;margin-top:0.1rem;">Reason: ${escapeHTML(br.rejection_reason)}</div>` : '';
+        const note = lc.note
+            ? `<div style="font-size:0.62rem;color:#475569;margin-top:0.1rem;">${escapeHTML(lc.note)}</div>` : '';
+        const isNotFiled = lc.stage === 'not-filed';
+        const badgeStyle = isNotFiled
+            ? `border:1px dashed ${lc.badgeColor};background:transparent;color:${lc.badgeColor};`
+            : `border:none;background:${lc.badgeColor};color:#fff;`;
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;padding:0.3rem 0;border-top:1px solid #f1f5f9;opacity:${lc.opacity};">
+            <div style="font-size:0.8rem;color:#475569;font-weight:600;">${escapeHTML(tranche.label || ('Tranche ' + (i + 1)))}${reason}${note}</div>
+            <span style="font-size:0.65rem;font-weight:700;${badgeStyle}border-radius:999px;padding:0.15rem 0.6rem;white-space:nowrap;">${escapeHTML(lc.badgeLabel)}</span>
+        </div>`;
+    }).join('');
+    return `
+        <div style="margin-top:1rem;border-top:1px solid #e2e8f0;padding-top:0.75rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem;">
+                <div style="font-size:0.7rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.06em;">Collection Lifecycle</div>
+                <span onclick="window.openBillingRequestModal()" style="cursor:pointer;color:#1a73e8;font-size:0.8rem;font-weight:700;user-select:none;">↑ Initiate Billing →</span>
+            </div>
+            ${tranches.length === 0 ? '<div style="font-size:0.72rem;color:#94a3b8;">No collection tranches set up yet.</div>' : rows}
+        </div>`;
+}
+
 /**
  * Check if the current user has access to the current service.
  * For services_user without all_services, the service must be in assigned_service_codes.
@@ -730,11 +760,15 @@ function renderServiceDetail() {
                 <div class="card-body" style="padding: 1.5rem;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                         <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Financial Summary</h3>
-                        <button class="btn btn-sm btn-secondary" onclick="window.exportServiceExpenseCSV()"
-                            style="font-size: 0.75rem; padding: 0.25rem 0.75rem; display: flex; align-items: center; gap: 0.35rem;${currentServiceExpense.poCount === 0 ? ' opacity: 0.45; pointer-events: none; cursor: default;' : ''}"
-                            ${currentServiceExpense.poCount === 0 ? 'disabled' : ''}>
-                            &#8681; Export CSV
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <button class="btn btn-sm btn-secondary" onclick="window.openServiceFullBreakdown()"
+                                style="font-size: 0.75rem; padding: 0.25rem 0.75rem; white-space: nowrap;">Full Breakdown →</button>
+                            <button class="btn btn-sm btn-secondary" onclick="window.exportServiceExpenseCSV()"
+                                style="font-size: 0.75rem; padding: 0.25rem 0.75rem; display: flex; align-items: center; gap: 0.35rem;${currentServiceExpense.poCount === 0 ? ' opacity: 0.45; pointer-events: none; cursor: default;' : ''}"
+                                ${currentServiceExpense.poCount === 0 ? 'disabled' : ''}>
+                                &#8681; Export CSV
+                            </button>
+                        </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
@@ -762,15 +796,8 @@ function renderServiceDetail() {
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Projected Cost</label>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem; cursor: pointer;"
-                                     onclick="window.showServiceExpenseModal()">
-                                    ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) : '—'}
-                                </div>
-                                <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowServiceExpenseModal()" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">&#x1F504; Refresh</button>
-                            </div>
-                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
-                                Click amount to view breakdown
+                            <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem;">
+                                ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) : '—'}
                             </div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
@@ -804,12 +831,13 @@ function renderServiceDetail() {
                             </div>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Collectible</label>
+                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Outstanding</label>
                             <div style="font-weight: 600; color: ${currentServiceCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
                                 ${formatCurrency(currentServiceCollectibles.remainingCollectible)}
                             </div>
                         </div>
                     </div>
+                    ${renderServiceTrancheLifecycle()}
                 </div>
             </div>
 
@@ -1692,13 +1720,8 @@ function attachWindowFunctions() {
     window.filterDetailServicePersonnelDropdown = filterDetailServicePersonnelDropdown;
     window.showDetailServicePersonnelDropdown = showDetailServicePersonnelDropdown;
     window.refreshServiceExpense = refreshServiceExpense;
-    window.showServiceExpenseModal = () => currentService &&
-        showExpenseBreakdownModal(currentService.service_code, {
-            mode: 'service',
-            displayName: currentService.service_name,
-            budget: currentService.budget
-        });
-    window.refreshAndShowServiceExpenseModal = async () => {
+    // Phase 99.1 D-16 — single always-refresh Full Breakdown entry (collapses the show/refresh split)
+    window.openServiceFullBreakdown = async () => {
         if (!currentService) return;
         await refreshServiceExpense(true);
         showExpenseBreakdownModal(currentService.service_code, {
