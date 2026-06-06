@@ -610,21 +610,32 @@ function renderProjectDetail() {
                         <!-- Collectibles group -->
                         <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
                         <div style="font-size:0.65rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Collectibles</div>
+                        <!-- Phase 99.1 D-10 — 2-chip scorecard (Collected + Outstanding), both sourced
+                             from collectible docs (NOT approved billing_requests). Outstanding = Invoiced − Collected. -->
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;">
+                            ${(() => {
+                                const docs = Array.isArray(currentCollectibleDocs) ? currentCollectibleDocs : [];
+                                const collected = docs.reduce((s, c) => s + (c.payment_records || [])
+                                    .filter(r => r.status !== 'voided')
+                                    .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0), 0);
+                                const invoiced = docs.reduce((s, c) => s + (parseFloat(c.amount_requested) || 0), 0);
+                                const outstanding = invoiced - collected; // D-04
+                                return `
                             <div style="background:#f0fdf4;border-radius:5px;padding:0.3rem 0.5rem;">
                                 <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Collected</div>
-                                <div style="font-weight:700;color:#059669;font-size:0.85rem;">${formatCurrency(currentCollectibles.totalCollected)}</div>
+                                <div style="font-weight:700;color:#059669;font-size:0.85rem;">${formatCurrency(collected)}</div>
                             </div>
                             <div style="background:#f0fdf4;border-radius:5px;padding:0.3rem 0.5rem;">
-                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Rem. Collectible</div>
-                                <div style="font-weight:700;color:${currentCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentCollectibles.remainingCollectible)}</div>
-                            </div>
+                                <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Outstanding</div>
+                                <div style="font-weight:700;color:${outstanding > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(outstanding)}</div>
+                            </div>`;
+                            })()}
                         </div>
                         <!-- Phase 99 D-15 — Initiate Billing footer link (unconditional; operations_user must reach it) -->
                         <div style="text-align:right;margin-top:0.5rem;">
                             <span onclick="window.openBillingRequestModal()" style="cursor:pointer;color:#1a73e8;font-size:0.72rem;font-weight:700;user-select:none;">↑ Initiate Billing →</span>
                         </div>
-                        ${renderOwnBillingRequests()}
+                        ${renderTrancheLifecycleRows()}
                     </div>
                 </div>
             </div>
@@ -705,24 +716,30 @@ function computeTrancheLifecycle(tranche, idx, billingReqs, collectibleDocs) {
     return { stage: 'invoiced-awaiting', badgeLabel: 'Invoiced — Awaiting Payment', badgeColor: '#0d9488', opacity: 1, pct: 0, totalPaid, amountRequested, note: '' };
 }
 
-// Phase 99 D-15 — compact own-requests status list (pending/approved/rejected + reason).
-// Reads the module var populated by ensureBillingRequestsListener(); empty state returns ''.
-// All user strings escaped (D-19); status pills lowercase-exact (D-21).
-function renderOwnBillingRequests() {
-    if (!Array.isArray(currentBillingRequests) || currentBillingRequests.length === 0) return '';
-    const PILL = { pending: '#f59e0b', approved: '#059669', rejected: '#ef4444' };
-    const rows = currentBillingRequests
-        .slice()
-        .sort((a, b) => ((b.requested_at?.seconds || 0) - (a.requested_at?.seconds || 0)))
-        .map(r => {
-            const color = PILL[r.status] || '#64748b'; // exact lowercase match, D-21
-            const reason = (r.status === 'rejected' && r.rejection_reason)
-                ? `<div style="font-size:0.62rem;color:#991b1b;margin-top:0.1rem;">Reason: ${escapeHTML(r.rejection_reason)}</div>` : '';
-            return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;padding:0.2rem 0;border-top:1px solid #f1f5f9;">
-                <div style="font-size:0.66rem;color:#475569;">${escapeHTML(r.tranche_label || '')} · ${formatCurrency(r.amount_requested || 0)}${reason}</div>
-                <span style="font-size:0.6rem;font-weight:700;color:${color};text-transform:capitalize;white-space:nowrap;">${escapeHTML(r.status || '')}</span>
-            </div>`;
-        }).join('');
+// Phase 99.1 D-06..D-09 — per-tranche lifecycle rows (REPLACES the status-only own-requests list).
+// Iterates EVERY collection_tranche so every tranche is always a row — even unfiled ones —
+// cross-referencing billing_requests + collectible docs via computeTrancheLifecycle. Unfiled →
+// 45% opacity + dashed "— Not Filed" badge (D-08); partial payment → "₱X of ₱Y · Z%" note under
+// the badge (D-09), not a separate stage. All user strings escaped (D-19).
+function renderTrancheLifecycleRows() {
+    const tranches = Array.isArray(currentProject?.collection_tranches) ? currentProject.collection_tranches : [];
+    if (tranches.length === 0) return '';
+    const rows = tranches.map((tranche, i) => {
+        const lc = computeTrancheLifecycle(tranche, i, currentBillingRequests, currentCollectibleDocs);
+        const br = currentBillingRequests.find(r => r.tranche_index === i);
+        const reason = (lc.stage === 'rejected' && br?.rejection_reason)
+            ? `<div style="font-size:0.62rem;color:#991b1b;margin-top:0.1rem;">Reason: ${escapeHTML(br.rejection_reason)}</div>` : '';
+        const note = lc.note
+            ? `<div style="font-size:0.62rem;color:#475569;margin-top:0.1rem;">${escapeHTML(lc.note)}</div>` : '';
+        const isNotFiled = lc.stage === 'not-filed';
+        const badgeStyle = isNotFiled
+            ? `border:1px dashed ${lc.badgeColor};background:transparent;color:${lc.badgeColor};`
+            : `border:none;background:${lc.badgeColor};color:#fff;`;
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;padding:0.25rem 0;border-top:1px solid #f1f5f9;opacity:${lc.opacity};">
+            <div style="font-size:0.66rem;color:#475569;font-weight:600;">${escapeHTML(tranche.label || ('Tranche ' + (i + 1)))}${reason}${note}</div>
+            <span style="font-size:0.58rem;font-weight:700;${badgeStyle}border-radius:999px;padding:0.1rem 0.5rem;white-space:nowrap;">${escapeHTML(lc.badgeLabel)}</span>
+        </div>`;
+    }).join('');
     return `<div style="margin-top:0.4rem;">${rows}</div>`;
 }
 
@@ -1306,29 +1323,25 @@ async function refreshExpense(silent = false) {
             hasRfps
         };
 
-        // Aggregate collectibles: "filed" = approved billing_requests; "collected" = payments recorded in collectibles docs.
-        // billing_requests.approved represents amounts billed to the client — outstanding until cash is received.
-        // collectibles.payment_records tracks actual cash receipts. Rem. Collectible = filed − received.
-        let collTotalFiled = 0;
+        // D-04 fix per 99.1 D-10 — Outstanding sourced from collectible docs, NOT approved billing_requests.
+        // Invoiced = collectibles.amount_requested (frozen); Collected = non-voided payment_records;
+        // Outstanding (Rem. Collectible) = Invoiced − Collected. Matches the service side (service-detail.js).
+        let collTotalInvoiced = 0;
         let collTotalCollected = 0;
         if (projectCode) {
-            const [billingSnap, collSnap] = await Promise.all([
-                getDocs(query(collection(db, 'billing_requests'), where('project_code', '==', projectCode), where('status', '==', 'approved'))),
-                getDocs(query(collection(db, 'collectibles'), where('project_code', '==', projectCode)))
-            ]);
-            billingSnap.forEach(d => {
-                collTotalFiled += parseFloat(d.data().amount_requested || 0);
-            });
+            const collSnap = await getDocs(query(collection(db, 'collectibles'), where('project_code', '==', projectCode)));
             collSnap.forEach(d => {
-                collTotalCollected += (d.data().payment_records || [])
+                const coll = d.data();
+                collTotalInvoiced += parseFloat(coll.amount_requested || 0);
+                collTotalCollected += (coll.payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((s, r) => s + parseFloat(r.amount || 0), 0);
             });
         }
         currentCollectibles = {
-            totalRequested: collTotalFiled,
+            totalRequested: collTotalInvoiced,
             totalCollected: collTotalCollected,
-            remainingCollectible: collTotalFiled - collTotalCollected
+            remainingCollectible: collTotalInvoiced - collTotalCollected
         };
 
         // Re-render to show updated expense
