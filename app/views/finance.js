@@ -234,11 +234,12 @@ let billingBannerCollapsed = false;
 let approvedBillingRequests = [];        // approved requests, reconciled against collectiblesData for orphans
 let approvedBannerCollapsed = false;     // independent collapse for sub-section 2
 // Filter state (D-03 — independence pattern from Phase 65.1)
-let collProjectFilter = '';              // selected project_code or service_code (used in conjunction with collDeptFilter)
+let collSearchQuery = '';                // Phase 99.3 — free-text over name/tranche/COLL id/code
 let collStatusFilter = '';
 let collDeptFilter = '';                 // 'projects' | 'services' | ''
-let collDueFromFilter = '';              // 'YYYY-MM-DD' or ''
-let collDueToFilter = '';
+let collDuePreset = '';                  // Phase 99.3 — '', today, yesterday, this_month, last7, last30, fixed
+let collDueFromFilter = '';              // 'YYYY-MM-DD' or '' — EFFECTIVE Fixed-range From (preset-computed or typed)
+let collDueToFilter = '';                // EFFECTIVE Fixed-range To
 // Pagination state (D-04, mirrors Phase 65.7)
 let collCurrentPage = 1;
 const collItemsPerPage = 15;
@@ -1357,17 +1358,31 @@ async function initPayablesTab() {
 // ========================================
 
 /**
- * Read all 5 collectibles filter inputs into module state, reset page,
- * and trigger a re-render (D-04: filter change resets to page 1).
+ * Read the search/status/dept filter inputs into module state, reset page, and
+ * re-render (D-04: filter change resets to page 1). The due-date range is NOT
+ * read here — it's set by the date-picker handlers (selectCollDuePreset /
+ * onCollFixedRangeChange), which write the effective collDueFrom/ToFilter range.
  */
 function filterCollectiblesTable() {
-    collProjectFilter = document.getElementById('collProjectFilter')?.value || '';
+    collSearchQuery = (document.getElementById('collSearchInput')?.value || '').trim().toLowerCase();
     collStatusFilter = document.getElementById('collStatusFilter')?.value || '';
     collDeptFilter = document.getElementById('collDeptFilter')?.value || '';
-    collDueFromFilter = document.getElementById('collDueFromFilter')?.value || '';
-    collDueToFilter = document.getElementById('collDueToFilter')?.value || '';
     collCurrentPage = 1;
     renderCollectiblesTable();
+}
+
+// Phase 99.3 — Looker-style preset -> effective due_date range (YYYY-MM-DD).
+// last7/last30 are ROLLING windows ending today; this_month = current calendar month.
+function computeCollDueRange(preset) {
+    const fmt = d => { const z = new Date(d); z.setHours(0,0,0,0);
+        return `${z.getFullYear()}-${String(z.getMonth()+1).padStart(2,'0')}-${String(z.getDate()).padStart(2,'0')}`; };
+    const t = new Date(); t.setHours(0,0,0,0);
+    if (preset === 'today')      return { from: fmt(t), to: fmt(t) };
+    if (preset === 'yesterday')  { const y = new Date(t); y.setDate(y.getDate()-1); return { from: fmt(y), to: fmt(y) }; }
+    if (preset === 'this_month') return { from: fmt(new Date(t.getFullYear(), t.getMonth(), 1)), to: fmt(new Date(t.getFullYear(), t.getMonth()+1, 0)) };
+    if (preset === 'last7')      { const f = new Date(t); f.setDate(f.getDate()-6);  return { from: fmt(f), to: fmt(t) }; }
+    if (preset === 'last30')     { const f = new Date(t); f.setDate(f.getDate()-29); return { from: fmt(f), to: fmt(t) }; }
+    return { from: '', to: '' }; // '' (Any time) and 'fixed' compute from inputs, not here
 }
 
 // Phase 99.3 — urgency-tier sort order (spike-027c URG_ORDER). Keys are the exact
@@ -1394,25 +1409,34 @@ function getDisplayedCollectibles() {
         displayed = displayed.filter(c => c.department === collDeptFilter);
     }
 
-    // Project/service code filter
-    if (collProjectFilter) {
-        displayed = displayed.filter(c => {
-            const code = c.department === 'projects' ? c.project_code : c.service_code;
-            return code === collProjectFilter;
-        });
-    }
-
-    // Status filter (status is derived, not stored)
-    if (collStatusFilter) {
+    // Status filter (status is derived, not stored). The "Near Due" sentinel maps to the
+    // canonical getCollectibleUrgency tier 'near-due' (<=7 days AND not overdue, finance.js:148)
+    // — deliberately narrower than a loose d<=7 test, so it agrees with Plan 02 group counts.
+    if (collStatusFilter === 'Near Due') {
+        displayed = displayed.filter(c => getCollectibleUrgency(c).tier === 'near-due');
+    } else if (collStatusFilter) {
         displayed = displayed.filter(c => deriveCollectibleStatus(c) === collStatusFilter);
     }
 
-    // Due-date range filter — string YYYY-MM-DD lexicographic compare
+    // Due-date range filter — string YYYY-MM-DD lexicographic compare (effective range:
+    // computed from the active preset, or the typed Fixed-range inputs).
     if (collDueFromFilter) {
         displayed = displayed.filter(c => c.due_date && c.due_date >= collDueFromFilter);
     }
     if (collDueToFilter) {
         displayed = displayed.filter(c => c.due_date && c.due_date <= collDueToFilter);
+    }
+
+    // Free-text search — project/service name, tranche label, COLL id, project/service code.
+    if (collSearchQuery) {
+        displayed = displayed.filter(c => {
+            const name = c.department === 'projects'
+                ? (c.project_name || c.project_code || '')
+                : (c.service_name || c.service_code || '');
+            const code = c.department === 'projects' ? (c.project_code || '') : (c.service_code || '');
+            const hay = [name, c.tranche_label || '', c.coll_id || '', code].join(' ').toLowerCase();
+            return hay.includes(collSearchQuery);
+        });
     }
 
     // Phase 99.3 — urgency-first sort (replaces 99.2 status-priority sort).
@@ -1504,7 +1528,7 @@ function renderCollectiblesTable() {
 
     // Empty state — filter-aware copy
     if (totalItems === 0) {
-        const hasFilters = collProjectFilter || collStatusFilter || collDeptFilter || collDueFromFilter || collDueToFilter;
+        const hasFilters = collSearchQuery || collStatusFilter || collDeptFilter || collDueFromFilter || collDueToFilter;
         const message = hasFilters
             ? 'No collectibles match your filters.'
             : (collectiblesData.length === 0
@@ -1697,33 +1721,6 @@ function buildCollectibleCard(coll) {
 }
 
 /**
- * Populate the Project/Service filter dropdown from collectiblesData distinct
- * codes. Preserves current selection if still valid after the data update.
- */
-function populateCollProjectFilter() {
-    const sel = document.getElementById('collProjectFilter');
-    if (!sel) return;
-    const previousValue = sel.value;
-    // Build distinct (code, name, dept) options
-    const seen = new Map(); // key=code, value={name,dept}
-    collectiblesData.forEach(c => {
-        const code = c.department === 'projects' ? c.project_code : c.service_code;
-        const name = c.department === 'projects' ? (c.project_name || code) : (c.service_name || code);
-        if (code && !seen.has(code)) seen.set(code, { name, dept: c.department });
-    });
-    const sortedEntries = Array.from(seen.entries()).sort((a, b) => a[1].name.localeCompare(b[1].name));
-    const optionsHTML = `
-        <option value="">All Projects/Services</option>
-        ${sortedEntries.map(([code, meta]) => `<option value="${escapeHTML(code)}">${escapeHTML(meta.name)} (${meta.dept === 'projects' ? 'P' : 'S'})</option>`).join('')}
-    `;
-    sel.innerHTML = optionsHTML;
-    // Restore selection if still valid
-    if (previousValue && Array.from(sel.options).some(o => o.value === previousValue)) {
-        sel.value = previousValue;
-    }
-}
-
-/**
  * Initialize the Collectibles sub-tab. Subscribes to:
  *   - collectibles (drives table render + project-filter dropdown population)
  *   - projects     (used by Plan 06 create-modal tranche dropdown source)
@@ -1740,7 +1737,6 @@ async function initCollectiblesTab() {
         snapshot.forEach(docSnap => {
             collectiblesData.push({ id: docSnap.id, ...docSnap.data() });
         });
-        populateCollProjectFilter();
         renderCollectiblesTable();
         renderPendingBillingBanner();   // Phase 99.2 — a freshly-filed COLL drops its approved orphan from sub-section 2 (D-04)
     }, (err) => {
@@ -4970,7 +4966,8 @@ export async function destroy() {
     approvedBillingRequests = [];
     approvedBannerCollapsed = false;
     collShowCompleted = false;   // D-05b — must reset so fully-paid rows stay hidden by default on remount
-    collProjectFilter = '';
+    collSearchQuery = '';        // Phase 99.3
+    collDuePreset = '';          // Phase 99.3 — date label resets to "Due: Any time" on remount
     collStatusFilter = '';
     collDeptFilter = '';
     collDueFromFilter = '';
