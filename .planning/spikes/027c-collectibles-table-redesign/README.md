@@ -3,7 +3,7 @@ spike: 027c
 name: collectibles-table-redesign
 type: standard
 validates: "Given a Finance user opening the Collectibles tab, when the table is redesigned from 10 flat columns to 5 rich columns with urgency accents, collection progress bars, relative due dates, and last-payment indicators, then actionable items surface immediately without scanning every row"
-verdict: PENDING
+verdict: VALIDATED
 related: [027a-collectibles-page-scorecard, 027b-collectibles-billing-pipeline]
 tags: [collectible, table, redesign, finance, ux, urgency, progress, dashboard]
 ---
@@ -87,4 +87,4 @@ Key design decisions made during build:
 
 ## Results
 
-PENDING — requires browser verification.
+VALIDATED (2026-06-06) — user reviewed the redesign in-browser (Edge) and approved the 5-column layout, urgency left-border accents, collection progress bars, relative due dates, last-payment column, and fully-paid-hidden-by-default behavior. Cleared for implementation into `app/views/finance.js`.

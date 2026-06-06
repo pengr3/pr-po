@@ -6,6 +6,7 @@ validates: "Given N collectible docs shown in the Finance Collectibles tab, when
 verdict: PENDING
 related: [026-financial-summary-revamp, 025-collectible-billing-footer-lifecycle]
 tags: [collectible, scorecard, finance, ux, dashboard, aggregates]
+verdict: VALIDATED
 ---
 
 # Spike 027a — Collectibles Page Aggregate Scorecard Strip
@@ -61,4 +62,4 @@ Notable decisions made during build:
 
 ## Results
 
-PENDING — requires browser verification.
+VALIDATED ✓ (2026-06-05) — 4-chip reactive scorecard confirmed; **Overdue chip kept** (adds value, not noise). Chips reflect currently-filtered rows, not the full dataset. Cleared for implementation into the Finance Collectibles tab in `app/views/finance.js`.

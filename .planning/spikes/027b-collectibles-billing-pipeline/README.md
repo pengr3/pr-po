@@ -6,6 +6,7 @@ validates: "Given approved billing requests not yet filed as COLL-xxx, when surf
 verdict: PENDING
 related: [025-collectible-billing-footer-lifecycle, 026-financial-summary-revamp]
 tags: [collectible, billing-requests, pipeline, finance, ux, ghost-rows, banner]
+verdict: VALIDATED
 ---
 
 # Spike 027b — Collectibles Billing Pipeline Visibility (Comparison)
@@ -73,4 +74,6 @@ Key observations:
 
 ## Results
 
-PENDING — requires browser verification.
+VALIDATED ✓ (2026-06-05) — WINNER is neither pure A nor pure B, but the **unified banner** (the "Alternative not spiked" noted above): one collapsible block with **two sub-sections** — "Awaiting Your Review" (pending billing requests) + "Approved — File as Collectible" (approved, no COLL-xxx yet). Avoids the two-banner cognitive load of A and the mixed-row confusion of B. Sourced by reconciling `billing_requests(status='approved')` against `collectiblesData` on `project_code + tranche_index`. Cleared for implementation in `app/views/finance.js`.
+
+**Note:** This surfaces a real silent orphan state in current Phase 99 code — `approveBillingRequest()` flips `status='approved'` *before* the COLL is created (D-12), so an abandoned create leaves an approved-but-unfiled request invisible on every screen. This banner section is its only recovery path.
