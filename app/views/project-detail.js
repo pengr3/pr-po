@@ -31,6 +31,10 @@ let currentBillingRequests = [];
 let billingRequestsListenerUnsub = null;
 // Phase 99 — billing-request modal selected type (auto-hinted, overrideable)
 let billingSelectedType = 'progress';
+// Phase 99.1 D-12 — raw collectible docs (per-tranche, with payment_records) for lifecycle
+// derivation. Distinct name from currentCollectibles (:22), which is the AGGREGATE object.
+let currentCollectibleDocs = [];
+let collectiblesListenerUnsub = null;
 
 // Phase 86 — Project Plan summary card
 let currentTasks = [];
@@ -186,6 +190,8 @@ export async function init(activeTab = null, param = null) {
                         ensureTasksListener();
                         // Phase 99 — own billing-requests listener (idempotent, scoped to project_code)
                         ensureBillingRequestsListener();
+                        // Phase 99.1 — raw collectibles listener (idempotent, scoped to project_code)
+                        ensureCollectiblesListener();
                         await ensureIterationLabel();
                         if (checkProjectAccess()) {
                             renderProjectDetail();
@@ -224,6 +230,8 @@ export async function init(activeTab = null, param = null) {
         ensureTasksListener();
         // Phase 99 — own billing-requests listener (idempotent, scoped to project_code)
         ensureBillingRequestsListener();
+        // Phase 99.1 — raw collectibles listener (idempotent, scoped to project_code)
+        ensureCollectiblesListener();
         await ensureIterationLabel();
 
         // Phase 7: Check project assignment access for operations_user
@@ -274,6 +282,26 @@ function ensureBillingRequestsListener() {
     );
 }
 
+// Phase 99.1 D-12 — idempotent attach of the raw-collectibles listener (per-tranche docs
+// with payment_records, for lifecycle-stage derivation). Mirrors ensureBillingRequestsListener():
+// scoped to currentProject.project_code (the DOC FIELD, NOT the URL `projectCode` param —
+// Phase 78 doc-id fallback), re-renders the detail on change, torn down in destroy().
+function ensureCollectiblesListener() {
+    if (collectiblesListenerUnsub) return;
+    const code = currentProject?.project_code;
+    if (!code) return; // no project_code → no scoped collectibles stream (legacy/clientless edge)
+    collectiblesListenerUnsub = onSnapshot(
+        query(collection(db, 'collectibles'), where('project_code', '==', code)),
+        (snap) => {
+            currentCollectibleDocs = [];
+            snap.forEach(d => currentCollectibleDocs.push({ id: d.id, ...d.data() }));
+            // re-render so the lifecycle footer + 2-chip scorecard reflect COLL state
+            if (currentProject) renderProjectDetail();
+        },
+        (err) => { console.error('[ProjectDetail/Collectibles] snapshot error:', err); }
+    );
+}
+
 // Fetch and cache the label of the currently-loaded named iteration (023b).
 // Called each time the project snapshot fires so the card stays in sync when the
 // user switches iterations in the plan page and navigates back.
@@ -316,6 +344,11 @@ export async function destroy() {
     billingRequestsListenerUnsub = null;
     currentBillingRequests = [];
     billingSelectedType = 'progress';
+
+    // Phase 99.1 D-12 — raw collectibles listener teardown
+    if (collectiblesListenerUnsub) { try { collectiblesListenerUnsub(); } catch (e) { /* swallow */ } }
+    collectiblesListenerUnsub = null;
+    currentCollectibleDocs = [];
 
     // Phase 86 — Project Plan summary listener teardown
     if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } }
@@ -624,6 +657,52 @@ function renderProjectDetail() {
             if (field) field.focus();
         }
     }
+}
+
+// Phase 99.1 D-07/D-13 — single source of truth for a tranche's lifecycle stage + cash %.
+// Cross-references a tranche against its billing_request and collectible doc (matched by
+// tranche_index — the in-page D-05 key, project_code already implied by the scoped listeners)
+// and derives the stage using the CANONICAL voided-excluded cash formula
+// (finance.js:110 === expense-modal.js:24). DO NOT add a divergent denominator/voided rule.
+// Returns { stage, badgeLabel, badgeColor, opacity, pct, totalPaid, amountRequested, note }.
+// This helper shape is the canonical reference Plan 03 (service-detail.js) mirrors verbatim.
+function computeTrancheLifecycle(tranche, idx, billingReqs, collectibleDocs) {
+    const br = (Array.isArray(billingReqs) ? billingReqs : []).find(r => r.tranche_index === idx);
+    const coll = (Array.isArray(collectibleDocs) ? collectibleDocs : []).find(c => c.tranche_index === idx);
+    const amountRequested = coll ? (parseFloat(coll.amount_requested) || 0) : 0;
+    // Canonical formula (D-13): non-voided payment_records[].amount over the FROZEN amount_requested.
+    const totalPaid = coll
+        ? (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+        : 0;
+    const pct = amountRequested > 0 ? Math.round((totalPaid / amountRequested) * 100) : 0;
+    const status = br ? br.status : null;
+
+    // Not Filed — no billing request AND no collectible for this tranche (D-08).
+    if (!br && !coll) {
+        return { stage: 'not-filed', badgeLabel: '— Not Filed', badgeColor: '#94a3b8', opacity: 0.45, pct: 0, totalPaid: 0, amountRequested: 0, note: '' };
+    }
+    // Pending / Rejected billing requests (no collectible yet in the normal flow).
+    if (status === 'pending') {
+        return { stage: 'pending', badgeLabel: 'Pending Review', badgeColor: '#f59e0b', opacity: 1, pct, totalPaid, amountRequested, note: '' };
+    }
+    if (status === 'rejected') {
+        return { stage: 'rejected', badgeLabel: 'Rejected', badgeColor: '#ef4444', opacity: 1, pct, totalPaid, amountRequested, note: '' };
+    }
+    // Approved (or a collectible exists without an explicit billing_request — services edge).
+    // No collectible yet → the currently-invisible "approved but not yet invoiced" state (indigo).
+    if (!coll) {
+        return { stage: 'approved-not-invoiced', badgeLabel: 'Approved — Not Yet Invoiced', badgeColor: '#4f46e5', opacity: 1, pct: 0, totalPaid: 0, amountRequested: 0, note: '' };
+    }
+    // Collectible exists → derive from cash %.
+    if (pct >= 100) {
+        return { stage: 'fully-collected', badgeLabel: 'Fully Collected ✓', badgeColor: '#059669', opacity: 1, pct, totalPaid, amountRequested, note: '' };
+    }
+    if (pct > 0) {
+        return { stage: 'collecting', badgeLabel: 'Billed / Collecting', badgeColor: '#0d9488', opacity: 1, pct, totalPaid, amountRequested, note: `₱${formatCurrency(totalPaid)} of ₱${formatCurrency(amountRequested)} · ${pct}%` };
+    }
+    return { stage: 'invoiced-awaiting', badgeLabel: 'Invoiced — Awaiting Payment', badgeColor: '#0d9488', opacity: 1, pct: 0, totalPaid, amountRequested, note: '' };
 }
 
 // Phase 99 D-15 — compact own-requests status list (pending/approved/rejected + reason).
