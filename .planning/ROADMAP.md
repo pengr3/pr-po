@@ -1054,7 +1054,11 @@ Plans:
 **Open questions for discuss/plan**:
   - Confirm whether the new collectibles listener belongs in the existing billing-requests listener setup or a separate handle
   - Verify the inline-card vs modal formula sources stay consistent (spec §2 vocabulary)
-**Plans**: NOT YET PLANNED — run `/gsd-plan-phase 99.1`. All UAT browser-gated (zero-build, no test harness).
+**Plans**: 4 plans, 3 waves (planned 2026-06-06). All UAT browser-gated (zero-build, no test harness).
+  - [ ] 99.1-01-PLAN.md — project-detail.js: per-tranche lifecycle footer + collectibles listener + 2-chip scorecard (D-04 fix) + Full Breakdown header button + department:projects (CDR-01..04) [wave 1]
+  - [ ] 99.1-02-PLAN.md — expense-modal.js: 5-chip money-in strip + new approved-billing_requests fetch + 3-chip Collectibles summary + formula note + ghost rows (CDR-05) [wave 1]
+  - [ ] 99.1-03-PLAN.md — service-detail.js: full Phase 99 billing port (modal+submit department:services+listener+Finance notif) + 025/026 display revamp (CDR-06, CDR-07) [wave 2]
+  - [ ] 99.1-04-PLAN.md — finance.js + notifications.js: dept-aware pending banner + approve preselectKey + decision-notify link + end-to-end service UAT (CDR-08) [wave 3]
 **Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §3 (consolidates spikes 025 + 026)
 **UI hint**: yes
 
