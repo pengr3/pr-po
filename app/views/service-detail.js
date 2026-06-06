@@ -340,6 +340,243 @@ function computeTrancheLifecycle(tranche, idx, billingReqs, collectibleDocs) {
     return { stage: 'invoiced-awaiting', badgeLabel: 'Invoiced — Awaiting Payment', badgeColor: '#0d9488', opacity: 1, pct: 0, totalPaid, amountRequested, note: '' };
 }
 
+/* ========================================
+   Phase 99.1 — Service Billing Request modal (Phase 99 port to services)
+   tranche picker → type pills → doc-link fields → notes → submit.
+   Mirrors project-detail.js; adapted to the service shape (currentService, service_code).
+   ======================================== */
+
+// Doc requirements by billing type (D-08) — verbatim from project-detail.js.
+const BILLING_DOCS = {
+    progress:   [{ key: 'pr',  label: 'Progress Report' }],
+    completion: [{ key: 'coc', label: 'Certificate of Completion (COC)' }, { key: 'cr', label: 'Completion Report' }],
+    other:      [{ key: 'doc', label: 'Supporting Document' }],
+};
+
+// Auto-hint the billing type from a tranche label (D-07 — ALWAYS overrideable).
+function _hintBillingType(label) {
+    const l = (label || '').toLowerCase();
+    if (l.includes('completion') || l.includes('final')) return 'completion';
+    if (l.includes('progress')) return 'progress';
+    return null;
+}
+
+function openBillingRequestModal() {
+    if (!currentService) return;
+    // EDGE GUARD: need tranches + a positive contract_cost.
+    const tranches = Array.isArray(currentService.collection_tranches) ? currentService.collection_tranches : [];
+    const contractCost = parseFloat(currentService.contract_cost) || 0;
+    if (tranches.length === 0 || contractCost <= 0) {
+        showToast('Set up collection tranches and a contract cost on this service before initiating billing.', 'error');
+        return;
+    }
+
+    // Tranches that already have a pending or approved billing request cannot be re-submitted.
+    const billedIndices = new Set(
+        currentBillingRequests
+            .filter(r => r.status === 'pending' || r.status === 'approved')
+            .map(r => r.tranche_index)
+    );
+    const firstAvailableIdx = tranches.findIndex((_, i) => !billedIndices.has(i));
+    if (firstAvailableIdx < 0) {
+        showToast('All tranches already have a pending or approved billing request.', 'error');
+        return;
+    }
+
+    billingSelectedType = _hintBillingType(tranches[firstAvailableIdx]?.label) || 'progress';
+
+    const existing = document.getElementById('billingRequestModal');
+    if (existing) existing.remove();
+
+    const trancheOptions = tranches.map((t, i) => {
+        const pct = parseFloat(t.percentage) || 0;
+        const isBilled = billedIndices.has(i);
+        const suffix = isBilled ? ' — already billed' : '';
+        return `<option value="${i}"${isBilled ? ' disabled' : ''}${i === firstAvailableIdx ? ' selected' : ''}>${escapeHTML(t.label || ('Tranche ' + (i + 1)))} (${pct}%)${suffix}</option>`;
+    }).join('');
+
+    const pillStyle = (type) => {
+        const sel = billingSelectedType === type;
+        return `flex:1;cursor:pointer;border:2px solid ${sel ? '#1a73e8' : '#e2e8f0'};background:${sel ? '#eff6ff' : '#fff'};border-radius:8px;padding:0.5rem;text-align:center;user-select:none;`;
+    };
+
+    const modalHtml = `
+    <div id="billingRequestModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:520px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Initiate Billing Request</h2>
+                <button class="modal-close" onclick="document.getElementById('billingRequestModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche <span style="color:#ea4335;">*</span></label>
+                    <select id="billingTranche" class="form-control" style="width:100%;" onchange="window._onBillingTrancheChange()">
+                        ${trancheOptions}
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Billing Type <span style="color:#ea4335;">*</span></label>
+                    <div style="display:flex;gap:0.5rem;">
+                        <div onclick="window._selectBillingType('progress')" data-billing-pill="progress" style="${pillStyle('progress')}">
+                            <div style="font-weight:700;font-size:0.78rem;color:#1e293b;">Progress</div>
+                            <div style="font-size:0.62rem;color:#64748b;margin-top:0.1rem;">1 doc</div>
+                        </div>
+                        <div onclick="window._selectBillingType('completion')" data-billing-pill="completion" style="${pillStyle('completion')}">
+                            <div style="font-weight:700;font-size:0.78rem;color:#1e293b;">Completion</div>
+                            <div style="font-size:0.62rem;color:#64748b;margin-top:0.1rem;">2 docs</div>
+                        </div>
+                        <div onclick="window._selectBillingType('other')" data-billing-pill="other" style="${pillStyle('other')}">
+                            <div style="font-weight:700;font-size:0.78rem;color:#1e293b;">Other</div>
+                            <div style="font-size:0.62rem;color:#64748b;margin-top:0.1rem;">1 doc</div>
+                        </div>
+                    </div>
+                </div>
+                <div id="billingDocFields" style="margin-bottom:1rem;"></div>
+                <div style="margin-bottom:0.25rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Notes (Optional)</label>
+                    <textarea id="billingNotes" class="form-control" rows="2" style="width:100%;" placeholder="Context for Finance…" oninput="window._validateBillingForm()"></textarea>
+                </div>
+                <div id="billingError" style="display:none;margin-top:0.5rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.8rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('billingRequestModal').remove()">Cancel</button>
+                <button class="btn btn-primary" id="billingSubmitBtn" onclick="window.submitBillingRequest()" disabled style="opacity:0.5;cursor:not-allowed;">Submit Request</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    _onBillingTrancheChange();
+}
+
+function _onBillingTrancheChange() {
+    const sel = document.getElementById('billingTranche');
+    const idx = sel ? parseInt(sel.value, 10) : NaN;
+    const tranches = Array.isArray(currentService?.collection_tranches) ? currentService.collection_tranches : [];
+    const hint = _hintBillingType(tranches[idx]?.label);
+    _selectBillingType(hint || billingSelectedType);
+}
+
+function _selectBillingType(type) {
+    if (!BILLING_DOCS[type]) type = 'progress';
+    billingSelectedType = type;
+    document.querySelectorAll('[data-billing-pill]').forEach(p => {
+        const isSel = p.getAttribute('data-billing-pill') === type;
+        p.style.border = `2px solid ${isSel ? '#1a73e8' : '#e2e8f0'}`;
+        p.style.background = isSel ? '#eff6ff' : '#fff';
+    });
+    _renderBillingDocFields(type);
+    _validateBillingForm();
+}
+
+function _renderBillingDocFields(type) {
+    const wrap = document.getElementById('billingDocFields');
+    if (!wrap) return;
+    const docs = BILLING_DOCS[type] || [];
+    wrap.innerHTML = docs.map(d => `
+        <div style="margin-bottom:0.75rem;">
+            <label style="display:block;margin-bottom:0.35rem;font-weight:600;color:#475569;font-size:0.8rem;">${escapeHTML(d.label)} <span style="color:#ea4335;">*</span></label>
+            <input type="url" class="form-control" data-doc-key="${d.key}" style="width:100%;" placeholder="https://drive.google.com/…" oninput="window._validateBillingForm()">
+            <div style="font-size:0.62rem;color:#94a3b8;margin-top:0.2rem;">Paste a shared link (Google Drive, SharePoint, etc.)</div>
+        </div>`).join('');
+}
+
+function _validateBillingForm() {
+    const btn = document.getElementById('billingSubmitBtn');
+    if (!btn) return;
+    const trancheSel = document.getElementById('billingTranche');
+    const hasTranche = !!trancheSel && trancheSel.value !== '';
+    const docs = BILLING_DOCS[billingSelectedType] || [];
+    const allFilled = docs.length > 0 && docs.every(d => {
+        const inp = document.querySelector(`#billingDocFields input[data-doc-key="${d.key}"]`);
+        return !!inp && inp.value.trim() !== '';
+    });
+    const ok = hasTranche && allFilled;
+    btn.disabled = !ok;
+    btn.style.opacity = ok ? '1' : '0.5';
+    btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+// Phase 99.1 D-22 — write the frozen billing_requests doc carrying department:'services' + fire-and-forget Finance notification.
+async function submitBillingRequest() {
+    if (!currentService) return;
+    const errEl = document.getElementById('billingError');
+    const showErr = (msg) => { if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+
+    const trancheSel = document.getElementById('billingTranche');
+    const trancheIndex = trancheSel ? parseInt(trancheSel.value, 10) : NaN;
+    const tranches = Array.isArray(currentService.collection_tranches) ? currentService.collection_tranches : [];
+    const tranche = tranches[trancheIndex];
+    if (!tranche || isNaN(trancheIndex)) { showErr('Select a tranche first.'); return; }
+
+    const docDefs = BILLING_DOCS[billingSelectedType] || [];
+    const documents = docDefs.map(d => ({
+        key: d.key,
+        label: d.label,
+        url: (document.querySelector(`#billingDocFields input[data-doc-key="${d.key}"]`)?.value || '').trim()
+    }));
+    if (documents.length === 0 || documents.some(d => !d.url)) {
+        showErr('Fill in all required document links before submitting.');
+        return;
+    }
+
+    const notes = (document.getElementById('billingNotes')?.value || '').trim();
+
+    // Amount math (D-22) — advisory, sourced from currentService.
+    const contractCost = parseFloat(currentService.contract_cost) || 0;
+    const tranchePct = parseFloat(tranche.percentage) || 0;
+    const amountRequested = (tranchePct / 100) * contractCost;
+
+    // Double-submit guard.
+    const submitBtn = document.getElementById('billingSubmitBtn');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.style.opacity = '0.5'; submitBtn.style.cursor = 'not-allowed'; }
+
+    try {
+        await addDoc(collection(db, 'billing_requests'), {
+            department: 'services',                  // D-22 discriminator
+            service_code: currentService.service_code || '',
+            service_name: currentService.service_name || '',
+            tranche_index: trancheIndex,
+            tranche_label: tranche.label,            // FROZEN
+            tranche_percentage: tranchePct,          // FROZEN
+            amount_requested: amountRequested,       // FROZEN (advisory; Finance re-derives at approval)
+            billing_type: billingSelectedType,       // 'progress' | 'completion' | 'other'
+            documents,                               // [{ key, label, url }]
+            notes,                                   // optional string
+            status: 'pending',                       // lowercase exact
+            requested_by_uid: window.getCurrentUser?.()?.uid ?? null,
+            requested_by_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
+            requested_at: serverTimestamp()
+        });
+    } catch (e) {
+        console.error('[ServiceDetail/BillingReq] submit addDoc failed:', e);
+        showErr('Failed to submit billing request. Please try again.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.style.opacity = '1'; submitBtn.style.cursor = 'pointer'; }
+        return;
+    }
+
+    // Success — remove modal; the own-requests listener auto-refreshes the status list.
+    document.getElementById('billingRequestModal')?.remove();
+    showToast('Billing request submitted to Finance.', 'success');
+
+    // Fire-and-forget Finance fan-out (D-24 — its OWN try/catch; a notification failure must
+    // NEVER undo the already-committed addDoc).
+    try {
+        await createNotificationForRoles({
+            roles: ['finance'],
+            type: NOTIFICATION_TYPES.BILLING_REQUEST_SUBMITTED,
+            message: `New billing request: ${currentService.service_name} (${tranche.label}, PHP ${formatCurrency(amountRequested)})`,
+            link: '#/finance/collectibles',
+            source_collection: 'billing_requests',
+            source_id: currentService.service_code || '',
+            object_name: currentService.service_name || '',
+            actor_name: window.getCurrentUser?.()?.full_name || 'System'
+        });
+    } catch (notifErr) {
+        console.error('[ServiceDetail/BillingReq] BILLING_REQUEST_SUBMITTED notification failed:', notifErr);
+    }
+}
+
 /**
  * Check if the current user has access to the current service.
  * For services_user without all_services, the service must be in assigned_service_codes.
@@ -1480,4 +1717,10 @@ function attachWindowFunctions() {
     window.confirmProposalInlineSubmit = confirmProposalInlineSubmit;
     // Phase 87.3 D-01 — Start Proposal button support
     window.openCreateProposalModal = openCreateProposalModal;
+    // Phase 99.1 — billing request flow (Phase 99 port)
+    window.openBillingRequestModal = openBillingRequestModal;
+    window.submitBillingRequest = submitBillingRequest;
+    window._onBillingTrancheChange = _onBillingTrancheChange;
+    window._selectBillingType = _selectBillingType;
+    window._validateBillingForm = _validateBillingForm;
 }
