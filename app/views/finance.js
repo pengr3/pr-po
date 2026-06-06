@@ -1370,13 +1370,21 @@ function filterCollectiblesTable() {
     renderCollectiblesTable();
 }
 
+// Phase 99.3 — urgency-tier sort order (spike-027c URG_ORDER). Keys are the exact
+// tier strings from getCollectibleUrgency (D-08b single source). Lower = more urgent.
+const COLL_URG_ORDER = {
+    'critical': 0, 'overdue': 1, 'near-due': 2, 'partial': 3, 'healthy': 4, 'paid': 5
+};
+
 /**
- * Pure helper: apply all 5 filters and the status-priority sort to
+ * Pure helper: apply all filters and the urgency-tier sort to
  * collectiblesData, returning the displayed slice (pre-pagination).
  * Extracted so Plan 06's CSV export can reuse it.
  *
- * Sort: Pending (1) > Overdue (2) > Partially Paid (3) > Fully Paid (4),
- * secondary by due_date ascending. Unpaid surfaces first per D-18.
+ * Sort (Phase 99.3, replaces the 99.2 status-priority sort): urgency tier
+ * critical → overdue → near-due → partial → healthy → paid via the shared
+ * getCollectibleUrgency helper (D-08b single source), secondary by due_date
+ * ascending. Most-urgent receivables surface first.
  */
 function getDisplayedCollectibles() {
     let displayed = [...collectiblesData];
@@ -1407,19 +1415,12 @@ function getDisplayedCollectibles() {
         displayed = displayed.filter(c => c.due_date && c.due_date <= collDueToFilter);
     }
 
-    // Status priority sort — Pending=1, Overdue=2, Partial=3, Fully=4 (unpaid first)
-    const statusPriority = {
-        'Pending': 1,
-        'Overdue': 2,
-        'Partially Paid': 3,
-        'Fully Paid': 4
-    };
+    // Phase 99.3 — urgency-first sort (replaces 99.2 status-priority sort).
     displayed.sort((a, b) => {
-        const pa = statusPriority[deriveCollectibleStatus(a)] || 5;
-        const pb = statusPriority[deriveCollectibleStatus(b)] || 5;
-        if (pa !== pb) return pa - pb;
-        // Secondary sort: due_date ascending (earlier overdue first)
-        return (a.due_date || '').localeCompare(b.due_date || '');
+        const ua = COLL_URG_ORDER[getCollectibleUrgency(a).tier] ?? 4;
+        const ub = COLL_URG_ORDER[getCollectibleUrgency(b).tier] ?? 4;
+        if (ua !== ub) return ua - ub;
+        return (a.due_date || '').localeCompare(b.due_date || ''); // earlier due first within tier
     });
 
     return displayed;
