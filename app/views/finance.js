@@ -4965,6 +4965,10 @@ export async function destroy() {
     // Phase 99 — billing request banner state
     pendingBillingRequests = [];
     billingBannerCollapsed = false;
+    // Phase 99.2 — approved-not-filed recovery + fully-paid hide state
+    approvedBillingRequests = [];
+    approvedBannerCollapsed = false;
+    collShowCompleted = false;   // D-05b — must reset so fully-paid rows stay hidden by default on remount
     collProjectFilter = '';
     collStatusFilter = '';
     collDeptFilter = '';
