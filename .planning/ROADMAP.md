@@ -1079,9 +1079,10 @@ Plans:
   - Should the approved-not-filed banner section instead be retro-fitted as a Phase 99 closure item, or stay here? (currently here)
   - Make Approve+Create atomic, or guarantee the orphan stays visible/re-fileable? (spec §6 UX risk)
   - CSV export: follow the condensed 5-col view or keep all fields?
-**Plans**: 3 plans / 3 waves (planned 2026-06-06). All UAT browser-gated (zero-build, no test harness).
-  - [ ] 99.2-01-PLAN.md (Wave 1) — Foundation: shared getCollectibleUrgency/getCollectibleLastPayment helpers (D-08a/D-08b single source) + dedicated collectibles CSS block (chips, 6px progress bars, 6 urgency left-borders, ≤768px cards)
-  - [ ] 99.2-02-PLAN.md (Wave 2, dep 01) — Scorecard (4 reactive chips, Overdue hidden at ₱0) + table redesign 10→5 cols + 6 urgency borders + Show-N-completed toggle (pagination recompute, CSV preserved) + mobile card builder
-  - [ ] 99.2-03-PLAN.md (Wave 3, dep 01,02) — Unified two-section banner: Awaiting Your Review (pending) + Approved—File as Collectible (orphan reconciliation on project_code+tranche_index; File COLL → openCreateCollectibleModal)
+**Status**: ◆ EXECUTED 2026-06-06 — UAT pending. Inline sequential on v3.3 (3/3 plans, 3 waves; gsd-sdk unavailable + 2 stale locked worktrees → inline per Phase 98/99/99.1 precedent). Verification `human_needed` — 5/5 success criteria verified statically (`99.2-VERIFICATION.md`); 7 browser-UAT items in `99.2-HUMAN-UAT.md`. Code review **clean** (`99.2-REVIEW.md`): 0 HIGH, 1 MEDIUM fixed inline (`8207d79` — destroy() now resets collShowCompleted/approved-banner state, restoring D-05b on remount), 3 LOW accepted as advisory. **Owns the approved-not-filed orphan-state fix deferred from Phase 99** — now implemented (recovery-by-reconciliation banner). NOT marked complete until browser UAT passes.
+**Plans**: 3 plans / 3 waves (planned 2026-06-06; executed 2026-06-06). All UAT browser-gated (zero-build, no test harness).
+  - [x] 99.2-01-PLAN.md (Wave 1) — Foundation: shared getCollectibleUrgency/getCollectibleLastPayment helpers (D-08a/D-08b single source) + dedicated collectibles CSS block (chips, 6px progress bars, 6 urgency left-borders, ≤768px cards) — COMPLETE (`63a27db`, `8a0ebaa`)
+  - [x] 99.2-02-PLAN.md (Wave 2, dep 01) — Scorecard (4 reactive chips, Overdue hidden at ₱0) + table redesign 10→5 cols + 6 urgency borders + Show-N-completed toggle (pagination recompute, CSV preserved) + mobile card builder — COMPLETE (`67604fa`)
+  - [x] 99.2-03-PLAN.md (Wave 3, dep 01,02) — Unified two-section banner: Awaiting Your Review (pending) + Approved—File as Collectible (orphan reconciliation on project_code+tranche_index; File COLL → openCreateCollectibleModal) — COMPLETE (`5bee958`, `8caeab5`)
 **Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §4 (consolidates spikes 027a + 027b + 027c)
 **UI hint**: yes
