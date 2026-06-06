@@ -1079,6 +1079,9 @@ Plans:
   - Should the approved-not-filed banner section instead be retro-fitted as a Phase 99 closure item, or stay here? (currently here)
   - Make Approve+Create atomic, or guarantee the orphan stays visible/re-fileable? (spec §6 UX risk)
   - CSV export: follow the condensed 5-col view or keep all fields?
-**Plans**: NOT YET PLANNED — run `/gsd-plan-phase 99.2`. All UAT browser-gated (zero-build, no test harness).
+**Plans**: 3 plans / 3 waves (planned 2026-06-06). All UAT browser-gated (zero-build, no test harness).
+  - [ ] 99.2-01-PLAN.md (Wave 1) — Foundation: shared getCollectibleUrgency/getCollectibleLastPayment helpers (D-08a/D-08b single source) + dedicated collectibles CSS block (chips, 6px progress bars, 6 urgency left-borders, ≤768px cards)
+  - [ ] 99.2-02-PLAN.md (Wave 2, dep 01) — Scorecard (4 reactive chips, Overdue hidden at ₱0) + table redesign 10→5 cols + 6 urgency borders + Show-N-completed toggle (pagination recompute, CSV preserved) + mobile card builder
+  - [ ] 99.2-03-PLAN.md (Wave 3, dep 01,02) — Unified two-section banner: Awaiting Your Review (pending) + Approved—File as Collectible (orphan reconciliation on project_code+tranche_index; File COLL → openCreateCollectibleModal)
 **Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §4 (consolidates spikes 027a + 027b + 027c)
 **UI hint**: yes
