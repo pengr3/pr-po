@@ -1,14 +1,23 @@
 ---
-status: partial
+status: closed-unvalidated
+closed: 2026-06-06
+closed_reason: Closed by user direction without final validation; test 6 left unverified.
 phase: 99-billing-request-flow
 source: [99-VERIFICATION.md]
 started: 2026-06-04T15:55:00Z
-updated: 2026-06-05T12:45:00Z
+updated: 2026-06-06T00:00:00Z
 ---
+
+## ⚠️ CLOSURE NOTE (2026-06-06)
+
+Phase 99 was **CLOSED — UNVALIDATED** by user direction. This UAT was NOT completed:
+tests 1–5 PASS, **test 6 (notifications) left PARTIAL and never re-verified**. The phase
+is closed as shipped-but-unvalidated, NOT UAT-approved. Re-verify items (a)/(b)/(c) are
+tracked in ROADMAP.md Phase 99 and `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md`.
 
 ## Current Test
 
-[6 of 6 tested — tests 1–5 PASS; test 6 partial: notification display bug fixed (3 commits), needs re-verify with DevTools cache disabled]
+[6 of 6 tested — tests 1–5 PASS; test 6 PARTIAL/unverified at closure: notification display bug fixed (3 commits) but never re-verified with DevTools cache disabled]
 
 ## Tests
 

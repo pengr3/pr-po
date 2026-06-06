@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 99 mid-UAT 2026-06-05 — tests 1–5 PASS; test 6 (notifications) PARTIAL, 3 gap-fix commits applied (a5902d6 billed-tranche guard + console.log blabber; be8afbc DECIDED source_id=project_code; 228f4b7 renderer suppresses auto-IDs). Needs re-verify test 6 with DevTools cache disabled, then mark complete.
-stopped_at: 2026-06-05 — UAT in progress; re-verify test 6 with Network→Disable Cache→reload then approve/reject a billing request
-last_updated: "2026-06-05T12:45:00.000Z"
-last_activity: 2026-06-05
+status: Phase 99 CLOSED — UNVALIDATED (2026-06-06, user direction). Executed (3/3 plans, v3.3); UAT 5/6 PASS, test 6 (notifications) left PARTIAL/never-re-verified. Closed as shipped-but-unvalidated, NOT UAT-approved. Deferred: (a) test-6 re-verify cache-disabled; (b) approved-not-filed orphan-state → collectibles revamp Phase β; (c) rules deploy → v3.3 merge. See ROADMAP Phase 99 + COLLECTIBLES-REVAMP-SPEC.md. Collectibles spike series 025→027c WRAPPED (all VALIDATED, consolidated spec written).
+stopped_at: 2026-06-06 — Phase 99 CLOSED-unvalidated; collectibles revamp inserted as Phase 99.1 (α detail-page, spikes 025+026) + 99.2 (β finance-page, spikes 027a/b/c) in ROADMAP — both NOT YET PLANNED. NEXT: /gsd-plan-phase 99.1 (or /gsd-discuss-phase 99.1 first). 99.2 owns the Phase 99 approved-not-filed orphan-state fix. ||| collectibles-revamp spike series 025→027c WRAPPED. All 5 VALIDATED (027a/b/c README verdicts synced to MANIFEST); consolidated spec at .planning/spikes/COLLECTIBLES-REVAMP-SPEC.md (4 files, 2-surface split, NO schema change, depends on Phase 99). Next: decide milestone/branch home (#8) + close Phase 99 first (now owns approved-not-filed orphan-state fix), THEN /gsd-phase --add (recommend 2 phases: α detail-page 025+026, β finance-page 027a/b/c) → /gsd-plan-phase. Phase 99 test-6 re-verify still pending. Uncommitted: spec + verdict doc edits + STATE.
+last_updated: "2026-06-06T00:00:00.000Z"
+last_activity: 2026-06-06
 progress:
-  total_phases: 32
-  completed_phases: 29
+  total_phases: 34
+  completed_phases: 30
+  closed_unvalidated_phases: 1
   total_plans: 122
   completed_plans: 122
-  percent: 94
+  percent: 88
 ---
 
 # Project State
@@ -220,6 +221,8 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 
 ### Roadmap Evolution
 
+- Phase 99.1 + 99.2 inserted after Phase 99 (2026-06-06) — Collectibles (money-in) revamp from VALIDATED spike series 025→027c. **99.1 (α)**: detail-page lifecycle footer + financial-summary modal revamp (spikes 025+026 → project-detail.js, service-detail.js, expense-modal.js). **99.2 (β)**: Finance Collectibles page — 4-chip scorecard, approved-not-filed unified banner, 10→5 col table redesign, mobile card (spikes 027a/b/c → finance.js + CSS). 99.2 owns the approved-not-filed orphan-state fix deferred from Phase 99. No schema change. Consolidated spec: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md`. Both NOT YET PLANNED.
+- Phase 99 CLOSED — UNVALIDATED (2026-06-06, user direction) — executed 3/3 but UAT 5/6 (test 6 notifications left PARTIAL/unverified). Deferred items tracked in ROADMAP Phase 99.
 - Phase 91.3 inserted after Phase 91 (2026-06-03, URGENT) — RFP Fees: add Transfer / Cash-Out / Miscellaneous fees that are not covered by the original RFP amount; overhaul the RFP creation flow while keeping it mobile-friendly and 100% error-free. **Planned 2026-06-03 (6 plans, 3 waves, commit `694bda6`; checker PASSED)** → `/gsd-execute-phase 91.3`.
 - Phase 98 added (2026-06-03) — UI/UX Fixes bundle: (1) Clients split Contact Details into Phone/Email; (2) #/notifications row alignment; (3) Finance Payables PO Ref "Failed to load PO details" bug; (4) Home widgets don't fit on 27" monitor. Not planned yet.
 - Phase 97.2 inserted after 97.1 (2026-06-02, URGENT) — Iterations Save Model Overhaul: current "save (Automatically)" label and implicit save-as-on-load is confusing; iteration rail UX needs a full overhaul to a deliberate named-save model.

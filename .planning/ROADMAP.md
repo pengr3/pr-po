@@ -1026,10 +1026,54 @@ Plans:
   - Per-tranche rows in project detail (Billed/Unbilled/Pending status, green-tint billed, "Bill" shortcut on unbilled) — ship in this phase or defer? (spike prototyped them)
   - Resolve the spike's open implementation question: `openCreateCollectibleModal` currently picks tranche via dropdown — confirm the preselectKey `projects:CODE:INDEX` extension auto-selects the tranche cleanly
   - Document attach is URL/link only (no Firebase Storage — avoids Blaze plan); confirm acceptable
-**Plans**: 3 plans (2 waves) — planned 2026-06-04 from spike-024 + 99-CONTEXT (D-01..D-21) + 99-PATTERNS. Phase-local req IDs BILL-01..BILL-06 map 1:1 to the 6 Success Criteria. **EXECUTED 2026-06-04 (inline, v3.3) — verification `human_needed`, 6 browser-UAT items pending (99-HUMAN-UAT.md); NOT yet marked complete.**
+**Plans**: 3 plans (2 waves) — planned 2026-06-04 from spike-024 + 99-CONTEXT (D-01..D-21) + 99-PATTERNS. Phase-local req IDs BILL-01..BILL-06 map 1:1 to the 6 Success Criteria. **EXECUTED 2026-06-04 (inline, v3.3) — verification `human_needed`.**
+**STATUS: CLOSED — UNVALIDATED (2026-06-06, by user direction).** Closed out without final validation. UAT (99-HUMAN-UAT.md): **5/6 PASS; test 6 (notifications/BILL-06) left PARTIAL — DECIDED-notification display fix (`a5902d6`,`be8afbc`,`228f4b7`) was never re-verified with cache disabled.** Carried-forward / deferred:
+  - (a) **Test-6 re-verify** — DevTools → Network → Disable cache → reload → approve/reject a billing request → confirm notification shows "CLMC-XXX · ProjectName" not a raw auto-ID.
+  - (b) **Approved-not-filed orphan state** — `approveBillingRequest()` flips `status='approved'` before the COLL exists (D-12); an abandoned create leaves an invisible request. Fix owned by the **collectibles revamp Phase β** (see `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §6).
+  - (c) **Rules deploy** — `firebase deploy --only firestore:rules` still pending v3.3 → main merge (shared with Phase 87.4).
 Plans:
 - [x] 99-01-PLAN.md — Wave 1 foundation: firestore.rules `billing_requests` block (create=isActiveUser) + notifications.js BILLING_REQUEST_SUBMITTED/DECIDED types (BILL-06) — `0064849`,`de68d76`
 - [x] 99-02-PLAN.md — Wave 2 (depends 01) project-detail.js: footer link + billing-request modal (tranche→pills→doc links→notes→submit) + own-requests status list + Finance notification (BILL-01, BILL-02, BILL-05 project side) — `52483ad`,`2fc481b`,`9efc6f5`
 - [x] 99-03-PLAN.md — Wave 2 (depends 01) finance.js: collapsible pending-requests banner + Approve bridge (preselectKey :TRANCHE_INDEX + D-11 edge) + Reject (required reason) + submitter notification (BILL-03, BILL-04, BILL-05 finance side) — `2fe9bea`,`1a9800d`,`9d54e17`
 **UI hint**: yes
 **Spike**: `.planning/spikes/024-billing-request-flow/README.md` (VALIDATED — full schema, design decisions, build targets, prototype `index.html`)
+
+### Phase 99.1: Collectibles Revamp α — Project/Service Detail Lifecycle Footer + Financial Summary (NEW, inserted 2026-06-06; spikes 025 + 026 VALIDATED)
+
+**Goal**: Overhaul the money-in (collectibles) view on the Project/Service **detail page** — replace the status-only billing footer with a full per-tranche lifecycle, fix the buried modal entry point, and add money-in scorecards — so users can read billing health (Billed → Invoiced → Collected → Outstanding) at a glance, including the currently-invisible "approved but not yet invoiced" state.
+**Depends on**: Phase 99 (`billing_requests` data + `approveBillingRequest` flow — CLOSED/unvalidated) and existing collectibles infra (`collectibles` collection, `expense-modal.js`). File-independent of Phase 99.2 (touches detail pages + modal, not `finance.js`), but **must share the money-in vocabulary/formulas** defined in the spec.
+**Target files**: `app/views/project-detail.js`, `app/views/service-detail.js` (parity), `app/expense-modal.js`. **No Firestore schema change.**
+**Requirements**: None mapped yet (NEW — spike-validated; add REQUIREMENTS.md IDs during plan if needed)
+**Success Criteria** (what must be TRUE):
+  1. The detail-page billing footer (`renderOwnBillingRequests()`) shows **per-tranche lifecycle rows** with 4 always-visible stages (Not Filed → Pending → Approved → Billed → Collected); unfiled tranches grayed at 45% opacity with a dashed "— Not Filed" badge; partial payments noted under the Billed badge (not a separate stage)
+  2. A **collectibles listener scoped to `project_code`** feeds the footer (so it reflects COLL state, not just `billing_requests`) — following the Phase 99 `billing_requests` listener pattern; unsubscribed in `destroy()`
+  3. The card carries a **2-chip scorecard** (Collected + Outstanding, sourced from collectible docs); "Initiate Billing →" retained at footer right
+  4. A single **"Full Breakdown →" button in the card header** (always refresh-then-open) replaces the hidden click-the-number affordance and collapses the `showExpenseModal`/`refreshAndShowExpenseModal` split
+  5. The Full Breakdown modal shows a **5-chip header strip** (Expense / Rem. Payable / Billed to Client / Invoiced / Cash Received) and a **3-chip Collectibles-tab summary** (Total Billed / Cash Collected / Outstanding) + formula note + an "awaiting COLL-xxx" ghost row for approved-but-not-yet-invoiced tranches
+  6. `service-detail.js` reaches design parity with `project-detail.js` (mirror pattern, per Phase 96-03 precedent)
+**Open questions for discuss/plan**:
+  - Confirm whether the new collectibles listener belongs in the existing billing-requests listener setup or a separate handle
+  - Verify the inline-card vs modal formula sources stay consistent (spec §2 vocabulary)
+**Plans**: NOT YET PLANNED — run `/gsd-plan-phase 99.1`. All UAT browser-gated (zero-build, no test harness).
+**Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §3 (consolidates spikes 025 + 026)
+**UI hint**: yes
+
+### Phase 99.2: Collectibles Revamp β — Finance Collectibles Page (Scorecard + Approved-Not-Filed Banner + Table Redesign + Mobile) (NEW, inserted 2026-06-06; spikes 027a + 027b + 027c VALIDATED)
+
+**Goal**: Overhaul the standalone **Finance Collectibles tab** — add an aggregate scorecard, surface the approved-but-not-filed billing pipeline, redesign the table from 10 flat columns to 5 rich ones, and add the missing mobile card layout — so Finance identifies actionable receivables in seconds. **Owns the approved-not-filed orphan-state fix deferred from Phase 99.**
+**Depends on**: Phase 99 (`billing_requests` — CLOSED/unvalidated) + Phase 99.1 only for shared vocabulary/formula consistency (no file overlap — this phase is `finance.js`-only). Reconciliation of approved `billing_requests` vs `collectibles` is by `project_code + tranche_index`.
+**Target files**: `app/views/finance.js` + new dedicated CSS block (`components.css`/`views.css`). **No Firestore schema change.**
+**Requirements**: None mapped yet (NEW — spike-validated; add REQUIREMENTS.md IDs during plan if needed)
+**Success Criteria** (what must be TRUE):
+  1. A **4-chip reactive scorecard** (Total Invoiced / Cash Collected / Outstanding / Overdue — Overdue hidden at ₱0) sits above the table and reflects the **currently-filtered** rows, not the full dataset
+  2. A **unified collapsible banner** with two independent sub-sections: "Awaiting Your Review" (`status='pending'`) + "Approved — File as Collectible" (`status='approved'` with no matching `collectibles` doc on `project_code + tranche_index`); the second section is the **only recovery path for the Phase 99 orphan state** and its "File COLL-xxx" button calls `openCreateCollectibleModal(preselectKey)`
+  3. The table is redesigned **10 cols → 5** (Project·Tranche / Collection Progress bar / Due·Urgency relative / Last Payment ₱·date·method / Actions) with **4px urgency left-borders** (critical 30+ / overdue 1–29 / near-due ≤7 / partial / healthy / paid) and **fully-paid rows hidden by default** behind a "Show N completed" toggle
+  4. A **≤768px card layout** is added (collectibles is the one Finance table Phase 73.1 skipped) via the established dual-mode CSS pattern; rich visuals live in a real CSS block, not inline styles
+  5. Build-time correctness: "Last Payment" filters `status !== 'voided'`; one shared "overdue" definition across the scorecard chip and row tiers; hiding fully-paid recomputes pagination totals; CSV-export column decision made
+**Open questions for discuss/plan**:
+  - Should the approved-not-filed banner section instead be retro-fitted as a Phase 99 closure item, or stay here? (currently here)
+  - Make Approve+Create atomic, or guarantee the orphan stays visible/re-fileable? (spec §6 UX risk)
+  - CSV export: follow the condensed 5-col view or keep all fields?
+**Plans**: NOT YET PLANNED — run `/gsd-plan-phase 99.2`. All UAT browser-gated (zero-build, no test harness).
+**Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §4 (consolidates spikes 027a + 027b + 027c)
+**UI hint**: yes
