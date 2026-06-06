@@ -239,6 +239,7 @@ let collDueToFilter = '';
 // Pagination state (D-04, mirrors Phase 65.7)
 let collCurrentPage = 1;
 const collItemsPerPage = 15;
+let collShowCompleted = false;   // Phase 99.2 D-05b — fully-paid rows hidden by default
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
@@ -417,6 +418,7 @@ function attachWindowFunctions() {
     // Collectibles tab window functions (Phase 85, Plan 05 — read-side)
     window.filterCollectiblesTable = filterCollectiblesTable;
     window.changeCollectiblesPage = changeCollectiblesPage;
+    window.toggleCollShowCompleted = toggleCollShowCompleted;   // Phase 99.2 — fully-paid hide toggle
 
     // Collectibles tab — write-side (Plan 06): direct assignments override any
     // pre-existing Plan 05 defensive stubs. Unconditional per Plan 06 contract.
@@ -1418,19 +1420,80 @@ function getDisplayedCollectibles() {
 }
 
 /**
- * Render the Collectibles table body. Empty-state copy is filter-aware
- * (mirrors renderRFPTable lines 721-730 pattern).
- * Hooked buttons (Record Payment / History / context menu / + Create) call
- * window functions that ship as stubs in Task 3 and are overwritten by Plan 06.
+ * Phase 99.2 — 4-chip reactive scorecard (D-02). Aggregates over the SAME
+ * `displayed` (filtered + post-hide) array the table paginates, so the chips
+ * can never diverge from the rows. The Overdue chip is omitted at ₱0.
+ * Overdue outstanding uses the shared getCollectibleUrgency helper (D-08b).
+ */
+function renderCollectiblesScorecard(displayed) {
+    const host = document.getElementById('collectiblesScorecard');
+    if (!host) return;
+    let invoiced = 0, collected = 0, overdueOutstanding = 0;
+    displayed.forEach(coll => {
+        const amt = parseFloat(coll.amount_requested) || 0;
+        const paid = (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        invoiced += amt;
+        collected += paid;
+        if (getCollectibleUrgency(coll).isOverdue) overdueOutstanding += (amt - paid); // shared helper (D-08b)
+    });
+    const outstanding = invoiced - collected;
+    const pct = invoiced > 0 ? Math.round((collected / invoiced) * 100) : 0;
+    const n = displayed.length;
+    let html =
+        chip('coll-chip-invoiced', 'Total Invoiced', invoiced, `${n} collectible${n === 1 ? '' : 's'}`) +
+        chip('coll-chip-collected', 'Cash Collected', collected, `${pct}% of invoiced`) +
+        chip('coll-chip-outstanding', 'Outstanding', outstanding, '');
+    if (overdueOutstanding > 0) {
+        html += chip('coll-chip-overdue', 'Overdue', overdueOutstanding, 'past due');
+    }
+    host.innerHTML = html;
+    function chip(cls, label, value, sub) {
+        return `<div class="coll-chip ${cls}">
+            <div class="coll-chip-label">${escapeHTML(label)}</div>
+            <div class="coll-chip-value">${formatCurrency(value)}</div>
+            ${sub ? `<div class="coll-chip-sub">${escapeHTML(sub)}</div>` : ''}
+        </div>`;
+    }
+}
+
+/**
+ * Render the "Show N completed" toggle into its host (D-05b). Only renders when
+ * there are fully-paid rows to reveal/hide; resets to empty otherwise.
+ */
+function renderCollShowCompletedToggle(completedCount) {
+    const host = document.getElementById('collShowCompletedHost');
+    if (!host) return;
+    if (!completedCount || completedCount <= 0) { host.innerHTML = ''; return; }
+    const label = collShowCompleted ? 'Hide completed' : ('Show ' + completedCount + ' completed');
+    host.innerHTML = `<button class="coll-show-completed-toggle" onclick="window.toggleCollShowCompleted()">${escapeHTML(label)}</button>`;
+}
+
+/**
+ * Render the Collectibles table body — 5 composite columns (Phase 99.2, D-05):
+ * Project·Tranche / Collection Progress / Due·Urgency / Last Payment / Actions,
+ * with a per-tier 4px urgency left-border on each row. Fully-paid rows are
+ * hidden by default behind a "Show N completed" toggle; pagination + scorecard
+ * recompute over the VISIBLE (post-hide) set (D-08c). The hide is applied HERE,
+ * NOT inside getDisplayedCollectibles, so the CSV export keeps fully-paid rows (D-07).
+ * Also populates the ≤768px mobile card list (dual-mode, Phase 73.1).
  */
 function renderCollectiblesTable() {
     const tbody = document.getElementById('collectiblesTableBody');
     if (!tbody) return;
 
-    const displayed = getDisplayedCollectibles();
-    const totalItems = displayed.length;
+    const allDisplayed = getDisplayedCollectibles();
+    const completedCount = allDisplayed.filter(c => deriveCollectibleStatus(c) === 'Fully Paid').length;
+    const displayed = collShowCompleted
+        ? allDisplayed
+        : allDisplayed.filter(c => deriveCollectibleStatus(c) !== 'Fully Paid');
+    const totalItems = displayed.length;                       // pagination over the VISIBLE set (D-08c)
     const totalPages = Math.max(1, Math.ceil(totalItems / collItemsPerPage));
     if (collCurrentPage > totalPages) collCurrentPage = totalPages;
+
+    // Reactive scorecard reflects the SAME visible set the table paginates (D-02)
+    renderCollectiblesScorecard(displayed);
 
     // Empty state — filter-aware copy
     if (totalItems === 0) {
@@ -1440,7 +1503,10 @@ function renderCollectiblesTable() {
             : (collectiblesData.length === 0
                 ? 'No collectibles yet. Click "+ Create Collectible" to file the first one.'
                 : 'No collectibles to show.');
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:#64748b;">${message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b;">${message}</td></tr>`;
+        const cardHostEmpty = document.getElementById('collectiblesCardList');
+        if (cardHostEmpty) cardHostEmpty.innerHTML = `<div class="fc-empty">${message}</div>`;
+        renderCollShowCompletedToggle(completedCount);
         renderCollectiblesPagination(totalItems, totalPages);
         return;
     }
@@ -1454,47 +1520,71 @@ function renderCollectiblesTable() {
         const totalPaid = (coll.payment_records || [])
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-        const balance = (parseFloat(coll.amount_requested) || 0) - totalPaid;
+        const amt = parseFloat(coll.amount_requested) || 0;
+        const pct = amt > 0 ? Math.min(100, Math.round(totalPaid / amt * 100)) : 0;
+        const urg = getCollectibleUrgency(coll);          // shared helper (Plan 01)
+        const last = getCollectibleLastPayment(coll);      // shared helper (Plan 01)
         const status = deriveCollectibleStatus(coll);
-        const badgeStyle = statusBadgeColors[status] || '';
         const projOrSvcName = coll.department === 'projects'
             ? (coll.project_name || coll.project_code || '')
             : (coll.service_name || coll.service_code || '');
-        const projOrSvcCode = coll.department === 'projects'
-            ? (coll.project_code || '')
-            : (coll.service_code || '');
+        const tranchePct = (parseFloat(coll.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+        const fillClass = urg.isOverdue ? 'is-overdue' : (urg.tier === 'paid' ? 'is-paid' : 'is-normal');
+        // Col 3 — relative due / urgency string
+        let dueCell;
+        if (urg.daysOverdue > 0) {
+            const dueCls = urg.tier === 'critical' ? 'critical' : 'overdue';
+            const mark = urg.tier === 'critical' ? '‼' : '⚠';
+            dueCell = `<span class="coll-due-${dueCls}">${urg.daysOverdue} day${urg.daysOverdue === 1 ? '' : 's'} overdue ${mark}</span>`;
+        } else if (urg.daysUntilDue !== null && urg.daysUntilDue <= 7) {
+            dueCell = `<span class="coll-due-near">Due in ${urg.daysUntilDue} day${urg.daysUntilDue === 1 ? '' : 's'} ⚠</span>`;
+        } else if (urg.daysUntilDue !== null) {
+            dueCell = `<span class="coll-due-normal">Due in ${urg.daysUntilDue} days</span>`;
+        } else {
+            dueCell = `<span class="coll-due-normal">No due date</span>`;
+        }
+        // Col 4 — last payment (non-voided, newest)
+        const lastCell = last
+            ? `${formatCurrency(parseFloat(last.amount) || 0)} · ${escapeHTML(last.date || '')} · ${escapeHTML(last.method || '')}`
+            : `<span class="coll-no-payment">No payments yet</span>`;
+        // Col 5 — actions (fully-paid rows: View History only)
+        const actionsCell = status === 'Fully Paid'
+            ? `<button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')"
+                       style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">View History</button>`
+            : `<button class="btn btn-sm btn-outline" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')"
+                       style="font-size:0.75rem;padding:0.2rem 0.6rem;">Record Payment</button>
+               <button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')"
+                       style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">History</button>`;
         return `
-            <tr>
-                <td oncontextmenu="event.preventDefault(); window.showCollectibleContextMenu(event, '${coll.id}'); return false;"
-                    style="font-family:monospace;font-size:0.8125rem;">
-                    <strong>${escapeHTML(coll.coll_id || '')}</strong>
-                </td>
-                <td>
+            <tr class="coll-urgency-${urg.tier}">
+                <td oncontextmenu="event.preventDefault(); window.showCollectibleContextMenu(event, '${coll.id}'); return false;">
                     <div style="font-weight:600;">${escapeHTML(projOrSvcName)}</div>
-                    <div style="font-size:0.75rem;color:#94a3b8;">${escapeHTML(projOrSvcCode)}</div>
+                    <div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+                        <span>${escapeHTML(coll.tranche_label || '')} (${tranchePct}%)</span>${getDeptBadgeHTML({ department: coll.department })}
+                    </div>
+                    <div style="font-family:monospace;font-size:0.75rem;color:#94a3b8;">${escapeHTML(coll.coll_id || '')}</div>
                 </td>
-                <td>${getDeptBadgeHTML({ department: coll.department })}</td>
-                <td>${escapeHTML(coll.tranche_label || '')} (${(parseFloat(coll.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '')}%)</td>
-                <td style="text-align:right;">${formatCurrency(coll.amount_requested || 0)}</td>
-                <td style="text-align:right;">${formatCurrency(totalPaid)}</td>
-                <td style="text-align:right;color:${balance > 0 ? '#ef4444' : '#059669'};">${formatCurrency(balance)}</td>
-                <td>${escapeHTML(coll.due_date || '')}</td>
-                <td><span class="status-badge" style="${badgeStyle};padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">${status}</span></td>
                 <td>
-                    <button class="btn btn-sm btn-outline" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')"
-                            style="font-size:0.75rem;padding:0.2rem 0.6rem;">Record Payment</button>
-                    <button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')"
-                            style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">History</button>
+                    <div class="coll-progress-track"><div class="coll-progress-fill ${fillClass}" style="width:${pct}%;"></div></div>
+                    <div class="coll-progress-text">${formatCurrency(totalPaid)} of ${formatCurrency(amt)} · ${pct}%</div>
                 </td>
+                <td>${dueCell}</td>
+                <td style="font-size:0.8125rem;">${lastCell}</td>
+                <td>${actionsCell}</td>
             </tr>
             <tr id="coll-history-${escapeHTML(coll.id)}" style="display:none;background:#f8fafc;">
-                <td colspan="10" style="padding:0.5rem 1rem;font-size:0.8125rem;">
-                    <em>Payment history loads here when expanded (Plan 06 — toggleCollPaymentHistory).</em>
+                <td colspan="5" style="padding:0.5rem 1rem;font-size:0.8125rem;">
+                    <em>Payment history loads here when expanded (toggleCollPaymentHistory).</em>
                 </td>
             </tr>
         `;
     }).join('');
 
+    // Mobile card list — same pageItems as the table (dual-mode, Phase 73.1)
+    const cardHost = document.getElementById('collectiblesCardList');
+    if (cardHost) cardHost.innerHTML = pageItems.map(buildCollectibleCard).join('');
+
+    renderCollShowCompletedToggle(completedCount);
     renderCollectiblesPagination(totalItems, totalPages);
 }
 
@@ -1534,12 +1624,69 @@ function renderCollectiblesPagination(totalItems, totalPages) {
  * Reads the current displayed (filtered+sorted) length to bound page index.
  */
 function changeCollectiblesPage(page) {
-    const total = getDisplayedCollectibles().length;
+    const all = getDisplayedCollectibles();
+    const vis = collShowCompleted ? all : all.filter(c => deriveCollectibleStatus(c) !== 'Fully Paid');
+    const total = vis.length;                               // page math over the VISIBLE set (D-08c)
     const totalPages = Math.max(1, Math.ceil(total / collItemsPerPage));
     if (page === 'prev') collCurrentPage = Math.max(1, collCurrentPage - 1);
     else if (page === 'next') collCurrentPage = Math.min(totalPages, collCurrentPage + 1);
     else if (typeof page === 'number') collCurrentPage = Math.max(1, Math.min(totalPages, page));
     renderCollectiblesTable();
+}
+
+/**
+ * Toggle the fully-paid hide state (D-05b). Resets to page 1 so the page index
+ * never lands out of range after the visible-set size changes.
+ */
+function toggleCollShowCompleted() {
+    collShowCompleted = !collShowCompleted;
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+
+/**
+ * Phase 99.2 — mobile (≤768px) collectible card. Mirrors the Phase 73.1 .fc-card
+ * anatomy (buildRFPCard) and surfaces the same 5-column content + the urgency-tier
+ * left-border class. Reuses the existing payment/history window fns. Internal —
+ * NOT registered on window. Every dynamic value passes through escapeHTML/formatCurrency.
+ */
+function buildCollectibleCard(coll) {
+    const totalPaid = (coll.payment_records || []).filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const amt = parseFloat(coll.amount_requested) || 0;
+    const pct = amt > 0 ? Math.min(100, Math.round(totalPaid / amt * 100)) : 0;
+    const urg = getCollectibleUrgency(coll);
+    const last = getCollectibleLastPayment(coll);
+    const status = deriveCollectibleStatus(coll);
+    const name = coll.department === 'projects' ? (coll.project_name || coll.project_code || '') : (coll.service_name || coll.service_code || '');
+    const dueStr = urg.daysOverdue > 0
+        ? `${urg.daysOverdue} day${urg.daysOverdue === 1 ? '' : 's'} overdue`
+        : (urg.daysUntilDue !== null ? `Due in ${urg.daysUntilDue} day${urg.daysUntilDue === 1 ? '' : 's'}` : 'No due date');
+    const lastStr = last
+        ? `${formatCurrency(parseFloat(last.amount) || 0)} · ${escapeHTML(last.date || '')} · ${escapeHTML(last.method || '')}`
+        : '<span class="coll-no-payment">No payments yet</span>';
+    const fillClass = urg.isOverdue ? 'is-overdue' : (urg.tier === 'paid' ? 'is-paid' : 'is-normal');
+    const actionBtn = status === 'Fully Paid'
+        ? `<button class="btn btn-sm btn-outline" onclick="window.toggleCollPaymentHistory('${coll.id}')">View History</button>`
+        : `<button class="btn btn-sm btn-primary" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')">Record Payment</button>`;
+    return `
+      <div class="fc-card coll-urgency-${urg.tier}">
+        <div class="fc-card-header">
+          <span class="fc-card-id">${escapeHTML(coll.coll_id || '')}</span>
+          ${getDeptBadgeHTML({ department: coll.department })}
+        </div>
+        <div class="fc-card-body">
+          <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${escapeHTML(name)}</span></div>
+          <div class="fc-card-row"><span class="fc-label">Tranche</span><span class="fc-value">${escapeHTML(coll.tranche_label || '')}</span></div>
+          <div class="coll-card-progress">
+            <div class="coll-progress-track"><div class="coll-progress-fill ${fillClass}" style="width:${pct}%;"></div></div>
+            <div class="coll-progress-text">${formatCurrency(totalPaid)} of ${formatCurrency(amt)} · ${pct}%</div>
+          </div>
+          <div class="fc-card-row"><span class="fc-label">Due</span><span class="fc-value">${escapeHTML(dueStr)}</span></div>
+          <div class="fc-card-row"><span class="fc-label">Last Payment</span><span class="fc-value">${lastStr}</span></div>
+        </div>
+        <div class="fc-card-actions">${actionBtn}</div>
+      </div>`;
 }
 
 /**
@@ -3787,27 +3934,28 @@ export function render(activeTab = 'approvals') {
                             <button class="btn btn-outline btn-sm" onclick="window.exportCollectiblesCSV()"
                                     id="exportCollectiblesBtn" style="font-size:0.8125rem;">Export CSV</button>
                         </div>
+                        <!-- Phase 99.2 — reactive scorecard (filled by renderCollectiblesScorecard) -->
+                        <div id="collectiblesScorecard" class="coll-scorecard"></div>
                         <div class="table-scroll-container">
                             <table class="data-table">
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>Project / Service</th>
-                                        <th>Dept</th>
-                                        <th>Tranche</th>
-                                        <th style="text-align:right;">Amount</th>
-                                        <th style="text-align:right;">Paid</th>
-                                        <th style="text-align:right;">Balance</th>
-                                        <th>Due Date</th>
-                                        <th>Status</th>
+                                        <th>Project · Tranche</th>
+                                        <th>Collection Progress</th>
+                                        <th>Due · Urgency</th>
+                                        <th>Last Payment</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="collectiblesTableBody">
-                                    <tr><td colspan="10" style="text-align:center;padding:2rem;color:#64748b;">Loading collectibles...</td></tr>
+                                    <tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b;">Loading collectibles...</td></tr>
                                 </tbody>
                             </table>
                         </div>
+                        <!-- Phase 99.2 — ≤768px mobile card list (populated by renderCollectiblesTable) -->
+                        <div class="fc-card-list" id="collectiblesCardList"></div>
+                        <!-- Phase 99.2 — "Show N completed" toggle host -->
+                        <div id="collShowCompletedHost"></div>
                         <div id="collectiblesPagination" class="pagination-container"></div>
                     </div>
                 </div>
@@ -4697,6 +4845,7 @@ export async function destroy() {
     // Clean up Collectibles tab window functions (Phase 85)
     delete window.filterCollectiblesTable;
     delete window.changeCollectiblesPage;
+    delete window.toggleCollShowCompleted;   // Phase 99.2
     // Plan 06 Task 1 — create + edit
     delete window.openCreateCollectibleModal;
     delete window.submitCollectible;
