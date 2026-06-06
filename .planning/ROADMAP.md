@@ -1110,6 +1110,8 @@ Plans:
   - Merge `collProjectFilter` + `collDeptFilter` into one dept-only control, or keep dept separate and just add search?
   - Group-by-Project interaction with pagination + the Show-N-completed toggle.
   - Date-picker: hand-rolled lightweight popover (preferred — project is no-build CDN) vs a tiny library.
-**Plans**: not yet planned. **Recommended: `/gsd-discuss-phase 99.3`** (UI-bearing — lock the filter-bar layout + date-picker interaction) → `/gsd-plan-phase 99.3`.
+**Plans**: 2 plans / 2 waves (planned 2026-06-06; plan-now path — spike-027c + locked decisions are the design contract, no discuss/research, per Phase 99.1/99.2 precedent). finance.js + the COLLECTIBLES REVAMP β CSS block are touched by both plans → SEQUENTIAL (Plan 02 depends_on 01). All UAT browser-gated (zero-build, no test harness; static gate is node --check + grep).
+  - [ ] 99.3-01-PLAN.md (Wave 1) — Urgency-tier sort (replaces status-priority sort, keys off getCollectibleUrgency) + filter-bar rebuild: free-text search + dept-only dropdown (removes collProjectFilter code-name dropdown) + Looker-style date-range popover (7 presets + Fixed range) + Near-due status option; CSV/pagination/mobile preserved
+  - [ ] 99.3-02-PLAN.md (Wave 2, dep 01) — Group-by-Project accordion toggle (flat default ↔ grouped portfolio; groups sorted by worst urgency; flat keeps Show-N-completed + pagination; grouped shows all groups, tranches on expand)
 **Spec**: `.planning/spikes/027c-collectibles-table-redesign/` (README + `spike.html` + `.continue-here.md` `decisions_made`) — the authoritative mockup; `COLLECTIBLES-REVAMP-SPEC.md` §4/§5.
 **UI hint**: yes — filter-bar layout + date-picker popover; the 027c `spike.html` is the visual reference.
