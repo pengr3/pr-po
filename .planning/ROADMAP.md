@@ -1054,11 +1054,12 @@ Plans:
 **Open questions for discuss/plan**:
   - Confirm whether the new collectibles listener belongs in the existing billing-requests listener setup or a separate handle
   - Verify the inline-card vs modal formula sources stay consistent (spec §2 vocabulary)
-**Plans**: 4 plans, 3 waves (planned 2026-06-06). All UAT browser-gated (zero-build, no test harness).
-  - [ ] 99.1-01-PLAN.md — project-detail.js: per-tranche lifecycle footer + collectibles listener + 2-chip scorecard (D-04 fix) + Full Breakdown header button + department:projects (CDR-01..04) [wave 1]
-  - [ ] 99.1-02-PLAN.md — expense-modal.js: 5-chip money-in strip + new approved-billing_requests fetch + 3-chip Collectibles summary + formula note + ghost rows (CDR-05) [wave 1]
-  - [ ] 99.1-03-PLAN.md — service-detail.js: full Phase 99 billing port (modal+submit department:services+listener+Finance notif) + 025/026 display revamp (CDR-06, CDR-07) [wave 2]
-  - [ ] 99.1-04-PLAN.md — finance.js + notifications.js: dept-aware pending banner + approve preselectKey + decision-notify link + end-to-end service UAT (CDR-08) [wave 3]
+**Status**: ✅ COMPLETE 2026-06-06 — executed inline on v3.3 (4/4 plans, 11 commits); browser UAT 8/8 passed (cross-surface service flow + project regression). Verification `human_needed` → UAT approved. notifications.js confirmed unchanged (D-26 via per-notification link). firestore.rules untouched (D-27). Pending: dev rules deploy (Phase 99 rules) + v3.3→main merge.
+**Plans**: 4 plans, 3 waves (planned 2026-06-06; executed 2026-06-06). All UAT browser-gated (zero-build, no test harness).
+  - [x] 99.1-01-PLAN.md — project-detail.js: per-tranche lifecycle footer + collectibles listener + 2-chip scorecard (D-04 fix) + Full Breakdown header button + department:projects (CDR-01..04) [wave 1] — COMPLETE (207ef22, 1572191, d8424ad)
+  - [x] 99.1-02-PLAN.md — expense-modal.js: 5-chip money-in strip + new approved-billing_requests fetch + 3-chip Collectibles summary + formula note + ghost rows (CDR-05) [wave 1] — COMPLETE (d5e5c62)
+  - [x] 99.1-03-PLAN.md — service-detail.js: full Phase 99 billing port (modal+submit department:services+listener+Finance notif) + 025/026 display revamp (CDR-06, CDR-07) [wave 2] — COMPLETE (386cb32, 5fac454, d3bea16)
+  - [x] 99.1-04-PLAN.md — finance.js + notifications.js: dept-aware pending banner + approve preselectKey + decision-notify link + end-to-end service UAT (CDR-08) [wave 3] — COMPLETE (05b79f7; notifications.js unchanged)
 **Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §3 (consolidates spikes 025 + 026)
 **UI hint**: yes
 
