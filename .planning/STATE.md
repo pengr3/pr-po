@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement ? Full Management Portal
-status: Phase 99 CLOSED — UNVALIDATED (2026-06-06, user direction). Executed (3/3 plans, v3.3); UAT 5/6 PASS, test 6 (notifications) left PARTIAL/never-re-verified. Closed as shipped-but-unvalidated, NOT UAT-approved. Deferred: (a) test-6 re-verify cache-disabled; (b) approved-not-filed orphan-state → collectibles revamp Phase β; (c) rules deploy → v3.3 merge. See ROADMAP Phase 99 + COLLECTIBLES-REVAMP-SPEC.md. Collectibles spike series 025→027c WRAPPED (all VALIDATED, consolidated spec written).
-stopped_at: 2026-06-06 — Phase 99 CLOSED-unvalidated; collectibles revamp inserted as Phase 99.1 (α detail-page, spikes 025+026) + 99.2 (β finance-page, spikes 027a/b/c) in ROADMAP — both NOT YET PLANNED. NEXT: /gsd-plan-phase 99.1 (or /gsd-discuss-phase 99.1 first). 99.2 owns the Phase 99 approved-not-filed orphan-state fix. ||| collectibles-revamp spike series 025→027c WRAPPED. All 5 VALIDATED (027a/b/c README verdicts synced to MANIFEST); consolidated spec at .planning/spikes/COLLECTIBLES-REVAMP-SPEC.md (4 files, 2-surface split, NO schema change, depends on Phase 99). Next: decide milestone/branch home (#8) + close Phase 99 first (now owns approved-not-filed orphan-state fix), THEN /gsd-phase --add (recommend 2 phases: α detail-page 025+026, β finance-page 027a/b/c) → /gsd-plan-phase. Phase 99 test-6 re-verify still pending. Uncommitted: spec + verdict doc edits + STATE.
+status: Phase 99.1 (Collectibles Revamp α) PLANNED 2026-06-06 — 4 plans / 3 waves (committed da251af); plan-checker VERIFICATION PASSED (0 blockers, 5 minor notes). SCOPE EXPANDED per user directive: the FULL Phase 99 billing-request flow is mirrored to services (not just display parity) + minimal finance.js approve/banner generalization via a `department` discriminator. Ready to execute → /gsd-execute-phase 99.1. ||| Phase 99 CLOSED — UNVALIDATED (2026-06-06): executed 3/3 (v3.3); UAT 5/6, test 6 (notifications) PARTIAL/never-re-verified. Deferred: (a) test-6 re-verify cache-disabled; (b) approved-not-filed orphan-state → Phase 99.2; (c) rules deploy → v3.3 merge. Collectibles spike series 025→027c WRAPPED (all VALIDATED; spec at .planning/spikes/COLLECTIBLES-REVAMP-SPEC.md).
+stopped_at: 2026-06-06 — Phase 99.1 PLANNED (CONTEXT via spec-express from spikes 025+026; PATTERNS mapped; 4 plans/3 waves; plan-checker PASSED). Waves: W1 = 99.1-01 project-detail.js + 99.1-02 expense-modal.js (parallel, disjoint files); W2 = 99.1-03 service-detail.js (net-new PORT of Phase 99 billing flow + 025/026 revamp); W3 = 99.1-04 finance.js + notifications.js (dept-aware approve/banner via `department` discriminator, BLOCKING end-to-end service-flow browser-UAT). Critical coupling: D-22 (submit writes department) ↔ D-25 (finance reads req.department) — W3 depends_on [01,03]; missing department defaults to 'projects' (back-compat). NEXT: /clear → /gsd-execute-phase 99.1. DEPLOY before the Plan-04 UAT: firebase deploy --only firestore:rules --project dev (CLI active project is PROD). 99.2 (β finance-page, owns approved-not-filed orphan-state fix) still NOT planned.
 last_updated: "2026-06-06T00:00:00.000Z"
 last_activity: 2026-06-06
 progress:
   total_phases: 34
   completed_phases: 30
   closed_unvalidated_phases: 1
-  total_plans: 122
+  total_plans: 126
   completed_plans: 122
   percent: 88
 ---
