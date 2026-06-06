@@ -1085,10 +1085,31 @@ Plans:
   2. Search box (project name / tranche / COLL id / code) — `collProjectFilter` becomes a dept-only dropdown (All / Projects / Services); search does name lookup.
   3. Group-by-Project accordion toggle (flat default ↔ grouped portfolio view).
   4. `sortByUrgency()` in `getDisplayedCollectibles()` — critical→overdue→near-due→partial→healthy→paid, replacing the current Pending→Overdue→Partial→Fully status-priority sort (the urgency UI shipped but the urgency *ordering* did not).
-  These are display/UX only (no schema/rules change), `finance.js` + the existing CSS block. Awaiting user decision on whether to formalize as Phase 99.3, backlog, or implement now.
+  These are display/UX only (no schema/rules change), `finance.js` + the existing CSS block. → **Formalized as Phase 99.3 (below) per user decision 2026-06-06.**
 **Plans**: 3 plans / 3 waves (planned 2026-06-06; executed 2026-06-06). All UAT browser-gated (zero-build, no test harness).
   - [x] 99.2-01-PLAN.md (Wave 1) — Foundation: shared getCollectibleUrgency/getCollectibleLastPayment helpers (D-08a/D-08b single source) + dedicated collectibles CSS block (chips, 6px progress bars, 6 urgency left-borders, ≤768px cards) — COMPLETE (`63a27db`, `8a0ebaa`)
   - [x] 99.2-02-PLAN.md (Wave 2, dep 01) — Scorecard (4 reactive chips, Overdue hidden at ₱0) + table redesign 10→5 cols + 6 urgency borders + Show-N-completed toggle (pagination recompute, CSV preserved) + mobile card builder — COMPLETE (`67604fa`)
   - [x] 99.2-03-PLAN.md (Wave 3, dep 01,02) — Unified two-section banner: Awaiting Your Review (pending) + Approved—File as Collectible (orphan reconciliation on project_code+tranche_index; File COLL → openCreateCollectibleModal) — COMPLETE (`5bee958`, `8caeab5`)
 **Spec**: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md` §4 (consolidates spikes 027a + 027b + 027c)
 **UI hint**: yes
+
+### Phase 99.3: Collectibles Filter Bar + Urgency Sort (NEW, inserted 2026-06-06; completes spike 027c — filter/sort layer dropped from Phase 99.2 scope)
+
+**Goal**: Finish the spike-027c Finance Collectibles redesign by rebuilding the filter bar and row ordering that were omitted from Phase 99.2 — so Finance can slice receivables by smart date ranges and free-text search, and the most-urgent rows always surface first. Display/UX only; extends the 99.2 table surface. (These were specified in spike 027c but dropped at the 99.2 plan-now scoping stage and never recorded as deferred — surfaced by operator 2026-06-06 after 99.2 UAT.)
+**Depends on**: Phase 99.2 (COMPLETE) — extends its 5-col table, `getCollectibleUrgency` helper, `getDisplayedCollectibles()` pipeline, and the dedicated `COLLECTIBLES REVAMP β` CSS block. No new spike needed (027c mockup + locked decisions are the design contract).
+**Target files**: `app/views/finance.js` (filter-bar markup + `getDisplayedCollectibles()` sort + `filterCollectiblesTable()` + render) + the existing collectibles CSS block in `styles/views.css`. **No Firestore schema/rules change.**
+**Requirements**: spike-027c filter/sort decisions (027c README `decisions_made` + `.continue-here.md`).
+**Success Criteria** (what must be TRUE):
+  1. **Urgency sort** — `getDisplayedCollectibles()` orders rows by the existing `getCollectibleUrgency` tiers (critical → overdue → near-due → partial → healthy → paid; secondary due_date asc), replacing the current Pending→Overdue→Partial→Fully status-priority sort. Scorecard/pagination/CSV still operate on this set.
+  2. **Looker Studio-style date-range picker** — presets (Today / Yesterday / This month / Last 7 days / Last 30 days / Fixed range / Any time) replace the raw `collDueFromFilter`/`collDueToFilter` inputs; "Fixed range" reveals From/To. Filters on `due_date`.
+  3. **Search box** — free-text over project/service name, tranche label, COLL id, code; resets to page 1 on input (mirrors `filterCollectiblesTable`).
+  4. **Dept-only dropdown** — the `collProjectFilter` project/service dropdown becomes a dept filter (All / Projects / Services); project-name lookup moves to the search box (027c decision). Reconcile/merge with the existing `collDeptFilter`.
+  5. **Group-by-Project toggle** — flat default ↔ grouped accordion; flat keeps the Show-N-completed toggle; grouped sorts groups by worst urgency. (Persistence at Claude's discretion.)
+  6. CSV export (D-07) still reads the filtered set with 13 columns; pagination recomputes over the visible/sorted set; the ≤768px card list reflects the same rows/order.
+**Open questions for discuss/plan**:
+  - Merge `collProjectFilter` + `collDeptFilter` into one dept-only control, or keep dept separate and just add search?
+  - Group-by-Project interaction with pagination + the Show-N-completed toggle.
+  - Date-picker: hand-rolled lightweight popover (preferred — project is no-build CDN) vs a tiny library.
+**Plans**: not yet planned. **Recommended: `/gsd-discuss-phase 99.3`** (UI-bearing — lock the filter-bar layout + date-picker interaction) → `/gsd-plan-phase 99.3`.
+**Spec**: `.planning/spikes/027c-collectibles-table-redesign/` (README + `spike.html` + `.continue-here.md` `decisions_made`) — the authoritative mockup; `COLLECTIBLES-REVAMP-SPEC.md` §4/§5.
+**UI hint**: yes — filter-bar layout + date-picker popover; the 027c `spike.html` is the visual reference.
