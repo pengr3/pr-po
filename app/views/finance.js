@@ -230,6 +230,9 @@ let servicesForCollMap = new Map();      // service_code -> { name, contract_cos
 // Phase 99 — pending billing requests (Finance review queue, D-14)
 let pendingBillingRequests = [];
 let billingBannerCollapsed = false;
+// Phase 99.2 — approved-not-filed recovery (D-03/D-04)
+let approvedBillingRequests = [];        // approved requests, reconciled against collectiblesData for orphans
+let approvedBannerCollapsed = false;     // independent collapse for sub-section 2
 // Filter state (D-03 — independence pattern from Phase 65.1)
 let collProjectFilter = '';              // selected project_code or service_code (used in conjunction with collDeptFilter)
 let collStatusFilter = '';
@@ -1735,6 +1738,7 @@ async function initCollectiblesTab() {
         });
         populateCollProjectFilter();
         renderCollectiblesTable();
+        renderPendingBillingBanner();   // Phase 99.2 — a freshly-filed COLL drops its approved orphan from sub-section 2 (D-04)
     }, (err) => {
         console.error('[Finance/Collectibles] collectibles snapshot error:', err);
         showToast('Failed to load collectibles. Refresh to retry.', 'error');
@@ -1782,15 +1786,39 @@ async function initCollectiblesTab() {
     // Phase 99 — pending billing requests banner (D-14, scoped to status=='pending' lowercase-exact).
     // Attached once per Finance mount (CLAUDE.md tab-switch contract); pushed to listeners[] for teardown.
     const brUnsub = onSnapshot(
-        query(collection(db, 'billing_requests'), where('status', '==', 'pending')),
+        collection(db, 'billing_requests'),
         (snapshot) => {
             pendingBillingRequests = [];
-            snapshot.forEach(d => pendingBillingRequests.push({ id: d.id, ...d.data() }));
+            approvedBillingRequests = [];
+            snapshot.forEach(d => {
+                const r = { id: d.id, ...d.data() };
+                if (r.status === 'pending') pendingBillingRequests.push(r);          // case-sensitive (CLAUDE.md)
+                else if (r.status === 'approved') approvedBillingRequests.push(r);
+                // rejected/other: ignored
+            });
             renderPendingBillingBanner();
         },
         (err) => { console.error('[Finance/BillingReq] snapshot error:', err); }
     );
     listeners.push(brUnsub);
+}
+
+/**
+ * Phase 99.2 (D-04) — reconcile approved billing requests against collectiblesData.
+ * An approved request is an ORPHAN (must surface in banner sub-section 2, the ONLY
+ * recovery path for the Phase 99 abandoned-create state) when NO collectibles doc
+ * matches its dept-aware code + tranche_index. Must be correct — an orphan can never
+ * be silently absent. Approve stays a simple status flip (NOT atomic create, deferred).
+ */
+function getOrphanApprovedBillingRequests() {
+    return (approvedBillingRequests || []).filter(req => {
+        const reqCode = req.department === 'services' ? (req.service_code || '') : (req.project_code || '');
+        const hasColl = (collectiblesData || []).some(c => {
+            const code = c.department === 'services' ? (c.service_code || '') : (c.project_code || '');
+            return code === reqCode && c.tranche_index === req.tranche_index;
+        });
+        return !hasColl;   // orphan when no matching collectible
+    });
 }
 
 // Phase 99 D-14 — render the collapsible blue "Pending Billing Requests" banner.
