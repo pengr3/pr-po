@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-07T00:00:00.000Z",
+  "phase": "99.3",
+  "phase_name": "Collectibles Filter Bar + Urgency Sort",
+  "phase_dir": ".planning/phases/99.3-collectibles-filter-bar-urgency-sort",
+  "plan": 2,
+  "task": 2,
+  "total_tasks": 5,
+  "status": "paused",
+  "pause_point": "All code executed + committed; verification human_needed; paused at the browser-UAT gate awaiting operator approval.",
+  "completed_tasks": [
+    {"id": 1, "plan": "99.3-01", "name": "Urgency-tier sort (COLL_URG_ORDER) replaces status-priority sort", "status": "done", "commit": "b59f77c"},
+    {"id": 2, "plan": "99.3-01", "name": "Filter pipeline rebuild — search, dept-only, Near-due, computeCollDueRange", "status": "done", "commit": "af2707f"},
+    {"id": 3, "plan": "99.3-01", "name": "Filter-bar markup + Looker date popover handlers + popover CSS", "status": "done", "commit": "cb151dd"},
+    {"id": 4, "plan": "99.3-02", "name": "Group-by state + grouped renderer + render-branch wiring", "status": "done", "commit": "529ea74"},
+    {"id": 5, "plan": "99.3-02", "name": "Group-by toggle button + handlers + window reg/teardown + grouped CSS", "status": "done", "commit": "e79071d"}
+  ],
+  "remaining_tasks": [
+    {"id": 6, "name": "Browser UAT — 10 items in 99.3-HUMAN-UAT.md (Finance -> Collectibles)", "status": "not_started", "owner": "human"},
+    {"id": 7, "name": "On all-pass: flip HUMAN-UAT + VERIFICATION to passed, mark phase complete in ROADMAP/STATE", "status": "not_started", "owner": "claude (after approval)"}
+  ],
+  "blockers": [
+    {"description": "Phase completion is browser-UAT gated — zero-build SPA has no functional test harness, so on-screen behavior must be confirmed by a human.", "type": "human_action", "workaround": "Run python -m http.server 8000, open Finance -> Collectibles, walk the 10 UAT items."}
+  ],
+  "human_actions_pending": [
+    {"action": "Browser-UAT the 10 items in 99.3-HUMAN-UAT.md", "context": "Confirms urgency sort order, search, dept dropdown, date presets + Fixed-range stale-clear, Near-due (<=7 & not overdue), Group-by accordion, intentional scorecard divergence, CSV 13-col filtered set, remount reset.", "blocking": true},
+    {"action": "Reply 'approved' (or report issues)", "context": "On approval Claude marks the phase complete; on failure -> /gsd-plan-phase 99.3 --gaps.", "blocking": true}
+  ],
+  "decisions": [
+    {"decision": "Executed inline sequential on v3.3 (no subagents/worktrees)", "rationale": "gsd-sdk unavailable + 2 stale locked agent worktrees make the worktree/subagent path unsafe; both plans share finance.js + views.css so they must serialize anyway. Matches Phase 98/99/99.1/99.2 precedent.", "phase": "99.3"},
+    {"decision": "Near-due = getCollectibleUrgency tier 'near-due' (<=7 days AND not overdue)", "rationale": "Canonical D-08b definition; deliberately narrower than the spike's d<=0 && -d<=7 so the Plan-01 Near-due filter and the Plan-02 group near-due count agree (Fix-2).", "phase": "99.3"},
+    {"decision": "Grouped scorecard aggregates the pre-hide portfolio set (fully-paid included); flat scorecard stays on the post-hide set", "rationale": "Intentional portfolio-vs-active-list divergence (Fix-1) — documented so the Total Invoiced/Collected/Outstanding shift on toggle reads as design, not a bug.", "phase": "99.3"},
+    {"decision": "Grouped rows reuse the real 5-column table + coll-urgency-${tier} row-class border", "rationale": "Avoids a separate urg-bar cell / second <thead>; the existing data-table header serves both flat and grouped views.", "phase": "99.3"}
+  ],
+  "uncommitted_files": [
+    {"path": ".planning/spikes/CONVENTIONS.md", "note": "Pre-existing, UNRELATED to 99.3 — do not commit as part of this phase."},
+    {"path": ".planning/spikes/MANIFEST.md", "note": "Pre-existing, UNRELATED to 99.3."},
+    {"path": ".planning/debug/86.9-row-misalign-DEBUG.md", "note": "Untracked, UNRELATED (Phase 86.9 debug)."},
+    {"path": ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md", "note": "Untracked, UNRELATED (Phase 86.9)."},
+    {"path": ".planning/spikes/028-home-hero-concepts/ .planning/spikes/029-responsibility-map/ .planning/spikes/030-deep-link-intent/ .planning/spikes/031-role-system-target/", "note": "Untracked spike dirs, UNRELATED to 99.3."},
+    {"path": "debug-diag-86.9.js", "note": "Untracked root debug script, UNRELATED."}
+  ],
+  "next_action": "Run python -m http.server 8000, open Finance -> Collectibles, and walk the 10 items in 99.3-HUMAN-UAT.md. Reply 'approved' to mark the phase complete, or describe failures to trigger /gsd-plan-phase 99.3 --gaps.",
+  "context_notes": "Phase 99.3 (completes spike-027c filter/sort layer) is fully implemented across 8 commits (5 feat + 2 plan-SUMMARY + 1 tracking) on branch v3.3. node --check passes; every static grep gate met; window register<->teardown 5/5 symmetric; MD-01 destroy() resets in place. All 4 named fixes honored (Fix-1 grouped portfolio scorecard, Fix-2 canonical near-due, Fix-3 deterministic popover open-state with no display:'' close path, Fix-4 unconditional From/To input clear on non-fixed presets). No Firestore schema/rules change — the standing 87.4/99/99.1 rules-deploy + v3.3->main merge debt is unaffected. The ONLY remaining work is human browser-UAT. Inline code review of the 2-file diff found no correctness issues. Resume by collecting the UAT result, not by re-running code."
+}
