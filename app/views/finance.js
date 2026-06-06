@@ -423,6 +423,10 @@ function attachWindowFunctions() {
     window.filterCollectiblesTable = filterCollectiblesTable;
     window.changeCollectiblesPage = changeCollectiblesPage;
     window.toggleCollShowCompleted = toggleCollShowCompleted;   // Phase 99.2 — fully-paid hide toggle
+    // Phase 99.3 — Looker-style date-range popover handlers
+    window.toggleCollDatePicker = toggleCollDatePicker;
+    window.selectCollDuePreset = selectCollDuePreset;
+    window.onCollFixedRangeChange = onCollFixedRangeChange;
 
     // Collectibles tab — write-side (Plan 06): direct assignments override any
     // pre-existing Plan 05 defensive stubs. Unconditional per Plan 06 contract.
@@ -1383,6 +1387,64 @@ function computeCollDueRange(preset) {
     if (preset === 'last7')      { const f = new Date(t); f.setDate(f.getDate()-6);  return { from: fmt(f), to: fmt(t) }; }
     if (preset === 'last30')     { const f = new Date(t); f.setDate(f.getDate()-29); return { from: fmt(f), to: fmt(t) }; }
     return { from: '', to: '' }; // '' (Any time) and 'fixed' compute from inputs, not here
+}
+
+// Phase 99.3 — Looker-style date-range popover handlers (ported from spike-027c).
+function collDuePickerLabel() {
+    const labels = { '':'Due: Any time', today:'Due: Today', yesterday:'Due: Yesterday',
+        this_month:'Due: This month', last7:'Due: Last 7 days', last30:'Due: Last 30 days' };
+    if (collDuePreset === 'fixed') {
+        const f = collDueFromFilter || '…', t = collDueToFilter || '…';
+        return `Due: ${f} – ${t}`;
+    }
+    return labels[collDuePreset] || 'Due: Any time';
+}
+function refreshCollDatePickerUI() {
+    const lbl = document.getElementById('collDatePickerLabel'); if (lbl) lbl.textContent = collDuePickerLabel();
+    const btn = document.getElementById('collDatePickerBtn'); if (btn) btn.classList.toggle('active', !!collDuePreset);
+    document.querySelectorAll('.coll-dp-preset').forEach(el => el.classList.toggle('on', el.dataset.mode === collDuePreset));
+}
+function toggleCollDatePicker() {
+    const panel = document.getElementById('collDpPanel'); if (!panel) return;
+    // Open-state test is deterministic because EVERY close path writes display='none'
+    // (never '') — see collDpOutsideClose + selectCollDuePreset. No spike display:'' here.
+    const willOpen = panel.style.display === 'none';
+    panel.style.display = willOpen ? 'block' : 'none';
+    if (willOpen) setTimeout(() => document.addEventListener('click', collDpOutsideClose, { once: true }), 0);
+}
+function collDpOutsideClose(e) {
+    const wrap = document.getElementById('collDatePickerWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const panel = document.getElementById('collDpPanel'); if (panel) panel.style.display = 'none';
+    } else {
+        document.addEventListener('click', collDpOutsideClose, { once: true });
+    }
+}
+function selectCollDuePreset(mode) {
+    collDuePreset = mode;
+    const fixed = document.getElementById('collDpFixed');
+    if (fixed) fixed.style.display = mode === 'fixed' ? 'block' : 'none';
+    if (mode !== 'fixed') {
+        // For ALL non-fixed presets (including '' = Any time, where r.from/r.to are '')
+        // overwrite both the effective-range STATE and the visible input .values, so a
+        // user who typed Fixed dates then picked Any time leaves NO stale input values.
+        const r = computeCollDueRange(mode);
+        collDueFromFilter = r.from; collDueToFilter = r.to;
+        const panel = document.getElementById('collDpPanel'); if (panel) panel.style.display = 'none';
+        const ff = document.getElementById('collDueFromFilter'); if (ff) ff.value = r.from; // r.from may be '' — intended clear
+        const ft = document.getElementById('collDueToFilter');   if (ft) ft.value = r.to;   // r.to may be ''  — intended clear
+    }
+    refreshCollDatePickerUI();
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+function onCollFixedRangeChange() {
+    collDueFromFilter = document.getElementById('collDueFromFilter')?.value || '';
+    collDueToFilter   = document.getElementById('collDueToFilter')?.value || '';
+    collDuePreset = 'fixed';
+    refreshCollDatePickerUI();
+    collCurrentPage = 1;
+    renderCollectiblesTable();
 }
 
 // Phase 99.3 — urgency-tier sort order (spike-027c URG_ORDER). Keys are the exact
@@ -3985,11 +4047,10 @@ export function render(activeTab = 'approvals') {
                     </div>
                     <div style="padding:1rem;">
                         <div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;align-items:center;flex-wrap:wrap;">
-                            <select id="collProjectFilter" class="form-control"
-                                    style="width:auto;min-width:200px;font-size:0.875rem;"
-                                    onchange="window.filterCollectiblesTable()">
-                                <option value="">All Projects/Services</option>
-                            </select>
+                            <input type="search" id="collSearchInput" class="form-control"
+                                   placeholder="Search project, tranche, COLL ID, code…"
+                                   style="width:auto;min-width:220px;font-size:0.875rem;"
+                                   oninput="window.filterCollectiblesTable()">
                             <select id="collStatusFilter" class="form-control"
                                     style="width:auto;min-width:160px;font-size:0.875rem;"
                                     onchange="window.filterCollectiblesTable()">
@@ -3998,6 +4059,7 @@ export function render(activeTab = 'approvals') {
                                 <option value="Partially Paid">Partially Paid</option>
                                 <option value="Fully Paid">Fully Paid</option>
                                 <option value="Overdue">Overdue</option>
+                                <option value="Near Due">Near due (≤7 days)</option>
                             </select>
                             <select id="collDeptFilter" class="form-control"
                                     style="width:auto;min-width:160px;font-size:0.875rem;"
@@ -4006,16 +4068,34 @@ export function render(activeTab = 'approvals') {
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
                             </select>
-                            <label style="font-size:0.8125rem;color:#64748b;">Due from:
-                                <input type="date" id="collDueFromFilter" class="form-control"
-                                       style="width:auto;font-size:0.875rem;"
-                                       onchange="window.filterCollectiblesTable()">
-                            </label>
-                            <label style="font-size:0.8125rem;color:#64748b;">Due to:
-                                <input type="date" id="collDueToFilter" class="form-control"
-                                       style="width:auto;font-size:0.875rem;"
-                                       onchange="window.filterCollectiblesTable()">
-                            </label>
+                            <div class="coll-date-picker-wrap" id="collDatePickerWrap">
+                                <button type="button" class="coll-date-picker-btn" id="collDatePickerBtn"
+                                        onclick="window.toggleCollDatePicker()">
+                                    <span id="collDatePickerLabel">Due: Any time</span>
+                                    <span class="coll-dp-chevron">▾</span>
+                                </button>
+                                <div class="coll-dp-panel" id="collDpPanel" style="display:none;">
+                                    <div class="coll-dp-section-label">Quick select</div>
+                                    <div class="coll-dp-preset" data-mode="today"      onclick="window.selectCollDuePreset('today')">Today</div>
+                                    <div class="coll-dp-preset" data-mode="yesterday"  onclick="window.selectCollDuePreset('yesterday')">Yesterday</div>
+                                    <div class="coll-dp-preset" data-mode="this_month" onclick="window.selectCollDuePreset('this_month')">This month</div>
+                                    <div class="coll-dp-preset" data-mode="last7"      onclick="window.selectCollDuePreset('last7')">Last 7 days</div>
+                                    <div class="coll-dp-preset" data-mode="last30"     onclick="window.selectCollDuePreset('last30')">Last 30 days</div>
+                                    <div class="coll-dp-divider"></div>
+                                    <div class="coll-dp-preset" data-mode=""      onclick="window.selectCollDuePreset('')">Any time</div>
+                                    <div class="coll-dp-preset" data-mode="fixed"  onclick="window.selectCollDuePreset('fixed')">Fixed range ▸</div>
+                                    <div class="coll-dp-fixed" id="collDpFixed" style="display:none;">
+                                        <div class="coll-dp-fixed-row">
+                                            <span class="coll-dp-fixed-lbl">From</span>
+                                            <input type="date" id="collDueFromFilter" onchange="window.onCollFixedRangeChange()">
+                                        </div>
+                                        <div class="coll-dp-fixed-row">
+                                            <span class="coll-dp-fixed-lbl">To</span>
+                                            <input type="date" id="collDueToFilter" onchange="window.onCollFixedRangeChange()">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <button class="btn btn-outline btn-sm" onclick="window.exportCollectiblesCSV()"
                                     id="exportCollectiblesBtn" style="font-size:0.8125rem;">Export CSV</button>
                         </div>
@@ -4931,6 +5011,9 @@ export async function destroy() {
     delete window.filterCollectiblesTable;
     delete window.changeCollectiblesPage;
     delete window.toggleCollShowCompleted;   // Phase 99.2
+    delete window.toggleCollDatePicker;      // Phase 99.3
+    delete window.selectCollDuePreset;       // Phase 99.3
+    delete window.onCollFixedRangeChange;    // Phase 99.3
     // Plan 06 Task 1 — create + edit
     delete window.openCreateCollectibleModal;
     delete window.submitCollectible;

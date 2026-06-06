@@ -2219,6 +2219,49 @@
     .coll-card-progress { padding-top: 0.3rem; }
 }
 
+/* 7. Filter bar — Looker-style date-range popover (Phase 99.3) */
+.coll-date-picker-wrap { position: relative; }
+.coll-date-picker-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 6px;
+    background: #fff; font-size: 0.875rem; color: #475569; cursor: pointer;
+    white-space: nowrap; font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+}
+.coll-date-picker-btn:hover { border-color: #cbd5e1; }
+.coll-date-picker-btn.active { border-color: #1a73e8; color: #1a73e8; background: #eff6ff; }
+.coll-dp-chevron { font-size: 0.65rem; color: #94a3b8; }
+.coll-date-picker-btn.active .coll-dp-chevron { color: #1a73e8; }
+.coll-dp-panel {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 300;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 9px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.13); min-width: 200px; overflow: hidden;
+}
+.coll-dp-section-label {
+    padding: 0.45rem 0.9rem 0.2rem;
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #94a3b8;
+}
+.coll-dp-preset {
+    padding: 0.45rem 0.9rem; font-size: 0.82rem; color: #475569;
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+}
+.coll-dp-preset:hover { background: #f8fafc; }
+.coll-dp-preset.on { background: #eff6ff; color: #1a73e8; font-weight: 600; }
+.coll-dp-divider { height: 1px; background: #f1f5f9; margin: 0.2rem 0; }
+.coll-dp-fixed {
+    padding: 0.55rem 0.75rem 0.65rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex; flex-direction: column; gap: 0.35rem;
+}
+.coll-dp-fixed-row { display: flex; align-items: center; gap: 0.4rem; }
+.coll-dp-fixed-lbl { font-size: 0.7rem; color: #94a3b8; width: 34px; }
+.coll-dp-fixed input[type="date"] {
+    flex: 1; padding: 0.3rem 0.4rem; border: 1px solid #e2e8f0; border-radius: 5px;
+    font-size: 0.78rem; color: #475569; background: #fff; font-family: inherit;
+}
+.coll-dp-fixed input[type="date"]:focus { outline: none; border-color: #1a73e8; }
+
 /* ========================================
    FINANCE MODALS — MOBILE RESPONSIVE (Phase 73.2)
    Targets Financial Breakdown Modal (#expenseBreakdownModal).
