@@ -4,11 +4,11 @@
    personnel assignment pills, and expense stub
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count, addDoc, serverTimestamp } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
-import { createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+import { createNotificationForUsers, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 // Phase 87.1 D-05 — inline proposal card
 import { _applyProposalStateTransition } from './proposals.js';
 import { openProposalModal, openCreateProposalModal } from '../proposal-modal.js';
@@ -25,6 +25,16 @@ let personnelClickOutsideHandler = null;
 let currentServiceExpense = { mrfCount: 0, prTotal: 0, prCount: 0, poTotal: 0, poCount: 0, rfpFeesTotal: 0, totalPaid: 0, remainingPayable: 0, hasRfps: false };
 // Phase 85 D-06 / D-01: collectibles aggregation alongside currentServiceExpense (mirror of project-detail.js currentCollectibles)
 let currentServiceCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
+
+// Phase 99.1 (Phase 99 port) — own billing requests for THIS service (own-requests status list)
+let currentBillingRequests = [];
+let billingRequestsListenerUnsub = null;
+// Phase 99.1 — billing-request modal selected type (auto-hinted, overrideable)
+let billingSelectedType = 'progress';
+// Phase 99.1 D-12 — raw collectible docs (per-tranche, with payment_records) for lifecycle derivation.
+// Distinct name from currentServiceCollectibles (the AGGREGATE object above).
+let currentCollectibleDocs = [];
+let collectiblesListenerUnsub = null;
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -151,6 +161,10 @@ export async function init(activeTab = null, param = null) {
 
             if (!checkServiceAccess()) return;
 
+            // Phase 99.1 — own billing-requests + raw collectibles listeners (idempotent, scoped to service_code)
+            ensureServiceBillingRequestsListener();
+            ensureServiceCollectiblesListener();
+
             await refreshServiceExpense(true);
             // Note: refreshServiceExpense() calls renderServiceDetail() on success.
             // On error it catches silently — currentServiceExpense retains last known values.
@@ -211,6 +225,15 @@ export async function destroy() {
     // Phase 85 D-06: reset collectibles state alongside currentServiceExpense
     currentServiceCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
+    // Phase 99.1 — billing-requests + raw collectibles listener teardown
+    if (billingRequestsListenerUnsub) { try { billingRequestsListenerUnsub(); } catch (e) { /* swallow */ } }
+    billingRequestsListenerUnsub = null;
+    currentBillingRequests = [];
+    billingSelectedType = 'progress';
+    if (collectiblesListenerUnsub) { try { collectiblesListenerUnsub(); } catch (e) { /* swallow */ } }
+    collectiblesListenerUnsub = null;
+    currentCollectibleDocs = [];
+
     currentService = null;
     currentServiceDocId = null;
     serviceParam = null;
@@ -235,6 +258,86 @@ export async function destroy() {
     delete window.openCreateProposalModal;
     delete window._startProposalCallback;
     document.getElementById('proposal-inline-submit-modal')?.remove();
+    // Phase 99.1 — billing modal cleanup
+    delete window.openBillingRequestModal;
+    delete window.submitBillingRequest;
+    delete window._onBillingTrancheChange;
+    delete window._selectBillingType;
+    delete window._validateBillingForm;
+    document.getElementById('billingRequestModal')?.remove();
+    delete window.openServiceFullBreakdown;
+}
+
+// Phase 99.1 (Phase 99 port) — idempotent attach of the own billing-requests listener.
+// Scoped to currentService.service_code; re-renders the detail on change; torn down in destroy().
+function ensureServiceBillingRequestsListener() {
+    if (billingRequestsListenerUnsub) return;
+    const code = currentService?.service_code;
+    if (!code) return; // no service_code → no scoped own-requests list
+    billingRequestsListenerUnsub = onSnapshot(
+        query(collection(db, 'billing_requests'), where('service_code', '==', code)),
+        (snap) => {
+            currentBillingRequests = [];
+            snap.forEach(d => currentBillingRequests.push({ id: d.id, ...d.data() }));
+            if (currentService) renderServiceDetail();
+        },
+        (err) => console.error('[ServiceDetail/BillingReq] snapshot error:', err)
+    );
+}
+
+// Phase 99.1 D-12 — idempotent attach of the raw-collectibles listener (per-tranche docs with
+// payment_records, for lifecycle-stage derivation). Mirrors ensureServiceBillingRequestsListener.
+function ensureServiceCollectiblesListener() {
+    if (collectiblesListenerUnsub) return;
+    const code = currentService?.service_code;
+    if (!code) return;
+    collectiblesListenerUnsub = onSnapshot(
+        query(collection(db, 'collectibles'), where('service_code', '==', code)),
+        (snap) => {
+            currentCollectibleDocs = [];
+            snap.forEach(d => currentCollectibleDocs.push({ id: d.id, ...d.data() }));
+            if (currentService) renderServiceDetail();
+        },
+        (err) => console.error('[ServiceDetail/Collectibles] snapshot error:', err)
+    );
+}
+
+// Phase 99.1 D-07/D-13 — single source of truth for a tranche's lifecycle stage + cash %
+// (copied verbatim from project-detail.js — independent copy, no shared module for these views).
+// Cross-references a tranche against its billing_request and collectible doc (matched by
+// tranche_index, the in-page D-05 key) using the CANONICAL voided-excluded cash formula.
+// Returns { stage, badgeLabel, badgeColor, opacity, pct, totalPaid, amountRequested, note }.
+function computeTrancheLifecycle(tranche, idx, billingReqs, collectibleDocs) {
+    const br = (Array.isArray(billingReqs) ? billingReqs : []).find(r => r.tranche_index === idx);
+    const coll = (Array.isArray(collectibleDocs) ? collectibleDocs : []).find(c => c.tranche_index === idx);
+    const amountRequested = coll ? (parseFloat(coll.amount_requested) || 0) : 0;
+    const totalPaid = coll
+        ? (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0)
+        : 0;
+    const pct = amountRequested > 0 ? Math.round((totalPaid / amountRequested) * 100) : 0;
+    const status = br ? br.status : null;
+
+    if (!br && !coll) {
+        return { stage: 'not-filed', badgeLabel: '— Not Filed', badgeColor: '#94a3b8', opacity: 0.45, pct: 0, totalPaid: 0, amountRequested: 0, note: '' };
+    }
+    if (status === 'pending') {
+        return { stage: 'pending', badgeLabel: 'Pending Review', badgeColor: '#f59e0b', opacity: 1, pct, totalPaid, amountRequested, note: '' };
+    }
+    if (status === 'rejected') {
+        return { stage: 'rejected', badgeLabel: 'Rejected', badgeColor: '#ef4444', opacity: 1, pct, totalPaid, amountRequested, note: '' };
+    }
+    if (!coll) {
+        return { stage: 'approved-not-invoiced', badgeLabel: 'Approved — Not Yet Invoiced', badgeColor: '#4f46e5', opacity: 1, pct: 0, totalPaid: 0, amountRequested: 0, note: '' };
+    }
+    if (pct >= 100) {
+        return { stage: 'fully-collected', badgeLabel: 'Fully Collected ✓', badgeColor: '#059669', opacity: 1, pct, totalPaid, amountRequested, note: '' };
+    }
+    if (pct > 0) {
+        return { stage: 'collecting', badgeLabel: 'Billed / Collecting', badgeColor: '#0d9488', opacity: 1, pct, totalPaid, amountRequested, note: `₱${formatCurrency(totalPaid)} of ₱${formatCurrency(amountRequested)} · ${pct}%` };
+    }
+    return { stage: 'invoiced-awaiting', badgeLabel: 'Invoiced — Awaiting Payment', badgeColor: '#0d9488', opacity: 1, pct: 0, totalPaid, amountRequested, note: '' };
 }
 
 /**
