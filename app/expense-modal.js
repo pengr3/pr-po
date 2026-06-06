@@ -90,11 +90,18 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     // Phase 85 D-07: fetch collectibles for this project/service
     // -----------------------------------------------------------------------
     let collectiblesForTab = [];
+    // Phase 99.1 D-17 — approved billing_requests (Billed to Client). The modal never queried
+    // billing_requests before; fetched mode-aware, reusing projectCodeForColl in project mode.
+    let billingReqsForModal = [];
     if (mode === 'service') {
         const collSnap = await getDocs(
             query(collection(db, 'collectibles'), where('service_code', '==', identifier))
         );
         collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
+        const brSnap = await getDocs(
+            query(collection(db, 'billing_requests'), where('service_code', '==', identifier))
+        );
+        brSnap.forEach(d => billingReqsForModal.push({ id: d.id, ...d.data() }));
     } else {
         // project mode — need project_code (we already fetched the project doc above for budget;
         // re-use the same lookup to extract project_code)
@@ -108,6 +115,11 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                 query(collection(db, 'collectibles'), where('project_code', '==', projectCodeForColl))
             );
             collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
+            // Phase 99.1 D-17 — reuse projectCodeForColl (no extra projects fetch)
+            const brSnap = await getDocs(
+                query(collection(db, 'billing_requests'), where('project_code', '==', projectCodeForColl))
+            );
+            brSnap.forEach(d => billingReqsForModal.push({ id: d.id, ...d.data() }));
         }
     }
     // -----------------------------------------------------------------------
@@ -589,7 +601,36 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     }, 0);
     const collRemaining = collTotalRequested - collTotalCollected;
 
-    const collectiblesHTML = collectiblesForTab.length > 0 ? `
+    // Phase 99.1 D-17 — Billed to Client = sum of approved billing_requests.amount_requested (advisory, D-01).
+    const billedToClient = billingReqsForModal.filter(r => r.status === 'approved').reduce((s, r) => s + (parseFloat(r.amount_requested) || 0), 0);
+    // Phase 99.1 D-19 — approved billing_requests with no collectible at the same tranche_index → ghost rows.
+    const ghosts = billingReqsForModal.filter(br => br.status === 'approved' && !collectiblesForTab.some(c => c.tranche_index === br.tranche_index));
+
+    // Phase 99.1 D-18 — 3-chip money-in summary (Total Billed / Cash Collected / Outstanding) + Billed-vs-Invoiced
+    // formula note. Renders whenever there is any money-in data (collectibles OR approved-but-uninvoiced ghosts).
+    const collMoneyInSummary = (collectiblesForTab.length > 0 || ghosts.length > 0) ? `
+        <div class="em-scorecard-3col" style="margin-bottom:0.75rem;">
+            <div style="padding:1rem;border-radius:8px;border:1px solid #93c5fd;background:#eff6ff;">
+                <div style="font-size:0.875rem;color:#1d4ed8;font-weight:600;margin-bottom:0.5rem;">Total Billed</div>
+                <div style="font-size:1.5rem;font-weight:700;color:#1e293b;">&#8369;${formatCurrency(billedToClient)}</div>
+            </div>
+            <div style="padding:1rem;border-radius:8px;border:1px solid #86efac;background:#f0fdf4;">
+                <div style="font-size:0.875rem;color:#166534;font-weight:600;margin-bottom:0.5rem;">Cash Collected</div>
+                <div style="font-size:1.5rem;font-weight:700;color:#166534;">&#8369;${formatCurrency(collTotalCollected)}</div>
+            </div>
+            <div style="padding:1rem;border-radius:8px;border:1px solid ${collRemaining > 0 ? '#fca5a5' : '#e2e8f0'};background:${collRemaining > 0 ? '#fef2f2' : '#ffffff'};">
+                <div style="font-size:0.875rem;color:${collRemaining > 0 ? '#991b1b' : '#64748b'};font-weight:600;margin-bottom:0.5rem;">Outstanding</div>
+                <div style="font-size:1.5rem;font-weight:700;color:${collRemaining > 0 ? '#ef4444' : '#059669'};">&#8369;${formatCurrency(collRemaining)}</div>
+            </div>
+        </div>
+        <div style="font-size:0.72rem;color:#64748b;margin-bottom:1rem;line-height:1.5;">
+            <strong>Billed</strong> = what ops requested to bill the client (billing_requests).
+            <strong>Invoiced</strong> = what Finance issued as COLL-xxx (collectibles): &#8369;${formatCurrency(collTotalRequested)}.
+            <strong>Outstanding</strong> = Invoiced &minus; Collected.
+        </div>
+    ` : '';
+
+    const collectiblesTableHTML = (collectiblesForTab.length > 0 || ghosts.length > 0) ? `
         <div class="category-card collapsible">
             <div class="category-header" onclick="window._toggleExpenseCategory(this)">
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -653,11 +694,29 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                                 </tr>
                             `;
                         }).join('')}
+                        ${ghosts.map(br => {
+                            // Phase 99.1 D-19 — muted "awaiting COLL-xxx" ghost row for an approved-but-not-yet-invoiced tranche.
+                            const pct = (parseFloat(br.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+                            return `
+                                <tr style="opacity:0.6;font-style:italic;color:#94a3b8;">
+                                    <td style="font-family:monospace;font-size:0.8125rem;">awaiting COLL-xxx</td>
+                                    <td>${escapeHTML(br.tranche_label || '')} (${pct}%)</td>
+                                    <td style="color:#4f46e5;font-weight:600;">Approved &mdash; awaiting invoice</td>
+                                    <td>&mdash;</td>
+                                    <td style="text-align:right;">${formatCurrency(br.amount_requested || 0)}</td>
+                                    <td style="text-align:right;">&mdash;</td>
+                                    <td style="text-align:right;">&mdash;</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             </div>
         </div>
     ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No collectibles recorded.</p>';
+
+    // Phase 99.1 D-18/D-19 — 3-chip summary + formula note above the table (ghost rows inside it).
+    const collectiblesHTML = collMoneyInSummary + collectiblesTableHTML;
 
     // Calculate totals
     const transportCategoryTotal = transportCategoryItems.reduce((s, item) => s + item.subtotal, 0);
@@ -840,6 +899,31 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         </div>
                     </div>
                     ` : ''}
+
+                    <!-- Phase 99.1 D-17 — Money-In header strip (5 chips): Expense / Rem. Payable / Billed to Client / Invoiced (COLLs) / Cash Received -->
+                    <div style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.5rem;">Money-In</div>
+                    <div class="em-scorecard-3col">
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Expense</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(totalCost)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Rem. Payable</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: ${remainingPayable > 0 ? '#ef4444' : '#059669'};">&#8369;${formatCurrency(remainingPayable)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #93c5fd; background:#eff6ff;">
+                            <div style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600; margin-bottom: 0.5rem;">Billed to Client</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(billedToClient)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Invoiced (COLLs)</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(collTotalRequested)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #86efac; background:#f0fdf4;">
+                            <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Cash Received</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">&#8369;${formatCurrency(collTotalCollected)}</div>
+                        </div>
+                    </div>
 
                     <!-- Tab Navigation -->
                     <div class="em-tab-bar">
