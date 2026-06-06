@@ -446,6 +446,9 @@ function attachWindowFunctions() {
     window.toggleBillingBanner = () => { billingBannerCollapsed = !billingBannerCollapsed; renderPendingBillingBanner(); };
     window.approveBillingRequest = approveBillingRequest;
     window.rejectBillingRequest = rejectBillingRequest;
+    // Phase 99.2 — approved-not-filed recovery sub-section
+    window.toggleApprovedBanner = () => { approvedBannerCollapsed = !approvedBannerCollapsed; renderPendingBillingBanner(); };
+    window.fileCollectibleFromBanner = fileCollectibleFromBanner;
 }
 
 // ========================================
@@ -1821,46 +1824,103 @@ function getOrphanApprovedBillingRequests() {
     });
 }
 
-// Phase 99 D-14 — render the collapsible blue "Pending Billing Requests" banner.
-// Auto-appears when ≥1 pending request; innerHTML cleared (auto-disappears) when empty.
-// All user strings escaped (D-19); status is pre-filtered lowercase 'pending' in the query (D-21).
+// Phase 99.2 D-03/SC2 — ONE collapsible banner with TWO independently-collapsible sub-sections:
+//   1. "Awaiting Your Review" (amber)  — pending billing requests (Approve/Reject)
+//   2. "Approved — File as Collectible" (blue) — approved orphans (the D-04 recovery path)
+// The whole banner auto-disappears only when BOTH sub-sections are empty. All user strings escaped (D-19).
 function renderPendingBillingBanner() {
     const host = document.getElementById('pendingBillingBanner');
     if (!host) return;
-    if (!Array.isArray(pendingBillingRequests) || pendingBillingRequests.length === 0) {
-        host.innerHTML = ''; // auto-disappear (D-14)
-        return;
+    const pending = Array.isArray(pendingBillingRequests) ? pendingBillingRequests : [];
+    const orphans = getOrphanApprovedBillingRequests();   // reconciled set (Task 1)
+    if (pending.length === 0 && orphans.length === 0) { host.innerHTML = ''; return; } // auto-disappear when both empty
+
+    const deptPill = (req) => `<span style="font-size:0.62rem;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:0.05rem 0.45rem;margin-left:0.4rem;">${req.department === 'services' ? 'Service' : 'Project'}</span>`;
+
+    // ── Sub-section 1: Awaiting Your Review (amber, pending) ──────────────────
+    let section1 = '';
+    if (pending.length > 0) {
+        const chevron = billingBannerCollapsed ? '▸' : '▾';
+        const rows = billingBannerCollapsed ? '' : pending.map(req => {
+            const pct = (parseFloat(req.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+            const docs = Array.isArray(req.documents) ? req.documents : [];
+            const docLinks = docs.map(d => `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;font-size:0.72rem;margin-right:0.6rem;text-decoration:underline;">${escapeHTML(d.label || 'Document')}</a>`).join('');
+            const submitter = `${escapeHTML(req.requested_by_name || 'Unknown')} · ${req.requested_at ? formatTimestamp(req.requested_at) : ''}`;
+            return `<div style="border-top:1px solid #fde68a;padding:0.6rem 0;display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:240px;">
+                    <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || req.service_name || '')}${deptPill(req)}</div>
+                    <div style="color:#475569;font-size:0.74rem;margin-top:0.1rem;">${escapeHTML(req.tranche_label || '')} (${pct}%) · ${formatCurrency(req.amount_requested || 0)}</div>
+                    <div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;">${submitter}</div>
+                    ${docLinks ? `<div style="margin-top:0.25rem;">${docLinks}</div>` : ''}
+                    ${req.notes ? `<div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;font-style:italic;">${escapeHTML(req.notes)}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                    <button class="btn btn-sm" onclick="window.approveBillingRequest('${escapeHTML(req.id)}')" style="background:#059669;color:#fff;font-size:0.72rem;padding:0.3rem 0.7rem;">Approve</button>
+                    <button class="btn btn-sm" onclick="window.rejectBillingRequest('${escapeHTML(req.id)}')" style="background:#fff;color:#ef4444;border:1px solid #fecaca;font-size:0.72rem;padding:0.3rem 0.7rem;">Reject</button>
+                </div>
+            </div>`;
+        }).join('');
+        section1 = `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.6rem 0.85rem;">
+                <div onclick="window.toggleBillingBanner()" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
+                    <span style="color:#b45309;font-weight:700;">${chevron}</span>
+                    <span style="font-weight:700;color:#92400e;font-size:0.85rem;">Awaiting Your Review</span>
+                    <span style="background:#f59e0b;color:#fff;border-radius:999px;font-size:0.68rem;font-weight:700;padding:0.05rem 0.5rem;">${pending.length}</span>
+                </div>
+                ${rows ? `<div style="margin-top:0.4rem;">${rows}</div>` : ''}
+            </div>`;
     }
-    const count = pendingBillingRequests.length;
-    const chevron = billingBannerCollapsed ? '▸' : '▾';
-    const body = billingBannerCollapsed ? '' : pendingBillingRequests.map(req => {
-        const pct = (parseFloat(req.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
-        const docs = Array.isArray(req.documents) ? req.documents : [];
-        const docLinks = docs.map(d => `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;font-size:0.72rem;margin-right:0.6rem;text-decoration:underline;">${escapeHTML(d.label || 'Document')}</a>`).join('');
-        const submitter = `${escapeHTML(req.requested_by_name || 'Unknown')} · ${req.requested_at ? formatTimestamp(req.requested_at) : ''}`;
-        return `<div style="border-top:1px solid #dbeafe;padding:0.6rem 0;display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
-            <div style="flex:1;min-width:240px;">
-                <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || req.service_name || '')}<span style="font-size:0.62rem;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:0.05rem 0.45rem;margin-left:0.4rem;">${req.department === 'services' ? 'Service' : 'Project'}</span></div>
-                <div style="color:#475569;font-size:0.74rem;margin-top:0.1rem;">${escapeHTML(req.tranche_label || '')} (${pct}%) · ${formatCurrency(req.amount_requested || 0)}</div>
-                <div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;">${submitter}</div>
-                ${docLinks ? `<div style="margin-top:0.25rem;">${docLinks}</div>` : ''}
-                ${req.notes ? `<div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;font-style:italic;">${escapeHTML(req.notes)}</div>` : ''}
-            </div>
-            <div style="display:flex;gap:0.4rem;align-items:center;">
-                <button class="btn btn-sm" onclick="window.approveBillingRequest('${escapeHTML(req.id)}')" style="background:#059669;color:#fff;font-size:0.72rem;padding:0.3rem 0.7rem;">Approve</button>
-                <button class="btn btn-sm" onclick="window.rejectBillingRequest('${escapeHTML(req.id)}')" style="background:#fff;color:#ef4444;border:1px solid #fecaca;font-size:0.72rem;padding:0.3rem 0.7rem;">Reject</button>
-            </div>
-        </div>`;
-    }).join('');
-    host.innerHTML = `
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:0.6rem 0.85rem;margin-bottom:1rem;">
-            <div onclick="window.toggleBillingBanner()" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
-                <span style="color:#1a73e8;font-weight:700;">${chevron}</span>
-                <span style="font-weight:700;color:#1e40af;font-size:0.85rem;">Pending Billing Requests</span>
-                <span style="background:#1a73e8;color:#fff;border-radius:999px;font-size:0.68rem;font-weight:700;padding:0.05rem 0.5rem;">${count}</span>
-            </div>
-            ${body ? `<div style="margin-top:0.4rem;">${body}</div>` : ''}
-        </div>`;
+
+    // ── Sub-section 2: Approved — File as Collectible (blue, orphans) ─────────
+    let section2 = '';
+    if (orphans.length > 0) {
+        const chevron2 = approvedBannerCollapsed ? '▸' : '▾';
+        const rows2 = approvedBannerCollapsed ? '' : orphans.map(req => {
+            const pct = (parseFloat(req.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+            const approver = req.reviewed_by
+                ? `Approved by ${escapeHTML(req.reviewed_by)}${req.reviewed_at ? ' · ' + formatTimestamp(req.reviewed_at) : ''}`
+                : '';
+            return `<div style="border-top:1px solid #bfdbfe;padding:0.6rem 0;display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:240px;">
+                    <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || req.service_name || '')}${deptPill(req)}</div>
+                    <div style="color:#475569;font-size:0.74rem;margin-top:0.1rem;">${escapeHTML(req.tranche_label || '')} (${pct}%) · ${formatCurrency(req.amount_requested || 0)}</div>
+                    ${approver ? `<div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;">${approver}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                    <button class="btn btn-sm" onclick="window.fileCollectibleFromBanner('${escapeHTML(req.id)}')" style="background:#1a73e8;color:#fff;font-size:0.72rem;padding:0.3rem 0.7rem;white-space:nowrap;">File as Collectible</button>
+                </div>
+            </div>`;
+        }).join('');
+        section2 = `
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:0.6rem 0.85rem;${section1 ? 'margin-top:0.5rem;' : ''}">
+                <div onclick="window.toggleApprovedBanner()" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
+                    <span style="color:#1a73e8;font-weight:700;">${chevron2}</span>
+                    <span style="font-weight:700;color:#1e40af;font-size:0.85rem;">Approved — File as Collectible</span>
+                    <span style="background:#1a73e8;color:#fff;border-radius:999px;font-size:0.68rem;font-weight:700;padding:0.05rem 0.5rem;">${orphans.length}</span>
+                </div>
+                ${rows2 ? `<div style="margin-top:0.4rem;">${rows2}</div>` : ''}
+            </div>`;
+    }
+
+    // One unified banner (spike 027b WINNER), two parts.
+    host.innerHTML = `<div style="margin-bottom:1rem;">${section1}${section2}</div>`;
+}
+
+/**
+ * Phase 99.2 D-04 — "File as Collectible" from banner sub-section 2. Builds the
+ * preselectKey EXACTLY like approveBillingRequest and opens the existing prefilled
+ * Create-Collectible modal (no new modal path). After Finance submits, the new
+ * collectibles doc triggers onSnapshot → renderPendingBillingBanner re-runs →
+ * reconciliation drops this orphan automatically (no manual state cleanup).
+ */
+function fileCollectibleFromBanner(reqId) {
+    const req = (approvedBillingRequests || []).find(r => r.id === reqId);
+    if (!req) { showToast('Approved request not found. Refresh and try again.', 'error'); return; }
+    const isService = req.department === 'services';
+    const preselectKey = isService
+        ? 'services:' + (req.service_code || '') + ':' + req.tranche_index
+        : 'projects:' + (req.project_code || '') + ':' + req.tranche_index;
+    window.openCreateCollectibleModal(preselectKey);
 }
 
 // Phase 99 D-10/D-11/D-12 — Approve a billing request: open the prefilled Create-Collectible
@@ -4895,6 +4955,8 @@ export async function destroy() {
     delete window.approveBillingRequest;
     delete window.rejectBillingRequest;
     delete window.toggleBillingBanner;
+    delete window.toggleApprovedBanner;            // Phase 99.2
+    delete window.fileCollectibleFromBanner;       // Phase 99.2
 
     // Reset Collectibles tab state
     collectiblesData = [];
