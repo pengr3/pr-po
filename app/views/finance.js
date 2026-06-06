@@ -244,6 +244,8 @@ let collDueToFilter = '';                // EFFECTIVE Fixed-range To
 let collCurrentPage = 1;
 const collItemsPerPage = 15;
 let collShowCompleted = false;   // Phase 99.2 D-05b — fully-paid rows hidden by default
+let collGroupBy = false;          // Phase 99.3 — flat (false) vs grouped accordion (true)
+let collGroupExpanded = {};       // Phase 99.3 — { [projOrSvcKey]: true } expanded groups (default collapsed)
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
@@ -1572,11 +1574,184 @@ function renderCollShowCompletedToggle(completedCount) {
  * NOT inside getDisplayedCollectibles, so the CSV export keeps fully-paid rows (D-07).
  * Also populates the ≤768px mobile card list (dual-mode, Phase 73.1).
  */
+// ===== Phase 99.3 — Group-by-Project accordion (spike-027c grouped view) =====
+// All tier/status counts derive from the shared getCollectibleUrgency /
+// deriveCollectibleStatus helpers (D-08b) — no duplicated threshold math.
+
+function collGroupKey(c) {
+    return c.department === 'projects'
+        ? (c.project_code || c.project_name || '∅')
+        : (c.service_code || c.service_name || '∅');
+}
+function collGroupName(c) {
+    return c.department === 'projects'
+        ? (c.project_name || c.project_code || '')
+        : (c.service_name || c.service_code || '');
+}
+function groupCollectiblesByProject(rows) {
+    const map = new Map();
+    rows.forEach(c => {
+        const k = collGroupKey(c);
+        if (!map.has(k)) map.set(k, { key: k, name: collGroupName(c), code: (c.department === 'projects' ? c.project_code : c.service_code) || '', dept: c.department, items: [] });
+        map.get(k).items.push(c);
+    });
+    return Array.from(map.values());
+}
+function collGroupWorstTier(items) {
+    let worst = 'paid';
+    items.forEach(c => {
+        const t = getCollectibleUrgency(c).tier;
+        if ((COLL_URG_ORDER[t] ?? 4) < (COLL_URG_ORDER[worst] ?? 4)) worst = t;
+    });
+    return worst;
+}
+
+/**
+ * Build the grouped <tbody> innerHTML: one collapsible header row per project/service
+ * (worst-urgency left-border + aggregate progress + urgency summary + most-recent payment
+ * across the group), expanding to that group's tranche rows. 5-column layout identical to
+ * the flat table (urgency border via the coll-urgency-${tier} row class — no separate cell).
+ * Fix-2: near-due count uses getCollectibleUrgency tier === 'near-due' (≤7 & not overdue),
+ * agreeing with the Plan-01 Near-due filter — NOT the spike's looser overdue-inclusive test.
+ */
+function renderCollectiblesGroupedRows(groups) {
+    return groups.map(g => {
+        const items = g.items;
+        const totalAmt = items.reduce((s, c) => s + (parseFloat(c.amount_requested) || 0), 0);
+        const totalPd = items.reduce((s, c) => s + (c.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0), 0);
+        const pct = totalAmt > 0 ? Math.min(100, Math.round(totalPd / totalAmt * 100)) : 0;
+        const worstTier = collGroupWorstTier(items);
+        const isExpanded = !!collGroupExpanded[g.key];
+        const fillClass = (worstTier === 'critical' || worstTier === 'overdue') ? 'is-overdue' : (pct >= 100 ? 'is-paid' : 'is-normal');
+
+        // Urgency summary — counts off the shared helpers (Fix-2 / D-08b)
+        const critical = items.filter(c => getCollectibleUrgency(c).tier === 'critical').length;
+        const overdue = items.filter(c => getCollectibleUrgency(c).tier === 'overdue').length;
+        const nearDue = items.filter(c => getCollectibleUrgency(c).tier === 'near-due').length;
+        const paid = items.filter(c => deriveCollectibleStatus(c) === 'Fully Paid').length;
+        const parts = [];
+        if (critical) parts.push(`<span style="color:#ef4444;font-weight:700;">${critical} critical</span>`);
+        else if (overdue) parts.push(`<span style="color:#f97316;font-weight:700;">${overdue} overdue</span>`);
+        if (nearDue) parts.push(`<span style="color:#f59e0b;">${nearDue} near due</span>`);
+        if (paid === items.length) parts.push(`<span style="color:#059669;font-weight:700;">All collected ✓</span>`);
+        else if (paid > 0) parts.push(`<span style="color:#94a3b8;">${paid} of ${items.length} complete</span>`);
+        const urgSummary = parts.length ? parts.join(' · ') : '<span style="color:#64748b;">All on track</span>';
+
+        // Most-recent payment across the group (newest non-voided record by date)
+        let groupLast = null;
+        items.forEach(c => {
+            const lp = getCollectibleLastPayment(c);
+            if (lp && (!groupLast || (lp.date || '') > (groupLast.date || ''))) groupLast = lp;
+        });
+        const lastCell = groupLast
+            ? `${formatCurrency(parseFloat(groupLast.amount) || 0)} · ${escapeHTML(groupLast.date || '')} · ${escapeHTML(groupLast.method || '')}`
+            : `<span class="coll-no-payment">No payments yet</span>`;
+
+        // onclick key: backslash-escape for the JS string literal so it round-trips to the
+        // raw key used by collGroupExpanded/collGroupKey (codes are safe alphanumerics).
+        const safeKey = String(g.key).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const chevron = isExpanded ? '▾' : '▸';
+
+        const headerRow = `
+            <tr class="coll-urgency-${worstTier} coll-group-header" onclick="window.toggleCollGroup('${safeKey}')">
+                <td>
+                    <div style="display:flex;align-items:flex-start;gap:0.4rem;">
+                        <span style="font-size:0.75rem;color:#94a3b8;font-weight:700;margin-top:0.1rem;">${chevron}</span>
+                        <div>
+                            <div style="font-weight:600;">${escapeHTML(g.name || '')}</div>
+                            <div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+                                <span style="font-family:monospace;color:#94a3b8;">${escapeHTML(g.code || '')}</span>${getDeptBadgeHTML({ department: g.dept })}
+                                <span class="coll-group-count-chip">${items.length} tranche${items.length !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="coll-progress-track"><div class="coll-progress-fill ${fillClass}" style="width:${pct}%;"></div></div>
+                    <div class="coll-progress-text">${formatCurrency(totalPd)} of ${formatCurrency(totalAmt)} · ${pct}%</div>
+                </td>
+                <td style="font-size:0.78rem;line-height:1.5;">${urgSummary}</td>
+                <td style="font-size:0.8125rem;">${lastCell}</td>
+                <td><button class="btn btn-sm" onclick="event.stopPropagation(); window.toggleCollGroup('${safeKey}')" style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">${isExpanded ? '▴ Collapse' : '▾ Expand'}</button></td>
+            </tr>`;
+
+        if (!isExpanded) return headerRow;
+
+        const childRows = items.map(coll => {
+            const totalPaid = (coll.payment_records || []).filter(r => r.status !== 'voided')
+                .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+            const amt = parseFloat(coll.amount_requested) || 0;
+            const pctC = amt > 0 ? Math.min(100, Math.round(totalPaid / amt * 100)) : 0;
+            const urg = getCollectibleUrgency(coll);
+            const last = getCollectibleLastPayment(coll);
+            const status = deriveCollectibleStatus(coll);
+            const tranchePct = (parseFloat(coll.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+            const fillC = urg.isOverdue ? 'is-overdue' : (urg.tier === 'paid' ? 'is-paid' : 'is-normal');
+            let dueCell;
+            if (urg.daysOverdue > 0) {
+                const dueCls = urg.tier === 'critical' ? 'critical' : 'overdue';
+                const mark = urg.tier === 'critical' ? '‼' : '⚠';
+                dueCell = `<span class="coll-due-${dueCls}">${urg.daysOverdue} day${urg.daysOverdue === 1 ? '' : 's'} overdue ${mark}</span>`;
+            } else if (urg.daysUntilDue !== null && urg.daysUntilDue <= 7) {
+                dueCell = `<span class="coll-due-near">Due in ${urg.daysUntilDue} day${urg.daysUntilDue === 1 ? '' : 's'} ⚠</span>`;
+            } else if (urg.daysUntilDue !== null) {
+                dueCell = `<span class="coll-due-normal">Due in ${urg.daysUntilDue} days</span>`;
+            } else {
+                dueCell = `<span class="coll-due-normal">No due date</span>`;
+            }
+            const lastCellC = last
+                ? `${formatCurrency(parseFloat(last.amount) || 0)} · ${escapeHTML(last.date || '')} · ${escapeHTML(last.method || '')}`
+                : `<span class="coll-no-payment">No payments yet</span>`;
+            const actionsCell = status === 'Fully Paid'
+                ? `<button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')" style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">View History</button>`
+                : `<button class="btn btn-sm btn-outline" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')" style="font-size:0.75rem;padding:0.2rem 0.6rem;">Record Payment</button>`;
+            return `
+                <tr class="coll-urgency-${urg.tier} coll-group-child">
+                    <td style="padding-left:2.2rem;">
+                        <div style="font-weight:600;font-size:0.8125rem;">${escapeHTML(coll.tranche_label || '')} <span style="font-weight:400;color:#94a3b8;">(${tranchePct}%)</span></div>
+                        <div style="font-family:monospace;font-size:0.7rem;color:#94a3b8;">${escapeHTML(coll.coll_id || '')}</div>
+                    </td>
+                    <td>
+                        <div class="coll-progress-track"><div class="coll-progress-fill ${fillC}" style="width:${pctC}%;"></div></div>
+                        <div class="coll-progress-text">${formatCurrency(totalPaid)} of ${formatCurrency(amt)} · ${pctC}%</div>
+                    </td>
+                    <td>${dueCell}</td>
+                    <td style="font-size:0.8125rem;">${lastCellC}</td>
+                    <td>${actionsCell}</td>
+                </tr>`;
+        }).join('');
+
+        return headerRow + childRows;
+    }).join('');
+}
+
 function renderCollectiblesTable() {
     const tbody = document.getElementById('collectiblesTableBody');
     if (!tbody) return;
 
     const allDisplayed = getDisplayedCollectibles();
+
+    if (collGroupBy) {
+        // Grouped view — ALL groups, no pagination, no fully-paid hide (tranches show on expand).
+        // INTENTIONAL DIVERGENCE (Fix-1): the flat path scorecards the POST-hide visible set,
+        // so it excludes fully-paid. Here we scorecard `allDisplayed` (PRE-hide, fully-paid INCLUDED)
+        // = portfolio totals. Toggling Group-by therefore shifts Total Invoiced/Collected/Outstanding
+        // by design — grouped = portfolio view including paid tranches shown on expand. Not a bug.
+        renderCollectiblesScorecard(allDisplayed);            // portfolio totals (fully-paid included)
+        const groups = groupCollectiblesByProject(allDisplayed)
+            .sort((a, b) => (COLL_URG_ORDER[collGroupWorstTier(a.items)] ?? 4) - (COLL_URG_ORDER[collGroupWorstTier(b.items)] ?? 4));
+        tbody.innerHTML = groups.length
+            ? renderCollectiblesGroupedRows(groups)
+            : `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b;">No collectibles match your filters.</td></tr>`;
+        const cardHost = document.getElementById('collectiblesCardList');
+        if (cardHost) cardHost.innerHTML = allDisplayed.map(buildCollectibleCard).join('');   // mobile stays flat
+        renderCollShowCompletedToggle(0);                     // hide the toggle in grouped view
+        renderCollectiblesPagination(0, 1);                   // collapse pagination (totalPages<=1 hides it)
+        return;
+    }
+
     const completedCount = allDisplayed.filter(c => deriveCollectibleStatus(c) === 'Fully Paid').length;
     const displayed = collShowCompleted
         ? allDisplayed
