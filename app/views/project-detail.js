@@ -374,8 +374,7 @@ export async function destroy() {
     delete window.toggleActive;
     delete window.confirmDelete;
     delete window.refreshExpense;
-    delete window.showExpenseModal;
-    delete window.refreshAndShowExpenseModal;
+    delete window.openFullBreakdown;
     delete window.selectDetailPersonnel;
     delete window.removeDetailPersonnel;
     delete window.filterDetailPersonnel;
@@ -558,7 +557,11 @@ function renderProjectDetail() {
                 <!-- Financial card -->
                 <div class="card">
                     <div class="card-body" style="padding:0.75rem 1rem;">
-                        <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.6rem;">Financial Summary</div>
+                        <!-- Phase 99.1 D-14 — flex header with single Full Breakdown entry button -->
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+                            <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Financial Summary</div>
+                            <button class="btn btn-sm btn-secondary" onclick="window.openFullBreakdown()" style="font-size:0.7rem;padding:0.2rem 0.6rem;white-space:nowrap;">Full Breakdown →</button>
+                        </div>
 
                         <!-- Budget group -->
                         <div style="font-size:0.65rem;font-weight:700;color:#1a73e8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Budget</div>
@@ -573,11 +576,8 @@ function renderProjectDetail() {
                             </div>
                             <div style="background:#f0f7ff;border-radius:5px;padding:0.3rem 0.5rem;">
                                 <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Projected Expense</div>
-                                <div style="display:flex;align-items:center;gap:0.3rem;">
-                                    <span style="font-weight:700;color:#1e293b;font-size:0.85rem;cursor:pointer;" onclick="window.showExpenseModal()">
-                                        ${currentExpense.total > 0 ? formatCurrency(currentExpense.total) : '—'}
-                                    </span>
-                                    <button class="btn btn-sm btn-secondary" onclick="window.refreshAndShowExpenseModal()" style="padding:0.1rem 0.3rem;font-size:0.6rem;line-height:1.4;">&#x1F504;</button>
+                                <div style="font-weight:700;color:#1e293b;font-size:0.85rem;">
+                                    ${currentExpense.total > 0 ? formatCurrency(currentExpense.total) : '—'}
                                 </div>
                             </div>
                             <div style="background:#f0f7ff;border-radius:5px;padding:0.3rem 0.5rem;">
@@ -942,6 +942,7 @@ async function submitBillingRequest() {
 
     try {
         await addDoc(collection(db, 'billing_requests'), {
+            department: 'projects',                   // D-22 — department discriminator (finance treats missing as 'projects')
             project_code: currentProject.project_code || '',
             project_name: currentProject.project_name || '',
             tranche_index: trancheIndex,
@@ -1991,8 +1992,8 @@ function attachWindowFunctions() {
     window.toggleActive = toggleActive;
     window.confirmDelete = confirmDelete;
     window.refreshExpense = refreshExpense;
-    window.showExpenseModal = () => currentProject && showExpenseBreakdownModal(currentProject.project_name, { mode: 'project' });
-    window.refreshAndShowExpenseModal = async () => {
+    // Phase 99.1 D-16 — single always-refresh Full Breakdown entry (collapses the show/refresh split)
+    window.openFullBreakdown = async () => {
         if (!currentProject) return;
         await refreshExpense(true);
         showExpenseBreakdownModal(currentProject.project_name, { mode: 'project' });
