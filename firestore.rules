@@ -220,7 +220,16 @@ service cloud.firestore {
       ) || (
         isRole('operations_user') &&
         request.auth.uid in resource.data.personnel_user_ids &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['project_status', 'updated_at'])
+        // Phase 100 — lifecycle fields: doc attachments + gate timestamps
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'project_status', 'updated_at',
+          'inspection_report_url', 'inspection_report_kind', 'inspection_report_filename',
+          'ntp_document_url', 'ntp_document_kind', 'ntp_document_filename',
+          'mobilization_started_at', 'project_started_at',
+          'completion_report_url', 'completion_report_kind', 'completion_report_filename',
+          'certificate_of_completion_url', 'certificate_of_completion_kind', 'certificate_of_completion_filename',
+          'project_completed_at'
+        ])
       );
 
       // Delete: super_admin, operations_admin
