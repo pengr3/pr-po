@@ -386,6 +386,10 @@ export async function destroy() {
     currentCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
     delete window.toggleLifecycleAccordion;
+    delete window.lcAttachLink;
+    delete window.lcAttachFile;
+    delete window.lcRemoveDoc;
+    delete window.lcSwitchTab;
     _lcOpen = false;
     delete window.saveField;
     delete window.toggleActive;
@@ -1989,6 +1993,207 @@ async function loadProposalCard(parentDocId, parentCollection) {
     }
 }
 
+// Phase 100 — Lifecycle doc keys map
+const LC_DOC_KEYS = {
+    inspection: { prefix: 'inspection_report',         L: 'I' },
+    ntp:        { prefix: 'ntp_document',              L: 'N' },
+    completion: { prefix: 'completion_report',         L: 'C' },
+    coc:        { prefix: 'certificate_of_completion', L: 'O' },
+};
+
+function buildAttachZone(project, which, label, simFilename) {
+    const dk = LC_DOC_KEYS[which];
+    if (!dk) return '';
+    const hasDoc = !!(project[dk.prefix + '_url'] || null);
+    const L = dk.L;
+    if (hasDoc) {
+        const kind = project[dk.prefix + '_kind'] || 'link';
+        const name = escapeHTML(project[dk.prefix + '_filename'] || project[dk.prefix + '_url'] || '');
+        const url = escapeHTML(project[dk.prefix + '_url'] || '');
+        const icon = kind === 'file' ? '📄' : '🔗';
+        return `<div class="az az-ok">
+            <div class="az-doc">
+                <span class="az-doc-icon">${icon}</span>
+                <div class="az-doc-info">
+                    <div class="az-doc-name">${name}</div>
+                    <div class="az-doc-kind">${kind}</div>
+                </div>
+                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;font-size:11px;cursor:pointer;" onclick="window.lcRemoveDoc('${which}')">✕ Remove</button>
+            </div>
+        </div>`;
+    }
+    return `<div class="az">
+        <div class="az-lbl">${escapeHTML(label)}</div>
+        <div class="az-tabs">
+            <button class="az-tab active" id="az${L}TabL" onclick="window.lcSwitchTab('${L}','link')">📎 Paste Link</button>
+            <button class="az-tab" id="az${L}TabF" onclick="window.lcSwitchTab('${L}','file')">⬆ Simulate File</button>
+        </div>
+        <div id="az${L}LinkP" class="az-row">
+            <input class="az-input" id="az${L}Link" type="url" placeholder="https://drive.google.com/...">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcAttachLink('${which}')">Attach</button>
+        </div>
+        <div id="az${L}FileP" style="display:none;">
+            <button class="btn btn-secondary" style="font-size:12px;" onclick="window.lcAttachFile('${which}','${escapeHTML(simFilename)}')">📄 ${escapeHTML(simFilename)}</button>
+        </div>
+    </div>`;
+}
+
+function buildPATrack(project) {
+    const POST_APPROVAL = [
+        { label: 'Client\nApproved',  status: 'Client Approved'  },
+        { label: 'For\nMobilization', status: 'For Mobilization' },
+        { label: 'On-going',          status: 'On-going'         },
+        { label: 'Completed',         status: 'Completed'        },
+    ];
+    const status = project.project_status || '';
+    let curIdx = POST_APPROVAL.findIndex(p => p.status === status);
+    if (status === 'Loss') curIdx = -1;
+    let html = '<div class="pa-track">';
+    POST_APPROVAL.forEach((p, i) => {
+        const isDone = i < curIdx;
+        const isActive = i === curIdx;
+        const dotCls = isDone ? 'pa-done' : isActive ? 'pa-active' : 'pa-future';
+        const lblCls = isDone ? 'pa-done' : isActive ? 'pa-active' : '';
+        const lblLines = p.label.split('\n').join('<br>');
+        html += `<div class="pa-stage">
+            <div class="pa-dot ${dotCls}">${isDone ? '✓' : i + 1}</div>
+            <div class="pa-lbl ${lblCls}">${lblLines}</div>
+        </div>`;
+        if (i < POST_APPROVAL.length - 1) {
+            html += `<div class="pa-line ${isDone ? 'pa-done' : ''}"></div>`;
+        }
+    });
+    return html + '</div>';
+}
+
+function buildDocRollup(project) {
+    const DOC_SLOTS = [
+        { key:'inspection', stage:'Gate 1 · For Inspection',  label:'Inspection Report',    prefix:'inspection_report' },
+        { key:'ntp',        stage:'Gate 2 · Client Approved', label:'NTP / Purchase Order',  prefix:'ntp_document' },
+        { key:'completion', stage:'Gate 4 · Completion',      label:'Completion Report',     prefix:'completion_report' },
+        { key:'coc',        stage:'Gate 4 · Completion',      label:'Cert. of Completion',   prefix:'certificate_of_completion' },
+    ];
+    const filled = DOC_SLOTS.filter(s => project[s.prefix + '_url'] || null).length;
+    let html = `<div class="doc-rollup">
+        <div class="doc-rollup-hdr">
+            <span class="doc-rollup-title">Documents on File</span>
+            <span class="doc-rollup-count">${filled} / 4</span>
+        </div>`;
+    DOC_SLOTS.forEach(s => {
+        const url = project[s.prefix + '_url'] || null;
+        const kind = project[s.prefix + '_kind'] || null;
+        const fname = project[s.prefix + '_filename'] || null;
+        const empty = !url;
+        const icon = kind === 'file' ? '📄' : url ? '🔗' : '📎';
+        const display = fname || url || '— not yet attached';
+        html += `<div class="doc-slot${empty ? ' ds-empty' : ''}">
+            <span class="ds-icon">${icon}</span>
+            <div class="ds-info">
+                <div class="ds-stage">${escapeHTML(s.stage)}</div>
+                <div class="ds-name${empty ? ' none' : ''}">${escapeHTML(display)}</div>
+            </div>
+            ${!empty ? `<a class="ds-link" href="${escapeHTML(url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
+        </div>`;
+    });
+    return html + '</div>';
+}
+
+function buildLifecycleBody(project, currentUser) {
+    const status = project.project_status || 'For Inspection';
+    function wrap(gateTitle, inner) {
+        return `<div class="gate-label">${gateTitle}</div>${inner}${buildDocRollup(project)}`;
+    }
+
+    if (status === 'For Inspection') {
+        const has = !!(project.inspection_report_url || null);
+        return wrap('Gate 1 — Inspection Report', `
+            <div class="lc-desc">Attach the site inspection report before advancing. The Advance button unlocks once the inspection report is on file.</div>
+            ${!has ? '<div class="gate-warn">⚠️ Inspection report required to advance</div>' : ''}
+            ${buildAttachZone(project, 'inspection', 'Inspection Report', 'Inspection_Report_Final.pdf')}
+            <div class="action-row">
+                <button class="btn btn-primary" ${has ? '' : 'disabled'} onclick="window.lcAdvanceToForProposal('${escapeHTML(project.id)}')">→ Advance to For Proposal</button>
+                <span class="action-note">${has ? 'Operations Admin · role-gated' : 'Attach document to enable'}</span>
+            </div>`);
+    }
+    if (status === 'For Proposal') {
+        return wrap('Proposal Stage', `<div class="built"><div class="built-title">✅ Already implemented — no changes needed</div><div class="built-desc">Full proposal flow lives in proposals.js + proposal-modal.js. Use the Proposal card below to create / submit / approve.</div></div>`);
+    }
+    if (status === 'Proposal for Internal Approval') {
+        return wrap('Internal Approval Review', `<div class="built"><div class="built-title">✅ approveProposal() / rejectProposal() — already implemented</div><div class="built-desc">Operations Admin uses the Proposal card to approve or reject.</div></div>`);
+    }
+    if (status === 'Proposal Under Client Review' || status === 'For Revision') {
+        return wrap('Client Review', `<div class="built"><div class="built-title">✅ markClientApproved() / requestRevision() / recordLoss() — already implemented</div><div class="built-desc">Client outcomes are managed via the Proposal card below.</div></div>`);
+    }
+    if (status === 'Client Approved') {
+        const has = !!(project.ntp_document_url || null);
+        return wrap('Gate 2 — Notice to Proceed / PO', `
+            <div class="lc-desc">Attach the client's formal work authorization (NTP or PO) before mobilizing.</div>
+            ${buildPATrack(project)}
+            ${!has ? '<div class="gate-warn">⚠️ NTP or PO required to start mobilization</div>' : ''}
+            ${buildAttachZone(project, 'ntp', 'Notice to Proceed / Purchase Order', 'Notice_to_Proceed.pdf')}
+            <div class="action-row">
+                <button class="btn btn-orange" ${has ? '' : 'disabled'} onclick="window.lcStartMobilization('${escapeHTML(project.id)}')">🚀 Start Mobilization</button>
+                <span class="action-note">${has ? 'Records mobilization_started_at' : 'Attach NTP or PO to enable'}</span>
+            </div>`);
+    }
+    if (status === 'For Mobilization') {
+        const mobilizedAt = escapeHTML(project.mobilization_started_at || '—');
+        return wrap('Gate 3 — Start Project', `
+            <div class="lc-desc">Resources are mobilizing. Click Start Project when site execution is ready. No document gate.</div>
+            ${buildPATrack(project)}
+            <div style="font-size:11px;color:#475569;margin-bottom:12px;">Mobilized: <code>${mobilizedAt}</code></div>
+            <div class="action-row">
+                <button class="btn btn-primary" onclick="window.lcStartProject('${escapeHTML(project.id)}')">▶ Start Project</button>
+                <span class="action-note">Records official project start date</span>
+            </div>`);
+    }
+    if (status === 'On-going') {
+        const hasR = !!(project.completion_report_url || null);
+        const hasC = !!(project.certificate_of_completion_url || null);
+        const can = hasR && hasC;
+        const note = !hasR && !hasC ? 'Both documents required' : !hasR ? 'Still needed: Completion Report' : 'Still needed: Certificate of Completion';
+        const startedAt = escapeHTML(project.project_started_at || '—');
+        const isAdmin = currentUser && ['super_admin','operations_admin'].includes(currentUser.role);
+        return wrap('Gate 4 — Completion', `
+            <div class="lc-desc">Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.</div>
+            ${buildPATrack(project)}
+            <div style="font-size:11px;color:#475569;margin-bottom:10px;">Started: <code>${startedAt}</code></div>
+            ${!can ? `<div class="gate-warn">⚠️ ${escapeHTML(note)}</div>` : ''}
+            ${buildAttachZone(project, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
+            ${buildAttachZone(project, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
+            <div class="action-row">
+                <button class="btn btn-primary" ${(!can || !isAdmin) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
+                <span class="action-note">${can && isAdmin ? 'Admin only · terminal action' : !isAdmin ? 'Admin only — contact Operations Admin' : escapeHTML(note)}</span>
+            </div>`);
+    }
+    if (status === 'Completed') {
+        const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
+        return wrap('Project Closed', `
+            <div class="comp-grid">
+                ${cell('NTP / PO', project.ntp_document_filename || project.ntp_document_url)}
+                ${cell('Mobilized', project.mobilization_started_at)}
+                ${cell('Project Started', project.project_started_at)}
+                ${cell('Completed At', project.project_completed_at)}
+                ${cell('Completion Report', project.completion_report_filename || project.completion_report_url)}
+                ${cell('Cert. of Completion', project.certificate_of_completion_filename || project.certificate_of_completion_url)}
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
+    }
+    if (status === 'Loss') {
+        return wrap('Project Lost', `<div class="built"><div class="built-title">✅ recordLoss() — already implemented</div><div class="built-desc">Loss was recorded via the proposal workflow. No further project-status actions.</div></div>`);
+    }
+    return `<div style="padding:12px;font-size:12px;color:#64748b;">No lifecycle action for current status.</div>${buildDocRollup(project)}`;
+}
+
+function buildLifecycleBodyInPlace(project, currentUser) {
+    if (!project) return;
+    const body = document.getElementById('lcBody');
+    if (body) body.innerHTML = buildLifecycleBody(project, currentUser);
+    const track = document.getElementById('lcTrack');
+    if (track) track.innerHTML = buildLifecycleTrack(project);
+    updateLifecycleBadge(project);
+}
+
 // Phase 100 — Lifecycle accordion functions
 
 function buildLifecycleTrack(project) {
@@ -2102,10 +2307,7 @@ function toggleLifecycleAccordion() {
     if (accordion) accordion.classList.toggle('open', _lcOpen);
     updateLifecycleBadge(currentProject);
     if (_lcOpen) {
-        const body = document.getElementById('lcBody');
-        if (body && !body.innerHTML.trim()) {
-            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
-        }
+        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
     }
 }
 
@@ -2144,6 +2346,43 @@ function attachWindowFunctions() {
     window._validateBillingForm = _validateBillingForm;
     // Phase 100 — lifecycle accordion
     window.toggleLifecycleAccordion = toggleLifecycleAccordion;
+    window.lcAttachLink = async function(which) {
+        const dk = LC_DOC_KEYS[which];
+        if (!dk || !currentProject) return;
+        const el = document.getElementById('az' + dk.L + 'Link');
+        const url = el ? el.value.trim() : '';
+        if (!url) { if (el) { el.style.borderColor = '#ef4444'; setTimeout(() => { el.style.borderColor = ''; }, 1400); } return; }
+        currentProject[dk.prefix + '_url'] = url;
+        currentProject[dk.prefix + '_kind'] = 'link';
+        currentProject[dk.prefix + '_filename'] = null;
+        buildLifecycleBodyInPlace(currentProject, null);
+    };
+    window.lcAttachFile = async function(which, filename) {
+        const dk = LC_DOC_KEYS[which];
+        if (!dk || !currentProject) return;
+        currentProject[dk.prefix + '_url'] = filename;
+        currentProject[dk.prefix + '_kind'] = 'file';
+        currentProject[dk.prefix + '_filename'] = filename;
+        buildLifecycleBodyInPlace(currentProject, null);
+    };
+    window.lcRemoveDoc = async function(which) {
+        const dk = LC_DOC_KEYS[which];
+        if (!dk || !currentProject) return;
+        currentProject[dk.prefix + '_url'] = null;
+        currentProject[dk.prefix + '_kind'] = null;
+        currentProject[dk.prefix + '_filename'] = null;
+        buildLifecycleBodyInPlace(currentProject, null);
+    };
+    window.lcSwitchTab = function(L, tab) {
+        const lp = document.getElementById('az' + L + 'LinkP');
+        const fp = document.getElementById('az' + L + 'FileP');
+        const lt = document.getElementById('az' + L + 'TabL');
+        const ft = document.getElementById('az' + L + 'TabF');
+        if (lp) lp.style.display = tab === 'link' ? '' : 'none';
+        if (fp) fp.style.display = tab === 'file' ? '' : 'none';
+        if (lt) lt.classList.toggle('active', tab === 'link');
+        if (ft) ft.classList.toggle('active', tab === 'file');
+    };
 }
 
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
