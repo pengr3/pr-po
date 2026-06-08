@@ -390,6 +390,10 @@ export async function destroy() {
     delete window.lcAttachFile;
     delete window.lcRemoveDoc;
     delete window.lcSwitchTab;
+    delete window.lcAdvanceToForProposal;
+    delete window.lcStartMobilization;
+    delete window.lcStartProject;
+    delete window.lcMarkProjectComplete;
     _lcOpen = false;
     delete window.saveField;
     delete window.toggleActive;
@@ -2311,6 +2315,46 @@ function toggleLifecycleAccordion() {
     }
 }
 
+// Phase 100 — lifecycle gate shared helpers
+function _canAdvanceProjectStatus(project, currentUser, targetStatus) {
+    if (!currentUser || !project) return false;
+    const role = currentUser.role || '';
+    if (targetStatus === 'Completed') {
+        return ['super_admin', 'operations_admin'].includes(role);
+    }
+    if (['super_admin', 'operations_admin'].includes(role)) return true;
+    if (role === 'operations_user') {
+        const ids = Array.isArray(project.personnel_user_ids) ? project.personnel_user_ids : [];
+        return ids.includes(currentUser.uid);
+    }
+    return false;
+}
+
+async function addProjectAuditEntry(projectId, action, actorId, actorName, comment) {
+    try {
+        await addDoc(collection(db, 'projects', projectId, 'audit_log'), {
+            action,
+            actor_id: actorId || '',
+            actor_name: actorName || 'Unknown',
+            comment: comment || '',
+            created_at: serverTimestamp(),
+        });
+    } catch (err) {
+        console.error('[ProjectDetail] addProjectAuditEntry failed:', err);
+    }
+}
+
+async function _attachDocumentToProject(projectId, fields) {
+    try {
+        await updateDoc(doc(db, 'projects', projectId), { ...fields, updated_at: serverTimestamp() });
+        const cu = window.getCurrentUser?.();
+        await addProjectAuditEntry(projectId, 'DOCUMENT_ATTACHED', cu?.uid, cu?.full_name, JSON.stringify(Object.keys(fields)));
+    } catch (err) {
+        console.error('[ProjectDetail] _attachDocumentToProject failed:', err);
+        showToast('Failed to save document. Please try again.');
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveField = saveField;
@@ -2356,6 +2400,11 @@ function attachWindowFunctions() {
         currentProject[dk.prefix + '_kind'] = 'link';
         currentProject[dk.prefix + '_filename'] = null;
         buildLifecycleBodyInPlace(currentProject, null);
+        await _attachDocumentToProject(currentProject.id, {
+            [dk.prefix + '_url']: url,
+            [dk.prefix + '_kind']: 'link',
+            [dk.prefix + '_filename']: null,
+        });
     };
     window.lcAttachFile = async function(which, filename) {
         const dk = LC_DOC_KEYS[which];
@@ -2364,6 +2413,11 @@ function attachWindowFunctions() {
         currentProject[dk.prefix + '_kind'] = 'file';
         currentProject[dk.prefix + '_filename'] = filename;
         buildLifecycleBodyInPlace(currentProject, null);
+        await _attachDocumentToProject(currentProject.id, {
+            [dk.prefix + '_url']: filename,
+            [dk.prefix + '_kind']: 'file',
+            [dk.prefix + '_filename']: filename,
+        });
     };
     window.lcRemoveDoc = async function(which) {
         const dk = LC_DOC_KEYS[which];
@@ -2372,6 +2426,11 @@ function attachWindowFunctions() {
         currentProject[dk.prefix + '_kind'] = null;
         currentProject[dk.prefix + '_filename'] = null;
         buildLifecycleBodyInPlace(currentProject, null);
+        await _attachDocumentToProject(currentProject.id, {
+            [dk.prefix + '_url']: null,
+            [dk.prefix + '_kind']: null,
+            [dk.prefix + '_filename']: null,
+        });
     };
     window.lcSwitchTab = function(L, tab) {
         const lp = document.getElementById('az' + L + 'LinkP');
@@ -2382,6 +2441,49 @@ function attachWindowFunctions() {
         if (fp) fp.style.display = tab === 'file' ? '' : 'none';
         if (lt) lt.classList.toggle('active', tab === 'link');
         if (ft) ft.classList.toggle('active', tab === 'file');
+    };
+    // Phase 100 — lifecycle gate transitions
+    window.lcAdvanceToForProposal = async function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        if (!currentProject.inspection_report_url) { showToast('Inspection report required.'); return; }
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'For Proposal')) { showToast('Permission denied.'); return; }
+        try {
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Proposal', updated_at: serverTimestamp() });
+            await addProjectAuditEntry(projectId, 'ADVANCED_TO_FOR_PROPOSAL', cu?.uid, cu?.full_name, '');
+        } catch (err) { console.error('[ProjectDetail] lcAdvanceToForProposal failed:', err); showToast('Failed to advance status.'); }
+    };
+    window.lcStartMobilization = async function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        if (!currentProject.ntp_document_url) { showToast('NTP or PO required.'); return; }
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'For Mobilization')) { showToast('Permission denied.'); return; }
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Mobilization', mobilization_started_at: now, updated_at: serverTimestamp() });
+            await addProjectAuditEntry(projectId, 'MOBILIZATION_STARTED', cu?.uid, cu?.full_name, 'mobilization_started_at: ' + now);
+        } catch (err) { console.error('[ProjectDetail] lcStartMobilization failed:', err); showToast('Failed to start mobilization.'); }
+    };
+    window.lcStartProject = async function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'On-going')) { showToast('Permission denied.'); return; }
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'On-going', project_started_at: now, updated_at: serverTimestamp() });
+            await addProjectAuditEntry(projectId, 'PROJECT_STARTED', cu?.uid, cu?.full_name, 'project_started_at: ' + now);
+        } catch (err) { console.error('[ProjectDetail] lcStartProject failed:', err); showToast('Failed to start project.'); }
+    };
+    window.lcMarkProjectComplete = async function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        if (!currentProject.completion_report_url || !currentProject.certificate_of_completion_url) { showToast('Both Completion Report and COC required.'); return; }
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Admin only — contact Operations Admin.'); return; }
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() });
+            await addProjectAuditEntry(projectId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
+        } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.'); }
     };
 }
 
