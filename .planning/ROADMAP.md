@@ -784,10 +784,15 @@ Plans:
   3. Selections across groups are independent � the user can have one card active in Materials Procurement AND one active in Subcon Processing simultaneously; the table filters to records matching both active selections
   4. Clicking an already-selected card deselects it (toggle off), returning that group to "show all"
   5. Existing filter controls (PO Status dropdown, MRF Status dropdown, Search) remain functional alongside the new cross-group scorecard filters
-**Plans**: TBD
-**UI hint**: yes
-
+**Plans**: 4 plans / 4 waves
 Plans:
+- [ ] 100-01-PLAN.md — CSS block: all .lc-*, .stage-*, .az, .pa-*, .doc-rollup, .comp-grid rules in views.css
+- [ ] 100-02-PLAN.md — Accordion shell + track renderer: buildLifecycleTrack(), renderLifecycleCard(), toggleLifecycleAccordion(), status dropdown removal
+- [ ] 100-03-PLAN.md — Gate action body: buildLifecycleBody() all 10 statuses, buildAttachZone(), buildPATrack(), buildDocRollup(), 4 lcAttach* window functions
+- [ ] 100-04-PLAN.md — Gate transitions + Firestore writes: 4 gate functions, 3 shared helpers, firestore.rules operations_user field expansion
+**Status**: Planned 2026-06-08. 4 plans / 4 waves.
+**Spike**: `.planning/spikes/031-lifecycle-accordion-card/spike.html` (full interactive simulation, VALIDATED); `.planning/spikes/027-029` (gate design); `.planning/spikes/030-lifecycle-in-app-ux/` (SUPERSEDED by 031).
+**UI hint**: yes — spike.html is the authoritative visual contract.
 - [x] TBD (run /gsd-plan-phase 91.2 to break down)
  (completed 2026-05-18)
 
@@ -1116,3 +1121,30 @@ Plans:
 **Status**: ✅ COMPLETE 2026-06-08 — UAT 10/10 approved. 2/2 plans / 2 waves, inline sequential on v3.3. `node --check` PASS; all static grep gates met; window register/teardown 5/5 symmetric. VERIFICATION `passed` (6/6 SCs static-verified + 10/10 browser UAT). No schema/rules change. Pending (carry-overs): dev rules deploy + v3.3→main merge (Phase 87.4/99/99.1 deploy debt — 99.3 changed NO firestore rules).
 **Spec**: `.planning/spikes/027c-collectibles-table-redesign/` (README + `spike.html` + `.continue-here.md` `decisions_made`) — the authoritative mockup; `COLLECTIBLES-REVAMP-SPEC.md` §4/§5.
 **UI hint**: yes — filter-bar layout + date-picker popover; the 027c `spike.html` is the visual reference.
+
+---
+
+### Phase 100: Project Detail Lifecycle Rebuild — Accordion Card with 4 Gates (Spikes 027–031)
+
+**Goal**: Replace the status dropdown in `project-detail.js` with a self-contained lifecycle accordion card — collapsed shows the 8-stage visual progress track; expanded shows the contextual gate action panel (document attach zone + advance/start/complete buttons) + a document rollup listing all project docs — so the project-detail page becomes a complete command center for the project's lifecycle without any status field to manually set.
+**Depends on**: Phase 87/87.1–87.4 (proposal stages already built — For Proposal through Client Approved/Loss); spikes 027–031 all VALIDATED; `project-detail.js` current state (Phase 99.1 billing footer, proposal inline card).
+**Target files**: `app/views/project-detail.js` (lifecycle accordion widget, 4 gate functions, 3 shared helpers, status dropdown removal), `styles/views.css` (lifecycle accordion CSS block: `.lc-accordion`, `.lc-track`, `.stage-node`, `.lc-body`, `.pa-track`, `.doc-rollup`, `.az`).
+**Requirements**: Spikes 027–031 validated gate design. No new Firestore collection; 16 new fields on existing `projects` documents.
+**Success Criteria** (what must be TRUE):
+  1. **Status dropdown removed** — `project_status` is no longer directly editable; lifecycle card is the only advancement surface; `hdr-status` badge is read-only
+  2. **Accordion card** — collapsed state shows the 8-stage visual track (For Inspection → For Proposal → Internal Approval → Client Review → Client Approved → For Mobilization → On-going → Completed) with node styles (done/current/future/revision/loss) + connector fills + stage chips; clicking the header toggles expanded state
+  3. **Gate 1 (For Inspection)** — attach zone for `inspection_report` (link/file); Advance button gated on `inspection_report_url` non-null; advances status to `For Proposal`; records audit entry
+  4. **Gate 2 (Client Approved)** — attach zone for `ntp_document` (NTP or PO); "Start Mobilization" gated on `ntp_document_url` non-null; advances to `For Mobilization`, records `mobilization_started_at`
+  5. **Gate 3 (For Mobilization)** — button-only "Start Project"; no doc gate; advances to `On-going`, records `project_started_at`
+  6. **Gate 4 (On-going)** — dual attach zones: `completion_report` + `certificate_of_completion`; "Mark as Completed" disabled until BOTH present; advances to `Completed`, records `project_completed_at`; admin-only
+  7. **Post-approval mini-track** shown inside expanded body for statuses Client Approved → For Mobilization → On-going → Completed (4-node PA track matching spike CSS)
+  8. **Document rollup** (always in expanded body) — 4 slots (Inspection Report, NTP/PO, Completion Report, COC); filled slots show icon + name/link + Open ↗; empty slots grayed
+  9. **For Revision** renders as amber sub-state on the Client Review node (not a separate 9th stage); `For Revision` in STAGES maps to curIdx of Client Review node
+  10. **`node --check` PASS** on `project-detail.js`; all new window functions registered in `init()` and deleted in `destroy()` symmetrically; 16 new fields handled with `|| null` reads to avoid crashes on legacy docs; Firestore Security Rules updated for new fields
+**Open questions for discuss/plan**:
+  - Role gate: operations_user (assigned) can do Gate 1 + Gate 2 + Gate 3; completion (Gate 4) is admin-only — confirm this split
+  - Confirm whether `For Proposal` → `Proposal for Internal Approval` is still driven solely by proposal-modal.js actions (no new button in lifecycle card needed for this range)
+**Plans**: TBD (spike 031 estimates ~4 plans: (1) CSS block, (2) track + accordion shell, (3) gates 1–2, (4) gates 3–4 + completion state + doc rollup)
+**Status**: Pending — not yet planned. Spike 031 validated 2026-06-08.
+**Spike**: `.planning/spikes/031-lifecycle-accordion-card/spike.html` (full interactive simulation, VALIDATED); `.planning/spikes/027–029` (gate design); `.planning/spikes/030-lifecycle-in-app-ux/` (SUPERSEDED by 031).
+**UI hint**: yes — spike.html is the authoritative visual contract.
