@@ -2104,8 +2104,9 @@ function buildDocRollup(project) {
 
 function buildLifecycleBody(project, currentUser) {
     const status = project.project_status || 'For Inspection';
-    function wrap(gateTitle, inner) {
-        return `<div class="gate-label">${gateTitle}</div>${inner}${buildDocRollup(project)}`;
+    // showRollup=false for proposal-stage statuses where all doc slots are empty (visual noise)
+    function wrap(gateTitle, inner, showRollup = true) {
+        return `<div class="gate-label">${gateTitle}</div>${inner}${showRollup ? buildDocRollup(project) : ''}`;
     }
 
     if (status === 'For Inspection') {
@@ -2120,13 +2121,13 @@ function buildLifecycleBody(project, currentUser) {
             </div>`);
     }
     if (status === 'For Proposal') {
-        return wrap('Proposal Stage', `<div class="built"><div class="built-title">✅ Already implemented — no changes needed</div><div class="built-desc">Full proposal flow lives in proposals.js + proposal-modal.js. Use the Proposal card below to create / submit / approve.</div></div>`);
+        return wrap('Proposal Stage', `<div class="built"><div class="built-title">✅ Already implemented — no changes needed</div><div class="built-desc">Full proposal flow lives in proposals.js + proposal-modal.js. Use the Proposal card below to create / submit / approve.</div></div>`, false);
     }
     if (status === 'Proposal for Internal Approval') {
-        return wrap('Internal Approval Review', `<div class="built"><div class="built-title">✅ approveProposal() / rejectProposal() — already implemented</div><div class="built-desc">Operations Admin uses the Proposal card to approve or reject.</div></div>`);
+        return wrap('Internal Approval Review', `<div class="built"><div class="built-title">✅ approveProposal() / rejectProposal() — already implemented</div><div class="built-desc">Operations Admin uses the Proposal card to approve or reject.</div></div>`, false);
     }
     if (status === 'Proposal Under Client Review' || status === 'For Revision') {
-        return wrap('Client Review', `<div class="built"><div class="built-title">✅ markClientApproved() / requestRevision() / recordLoss() — already implemented</div><div class="built-desc">Client outcomes are managed via the Proposal card below.</div></div>`);
+        return wrap('Client Review', `<div class="built"><div class="built-title">✅ markClientApproved() / requestRevision() / recordLoss() — already implemented</div><div class="built-desc">Client outcomes are managed via the Proposal card below.</div></div>`, false);
     }
     if (status === 'Client Approved') {
         const has = !!(project.ntp_document_url || null);
@@ -2184,7 +2185,7 @@ function buildLifecycleBody(project, currentUser) {
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
     }
     if (status === 'Loss') {
-        return wrap('Project Lost', `<div class="built"><div class="built-title">✅ recordLoss() — already implemented</div><div class="built-desc">Loss was recorded via the proposal workflow. No further project-status actions.</div></div>`);
+        return wrap('Project Lost', `<div class="built"><div class="built-title">✅ recordLoss() — already implemented</div><div class="built-desc">Loss was recorded via the proposal workflow. No further project-status actions.</div></div>`, false);
     }
     return `<div style="padding:12px;font-size:12px;color:#64748b;">No lifecycle action for current status.</div>${buildDocRollup(project)}`;
 }
@@ -2204,7 +2205,7 @@ function buildLifecycleTrack(project) {
     const status = project.project_status || 'For Inspection';
     let curIdx;
     if (status === 'Loss') {
-        curIdx = 4;
+        curIdx = -1;  // Loss is terminal — no node is "current"; track shows prior progress as done
     } else if (status === 'For Revision') {
         curIdx = LC_STAGES.findIndex(sg => sg.status === 'Proposal Under Client Review');
     } else {
@@ -2263,7 +2264,7 @@ function renderLifecycleCard(project, currentUser) {
                 <span class="lc-cur-badge" id="lcCurBadge" style="background:${color}1a;color:${color};border:1px solid ${color}44;">&#9679; ${escapeHTML(status)}</span>
             </div>
             <div class="lc-header-right">
-                ${gated && !_lcOpen ? '<span style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>' : ''}
+                ${gated && !_lcOpen ? '<span id="lcActionHint" style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>' : ''}
                 <span class="lc-chevron">&#9660;</span>
             </div>
         </div>
@@ -2293,12 +2294,12 @@ function updateLifecycleBadge(project) {
         accordion.classList.toggle('lc-active', ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status));
         accordion.classList.toggle('lc-complete', status === 'Completed');
     }
-    const hintSpan = document.querySelector('#lcAccordion .lc-header-right span[style*="f59e0b"]');
+    const hintSpan = document.getElementById('lcActionHint');
     const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
     if (gated && !_lcOpen) {
         if (!hintSpan) {
             const right = document.querySelector('#lcAccordion .lc-header-right');
-            if (right) right.insertAdjacentHTML('afterbegin', '<span style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>');
+            if (right) right.insertAdjacentHTML('afterbegin', '<span id="lcActionHint" style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>');
         }
     } else if (hintSpan) {
         hintSpan.remove();
@@ -2319,10 +2320,15 @@ function toggleLifecycleAccordion() {
 function _canAdvanceProjectStatus(project, currentUser, targetStatus) {
     if (!currentUser || !project) return false;
     const role = currentUser.role || '';
+    // Completed is admin-only — enforced both here (client-side gate) and in
+    // Firestore rules (CR-02: operations_user cannot write project_status 'Completed')
     if (targetStatus === 'Completed') {
         return ['super_admin', 'operations_admin'].includes(role);
     }
     if (['super_admin', 'operations_admin'].includes(role)) return true;
+    // operations_user in personnel_user_ids is intentionally allowed for all non-Completed
+    // gate transitions (For Proposal, For Mobilization, On-going) — field staff can advance
+    // status after meeting document requirements; Completed requires admin sign-off
     if (role === 'operations_user') {
         const ids = Array.isArray(project.personnel_user_ids) ? project.personnel_user_ids : [];
         return ids.includes(currentUser.uid);
@@ -2345,14 +2351,9 @@ async function addProjectAuditEntry(projectId, action, actorId, actorName, comme
 }
 
 async function _attachDocumentToProject(projectId, fields) {
-    try {
-        await updateDoc(doc(db, 'projects', projectId), { ...fields, updated_at: serverTimestamp() });
-        const cu = window.getCurrentUser?.();
-        await addProjectAuditEntry(projectId, 'DOCUMENT_ATTACHED', cu?.uid, cu?.full_name, JSON.stringify(Object.keys(fields)));
-    } catch (err) {
-        console.error('[ProjectDetail] _attachDocumentToProject failed:', err);
-        showToast('Failed to save document. Please try again.');
-    }
+    await updateDoc(doc(db, 'projects', projectId), { ...fields, updated_at: serverTimestamp() });
+    const cu = window.getCurrentUser?.();
+    await addProjectAuditEntry(projectId, 'DOCUMENT_ATTACHED', cu?.uid, cu?.full_name, JSON.stringify(Object.keys(fields)));
 }
 
 // Attach window functions
@@ -2395,42 +2396,79 @@ function attachWindowFunctions() {
         if (!dk || !currentProject) return;
         const el = document.getElementById('az' + dk.L + 'Link');
         const url = el ? el.value.trim() : '';
-        if (!url) { if (el) { el.style.borderColor = '#ef4444'; setTimeout(() => { el.style.borderColor = ''; }, 1400); } return; }
+        if (!url || !/^https?:\/\//i.test(url)) {
+            if (el) { el.style.borderColor = '#ef4444'; setTimeout(() => { el.style.borderColor = ''; }, 1400); }
+            showToast('Please enter a valid https:// link.', 'error');
+            return;
+        }
+        const prev = {
+            [dk.prefix + '_url']:      currentProject[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:     currentProject[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']: currentProject[dk.prefix + '_filename'],
+        };
         currentProject[dk.prefix + '_url'] = url;
         currentProject[dk.prefix + '_kind'] = 'link';
         currentProject[dk.prefix + '_filename'] = null;
-        buildLifecycleBodyInPlace(currentProject, null);
-        await _attachDocumentToProject(currentProject.id, {
-            [dk.prefix + '_url']: url,
-            [dk.prefix + '_kind']: 'link',
-            [dk.prefix + '_filename']: null,
-        });
+        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        try {
+            await _attachDocumentToProject(currentProject.id, {
+                [dk.prefix + '_url']: url,
+                [dk.prefix + '_kind']: 'link',
+                [dk.prefix + '_filename']: null,
+            });
+        } catch (err) {
+            Object.assign(currentProject, prev);
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+            showToast('Failed to save document. Please try again.', 'error');
+        }
     };
     window.lcAttachFile = async function(which, filename) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentProject) return;
+        const prev = {
+            [dk.prefix + '_url']:      currentProject[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:     currentProject[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']: currentProject[dk.prefix + '_filename'],
+        };
         currentProject[dk.prefix + '_url'] = filename;
         currentProject[dk.prefix + '_kind'] = 'file';
         currentProject[dk.prefix + '_filename'] = filename;
-        buildLifecycleBodyInPlace(currentProject, null);
-        await _attachDocumentToProject(currentProject.id, {
-            [dk.prefix + '_url']: filename,
-            [dk.prefix + '_kind']: 'file',
-            [dk.prefix + '_filename']: filename,
-        });
+        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        try {
+            await _attachDocumentToProject(currentProject.id, {
+                [dk.prefix + '_url']: filename,
+                [dk.prefix + '_kind']: 'file',
+                [dk.prefix + '_filename']: filename,
+            });
+        } catch (err) {
+            Object.assign(currentProject, prev);
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+            showToast('Failed to save document. Please try again.', 'error');
+        }
     };
     window.lcRemoveDoc = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentProject) return;
+        const prev = {
+            [dk.prefix + '_url']:      currentProject[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:     currentProject[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']: currentProject[dk.prefix + '_filename'],
+        };
         currentProject[dk.prefix + '_url'] = null;
         currentProject[dk.prefix + '_kind'] = null;
         currentProject[dk.prefix + '_filename'] = null;
-        buildLifecycleBodyInPlace(currentProject, null);
-        await _attachDocumentToProject(currentProject.id, {
-            [dk.prefix + '_url']: null,
-            [dk.prefix + '_kind']: null,
-            [dk.prefix + '_filename']: null,
-        });
+        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        try {
+            await _attachDocumentToProject(currentProject.id, {
+                [dk.prefix + '_url']: null,
+                [dk.prefix + '_kind']: null,
+                [dk.prefix + '_filename']: null,
+            });
+        } catch (err) {
+            Object.assign(currentProject, prev);
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+            showToast('Failed to remove document. Please try again.', 'error');
+        }
     };
     window.lcSwitchTab = function(L, tab) {
         const lp = document.getElementById('az' + L + 'LinkP');
@@ -2445,45 +2483,45 @@ function attachWindowFunctions() {
     // Phase 100 — lifecycle gate transitions
     window.lcAdvanceToForProposal = async function(projectId) {
         if (!currentProject || currentProject.id !== projectId) return;
-        if (!currentProject.inspection_report_url) { showToast('Inspection report required.'); return; }
+        if (!currentProject.inspection_report_url) { showToast('Inspection report required.', 'error'); return; }
         const cu = window.getCurrentUser?.();
-        if (!_canAdvanceProjectStatus(currentProject, cu, 'For Proposal')) { showToast('Permission denied.'); return; }
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'For Proposal')) { showToast('Permission denied.', 'error'); return; }
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Proposal', updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'ADVANCED_TO_FOR_PROPOSAL', cu?.uid, cu?.full_name, '');
-        } catch (err) { console.error('[ProjectDetail] lcAdvanceToForProposal failed:', err); showToast('Failed to advance status.'); }
+        } catch (err) { console.error('[ProjectDetail] lcAdvanceToForProposal failed:', err); showToast('Failed to advance status.', 'error'); }
     };
     window.lcStartMobilization = async function(projectId) {
         if (!currentProject || currentProject.id !== projectId) return;
-        if (!currentProject.ntp_document_url) { showToast('NTP or PO required.'); return; }
+        if (!currentProject.ntp_document_url) { showToast('NTP or PO required.', 'error'); return; }
         const cu = window.getCurrentUser?.();
-        if (!_canAdvanceProjectStatus(currentProject, cu, 'For Mobilization')) { showToast('Permission denied.'); return; }
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'For Mobilization')) { showToast('Permission denied.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Mobilization', mobilization_started_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'MOBILIZATION_STARTED', cu?.uid, cu?.full_name, 'mobilization_started_at: ' + now);
-        } catch (err) { console.error('[ProjectDetail] lcStartMobilization failed:', err); showToast('Failed to start mobilization.'); }
+        } catch (err) { console.error('[ProjectDetail] lcStartMobilization failed:', err); showToast('Failed to start mobilization.', 'error'); }
     };
     window.lcStartProject = async function(projectId) {
         if (!currentProject || currentProject.id !== projectId) return;
         const cu = window.getCurrentUser?.();
-        if (!_canAdvanceProjectStatus(currentProject, cu, 'On-going')) { showToast('Permission denied.'); return; }
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'On-going')) { showToast('Permission denied.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'On-going', project_started_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'PROJECT_STARTED', cu?.uid, cu?.full_name, 'project_started_at: ' + now);
-        } catch (err) { console.error('[ProjectDetail] lcStartProject failed:', err); showToast('Failed to start project.'); }
+        } catch (err) { console.error('[ProjectDetail] lcStartProject failed:', err); showToast('Failed to start project.', 'error'); }
     };
     window.lcMarkProjectComplete = async function(projectId) {
         if (!currentProject || currentProject.id !== projectId) return;
-        if (!currentProject.completion_report_url || !currentProject.certificate_of_completion_url) { showToast('Both Completion Report and COC required.'); return; }
+        if (!currentProject.completion_report_url || !currentProject.certificate_of_completion_url) { showToast('Both Completion Report and COC required.', 'error'); return; }
         const cu = window.getCurrentUser?.();
-        if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Admin only — contact Operations Admin.'); return; }
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Admin only — contact Operations Admin.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
-        } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.'); }
+        } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.', 'error'); }
     };
 }
 
