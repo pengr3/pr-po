@@ -55,6 +55,21 @@ const UNIFIED_STATUS_OPTIONS = [
     'Loss'
 ];
 
+// Phase 100 — Lifecycle accordion state
+let _lcOpen = false;
+
+// Phase 100 — 8-stage lifecycle definition (D-02)
+const LC_STAGES = [
+    { status: 'For Inspection',                 emoji: '🔍', label: 'For\nInspection',    gated: true  },
+    { status: 'For Proposal',                   emoji: '📋', label: 'For\nProposal',      gated: false },
+    { status: 'Proposal for Internal Approval', emoji: '🏢', label: 'Internal\nApproval', gated: false },
+    { status: 'Proposal Under Client Review',   emoji: '👤', label: 'Client\nReview',     gated: false },
+    { status: 'Client Approved',                emoji: '🎉', label: 'Client\nApproved',   gated: true  },
+    { status: 'For Mobilization',               emoji: '🚚', label: 'For\nMobilization',  gated: true  },
+    { status: 'On-going',                       emoji: '⚙️', label: 'On-going',           gated: true  },
+    { status: 'Completed',                      emoji: '🏁', label: 'Completed',          gated: false },
+];
+
 function _getProjectStatusColor(status) {
     const map = {
         'For Inspection':                 '#64748b',
@@ -370,6 +385,8 @@ export async function destroy() {
     // Phase 85 D-06: reset collectibles state alongside currentExpense
     currentCollectibles = { totalRequested: 0, totalCollected: 0, remainingCollectible: 0 };
 
+    delete window.toggleLifecycleAccordion;
+    _lcOpen = false;
     delete window.saveField;
     delete window.toggleActive;
     delete window.confirmDelete;
@@ -489,23 +506,7 @@ function renderProjectDetail() {
                 <span style="color:#cbd5e1;">·</span>
                 <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;">${escapeHTML(currentProject.project_code || '—')}</span>
                 <span style="color:#cbd5e1;">·</span>
-                ${(() => {
-                    const statusColor = _getProjectStatusColor(currentProject.project_status);
-                    const current = currentProject.project_status || '';
-                    const isLegacy = current && !UNIFIED_STATUS_OPTIONS.includes(current);
-                    const legacyOption = isLegacy
-                        ? `<option value="${escapeHTML(current)}" selected>${escapeHTML(current)} (legacy)</option>`
-                        : '';
-                    const options = legacyOption + UNIFIED_STATUS_OPTIONS.map(s =>
-                        `<option value="${s}" ${current === s ? 'selected' : ''}>${s}</option>`
-                    ).join('');
-                    return `<div style="position:relative;display:inline-flex;align-items:center;">
-                        <select data-field="project_status" onchange="window.saveField('project_status', this.value)"
-                                style="appearance:none;-webkit-appearance:none;padding:0.3rem ${showEditControls ? '1.85rem' : '0.85rem'} 0.3rem 0.85rem;border:none;border-radius:20px;font-size:0.82rem;font-weight:600;color:#fff;background:${statusColor};box-shadow:0 1px 4px rgba(0,0,0,0.2);cursor:${showEditControls ? 'pointer' : 'default'};outline:none;max-width:220px;"
-                                ${!showEditControls ? 'disabled' : ''}>${options}</select>
-                        ${showEditControls ? `<span style="position:absolute;right:0.6rem;pointer-events:none;color:rgba(255,255,255,0.85);font-size:0.65rem;">▼</span>` : ''}
-                    </div>`;
-                })()}
+                <span id="hdrStatusBadge" class="hdr-status" style="background:${_getProjectStatusColor(currentProject.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(currentProject.project_status || '—')}</span>
                 <span style="flex:1;"></span>
                 <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space:nowrap;">Edit History</button>
                 <button class="btn btn-sm btn-secondary" onclick="window.exportProjectExpenseCSV()"
@@ -514,6 +515,8 @@ function renderProjectDetail() {
                     &#8681; Export CSV
                 </button>
             </div>
+
+            ${renderLifecycleCard(currentProject, user)}
 
             <!-- Main 2-column: Info (left) + Financial (right) -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
@@ -1986,6 +1989,126 @@ async function loadProposalCard(parentDocId, parentCollection) {
     }
 }
 
+// Phase 100 — Lifecycle accordion functions
+
+function buildLifecycleTrack(project) {
+    const status = project.project_status || 'For Inspection';
+    let curIdx;
+    if (status === 'Loss') {
+        curIdx = 4;
+    } else if (status === 'For Revision') {
+        curIdx = LC_STAGES.findIndex(sg => sg.status === 'Proposal Under Client Review');
+    } else {
+        curIdx = LC_STAGES.findIndex(sg => sg.status === status);
+    }
+
+    let html = '';
+    LC_STAGES.forEach((sg, i) => {
+        const isPast = i < curIdx;
+        const isCurrent = i === curIdx;
+        const isRevNode = isCurrent && status === 'For Revision';
+        const isLossNode = isCurrent && status === 'Loss';
+
+        const nodeClass = isPast ? 's-done-node' : isRevNode ? 's-revision-node' : isCurrent ? 's-current-node' : '';
+        const circClass = isPast ? 's-done' : isRevNode ? 's-revision' : isLossNode ? 's-loss' : isCurrent ? 's-current' : 's-future';
+
+        let chipCls, chipTxt;
+        if (isPast) { chipCls = 'chip-done'; chipTxt = 'DONE'; }
+        else if (isRevNode) { chipCls = 'chip-revision'; chipTxt = 'REVISION'; }
+        else if (isCurrent) { chipCls = 'chip-here'; chipTxt = '← HERE'; }
+        else if (sg.status === 'Completed') { chipCls = 'chip-end'; chipTxt = 'END'; }
+        else if (sg.gated) { chipCls = 'chip-gap'; chipTxt = 'GATE'; }
+        else { chipCls = 'chip-end'; chipTxt = '—'; }
+
+        const labelLines = sg.label.split('\n').join('<br>');
+        html += `<div class="stage-node ${nodeClass}">
+            <div class="stage-circle ${circClass}">
+                ${sg.emoji}
+                ${isPast ? '<div class="stage-check">✓</div>' : ''}
+            </div>
+            <div class="stage-label">${labelLines}</div>
+            <div class="stage-chip ${chipCls}">${chipTxt}</div>
+        </div>`;
+
+        if (i < LC_STAGES.length - 1) {
+            html += `<div class="connector ${isPast ? 'done' : ''}"></div>`;
+        }
+    });
+
+    if (status === 'Loss') {
+        html += `<div style="margin-left:10px;padding:4px 10px;background:#fee2e2;border:1.5px solid #ef4444;border-radius:8px;font-size:11px;font-weight:700;color:#991b1b;">✗ LOSS</div>`;
+    }
+    return html;
+}
+
+function renderLifecycleCard(project, currentUser) {
+    const status = project.project_status || 'For Inspection';
+    const isActive = ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status);
+    const isComplete = status === 'Completed';
+    const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
+    const color = _getProjectStatusColor(status);
+    return `<div class="lc-accordion ${isActive ? 'lc-active' : ''} ${isComplete ? 'lc-complete' : ''} ${_lcOpen ? 'open' : ''}" id="lcAccordion">
+        <div class="lc-card-header" onclick="window.toggleLifecycleAccordion()">
+            <div class="lc-header-left">
+                <span class="lc-card-title">Project Lifecycle</span>
+                <span class="lc-cur-badge" id="lcCurBadge" style="background:${color}1a;color:${color};border:1px solid ${color}44;">&#9679; ${escapeHTML(status)}</span>
+            </div>
+            <div class="lc-header-right">
+                ${gated && !_lcOpen ? '<span style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>' : ''}
+                <span class="lc-chevron">&#9660;</span>
+            </div>
+        </div>
+        <div class="lc-track-wrap"><div class="lc-track" id="lcTrack">${buildLifecycleTrack(project)}</div></div>
+        <div class="lc-body" id="lcBody"><!-- Plan 03 fills this --></div>
+    </div>`;
+}
+
+function updateLifecycleBadge(project) {
+    if (!project) return;
+    const status = project.project_status || 'For Inspection';
+    const color = _getProjectStatusColor(status);
+    const badge = document.getElementById('lcCurBadge');
+    if (badge) {
+        badge.style.background = `${color}1a`;
+        badge.style.color = color;
+        badge.style.border = `1px solid ${color}44`;
+        badge.textContent = `● ${status}`;
+    }
+    const hdrBadge = document.getElementById('hdrStatusBadge');
+    if (hdrBadge) {
+        hdrBadge.style.background = color;
+        hdrBadge.textContent = status;
+    }
+    const accordion = document.getElementById('lcAccordion');
+    if (accordion) {
+        accordion.classList.toggle('lc-active', ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status));
+        accordion.classList.toggle('lc-complete', status === 'Completed');
+    }
+    const hintSpan = document.querySelector('#lcAccordion .lc-header-right span[style*="f59e0b"]');
+    const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
+    if (gated && !_lcOpen) {
+        if (!hintSpan) {
+            const right = document.querySelector('#lcAccordion .lc-header-right');
+            if (right) right.insertAdjacentHTML('afterbegin', '<span style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>');
+        }
+    } else if (hintSpan) {
+        hintSpan.remove();
+    }
+}
+
+function toggleLifecycleAccordion() {
+    _lcOpen = !_lcOpen;
+    const accordion = document.getElementById('lcAccordion');
+    if (accordion) accordion.classList.toggle('open', _lcOpen);
+    updateLifecycleBadge(currentProject);
+    if (_lcOpen) {
+        const body = document.getElementById('lcBody');
+        if (body && !body.innerHTML.trim()) {
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        }
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveField = saveField;
@@ -2019,6 +2142,8 @@ function attachWindowFunctions() {
     window._onBillingTrancheChange = _onBillingTrancheChange;
     window._selectBillingType = _selectBillingType;
     window._validateBillingForm = _validateBillingForm;
+    // Phase 100 — lifecycle accordion
+    window.toggleLifecycleAccordion = toggleLifecycleAccordion;
 }
 
 // Phase 86 — Project Plan summary card helpers (D-12 weighted-by-duration leaf-only rollup)
