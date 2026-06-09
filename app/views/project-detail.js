@@ -2179,7 +2179,7 @@ function buildLifecycleBody(project, currentUser) {
             ${buildAttachZone(project, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
             <div class="action-row">
                 <button class="btn btn-primary" ${(!can || !isAdmin) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
-                <span class="action-note">${can && isAdmin ? 'Admin only · terminal action' : !isAdmin ? 'Admin only — contact Operations Admin' : escapeHTML(note)}</span>
+                <span class="action-note">${!isAdmin ? 'Admin only — contact Operations Admin' : !can ? escapeHTML(note) : ''}</span>
             </div>`);
     }
     if (status === 'Completed') {
