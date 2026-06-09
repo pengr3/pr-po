@@ -3,7 +3,7 @@ spike: 032
 name: ongoing-activity-panel
 type: comparison
 validates: "Given a project in On-going status, when we mock 3 surface candidates (A: Activity Feed, B: Progress Updates, C: Issue Tracker) as tabs in one panel, then we can feel which surfaces earn a real build and which can be cut"
-verdict: PENDING
+verdict: VALIDATED ✓
 related: [031]
 tags: [on-going, activity, notes, project-detail, ux, feed, issues, progress]
 ---
@@ -85,4 +85,54 @@ Each is a subcollection — real-time listener per tab, no composite indexes nee
 
 ## Results
 
-PENDING — awaiting browser verification from user.
+**VALIDATED ✓** — All three tabs confirmed. Full shape agreed in discussion:
+
+### Confirmed surfaces
+
+| Tab | Surface | Purpose |
+|-----|---------|---------|
+| Feed | Activity Feed | Manual tagged notes (Update / Milestone / Issue / Client Comm) + system auto-entries (status changes, PO events, field edit diffs) |
+| Progress Updates | Structured check-in form | % complete, summary, blockers, next milestone — manual only, no "Generate from Plan" — fills a client/management reporting use case |
+| Issues | Punch list | Type-categorized (Delay / Change Order / Site Issue / Client Request) with open/resolved tracking |
+
+### Key decisions
+
+- **All three tabs ship** — no surface dropped
+- **Edit History** folds into the Feed as system auto-entries showing field diffs (e.g. "Contract value changed ₱3.8M → ₱4.2M by A. Mendoza") — no separate UI needed
+- **Progress Updates is manual** — no Gantt integration; exists to produce narrative reports for clients/management
+- **Permissions:** any user with project access (ops, admin, procurement, finance) can post to all three surfaces — no role-gating within the journal
+- **Mental model:** this is a project journal — a place to record everything that happens during execution
+
+### Data model (Firestore subcollections)
+
+```
+projects/{projectId}/activity_entries/{entryId}
+  type: 'update' | 'milestone' | 'client' | 'system' | 'edit'
+  text: string
+  created_at: Timestamp
+  created_by_uid: string
+  created_by_name: string
+  is_system: boolean
+
+projects/{projectId}/progress_updates/{updateId}
+  pct_complete: number
+  summary: string
+  blockers: string
+  next_milestone: string
+  created_at: Timestamp
+  created_by_uid: string
+  created_by_name: string
+
+projects/{projectId}/issues/{issueId}
+  issue_type: 'delay' | 'change_order' | 'site_issue' | 'client_request'
+  title: string
+  description: string
+  status: 'open' | 'resolved'
+  resolved_at: Timestamp | null
+  resolved_by_uid: string | null
+  created_at: Timestamp
+  created_by_uid: string
+  created_by_name: string
+```
+
+Each is a subcollection ordered by `created_at` desc. Real-time listeners per tab. No composite indexes needed.
