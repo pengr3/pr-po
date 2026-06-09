@@ -1,6 +1,9 @@
 # Spike Manifest
 
-## Idea (current series: 032)
+## Idea (current series: 033)
+Modernize the projects/services summary table to give management a quick at-a-glance read of where each project stands. Three design options: A) Lifecycle Pipeline Row (10-stage dot track + billing bar), B) Dense Card Row (2-line card with status pill + personnel + recency + billing bar), C) Metric Chips Row (clean columns with phase chip + mini progress bar + avatar stack + freshness badge).
+
+## Idea (prior series: 032)
 Add rich activity tracking to the On-going phase of projects. Currently once a project reaches On-going status, the system has no way to record what happens until Completed. Spike 032 explores three surface candidates as tabs in a unified panel: A) Activity Feed (freeform timestamped entries with tag types + system auto-entries), B) Progress Updates (periodic structured check-ins with % complete, blockers, next milestone), C) Issue/Punch List (categorized open/resolved items: Delay, Change Order, Site Issue, Client Request). All three shown simultaneously so the user can feel each surface and decide what to build.
 
 ## Idea (current series: 027–030)

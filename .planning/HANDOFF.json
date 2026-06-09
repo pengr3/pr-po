@@ -1,42 +1,61 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-08T19:06:26Z",
-  "phase": "100",
-  "phase_name": "Project Detail Lifecycle Rebuild — Accordion Card",
-  "phase_dir": ".planning/phases/100-project-detail-lifecycle-rebuild",
-  "plan": 4,
-  "task": 4,
-  "total_tasks": 4,
-  "status": "paused",
+  "timestamp": "2026-06-09 19:24",
+  "phase": "033",
+  "phase_name": "project-table-redesign (spike)",
+  "phase_dir": ".planning/spikes/033-project-table-redesign",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "status": "awaiting_decision",
   "completed_tasks": [
-    {"id": 1, "name": "100-01: lifecycle CSS block in views.css", "status": "done", "commit": "57d3c8d"},
-    {"id": 2, "name": "100-02: accordion shell + track renderer", "status": "done", "commit": "93946a8"},
-    {"id": 3, "name": "100-03: gate body builder + attach window functions", "status": "done", "commit": "8d7f783"},
-    {"id": 4, "name": "100-04: gate transitions + Firestore writes + rules", "status": "done", "commit": "07c7fbf"},
-    {"id": 5, "name": "code review: CR-01 through CR-04 + WR-01 through WR-06 fixes", "status": "done", "commit": "2da2f97"},
-    {"id": 6, "name": "deploy firestore rules to clmc-procurement-dev", "status": "done", "commit": "n/a (MCP deploy)"}
+    {"id": 1, "name": "Explore current projects/services table structure", "status": "done"},
+    {"id": 2, "name": "Build 3-option spike (Kanban, Grouped List, Card Grid)", "status": "done"},
+    {"id": 3, "name": "Identify stage-aware finance gap (no contract for early stages)", "status": "done"},
+    {"id": 4, "name": "Rebuild spike with stage-aware finance, no table-only constraint", "status": "done"},
+    {"id": 5, "name": "Extend to 5 options (add Attention Feed + Swimlane)", "status": "done"},
+    {"id": 6, "name": "Make recommendation: D primary + B browse-all toggle", "status": "done"}
   ],
   "remaining_tasks": [
-    {"id": 7, "name": "browser UAT: lifecycle accordion end-to-end verification", "status": "not_started"},
-    {"id": 8, "name": "run /gsd:verify-work 100 after UAT passes", "status": "not_started"},
-    {"id": 9, "name": "close phase 100 and update STATE.md", "status": "not_started"}
+    {"id": 7, "name": "User decision on which option to build", "status": "not_started"},
+    {"id": 8, "name": "/gsd:plan-phase for new projects/services view redesign", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "Option E (Swimlane) requires stage transition timestamps not currently stored",
+      "type": "technical",
+      "workaround": "Use updated_at as rough proxy, or defer E until data model supports stage history"
+    }
+  ],
   "human_actions_pending": [
     {
-      "action": "Browser UAT of lifecycle accordion card on clmc-procurement-dev",
-      "context": "Zero-build SPA — functional verification requires a real browser. Firestore rules already deployed to dev.",
+      "action": "Decide which option (D recommended, or hybrid) to implement",
+      "context": "5 options presented in .planning/spikes/033-project-table-redesign/index.html",
       "blocking": true
     }
   ],
   "decisions": [
-    {"decision": "Firestore rules deployed to dev (clmc-procurement-dev)", "rationale": "Required before gate transition UAT — audit_log subcollection and Completed-status guards needed at DB layer", "phase": "100"},
-    {"decision": "CR-02 fix adds Completed-status guards to operations_user rule instead of splitting into separate branches", "rationale": "Minimal change — two extra conditions on existing rule; avoids duplicating the full field-mask", "phase": "100"}
+    {
+      "decision": "Stage-aware finance: 3 display states (pre-contract, contracted-no-billing, active-billing)",
+      "rationale": "Early-stage projects have no contract_cost — showing an empty billing bar is misleading",
+      "phase": "033"
+    },
+    {
+      "decision": "Recommend Option D (Attention Feed) + B (Grouped List) as browse-all toggle",
+      "rationale": "D answers 'what needs my eyes' rather than requiring management to scan neutrally; B preserved for team use",
+      "phase": "033"
+    },
+    {
+      "decision": "Option E (Swimlane) deferred",
+      "rationale": "Requires stage transition timestamp history not currently in data model",
+      "phase": "033"
+    }
   ],
   "uncommitted_files": [
-    ".planning/phases/100-project-detail-lifecycle-rebuild/100-REVIEW-FIX.md",
-    ".planning/phases/100-project-detail-lifecycle-rebuild/100-REVIEW.md (modified — status: fixed)"
+    ".planning/spikes/033-project-table-redesign/index.html",
+    ".planning/spikes/033-project-table-redesign/.continue-here.md",
+    ".planning/spikes/MANIFEST.md"
   ],
-  "next_action": "Open browser, run dev server (python -m http.server 8000), open a project at On-going status, verify lifecycle accordion renders correctly, then test each gate transition and document attach flow.",
-  "context_notes": "Phase 100 is fully executed and code-review clean. The only gate remaining is human browser UAT. Firestore rules are deployed to dev. 8 specific UAT checks are documented in the last chat message."
+  "next_action": "Ask user which option to build, then /gsd:plan-phase for projects/services view redesign",
+  "context_notes": "Pure design spike — no app code changed. Core insight: current table gives management no urgency signal. Option D surfaces computed signals (stale proposals, quiet on-going projects) so management reads top-to-bottom and acts."
 }
