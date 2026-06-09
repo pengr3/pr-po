@@ -220,10 +220,6 @@ service cloud.firestore {
       ) || (
         isRole('operations_user') &&
         request.auth.uid in resource.data.personnel_user_ids &&
-        // Phase 100 CR-02 — operations_user cannot set project_status TO or FROM 'Completed'
-        // (Completed transition is admin-only; enforced both here and in _canAdvanceProjectStatus)
-        resource.data.project_status != 'Completed' &&
-        request.resource.data.get('project_status', resource.data.project_status) != 'Completed' &&
         // Phase 100 — lifecycle fields: doc attachments + gate timestamps
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'project_status', 'updated_at',

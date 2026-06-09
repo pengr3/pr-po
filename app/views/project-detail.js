@@ -2170,7 +2170,7 @@ function buildLifecycleBody(project, currentUser) {
         const can = hasR && hasC;
         const note = !hasR && !hasC ? 'Both documents required' : !hasR ? 'Still needed: Completion Report' : 'Still needed: Certificate of Completion';
         const startedAt = escapeHTML(project.project_started_at || '—');
-        const isAdmin = currentUser && ['super_admin','operations_admin'].includes(currentUser.role);
+        const canDo = _canAdvanceProjectStatus(project, currentUser, 'Completed');
         return wrap('Gate 4 — Completion', `
             <div class="lc-desc">Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.</div>
             <div style="font-size:11px;color:#475569;margin-bottom:10px;">Started: <code>${startedAt}</code></div>
@@ -2178,8 +2178,8 @@ function buildLifecycleBody(project, currentUser) {
             ${buildAttachZone(project, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
             ${buildAttachZone(project, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
             <div class="action-row">
-                <button class="btn btn-primary" ${(!can || !isAdmin) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
-                <span class="action-note">${!isAdmin ? 'Admin only — contact Operations Admin' : !can ? escapeHTML(note) : ''}</span>
+                <button class="btn btn-primary" ${(!can || !canDo) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
+                <span class="action-note">${!canDo ? 'Requires project assignment' : !can ? escapeHTML(note) : ''}</span>
             </div>`);
     }
     if (status === 'Completed') {
@@ -2331,15 +2331,8 @@ function toggleLifecycleAccordion() {
 function _canAdvanceProjectStatus(project, currentUser, targetStatus) {
     if (!currentUser || !project) return false;
     const role = currentUser.role || '';
-    // Completed is admin-only — enforced both here (client-side gate) and in
-    // Firestore rules (CR-02: operations_user cannot write project_status 'Completed')
-    if (targetStatus === 'Completed') {
-        return ['super_admin', 'operations_admin'].includes(role);
-    }
     if (['super_admin', 'operations_admin'].includes(role)) return true;
-    // operations_user in personnel_user_ids is intentionally allowed for all non-Completed
-    // gate transitions (For Proposal, For Mobilization, On-going) — field staff can advance
-    // status after meeting document requirements; Completed requires admin sign-off
+    // operations_user assigned to the project may perform all gate transitions including Completed
     if (role === 'operations_user') {
         const ids = Array.isArray(project.personnel_user_ids) ? project.personnel_user_ids : [];
         return ids.includes(currentUser.uid);
@@ -2528,7 +2521,7 @@ function attachWindowFunctions() {
         if (!currentProject || currentProject.id !== projectId) return;
         if (!currentProject.completion_report_url || !currentProject.certificate_of_completion_url) { showToast('Both Completion Report and COC required.', 'error'); return; }
         const cu = window.getCurrentUser?.();
-        if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Admin only — contact Operations Admin.', 'error'); return; }
+        if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Permission denied — you must be assigned to this project.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() });
