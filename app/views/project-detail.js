@@ -57,6 +57,8 @@ const UNIFIED_STATUS_OPTIONS = [
 
 // Phase 100 — Lifecycle accordion state
 let _lcOpen = false;
+// Suppress full re-render when an attach action triggered the snapshot
+let _lcAttachPending = false;
 
 // Phase 100 — 8-stage lifecycle definition (D-02)
 const LC_STAGES = [
@@ -209,7 +211,13 @@ export async function init(activeTab = null, param = null) {
                         ensureCollectiblesListener();
                         await ensureIterationLabel();
                         if (checkProjectAccess()) {
-                            renderProjectDetail();
+                            if (_lcAttachPending) {
+                                _lcAttachPending = false;
+                                buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+                                updateLifecycleBadge(currentProject);
+                            } else {
+                                renderProjectDetail();
+                            }
                         }
                     });
                     return;
@@ -251,7 +259,13 @@ export async function init(activeTab = null, param = null) {
 
         // Phase 7: Check project assignment access for operations_user
         if (checkProjectAccess()) {
-            renderProjectDetail();
+            if (_lcAttachPending) {
+                _lcAttachPending = false;
+                buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+                updateLifecycleBadge(currentProject);
+            } else {
+                renderProjectDetail();
+            }
         }
         // If checkProjectAccess() returns false, it already rendered the access denied message
     });
@@ -2028,16 +2042,9 @@ function buildAttachZone(project, which, label, simFilename) {
     }
     return `<div class="az">
         <div class="az-lbl">${escapeHTML(label)}</div>
-        <div class="az-tabs">
-            <button class="az-tab active" id="az${L}TabL" onclick="window.lcSwitchTab('${L}','link')">📎 Paste Link</button>
-            <button class="az-tab" id="az${L}TabF" onclick="window.lcSwitchTab('${L}','file')">⬆ Simulate File</button>
-        </div>
-        <div id="az${L}LinkP" class="az-row">
+        <div class="az-row">
             <input class="az-input" id="az${L}Link" type="url" placeholder="https://drive.google.com/...">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcAttachLink('${which}')">Attach</button>
-        </div>
-        <div id="az${L}FileP" style="display:none;">
-            <button class="btn btn-secondary" style="font-size:12px;" onclick="window.lcAttachFile('${which}','${escapeHTML(simFilename)}')">📄 ${escapeHTML(simFilename)}</button>
         </div>
     </div>`;
 }
@@ -2093,7 +2100,7 @@ function buildDocRollup(project) {
         html += `<div class="doc-slot${empty ? ' ds-empty' : ''}">
             <span class="ds-icon">${icon}</span>
             <div class="ds-info">
-                <div class="ds-stage">${escapeHTML(s.stage)}</div>
+                <div class="ds-stage">${escapeHTML(s.label)}</div>
                 <div class="ds-name${empty ? ' none' : ''}">${escapeHTML(display)}</div>
             </div>
             ${!empty ? `<a class="ds-link" href="${escapeHTML(url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
@@ -2111,13 +2118,14 @@ function buildLifecycleBody(project, currentUser) {
 
     if (status === 'For Inspection') {
         const has = !!(project.inspection_report_url || null);
+        const canDo = _canAdvanceProjectStatus(project, currentUser, 'For Proposal');
         return wrap('Gate 1 — Inspection Report', `
             <div class="lc-desc">Attach the site inspection report before advancing. The Advance button unlocks once the inspection report is on file.</div>
             ${!has ? '<div class="gate-warn">⚠️ Inspection report required to advance</div>' : ''}
             ${buildAttachZone(project, 'inspection', 'Inspection Report', 'Inspection_Report_Final.pdf')}
             <div class="action-row">
-                <button class="btn btn-primary" ${has ? '' : 'disabled'} onclick="window.lcAdvanceToForProposal('${escapeHTML(project.id)}')">→ Advance to For Proposal</button>
-                <span class="action-note">${has ? 'Operations Admin · role-gated' : 'Attach document to enable'}</span>
+                <button class="btn btn-primary" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcAdvanceToForProposal('${escapeHTML(project.id)}')">→ Advance to For Proposal</button>
+                <span class="action-note">${!has ? 'Attach document to enable' : canDo ? 'Ready to advance' : 'Requires admin or project assignment'}</span>
             </div>`);
     }
     if (status === 'For Proposal') {
@@ -2131,25 +2139,25 @@ function buildLifecycleBody(project, currentUser) {
     }
     if (status === 'Client Approved') {
         const has = !!(project.ntp_document_url || null);
+        const canDo = _canAdvanceProjectStatus(project, currentUser, 'For Mobilization');
         return wrap('Gate 2 — Notice to Proceed / PO', `
             <div class="lc-desc">Attach the client's formal work authorization (NTP or PO) before mobilizing.</div>
-            ${buildPATrack(project)}
             ${!has ? '<div class="gate-warn">⚠️ NTP or PO required to start mobilization</div>' : ''}
             ${buildAttachZone(project, 'ntp', 'Notice to Proceed / Purchase Order', 'Notice_to_Proceed.pdf')}
             <div class="action-row">
-                <button class="btn btn-orange" ${has ? '' : 'disabled'} onclick="window.lcStartMobilization('${escapeHTML(project.id)}')">🚀 Start Mobilization</button>
-                <span class="action-note">${has ? 'Records mobilization_started_at' : 'Attach NTP or PO to enable'}</span>
+                <button class="btn btn-orange" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcStartMobilization('${escapeHTML(project.id)}')">🚀 Start Mobilization</button>
+                <span class="action-note">${!has ? 'Attach NTP or PO to enable' : canDo ? 'Ready to mobilize' : 'Requires admin or project assignment'}</span>
             </div>`);
     }
     if (status === 'For Mobilization') {
         const mobilizedAt = escapeHTML(project.mobilization_started_at || '—');
+        const canDo = _canAdvanceProjectStatus(project, currentUser, 'On-going');
         return wrap('Gate 3 — Start Project', `
             <div class="lc-desc">Resources are mobilizing. Click Start Project when site execution is ready. No document gate.</div>
-            ${buildPATrack(project)}
             <div style="font-size:11px;color:#475569;margin-bottom:12px;">Mobilized: <code>${mobilizedAt}</code></div>
             <div class="action-row">
-                <button class="btn btn-primary" onclick="window.lcStartProject('${escapeHTML(project.id)}')">▶ Start Project</button>
-                <span class="action-note">Records official project start date</span>
+                <button class="btn btn-primary" ${canDo ? '' : 'disabled'} onclick="window.lcStartProject('${escapeHTML(project.id)}')">▶ Start Project</button>
+                <span class="action-note">${canDo ? 'Records official project start date' : 'Requires admin or project assignment'}</span>
             </div>`);
     }
     if (status === 'On-going') {
@@ -2161,7 +2169,6 @@ function buildLifecycleBody(project, currentUser) {
         const isAdmin = currentUser && ['super_admin','operations_admin'].includes(currentUser.role);
         return wrap('Gate 4 — Completion', `
             <div class="lc-desc">Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.</div>
-            ${buildPATrack(project)}
             <div style="font-size:11px;color:#475569;margin-bottom:10px;">Started: <code>${startedAt}</code></div>
             ${!can ? `<div class="gate-warn">⚠️ ${escapeHTML(note)}</div>` : ''}
             ${buildAttachZone(project, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
@@ -2351,6 +2358,7 @@ async function addProjectAuditEntry(projectId, action, actorId, actorName, comme
 }
 
 async function _attachDocumentToProject(projectId, fields) {
+    _lcAttachPending = true;
     await updateDoc(doc(db, 'projects', projectId), { ...fields, updated_at: serverTimestamp() });
     const cu = window.getCurrentUser?.();
     await addProjectAuditEntry(projectId, 'DOCUMENT_ATTACHED', cu?.uid, cu?.full_name, JSON.stringify(Object.keys(fields)));
