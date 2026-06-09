@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 008 — Project Detail Layout</title>
+<style>
+/* ── Reset & base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; }
+
+/* ── Switcher bar ── */
+.switcher {
+  position: sticky; top: 0; z-index: 100;
+  background: #1e293b; color: #fff;
+  display: flex; align-items: center; gap: 0; padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.switcher-label { padding: 0 1rem; font-size: 0.75rem; color: #94a3b8; white-space: nowrap; }
+.switcher-btn {
+  padding: 0.65rem 1.25rem; font-size: 0.8rem; font-weight: 600; background: transparent;
+  border: none; border-bottom: 3px solid transparent; color: #94a3b8; cursor: pointer;
+  transition: all 0.15s;
+}
+.switcher-btn.active { color: #fff; border-bottom-color: #1a73e8; }
+.switcher-btn:hover:not(.active) { color: #cbd5e1; }
+
+/* ── Variant wrappers ── */
+.variant { display: none; }
+.variant.visible { display: block; }
+
+/* ── Shared app chrome ── */
+.app-nav {
+  background: #fff; border-bottom: 1px solid #e2e8f0;
+  padding: 0 1.5rem; height: 52px; display: flex; align-items: center; gap: 2rem;
+}
+.app-nav .logo { font-weight: 700; font-size: 1rem; color: #1e293b; }
+.app-nav a { color: #64748b; font-size: 0.85rem; text-decoration: none; }
+.app-nav a:hover { color: #1e293b; }
+.app-nav .ml-auto { margin-left: auto; }
+
+/* ── Common utils ── */
+.container { max-width: 960px; margin: 0 auto; padding: 1rem 1.5rem; }
+.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
+.card-body { padding: 1rem; }
+.label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 0.2rem; }
+.value { color: #1e293b; font-size: 0.9rem; }
+.value-mono { font-weight: 600; color: #1e293b; font-size: 0.9rem; }
+input[type=text], input[type=number], select {
+  width: 100%; padding: 0.35rem 0.6rem; border: 1px solid #dadce0; border-radius: 4px;
+  font-size: 0.875rem; color: #1e293b; background: #fff; outline: none;
+}
+input[type=text]:focus, input[type=number]:focus, select:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,0.15); }
+.btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; border-radius: 5px; font-size: 0.8rem; font-weight: 500; cursor: pointer; border: 1px solid transparent; white-space: nowrap; }
+.btn-sm { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+.btn-secondary { background: #f8fafc; border-color: #e2e8f0; color: #475569; }
+.btn-secondary:hover { background: #f1f5f9; }
+.btn-primary { background: #1a73e8; color: #fff; border-color: #1557b0; }
+.btn-danger { background: #fff; border-color: #fca5a5; color: #ef4444; }
+.badge-active { display: inline-flex; align-items: center; gap: 0.35rem; background: #d1fae5; color: #059669; font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 20px; border: 1px solid #6ee7b7; }
+.badge-active::before { content: '✓'; }
+.pill { display: inline-flex; align-items: center; gap: 0.25rem; background: #dbeafe; color: #1d4ed8; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 20px; }
+.pill .remove { background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 0.85rem; line-height: 1; padding: 0; margin-left: 0.1rem; }
+.divider { border: none; border-top: 1px solid #e5e7eb; margin: 0.75rem 0; }
+.stat-green { font-weight: 600; color: #059669; }
+.stat-red { font-weight: 600; color: #ef4444; }
+.stat-muted { color: #94a3b8; font-weight: 600; }
+
+/* ── CONCEPT A — compact stacked ── */
+/* Same layout as today but padding/gap halved and Status merged into Info header */
+
+/* ── CONCEPT B — header strip + two-column cards ── */
+.page-header-strip {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.6rem 0; margin-bottom: 0.75rem; flex-wrap: wrap;
+}
+.page-header-strip .proj-code { font-weight: 700; color: #1e293b; font-size: 0.95rem; }
+.page-header-strip .sep { color: #cbd5e1; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+.bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+.fin-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem 1rem; }
+.fin-item { }
+.fin-item .fin-label { font-size: 0.7rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem; }
+.fin-item .fin-val { font-weight: 700; font-size: 1rem; color: #1e293b; }
+.fin-input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; }
+.form-row { margin-bottom: 0.5rem; }
+.form-row label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 0.15rem; }
+.section-title { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.5rem; }
+.card-header-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.card-title { font-size: 0.85rem; font-weight: 700; color: #1e293b; }
+.meta-row { font-size: 0.7rem; color: #94a3b8; margin-top: 0.1rem; }
+
+/* ── CONCEPT C — compact list + financial bar ── */
+.info-meta-bar {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 0.65rem 1rem; margin-bottom: 0.6rem;
+  display: grid; grid-template-columns: auto auto 1fr auto auto auto; gap: 0 1.25rem; align-items: center;
+}
+.info-meta-bar .divider-v { width: 1px; height: 18px; background: #e2e8f0; }
+.fin-bar {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 0.65rem 1rem; margin-bottom: 0.6rem;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 0 0.5rem;
+}
+.fin-bar-item { text-align: center; }
+.fin-bar-item + .fin-bar-item { border-left: 1px solid #f1f5f9; }
+.fin-bar-item .fbl { font-size: 0.65rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.1rem; }
+.fin-bar-item .fbv { font-weight: 700; font-size: 0.9rem; }
+.lower-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.personnel-row { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+
+/* plan card compact */
+.plan-mini { }
+.plan-stats-row { display: flex; gap: 1.5rem; margin-bottom: 0.5rem; }
+.plan-stat { }
+.plan-stat-v { font-size: 1.25rem; font-weight: 700; color: #1a73e8; }
+.plan-stat-l { font-size: 0.7rem; color: #94a3b8; }
+.plan-highlights { font-size: 0.75rem; color: #64748b; }
+.plan-highlight-row { margin-bottom: 0.25rem; }
+.plan-highlight-label { font-weight: 600; color: #475569; }
+</style>
+</head>
+<body>
+
+<!-- Variant switcher -->
+<div class="switcher">
+  <span class="switcher-label">LAYOUT CONCEPT</span>
+  <button class="switcher-btn" onclick="show('current')">Current (baseline)</button>
+  <button class="switcher-btn" onclick="show('a')">A — Compact stacked</button>
+  <button class="switcher-btn active" onclick="show('b')">B — 2-col cards ★</button>
+  <button class="switcher-btn" onclick="show('c')">C — Header bar + grid</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CURRENT — baseline (today's layout reproduced at actual scale)
+══════════════════════════════════════════════════════════════ -->
+<div class="variant" id="v-current">
+  <div class="app-nav">
+    <span class="logo">◈ CLMC</span>
+    <a href="#">Home</a><a href="#">Projects</a><a href="#">Procurement</a>
+    <a href="#" class="ml-auto">Log Out</a>
+  </div>
+  <div style="max-width:960px;margin:0 auto;padding:2rem 1.5rem;">
+
+    <div style="margin-bottom:1.5rem;">
+      <span class="badge-active" style="font-size:0.875rem;padding:0.5rem 1rem;cursor:pointer;">Active</span>
+    </div>
+
+    <!-- Card 1 -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-body" style="padding:1.5rem;">
+        <div style="border-bottom:1px solid #e5e7eb;padding-bottom:0.75rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h3 style="font-size:1.125rem;font-weight:600;">Project Information</h3>
+            <p style="color:#94a3b8;font-size:0.875rem;margin-top:0.25rem;">Created: May 20, 2026 | Updated: May 25, 2026</p>
+          </div>
+          <button class="btn btn-secondary" style="white-space:nowrap;padding:0.4rem 0.75rem;font-size:0.8rem;">Edit History</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;">
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Project Code</label>
+            <div style="color:#64748b;font-size:1rem;">CLMC-SPI-2026005</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.25rem;display:block;">Project Name *</label>
+            <input type="text" value="123asd">
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Client</label>
+            <div style="color:#64748b;font-size:1rem;">SPI</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.25rem;display:block;">Location</label>
+            <input type="text" placeholder="(Not set)">
+          </div>
+          <div style="grid-column:1/-1;margin-bottom:0;">
+            <label style="margin-bottom:0.25rem;display:block;">Assigned Personnel</label>
+            <div style="border:1px solid #dadce0;border-radius:4px;padding:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
+              <span class="pill">Francis Gerard Silva <button class="remove">×</button></span>
+              <span class="pill">Test <button class="remove">×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-body" style="padding:1.5rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <h3 style="font-size:1.125rem;font-weight:600;">Financial Summary</h3>
+          <button class="btn btn-secondary" style="font-size:0.75rem;padding:0.25rem 0.75rem;">↓ Export CSV</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;">
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.25rem;display:block;">Budget</label>
+            <input type="number" placeholder="(Not set)">
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.25rem;display:block;">Contract Cost</label>
+            <input type="number" placeholder="(Not set)">
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Projected Cost</label>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <div style="font-weight:600;color:#1e293b;font-size:1.125rem;">—</div>
+              <button class="btn btn-secondary" style="padding:0.25rem 0.5rem;font-size:0.75rem;">🔄 Refresh</button>
+            </div>
+            <div style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">Click amount to view breakdown</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Remaining Budget</label>
+            <div style="font-weight:600;color:#64748b;font-size:1.125rem;">—</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Paid</label>
+            <div style="font-weight:600;color:#059669;font-size:1.125rem;">0.00</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Remaining Payable</label>
+            <div style="font-weight:600;color:#059669;font-size:1.125rem;">0.00</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Collected</label>
+            <div style="font-weight:600;color:#059669;font-size:1.125rem;">0.00</div>
+          </div>
+          <div style="margin-bottom:0;">
+            <label style="margin-bottom:0.5rem;display:block;font-weight:600;color:#1e293b;">Remaining Collectible</label>
+            <div style="font-weight:600;color:#059669;font-size:1.125rem;">0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="card-body" style="padding:1.5rem;">
+        <h3 style="margin-bottom:1rem;font-size:1.125rem;font-weight:600;">Status & Assignment</h3>
+        <div>
+          <label style="margin-bottom:0.25rem;display:block;">Status</label>
+          <select style="width:100%;">
+            <option>For Inspection</option>
+            <option>For Proposal</option>
+            <option selected>On-going</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proposal card placeholder -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div style="padding:0.75rem 1rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:0.85rem;font-weight:600;">Proposal</span>
+        <span style="font-size:0.75rem;color:#64748b;">PROPOSAL-SPI-2026-001 · Under Review</span>
+      </div>
+      <div style="padding:0.75rem 1rem;font-size:0.8rem;color:#64748b;">Submitted May 22, 2026 · PHP 1,500,000.00</div>
+    </div>
+
+    <!-- Plan card -->
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div style="padding:0.75rem 1rem;border-bottom:1px solid #e5e7eb;"><span style="font-size:0.85rem;font-weight:600;">Project Plan</span></div>
+      <div style="padding:1rem;">
+        <div style="display:flex;gap:2rem;margin-bottom:1rem;">
+          <div><div style="font-size:1.5rem;font-weight:700;color:#1a73e8;">12</div><div style="font-size:0.75rem;color:#94a3b8;">tasks</div></div>
+          <div><div style="font-size:1.5rem;font-weight:700;color:#1a73e8;">45%</div><div style="font-size:0.75rem;color:#94a3b8;">complete</div></div>
+        </div>
+        <div style="font-size:0.8rem;color:#64748b;margin-bottom:0.5rem;"><strong>Recent:</strong> Foundation works completed</div>
+        <div style="font-size:0.8rem;color:#64748b;margin-bottom:0.5rem;"><strong>Next:</strong> Structural steel milestone</div>
+        <div style="text-align:right;margin-top:0.75rem;"><button class="btn btn-primary">Open Plan</button></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:2rem;padding-bottom:2rem;">
+      <button class="btn btn-danger">Delete Project</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONCEPT A — same structure, tighter spacing
+     Wins: minimal change, same mental model
+     Trade-offs: still linear scroll, Status card still lonely
+══════════════════════════════════════════════════════════════ -->
+<div class="variant" id="v-a">
+  <div class="app-nav">
+    <span class="logo">◈ CLMC</span>
+    <a href="#">Home</a><a href="#">Projects</a><a href="#">Procurement</a>
+    <a href="#" class="ml-auto">Log Out</a>
+  </div>
+  <div style="max-width:960px;margin:0 auto;padding:0.75rem 1.5rem;">
+
+    <!-- Top row: badge + status merged -->
+    <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;">
+      <span class="badge-active" style="cursor:pointer;">Active</span>
+      <span style="font-size:0.75rem;color:#94a3b8;">·</span>
+      <select style="padding:0.25rem 0.5rem;border:1px solid #dadce0;border-radius:4px;font-size:0.8rem;color:#1e293b;width:200px;">
+        <option>On-going</option>
+        <option>For Inspection</option>
+        <option>Completed</option>
+      </select>
+      <span style="flex:1;"></span>
+      <button class="btn btn-secondary btn-sm">Edit History</button>
+    </div>
+
+    <!-- Card 1 tighter -->
+    <div class="card" style="margin-bottom:0.75rem;">
+      <div class="card-body" style="padding:0.75rem 1rem;">
+        <div style="border-bottom:1px solid #f1f5f9;padding-bottom:0.5rem;margin-bottom:0.6rem;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Project Information</span>
+            <span style="font-size:0.7rem;color:#94a3b8;margin-left:0.5rem;">Created May 20, 2026 · Updated May 25</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem 1rem;">
+          <div>
+            <label class="label">Project Code</label>
+            <div class="value-mono">CLMC-SPI-2026005</div>
+          </div>
+          <div>
+            <label class="label">Project Name *</label>
+            <input type="text" value="123asd">
+          </div>
+          <div>
+            <label class="label">Client</label>
+            <div class="value-mono">SPI</div>
+          </div>
+          <div>
+            <label class="label">Location</label>
+            <input type="text" placeholder="(Not set)">
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="label">Assigned Personnel</label>
+            <div style="border:1px solid #dadce0;border-radius:4px;padding:0.35rem 0.5rem;display:flex;flex-wrap:wrap;gap:0.3rem;min-height:32px;">
+              <span class="pill">Francis Gerard Silva <button class="remove">×</button></span>
+              <span class="pill">Test <button class="remove">×</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2 tighter -->
+    <div class="card" style="margin-bottom:0.75rem;">
+      <div class="card-body" style="padding:0.75rem 1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+          <span style="font-size:0.85rem;font-weight:700;color:#1e293b;">Financial Summary</span>
+          <button class="btn btn-secondary btn-sm">↓ Export CSV</button>
+        </div>
+        <!-- Editable inputs row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.6rem;">
+          <div>
+            <label class="label">Budget</label>
+            <input type="number" placeholder="(Not set)">
+          </div>
+          <div>
+            <label class="label">Contract Cost</label>
+            <input type="number" placeholder="(Not set)">
+          </div>
+        </div>
+        <!-- Computed stats row -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;padding:0.5rem 0;border-top:1px solid #f1f5f9;">
+          <div>
+            <div class="label">Projected</div>
+            <div class="fin-val stat-muted" style="font-size:0.9rem;">—
+              <button class="btn btn-secondary btn-sm" style="padding:0.15rem 0.4rem;font-size:0.65rem;margin-left:0.2rem;">🔄</button>
+            </div>
+          </div>
+          <div>
+            <div class="label">Remaining Budget</div>
+            <div class="stat-muted" style="font-weight:700;">—</div>
+          </div>
+          <div>
+            <div class="label">Paid</div>
+            <div class="stat-green" style="font-size:0.9rem;">₱ 0.00</div>
+          </div>
+          <div>
+            <div class="label">Rem. Payable</div>
+            <div class="stat-green" style="font-size:0.9rem;">₱ 0.00</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;padding:0.5rem 0;border-top:1px solid #f1f5f9;">
+          <div></div><div></div>
+          <div>
+            <div class="label">Collected</div>
+            <div class="stat-green" style="font-size:0.9rem;">₱ 0.00</div>
+          </div>
+          <div>
+            <div class="label">Rem. Collectible</div>
+            <div class="stat-green" style="font-size:0.9rem;">₱ 0.00</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proposal + Plan in 2 columns -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+      <div class="card">
+        <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.8rem;font-weight:700;">Proposal</span>
+          <span style="font-size:0.7rem;color:#f59e0b;font-weight:600;">Under Review</span>
+        </div>
+        <div style="padding:0.5rem 0.75rem;font-size:0.78rem;color:#475569;">
+          PROPOSAL-SPI-2026-001<br>
+          <span style="color:#64748b;">PHP 1,500,000 · May 22</span>
+        </div>
+      </div>
+      <div class="card">
+        <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.8rem;font-weight:700;">Project Plan</span>
+          <button class="btn btn-primary btn-sm">Open Plan</button>
+        </div>
+        <div style="padding:0.5rem 0.75rem;">
+          <div style="display:flex;gap:1.25rem;margin-bottom:0.3rem;">
+            <div><span style="font-size:1.1rem;font-weight:700;color:#1a73e8;">12</span> <span style="font-size:0.7rem;color:#94a3b8;">tasks</span></div>
+            <div><span style="font-size:1.1rem;font-weight:700;color:#1a73e8;">45%</span> <span style="font-size:0.7rem;color:#94a3b8;">complete</span></div>
+          </div>
+          <div style="font-size:0.73rem;color:#64748b;"><strong>Next:</strong> Structural steel milestone</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding-bottom:1.5rem;">
+      <button class="btn btn-danger btn-sm">Delete Project</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONCEPT B — header strip + side-by-side main cards ★ default
+     Wins: Info + Financials side by side = ~50% height reduction
+     Trade-offs: financial column feels tight with 8 values
+══════════════════════════════════════════════════════════════ -->
+<div class="variant visible" id="v-b">
+  <div class="app-nav">
+    <span class="logo">◈ CLMC</span>
+    <a href="#">Home</a><a href="#">Projects</a><a href="#">Procurement</a>
+    <a href="#" class="ml-auto">Log Out</a>
+  </div>
+  <div style="max-width:960px;margin:0 auto;padding:0.75rem 1.5rem;">
+
+    <!-- Page header strip: code · status · actions -->
+    <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+      <span class="badge-active" style="cursor:pointer;">Active</span>
+      <span style="color:#cbd5e1;font-size:0.8rem;">·</span>
+      <span style="font-weight:700;color:#475569;font-size:0.85rem;">CLMC-SPI-2026005</span>
+      <span style="color:#cbd5e1;font-size:0.8rem;">·</span>
+      <select style="padding:0.2rem 0.5rem;border:1px solid #dadce0;border-radius:4px;font-size:0.78rem;color:#1e293b;">
+        <option>On-going</option>
+        <option>For Inspection</option>
+        <option>Completed</option>
+      </select>
+      <span style="flex:1;"></span>
+      <button class="btn btn-secondary btn-sm">Edit History</button>
+      <button class="btn btn-secondary btn-sm">↓ Export CSV</button>
+    </div>
+
+    <!-- Main 2-column: Info (left) + Financial (right) -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+
+      <!-- Info card -->
+      <div class="card">
+        <div class="card-body" style="padding:0.75rem 1rem;">
+          <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;">Project Information</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;">
+            <div>
+              <label class="label">Project Name *</label>
+              <input type="text" value="123asd">
+            </div>
+            <div>
+              <label class="label">Client</label>
+              <div class="value-mono" style="padding:0.35rem 0;color:#64748b;">SPI</div>
+            </div>
+            <div style="grid-column:1/-1;">
+              <label class="label">Location</label>
+              <input type="text" placeholder="(Not set)">
+            </div>
+            <div style="grid-column:1/-1;">
+              <label class="label">Assigned Personnel</label>
+              <div style="border:1px solid #dadce0;border-radius:4px;padding:0.3rem 0.5rem;display:flex;flex-wrap:wrap;gap:0.25rem;min-height:30px;">
+                <span class="pill">Francis Gerard Silva <button class="remove">×</button></span>
+                <span class="pill">Test <button class="remove">×</button></span>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:0.7rem;color:#94a3b8;margin-top:0.5rem;">Created May 20, 2026 · Updated May 25</div>
+        </div>
+      </div>
+
+      <!-- Financial card -->
+      <div class="card">
+        <div class="card-body" style="padding:0.75rem 1rem;">
+          <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;">Financial Summary</div>
+
+          <!-- 2 editable inputs -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-bottom:0.5rem;">
+            <div>
+              <label class="label">Budget</label>
+              <input type="number" placeholder="(Not set)">
+            </div>
+            <div>
+              <label class="label">Contract Cost</label>
+              <input type="number" placeholder="(Not set)">
+            </div>
+          </div>
+
+          <!-- 6 computed stats as a 3×2 grid of compact stat chips -->
+          <div style="border-top:1px solid #f1f5f9;padding-top:0.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.4rem;">
+            <div style="background:#f8fafc;border-radius:5px;padding:0.3rem 0.4rem;">
+              <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Projected</div>
+              <div style="font-weight:700;color:#1e293b;font-size:0.85rem;display:flex;align-items:center;gap:0.2rem;">
+                — <button class="btn btn-secondary" style="padding:0.1rem 0.3rem;font-size:0.6rem;line-height:1.2;">🔄</button>
+              </div>
+            </div>
+            <div style="background:#f8fafc;border-radius:5px;padding:0.3rem 0.4rem;">
+              <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Rem. Budget</div>
+              <div style="font-weight:700;color:#94a3b8;font-size:0.85rem;">—</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:5px;padding:0.3rem 0.4rem;">
+              <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Paid</div>
+              <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:5px;padding:0.3rem 0.4rem;">
+              <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Rem. Payable</div>
+              <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:5px;padding:0.3rem 0.4rem;">
+              <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Collected</div>
+              <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+            </div>
+            <div style="background:#f8fafc;border-radius:5px;padding:0.3rem 0.4rem;">
+              <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Rem. Collectible</div>
+              <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State toggle for bottom row demo -->
+    <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+      <span style="font-size:0.68rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Status / state:</span>
+      <button onclick="setBState('inspection')" id="bstate-inspection" class="btn btn-secondary btn-sm" style="font-size:0.7rem;">For Inspection / Loss</button>
+      <button onclick="setBState('none')" id="bstate-none" class="btn btn-secondary btn-sm" style="font-size:0.7rem;">No proposal yet (plan visible)</button>
+      <button onclick="setBState('cta')" id="bstate-cta" class="btn btn-secondary btn-sm" style="font-size:0.7rem;">For Proposal + CTA</button>
+      <button onclick="setBState('active')" id="bstate-active" class="btn btn-secondary btn-sm" style="font-size:0.7rem;background:#dbeafe;border-color:#bfdbfe;color:#1d4ed8;">Has proposal ★</button>
+    </div>
+
+    <!-- State: For Inspection / Loss — nothing shown -->
+    <div id="bs-inspection" style="display:none;margin-bottom:0.75rem;">
+      <div style="background:#f8fafc;border:1px dashed #e2e8f0;border-radius:8px;padding:0.6rem 1rem;text-align:center;">
+        <span style="font-size:0.75rem;color:#94a3b8;">No plan or proposal for this stage.</span>
+      </div>
+    </div>
+
+    <!-- State: No proposal yet, plan visible — Plan card full-width -->
+    <div id="bs-none" style="display:block;margin-bottom:0.75rem;">
+      <div class="card">
+        <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.8rem;font-weight:700;color:#1e293b;">Project Plan</span>
+          <button class="btn btn-primary btn-sm">Open Plan</button>
+        </div>
+        <div style="padding:0.5rem 0.75rem;display:flex;gap:2rem;align-items:flex-start;">
+          <div>
+            <div style="display:flex;gap:1.5rem;margin-bottom:0.3rem;">
+              <div><span style="font-size:1.15rem;font-weight:700;color:#1a73e8;">12</span> <span style="font-size:0.7rem;color:#94a3b8;">tasks</span></div>
+              <div><span style="font-size:1.15rem;font-weight:700;color:#1a73e8;">45%</span> <span style="font-size:0.7rem;color:#94a3b8;">complete</span></div>
+            </div>
+            <div style="font-size:0.73rem;color:#64748b;"><strong>Recent:</strong> Foundation works completed</div>
+            <div style="font-size:0.73rem;color:#64748b;margin-top:0.15rem;"><strong>Next:</strong> Structural steel milestone</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: For Proposal + CTA — CTA card left, Plan card right -->
+    <div id="bs-cta" style="display:none;margin-bottom:0.75rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div class="card" style="border:1.5px dashed #bfdbfe;background:#f0f7ff;">
+          <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #dbeafe;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:0.8rem;font-weight:700;color:#1d4ed8;">Proposal</span>
+            <span style="font-size:0.68rem;background:#dbeafe;color:#1d4ed8;padding:0.15rem 0.45rem;border-radius:4px;font-weight:600;">For Proposal</span>
+          </div>
+          <div style="padding:0.75rem;text-align:center;">
+            <div style="font-size:0.78rem;color:#3b82f6;margin-bottom:0.5rem;">Project is ready for a proposal</div>
+            <button class="btn btn-primary btn-sm">+ Start Proposal</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:0.8rem;font-weight:700;color:#1e293b;">Project Plan</span>
+            <button class="btn btn-primary btn-sm">Open Plan</button>
+          </div>
+          <div style="padding:0.5rem 0.75rem;">
+            <div style="display:flex;gap:1.5rem;margin-bottom:0.3rem;">
+              <div><span style="font-size:1.15rem;font-weight:700;color:#1a73e8;">12</span> <span style="font-size:0.7rem;color:#94a3b8;">tasks</span></div>
+              <div><span style="font-size:1.15rem;font-weight:700;color:#1a73e8;">45%</span> <span style="font-size:0.7rem;color:#94a3b8;">complete</span></div>
+            </div>
+            <div style="font-size:0.73rem;color:#64748b;"><strong>Next:</strong> Structural steel milestone</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- State: Active proposal — Proposal left, Plan right -->
+    <div id="bs-active" style="display:none;margin-bottom:0.75rem;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div class="card">
+          <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:0.8rem;font-weight:700;color:#1e293b;">Proposal</span>
+            <span style="font-size:0.7rem;background:#fef3c7;color:#92400e;padding:0.15rem 0.45rem;border-radius:4px;font-weight:600;">Under Review</span>
+          </div>
+          <div style="padding:0.5rem 0.75rem;font-size:0.78rem;color:#475569;">
+            <div style="font-weight:600;">PROPOSAL-SPI-2026-001</div>
+            <div style="color:#64748b;margin-top:0.15rem;">PHP 1,500,000 · Submitted May 22, 2026</div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="padding:0.5rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:0.8rem;font-weight:700;color:#1e293b;">Project Plan</span>
+            <button class="btn btn-primary btn-sm">Open Plan</button>
+          </div>
+          <div style="padding:0.5rem 0.75rem;">
+            <div style="display:flex;gap:1.5rem;margin-bottom:0.3rem;">
+              <div><span style="font-size:1.15rem;font-weight:700;color:#1a73e8;">12</span> <span style="font-size:0.7rem;color:#94a3b8;">tasks</span></div>
+              <div><span style="font-size:1.15rem;font-weight:700;color:#1a73e8;">45%</span> <span style="font-size:0.7rem;color:#94a3b8;">complete</span></div>
+            </div>
+            <div style="font-size:0.73rem;color:#64748b;"><strong>Recent:</strong> Foundation works completed</div>
+            <div style="font-size:0.73rem;color:#64748b;margin-top:0.15rem;"><strong>Next:</strong> Structural steel milestone</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding-bottom:1.5rem;">
+      <button class="btn btn-danger btn-sm">Delete Project</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONCEPT C — compact info bar + financial stat bar + 2-col lower
+     Wins: maximum density, everything above the fold
+     Trade-offs: editable inputs in a bar = less obvious they're editable
+══════════════════════════════════════════════════════════════ -->
+<div class="variant" id="v-c">
+  <div class="app-nav">
+    <span class="logo">◈ CLMC</span>
+    <a href="#">Home</a><a href="#">Projects</a><a href="#">Procurement</a>
+    <a href="#" class="ml-auto">Log Out</a>
+  </div>
+  <div style="max-width:960px;margin:0 auto;padding:0.75rem 1.5rem;">
+
+    <!-- Row 1: identity bar -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+      <span class="badge-active" style="cursor:pointer;flex-shrink:0;">Active</span>
+      <span style="color:#cbd5e1;">|</span>
+      <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;flex-shrink:0;">CLMC-SPI-2026005</span>
+      <span style="color:#cbd5e1;">|</span>
+      <input type="text" value="123asd" style="flex:1;min-width:160px;max-width:280px;">
+      <span style="color:#cbd5e1;">|</span>
+      <span style="font-size:0.82rem;color:#64748b;flex-shrink:0;">Client: <strong style="color:#1e293b;">SPI</strong></span>
+      <span style="color:#cbd5e1;">|</span>
+      <select style="padding:0.2rem 0.45rem;border:1px solid #dadce0;border-radius:4px;font-size:0.78rem;flex-shrink:0;">
+        <option>On-going</option><option>Completed</option>
+      </select>
+      <span style="flex:1;"></span>
+      <button class="btn btn-secondary btn-sm">Edit History</button>
+    </div>
+
+    <!-- Row 2: financial bar (6 stat chips) + 2 editable inputs -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 1rem;margin-bottom:0.5rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:0.3rem 0.75rem;align-items:end;">
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.15rem;">Budget</div>
+        <input type="number" placeholder="—" style="padding:0.25rem 0.4rem;font-size:0.78rem;">
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.15rem;">Contract</div>
+        <input type="number" placeholder="—" style="padding:0.25rem 0.4rem;font-size:0.78rem;">
+      </div>
+      <div style="border-left:1px solid #f1f5f9;padding-left:0.5rem;">
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Projected</div>
+        <div style="font-weight:700;color:#1e293b;font-size:0.85rem;display:flex;align-items:center;gap:0.2rem;">— <button style="background:none;border:1px solid #e2e8f0;border-radius:3px;font-size:0.6rem;padding:0.1rem 0.25rem;cursor:pointer;color:#64748b;">🔄</button></div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Rem. Budget</div>
+        <div style="font-weight:700;color:#94a3b8;font-size:0.85rem;">—</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Paid</div>
+        <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Rem. Payable</div>
+        <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Collected</div>
+        <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;">Rem. Collectible</div>
+        <div style="font-weight:700;color:#059669;font-size:0.85rem;">₱ 0.00</div>
+      </div>
+    </div>
+
+    <!-- Row 3: Location + Personnel side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem;">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 1rem;">
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem;">Location</div>
+        <input type="text" placeholder="(Not set)">
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:0.6rem 1rem;">
+        <div style="font-size:0.65rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem;">Assigned Personnel</div>
+        <div style="border:1px solid #dadce0;border-radius:4px;padding:0.25rem 0.4rem;display:flex;flex-wrap:wrap;gap:0.25rem;min-height:28px;">
+          <span class="pill">Francis Gerard Silva <button class="remove">×</button></span>
+          <span class="pill">Test <button class="remove">×</button></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: Proposal + Plan side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.5rem;">
+      <div class="card">
+        <div style="padding:0.45rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.78rem;font-weight:700;">Proposal</span>
+          <span style="font-size:0.68rem;background:#fef3c7;color:#92400e;padding:0.1rem 0.4rem;border-radius:4px;font-weight:600;">Under Review</span>
+        </div>
+        <div style="padding:0.45rem 0.75rem;font-size:0.75rem;color:#475569;">
+          <div style="font-weight:600;">PROPOSAL-SPI-2026-001</div>
+          <div style="color:#64748b;margin-top:0.1rem;">PHP 1,500,000 · May 22, 2026</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="padding:0.45rem 0.75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:0.78rem;font-weight:700;">Project Plan</span>
+          <button class="btn btn-primary btn-sm">Open Plan</button>
+        </div>
+        <div style="padding:0.45rem 0.75rem;display:flex;gap:1.25rem;align-items:center;">
+          <div><span style="font-size:1.1rem;font-weight:700;color:#1a73e8;">12</span> <span style="font-size:0.68rem;color:#94a3b8;">tasks</span></div>
+          <div><span style="font-size:1.1rem;font-weight:700;color:#1a73e8;">45%</span> <span style="font-size:0.68rem;color:#94a3b8;">done</span></div>
+          <div style="font-size:0.7rem;color:#64748b;flex:1;"><strong>Next:</strong> Structural steel milestone</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:1rem;">
+      <div style="font-size:0.68rem;color:#94a3b8;">Created May 20, 2026 · Updated May 25, 2026</div>
+      <button class="btn btn-danger btn-sm">Delete Project</button>
+    </div>
+
+  </div>
+</div>
+
+
+<script>
+function show(id) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('visible'));
+  document.querySelectorAll('.switcher-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('v-' + id).classList.add('visible');
+  event.target.classList.add('active');
+  window.scrollTo(0, 52);
+}
+
+function setBState(state) {
+  ['inspection','none','cta','active'].forEach(s => {
+    document.getElementById('bs-' + s).style.display = (s === state) ? 'block' : 'none';
+    const btn = document.getElementById('bstate-' + s);
+    btn.style.background = s === state ? '#1a73e8' : '';
+    btn.style.color = s === state ? '#fff' : '';
+    btn.style.borderColor = s === state ? '#1557b0' : '';
+  });
+}
+document.addEventListener('DOMContentLoaded', () => setBState('none'));
+</script>
+</body>
+</html>

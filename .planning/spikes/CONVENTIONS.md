@@ -23,3 +23,4 @@ Patterns and stack choices established across spike sessions.
 - **Log pane:** dark `#0f172a` strip at the bottom with monospace entries; type-color coded (`event`=muted, `save`=green, `restore`=blue, `undo`=amber, `diff`=yellow) — use in every interactive spike
 - **015c restore mechanic is canonical:** all future iteration spikes should use auto-snapshot + 5s undo toast as the restore mechanic; do not re-probe it
 - **Right rail (017B) is canonical history UX:** the persistent side panel is the agreed surface for iteration history; do not re-probe modal vs dropdown
+- **Project journal panel (032) is canonical On-going surface:** 3 tabs (Activity Feed / Progress Updates / Issues) below Info+Financial cards; all 3 ship; no role-gating; Progress Updates are manual-only — do not re-probe Gantt integration

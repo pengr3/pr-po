@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+## Spike Findings
+
+- **Spike findings for pr-po** (project journal, lifecycle, activity tracking patterns, constraints, gotchas) → `Skill("spike-findings-pr-po")`
+
 ## Project Overview
 CLMC Engineering procurement management system - static SPA for managing MRFs, PRs, and POs through complete procurement workflow.
 
