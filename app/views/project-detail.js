@@ -693,6 +693,9 @@ function renderProjectDetail() {
             if (field) field.focus();
         }
     }
+
+    // If accordion is open, repopulate the body — renderLifecycleCard leaves #lcBody empty
+    if (_lcOpen) buildLifecycleBodyInPlace(currentProject, user);
 }
 
 // Phase 99.1 D-07/D-13 — single source of truth for a tranche's lifecycle stage + cash %.
@@ -1370,8 +1373,9 @@ async function refreshExpense(silent = false) {
             remainingCollectible: collTotalInvoiced - collTotalCollected
         };
 
-        // Re-render to show updated expense
-        renderProjectDetail();
+        // Re-render to show updated expense — skip if lifecycle attach is pending (prevents
+        // accordion body flicker: the snapshot handler calls buildLifecycleBodyInPlace instead)
+        if (!_lcAttachPending) renderProjectDetail();
 
         if (!silent) showToast('Expense refreshed', 'success');
     } catch (error) {
