@@ -1,6 +1,9 @@
 # Spike Manifest
 
-## Idea (current series: 033)
+## Idea (current series: 034–036)
+DLP (Defect Liability Period) and retention tracking. Two gaps identified: (1) no entry point for DLP data — at project creation it's unknown; (2) `collection_tranches` can only be set at project creation, not while the project is ongoing. Spike 034 compares three DLP entry placements (on the tranche / at completion gate / standalone card). Spike 035 builds an inline tranche editor in project-detail accessible while On-going, with DLP fields on the retention tranche. Spike 036 validates the 3-state finance bar display (amber in-DLP / red expired / green released) in both project-detail and the portfolio view.
+
+## Idea (prior series: 033)
 Modernize the projects/services summary table to give management a quick at-a-glance read of where each project stands. Three design options: A) Lifecycle Pipeline Row (10-stage dot track + billing bar), B) Dense Card Row (2-line card with status pill + personnel + recency + billing bar), C) Metric Chips Row (clean columns with phase chip + mini progress bar + avatar stack + freshness badge).
 
 ## Idea (prior series: 032)
@@ -39,8 +42,11 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 ## Spikes
 
 | # | Name | Type | Validates | Verdict | Tags |
-| 011 | assignee-picker-in-grid | standard | Given a Resources column with free-text input, when user wants structured assignees, then a people picker sourced from project.personnel_user_ids is needed | DROPPED — retain free-text Resources; no picker | gantt, assignee, grid, project-plan |
 |---|------|------|-----------|---------|------|
+| 034 | dlp-entry-placement | comparison | Given DLP details become known only post-award, when comparing tranche editor / completion gate / standalone card, then one placement feels natural without adding overhead | PENDING | dlp, retention, tranche, ux, project-detail |
+| 035 | tranche-editor-in-detail | standard | Given a project with no tranches while On-going, when PM/Finance opens project-detail, then they can add/edit collection_tranches inline without leaving the page | PENDING | tranche, project-detail, finance, dlp, inline-edit |
+| 036 | dlp-states-finance-bar | standard | Given a completed project with DLP fields, when DLP state is active/expired/released, then finance bar and portfolio view show amber/red/green correctly | PENDING | dlp, retention, finance-bar, portfolio, display |
+| 011 | assignee-picker-in-grid | standard | Given a Resources column with free-text input, when user wants structured assignees, then a people picker sourced from project.personnel_user_ids is needed | DROPPED — retain free-text Resources; no picker | gantt, assignee, grid, project-plan |
 | 001 | etag-head-poll | standard | Given `HEAD /index.html` is polled every 30 min, when Netlify deploys a new version, then the ETag or Last-Modified header changes and we detect it | VALIDATED ✓ | detection, netlify, polling, headers |
 | 002 | update-banner-ux | standard | Given a version change is detected, when the banner renders, then the user can see and dismiss it without disrupting active workflows | VALIDATED ✓ — Variant A chosen | ux, banner, notification, design |
 | 003a | icon-inline-svg | comparison | Given 16 notification types each get a unique inline SVG path in TYPE_META.icon, when rendered in the type badge, then all types are visually distinct and consistent across Win/Mac | VALIDATED ✓ WINNER — inline SVG, no index.html changes | icons, svg, notification, design |

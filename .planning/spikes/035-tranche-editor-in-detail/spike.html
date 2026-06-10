@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 035 — Inline Tranche Editor in Project-Detail</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; padding-bottom: 136px; }
+
+.app-frame { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+
+/* Page header */
+.page-header {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 20px 24px; margin-bottom: 16px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+}
+.page-header h1 { font-size: 20px; font-weight: 700; }
+.page-header .meta { font-size: 12px; color: #64748b; margin-top: 4px; display: flex; gap: 12px; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.ongoing { background: #dbeafe; color: #1d4ed8; }
+
+/* Cards */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px;
+}
+.card-title {
+  font-size: 13px; font-weight: 600; color: #475569; text-transform: uppercase;
+  letter-spacing: .5px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+
+/* Finance bar */
+.finance-bar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
+.fb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.fb-label { font-size: 13px; color: #475569; font-weight: 600; }
+.fb-amount { font-size: 18px; font-weight: 700; color: #1e293b; }
+.bar-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 6px; position: relative; }
+.bar-fill { height: 100%; border-radius: 4px; background: #1a73e8; transition: width .4s; }
+.bar-detail { font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }
+
+/* Tranche section header */
+.tranche-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.tranche-header-left { display: flex; align-items: center; gap: 8px; }
+.edit-tranches-btn {
+  padding: 5px 12px; border-radius: 6px; border: 1px solid #e2e8f0;
+  background: #fff; color: #1a73e8; cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.edit-tranches-btn:hover { background: #eff6ff; border-color: #bfdbfe; }
+.edit-tranches-btn.active { background: #eff6ff; border-color: #1a73e8; }
+
+/* Read-only tranche display */
+.tranche-display { display: flex; flex-direction: column; gap: 6px; }
+.tranche-display-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-radius: 8px; background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.tranche-display-row .td-left { display: flex; align-items: center; gap: 10px; }
+.tranche-display-row .td-name { font-size: 13px; color: #1e293b; font-weight: 500; }
+.tranche-display-row .td-right { display: flex; align-items: center; gap: 8px; }
+.tranche-display-row .td-pct { font-size: 13px; font-weight: 700; color: #475569; width: 38px; text-align: right; }
+.tranche-display-row .td-amount { font-size: 11px; color: #94a3b8; }
+.coll-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px;
+  background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;
+}
+.coll-badge.pending { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.coll-badge.none { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+.ret-tag {
+  font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px;
+  background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
+}
+.no-tranches {
+  text-align: center; padding: 24px; color: #94a3b8; font-size: 13px;
+  background: #f8fafc; border: 1px dashed #e2e8f0; border-radius: 8px;
+}
+
+/* Inline tranche editor */
+.tranche-editor {
+  border: 1px solid #bfdbfe; border-radius: 10px; background: #eff6ff;
+  padding: 16px; margin-top: 12px; display: none;
+}
+.tranche-editor.visible { display: block; }
+.editor-header {
+  font-size: 12px; font-weight: 700; color: #1d4ed8; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.editor-header .hint { font-size: 11px; color: #3b82f6; font-weight: 400; }
+
+.editor-list { display: flex; flex-direction: column; gap: 8px; }
+
+.editor-row {
+  background: #fff; border: 1px solid #dbeafe; border-radius: 8px; padding: 10px 12px;
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center;
+}
+.editor-row.retention-row { border-color: #fde68a; background: #fffbeb; }
+
+.editor-row input[type="text"] {
+  border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px;
+  font-size: 13px; color: #1e293b; width: 100%;
+}
+.editor-row input[type="text"]:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.1); }
+.editor-row input[type="number"] {
+  border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px;
+  font-size: 13px; color: #1e293b; width: 68px; text-align: right;
+}
+.editor-row input[type="number"]:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.1); }
+.pct-suffix { font-size: 12px; color: #94a3b8; margin-left: -4px; }
+
+.ret-toggle {
+  font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 10px;
+  cursor: pointer; border: 1px solid #e2e8f0; background: #f1f5f9; color: #94a3b8;
+  white-space: nowrap;
+}
+.ret-toggle.on { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.ret-toggle:hover { opacity: .8; }
+
+.remove-btn {
+  width: 26px; height: 26px; border-radius: 6px; border: 1px solid #fecaca;
+  background: #fff; color: #ef4444; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center;
+}
+.remove-btn:hover { background: #fef2f2; }
+.remove-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* DLP row that expands under retention tranche */
+.dlp-expand {
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+  padding: 12px 14px; margin-top: 2px; display: none;
+}
+.dlp-expand.visible { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.dlp-expand label { font-size: 11px; color: #92400e; font-weight: 600; display: block; margin-bottom: 4px; }
+.dlp-expand input, .dlp-expand select {
+  border: 1px solid #fde68a; border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%; background: #fff;
+}
+.dlp-expand input[readonly] { background: #fef9c3; color: #92400e; }
+
+/* Total bar */
+.total-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; margin-top: 8px; border-top: 1px solid #dbeafe;
+}
+.total-label { font-size: 12px; color: #475569; }
+.total-val { font-size: 14px; font-weight: 700; }
+.total-ok { color: #059669; }
+.total-err { color: #ef4444; }
+.total-progress {
+  height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 6px; overflow: hidden;
+}
+.total-progress-fill { height: 100%; background: #1a73e8; transition: width .3s; }
+
+.add-btn {
+  width: 100%; margin-top: 8px; padding: 7px 14px; border-radius: 6px;
+  border: 1px dashed #93c5fd; background: transparent; color: #3b82f6;
+  cursor: pointer; font-size: 13px;
+}
+.add-btn:hover { background: #dbeafe; }
+
+.editor-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid #dbeafe;
+}
+.btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+.btn-ghost { background: transparent; color: #64748b; }
+.btn-ghost:hover { background: #f1f5f9; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-primary:hover { background: #1557b0; }
+
+/* Empty state + setup CTA */
+.setup-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; border: 1px dashed #e2e8f0; border-radius: 8px;
+  background: #f8fafc; margin-bottom: 12px;
+}
+.setup-cta p { font-size: 13px; color: #64748b; }
+.setup-cta button {
+  padding: 6px 14px; border-radius: 6px; background: #1a73e8; color: #fff;
+  border: none; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.setup-cta button:hover { background: #1557b0; }
+
+/* Anno */
+.anno {
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;
+  border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600;
+}
+
+/* Log pane */
+.log-pane {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  background: #0f172a; border-top: 1px solid #1e293b; height: 120px;
+  overflow-y: auto; padding: 8px 16px;
+}
+.log-entry { font-family: monospace; font-size: 12px; padding: 2px 0; }
+.log-entry.event { color: #94a3b8; }
+.log-entry.save { color: #4ade80; }
+.log-entry.action { color: #60a5fa; }
+.log-entry.toggle { color: #fbbf24; }
+.log-entry.error { color: #f87171; }
+.log-entry.info { color: #a78bfa; }
+
+/* Scenario switcher */
+.scenario-bar {
+  position: sticky; top: 0; z-index: 100; background: #0f172a; padding: 10px 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.scenario-bar span { color: #94a3b8; font-size: 12px; margin-right: 4px; }
+.sbtn {
+  padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 500; background: #1e293b; color: #94a3b8;
+}
+.sbtn.active { background: #1a73e8; color: #fff; }
+.sbtn:hover:not(.active) { background: #334155; color: #e2e8f0; }
+.scenario-desc { margin-left: auto; color: #64748b; font-size: 11px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="scenario-bar">
+  <span>Scenario:</span>
+  <button class="sbtn active" onclick="loadScenario('none')">No tranches set</button>
+  <button class="sbtn" onclick="loadScenario('partial')">2 tranches, editing</button>
+  <button class="sbtn" onclick="loadScenario('full')">4 tranches + retention</button>
+  <span class="scenario-desc" id="scenarioDesc">Ongoing project — tranches never configured at creation</span>
+</div>
+
+<div class="app-frame">
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1>CLMC-BLDG-003 — Annex Building Renovation</h1>
+      <div class="meta">
+        <span>Contract: ₱4,200,000</span>
+        <span>Client: BLDG Corp</span>
+        <span>Assigned: Carlo Reyes</span>
+      </div>
+    </div>
+    <span class="status-pill ongoing">● On-going</span>
+  </div>
+
+  <div class="two-col">
+    <!-- Info card -->
+    <div class="card">
+      <div class="card-title">Project Information</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 20px;">
+        <div><div style="font-size:11px;color:#94a3b8;">Project Code</div><div style="font-weight:500;">CLMC-BLDG-003</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Client</div><div style="font-weight:500;">BLDG Corp</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Start Date</div><div style="font-weight:500;">Oct 1, 2025</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Target End</div><div style="font-weight:500;">Jun 1, 2026</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Contract Cost</div><div style="font-weight:500;">₱4,200,000</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Contract Type</div><div style="font-weight:500;">Lump Sum</div></div>
+      </div>
+    </div>
+
+    <!-- Finance + Tranches card -->
+    <div class="card">
+      <div class="card-title">Financial Summary</div>
+      <div class="finance-bar" style="margin-bottom:20px;">
+        <div class="fb-header">
+          <span class="fb-label">Contract Cost</span>
+          <span class="fb-amount">₱4,200,000</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="billingBar" style="width:40%"></div></div>
+        <div class="bar-detail" id="billingDetail">
+          <span id="billingLeft">₱1,680,000 collected (40%)</span>
+          <span id="billingRight">₱2,520,000 remaining</span>
+        </div>
+      </div>
+
+      <!-- Tranche section -->
+      <div class="tranche-header">
+        <div class="tranche-header-left">
+          <span class="card-title" style="margin-bottom:0;">Collection Tranches</span>
+          <span class="anno" id="trancheAnno">↓ New: editable while On-going</span>
+        </div>
+        <button class="edit-tranches-btn" id="editBtn" onclick="toggleEditor()">⚙ Edit Tranches</button>
+      </div>
+
+      <!-- Read-only display -->
+      <div id="trancheDisplay"></div>
+
+      <!-- Editor (hidden by default) -->
+      <div class="tranche-editor" id="trancheEditor">
+        <div class="editor-header">
+          <span>Edit Collection Tranches</span>
+          <span class="hint">Changes saved to project document</span>
+        </div>
+        <div class="editor-list" id="editorList"></div>
+        <div class="dlp-expand" id="dlpExpandRow">
+          <div>
+            <label>Retention %</label>
+            <input type="number" id="dlpRetPct" value="10" min="0" max="20"
+              oninput="log('toggle','Retention % → '+this.value+'%'); recalcBilling()">
+          </div>
+          <div>
+            <label>DLP Months</label>
+            <select id="dlpMonths" onchange="calcExpiry(); log('toggle','DLP → '+this.value+' months')">
+              <option value="3">3 months</option>
+              <option value="6">6 months</option>
+              <option value="12" selected>12 months</option>
+              <option value="18">18 months</option>
+              <option value="24">24 months</option>
+            </select>
+          </div>
+          <div>
+            <label>DLP Expiry <span style="color:#a16207;font-weight:400;">(auto)</span></label>
+            <input type="text" id="dlpExpiry" readonly value="—">
+          </div>
+        </div>
+        <div class="total-row">
+          <span class="total-label">Total</span>
+          <span class="total-val" id="totalVal">0%</span>
+        </div>
+        <div class="total-progress"><div class="total-progress-fill" id="totalBar" style="width:0%"></div></div>
+        <button class="add-btn" onclick="addEditorRow()">+ Add Tranche</button>
+        <div class="editor-actions">
+          <button class="btn btn-ghost" onclick="cancelEdit()">Cancel</button>
+          <button class="btn btn-primary" id="saveBtn" onclick="saveTranches()">Save Tranches</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="log-pane" id="logPane">
+  <div class="log-entry info">[035] Tranche editor in project-detail · Closes the "ongoing project can't edit tranches" gap</div>
+  <div class="log-entry event">Scenario: No tranches — project was created without setting collection tranches</div>
+</div>
+
+<script>
+let tranches = [];
+let editorTranches = [];
+let editorOpen = false;
+
+const CONTRACT = 4200000;
+
+const SCENARIOS = {
+  none: {
+    tranches: [],
+    desc: 'Ongoing project — tranches never configured at creation',
+    collected: 40,
+  },
+  partial: {
+    tranches: [
+      { label: 'Mobilization', pct: 30, retention: false },
+      { label: 'Progress Billing', pct: 70, retention: false },
+    ],
+    desc: 'Two tranches already set, user opens editor to adjust',
+    collected: 30,
+  },
+  full: {
+    tranches: [
+      { label: 'Mobilization', pct: 20, retention: false },
+      { label: 'Progress Billing 1', pct: 30, retention: false },
+      { label: 'Progress Billing 2', pct: 30, retention: false },
+      { label: 'Final / Retention', pct: 20, retention: true },
+    ],
+    desc: '4 tranches configured including retention tranche with DLP',
+    collected: 65,
+  }
+};
+
+function loadScenario(key) {
+  const s = SCENARIOS[key];
+  tranches = s.tranches.map(t => ({ ...t }));
+  document.querySelectorAll('.sbtn').forEach((b,i) => b.classList.toggle('active', ['none','partial','full'][i] === key));
+  document.getElementById('scenarioDesc').textContent = s.desc;
+  editorOpen = false;
+  document.getElementById('trancheEditor').classList.remove('visible');
+  document.getElementById('editBtn').classList.remove('active');
+  updateBillingBar(s.collected);
+  renderDisplay();
+  log('action', 'Scenario loaded: ' + key + ' — ' + s.desc);
+}
+
+function updateBillingBar(pct) {
+  const amt = Math.round(CONTRACT * pct / 100);
+  const rem = CONTRACT - amt;
+  document.getElementById('billingBar').style.width = pct + '%';
+  document.getElementById('billingLeft').textContent = '₱' + amt.toLocaleString() + ' collected (' + pct + '%)';
+  document.getElementById('billingRight').textContent = '₱' + rem.toLocaleString() + ' remaining';
+}
+
+function renderDisplay() {
+  const el = document.getElementById('trancheDisplay');
+  if (tranches.length === 0) {
+    el.innerHTML = `
+      <div class="setup-cta">
+        <p>No collection tranches set — billing can't be linked to milestones.</p>
+        <button onclick="toggleEditor()">⚙ Set Up Tranches</button>
+      </div>`;
+    return;
+  }
+  const hasRetention = tranches.some(t => t.retention);
+  el.innerHTML = `<div class="tranche-display">` +
+    tranches.map((t, i) => {
+      const amt = Math.round(CONTRACT * t.pct / 100);
+      const collStatus = i < tranches.length - 1
+        ? (i === 0 ? `<span class="coll-badge">COLL-001</span>` : `<span class="coll-badge pending">Pending</span>`)
+        : `<span class="coll-badge none">Not yet</span>`;
+      return `<div class="tranche-display-row">
+        <div class="td-left">
+          <span class="td-name">${t.label || '(unnamed)'}</span>
+          ${t.retention ? '<span class="ret-tag">◆ Retention</span>' : ''}
+        </div>
+        <div class="td-right">
+          ${collStatus}
+          <span class="td-amount">₱${amt.toLocaleString()}</span>
+          <span class="td-pct">${t.pct}%</span>
+        </div>
+      </div>`;
+    }).join('') + `</div>`;
+
+  if (hasRetention) {
+    el.innerHTML += `<div style="margin-top:8px; padding:8px 12px; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; font-size:12px; color:#92400e;">
+      ◆ Retention tranche: DLP settings will be available once the project is Completed.
+    </div>`;
+  }
+}
+
+function toggleEditor() {
+  editorOpen = !editorOpen;
+  const editor = document.getElementById('trancheEditor');
+  editor.classList.toggle('visible', editorOpen);
+  document.getElementById('editBtn').classList.toggle('active', editorOpen);
+
+  if (editorOpen) {
+    editorTranches = tranches.map(t => ({ ...t }));
+    renderEditor();
+    log('action', 'Tranche editor opened — ' + (tranches.length > 0 ? tranches.length + ' existing tranches loaded' : 'starting fresh'));
+  } else {
+    log('event', 'Tranche editor closed without saving');
+  }
+}
+
+function renderEditor() {
+  const list = document.getElementById('editorList');
+  list.innerHTML = editorTranches.map((t, i) => `
+    <div class="editor-row ${t.retention ? 'retention-row' : ''}" id="erow-${i}">
+      <input type="text" value="${t.label}" placeholder="Tranche label (e.g. Mobilization)"
+        oninput="editorTranches[${i}].label=this.value">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input type="number" value="${t.pct}" min="0" max="100" style="width:60px;"
+          oninput="editorTranches[${i}].pct=+this.value; recalcTotal()">
+        <span class="pct-suffix">%</span>
+      </div>
+      <button class="ret-toggle ${t.retention ? 'on' : ''}" onclick="toggleRetention(${i})">
+        ${t.retention ? '◆ Ret.' : 'Ret?'}
+      </button>
+      <button class="remove-btn" onclick="removeEditorRow(${i})" ${editorTranches.length <= 1 ? 'disabled' : ''}>×</button>
+    </div>
+  `).join('');
+  updateDlpExpand();
+  recalcTotal();
+}
+
+function toggleRetention(i) {
+  const wasOn = editorTranches[i].retention;
+  // Only one retention tranche allowed
+  editorTranches.forEach((t, j) => t.retention = j === i && !wasOn);
+  renderEditor();
+  log('toggle', wasOn ? 'Retention tag removed from "' + editorTranches[i].label + '"' : 'Retention tag set on "' + editorTranches[i].label + '"');
+}
+
+function updateDlpExpand() {
+  const hasRet = editorTranches.some(t => t.retention);
+  const dlpRow = document.getElementById('dlpExpandRow');
+  dlpRow.classList.toggle('visible', hasRet);
+  if (hasRet) calcExpiry();
+}
+
+function calcExpiry() {
+  const months = parseInt(document.getElementById('dlpMonths').value) || 12;
+  // Use today + project completion estimate
+  const d = new Date(2026, 5, 10); // Jun 10 2026 as placeholder completion
+  d.setMonth(d.getMonth() + months);
+  document.getElementById('dlpExpiry').value = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function addEditorRow() {
+  editorTranches.push({ label: '', pct: 0, retention: false });
+  renderEditor();
+  log('action', 'Added blank tranche row (' + editorTranches.length + ' total)');
+}
+
+function removeEditorRow(i) {
+  const removed = editorTranches.splice(i, 1)[0];
+  renderEditor();
+  log('action', 'Removed "' + (removed.label || 'unnamed') + '"');
+}
+
+function recalcTotal() {
+  const total = editorTranches.reduce((s, t) => s + (+t.pct || 0), 0);
+  const el = document.getElementById('totalVal');
+  el.textContent = total + '%';
+  el.className = 'total-val ' + (total === 100 ? 'total-ok' : 'total-err');
+  document.getElementById('totalBar').style.width = Math.min(100, total) + '%';
+  document.getElementById('totalBar').style.background = total === 100 ? '#059669' : total > 100 ? '#ef4444' : '#1a73e8';
+}
+
+function recalcBilling() {}
+
+function saveTranches() {
+  const total = editorTranches.reduce((s, t) => s + (+t.pct || 0), 0);
+  if (total !== 100) {
+    log('error', 'Cannot save — tranches total ' + total + '% (must be exactly 100%)');
+    return;
+  }
+  const unlabelled = editorTranches.filter(t => !t.label.trim());
+  if (unlabelled.length > 0) {
+    log('error', 'All tranches must have labels before saving');
+    return;
+  }
+
+  tranches = editorTranches.map(t => ({ ...t }));
+  editorOpen = false;
+  document.getElementById('trancheEditor').classList.remove('visible');
+  document.getElementById('editBtn').classList.remove('active');
+  renderDisplay();
+
+  const hasRet = tranches.some(t => t.retention);
+  const retPct = document.getElementById('dlpRetPct').value;
+  const dlpMonths = document.getElementById('dlpMonths').value;
+  const dlpExpiry = document.getElementById('dlpExpiry').value;
+
+  const saveMsg = hasRet
+    ? `Tranches saved (${tranches.length} items, 100%) + DLP: ${dlpMonths} months, ${retPct}% retention → expiry ${dlpExpiry}`
+    : `Tranches saved (${tranches.length} items, 100%) — no retention tranche, no DLP`;
+
+  log('save', saveMsg);
+}
+
+function cancelEdit() {
+  editorOpen = false;
+  document.getElementById('trancheEditor').classList.remove('visible');
+  document.getElementById('editBtn').classList.remove('active');
+  log('event', 'Edit cancelled — no changes saved');
+}
+
+function log(type, msg) {
+  const pane = document.getElementById('logPane');
+  const t = new Date().toLocaleTimeString('en-US', {hour12:false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.textContent = '[' + t + '] ' + msg;
+  pane.appendChild(entry);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+// Init
+loadScenario('none');
+</script>
+</body>
+</html>
