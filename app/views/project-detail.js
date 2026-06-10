@@ -51,6 +51,9 @@ let journalProgressUpdates = [];
 let journalIssues = [];
 let _activeJournalTab = 'activity'; // default tab (Claude's Discretion — Activity Feed most active)
 let journalIssueFilter = 'all'; // Plan 04 filter state; declared here so destroy() resets in one place
+let journalProgressFormOpen = false; // collapsible progress form state
+let journalIssueFormOpen = false; // collapsible issue form state
+let journalResolvingIssueId = null; // inline resolve form: which issue is open
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -151,6 +154,30 @@ export async function init(activeTab = null, param = null) {
     };
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
     window._projectDetailAssignmentHandler = assignmentChangeHandler;
+
+    // Phase 101 fix — tear down per-project listeners on re-init.
+    // The router's isSameView optimisation skips destroy() when navigating from one
+    // project detail to another (same path, different param). Without this block the
+    // previous project's onSnapshot callbacks keep firing and overwrite currentProject
+    // with stale data (e.g. a Completed project's status), which causes _buildJournalPanelHtml
+    // to compute isReadOnly=true on the newly loaded non-Completed project, hiding all
+    // write controls. The per-project idempotent guards (ensureTasksListener, etc.) also
+    // stay latched to the old project, so journal data never loads for the new one.
+    if (listener) { try { listener(); } catch (e) { /* swallow */ } listener = null; }
+    if (usersListenerUnsub) { try { usersListenerUnsub(); } catch (e) { /* swallow */ } usersListenerUnsub = null; }
+    if (billingRequestsListenerUnsub) { try { billingRequestsListenerUnsub(); } catch (e) { /* swallow */ } billingRequestsListenerUnsub = null; }
+    if (collectiblesListenerUnsub) { try { collectiblesListenerUnsub(); } catch (e) { /* swallow */ } collectiblesListenerUnsub = null; }
+    if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } currentTasksListenerUnsub = null; }
+    if (journalActivityUnsub) { try { journalActivityUnsub(); } catch (e) { /* swallow */ } journalActivityUnsub = null; }
+    if (journalProgressUnsub) { try { journalProgressUnsub(); } catch (e) { /* swallow */ } journalProgressUnsub = null; }
+    if (journalIssuesUnsub) { try { journalIssuesUnsub(); } catch (e) { /* swallow */ } journalIssuesUnsub = null; }
+    journalActivityEntries = [];
+    journalProgressUpdates = [];
+    journalIssues = [];
+    currentBillingRequests = [];
+    currentCollectibleDocs = [];
+    currentTasks = [];
+    currentProject = null;
 
     if (!projectCode) {
         document.getElementById('projectDetailContainer').innerHTML = `
@@ -418,6 +445,9 @@ export async function destroy() {
     journalIssues = [];
     _activeJournalTab = 'activity';
     journalIssueFilter = 'all';
+    journalProgressFormOpen = false;
+    journalIssueFormOpen = false;
+    journalResolvingIssueId = null;
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -477,6 +507,10 @@ export async function destroy() {
     delete window.submitNewIssue;
     delete window.resolveIssue;
     delete window.reopenIssue;
+    delete window.toggleProgressForm;
+    delete window.toggleIssueForm;
+    delete window.showResolveForm;
+    delete window.cancelResolveForm;
     document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
@@ -2422,13 +2456,18 @@ function _buildJournalPanelHtml(project) {
 
     const tabs = ['activity', 'progress', 'issues'];
     const tabLabels = { activity: 'Activity Feed', progress: 'Progress Updates', issues: 'Issues' };
+    const tabCounts = {
+        activity: journalActivityEntries.length,
+        progress: journalProgressUpdates.length,
+        issues: journalIssues.length,
+    };
 
     const tabBarHtml = `<div class="journal-tab-bar">${
         tabs.map(t => `<button
             id="journalTabBtn-${t}"
             class="journal-tab-btn${_activeJournalTab === t ? ' active' : ''}"
             onclick="window.switchJournalTab('${t}')"
-        >${tabLabels[t]}</button>`).join('')
+        >${tabLabels[t]}<span class="journal-tab-badge">${tabCounts[t]}</span></button>`).join('')
     }</div>`;
 
     // Activity Feed panel
@@ -2465,8 +2504,20 @@ function _buildJournalPanelHtml(project) {
         ${_buildIssuesTabHtml(project, isReadOnly)}
     </div>`;
 
+    let daysRunningHtml = '';
+    if (project.project_status === 'On-going' && project.project_started_at) {
+        const startMs = new Date(project.project_started_at).getTime();
+        if (!isNaN(startMs)) {
+            const days = Math.max(0, Math.floor((Date.now() - startMs) / (1000 * 60 * 60 * 24)));
+            daysRunningHtml = `<span class="journal-days-running">${days} day${days !== 1 ? 's' : ''} running</span>`;
+        }
+    }
+
     return `<div id="projectJournalPanel" class="project-journal-panel${isReadOnly ? ' project-journal-panel--readonly' : ''}">
-        <div class="journal-panel-title">Project Journal</div>
+        <div class="journal-panel-header">
+            <div class="journal-panel-title">📋 On-going Activity</div>
+            ${daysRunningHtml}
+        </div>
         ${tabBarHtml}
         ${activityPanelHtml}
         ${progressPanelHtml}
@@ -2601,21 +2652,24 @@ function _renderProgressCard(u) {
 // When isReadOnly, the form is omitted.
 function _buildProgressTabHtml(project, isReadOnly) {
     const formHtml = !isReadOnly ? `
-        <div class="journal-progress-form">
+        <button class="journal-new-btn" onclick="window.toggleProgressForm()" style="margin-bottom:0.6rem;">
+            ${journalProgressFormOpen ? '✕ Cancel' : '+ New Progress Update'}
+        </button>
+        <div class="journal-progress-form"${journalProgressFormOpen ? '' : ' style="display:none"'}>
             <div class="journal-progress-row">
-                <label for="journalProgPct" style="font-size:0.82rem;color:#475569;">% Complete</label>
+                <label for="journalProgPct">% Complete</label>
                 <input type="number" id="journalProgPct" class="journal-pct-input" min="0" max="100" step="1" placeholder="0" style="width:70px;" />
             </div>
             <div class="journal-progress-row">
-                <label for="journalProgSummary" style="font-size:0.82rem;color:#475569;">Summary <span style="color:#ef4444">*</span></label>
+                <label for="journalProgSummary">Summary <span style="color:#ef4444">*</span></label>
                 <textarea id="journalProgSummary" placeholder="What was accomplished?" rows="2" style="width:100%;"></textarea>
             </div>
             <div class="journal-progress-row">
-                <label for="journalProgBlockers" style="font-size:0.82rem;color:#475569;">Blockers</label>
+                <label for="journalProgBlockers">Blockers</label>
                 <textarea id="journalProgBlockers" placeholder="Any blockers or risks?" rows="2" style="width:100%;"></textarea>
             </div>
             <div class="journal-progress-row">
-                <label for="journalProgNext" style="font-size:0.82rem;color:#475569;">Next Milestone</label>
+                <label for="journalProgNext">Next Milestone</label>
                 <input type="text" id="journalProgNext" placeholder="Next target or milestone" style="width:100%;" />
             </div>
             <button class="journal-post-btn" onclick="window.submitProgressUpdate()">Submit Update</button>
@@ -2653,6 +2707,7 @@ async function submitProgressUpdate() {
             created_by_name: cu?.full_name || cu?.email || 'Unknown',
             created_at: serverTimestamp(),
         });
+        journalProgressFormOpen = false;
         showToast('Progress update submitted.', 'success');
         // Clear fields
         if (pctEl) pctEl.value = '';
@@ -2707,14 +2762,27 @@ function _renderIssueRow(issue, isReadOnly) {
             <span style="font-weight:600;">Resolution:</span> ${escapeHTML(issue.resolution_notes || '')}
         </div>` : '';
 
+    const isResolvingThis = !isReadOnly && !isResolved && journalResolvingIssueId === issue.id;
     const actionBtn = !isReadOnly
         ? (isResolved
             ? `<button class="journal-issue-reopen-btn" onclick="window.reopenIssue('${escapeHTML(issue.id)}')">Re-open</button>`
-            : `<button class="journal-issue-resolve-btn" onclick="window.resolveIssue('${escapeHTML(issue.id)}')">Resolve</button>`)
+            : (isResolvingThis
+                ? ''
+                : `<button class="journal-issue-resolve-btn" onclick="window.showResolveForm('${escapeHTML(issue.id)}')">Resolve</button>`))
         : '';
+
+    const resolveFormHtml = isResolvingThis ? `
+        <div class="journal-resolve-form">
+            <textarea id="journalResolveNotes" placeholder="Resolution notes (required)" rows="2"></textarea>
+            <div class="journal-resolve-actions">
+                <button class="journal-issue-reopen-btn" onclick="window.cancelResolveForm()">Cancel</button>
+                <button class="journal-post-btn" onclick="window.resolveIssue('${escapeHTML(issue.id)}')">Submit Resolution</button>
+            </div>
+        </div>` : '';
 
     return `<div class="journal-issue">
         <div class="journal-issue-header">
+            <span class="journal-issue-type-dot journal-issue-dot--${escapeHTML(issue.issue_type || '')}"></span>
             <span class="journal-issue-seq">#${seqNum}</span>
             <span class="journal-issue-type-chip journal-issue-type-chip--${escapeHTML(issue.issue_type || '')}">${typeLabel}</span>
             <span class="journal-issue-title">${escapeHTML(issue.title || '')}</span>
@@ -2723,6 +2791,7 @@ function _renderIssueRow(issue, isReadOnly) {
         </div>
         ${issue.description ? `<div class="journal-issue-desc">${escapeHTML(issue.description)}</div>` : ''}
         ${resolutionBlock}
+        ${resolveFormHtml}
         <div class="journal-issue-meta" style="font-size:0.78rem;color:#94a3b8;margin-top:0.25rem;">${escapeHTML(timeStr)} &mdash; ${escapeHTML(issue.created_by_name || 'Unknown')}</div>
     </div>`;
 }
@@ -2732,10 +2801,13 @@ function _buildIssuesTabHtml(project, isReadOnly) {
     const filterChips = ['all', 'open', 'resolved'].map(f =>
         `<button class="journal-filter-chip${journalIssueFilter === f ? ' active' : ''}" onclick="window.setIssueFilter('${f}')">${f.charAt(0).toUpperCase() + f.slice(1)}</button>`
     ).join('');
-    const filterBar = `<div class="journal-issue-filters">${filterChips}</div>`;
+    const newIssueBtn = !isReadOnly
+        ? `<button class="journal-new-btn" onclick="window.toggleIssueForm()" style="margin-left:auto;">${journalIssueFormOpen ? '✕ Cancel' : '+ Log Issue'}</button>`
+        : '';
+    const filterBar = `<div class="journal-issue-filters">${filterChips}${newIssueBtn}</div>`;
 
     const formHtml = !isReadOnly ? `
-        <div class="journal-issue-form">
+        <div class="journal-issue-form"${journalIssueFormOpen ? '' : ' style="display:none"'}>
             <select id="journalIssueType">
                 <option value="delay">Delay</option>
                 <option value="change_order">Change Order</option>
@@ -2792,6 +2864,7 @@ async function submitNewIssue() {
             created_by_name: cu?.full_name || cu?.email || 'Unknown',
             created_at: serverTimestamp(),
         });
+        journalIssueFormOpen = false;
         showToast('Issue logged.', 'success');
         if (titleEl) titleEl.value = '';
         if (descEl) descEl.value = '';
@@ -2802,9 +2875,10 @@ async function submitNewIssue() {
     }
 }
 
-// Resolve an open issue — requires resolution notes (D-11), auto-posts system Feed entry (D-12).
+// Resolve an open issue — reads notes from inline form (D-11), auto-posts system Feed entry (D-12).
 async function resolveIssue(issueId) {
-    const notes = (window.prompt('Resolution notes (required):') || '').trim();
+    const notesEl = document.getElementById('journalResolveNotes');
+    const notes = (notesEl?.value || '').trim();
     if (!notes) { showToast('Resolution notes are required.', 'error'); return; }
 
     const cu = window.getCurrentUser?.();
@@ -2825,6 +2899,7 @@ async function resolveIssue(issueId) {
                 text: `Issue #${issueNum} (${escapeHTML(issue.issue_type)} — ${escapeHTML(issue.title)}) resolved by ${cu?.full_name || 'Unknown'}`,
             });
         }
+        journalResolvingIssueId = null;
         showToast('Issue resolved.', 'success');
     } catch (err) {
         console.error('[ProjectDetail/Journal] resolveIssue failed:', err);
@@ -2854,6 +2929,27 @@ async function reopenIssue(issueId) {
         console.error('[ProjectDetail/Journal] reopenIssue failed:', err);
         showToast('Failed to re-open issue. Please try again.', 'error');
     }
+}
+
+// Toggle helpers for collapsible forms and inline resolve.
+function toggleProgressForm() {
+    journalProgressFormOpen = !journalProgressFormOpen;
+    _renderJournalPanelInPlace();
+}
+
+function toggleIssueForm() {
+    journalIssueFormOpen = !journalIssueFormOpen;
+    _renderJournalPanelInPlace();
+}
+
+function showResolveForm(issueId) {
+    journalResolvingIssueId = issueId;
+    _renderJournalPanelInPlace();
+}
+
+function cancelResolveForm() {
+    journalResolvingIssueId = null;
+    _renderJournalPanelInPlace();
 }
 
 // Phase 101 — idempotent attach of all three journal subcollection listeners.
@@ -2961,6 +3057,10 @@ function attachWindowFunctions() {
     window.submitNewIssue = submitNewIssue;
     window.resolveIssue = resolveIssue;
     window.reopenIssue = reopenIssue;
+    window.toggleProgressForm = toggleProgressForm;
+    window.toggleIssueForm = toggleIssueForm;
+    window.showResolveForm = showResolveForm;
+    window.cancelResolveForm = cancelResolveForm;
     // Phase 100 — lifecycle accordion
     window.toggleLifecycleAccordion = toggleLifecycleAccordion;
     window.lcAttachLink = async function(which) {

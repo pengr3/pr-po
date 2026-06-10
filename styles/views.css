@@ -3900,11 +3900,25 @@
     margin-bottom: 0.75rem;
 }
 
+.journal-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
 .journal-panel-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 0.95rem;
     font-weight: 700;
     color: #1e293b;
-    margin-bottom: 0.75rem;
+}
+
+.journal-days-running {
+    font-size: 0.72rem;
+    color: #94a3b8;
 }
 
 /* Tab bar */
@@ -3913,6 +3927,23 @@
     gap: 0.25rem;
     border-bottom: 1px solid #e5e7eb;
     margin-bottom: 0.75rem;
+}
+
+.journal-tab-badge {
+    display: inline-block;
+    background: #e2e8f0;
+    color: #475569;
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+}
+
+.journal-tab-btn.active .journal-tab-badge {
+    background: #dbeafe;
+    color: #1a73e8;
 }
 
 .journal-tab-btn {
@@ -4152,7 +4183,7 @@
     margin-bottom: 0.25rem;
 }
 
-.journal-progress-pct-badge {
+.journal-pct-badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4165,30 +4196,45 @@
     font-weight: 700;
 }
 
-.journal-progress-card-meta {
+.journal-entry-meta-text {
     font-size: 0.7rem;
     color: #94a3b8;
 }
 
-.journal-progress-card-summary {
+.journal-progress-field {
     font-size: 0.83rem;
     color: #1e293b;
     line-height: 1.45;
 }
 
-.journal-progress-card-blockers {
-    font-size: 0.78rem;
-    color: #ef4444;
+.journal-progress-label {
+    font-weight: 600;
+    color: #475569;
+    margin-right: 0.25rem;
 }
 
-.journal-progress-card-next {
-    font-size: 0.78rem;
-    color: #475569;
+/* "+ New" toggle buttons for Progress and Issues forms */
+.journal-new-btn {
+    padding: 0.2rem 0.65rem;
+    border: 1px solid #1a73e8;
+    border-radius: 999px;
+    color: #1a73e8;
+    background: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+
+.journal-new-btn:hover {
+    background: #eff6ff;
 }
 
 /* Issues tab */
 .journal-issue-filters {
     display: flex;
+    align-items: center;
     gap: 0.4rem;
     flex-wrap: wrap;
     margin-bottom: 0.75rem;
@@ -4246,6 +4292,26 @@
     flex-wrap: wrap;
 }
 
+.journal-issue-seq {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.journal-issue-type-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.journal-issue-dot--delay { background: #f59e0b; }
+.journal-issue-dot--change_order { background: #9333ea; }
+.journal-issue-dot--site_issue { background: #ef4444; }
+.journal-issue-dot--client_request { background: #3b82f6; }
+
 .journal-issue-title {
     font-size: 0.85rem;
     font-weight: 600;
@@ -4254,7 +4320,40 @@
     min-width: 0;
 }
 
-.journal-issue-description {
+.journal-resolve-form {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.5rem 0.65rem;
+    background: #fafafa;
+    margin-top: 0.25rem;
+}
+
+.journal-resolve-form textarea {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 5px;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: #1e293b;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.journal-resolve-form textarea:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.journal-resolve-actions {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: flex-end;
+    margin-top: 0.35rem;
+}
+
+.journal-issue-desc {
     font-size: 0.8rem;
     color: #475569;
     line-height: 1.45;
@@ -4376,7 +4475,9 @@
 .project-journal-panel--readonly .journal-progress-form,
 .project-journal-panel--readonly .journal-issue-form,
 .project-journal-panel--readonly .journal-issue-resolve-btn,
-.project-journal-panel--readonly .journal-issue-reopen-btn {
+.project-journal-panel--readonly .journal-issue-reopen-btn,
+.project-journal-panel--readonly .journal-new-btn,
+.project-journal-panel--readonly .journal-resolve-form {
     display: none;
 }
 
