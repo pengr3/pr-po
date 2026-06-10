@@ -4490,3 +4490,551 @@
 }
 
 /* ===== End Phase 101 — Project Journal Panel ===== */
+
+/* ── DLP & RETENTION MANAGEMENT (Phase 102) ──────────────────────────── */
+
+/* ── Tranche Editor (Spike 035 verbatim) ── */
+
+.tranche-editor {
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    background: #eff6ff;
+    padding: 16px;
+    margin-top: 12px;
+    display: none;
+}
+
+.tranche-editor.visible {
+    display: block;
+}
+
+.editor-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1d4ed8;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.editor-header .hint {
+    font-size: 11px;
+    color: #3b82f6;
+    font-weight: 400;
+}
+
+.editor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editor-row {
+    background: #fff;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.editor-row.retention-row {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.editor-row input[type="text"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #1e293b;
+    width: 100%;
+}
+
+.editor-row input[type="text"]:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.editor-row input[type="number"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #1e293b;
+    width: 68px;
+    text-align: right;
+}
+
+.editor-row input[type="number"]:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.pct-suffix {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-left: -4px;
+}
+
+.ret-toggle {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.ret-toggle.on {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.ret-toggle:hover {
+    opacity: 0.8;
+}
+
+.remove-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-btn:hover {
+    background: #fef2f2;
+}
+
+.remove-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-top: 1px solid #dbeafe;
+}
+
+.total-label {
+    font-size: 12px;
+    color: #475569;
+}
+
+.total-val {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.total-ok {
+    color: #059669;
+}
+
+.total-err {
+    color: #ef4444;
+}
+
+.total-progress {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.total-progress-fill {
+    height: 100%;
+    background: #1a73e8;
+    transition: width 0.3s;
+}
+
+.add-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px dashed #93c5fd;
+    background: transparent;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.add-btn:hover {
+    background: #dbeafe;
+}
+
+.editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #dbeafe;
+}
+
+/* ── Read-only tranche display (Spike 035 verbatim) ── */
+
+.tranche-display {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tranche-display-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.tranche-display-row .td-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tranche-display-row .td-name {
+    font-size: 13px;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.tranche-display-row .td-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tranche-display-row .td-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    width: 38px;
+    text-align: right;
+}
+
+.tranche-display-row .td-amount {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.ret-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.coll-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.coll-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.coll-badge.none {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+.no-tranches {
+    text-align: center;
+    padding: 24px;
+    color: #94a3b8;
+    font-size: 13px;
+    background: #f8fafc;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+}
+
+.setup-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    margin-bottom: 12px;
+}
+
+.setup-cta p {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.setup-cta button {
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.setup-cta button:hover {
+    background: #1557b0;
+}
+
+.edit-tranches-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #1a73e8;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.edit-tranches-btn:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.edit-tranches-btn.active {
+    background: #eff6ff;
+    border-color: #1a73e8;
+}
+
+/* ── Finance Bar — base + 4-state DLP wrappers (Spike 036 verbatim) ── */
+
+.finance-bar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    transition: border-color 0.3s, background 0.3s;
+}
+
+.finance-bar.state-amber {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.finance-bar.state-red {
+    background: #fff5f5;
+    border-color: #fecaca;
+}
+
+.finance-bar.state-green {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+/* ── Stacked bar segments (Spike 036 verbatim) ── */
+
+.bar-seg {
+    height: 100%;
+    transition: width 0.4s, background 0.3s;
+}
+
+.bar-seg.collected {
+    background: #1a73e8;
+}
+
+.bar-seg.retention {
+    opacity: 0.85;
+}
+
+/* ── DLP status strip (Spike 036 verbatim) ── */
+
+.dlp-strip {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+}
+
+.dlp-strip.amber {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.dlp-strip.red {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.dlp-strip.green {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.dlp-strip.hidden {
+    display: none;
+}
+
+.dlp-strip-right {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ── Release buttons (Spike 036 verbatim) ── */
+
+.release-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    background: #059669;
+    color: #fff;
+}
+
+.release-btn:hover {
+    background: #047857;
+}
+
+.release-btn-outline {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #fde68a;
+    background: transparent;
+    color: #92400e;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ── Collection rows (Spike 036 verbatim) ── */
+
+.coll-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+.coll-row.active {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.coll-row.overdue {
+    background: #fff5f5;
+    border-color: #fecaca;
+}
+
+.coll-row.done {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+/* ── Collection tags (Spike 036 verbatim) ── */
+
+.coll-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+}
+
+.tag-collected {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.tag-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.tag-overdue {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.tag-holding {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.tag-released {
+    background: #dcfce7;
+    color: #166534;
+}
+
+/* ── Portfolio DLP left-accent borders (Spike 036 verbatim, dual-selector for projects.js <tr> target) ── */
+/* projects.js renders <tr class="clickable-row"> — target <tr> directly;
+   .portfolio-row form kept for spike compatibility */
+
+tr.dlp-amber, .portfolio-row.dlp-amber {
+    border-left: 3px solid #f59e0b;
+}
+
+tr.dlp-red, .portfolio-row.dlp-red {
+    border-left: 3px solid #ef4444;
+}
+
+tr.dlp-green, .portfolio-row.dlp-green {
+    border-left: 3px solid #059669;
+}
+
+.portfolio-dlp-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all 0.3s;
+}
+
+/* ===== End Phase 102 — DLP & Retention ===== */
