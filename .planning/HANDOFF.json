@@ -1,61 +1,38 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-09 19:24",
-  "phase": "033",
-  "phase_name": "project-table-redesign (spike)",
-  "phase_dir": ".planning/spikes/033-project-table-redesign",
-  "plan": null,
-  "task": null,
-  "total_tasks": null,
-  "status": "awaiting_decision",
+  "timestamp": "2026-06-10T11:13:34.652Z",
+  "phase": "102",
+  "phase_name": "dlp-retention-management",
+  "phase_dir": ".planning/phases/102-dlp-retention-management",
+  "plan": 2,
+  "task": 2,
+  "total_tasks": 2,
+  "status": "paused",
   "completed_tasks": [
-    {"id": 1, "name": "Explore current projects/services table structure", "status": "done"},
-    {"id": 2, "name": "Build 3-option spike (Kanban, Grouped List, Card Grid)", "status": "done"},
-    {"id": 3, "name": "Identify stage-aware finance gap (no contract for early stages)", "status": "done"},
-    {"id": 4, "name": "Rebuild spike with stage-aware finance, no table-only constraint", "status": "done"},
-    {"id": 5, "name": "Extend to 5 options (add Attention Feed + Swimlane)", "status": "done"},
-    {"id": 6, "name": "Make recommendation: D primary + B browse-all toggle", "status": "done"}
+    {"id": 1, "name": "Editor state + render/compute/save functions (9 fns)", "status": "done", "commit": "1a68b1b"},
+    {"id": 2, "name": "Wire editor host into Financial card + register 7 window functions", "status": "done", "commit": "011b4b4"},
+    {"id": 3, "name": "Follow-up fix: route tranche editor oninput through window setters", "status": "done", "commit": "bec56ee"}
   ],
   "remaining_tasks": [
-    {"id": 7, "name": "User decision on which option to build", "status": "not_started"},
-    {"id": 8, "name": "/gsd:plan-phase for new projects/services view redesign", "status": "not_started"}
+    {"id": 4, "name": "102-02 browser UAT (7-step checklist) — human-verify gate", "status": "not_started"},
+    {"id": 5, "name": "Plan 03 (DLP fields / retention) — blocked on 102-02 UAT approval", "status": "not_started"},
+    {"id": 6, "name": "Plan 04", "status": "not_started"},
+    {"id": 7, "name": "Plan 05", "status": "not_started"}
   ],
   "blockers": [
-    {
-      "description": "Option E (Swimlane) requires stage transition timestamps not currently stored",
-      "type": "technical",
-      "workaround": "Use updated_at as rough proxy, or defer E until data model supports stage history"
-    }
+    {"description": "102-02 is at a blocking human-verify checkpoint — Plans 03-05 cannot start until operator runs browser UAT and types 'approved'", "type": "human_action", "workaround": "none — zero-build SPA requires manual browser UAT"}
   ],
   "human_actions_pending": [
-    {
-      "action": "Decide which option (D recommended, or hybrid) to implement",
-      "context": "5 options presented in .planning/spikes/033-project-table-redesign/index.html",
-      "blocking": true
-    }
+    {"action": "Run 102-02 browser UAT: python -m http.server 8000, open On-going project #/projects/detail/{code}, walk 7-step checklist (CTA states, inline expand, RED/GREEN total bar, one-retention toggle, save+persist, validation block, zero console errors)", "context": "Blocking gate before Plan 03", "blocking": true},
+    {"action": "OPTIONAL: commit 7 untracked debug record .md files in .planning/debug/ + the records-refresh-uses-stale-cache.md deletion", "context": "Code fixes already committed; only the debug session notes are uncommitted", "blocking": false},
+    {"action": "DEPLOY DEBT (carried): firebase deploy --only firestore:rules after v3.3->main merge (Phase 87.4/99/100/101 rules)", "context": "Phase 100 Gate transitions + Phase 101 journal subcollection rules need prod deploy", "blocking": false}
   ],
   "decisions": [
-    {
-      "decision": "Stage-aware finance: 3 display states (pre-contract, contracted-no-billing, active-billing)",
-      "rationale": "Early-stage projects have no contract_cost — showing an empty billing bar is misleading",
-      "phase": "033"
-    },
-    {
-      "decision": "Recommend Option D (Attention Feed) + B (Grouped List) as browse-all toggle",
-      "rationale": "D answers 'what needs my eyes' rather than requiring management to scan neutrally; B preserved for team use",
-      "phase": "033"
-    },
-    {
-      "decision": "Option E (Swimlane) deferred",
-      "rationale": "Requires stage transition timestamp history not currently in data model",
-      "phase": "033"
-    }
+    {"decision": "Inline expand editor (not modal), trancheEditorOpen state + renderTrancheEditorHost() in-place re-render", "rationale": "Matches Phase 100 lifecycle-accordion precedent", "phase": "102"},
+    {"decision": "saveTrancheEditor writes collection_tranches ONLY — no DLP fields (dlp_months/dlp_start_date/retention_percentage)", "rationale": "D-10 — DLP fields belong to Plan 03, not the tranche editor", "phase": "102"},
+    {"decision": "toggleTrancheEditor gated by _canAdvanceProjectStatus(project, user, 'On-going')", "rationale": "Same role predicate as Phase 100 gate functions", "phase": "102"}
   ],
-  "uncommitted_files": [
-    ".planning/spikes/033-project-table-redesign/index.html",
-    ".planning/spikes/033-project-table-redesign/.continue-here.md",
-    ".planning/spikes/MANIFEST.md"
-  ],
-  "next_action": "Ask user which option to build, then /gsd:plan-phase for projects/services view redesign",
-  "context_notes": "Pure design spike — no app code changed. Core insight: current table gives management no urgency signal. Option D surfaces computed signals (stale proposals, quiet on-going projects) so management reads top-to-bottom and acts."
+  "uncommitted_files": [],
+  "next_action": "Operator runs 102-02 browser UAT (7-step checklist). On 'approved' -> advance to Plan 03. On failure -> /gsd-plan-phase 102 --gaps.",
+  "context_notes": "Session reconstructed after an accidental tab close. Verified: ALL code is committed (HEAD bec56ee, clean working tree for code). Plan 02 inline tranche editor is code-complete with all automated checks passing (node --check, 7/7 window fn symmetry, #trancheEditorHost present, no DLP fields in save). Nothing was lost on tab close. Only uncommitted items are debug record .md notes (untracked, fixes already committed) and unrelated seed/script files. Phase 102 = DLP & retention management, 5 plans / 4 waves, executing inline sequential on v3.3 (inline execution per Phase 98+ precedent)."
 }
