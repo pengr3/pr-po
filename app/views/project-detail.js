@@ -57,6 +57,10 @@ let journalResolvingIssueId = null; // inline resolve form: which issue is open
 let journalSelectedTag = 'update'; // active tag pill in activity composer
 let journalEditingProgressId = null; // which pu-card is in inline-edit mode
 
+// Phase 102 — inline tranche editor state
+let editorTranches = [];
+let trancheEditorOpen = false;
+
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
@@ -855,6 +859,180 @@ function renderTrancheLifecycleRows() {
         </div>`;
     }).join('');
     return `<div style="margin-top:0.4rem;">${rows}</div>`;
+}
+
+/* ========================================
+   Phase 102 — Inline tranche editor (Spike 035)
+   Add/edit/label/percentage tranches; flag one retention tranche.
+   Writes collection_tranches to projects/{docId} on Save.
+   DLP fields are NOT captured here (deferred to Plan 03 completion gate).
+   ======================================== */
+
+// Render the read-only tranche display (empty state = Set Up CTA, otherwise list).
+function renderTrancheDisplay() {
+    const tranches = Array.isArray(currentProject?.collection_tranches) ? currentProject.collection_tranches : [];
+    const contractCost = parseFloat(currentProject?.contract_cost) || 0;
+    if (tranches.length === 0) {
+        return `<div class="setup-cta">
+            <p>No collection tranches set — billing can't be linked to milestones.</p>
+            <button onclick="window.toggleTrancheEditor()">⚙ Set Up Tranches</button>
+        </div>`;
+    }
+    const rows = tranches.map((t) => {
+        const amt = contractCost * (parseFloat(t.percentage) || 0) / 100;
+        return `<div class="tranche-display-row">
+            <div class="td-left">
+                <span class="td-name">${escapeHTML(t.label || '(unnamed)')}</span>
+                ${t.is_retention ? '<span class="ret-tag">◆ Retention</span>' : ''}
+            </div>
+            <div class="td-right">
+                <span class="td-amount">${formatCurrency(amt)}</span>
+                <span class="td-pct">${parseFloat(t.percentage) || 0}%</span>
+            </div>
+        </div>`;
+    }).join('');
+    return `<div class="tranche-display">${rows}</div>`;
+}
+
+// Render the inline editor (hidden unless trancheEditorOpen).
+function renderTrancheEditor() {
+    const wrapperClass = 'tranche-editor' + (trancheEditorOpen ? ' visible' : '');
+    const rows = editorTranches.map((t, i) => {
+        const isRet = !!t.is_retention;
+        return `<div class="editor-row${isRet ? ' retention-row' : ''}" id="erow-${i}">
+            <input type="text" value="${escapeHTML(t.label || '')}" placeholder="Tranche label (e.g. Mobilization)"
+                oninput="editorTranches[${i}].label=this.value">
+            <div style="display:flex;align-items:center;gap:4px;">
+                <input type="number" value="${parseFloat(t.percentage) || 0}" min="0" max="100" style="width:60px;"
+                    oninput="editorTranches[${i}].percentage=+this.value; window.recalcTrancheTotal()">
+                <span class="pct-suffix">%</span>
+            </div>
+            <button class="ret-toggle${isRet ? ' on' : ''}" onclick="window.toggleTrancheRetention(${i})">
+                ${isRet ? '◆ Ret.' : 'Ret?'}
+            </button>
+            <button class="remove-btn" onclick="window.removeEditorTrancheRow(${i})"${editorTranches.length <= 1 ? ' disabled' : ''}>×</button>
+        </div>`;
+    }).join('');
+    return `<div class="${wrapperClass}">
+        <div class="editor-header">Edit Collection Tranches</div>
+        <div class="editor-list">${rows}</div>
+        <div class="total-row">
+            <span>Total: <span id="trancheTotalVal" class="total-val total-err">0%</span></span>
+            <div class="total-progress"><div id="trancheTotalBar" style="height:100%;width:0%;background:#1a73e8;border-radius:4px;transition:width 0.2s,background 0.2s;"></div></div>
+        </div>
+        <button class="add-btn" onclick="window.addEditorTrancheRow()">+ Add Tranche</button>
+        <div class="editor-actions">
+            <button class="btn-cancel" onclick="window.cancelTrancheEditor()">Cancel</button>
+            <button class="btn-save" onclick="window.saveTrancheEditor()">Save</button>
+        </div>
+    </div>`;
+}
+
+// In-place re-render of the trancheEditorHost container.
+function renderTrancheEditorHost() {
+    const host = document.getElementById('trancheEditorHost');
+    if (!host) return;
+    host.innerHTML = renderTrancheDisplay() + renderTrancheEditor();
+    if (trancheEditorOpen) recalcTrancheTotal();
+}
+
+// Toggle the tranche editor open/closed.
+function toggleTrancheEditor() {
+    const cu = window.getCurrentUser?.();
+    if (!_canAdvanceProjectStatus(currentProject, cu, 'On-going')) {
+        showToast('Permission denied — only project admins or assigned operations users can edit tranches.', 'error');
+        return;
+    }
+    trancheEditorOpen = !trancheEditorOpen;
+    if (trancheEditorOpen) {
+        const existing = Array.isArray(currentProject?.collection_tranches) ? currentProject.collection_tranches : [];
+        editorTranches = existing.map(t => ({
+            label: t.label || '',
+            percentage: parseFloat(t.percentage) || 0,
+            is_retention: !!t.is_retention,
+        }));
+        if (editorTranches.length === 0) {
+            editorTranches.push({ label: '', percentage: 0, is_retention: false });
+        }
+    }
+    renderTrancheEditorHost();
+    // Sync the Edit Tranches button active state
+    const editBtn = document.querySelector('.edit-tranches-btn');
+    if (editBtn) editBtn.classList.toggle('active', trancheEditorOpen);
+}
+
+// Add a blank row to the editor.
+function addEditorTrancheRow() {
+    editorTranches.push({ label: '', percentage: 0, is_retention: false });
+    renderTrancheEditorHost();
+}
+
+// Remove a row from the editor at index i.
+function removeEditorTrancheRow(i) {
+    editorTranches.splice(i, 1);
+    renderTrancheEditorHost();
+}
+
+// Toggle the retention flag on row i (only one row may have is_retention true).
+function toggleTrancheRetention(i) {
+    const wasOn = editorTranches[i].is_retention;
+    editorTranches.forEach((t, j) => { t.is_retention = j === i && !wasOn; });
+    renderTrancheEditorHost();
+}
+
+// Recompute and display the running percentage total.
+function recalcTrancheTotal() {
+    const total = editorTranches.reduce((s, t) => s + (+t.percentage || 0), 0);
+    const valEl = document.getElementById('trancheTotalVal');
+    const barEl = document.getElementById('trancheTotalBar');
+    if (valEl) {
+        valEl.textContent = total + '%';
+        valEl.className = 'total-val ' + (total === 100 ? 'total-ok' : 'total-err');
+    }
+    if (barEl) {
+        barEl.style.width = Math.min(100, total) + '%';
+        barEl.style.background = total === 100 ? '#059669' : total > 100 ? '#ef4444' : '#1a73e8';
+    }
+}
+
+// Save the editor — writes collection_tranches to Firestore (no DLP fields).
+async function saveTrancheEditor() {
+    const total = editorTranches.reduce((s, t) => s + (+t.percentage || 0), 0);
+    if (total !== 100) {
+        showToast('Tranches must total exactly 100% before saving.', 'error');
+        return;
+    }
+    const unlabelled = editorTranches.filter(t => !t.label.trim());
+    if (unlabelled.length > 0) {
+        showToast('All tranches must have labels before saving.', 'error');
+        return;
+    }
+    const finalTranches = editorTranches.map(t => ({
+        label: t.label.trim(),
+        percentage: +t.percentage,
+        is_retention: !!t.is_retention,
+    }));
+    try {
+        await updateDoc(doc(db, 'projects', currentProject.id), {
+            collection_tranches: finalTranches,
+            updated_at: serverTimestamp(),
+        });
+        trancheEditorOpen = false;
+        editorTranches = [];
+        showToast('Collection tranches saved.', 'success');
+    } catch (err) {
+        console.error('[ProjectDetail] saveTrancheEditor failed:', err);
+        showToast('Failed to save tranches. Please try again.', 'error');
+    }
+}
+
+// Cancel the editor — discard edits, close editor.
+function cancelTrancheEditor() {
+    trancheEditorOpen = false;
+    editorTranches = [];
+    renderTrancheEditorHost();
+    const editBtn = document.querySelector('.edit-tranches-btn');
+    if (editBtn) editBtn.classList.remove('active');
 }
 
 /* ========================================
