@@ -3,7 +3,7 @@
    Full-page project detail with inline editing
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
@@ -2754,6 +2754,16 @@ function _renderProgressCard(u, isReadOnly) {
                 <div class="journal-pu-field-val">${escapeHTML(u.next_milestone)}</div>
             </div>` : ''}
         </div>
+        ${(u.edit_history?.length) ? (() => {
+            const last = u.edit_history[u.edit_history.length - 1];
+            const editTs = last.edited_at?.seconds
+                ? new Date(last.edited_at.seconds * 1000)
+                : (last.edited_at?.toDate ? last.edited_at.toDate() : null);
+            const editStr = editTs
+                ? editTs.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+                : '';
+            return `<div style="font-size:11px;color:#94a3b8;margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;">Edited by ${escapeHTML(last.edited_by_name || 'Unknown')}${editStr ? ' · ' + escapeHTML(editStr) : ''}</div>`;
+        })() : ''}
     </div>`;
 }
 
@@ -3105,12 +3115,27 @@ async function saveEditProgressUpdate(id) {
     const blockers = (blockersEl?.value || '').trim();
     const next_milestone = (nextEl?.value || '').trim();
 
+    const cu = window.getCurrentUser?.();
+    const puRef = doc(db, 'projects', currentProject.id, 'progress_updates', id);
+
     try {
-        await updateDoc(doc(db, 'projects', currentProject.id, 'progress_updates', id), {
+        const prevSnap = await getDoc(puRef);
+        const prev = prevSnap.exists() ? prevSnap.data() : {};
+        const historyEntry = {
+            edited_by_uid: cu?.uid ?? '',
+            edited_by_name: cu?.full_name || cu?.email || 'Unknown',
+            edited_at: serverTimestamp(),
+            prev_pct_complete: prev.pct_complete ?? 0,
+            prev_summary: prev.summary ?? '',
+            prev_blockers: prev.blockers ?? '',
+            prev_next_milestone: prev.next_milestone ?? '',
+        };
+        await updateDoc(puRef, {
             pct_complete: pct,
             summary,
             blockers,
             next_milestone,
+            edit_history: arrayUnion(historyEntry),
         });
         journalEditingProgressId = null;
         showToast('Progress update saved.', 'success');

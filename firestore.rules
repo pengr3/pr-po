@@ -278,12 +278,16 @@ service cloud.firestore {
       }
 
       // progress_updates subcollection (Phase 101 — structured periodic check-ins)
-      // Create: any active user. No update — append-only.
+      // Create: any active user.
+      // Update: admin OR any project member (personnel_user_ids) — edit_history audit trail enforced in JS.
       // Delete: admin-only per spike-032 contract
       match /progress_updates/{updateId} {
         allow read: if isActiveUser();
         allow create: if isActiveUser();
-        allow update: if false;
+        allow update: if isActiveUser() && (
+          hasRole(['super_admin', 'operations_admin']) ||
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.personnel_user_ids
+        );
         allow delete: if hasRole(['super_admin', 'operations_admin']);
       }
 
