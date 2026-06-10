@@ -1160,7 +1160,7 @@ Plans:
 - [x] 101-02-PLAN.md — Firestore security rules: activity_entries/progress_updates/issues subcollections + deploy (Wave 1)
 - [x] 101-03-PLAN.md — Core panel: status-gated render, 3 listeners, tab switching, Activity Feed CRUD + _addActivityEntry helper (Wave 2)
 - [x] 101-04-PLAN.md — Progress Updates tab + Issues tab (filter chips, log form, resolve/reopen workflow) (Wave 3)
-- [ ] 101-05-PLAN.md — Auto-system-entries: 4 Phase 100 gates + saveField cost delta + procurement.js PO Delivered (Wave 4)
-**Status**: In progress 2026-06-10 — 4/5 plans complete (Waves 1+2+3 done). Next: Plan 05 — Auto-system-entries (lifecycle gates + cost delta + PO Delivered) (Wave 4).
+- [x] 101-05-PLAN.md — Auto-system-entries: 4 Phase 100 gates + saveField cost delta + procurement.js PO Delivered (Wave 4)
+**Status**: Code-complete 2026-06-10 — 5/5 plans complete (Waves 1+2+3+4 done). Pending browser UAT.
 **Spike**: `.planning/spikes/032-ongoing-activity-panel/README.md` + `spike.html` (VALIDATED — authoritative design contract).
 **UI hint**: yes — spike.html is the visual reference.
