@@ -1185,7 +1185,12 @@ Plans:
 **Open questions for discuss/plan**:
   - Role split: who edits tranches (project-assigned + Finance?) vs. who captures DLP at completion (admin per Gate 4) vs. who records release (Finance-only) — confirm during plan
   - Where the "Record Release" button surfaces in-app (finance bar strip per Spike 036, vs. also the Finance collectibles page) — Spike 036 puts it on the project-detail finance bar
-**Plans**: TBD (estimate ~4–5: (1) CSS block, (2) inline tranche editor + Ret? toggle, (3) Gate-4 DLP entry + getDlpState + 4-state finance bar + tranche tags + info card, (4) Record Release + firestore.rules, (5) projects.js portfolio states)
-**Status**: Pending — not yet planned. Spikes 034–036 validated 2026-06-10.
+**Plans**: 5 plans, 4 waves
+- [ ] 102-01-PLAN.md — DLP & tranche-editor CSS block (styles/views.css) [Wave 1]
+- [ ] 102-02-PLAN.md — Inline tranche editor + Ret? toggle (project-detail.js) [Wave 2]
+- [ ] 102-03-PLAN.md — Gate-4 DLP entry + getDlpState + 4-state finance bar + tranche tags + info card (project-detail.js) [Wave 3]
+- [ ] 102-04-PLAN.md — Finance-only Record Release + firestore.rules (project-detail.js, firestore.rules) [Wave 4]
+- [ ] 102-05-PLAN.md — Portfolio table 4-state DLP visuals (projects.js) [Wave 4]
+**Status**: Planned 2026-06-10 — 5 plans / 4 waves (project-detail.js plans 02→03→04 sequential; 04+05 parallel in wave 4 on disjoint files). Next: /gsd-execute-phase 102.
 **Spike**: `.planning/spikes/035-tranche-editor-in-detail/` (VALIDATED) + `.planning/spikes/034-dlp-entry-placement/` (hybrid: Ret? flag in editor, DLP fields at completion gate) + `.planning/spikes/036-dlp-states-finance-bar/` (VALIDATED 4-state model). All three READMEs + `spike.html` files are the authoritative design contract.
 **UI hint**: yes — the three `spike.html` files are the visual reference (035 editor, 034 hybrid entry, 036 states).
