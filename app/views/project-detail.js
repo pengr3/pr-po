@@ -1309,14 +1309,14 @@ async function saveField(fieldName, newValue) {
         // Phase 84.1 NOTIF-19: notify personnel of meaningful project cost change (D-03: fire-and-forget)
         const NOTIF19_COST_FIELDS = ['budget', 'contract_cost'];
         if (NOTIF19_COST_FIELDS.includes(fieldName) && normalizedOld !== valueToSave) {
+            const fieldLabel = fieldName === 'contract_cost' ? 'Contract Cost' : 'Budget';
+            const oldDisplay = (normalizedOld != null) ? `PHP ${formatCurrency(normalizedOld)}` : '(not set)';
+            const newDisplay = (valueToSave != null) ? `PHP ${formatCurrency(valueToSave)}` : '(not set)';
             const recipients = (currentProject.personnel_user_ids || []).filter(Boolean);
             if (recipients.length > 0) {
                 const projectLink = currentProject.project_code
                     ? `#/projects/detail/${currentProject.project_code}`
                     : '#/projects';
-                const fieldLabel = fieldName === 'contract_cost' ? 'Contract Cost' : 'Budget';
-                const oldDisplay = (normalizedOld != null) ? `PHP ${formatCurrency(normalizedOld)}` : '(not set)';
-                const newDisplay = (valueToSave != null) ? `PHP ${formatCurrency(valueToSave)}` : '(not set)';
                 createNotificationForUsers({
                     user_ids: recipients,
                     type: NOTIFICATION_TYPES.PROJECT_COST_CHANGED,
@@ -1328,6 +1328,13 @@ async function saveField(fieldName, newValue) {
                     actor_name: window.getCurrentUser?.()?.full_name || 'System'
                 }).catch(err => console.error('[ProjectDetail] NOTIF-19 cost-change notification failed:', err));
             }
+            // Phase 101 D-06: auto-post cost-change system Feed entry (fire-and-forget, never block saveField)
+            const cu = window.getCurrentUser?.();
+            _addActivityEntry(currentProject.id, {
+                type: 'system',
+                is_system: true,
+                text: `${fieldLabel} changed: ${oldDisplay} → ${newDisplay} by ${cu?.full_name || 'Unknown'}`
+            }).catch(err => console.error('[ProjectDetail] Journal cost-change auto-entry failed:', err));
         }
         return true;
     } catch (error) {
@@ -3054,6 +3061,7 @@ function attachWindowFunctions() {
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Proposal', updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'ADVANCED_TO_FOR_PROPOSAL', cu?.uid, cu?.full_name, '');
+            await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Status advanced to For Proposal by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcAdvanceToForProposal failed:', err); showToast('Failed to advance status.', 'error'); }
     };
     window.lcStartMobilization = async function(projectId) {
@@ -3065,6 +3073,7 @@ function attachWindowFunctions() {
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Mobilization', mobilization_started_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'MOBILIZATION_STARTED', cu?.uid, cu?.full_name, 'mobilization_started_at: ' + now);
+            await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Mobilization started by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcStartMobilization failed:', err); showToast('Failed to start mobilization.', 'error'); }
     };
     window.lcStartProject = async function(projectId) {
@@ -3075,6 +3084,7 @@ function attachWindowFunctions() {
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'On-going', project_started_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'PROJECT_STARTED', cu?.uid, cu?.full_name, 'project_started_at: ' + now);
+            await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project started by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcStartProject failed:', err); showToast('Failed to start project.', 'error'); }
     };
     window.lcMarkProjectComplete = async function(projectId) {
@@ -3086,6 +3096,7 @@ function attachWindowFunctions() {
         try {
             await updateDoc(doc(db, 'projects', projectId), { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
+            await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.', 'error'); }
     };
 }
