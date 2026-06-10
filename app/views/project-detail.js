@@ -469,6 +469,9 @@ export async function destroy() {
     delete window._onBillingTrancheChange;
     delete window._selectBillingType;
     delete window._validateBillingForm;
+    // Phase 101 — journal panel window functions cleanup
+    delete window.switchJournalTab;
+    delete window.postActivityEntry;
     document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
@@ -703,6 +706,9 @@ function renderProjectDetail() {
                 <div id="proposalInlineCard"></div>
                 ${showPlanCard ? planCardHtml : ''}
             </div>
+
+            <!-- Phase 101 — Project Journal panel (status-gated: For Mobilization / On-going / Completed) -->
+            ${_buildJournalPanelHtml(currentProject)}
 
             <!-- Delete Button -->
             ${showEditControls ? `
@@ -2387,6 +2393,159 @@ async function addProjectAuditEntry(projectId, action, actorId, actorName, comme
     }
 }
 
+// Phase 101 — Journal panel HTML builders and UI helpers
+
+// Statuses where the journal panel is shown at all
+const JOURNAL_WRITE_STATUSES = ['For Mobilization', 'On-going'];
+const JOURNAL_VISIBLE_STATUSES = [...JOURNAL_WRITE_STATUSES, 'Completed'];
+
+// Build the full journal panel HTML for a given project.
+// Returns '' when the panel should be hidden (D-03).
+// The progress and issues tab bodies are left as placeholders — Plan 04 fills them.
+function _buildJournalPanelHtml(project) {
+    const isVisible = JOURNAL_VISIBLE_STATUSES.includes(project.project_status);
+    if (!isVisible) return '';
+
+    const isReadOnly = project.project_status === 'Completed';
+
+    const tabs = ['activity', 'progress', 'issues'];
+    const tabLabels = { activity: 'Activity Feed', progress: 'Progress Updates', issues: 'Issues' };
+
+    const tabBarHtml = `<div class="journal-tab-bar">${
+        tabs.map(t => `<button
+            id="journalTabBtn-${t}"
+            class="journal-tab-btn${_activeJournalTab === t ? ' active' : ''}"
+            onclick="window.switchJournalTab('${t}')"
+        >${tabLabels[t]}</button>`).join('')
+    }</div>`;
+
+    // Activity Feed panel
+    const composerHtml = !isReadOnly ? `
+        <div class="journal-composer">
+            <select id="journalTagSelect" class="journal-tag-select">
+                <option value="update">Update</option>
+                <option value="milestone">Milestone</option>
+                <option value="issue">Issue</option>
+                <option value="client">Client Comm</option>
+            </select>
+            <textarea id="journalComposerText" class="journal-composer-textarea" placeholder="Add a note…" rows="2"></textarea>
+            <button class="journal-post-btn" onclick="window.postActivityEntry()">Post</button>
+        </div>` : '';
+
+    const feedHtml = `<div class="journal-feed-list">${
+        journalActivityEntries.length === 0
+            ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No entries yet.</div>'
+            : journalActivityEntries.map(e => _renderFeedEntry(e)).join('')
+    }</div>`;
+
+    const activityPanelHtml = `<div id="journalTab-activity" class="journal-tab-panel"${_activeJournalTab !== 'activity' ? ' style="display:none"' : ''}>
+        ${composerHtml}
+        ${feedHtml}
+    </div>`;
+
+    // Progress Updates panel — Plan 04 fills the body; placeholder for now
+    const progressPanelHtml = `<div id="journalTab-progress" class="journal-tab-panel"${_activeJournalTab !== 'progress' ? ' style="display:none"' : ''}>
+        <div data-journal-placeholder="progress"></div>
+    </div>`;
+
+    // Issues panel — Plan 04 fills the body; placeholder for now
+    const issuesPanelHtml = `<div id="journalTab-issues" class="journal-tab-panel"${_activeJournalTab !== 'issues' ? ' style="display:none"' : ''}>
+        <div data-journal-placeholder="issues"></div>
+    </div>`;
+
+    return `<div id="projectJournalPanel" class="project-journal-panel${isReadOnly ? ' project-journal-panel--readonly' : ''}">
+        <div class="journal-panel-title">Project Journal</div>
+        ${tabBarHtml}
+        ${activityPanelHtml}
+        ${progressPanelHtml}
+        ${issuesPanelHtml}
+    </div>`;
+}
+
+// Render a single activity feed entry row.
+// Handles both live Firestore Timestamp ({seconds}) and optimistic ({seconds: Date.now()/1000}).
+function _renderFeedEntry(entry) {
+    const ts = entry.created_at?.seconds
+        ? new Date(entry.created_at.seconds * 1000)
+        : (entry.created_at?.toDate ? entry.created_at.toDate() : new Date());
+    const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const authorName = escapeHTML(entry.created_by_name || 'Unknown');
+    const tagType = entry.type || 'update';
+    const tagLabel = { update: 'Update', milestone: 'Milestone', issue: 'Issue', client: 'Client', system: 'System', edit: 'Edit' }[tagType] || escapeHTML(tagType);
+    const isSystem = entry.is_system || tagType === 'system' || tagType === 'edit';
+
+    return `<div class="journal-entry${isSystem ? ' journal-entry--system' : ''}">
+        <div class="journal-entry-meta">
+            <span class="journal-entry-tag journal-entry-tag--${escapeHTML(tagType)}">${tagLabel}</span>
+            <span>${escapeHTML(timeStr)}</span>
+            ${!isSystem ? `<span>${authorName}</span>` : ''}
+        </div>
+        <div class="journal-entry-text">${escapeHTML(entry.text || '')}</div>
+    </div>`;
+}
+
+// In-place re-render of the journal panel (called from snapshot callbacks).
+// Uses the same replaceWith pattern as the project plan card (lines 284–290).
+function _renderJournalPanelInPlace() {
+    const el = document.getElementById('projectJournalPanel');
+    if (!el || !currentProject) return;
+    const html = _buildJournalPanelHtml(currentProject);
+    if (!html) {
+        // Panel should be hidden — remove it if it's somehow in the DOM
+        el.remove();
+        return;
+    }
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    el.replaceWith(tmp.firstElementChild);
+}
+
+// DOM-only tab switcher — mirrors lcSwitchTab (lines 2478–2487).
+// All three listeners already running; no new Firestore subscriptions needed.
+function switchJournalTab(tab) {
+    _activeJournalTab = tab;
+    ['activity', 'progress', 'issues'].forEach(t => {
+        const panel = document.getElementById('journalTab-' + t);
+        const btn = document.getElementById('journalTabBtn-' + t);
+        if (panel) panel.style.display = (t === tab) ? '' : 'none';
+        if (btn) btn.classList.toggle('active', t === tab);
+    });
+}
+
+// Post a new Activity Feed entry (composer submit handler).
+// Optimistic: unshifts into journalActivityEntries and re-renders immediately,
+// then persists via _addActivityEntry. The next onSnapshot rebuilds the array from
+// Firestore (array-replace — the optimistic entry is replaced by the real doc).
+async function postActivityEntry() {
+    const tagSelect = document.getElementById('journalTagSelect');
+    const textEl = document.getElementById('journalComposerText');
+    const type = tagSelect?.value || 'update';
+    const text = (textEl?.value || '').trim();
+    if (!text) { showToast('Enter a note before posting.', 'error'); return; }
+
+    const cu = window.getCurrentUser?.();
+    // Optimistic append — show entry in DOM before Firestore confirms
+    journalActivityEntries.unshift({
+        id: '_optimistic',
+        type,
+        text,
+        is_system: false,
+        created_by_name: cu?.full_name || cu?.email || 'Unknown',
+        created_at: { seconds: Date.now() / 1000 }
+    });
+    _renderJournalPanelInPlace();
+    if (textEl) textEl.value = '';
+
+    try {
+        await _addActivityEntry(currentProject.id, { type, text, is_system: false });
+        // onSnapshot fires shortly after and rebuilds journalActivityEntries from Firestore,
+        // replacing the _optimistic placeholder with the real persisted doc (array-replace).
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] postActivityEntry failed:', err);
+        showToast('Failed to post entry. Please try again.', 'error');
+    }
+}
+
 // Phase 101 — shared write primitive for all journal activity entries.
 // Called by: postActivityEntry (Plan 03), resolveIssue/reopenIssue (Plan 04),
 // lifecycle gate transitions and field-edit auto-entries (Plan 05 / Plan 03 D-06/D-07).
@@ -2503,6 +2662,9 @@ function attachWindowFunctions() {
     window._onBillingTrancheChange = _onBillingTrancheChange;
     window._selectBillingType = _selectBillingType;
     window._validateBillingForm = _validateBillingForm;
+    // Phase 101 — journal panel tab switching and post
+    window.switchJournalTab = switchJournalTab;
+    window.postActivityEntry = postActivityEntry;
     // Phase 100 — lifecycle accordion
     window.toggleLifecycleAccordion = toggleLifecycleAccordion;
     window.lcAttachLink = async function(which) {
