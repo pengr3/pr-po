@@ -1187,7 +1187,7 @@ Plans:
   - Where the "Record Release" button surfaces in-app (finance bar strip per Spike 036, vs. also the Finance collectibles page) — Spike 036 puts it on the project-detail finance bar
 **Plans**: 5 plans, 4 waves
 - [x] 102-01-PLAN.md — DLP & tranche-editor CSS block (styles/views.css) [Wave 1] ✅ `3771bf6`
-- [ ] 102-02-PLAN.md — Inline tranche editor + Ret? toggle (project-detail.js) [Wave 2]
+- [x] 102-02-PLAN.md — Inline tranche editor + Ret? toggle (project-detail.js) [Wave 2]
 - [ ] 102-03-PLAN.md — Gate-4 DLP entry + getDlpState + 4-state finance bar + tranche tags + info card (project-detail.js) [Wave 3]
 - [ ] 102-04-PLAN.md — Finance-only Record Release + firestore.rules (project-detail.js, firestore.rules) [Wave 4]
 - [ ] 102-05-PLAN.md — Portfolio table 4-state DLP visuals (projects.js) [Wave 4]
