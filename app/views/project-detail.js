@@ -523,6 +523,16 @@ export async function destroy() {
     delete window.toggleIssueForm;
     delete window.showResolveForm;
     delete window.cancelResolveForm;
+    // Phase 102 — inline tranche editor window functions cleanup
+    delete window.toggleTrancheEditor;
+    delete window.addEditorTrancheRow;
+    delete window.removeEditorTrancheRow;
+    delete window.toggleTrancheRetention;
+    delete window.recalcTrancheTotal;
+    delete window.saveTrancheEditor;
+    delete window.cancelTrancheEditor;
+    editorTranches = [];
+    trancheEditorOpen = false;
     document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
@@ -747,6 +757,13 @@ function renderProjectDetail() {
                         <div style="text-align:right;margin-top:0.5rem;">
                             <span onclick="window.openBillingRequestModal()" style="cursor:pointer;color:#1a73e8;font-size:0.72rem;font-weight:700;user-select:none;">↑ Initiate Billing →</span>
                         </div>
+                        <!-- Phase 102 — Collection Tranches section (editor + lifecycle rows) -->
+                        <div style="border-top:1px solid #f1f5f9;margin:0.5rem 0 0.25rem;"></div>
+                        <div class="tranche-header">
+                            <span style="font-size:0.65rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.07em;">Collection Tranches</span>
+                            ${showEditControls ? `<button class="edit-tranches-btn${trancheEditorOpen ? ' active' : ''}" onclick="window.toggleTrancheEditor()">⚙ Edit Tranches</button>` : ''}
+                        </div>
+                        <div id="trancheEditorHost">${renderTrancheDisplay()}${renderTrancheEditor()}</div>
                         ${renderTrancheLifecycleRows()}
                     </div>
                 </div>
@@ -3457,6 +3474,14 @@ function attachWindowFunctions() {
     window.toggleIssueForm = toggleIssueForm;
     window.showResolveForm = showResolveForm;
     window.cancelResolveForm = cancelResolveForm;
+    // Phase 102 — inline tranche editor
+    window.toggleTrancheEditor = toggleTrancheEditor;
+    window.addEditorTrancheRow = addEditorTrancheRow;
+    window.removeEditorTrancheRow = removeEditorTrancheRow;
+    window.toggleTrancheRetention = toggleTrancheRetention;
+    window.recalcTrancheTotal = recalcTrancheTotal;
+    window.saveTrancheEditor = saveTrancheEditor;
+    window.cancelTrancheEditor = cancelTrancheEditor;
     // Phase 100 — lifecycle accordion
     window.toggleLifecycleAccordion = toggleLifecycleAccordion;
     window.lcAttachLink = async function(which) {
