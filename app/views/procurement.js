@@ -7958,6 +7958,38 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
             } catch (notifErr) {
                 console.error('[Procurement] NOTIF-18 PO Delivered notification failed:', notifErr);
             }
+
+            // Phase 101 D-08: auto-post system Feed entry to the owning project's activity_entries.
+            // POs carry NO project_id — resolve the project by traversal:
+            //   poDataFresh.mrf_id → mrfs query → MRF.project_name → projects query → projectDocId
+            try {
+                if (poDataFresh.mrf_id) {
+                    const mrfQ = query(collection(db, 'mrfs'), where('mrf_id', '==', poDataFresh.mrf_id));
+                    const mrfSnap = await getDocs(mrfQ);
+                    if (!mrfSnap.empty) {
+                        const mrfData = mrfSnap.docs[0].data();
+                        const projectName = mrfData.project_name;
+                        if (projectName) {
+                            const projQ = query(collection(db, 'projects'), where('project_name', '==', projectName));
+                            const projSnap = await getDocs(projQ);
+                            if (!projSnap.empty) {
+                                const projectDocId = projSnap.docs[0].id;
+                                await addDoc(collection(db, 'projects', projectDocId, 'activity_entries'), {
+                                    type: 'system',
+                                    is_system: true,
+                                    text: `PO ${escapeHTML(poDataFresh.po_id || poId)} from ${escapeHTML(poDataFresh.supplier_name || 'Unknown Supplier')} marked Delivered`,
+                                    created_by_uid: window.getCurrentUser?.()?.uid ?? '',
+                                    created_by_name: window.getCurrentUser?.()?.full_name || 'System',
+                                    created_at: serverTimestamp(),
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (journalErr) {
+                console.error('[Procurement] Phase 101 PO Delivered journal entry failed:', journalErr);
+                // Never block the status update — swallow
+            }
         }
 
         const successMsg = isSubcon
