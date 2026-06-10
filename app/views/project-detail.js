@@ -525,6 +525,8 @@ export async function destroy() {
     delete window.cancelResolveForm;
     // Phase 102 — inline tranche editor window functions cleanup
     delete window.toggleTrancheEditor;
+    delete window.updateEditorTrancheLabel;
+    delete window.updateEditorTranchePercentage;
     delete window.addEditorTrancheRow;
     delete window.removeEditorTrancheRow;
     delete window.toggleTrancheRetention;
@@ -918,10 +920,10 @@ function renderTrancheEditor() {
         const isRet = !!t.is_retention;
         return `<div class="editor-row${isRet ? ' retention-row' : ''}" id="erow-${i}">
             <input type="text" value="${escapeHTML(t.label || '')}" placeholder="Tranche label (e.g. Mobilization)"
-                oninput="editorTranches[${i}].label=this.value">
+                oninput="window.updateEditorTrancheLabel(${i}, this.value)">
             <div style="display:flex;align-items:center;gap:4px;">
                 <input type="number" value="${parseFloat(t.percentage) || 0}" min="0" max="100" style="width:60px;"
-                    oninput="editorTranches[${i}].percentage=+this.value; window.recalcTrancheTotal()">
+                    oninput="window.updateEditorTranchePercentage(${i}, this.value)">
                 <span class="pct-suffix">%</span>
             </div>
             <button class="ret-toggle${isRet ? ' on' : ''}" onclick="window.toggleTrancheRetention(${i})">
@@ -976,6 +978,16 @@ function toggleTrancheEditor() {
     // Sync the Edit Tranches button active state
     const editBtn = document.querySelector('.edit-tranches-btn');
     if (editBtn) editBtn.classList.toggle('active', trancheEditorOpen);
+}
+
+// Inline-handler-safe setters: oninput attributes run in global scope and
+// cannot reference the module-scoped editorTranches array directly.
+function updateEditorTrancheLabel(i, value) {
+    if (editorTranches[i]) editorTranches[i].label = value;
+}
+function updateEditorTranchePercentage(i, value) {
+    if (editorTranches[i]) editorTranches[i].percentage = +value;
+    recalcTrancheTotal();
 }
 
 // Add a blank row to the editor.
@@ -3476,6 +3488,8 @@ function attachWindowFunctions() {
     window.cancelResolveForm = cancelResolveForm;
     // Phase 102 — inline tranche editor
     window.toggleTrancheEditor = toggleTrancheEditor;
+    window.updateEditorTrancheLabel = updateEditorTrancheLabel;
+    window.updateEditorTranchePercentage = updateEditorTranchePercentage;
     window.addEditorTrancheRow = addEditorTrancheRow;
     window.removeEditorTrancheRow = removeEditorTrancheRow;
     window.toggleTrancheRetention = toggleTrancheRetention;
