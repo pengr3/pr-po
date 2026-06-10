@@ -1156,7 +1156,7 @@ Plans:
 **Target files**: `app/views/project-detail.js` (panel render/listeners/tabs + Feed/Progress/Issues CRUD + auto-entries in 4 gates + saveField cost delta), `app/views/procurement.js` (PO Delivered auto-entry), `firestore.rules` (3 subcollection blocks), `styles/views.css` (journal panel CSS).
 **Requirements**: Spike 032 + CONTEXT decisions D-01..D-20 (locked).
 **Plans**: 5 plans, 4 waves.
-- [ ] 101-01-PLAN.md — Project Journal panel CSS block in styles/views.css (Wave 1)
+- [x] 101-01-PLAN.md — Project Journal panel CSS block in styles/views.css (Wave 1)
 - [ ] 101-02-PLAN.md — Firestore security rules: activity_entries/progress_updates/issues subcollections + deploy (Wave 1)
 - [ ] 101-03-PLAN.md — Core panel: status-gated render, 3 listeners, tab switching, Activity Feed CRUD + _addActivityEntry helper (Wave 2)
 - [ ] 101-04-PLAN.md — Progress Updates tab + Issues tab (filter chips, log form, resolve/reopen workflow) (Wave 3)
