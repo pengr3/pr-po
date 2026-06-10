@@ -3124,7 +3124,7 @@ async function saveEditProgressUpdate(id) {
         const historyEntry = {
             edited_by_uid: cu?.uid ?? '',
             edited_by_name: cu?.full_name || cu?.email || 'Unknown',
-            edited_at: serverTimestamp(),
+            edited_at: new Date(),
             prev_pct_complete: prev.pct_complete ?? 0,
             prev_summary: prev.summary ?? '',
             prev_blockers: prev.blockers ?? '',
