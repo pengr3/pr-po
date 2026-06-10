@@ -3,7 +3,7 @@ spike: 034
 name: dlp-entry-placement
 type: comparison
 validates: "Given DLP details become known only post-award/near-completion, when comparing three entry points (tranche editor in project-detail / completion gate step / standalone DLP card), then one placement feels natural and keeps data close to the retention tranche"
-verdict: PENDING
+verdict: PARTIAL — Hybrid chosen: "Ret?" toggle from Variant A marks retention tranche; DLP fields entered via Variant B (completion gate Step 2)
 related: [033, 035, 036]
 tags: [dlp, retention, tranche, ux, project-detail, finance]
 ---

@@ -3,7 +3,7 @@ spike: 036
 name: dlp-states-finance-bar
 type: standard
 validates: "Given a completed project with DLP fields saved, when the DLP period is active/expired/released, then project-detail's finance bar and the portfolio view show amber/red/green correctly"
-verdict: PENDING
+verdict: VALIDATED ✓ — 4-state model (On-going / In-DLP amber / Expired red / Released green); stacked bar segments; DLP strip below bar; "Record Release" Finance-only action
 related: [033, 034, 035]
 tags: [dlp, retention, finance-bar, portfolio, ux, project-detail, display]
 ---

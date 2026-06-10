@@ -3,7 +3,7 @@ spike: 035
 name: tranche-editor-in-detail
 type: standard
 validates: "Given a project with no collection_tranches while status is On-going, when PM/Finance opens project-detail, then they can add/edit tranches inline without going back to the Projects list edit modal"
-verdict: PENDING
+verdict: VALIDATED ✓ — Inline tranche editor in project-detail with "Ret?" toggle; DLP fields deferred to completion gate (not at tranche-setup time)
 related: [034, 036]
 tags: [tranche, project-detail, finance, dlp, ux, inline-edit]
 ---

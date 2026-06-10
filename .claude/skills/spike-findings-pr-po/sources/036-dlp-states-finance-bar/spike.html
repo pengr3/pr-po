@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 036 — DLP States in Finance Bar</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; padding-bottom: 136px; }
+
+.app-frame { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+
+/* Controls bar */
+.ctrl-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: #0f172a; padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.ctrl-bar span { color: #94a3b8; font-size: 12px; }
+.cbtn {
+  padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; transition: all .15s;
+}
+.cbtn-amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.cbtn-amber.active, .cbtn-amber:hover { background: #fbbf24; color: #fff; }
+.cbtn-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.cbtn-red.active, .cbtn-red:hover { background: #ef4444; color: #fff; }
+.cbtn-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.cbtn-green.active, .cbtn-green:hover { background: #059669; color: #fff; }
+.cbtn-active { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.cbtn-active.active, .cbtn-active:hover { background: #1a73e8; color: #fff; }
+.ctrl-divider { width: 1px; height: 20px; background: #334155; margin: 0 4px; }
+.ctrl-bar .ctrl-label { color: #64748b; font-size: 11px; }
+
+/* Page header */
+.page-header {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 20px 24px; margin-bottom: 16px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+}
+.page-header h1 { font-size: 20px; font-weight: 700; }
+.page-header .meta { font-size: 12px; color: #64748b; margin-top: 4px; display: flex; gap: 12px; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  transition: all .3s;
+}
+
+/* Cards */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; }
+.card-title { font-size: 13px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
+
+/* Finance bar */
+.finance-bar {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px;
+  transition: border-color .3s, background .3s;
+}
+.finance-bar.state-amber { background: #fffbeb; border-color: #fde68a; }
+.finance-bar.state-red { background: #fff5f5; border-color: #fecaca; }
+.finance-bar.state-green { background: #f0fdf4; border-color: #bbf7d0; }
+
+.fb-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.fb-left .fb-label { font-size: 12px; color: #94a3b8; font-weight: 500; margin-bottom: 2px; }
+.fb-left .fb-amount { font-size: 22px; font-weight: 800; color: #1e293b; transition: color .3s; }
+.fb-right { text-align: right; }
+.fb-right .fb-sublabel { font-size: 11px; color: #94a3b8; margin-bottom: 2px; }
+.fb-right .fb-subval { font-size: 15px; font-weight: 700; transition: color .3s; }
+
+/* Stacked bar (main collected + retention highlight) */
+.bar-track { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; display: flex; margin-bottom: 8px; }
+.bar-seg { height: 100%; transition: width .4s, background .3s; }
+.bar-seg.collected { background: #1a73e8; }
+.bar-seg.retention { opacity: .85; }
+
+.bar-labels { display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; }
+
+/* DLP status strip */
+.dlp-strip {
+  margin-top: 10px; padding: 8px 12px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; font-weight: 600; transition: all .3s;
+  border: 1px solid transparent;
+}
+.dlp-strip.amber { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.dlp-strip.red { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.dlp-strip.green { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.dlp-strip.hidden { display: none; }
+.dlp-strip-right { font-size: 11px; font-weight: 500; }
+
+/* Release button */
+.release-btn {
+  padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 700; background: #059669; color: #fff;
+}
+.release-btn:hover { background: #047857; }
+.release-btn-outline {
+  padding: 6px 14px; border-radius: 6px;
+  border: 1px solid #fde68a; background: transparent; color: #92400e;
+  cursor: pointer; font-size: 12px; font-weight: 600;
+}
+
+/* Collection progress section */
+.coll-section { margin-top: 16px; }
+.coll-section-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+.coll-rows { display: flex; flex-direction: column; gap: 6px; }
+.coll-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;
+  transition: background .3s, border-color .3s;
+}
+.coll-row.active { background: #fffbeb; border-color: #fde68a; }
+.coll-row.overdue { background: #fff5f5; border-color: #fecaca; }
+.coll-row.done { background: #f0fdf4; border-color: #bbf7d0; }
+.coll-row-label { font-size: 13px; font-weight: 500; }
+.coll-row-right { display: flex; align-items: center; gap: 8px; }
+.coll-tag {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+}
+.tag-collected { background: #dcfce7; color: #166534; }
+.tag-pending { background: #fef3c7; color: #92400e; }
+.tag-overdue { background: #fee2e2; color: #991b1b; }
+.tag-holding { background: #e0f2fe; color: #0369a1; }
+.tag-released { background: #dcfce7; color: #166534; }
+.coll-amount { font-size: 13px; font-weight: 700; color: #1e293b; }
+
+/* Portfolio row simulation */
+.portfolio-section { margin-top: 24px; }
+.portfolio-title {
+  font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase;
+  letter-spacing: .5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+}
+.portfolio-row {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 14px 20px; display: grid; grid-template-columns: 240px 1fr 180px;
+  align-items: center; gap: 16px; transition: border-color .3s;
+}
+.portfolio-row.dlp-amber { border-left: 3px solid #f59e0b; }
+.portfolio-row.dlp-red { border-left: 3px solid #ef4444; }
+.portfolio-row.dlp-green { border-left: 3px solid #059669; }
+.portfolio-project-name { font-size: 14px; font-weight: 700; color: #1e293b; }
+.portfolio-project-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.portfolio-bar-area {}
+.portfolio-bar-label { font-size: 11px; color: #94a3b8; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.portfolio-bar-track { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+.portfolio-bar-fill { height: 100%; border-radius: 3px; transition: all .4s; }
+.portfolio-right { text-align: right; }
+.portfolio-dlp-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;
+  transition: all .3s;
+}
+.portfolio-contract { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+/* Log pane */
+.log-pane {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  background: #0f172a; border-top: 1px solid #1e293b; height: 120px;
+  overflow-y: auto; padding: 8px 16px;
+}
+.log-entry { font-family: monospace; font-size: 12px; padding: 2px 0; }
+.log-entry.event { color: #94a3b8; }
+.log-entry.save { color: #4ade80; }
+.log-entry.action { color: #60a5fa; }
+.log-entry.info { color: #a78bfa; }
+
+.annotation {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;
+  border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600;
+}
+</style>
+</head>
+<body>
+
+<div class="ctrl-bar">
+  <span>DLP State:</span>
+  <button class="cbtn cbtn-active active" id="btnActive" onclick="setState('active')">● On-going (no DLP)</button>
+  <div class="ctrl-divider"></div>
+  <button class="cbtn cbtn-amber" id="btnAmber" onclick="setState('dlp-amber')">◑ In DLP Period</button>
+  <button class="cbtn cbtn-red" id="btnRed" onclick="setState('dlp-expired')">⚠ DLP Expired</button>
+  <button class="cbtn cbtn-green" id="btnGreen" onclick="setState('released')">✓ Retention Released</button>
+  <div class="ctrl-divider"></div>
+  <span class="ctrl-label" id="stateDesc">Active project — utilization bar, no DLP strip</span>
+</div>
+
+<div class="app-frame">
+  <div class="page-header">
+    <div>
+      <h1>CLMC-BLDG-003 — Annex Building Renovation</h1>
+      <div class="meta">
+        <span>Contract: ₱4,200,000</span>
+        <span>Client: BLDG Corp</span>
+        <span id="headerAssigned">Assigned: Carlo Reyes</span>
+      </div>
+    </div>
+    <span class="status-pill" id="pageStatusPill" style="background:#dbeafe;color:#1d4ed8;">● On-going</span>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Project Information</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
+        <div><div style="font-size:11px;color:#94a3b8;">Project Code</div><div style="font-weight:500;">CLMC-BLDG-003</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Client</div><div style="font-weight:500;">BLDG Corp</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Contract Cost</div><div style="font-weight:500;">₱4,200,000</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">Completed</div><div style="font-weight:500;" id="completedDate">—</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">DLP Period</div><div style="font-weight:500;" id="dlpPeriodDisplay">—</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;">DLP Expires</div><div style="font-weight:500;" id="dlpExpiryDisplay">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        Financial Summary
+        <span class="annotation" id="finAnno">↓ Stage-aware: 4 display states</span>
+      </div>
+
+      <div class="finance-bar" id="financeBar">
+        <div class="fb-header">
+          <div class="fb-left">
+            <div class="fb-label">Contract Cost</div>
+            <div class="fb-amount">₱4,200,000</div>
+          </div>
+          <div class="fb-right">
+            <div class="fb-sublabel" id="fbSubLabel">Cash Collected</div>
+            <div class="fb-subval" id="fbSubVal" style="color:#1a73e8;">₱2,730,000</div>
+          </div>
+        </div>
+        <div class="bar-track" id="barTrack">
+          <div class="bar-seg collected" id="barCollected" style="width:65%"></div>
+          <div class="bar-seg retention" id="barRetention" style="width:0%; background:#f59e0b;"></div>
+        </div>
+        <div class="bar-labels">
+          <span id="barLeft">₱2,730,000 collected (65%)</span>
+          <span id="barRight">₱1,470,000 outstanding</span>
+        </div>
+        <div class="dlp-strip hidden" id="dlpStrip">
+          <span id="dlpStripText"></span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="dlp-strip-right" id="dlpStripRight"></span>
+            <button class="release-btn" id="releaseBtn" style="display:none;" onclick="releaseRetention()">Record Release</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Collection rows -->
+      <div class="coll-section">
+        <div class="coll-section-title">Collection Tranches</div>
+        <div class="coll-rows" id="collRows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Portfolio simulation -->
+  <div class="portfolio-section">
+    <div class="portfolio-title">
+      Portfolio View — How this project appears in the projects table
+      <span class="annotation">↓ Same 3 DLP states</span>
+    </div>
+    <div class="portfolio-row" id="portfolioRow">
+      <div>
+        <div class="portfolio-project-name">CLMC-BLDG-003</div>
+        <div class="portfolio-project-meta">Annex Building Renovation · BLDG Corp</div>
+      </div>
+      <div class="portfolio-bar-area">
+        <div class="portfolio-bar-label">
+          <span id="portBarLabel">65% collected</span>
+          <span id="portBarRight">On-going</span>
+        </div>
+        <div class="portfolio-bar-track">
+          <div class="portfolio-bar-fill" id="portBarFill" style="width:65%; background:#1a73e8;"></div>
+        </div>
+      </div>
+      <div class="portfolio-right">
+        <div class="portfolio-dlp-tag" id="portDlpTag" style="background:#dbeafe;color:#1d4ed8;">● On-going</div>
+        <div class="portfolio-contract">₱4,200,000 contract</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="log-pane" id="logPane">
+  <div class="log-entry info">[036] DLP States — finance bar + portfolio view · Toggle states with the control bar above</div>
+  <div class="log-entry event">State: On-going — utilization bar (blue), no DLP strip yet</div>
+</div>
+
+<script>
+const STATES = {
+  'active': {
+    desc: 'Active project — utilization bar, no DLP strip',
+    pill: { text: '● On-going', bg: '#dbeafe', color: '#1d4ed8' },
+    finBar: 'state-none',
+    barCollected: '65%', barRetentionColor: 'transparent', barRetentionWidth: '0%',
+    fbSubLabel: 'Cash Collected', fbSubVal: '₱2,730,000', fbSubColor: '#1a73e8',
+    barLeft: '₱2,730,000 collected (65%)', barRight: '₱1,470,000 outstanding',
+    dlpStripClass: 'hidden',
+    completedDate: '—', dlpPeriod: '—', dlpExpiry: '—',
+    tranches: [
+      { name: 'Mobilization (20%)', amount: '₱840,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 1 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 2 (30%)', amount: '₱630,000 / ₱1,260,000', tag: 'tag-pending', tagText: 'Partial', cls: 'active' },
+      { name: 'Final / Retention (20%)', amount: '₱840,000', tag: 'tag-pending', tagText: 'Not yet', cls: '' },
+    ],
+    portTag: { text: '● On-going', bg: '#dbeafe', color: '#1d4ed8' },
+    portBar: '65%', portBarColor: '#1a73e8',
+    portBarLabel: '65% collected', portBarRight: 'On-going',
+    portRowClass: '',
+  },
+  'dlp-amber': {
+    desc: 'Completed — in DLP period (amber). Retention withheld, DLP running.',
+    pill: { text: '◑ In DLP', bg: '#fef3c7', color: '#92400e' },
+    finBar: 'state-amber',
+    barCollected: '80%', barRetentionColor: '#f59e0b', barRetentionWidth: '10%',
+    fbSubLabel: 'Collected excl. Retention', fbSubVal: '₱3,360,000', fbSubColor: '#f59e0b',
+    barLeft: '₱3,360,000 collected (80%) · ₱420,000 retention held', barRight: 'DLP expires Jun 10, 2027',
+    dlpStripClass: 'amber',
+    dlpStripText: '◑ In Defect Liability Period — retention held until DLP expires',
+    dlpStripRight: '346 days remaining',
+    completedDate: 'Jun 10, 2026', dlpPeriod: '12 months', dlpExpiry: 'Jun 10, 2027',
+    tranches: [
+      { name: 'Mobilization (20%)', amount: '₱840,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 1 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 2 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Final / Retention (10%)', amount: '₱420,000', tag: 'tag-holding', tagText: 'In DLP', cls: 'active' },
+    ],
+    portTag: { text: '◑ In DLP', bg: '#fef3c7', color: '#92400e' },
+    portBar: '90%', portBarColor: '#f59e0b',
+    portBarLabel: '90% · retention in DLP', portBarRight: 'Jun 10, 2027',
+    portRowClass: 'dlp-amber',
+  },
+  'dlp-expired': {
+    desc: 'DLP period ended — retention NOT yet released. Finance action required.',
+    pill: { text: '⚠ DLP Expired', bg: '#fee2e2', color: '#991b1b' },
+    finBar: 'state-red',
+    barCollected: '80%', barRetentionColor: '#ef4444', barRetentionWidth: '10%',
+    fbSubLabel: 'Retention Overdue', fbSubVal: '₱420,000', fbSubColor: '#ef4444',
+    barLeft: '₱3,360,000 collected · Retention ₱420,000 overdue', barRight: 'DLP expired 32 days ago',
+    dlpStripClass: 'red',
+    dlpStripText: '⚠ DLP period expired — retention release overdue',
+    dlpStripRight: 'Expired Jun 10, 2027 (32 days ago)',
+    showRelease: true,
+    completedDate: 'Jun 10, 2026', dlpPeriod: '12 months', dlpExpiry: 'Jun 10, 2027 (expired)',
+    tranches: [
+      { name: 'Mobilization (20%)', amount: '₱840,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 1 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 2 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Final / Retention (10%)', amount: '₱420,000', tag: 'tag-overdue', tagText: 'OVERDUE', cls: 'overdue' },
+    ],
+    portTag: { text: '⚠ Retention Overdue', bg: '#fee2e2', color: '#991b1b' },
+    portBar: '90%', portBarColor: '#ef4444',
+    portBarLabel: 'DLP expired — action needed', portBarRight: 'Overdue',
+    portRowClass: 'dlp-red',
+  },
+  'released': {
+    desc: 'Retention released — project fully collected. Green state.',
+    pill: { text: '✓ Completed', bg: '#dcfce7', color: '#166534' },
+    finBar: 'state-green',
+    barCollected: '100%', barRetentionColor: 'transparent', barRetentionWidth: '0%',
+    fbSubLabel: 'Fully Collected', fbSubVal: '₱4,200,000', fbSubColor: '#059669',
+    barLeft: '₱4,200,000 collected (100%)', barRight: 'Project fully settled ✓',
+    dlpStripClass: 'green',
+    dlpStripText: '✓ Retention released — project fully collected',
+    dlpStripRight: 'Released Jul 15, 2027',
+    completedDate: 'Jun 10, 2026', dlpPeriod: '12 months', dlpExpiry: 'Jun 10, 2027',
+    tranches: [
+      { name: 'Mobilization (20%)', amount: '₱840,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 1 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Progress Billing 2 (30%)', amount: '₱1,260,000', tag: 'tag-collected', tagText: 'Collected', cls: 'done' },
+      { name: 'Final / Retention (10%)', amount: '₱420,000', tag: 'tag-released', tagText: 'Released', cls: 'done' },
+    ],
+    portTag: { text: '✓ Fully Collected', bg: '#dcfce7', color: '#166534' },
+    portBar: '100%', portBarColor: '#059669',
+    portBarLabel: '100% · fully collected', portBarRight: 'Jul 2027',
+    portRowClass: 'dlp-green',
+  },
+};
+
+let currentState = 'active';
+
+function setState(key) {
+  currentState = key;
+  const s = STATES[key];
+
+  // Control buttons
+  document.querySelectorAll('.cbtn').forEach(b => b.classList.remove('active'));
+  const btnMap = { 'active': 'btnActive', 'dlp-amber': 'btnAmber', 'dlp-expired': 'btnRed', 'released': 'btnGreen' };
+  document.getElementById(btnMap[key]).classList.add('active');
+  document.getElementById('stateDesc').textContent = s.desc;
+
+  // Status pill
+  const pill = document.getElementById('pageStatusPill');
+  pill.textContent = s.pill.text;
+  pill.style.background = s.pill.bg;
+  pill.style.color = s.pill.color;
+
+  // Finance bar wrapper
+  const fb = document.getElementById('financeBar');
+  fb.className = 'finance-bar';
+  if (s.finBar !== 'state-none') fb.classList.add(s.finBar);
+
+  // Bar fill
+  document.getElementById('barCollected').style.width = s.barCollected;
+  const ret = document.getElementById('barRetention');
+  ret.style.width = s.barRetentionWidth;
+  ret.style.background = s.barRetentionColor;
+
+  // Sub label/val
+  document.getElementById('fbSubLabel').textContent = s.fbSubLabel;
+  const sv = document.getElementById('fbSubVal');
+  sv.textContent = s.fbSubVal;
+  sv.style.color = s.fbSubColor;
+
+  // Bar labels
+  document.getElementById('barLeft').textContent = s.barLeft;
+  document.getElementById('barRight').textContent = s.barRight;
+
+  // DLP strip
+  const strip = document.getElementById('dlpStrip');
+  strip.className = 'dlp-strip ' + s.dlpStripClass;
+  if (s.dlpStripClass !== 'hidden') {
+    document.getElementById('dlpStripText').textContent = s.dlpStripText || '';
+    document.getElementById('dlpStripRight').textContent = s.dlpStripRight || '';
+    const rb = document.getElementById('releaseBtn');
+    rb.style.display = s.showRelease ? 'block' : 'none';
+  }
+
+  // Info card fields
+  document.getElementById('completedDate').textContent = s.completedDate;
+  document.getElementById('dlpPeriodDisplay').textContent = s.dlpPeriod;
+  document.getElementById('dlpExpiryDisplay').textContent = s.dlpExpiry;
+
+  // Collection rows
+  renderCollRows(s.tranches);
+
+  // Portfolio
+  const pr = document.getElementById('portfolioRow');
+  pr.className = 'portfolio-row ' + s.portRowClass;
+  const pt = document.getElementById('portDlpTag');
+  pt.textContent = s.portTag.text;
+  pt.style.background = s.portTag.bg;
+  pt.style.color = s.portTag.color;
+  document.getElementById('portBarFill').style.width = s.portBar;
+  document.getElementById('portBarFill').style.background = s.portBarColor;
+  document.getElementById('portBarLabel').textContent = s.portBarLabel;
+  document.getElementById('portBarRight').textContent = s.portBarRight;
+
+  log('action', 'State → ' + key + ' | ' + s.desc);
+}
+
+function renderCollRows(tranches) {
+  document.getElementById('collRows').innerHTML = tranches.map(t => `
+    <div class="coll-row ${t.cls}">
+      <span class="coll-row-label">${t.name}</span>
+      <div class="coll-row-right">
+        <span class="coll-tag ${t.tag}">${t.tagText}</span>
+        <span class="coll-amount">${t.amount}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function releaseRetention() {
+  setState('released');
+  log('save', 'Retention release recorded → ₱420,000 · Project moves to green fully-collected state');
+}
+
+function log(type, msg) {
+  const pane = document.getElementById('logPane');
+  const t = new Date().toLocaleTimeString('en-US', {hour12:false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.textContent = '[' + t + '] ' + msg;
+  pane.appendChild(entry);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+setState('active');
+</script>
+</body>
+</html>

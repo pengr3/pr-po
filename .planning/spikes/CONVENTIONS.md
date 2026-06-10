@@ -24,3 +24,6 @@ Patterns and stack choices established across spike sessions.
 - **015c restore mechanic is canonical:** all future iteration spikes should use auto-snapshot + 5s undo toast as the restore mechanic; do not re-probe it
 - **Right rail (017B) is canonical history UX:** the persistent side panel is the agreed surface for iteration history; do not re-probe modal vs dropdown
 - **Project journal panel (032) is canonical On-going surface:** 3 tabs (Activity Feed / Progress Updates / Issues) below Info+Financial cards; all 3 ship; no role-gating; Progress Updates are manual-only — do not re-probe Gantt integration
+- **DLP hybrid entry (034/035) is canonical:** "Ret?" toggle marks retention tranche (tranche editor, any time); DLP period/dates at completion gate Step 2 — do not re-probe whether DLP fields belong on tranche vs project (project-level, confirmed)
+- **Tranche editor in project-detail (035) is canonical:** inline editor below the financial card; toggle editor open/close; DLP sub-fields are optional at tranche-setup time
+- **4-state DLP display (036) is canonical:** active/in-dlp/expired/released derived at render time from project fields; stacked bar segments; DLP strip below bar; "Record Release" Finance-only action
