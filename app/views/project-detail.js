@@ -55,6 +55,7 @@ let journalProgressFormOpen = false; // collapsible progress form state
 let journalIssueFormOpen = false; // collapsible issue form state
 let journalResolvingIssueId = null; // inline resolve form: which issue is open
 let journalSelectedTag = 'update'; // active tag pill in activity composer
+let journalEditingProgressId = null; // which pu-card is in inline-edit mode
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -450,6 +451,7 @@ export async function destroy() {
     journalIssueFormOpen = false;
     journalResolvingIssueId = null;
     journalSelectedTag = 'update';
+    journalEditingProgressId = null;
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -506,6 +508,9 @@ export async function destroy() {
     delete window.postActivityEntry;
     delete window.selectJournalTag;
     delete window.submitProgressUpdate;
+    delete window.editProgressUpdate;
+    delete window.cancelEditProgressUpdate;
+    delete window.saveEditProgressUpdate;
     delete window.setIssueFilter;
     delete window.submitNewIssue;
     delete window.resolveIssue;
@@ -2680,7 +2685,7 @@ async function _addActivityEntry(projectId, { type, text, is_system = false }) {
 // Phase 101 Plan 04 — Progress Updates tab builder and submit handler.
 
 // Render a single progress update card (newest-first; history list).
-function _renderProgressCard(u) {
+function _renderProgressCard(u, isReadOnly) {
     const ts = u.created_at?.seconds
         ? new Date(u.created_at.seconds * 1000)
         : (u.created_at?.toDate ? u.created_at.toDate() : new Date());
@@ -2688,13 +2693,51 @@ function _renderProgressCard(u) {
     const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
     const pct = Number(u.pct_complete) || 0;
     const barColor = pct < 30 ? '#f59e0b' : '#1a73e8';
+    const isEditing = journalEditingProgressId === u.id;
+    const eid = escapeHTML(u.id);
+
+    if (isEditing) {
+        const sv = (s) => escapeHTML(s || '').replace(/"/g, '&quot;');
+        return `<div class="journal-pu-card">
+            <div class="journal-form-row">
+                <label>Overall % Complete</label>
+                <div class="journal-pct-row">
+                    <input type="range" id="journalEditPct-${eid}" min="0" max="100" value="${pct}" class="journal-pct-slider" oninput="document.getElementById('journalEditPctVal-${eid}').textContent=this.value+'%'" />
+                    <span class="journal-pct-value" id="journalEditPctVal-${eid}">${pct}%</span>
+                </div>
+            </div>
+            <div class="journal-form-row">
+                <label>Summary / What was done <span style="color:#ef4444">*</span></label>
+                <textarea id="journalEditSummary-${eid}" rows="2">${sv(u.summary)}</textarea>
+            </div>
+            <div class="journal-form-row">
+                <label>Blockers / Issues</label>
+                <textarea id="journalEditBlockers-${eid}" rows="2">${sv(u.blockers)}</textarea>
+            </div>
+            <div class="journal-form-row">
+                <label>Next Milestone</label>
+                <input type="text" id="journalEditNext-${eid}" value="${sv(u.next_milestone)}" />
+            </div>
+            <div class="journal-form-actions">
+                <button class="journal-cancel-btn" onclick="window.cancelEditProgressUpdate()">Cancel</button>
+                <button class="journal-post-btn" onclick="window.saveEditProgressUpdate('${eid}')">Save Changes</button>
+            </div>
+        </div>`;
+    }
+
+    const editBtn = !isReadOnly
+        ? `<button class="journal-cancel-btn" style="font-size:11px;padding:3px 9px;" onclick="window.editProgressUpdate('${eid}')">Edit</button>`
+        : '';
     return `<div class="journal-pu-card">
         <div class="journal-pu-card-header">
             <div>
                 <div class="journal-pu-card-title">Week of ${escapeHTML(dateStr)}</div>
                 <div class="journal-pu-card-meta">Submitted by ${escapeHTML(u.created_by_name || 'Unknown')} · ${escapeHTML(timeStr)}</div>
             </div>
-            <div class="journal-pu-pct-num" style="color:${barColor}">${pct}%</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                ${editBtn}
+                <div class="journal-pu-pct-num" style="color:${barColor}">${pct}%</div>
+            </div>
         </div>
         <div class="journal-pu-pct-bar"><div class="journal-pu-pct-fill" style="width:${pct}%;background:${barColor}"></div></div>
         <div class="journal-pu-fields">
@@ -2749,7 +2792,7 @@ function _buildProgressTabHtml(project, isReadOnly) {
 
     const historyHtml = journalProgressUpdates.length === 0
         ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No progress updates yet.</div>'
-        : journalProgressUpdates.map(u => _renderProgressCard(u)).join('');
+        : journalProgressUpdates.map(u => _renderProgressCard(u, isReadOnly)).join('');
 
     return `${formHtml}<div class="journal-pu-history">${historyHtml}</div>`;
 }
@@ -3039,6 +3082,44 @@ async function reopenIssue(issueId) {
 }
 
 // Toggle helpers for collapsible forms and inline resolve.
+function editProgressUpdate(id) {
+    journalEditingProgressId = id;
+    _renderJournalPanelInPlace();
+}
+
+function cancelEditProgressUpdate() {
+    journalEditingProgressId = null;
+    _renderJournalPanelInPlace();
+}
+
+async function saveEditProgressUpdate(id) {
+    const pctEl = document.getElementById('journalEditPct-' + id);
+    const summaryEl = document.getElementById('journalEditSummary-' + id);
+    const blockersEl = document.getElementById('journalEditBlockers-' + id);
+    const nextEl = document.getElementById('journalEditNext-' + id);
+
+    const summary = (summaryEl?.value || '').trim();
+    if (!summary) { showToast('Summary is required.', 'error'); return; }
+
+    const pct = Math.max(0, Math.min(100, parseInt(pctEl?.value || '0', 10) || 0));
+    const blockers = (blockersEl?.value || '').trim();
+    const next_milestone = (nextEl?.value || '').trim();
+
+    try {
+        await updateDoc(doc(db, 'projects', currentProject.id, 'progress_updates', id), {
+            pct_complete: pct,
+            summary,
+            blockers,
+            next_milestone,
+        });
+        journalEditingProgressId = null;
+        showToast('Progress update saved.', 'success');
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] saveEditProgressUpdate failed:', err);
+        showToast('Failed to save. Please try again.', 'error');
+    }
+}
+
 function toggleProgressForm() {
     journalProgressFormOpen = !journalProgressFormOpen;
     _renderJournalPanelInPlace();
@@ -3161,6 +3242,9 @@ function attachWindowFunctions() {
     window.postActivityEntry = postActivityEntry;
     window.selectJournalTag = selectJournalTag;
     window.submitProgressUpdate = submitProgressUpdate;
+    window.editProgressUpdate = editProgressUpdate;
+    window.cancelEditProgressUpdate = cancelEditProgressUpdate;
+    window.saveEditProgressUpdate = saveEditProgressUpdate;
     window.setIssueFilter = setIssueFilter;
     window.submitNewIssue = submitNewIssue;
     window.resolveIssue = resolveIssue;
