@@ -473,6 +473,10 @@ export async function destroy() {
     delete window.switchJournalTab;
     delete window.postActivityEntry;
     delete window.submitProgressUpdate;
+    delete window.setIssueFilter;
+    delete window.submitNewIssue;
+    delete window.resolveIssue;
+    delete window.reopenIssue;
     document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
@@ -2449,9 +2453,9 @@ function _buildJournalPanelHtml(project) {
         ${_buildProgressTabHtml(project, isReadOnly)}
     </div>`;
 
-    // Issues panel — Plan 04 fills the body; placeholder for now
+    // Issues panel — Plan 04: filter chips + form + punch list
     const issuesPanelHtml = `<div id="journalTab-issues" class="journal-tab-panel"${_activeJournalTab !== 'issues' ? ' style="display:none"' : ''}>
-        <div data-journal-placeholder="issues"></div>
+        ${_buildIssuesTabHtml(project, isReadOnly)}
     </div>`;
 
     return `<div id="projectJournalPanel" class="project-journal-panel${isReadOnly ? ' project-journal-panel--readonly' : ''}">
@@ -2655,6 +2659,196 @@ async function submitProgressUpdate() {
     }
 }
 
+// Phase 101 Plan 04 — Issues tab builders and resolve/reopen workflow.
+
+// Derive a stable "#N" display number for an issue.
+// Issues are ordered newest-first in journalIssues (created_at desc).
+// To get #1 = oldest, sort by created_at ascending and use 1-based index.
+function _issueSeqNum(issueId) {
+    // Build ascending order (oldest first = #1)
+    const sorted = [...journalIssues].sort((a, b) => {
+        const aS = a.created_at?.seconds ?? 0;
+        const bS = b.created_at?.seconds ?? 0;
+        return aS - bS;
+    });
+    const idx = sorted.findIndex(i => i.id === issueId);
+    if (idx === -1) return issueId.slice(-4); // fallback: short id slice
+    return idx + 1;
+}
+
+// Human-readable labels for issue types.
+const ISSUE_TYPE_LABELS = {
+    delay: 'Delay',
+    change_order: 'Change Order',
+    site_issue: 'Site Issue',
+    client_request: 'Client Request',
+};
+
+// Render a single issue row in the punch list.
+function _renderIssueRow(issue, isReadOnly) {
+    const typeLabel = ISSUE_TYPE_LABELS[issue.issue_type] || escapeHTML(issue.issue_type || '');
+    const seqNum = _issueSeqNum(issue.id);
+    const isResolved = issue.status === 'resolved';
+
+    const ts = issue.created_at?.seconds
+        ? new Date(issue.created_at.seconds * 1000)
+        : (issue.created_at?.toDate ? issue.created_at.toDate() : new Date());
+    const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+
+    const resolutionBlock = isResolved ? `
+        <div class="journal-resolution-notes">
+            <span style="font-weight:600;">Resolution:</span> ${escapeHTML(issue.resolution_notes || '')}
+        </div>` : '';
+
+    const actionBtn = !isReadOnly
+        ? (isResolved
+            ? `<button class="journal-issue-reopen-btn" onclick="window.reopenIssue('${escapeHTML(issue.id)}')">Re-open</button>`
+            : `<button class="journal-issue-resolve-btn" onclick="window.resolveIssue('${escapeHTML(issue.id)}')">Resolve</button>`)
+        : '';
+
+    return `<div class="journal-issue">
+        <div class="journal-issue-header">
+            <span class="journal-issue-seq">#${seqNum}</span>
+            <span class="journal-issue-type-chip journal-issue-type-chip--${escapeHTML(issue.issue_type || '')}">${typeLabel}</span>
+            <span class="journal-issue-title">${escapeHTML(issue.title || '')}</span>
+            <span class="journal-issue-status--${isResolved ? 'resolved' : 'open'}">${isResolved ? 'Resolved' : 'Open'}</span>
+            ${actionBtn}
+        </div>
+        ${issue.description ? `<div class="journal-issue-desc">${escapeHTML(issue.description)}</div>` : ''}
+        ${resolutionBlock}
+        <div class="journal-issue-meta" style="font-size:0.78rem;color:#94a3b8;margin-top:0.25rem;">${escapeHTML(timeStr)} &mdash; ${escapeHTML(issue.created_by_name || 'Unknown')}</div>
+    </div>`;
+}
+
+// Build the full Issues tab HTML (filter chips + optional form + punch list).
+function _buildIssuesTabHtml(project, isReadOnly) {
+    const filterChips = ['all', 'open', 'resolved'].map(f =>
+        `<button class="journal-filter-chip${journalIssueFilter === f ? ' active' : ''}" onclick="window.setIssueFilter('${f}')">${f.charAt(0).toUpperCase() + f.slice(1)}</button>`
+    ).join('');
+    const filterBar = `<div class="journal-issue-filters">${filterChips}</div>`;
+
+    const formHtml = !isReadOnly ? `
+        <div class="journal-issue-form">
+            <select id="journalIssueType">
+                <option value="delay">Delay</option>
+                <option value="change_order">Change Order</option>
+                <option value="site_issue">Site Issue</option>
+                <option value="client_request">Client Request</option>
+            </select>
+            <input type="text" id="journalIssueTitle" placeholder="Issue title (required)" style="width:100%;" />
+            <textarea id="journalIssueDesc" placeholder="Description (optional)" rows="2" style="width:100%;"></textarea>
+            <button class="journal-post-btn" onclick="window.submitNewIssue()">Log Issue</button>
+        </div>` : '';
+
+    const filtered = journalIssues.filter(i => {
+        if (journalIssueFilter === 'open') return i.status === 'open';
+        if (journalIssueFilter === 'resolved') return i.status === 'resolved';
+        return true; // 'all'
+    });
+
+    const listHtml = filtered.length === 0
+        ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No issues logged yet.</div>'
+        : filtered.map(i => _renderIssueRow(i, isReadOnly)).join('');
+
+    return `${filterBar}${formHtml}<div class="journal-issue-list">${listHtml}</div>`;
+}
+
+// Set the active issue filter and re-render the panel.
+function setIssueFilter(f) {
+    journalIssueFilter = f;
+    _renderJournalPanelInPlace();
+}
+
+// Submit a new Issue to Firestore.
+async function submitNewIssue() {
+    const typeEl = document.getElementById('journalIssueType');
+    const titleEl = document.getElementById('journalIssueTitle');
+    const descEl = document.getElementById('journalIssueDesc');
+
+    const title = (titleEl?.value || '').trim();
+    if (!title) { showToast('Add an issue title.', 'error'); return; }
+
+    const issue_type = typeEl?.value || 'delay';
+    const description = (descEl?.value || '').trim();
+
+    const cu = window.getCurrentUser?.();
+    try {
+        await addDoc(collection(db, 'projects', currentProject.id, 'issues'), {
+            issue_type,
+            title,
+            description,
+            status: 'open',
+            resolution_notes: null,
+            resolved_at: null,
+            resolved_by_uid: null,
+            created_by_uid: cu?.uid ?? '',
+            created_by_name: cu?.full_name || cu?.email || 'Unknown',
+            created_at: serverTimestamp(),
+        });
+        showToast('Issue logged.', 'success');
+        if (titleEl) titleEl.value = '';
+        if (descEl) descEl.value = '';
+        // onSnapshot listener re-renders automatically
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] submitNewIssue failed:', err);
+        showToast('Failed to log issue. Please try again.', 'error');
+    }
+}
+
+// Resolve an open issue — requires resolution notes (D-11), auto-posts system Feed entry (D-12).
+async function resolveIssue(issueId) {
+    const notes = (window.prompt('Resolution notes (required):') || '').trim();
+    if (!notes) { showToast('Resolution notes are required.', 'error'); return; }
+
+    const cu = window.getCurrentUser?.();
+    try {
+        await updateDoc(doc(db, 'projects', currentProject.id, 'issues', issueId), {
+            status: 'resolved',
+            resolution_notes: notes,
+            resolved_at: serverTimestamp(),
+            resolved_by_uid: cu?.uid ?? '',
+        });
+        // D-12: auto-post system Feed entry
+        const issue = journalIssues.find(i => i.id === issueId);
+        if (issue) {
+            const issueNum = _issueSeqNum(issueId);
+            await _addActivityEntry(currentProject.id, {
+                type: 'system',
+                is_system: true,
+                text: `Issue #${issueNum} (${escapeHTML(issue.issue_type)} — ${escapeHTML(issue.title)}) resolved by ${cu?.full_name || 'Unknown'}`,
+            });
+        }
+        showToast('Issue resolved.', 'success');
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] resolveIssue failed:', err);
+        showToast('Failed to resolve issue. Please try again.', 'error');
+    }
+}
+
+// Re-open a resolved issue — clears resolution fields, auto-posts system Feed entry (D-13).
+async function reopenIssue(issueId) {
+    const cu = window.getCurrentUser?.();
+    try {
+        await updateDoc(doc(db, 'projects', currentProject.id, 'issues', issueId), {
+            status: 'open',
+            resolution_notes: null,
+            resolved_at: null,
+            resolved_by_uid: null,
+        });
+        // D-13: auto-post system Feed entry
+        const issueNum = _issueSeqNum(issueId);
+        await _addActivityEntry(currentProject.id, {
+            type: 'system',
+            is_system: true,
+            text: `Issue #${issueNum} re-opened by ${cu?.full_name || 'Unknown'}`,
+        });
+        showToast('Issue re-opened.', 'success');
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] reopenIssue failed:', err);
+        showToast('Failed to re-open issue. Please try again.', 'error');
+    }
+}
+
 // Phase 101 — idempotent attach of all three journal subcollection listeners.
 // Mirrors ensureBillingRequestsListener(): guarded against double-attach, torn down in destroy().
 // All THREE listeners attach simultaneously so tab switching is pure DOM show/hide with zero
@@ -2756,6 +2950,10 @@ function attachWindowFunctions() {
     window.switchJournalTab = switchJournalTab;
     window.postActivityEntry = postActivityEntry;
     window.submitProgressUpdate = submitProgressUpdate;
+    window.setIssueFilter = setIssueFilter;
+    window.submitNewIssue = submitNewIssue;
+    window.resolveIssue = resolveIssue;
+    window.reopenIssue = reopenIssue;
     // Phase 100 — lifecycle accordion
     window.toggleLifecycleAccordion = toggleLifecycleAccordion;
     window.lcAttachLink = async function(which) {
