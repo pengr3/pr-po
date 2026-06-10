@@ -1,8 +1,8 @@
 # Spike Wrap-Up Summary
 
-**Date:** 2026-06-09
-**Spikes processed:** 1
-**Feature areas:** Project Journal (On-going Activity)
+**Date:** 2026-06-09 / 2026-06-10
+**Spikes processed:** 2
+**Feature areas:** Project Journal (On-going Activity), Project Portfolio View
 **Skill output:** `./.claude/skills/spike-findings-pr-po/`
 
 ## Processed Spikes
@@ -10,6 +10,7 @@
 | # | Name | Type | Verdict | Feature Area |
 |---|------|------|---------|--------------|
 | 032 | ongoing-activity-panel | comparison | VALIDATED ✓ | Project Journal |
+| 033 | project-table-redesign | comparison | VALIDATED ✓ — D+B hybrid chosen | Project Portfolio View |
 
 ## Key Findings
 
