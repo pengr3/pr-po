@@ -3,7 +3,7 @@
    Full-page project detail with inline editing
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
@@ -41,6 +41,16 @@ let currentTasks = [];
 let currentTasksListenerUnsub = null;
 let currentProjectProgress = { taskCount: 0, leafCount: 0, doneCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
 let currentIterationLabel = null;
+
+// Phase 101 — Project Journal subcollection listeners + local data caches
+let journalActivityUnsub = null;
+let journalProgressUnsub = null;
+let journalIssuesUnsub = null;
+let journalActivityEntries = [];
+let journalProgressUpdates = [];
+let journalIssues = [];
+let _activeJournalTab = 'activity'; // default tab (Claude's Discretion — Activity Feed most active)
+let journalIssueFilter = 'all'; // Plan 04 filter state; declared here so destroy() resets in one place
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -209,6 +219,10 @@ export async function init(activeTab = null, param = null) {
                         ensureBillingRequestsListener();
                         // Phase 99.1 — raw collectibles listener (idempotent, scoped to project_code)
                         ensureCollectiblesListener();
+                        // Phase 101 — journal listeners (only when panel is visible)
+                        if (['For Mobilization', 'On-going', 'Completed'].includes(currentProject?.project_status)) {
+                            ensureJournalListeners();
+                        }
                         await ensureIterationLabel();
                         if (checkProjectAccess()) {
                             if (_lcAttachPending) {
@@ -255,6 +269,10 @@ export async function init(activeTab = null, param = null) {
         ensureBillingRequestsListener();
         // Phase 99.1 — raw collectibles listener (idempotent, scoped to project_code)
         ensureCollectiblesListener();
+        // Phase 101 — journal listeners (only when panel is visible)
+        if (['For Mobilization', 'On-going', 'Completed'].includes(currentProject?.project_status)) {
+            ensureJournalListeners();
+        }
         await ensureIterationLabel();
 
         // Phase 7: Check project assignment access for operations_user
@@ -385,6 +403,21 @@ export async function destroy() {
     currentTasks = [];
     currentProjectProgress = { taskCount: 0, leafCount: 0, doneCount: 0, percentComplete: 0, health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [], upcomingTasks: [], recentDone: null };
     currentIterationLabel = null;
+
+    // Phase 101 — journal subcollection listener teardown
+    if (journalActivityUnsub) { try { journalActivityUnsub(); } catch (e) { /* swallow */ } }
+    journalActivityUnsub = null;
+    journalActivityEntries = [];
+
+    if (journalProgressUnsub) { try { journalProgressUnsub(); } catch (e) { /* swallow */ } }
+    journalProgressUnsub = null;
+    journalProgressUpdates = [];
+
+    if (journalIssuesUnsub) { try { journalIssuesUnsub(); } catch (e) { /* swallow */ } }
+    journalIssuesUnsub = null;
+    journalIssues = [];
+    _activeJournalTab = 'activity';
+    journalIssueFilter = 'all';
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -2351,6 +2384,82 @@ async function addProjectAuditEntry(projectId, action, actorId, actorName, comme
         });
     } catch (err) {
         console.error('[ProjectDetail] addProjectAuditEntry failed:', err);
+    }
+}
+
+// Phase 101 — shared write primitive for all journal activity entries.
+// Called by: postActivityEntry (Plan 03), resolveIssue/reopenIssue (Plan 04),
+// lifecycle gate transitions and field-edit auto-entries (Plan 05 / Plan 03 D-06/D-07).
+async function _addActivityEntry(projectId, { type, text, is_system = false }) {
+    try {
+        const cu = window.getCurrentUser?.();
+        await addDoc(collection(db, 'projects', projectId, 'activity_entries'), {
+            type,
+            text,
+            is_system,
+            created_by_uid: cu?.uid ?? '',
+            created_by_name: cu?.full_name || cu?.email || 'Unknown',
+            created_at: serverTimestamp(),
+        });
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] _addActivityEntry failed:', err);
+    }
+}
+
+// Phase 101 — idempotent attach of all three journal subcollection listeners.
+// Mirrors ensureBillingRequestsListener(): guarded against double-attach, torn down in destroy().
+// All THREE listeners attach simultaneously so tab switching is pure DOM show/hide with zero
+// listener churn — intentional D-18 deviation documented in 101-03-PLAN.md <notes>.
+function ensureJournalListeners() {
+    if (!currentProject?.id) return;
+    const projectId = currentProject.id;
+
+    if (!journalActivityUnsub) {
+        journalActivityUnsub = onSnapshot(
+            query(
+                collection(db, 'projects', projectId, 'activity_entries'),
+                orderBy('created_at', 'desc'),
+                limit(50)
+            ),
+            (snap) => {
+                journalActivityEntries = [];
+                snap.forEach(d => journalActivityEntries.push({ id: d.id, ...d.data() }));
+                _renderJournalPanelInPlace();
+            },
+            (err) => { console.error('[ProjectDetail/Journal] activity_entries snapshot error:', err); }
+        );
+    }
+
+    if (!journalProgressUnsub) {
+        journalProgressUnsub = onSnapshot(
+            query(
+                collection(db, 'projects', projectId, 'progress_updates'),
+                orderBy('created_at', 'desc'),
+                limit(50)
+            ),
+            (snap) => {
+                journalProgressUpdates = [];
+                snap.forEach(d => journalProgressUpdates.push({ id: d.id, ...d.data() }));
+                _renderJournalPanelInPlace();
+            },
+            (err) => { console.error('[ProjectDetail/Journal] progress_updates snapshot error:', err); }
+        );
+    }
+
+    if (!journalIssuesUnsub) {
+        journalIssuesUnsub = onSnapshot(
+            query(
+                collection(db, 'projects', projectId, 'issues'),
+                orderBy('created_at', 'desc'),
+                limit(50)
+            ),
+            (snap) => {
+                journalIssues = [];
+                snap.forEach(d => journalIssues.push({ id: d.id, ...d.data() }));
+                _renderJournalPanelInPlace();
+            },
+            (err) => { console.error('[ProjectDetail/Journal] issues snapshot error:', err); }
+        );
     }
 }
 
