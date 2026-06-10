@@ -3888,3 +3888,496 @@
 .comp-cell     { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 7px 10px; }
 .comp-cell-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 2px; }
 .comp-cell-val { font-size: 11.5px; color: #1e293b; font-weight: 500; word-break: break-all; }
+
+/* ===== Phase 101 — Project Journal Panel ===== */
+
+/* Panel shell */
+.project-journal-panel {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.journal-panel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.75rem;
+}
+
+/* Tab bar */
+.journal-tab-bar {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 0.75rem;
+}
+
+.journal-tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.5rem 0.9rem;
+    color: #64748b;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: inherit;
+    margin-bottom: -1px;
+    transition: color 0.12s;
+}
+
+.journal-tab-btn:hover {
+    color: #1e293b;
+}
+
+.journal-tab-btn.active {
+    color: #1a73e8;
+    border-bottom: 2px solid #1a73e8;
+}
+
+.journal-tab-panel {
+    /* visible by default; Plan 03 toggles display:none on inactive panels */
+}
+
+/* Feed composer (Activity tab) */
+.journal-composer {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.journal-tag-select {
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: #1e293b;
+    background: white;
+    cursor: pointer;
+    outline: none;
+    align-self: flex-start;
+}
+
+.journal-tag-select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.journal-composer-textarea {
+    width: 100%;
+    min-height: 64px;
+    resize: vertical;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #1e293b;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.journal-composer-textarea:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.journal-post-btn {
+    align-self: flex-end;
+    padding: 0.4rem 1rem;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.journal-post-btn:hover {
+    background: #1557b0;
+}
+
+.journal-post-btn:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* Feed list */
+.journal-feed-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.journal-entry {
+    padding: 0.5rem 0;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.journal-entry:first-child {
+    border-top: none;
+}
+
+.journal-entry-meta {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.journal-entry-text {
+    color: #1e293b;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.journal-entry--system {
+    border-left: 3px solid #94a3b8;
+    padding-left: 0.6rem;
+    background: #f8fafc;
+    border-radius: 0 6px 6px 0;
+    margin-left: -0.15rem;
+}
+
+.journal-entry--system .journal-entry-text {
+    color: #64748b;
+    font-style: italic;
+    font-size: 0.82rem;
+}
+
+/* Entry tag pills */
+.journal-entry-tag {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.journal-entry-tag--update {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.journal-entry-tag--milestone {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.journal-entry-tag--client {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.journal-entry-tag--system {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Progress Updates tab */
+.journal-progress-form {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.journal-progress-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 0.5rem;
+    align-items: start;
+}
+
+.journal-progress-row label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    padding-top: 0.35rem;
+}
+
+.journal-pct-input {
+    width: 100%;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #1e293b;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.journal-pct-input:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.journal-progress-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.7rem 0.85rem;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.journal-progress-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.journal-progress-pct-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    padding: 0.15rem 0.5rem;
+    background: #1a73e8;
+    color: white;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.journal-progress-card-meta {
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+.journal-progress-card-summary {
+    font-size: 0.83rem;
+    color: #1e293b;
+    line-height: 1.45;
+}
+
+.journal-progress-card-blockers {
+    font-size: 0.78rem;
+    color: #ef4444;
+}
+
+.journal-progress-card-next {
+    font-size: 0.78rem;
+    color: #475569;
+}
+
+/* Issues tab */
+.journal-issue-filters {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.journal-filter-chip {
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    cursor: pointer;
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: inherit;
+    background: white;
+    transition: all 0.1s;
+}
+
+.journal-filter-chip:hover {
+    border-color: #1a73e8;
+    color: #1a73e8;
+}
+
+.journal-filter-chip.active {
+    background: #1a73e8;
+    color: white;
+    border-color: #1a73e8;
+}
+
+.journal-issue-form {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.journal-issue {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.journal-issue-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.journal-issue-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1e293b;
+    flex: 1;
+    min-width: 0;
+}
+
+.journal-issue-description {
+    font-size: 0.8rem;
+    color: #475569;
+    line-height: 1.45;
+}
+
+.journal-issue-meta {
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+/* Issue type chips */
+.journal-issue-type-chip {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.journal-issue-type-chip--delay {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.journal-issue-type-chip--change_order {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.journal-issue-type-chip--site_issue {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.journal-issue-type-chip--client_request {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+/* Issue status badges */
+.journal-issue-status--open {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.journal-issue-status--resolved {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #059669;
+}
+
+/* Issue action buttons */
+.journal-issue-resolve-btn {
+    padding: 0.25rem 0.7rem;
+    background: #f59e0b;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.journal-issue-resolve-btn:hover {
+    background: #d97706;
+}
+
+.journal-issue-reopen-btn {
+    padding: 0.25rem 0.7rem;
+    background: white;
+    color: #64748b;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+
+.journal-issue-reopen-btn:hover {
+    border-color: #94a3b8;
+    color: #1e293b;
+}
+
+.journal-resolution-notes {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-style: italic;
+    background: #f1f5f9;
+    border-radius: 5px;
+    padding: 0.35rem 0.6rem;
+    margin-top: 0.2rem;
+    border-left: 3px solid #059669;
+    word-break: break-word;
+}
+
+/* Read-only state — hide all write surfaces */
+.project-journal-panel--readonly .journal-composer,
+.project-journal-panel--readonly .journal-progress-form,
+.project-journal-panel--readonly .journal-issue-form,
+.project-journal-panel--readonly .journal-issue-resolve-btn,
+.project-journal-panel--readonly .journal-issue-reopen-btn {
+    display: none;
+}
+
+/* ===== End Phase 101 — Project Journal Panel ===== */
