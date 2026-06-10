@@ -265,6 +265,37 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if false;
       }
+
+      // activity_entries subcollection (Phase 101 — append-only journal entries)
+      // Create: any active user (D-15: all roles with project access can post, no role-gating within journal)
+      // No update — append-only audit trail
+      // Delete: admin-only per spike-032 contract (mirrors baselines block admin-delete pattern)
+      match /activity_entries/{entryId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if false;
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
+
+      // progress_updates subcollection (Phase 101 — structured periodic check-ins)
+      // Create: any active user. No update — append-only.
+      // Delete: admin-only per spike-032 contract
+      match /progress_updates/{updateId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if false;
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
+
+      // issues subcollection (Phase 101 — categorized punch list with open/resolved state)
+      // Create: any active user. Update: any active user (open↔resolved transitions per D-13/D-14).
+      // Delete: admin-only per spike-032 contract
+      match /issues/{issueId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser();  // open↔resolved transitions per D-13/D-14
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
     }
 
     // =============================================
