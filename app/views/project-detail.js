@@ -54,6 +54,7 @@ let journalIssueFilter = 'all'; // Plan 04 filter state; declared here so destro
 let journalProgressFormOpen = false; // collapsible progress form state
 let journalIssueFormOpen = false; // collapsible issue form state
 let journalResolvingIssueId = null; // inline resolve form: which issue is open
+let journalSelectedTag = 'update'; // active tag pill in activity composer
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -448,6 +449,7 @@ export async function destroy() {
     journalProgressFormOpen = false;
     journalIssueFormOpen = false;
     journalResolvingIssueId = null;
+    journalSelectedTag = 'update';
 
     // Clean up personnel pill state
     if (personnelClickOutsideHandler) {
@@ -502,6 +504,7 @@ export async function destroy() {
     // Phase 101 — journal panel window functions cleanup
     delete window.switchJournalTab;
     delete window.postActivityEntry;
+    delete window.selectJournalTag;
     delete window.submitProgressUpdate;
     delete window.setIssueFilter;
     delete window.submitNewIssue;
@@ -2448,6 +2451,27 @@ const JOURNAL_VISIBLE_STATUSES = [...JOURNAL_WRITE_STATUSES, 'Completed'];
 // Build the full journal panel HTML for a given project.
 // Returns '' when the panel should be hidden (D-03).
 // The progress and issues tab bodies are left as placeholders — Plan 04 fills them.
+function _avatarColor(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const palette = ['#1a73e8', '#9333ea', '#059669', '#ef4444', '#f59e0b', '#0ea5e9', '#7c3aed'];
+    return palette[Math.abs(hash) % palette.length];
+}
+
+function _avatarInitials(name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase() || '?';
+}
+
+function selectJournalTag(tag) {
+    journalSelectedTag = tag;
+    ['update', 'milestone', 'issue', 'client'].forEach(t => {
+        const btn = document.querySelector(`.journal-tag-pill.${t}`);
+        if (btn) btn.classList.toggle('selected', t === tag);
+    });
+}
+
 function _buildJournalPanelHtml(project) {
     const isVisible = JOURNAL_VISIBLE_STATUSES.includes(project.project_status);
     if (!isVisible) return '';
@@ -2462,7 +2486,7 @@ function _buildJournalPanelHtml(project) {
         issues: journalIssues.length,
     };
 
-    const tabBarHtml = `<div class="journal-tab-bar">${
+    const tabBarHtml = `<div class="journal-ap-tabs">${
         tabs.map(t => `<button
             id="journalTabBtn-${t}"
             class="journal-tab-btn${_activeJournalTab === t ? ' active' : ''}"
@@ -2472,15 +2496,17 @@ function _buildJournalPanelHtml(project) {
 
     // Activity Feed panel
     const composerHtml = !isReadOnly ? `
-        <div class="journal-composer">
-            <select id="journalTagSelect" class="journal-tag-select">
-                <option value="update">Update</option>
-                <option value="milestone">Milestone</option>
-                <option value="issue">Issue</option>
-                <option value="client">Client Comm</option>
-            </select>
-            <textarea id="journalComposerText" class="journal-composer-textarea" placeholder="Add a note…" rows="2"></textarea>
-            <button class="journal-post-btn" onclick="window.postActivityEntry()">Post</button>
+        <div class="journal-feed-composer">
+            <textarea id="journalComposerText" placeholder="Add a note, update, or observation…" rows="2"></textarea>
+            <div class="journal-composer-footer">
+                <div class="journal-tag-row">
+                    <button class="journal-tag-pill update${journalSelectedTag === 'update' ? ' selected' : ''}" onclick="window.selectJournalTag('update')">Update</button>
+                    <button class="journal-tag-pill milestone${journalSelectedTag === 'milestone' ? ' selected' : ''}" onclick="window.selectJournalTag('milestone')">Milestone</button>
+                    <button class="journal-tag-pill issue${journalSelectedTag === 'issue' ? ' selected' : ''}" onclick="window.selectJournalTag('issue')">Issue</button>
+                    <button class="journal-tag-pill client${journalSelectedTag === 'client' ? ' selected' : ''}" onclick="window.selectJournalTag('client')">Client Comm.</button>
+                </div>
+                <button class="journal-post-btn" onclick="window.postActivityEntry()">Post</button>
+            </div>
         </div>` : '';
 
     const feedHtml = `<div class="journal-feed-list">${
@@ -2489,18 +2515,16 @@ function _buildJournalPanelHtml(project) {
             : journalActivityEntries.map(e => _renderFeedEntry(e)).join('')
     }</div>`;
 
-    const activityPanelHtml = `<div id="journalTab-activity" class="journal-tab-panel"${_activeJournalTab !== 'activity' ? ' style="display:none"' : ''}>
+    const activityPanelHtml = `<div id="journalTab-activity" class="journal-tab-panel${_activeJournalTab === 'activity' ? ' visible' : ''}">
         ${composerHtml}
         ${feedHtml}
     </div>`;
 
-    // Progress Updates panel — Plan 04: real form + history
-    const progressPanelHtml = `<div id="journalTab-progress" class="journal-tab-panel"${_activeJournalTab !== 'progress' ? ' style="display:none"' : ''}>
+    const progressPanelHtml = `<div id="journalTab-progress" class="journal-tab-panel${_activeJournalTab === 'progress' ? ' visible' : ''}">
         ${_buildProgressTabHtml(project, isReadOnly)}
     </div>`;
 
-    // Issues panel — Plan 04: filter chips + form + punch list
-    const issuesPanelHtml = `<div id="journalTab-issues" class="journal-tab-panel"${_activeJournalTab !== 'issues' ? ' style="display:none"' : ''}>
+    const issuesPanelHtml = `<div id="journalTab-issues" class="journal-tab-panel${_activeJournalTab === 'issues' ? ' visible' : ''}">
         ${_buildIssuesTabHtml(project, isReadOnly)}
     </div>`;
 
@@ -2509,19 +2533,25 @@ function _buildJournalPanelHtml(project) {
         const startMs = new Date(project.project_started_at).getTime();
         if (!isNaN(startMs)) {
             const days = Math.max(0, Math.floor((Date.now() - startMs) / (1000 * 60 * 60 * 24)));
-            daysRunningHtml = `<span class="journal-days-running">${days} day${days !== 1 ? 's' : ''} running</span>`;
+            const startDateStr = new Date(startMs).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+            daysRunningHtml = `<span class="journal-days-running">Started ${startDateStr} · ${days} day${days !== 1 ? 's' : ''} running</span>`;
         }
     }
 
     return `<div id="projectJournalPanel" class="project-journal-panel${isReadOnly ? ' project-journal-panel--readonly' : ''}">
-        <div class="journal-panel-header">
-            <div class="journal-panel-title">📋 On-going Activity</div>
+        <div class="journal-ap-header">
+            <div class="journal-ap-header-left">
+                <span style="font-size:16px">📋</span>
+                <h3 style="font-size:14px;font-weight:700;margin:0;">On-going Activity</h3>
+            </div>
             ${daysRunningHtml}
         </div>
         ${tabBarHtml}
-        ${activityPanelHtml}
-        ${progressPanelHtml}
-        ${issuesPanelHtml}
+        <div class="journal-ap-body">
+            ${activityPanelHtml}
+            ${progressPanelHtml}
+            ${issuesPanelHtml}
+        </div>
     </div>`;
 }
 
@@ -2532,18 +2562,38 @@ function _renderFeedEntry(entry) {
         ? new Date(entry.created_at.seconds * 1000)
         : (entry.created_at?.toDate ? entry.created_at.toDate() : new Date());
     const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-    const authorName = escapeHTML(entry.created_by_name || 'Unknown');
     const tagType = entry.type || 'update';
-    const tagLabel = { update: 'Update', milestone: 'Milestone', issue: 'Issue', client: 'Client', system: 'System', edit: 'Edit' }[tagType] || escapeHTML(tagType);
+    const tagLabel = { update: 'UPDATE', milestone: 'MILESTONE', issue: 'ISSUE', client: 'CLIENT', system: 'SYSTEM', edit: 'EDIT' }[tagType] || escapeHTML(tagType).toUpperCase();
     const isSystem = entry.is_system || tagType === 'system' || tagType === 'edit';
+    const badgeType = (tagType === 'edit') ? 'system' : tagType;
 
-    return `<div class="journal-entry${isSystem ? ' journal-entry--system' : ''}">
-        <div class="journal-entry-meta">
-            <span class="journal-entry-tag journal-entry-tag--${escapeHTML(tagType)}">${tagLabel}</span>
-            <span>${escapeHTML(timeStr)}</span>
-            ${!isSystem ? `<span>${authorName}</span>` : ''}
+    if (isSystem) {
+        return `<div class="journal-feed-entry">
+            <div class="journal-feed-avatar" style="background:#94a3b8;font-size:10px;">SYS</div>
+            <div class="journal-feed-right">
+                <div class="journal-feed-meta">
+                    <span class="journal-feed-system">System</span>
+                    <span class="journal-feed-tag-badge journal-badge-${escapeHTML(badgeType)}">${tagLabel}</span>
+                    <span class="journal-feed-time">${escapeHTML(timeStr)}</span>
+                </div>
+                <div class="journal-feed-text">${escapeHTML(entry.text || '')}</div>
+            </div>
+        </div>`;
+    }
+
+    const authorName = entry.created_by_name || 'Unknown';
+    const avatarBg = _avatarColor(authorName);
+    const initials = _avatarInitials(authorName);
+    return `<div class="journal-feed-entry">
+        <div class="journal-feed-avatar" style="background:${avatarBg};">${escapeHTML(initials)}</div>
+        <div class="journal-feed-right">
+            <div class="journal-feed-meta">
+                <span class="journal-feed-author">${escapeHTML(authorName)}</span>
+                <span class="journal-feed-tag-badge journal-badge-${escapeHTML(tagType)}">${tagLabel}</span>
+                <span class="journal-feed-time">${escapeHTML(timeStr)}</span>
+            </div>
+            <div class="journal-feed-text">${escapeHTML(entry.text || '')}</div>
         </div>
-        <div class="journal-entry-text">${escapeHTML(entry.text || '')}</div>
     </div>`;
 }
 
@@ -2563,14 +2613,14 @@ function _renderJournalPanelInPlace() {
     el.replaceWith(tmp.firstElementChild);
 }
 
-// DOM-only tab switcher — mirrors lcSwitchTab (lines 2478–2487).
+// DOM-only tab switcher — mirrors lcSwitchTab.
 // All three listeners already running; no new Firestore subscriptions needed.
 function switchJournalTab(tab) {
     _activeJournalTab = tab;
     ['activity', 'progress', 'issues'].forEach(t => {
         const panel = document.getElementById('journalTab-' + t);
         const btn = document.getElementById('journalTabBtn-' + t);
-        if (panel) panel.style.display = (t === tab) ? '' : 'none';
+        if (panel) panel.classList.toggle('visible', t === tab);
         if (btn) btn.classList.toggle('active', t === tab);
     });
 }
@@ -2580,9 +2630,8 @@ function switchJournalTab(tab) {
 // then persists via _addActivityEntry. The next onSnapshot rebuilds the array from
 // Firestore (array-replace — the optimistic entry is replaced by the real doc).
 async function postActivityEntry() {
-    const tagSelect = document.getElementById('journalTagSelect');
     const textEl = document.getElementById('journalComposerText');
-    const type = tagSelect?.value || 'update';
+    const type = journalSelectedTag || 'update';
     const text = (textEl?.value || '').trim();
     if (!text) { showToast('Enter a note before posting.', 'error'); return; }
 
@@ -2635,16 +2684,33 @@ function _renderProgressCard(u) {
     const ts = u.created_at?.seconds
         ? new Date(u.created_at.seconds * 1000)
         : (u.created_at?.toDate ? u.created_at.toDate() : new Date());
+    const dateStr = ts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
     const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
     const pct = Number(u.pct_complete) || 0;
-    return `<div class="journal-progress-card">
-        <div class="journal-progress-card-header">
-            <span class="journal-pct-badge">${pct}%</span>
-            <span class="journal-entry-meta-text">${escapeHTML(timeStr)} &mdash; ${escapeHTML(u.created_by_name || 'Unknown')}</span>
+    const barColor = pct < 30 ? '#f59e0b' : '#1a73e8';
+    return `<div class="journal-pu-card">
+        <div class="journal-pu-card-header">
+            <div>
+                <div class="journal-pu-card-title">Week of ${escapeHTML(dateStr)}</div>
+                <div class="journal-pu-card-meta">Submitted by ${escapeHTML(u.created_by_name || 'Unknown')} · ${escapeHTML(timeStr)}</div>
+            </div>
+            <div class="journal-pu-pct-num" style="color:${barColor}">${pct}%</div>
         </div>
-        ${u.summary ? `<div class="journal-progress-field"><span class="journal-progress-label">Summary:</span> ${escapeHTML(u.summary)}</div>` : ''}
-        ${u.blockers ? `<div class="journal-progress-field"><span class="journal-progress-label">Blockers:</span> ${escapeHTML(u.blockers)}</div>` : ''}
-        ${u.next_milestone ? `<div class="journal-progress-field"><span class="journal-progress-label">Next Milestone:</span> ${escapeHTML(u.next_milestone)}</div>` : ''}
+        <div class="journal-pu-pct-bar"><div class="journal-pu-pct-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="journal-pu-fields">
+            <div class="journal-pu-field">
+                <div class="journal-pu-field-label">Summary</div>
+                <div class="journal-pu-field-val">${escapeHTML(u.summary || '—')}</div>
+            </div>
+            <div class="journal-pu-field">
+                <div class="journal-pu-field-label">Blockers</div>
+                <div class="journal-pu-field-val${u.blockers ? ' journal-pu-field-val--blockers' : ''}">${escapeHTML(u.blockers || 'None')}</div>
+            </div>
+            ${u.next_milestone ? `<div class="journal-pu-field journal-pu-field--full">
+                <div class="journal-pu-field-label">Next Milestone</div>
+                <div class="journal-pu-field-val">${escapeHTML(u.next_milestone)}</div>
+            </div>` : ''}
+        </div>
     </div>`;
 }
 
@@ -2652,34 +2718,40 @@ function _renderProgressCard(u) {
 // When isReadOnly, the form is omitted.
 function _buildProgressTabHtml(project, isReadOnly) {
     const formHtml = !isReadOnly ? `
-        <button class="journal-new-btn" onclick="window.toggleProgressForm()" style="margin-bottom:0.6rem;">
-            ${journalProgressFormOpen ? '✕ Cancel' : '+ New Progress Update'}
-        </button>
-        <div class="journal-progress-form"${journalProgressFormOpen ? '' : ' style="display:none"'}>
-            <div class="journal-progress-row">
-                <label for="journalProgPct">% Complete</label>
-                <input type="number" id="journalProgPct" class="journal-pct-input" min="0" max="100" step="1" placeholder="0" style="width:70px;" />
+        <div style="margin-bottom:14px">
+            <button class="journal-new-btn" onclick="window.toggleProgressForm()">${journalProgressFormOpen ? '✕ Cancel' : '+ New Progress Update'}</button>
+        </div>
+        <div class="journal-pu-form"${journalProgressFormOpen ? '' : ' style="display:none"'}>
+            <div class="journal-form-row">
+                <label>Overall % Complete</label>
+                <div class="journal-pct-row">
+                    <input type="range" id="journalProgPct" min="0" max="100" value="0" class="journal-pct-slider" oninput="document.getElementById('journalProgPctVal').textContent=this.value+'%'" />
+                    <span class="journal-pct-value" id="journalProgPctVal">0%</span>
+                </div>
             </div>
-            <div class="journal-progress-row">
-                <label for="journalProgSummary">Summary <span style="color:#ef4444">*</span></label>
-                <textarea id="journalProgSummary" placeholder="What was accomplished?" rows="2" style="width:100%;"></textarea>
+            <div class="journal-form-row">
+                <label>Summary / What was done <span style="color:#ef4444">*</span></label>
+                <textarea id="journalProgSummary" placeholder="e.g. Completed conduit roughing-in for Levels B2–G." rows="2"></textarea>
             </div>
-            <div class="journal-progress-row">
-                <label for="journalProgBlockers">Blockers</label>
-                <textarea id="journalProgBlockers" placeholder="Any blockers or risks?" rows="2" style="width:100%;"></textarea>
+            <div class="journal-form-row">
+                <label>Blockers / Issues</label>
+                <textarea id="journalProgBlockers" placeholder="e.g. Awaiting delivery — ETA Jun 15." rows="2"></textarea>
             </div>
-            <div class="journal-progress-row">
-                <label for="journalProgNext">Next Milestone</label>
-                <input type="text" id="journalProgNext" placeholder="Next target or milestone" style="width:100%;" />
+            <div class="journal-form-row">
+                <label>Next Milestone</label>
+                <input type="text" id="journalProgNext" placeholder="e.g. Complete panel board wiring by Jun 20" />
             </div>
-            <button class="journal-post-btn" onclick="window.submitProgressUpdate()">Submit Update</button>
+            <div class="journal-form-actions">
+                <button class="journal-cancel-btn" onclick="window.toggleProgressForm()">Cancel</button>
+                <button class="journal-post-btn" onclick="window.submitProgressUpdate()">Save Update</button>
+            </div>
         </div>` : '';
 
     const historyHtml = journalProgressUpdates.length === 0
         ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No progress updates yet.</div>'
         : journalProgressUpdates.map(u => _renderProgressCard(u)).join('');
 
-    return `${formHtml}<div class="journal-progress-history">${historyHtml}</div>`;
+    return `${formHtml}<div class="journal-pu-history">${historyHtml}</div>`;
 }
 
 // Submit a new Progress Update entry to Firestore.
@@ -2710,7 +2782,7 @@ async function submitProgressUpdate() {
         journalProgressFormOpen = false;
         showToast('Progress update submitted.', 'success');
         // Clear fields
-        if (pctEl) pctEl.value = '';
+        if (pctEl) { pctEl.value = '0'; const pv = document.getElementById('journalProgPctVal'); if (pv) pv.textContent = '0%'; }
         if (summaryEl) summaryEl.value = '';
         if (blockersEl) blockersEl.value = '';
         if (nextEl) nextEl.value = '';
@@ -2745,91 +2817,126 @@ const ISSUE_TYPE_LABELS = {
     site_issue: 'Site Issue',
     client_request: 'Client Request',
 };
+const ISSUE_TYPE_DOT_CLASS = { delay: 'delay', change_order: 'change', site_issue: 'site', client_request: 'client' };
+const ISSUE_TYPE_BADGE_CLASS = { delay: 'delay', change_order: 'change', site_issue: 'site', client_request: 'client-req' };
 
 // Render a single issue row in the punch list.
 function _renderIssueRow(issue, isReadOnly) {
     const typeLabel = ISSUE_TYPE_LABELS[issue.issue_type] || escapeHTML(issue.issue_type || '');
-    const seqNum = _issueSeqNum(issue.id);
     const isResolved = issue.status === 'resolved';
+    const dotClass = ISSUE_TYPE_DOT_CLASS[issue.issue_type] || 'delay';
+    const badgeClass = ISSUE_TYPE_BADGE_CLASS[issue.issue_type] || 'delay';
 
     const ts = issue.created_at?.seconds
         ? new Date(issue.created_at.seconds * 1000)
         : (issue.created_at?.toDate ? issue.created_at.toDate() : new Date());
-    const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const loggedStr = ts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
 
-    const resolutionBlock = isResolved ? `
-        <div class="journal-resolution-notes">
-            <span style="font-weight:600;">Resolution:</span> ${escapeHTML(issue.resolution_notes || '')}
-        </div>` : '';
+    let resolvedDateStr = '';
+    if (isResolved && issue.resolved_at) {
+        const rts = issue.resolved_at?.seconds
+            ? new Date(issue.resolved_at.seconds * 1000)
+            : (issue.resolved_at?.toDate ? issue.resolved_at.toDate() : null);
+        if (rts) resolvedDateStr = ` · Resolved ${rts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}`;
+    }
 
     const isResolvingThis = !isReadOnly && !isResolved && journalResolvingIssueId === issue.id;
-    const actionBtn = !isReadOnly
-        ? (isResolved
-            ? `<button class="journal-issue-reopen-btn" onclick="window.reopenIssue('${escapeHTML(issue.id)}')">Re-open</button>`
-            : (isResolvingThis
-                ? ''
-                : `<button class="journal-issue-resolve-btn" onclick="window.showResolveForm('${escapeHTML(issue.id)}')">Resolve</button>`))
-        : '';
+
+    let actionBtn = '';
+    if (!isReadOnly) {
+        if (isResolved) {
+            actionBtn = `<button class="journal-cancel-btn" style="margin-left:auto;" onclick="window.reopenIssue('${escapeHTML(issue.id)}')">Re-open</button>`;
+        } else if (!isResolvingThis) {
+            actionBtn = `<button class="journal-post-btn" style="margin-left:auto;background:#f59e0b;" onclick="window.showResolveForm('${escapeHTML(issue.id)}')">Mark Resolved</button>`;
+        }
+    }
+
+    const resolutionBlock = isResolved && issue.resolution_notes ? `
+        <div class="journal-resolution-notes"><span style="font-weight:600;">Resolution:</span> ${escapeHTML(issue.resolution_notes)}</div>` : '';
 
     const resolveFormHtml = isResolvingThis ? `
         <div class="journal-resolve-form">
             <textarea id="journalResolveNotes" placeholder="Resolution notes (required)" rows="2"></textarea>
-            <div class="journal-resolve-actions">
-                <button class="journal-issue-reopen-btn" onclick="window.cancelResolveForm()">Cancel</button>
+            <div class="journal-form-actions" style="margin-top:8px;">
+                <button class="journal-cancel-btn" onclick="window.cancelResolveForm()">Cancel</button>
                 <button class="journal-post-btn" onclick="window.resolveIssue('${escapeHTML(issue.id)}')">Submit Resolution</button>
             </div>
         </div>` : '';
 
-    return `<div class="journal-issue">
-        <div class="journal-issue-header">
-            <span class="journal-issue-type-dot journal-issue-dot--${escapeHTML(issue.issue_type || '')}"></span>
-            <span class="journal-issue-seq">#${seqNum}</span>
-            <span class="journal-issue-type-chip journal-issue-type-chip--${escapeHTML(issue.issue_type || '')}">${typeLabel}</span>
-            <span class="journal-issue-title">${escapeHTML(issue.title || '')}</span>
-            <span class="journal-issue-status--${isResolved ? 'resolved' : 'open'}">${isResolved ? 'Resolved' : 'Open'}</span>
-            ${actionBtn}
+    return `<div class="journal-issue-card${isResolved ? ' resolved' : ''}">
+        <div class="journal-issue-left">
+            <div class="journal-issue-type-dot journal-dot-${escapeHTML(dotClass)}"></div>
         </div>
-        ${issue.description ? `<div class="journal-issue-desc">${escapeHTML(issue.description)}</div>` : ''}
-        ${resolutionBlock}
-        ${resolveFormHtml}
-        <div class="journal-issue-meta" style="font-size:0.78rem;color:#94a3b8;margin-top:0.25rem;">${escapeHTML(timeStr)} &mdash; ${escapeHTML(issue.created_by_name || 'Unknown')}</div>
+        <div class="journal-issue-right">
+            <div class="journal-issue-title">${escapeHTML(issue.title || '')}</div>
+            ${issue.description ? `<div class="journal-issue-desc">${escapeHTML(issue.description)}</div>` : ''}
+            <div class="journal-issue-footer">
+                <span class="journal-issue-type-badge journal-badge-${escapeHTML(badgeClass)}">${typeLabel.toUpperCase()}</span>
+                ${isResolved ? `<span class="journal-issue-type-badge journal-badge-resolved">✓ RESOLVED</span>` : ''}
+                <span class="journal-issue-date">Logged ${escapeHTML(loggedStr)}${escapeHTML(resolvedDateStr)}</span>
+                ${actionBtn}
+            </div>
+            ${resolutionBlock}
+            ${resolveFormHtml}
+        </div>
     </div>`;
 }
 
 // Build the full Issues tab HTML (filter chips + optional form + punch list).
 function _buildIssuesTabHtml(project, isReadOnly) {
-    const filterChips = ['all', 'open', 'resolved'].map(f =>
-        `<button class="journal-filter-chip${journalIssueFilter === f ? ' active' : ''}" onclick="window.setIssueFilter('${f}')">${f.charAt(0).toUpperCase() + f.slice(1)}</button>`
+    const openCount = journalIssues.filter(i => i.status === 'open').length;
+    const resolvedCount = journalIssues.filter(i => i.status === 'resolved').length;
+    const totalCount = journalIssues.length;
+
+    const filterChips = [
+        { key: 'all', label: `All (${totalCount})` },
+        { key: 'open', label: `Open (${openCount})` },
+        { key: 'resolved', label: `Resolved (${resolvedCount})` },
+    ].map(f =>
+        `<button class="journal-filter-chip${journalIssueFilter === f.key ? ' active' : ''}" onclick="window.setIssueFilter('${f.key}')">${f.label}</button>`
     ).join('');
-    const newIssueBtn = !isReadOnly
-        ? `<button class="journal-new-btn" onclick="window.toggleIssueForm()" style="margin-left:auto;">${journalIssueFormOpen ? '✕ Cancel' : '+ Log Issue'}</button>`
-        : '';
-    const filterBar = `<div class="journal-issue-filters">${filterChips}${newIssueBtn}</div>`;
+
+    const toolbarHtml = `<div class="journal-issue-toolbar">
+        <div class="journal-filter-chips">${filterChips}</div>
+        ${!isReadOnly ? `<button class="journal-new-btn" style="margin-bottom:0;" onclick="window.toggleIssueForm()">${journalIssueFormOpen ? '✕ Cancel' : '+ Log Issue'}</button>` : ''}
+    </div>`;
 
     const formHtml = !isReadOnly ? `
-        <div class="journal-issue-form"${journalIssueFormOpen ? '' : ' style="display:none"'}>
-            <select id="journalIssueType">
-                <option value="delay">Delay</option>
-                <option value="change_order">Change Order</option>
-                <option value="site_issue">Site Issue</option>
-                <option value="client_request">Client Request</option>
-            </select>
-            <input type="text" id="journalIssueTitle" placeholder="Issue title (required)" style="width:100%;" />
-            <textarea id="journalIssueDesc" placeholder="Description (optional)" rows="2" style="width:100%;"></textarea>
-            <button class="journal-post-btn" onclick="window.submitNewIssue()">Log Issue</button>
+        <div class="journal-issue-form${journalIssueFormOpen ? ' visible' : ''}">
+            <div class="journal-form-row">
+                <label>Issue Type</label>
+                <select id="journalIssueType">
+                    <option value="delay">Delay</option>
+                    <option value="change_order">Change Order</option>
+                    <option value="site_issue">Site Issue</option>
+                    <option value="client_request">Client Request</option>
+                </select>
+            </div>
+            <div class="journal-form-row">
+                <label>Title <span style="color:#ef4444">*</span></label>
+                <input type="text" id="journalIssueTitle" placeholder="Short description of the issue" />
+            </div>
+            <div class="journal-form-row">
+                <label>Details</label>
+                <textarea id="journalIssueDesc" placeholder="What happened? Impact? Action taken?" rows="2"></textarea>
+            </div>
+            <div class="journal-form-actions">
+                <button class="journal-cancel-btn" onclick="window.toggleIssueForm()">Cancel</button>
+                <button class="journal-post-btn" style="background:#ef4444;" onclick="window.submitNewIssue()">Log Issue</button>
+            </div>
         </div>` : '';
 
     const filtered = journalIssues.filter(i => {
         if (journalIssueFilter === 'open') return i.status === 'open';
         if (journalIssueFilter === 'resolved') return i.status === 'resolved';
-        return true; // 'all'
+        return true;
     });
 
     const listHtml = filtered.length === 0
         ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No issues logged yet.</div>'
         : filtered.map(i => _renderIssueRow(i, isReadOnly)).join('');
 
-    return `${filterBar}${formHtml}<div class="journal-issue-list">${listHtml}</div>`;
+    return `${toolbarHtml}${formHtml}<div class="journal-issue-list">${listHtml}</div>`;
 }
 
 // Set the active issue filter and re-render the panel.
@@ -3052,6 +3159,7 @@ function attachWindowFunctions() {
     // Phase 101 — journal panel tab switching and post
     window.switchJournalTab = switchJournalTab;
     window.postActivityEntry = postActivityEntry;
+    window.selectJournalTag = selectJournalTag;
     window.submitProgressUpdate = submitProgressUpdate;
     window.setIssueFilter = setIssueFilter;
     window.submitNewIssue = submitNewIssue;
