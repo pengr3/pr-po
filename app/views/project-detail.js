@@ -472,6 +472,7 @@ export async function destroy() {
     // Phase 101 — journal panel window functions cleanup
     delete window.switchJournalTab;
     delete window.postActivityEntry;
+    delete window.submitProgressUpdate;
     document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
@@ -2443,9 +2444,9 @@ function _buildJournalPanelHtml(project) {
         ${feedHtml}
     </div>`;
 
-    // Progress Updates panel — Plan 04 fills the body; placeholder for now
+    // Progress Updates panel — Plan 04: real form + history
     const progressPanelHtml = `<div id="journalTab-progress" class="journal-tab-panel"${_activeJournalTab !== 'progress' ? ' style="display:none"' : ''}>
-        <div data-journal-placeholder="progress"></div>
+        ${_buildProgressTabHtml(project, isReadOnly)}
     </div>`;
 
     // Issues panel — Plan 04 fills the body; placeholder for now
@@ -2565,6 +2566,95 @@ async function _addActivityEntry(projectId, { type, text, is_system = false }) {
     }
 }
 
+// Phase 101 Plan 04 — Progress Updates tab builder and submit handler.
+
+// Render a single progress update card (newest-first; history list).
+function _renderProgressCard(u) {
+    const ts = u.created_at?.seconds
+        ? new Date(u.created_at.seconds * 1000)
+        : (u.created_at?.toDate ? u.created_at.toDate() : new Date());
+    const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const pct = Number(u.pct_complete) || 0;
+    return `<div class="journal-progress-card">
+        <div class="journal-progress-card-header">
+            <span class="journal-pct-badge">${pct}%</span>
+            <span class="journal-entry-meta-text">${escapeHTML(timeStr)} &mdash; ${escapeHTML(u.created_by_name || 'Unknown')}</span>
+        </div>
+        ${u.summary ? `<div class="journal-progress-field"><span class="journal-progress-label">Summary:</span> ${escapeHTML(u.summary)}</div>` : ''}
+        ${u.blockers ? `<div class="journal-progress-field"><span class="journal-progress-label">Blockers:</span> ${escapeHTML(u.blockers)}</div>` : ''}
+        ${u.next_milestone ? `<div class="journal-progress-field"><span class="journal-progress-label">Next Milestone:</span> ${escapeHTML(u.next_milestone)}</div>` : ''}
+    </div>`;
+}
+
+// Build the full Progress Updates tab HTML (form + history list).
+// When isReadOnly, the form is omitted.
+function _buildProgressTabHtml(project, isReadOnly) {
+    const formHtml = !isReadOnly ? `
+        <div class="journal-progress-form">
+            <div class="journal-progress-row">
+                <label for="journalProgPct" style="font-size:0.82rem;color:#475569;">% Complete</label>
+                <input type="number" id="journalProgPct" class="journal-pct-input" min="0" max="100" step="1" placeholder="0" style="width:70px;" />
+            </div>
+            <div class="journal-progress-row">
+                <label for="journalProgSummary" style="font-size:0.82rem;color:#475569;">Summary <span style="color:#ef4444">*</span></label>
+                <textarea id="journalProgSummary" placeholder="What was accomplished?" rows="2" style="width:100%;"></textarea>
+            </div>
+            <div class="journal-progress-row">
+                <label for="journalProgBlockers" style="font-size:0.82rem;color:#475569;">Blockers</label>
+                <textarea id="journalProgBlockers" placeholder="Any blockers or risks?" rows="2" style="width:100%;"></textarea>
+            </div>
+            <div class="journal-progress-row">
+                <label for="journalProgNext" style="font-size:0.82rem;color:#475569;">Next Milestone</label>
+                <input type="text" id="journalProgNext" placeholder="Next target or milestone" style="width:100%;" />
+            </div>
+            <button class="journal-post-btn" onclick="window.submitProgressUpdate()">Submit Update</button>
+        </div>` : '';
+
+    const historyHtml = journalProgressUpdates.length === 0
+        ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No progress updates yet.</div>'
+        : journalProgressUpdates.map(u => _renderProgressCard(u)).join('');
+
+    return `${formHtml}<div class="journal-progress-history">${historyHtml}</div>`;
+}
+
+// Submit a new Progress Update entry to Firestore.
+async function submitProgressUpdate() {
+    const pctEl = document.getElementById('journalProgPct');
+    const summaryEl = document.getElementById('journalProgSummary');
+    const blockersEl = document.getElementById('journalProgBlockers');
+    const nextEl = document.getElementById('journalProgNext');
+
+    const summary = (summaryEl?.value || '').trim();
+    if (!summary) { showToast('Add a progress summary.', 'error'); return; }
+
+    const pct = Math.max(0, Math.min(100, parseInt(pctEl?.value || '0', 10) || 0));
+    const blockers = (blockersEl?.value || '').trim();
+    const next_milestone = (nextEl?.value || '').trim();
+
+    const cu = window.getCurrentUser?.();
+    try {
+        await addDoc(collection(db, 'projects', currentProject.id, 'progress_updates'), {
+            pct_complete: pct,
+            summary,
+            blockers,
+            next_milestone,
+            created_by_uid: cu?.uid ?? '',
+            created_by_name: cu?.full_name || cu?.email || 'Unknown',
+            created_at: serverTimestamp(),
+        });
+        showToast('Progress update submitted.', 'success');
+        // Clear fields
+        if (pctEl) pctEl.value = '';
+        if (summaryEl) summaryEl.value = '';
+        if (blockersEl) blockersEl.value = '';
+        if (nextEl) nextEl.value = '';
+        // onSnapshot listener re-renders the panel automatically
+    } catch (err) {
+        console.error('[ProjectDetail/Journal] submitProgressUpdate failed:', err);
+        showToast('Failed to submit progress update. Please try again.', 'error');
+    }
+}
+
 // Phase 101 — idempotent attach of all three journal subcollection listeners.
 // Mirrors ensureBillingRequestsListener(): guarded against double-attach, torn down in destroy().
 // All THREE listeners attach simultaneously so tab switching is pure DOM show/hide with zero
@@ -2665,6 +2755,7 @@ function attachWindowFunctions() {
     // Phase 101 — journal panel tab switching and post
     window.switchJournalTab = switchJournalTab;
     window.postActivityEntry = postActivityEntry;
+    window.submitProgressUpdate = submitProgressUpdate;
     // Phase 100 — lifecycle accordion
     window.toggleLifecycleAccordion = toggleLifecycleAccordion;
     window.lcAttachLink = async function(which) {
