@@ -1158,9 +1158,9 @@ Plans:
 **Plans**: 5 plans, 4 waves.
 - [x] 101-01-PLAN.md — Project Journal panel CSS block in styles/views.css (Wave 1)
 - [x] 101-02-PLAN.md — Firestore security rules: activity_entries/progress_updates/issues subcollections + deploy (Wave 1)
-- [ ] 101-03-PLAN.md — Core panel: status-gated render, 3 listeners, tab switching, Activity Feed CRUD + _addActivityEntry helper (Wave 2)
+- [x] 101-03-PLAN.md — Core panel: status-gated render, 3 listeners, tab switching, Activity Feed CRUD + _addActivityEntry helper (Wave 2)
 - [ ] 101-04-PLAN.md — Progress Updates tab + Issues tab (filter chips, log form, resolve/reopen workflow) (Wave 3)
 - [ ] 101-05-PLAN.md — Auto-system-entries: 4 Phase 100 gates + saveField cost delta + procurement.js PO Delivered (Wave 4)
-**Status**: In progress 2026-06-10 — 2/5 plans complete (Wave 1 done). Next: Plan 03 — core panel render, 3 listeners, tab switching, Activity Feed CRUD (Wave 2).
+**Status**: In progress 2026-06-10 — 3/5 plans complete (Waves 1+2 done). Next: Plan 04 — Progress Updates form + Issues punch list CRUD (Wave 3).
 **Spike**: `.planning/spikes/032-ongoing-activity-panel/README.md` + `spike.html` (VALIDATED — authoritative design contract).
 **UI hint**: yes — spike.html is the visual reference.
