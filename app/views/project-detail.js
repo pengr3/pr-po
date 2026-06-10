@@ -3138,6 +3138,7 @@ async function saveEditProgressUpdate(id) {
             edit_history: arrayUnion(historyEntry),
         });
         journalEditingProgressId = null;
+        _renderJournalPanelInPlace();
         showToast('Progress update saved.', 'success');
     } catch (err) {
         console.error('[ProjectDetail/Journal] saveEditProgressUpdate failed:', err);
