@@ -1148,3 +1148,19 @@ Plans:
 **Status**: Pending — not yet planned. Spike 031 validated 2026-06-08.
 **Spike**: `.planning/spikes/031-lifecycle-accordion-card/spike.html` (full interactive simulation, VALIDATED); `.planning/spikes/027–029` (gate design); `.planning/spikes/030-lifecycle-in-app-ux/` (SUPERSEDED by 031).
 **UI hint**: yes — spike.html is the authoritative visual contract.
+
+### Phase 101: Project Journal — Activity Feed, Progress Updates, Issues (Spike 032)
+
+**Goal**: Add a three-tab "Project Journal" panel to `project-detail.js` (below the Info+Financial+Plan bottom row) — Activity Feed, Progress Updates, and Issues — backed by three Firestore subcollections with real-time listeners, auto-system-entries (status changes, field edits, lifecycle gates, PO Delivered), and security rules, so any project-access user can record what happens during active project execution. Project-only scope for Phase 101 (services parity deferred).
+**Depends on**: Phase 100 (4 lifecycle gate functions to instrument), Phase 84.1 (NOTIF-19 cost-delta detection reused), spike 032 VALIDATED.
+**Target files**: `app/views/project-detail.js` (panel render/listeners/tabs + Feed/Progress/Issues CRUD + auto-entries in 4 gates + saveField cost delta), `app/views/procurement.js` (PO Delivered auto-entry), `firestore.rules` (3 subcollection blocks), `styles/views.css` (journal panel CSS).
+**Requirements**: Spike 032 + CONTEXT decisions D-01..D-20 (locked).
+**Plans**: 5 plans, 4 waves.
+- [ ] 101-01-PLAN.md — Project Journal panel CSS block in styles/views.css (Wave 1)
+- [ ] 101-02-PLAN.md — Firestore security rules: activity_entries/progress_updates/issues subcollections + deploy (Wave 1)
+- [ ] 101-03-PLAN.md — Core panel: status-gated render, 3 listeners, tab switching, Activity Feed CRUD + _addActivityEntry helper (Wave 2)
+- [ ] 101-04-PLAN.md — Progress Updates tab + Issues tab (filter chips, log form, resolve/reopen workflow) (Wave 3)
+- [ ] 101-05-PLAN.md — Auto-system-entries: 4 Phase 100 gates + saveField cost delta + procurement.js PO Delivered (Wave 4)
+**Status**: Planned 2026-06-10 — 5 plans / 4 waves. Next: `/gsd:execute-phase 101`.
+**Spike**: `.planning/spikes/032-ongoing-activity-panel/README.md` + `spike.html` (VALIDATED — authoritative design contract).
+**UI hint**: yes — spike.html is the visual reference.
