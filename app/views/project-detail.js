@@ -673,6 +673,15 @@ function renderProjectDetail() {
                             <div style="grid-column:1/-1;">
                                 ${renderPersonnelPills(canEditPersonnel)}
                             </div>
+                            ${getDlpState(currentProject) !== 'active' ? `
+                            <div>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">DLP Period</label>
+                                <div style="color:#64748b;font-size:0.9rem;padding:0.35rem 0;">${(currentProject.dlp_months || null) ? escapeHTML(String(currentProject.dlp_months)) + ' months' : '—'}</div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">DLP Expires</label>
+                                <div style="color:#64748b;font-size:0.9rem;padding:0.35rem 0;">${escapeHTML((currentProject.dlp_expires_at || null) || '—')}</div>
+                            </div>` : ''}
                         </div>
                         <div style="font-size:0.7rem;color:#94a3b8;margin-top:0.5rem;">Created: ${formatDate(currentProject.created_at)}${currentProject.updated_at ? ' · Updated: ' + formatDate(currentProject.updated_at) : ''}</div>
                     </div>
