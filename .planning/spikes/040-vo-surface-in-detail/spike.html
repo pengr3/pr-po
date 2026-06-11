@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 040 — VO Surface Placement in Project-Detail</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --text:#1e293b; --muted:#64748b; --faint:#94a3b8;
+    --border:#e2e8f0; --bg:#f1f5f9;
+    --green:#059669; --green-bg:#dcfce7; --green-bd:#bbf7d0;
+    --red:#ef4444; --red-bg:#fee2e2; --red-bd:#fecaca;
+    --amber:#f59e0b; --amber-bg:#fef3c7; --amber-bd:#fde68a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--text);padding:20px 16px 220px;}
+  .wrap{max-width:920px;margin:0 auto;}
+
+  .switch{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .switch button{flex:1 1 0;min-width:210px;text-align:left;padding:10px 13px;border:2px solid var(--border);background:#fff;
+                 border-radius:10px;cursor:pointer;font-family:inherit;}
+  .switch button .k{font-size:10.5px;font-weight:800;color:var(--faint);letter-spacing:.04em;}
+  .switch button .n{font-size:13px;font-weight:700;margin-top:2px;}
+  .switch button.active{border-color:var(--primary);background:#f5f9ff;}
+  .switch button.active .k{color:var(--primary);}
+  .callout{font-size:12.5px;line-height:1.5;border-radius:10px;padding:10px 13px;margin-bottom:16px;}
+  .callout.good{background:var(--green-bg);border:1px solid var(--green-bd);}
+  .callout.meh{background:var(--amber-bg);border:1px solid var(--amber-bd);}
+  .callout .h{font-weight:800;}
+
+  /* project-detail layout mock */
+  .pd-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .pd-head .title{font-size:17px;font-weight:800;}
+  .pd-head .code{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;}
+  .pill.ongoing{background:#dbeafe;color:#1e40af;}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;}
+  .card-h{padding:11px 15px;border-bottom:1px solid var(--border);font-size:12.5px;font-weight:700;
+          display:flex;justify-content:space-between;align-items:center;}
+  .card-b{padding:14px 15px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:760px){.grid{grid-template-columns:1fr;}}
+
+  /* lifecycle accordion mock */
+  .lc{background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden;}
+  .lc-bar{padding:12px 15px;display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .lc-track{display:flex;align-items:center;gap:5px;flex:1;}
+  .lc-node{width:14px;height:14px;border-radius:50%;background:var(--border);}
+  .lc-node.done{background:var(--green);} .lc-node.cur{background:var(--primary);box-shadow:0 0 0 3px #dbeafe;}
+  .lc-line{flex:1;height:2px;background:var(--border);} .lc-line.done{background:var(--green);}
+  .lc-caret{color:var(--faint);font-size:13px;}
+  .lc-body{border-top:1px solid var(--border);padding:13px 15px;background:#fafbfc;}
+
+  /* info rows */
+  .inforow{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f7fa;font-size:12.5px;}
+  .inforow:last-child{border-bottom:none;}
+  .inforow .k{color:var(--muted);} .inforow .v{font-weight:600;}
+
+  /* finance bar mock */
+  .fbar .head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .fbar .ccl{font-size:11px;color:var(--faint);font-weight:600;}
+  .fbar .ccv{font-size:19px;font-weight:800;}
+  .fbar .track{height:9px;background:#e2e8f0;border-radius:5px;overflow:hidden;margin-bottom:6px;}
+  .fbar .seg{height:100%;background:var(--primary);}
+  .fbar .lbls{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);}
+  .sec-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:14px 0 8px;display:flex;justify-content:space-between;align-items:center;}
+  .trow{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #f5f7fa;}
+  .trow:last-child{border-bottom:none;}
+  .ret-tag{font-size:9.5px;font-weight:700;color:#92400e;background:var(--amber-bg);padding:1px 6px;border-radius:5px;margin-left:5px;}
+
+  /* the VO module (reused, placed differently) */
+  .vomod{border:1px solid #bfdbfe;background:#f8fbff;border-radius:10px;padding:12px;}
+  .vomod.bare{border:none;background:none;padding:0;}
+  .vomod .vh{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+  .vomod .vh .ttl{font-size:12.5px;font-weight:800;}
+  .vomod .vh .cnt{font-size:10.5px;font-weight:700;color:var(--primary-dark);background:#dbeafe;padding:2px 8px;border-radius:999px;}
+  .vorev{display:flex;align-items:baseline;gap:8px;font-size:12px;margin-bottom:10px;flex-wrap:wrap;}
+  .vorev .o{color:var(--muted);text-decoration:line-through;} .vorev .arrow{color:var(--faint);}
+  .vorev .r{font-size:16px;font-weight:800;} .vorev .d{font-size:11px;font-weight:700;color:var(--green);background:var(--green-bg);padding:1px 7px;border-radius:6px;}
+  .voli{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px solid #eaf2fd;}
+  .voli:last-of-type{border-bottom:none;}
+  .voli .no{font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--primary-dark);}
+  .voli .pend{color:var(--amber);font-weight:700;}
+  .voli .amt{font-weight:700;} .voli .amt.up{color:var(--green);} .voli .amt.down{color:var(--red);}
+  .vobtn{margin-top:10px;display:flex;gap:7px;}
+  .btn{border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn.primary{background:var(--primary);color:#fff;} .btn.ghost{background:#fff;border:1px solid var(--border);color:var(--text);}
+  .ghosthint{font-size:11px;color:var(--faint);font-style:italic;padding:8px 0;}
+
+  .controls{position:fixed;left:16px;bottom:150px;background:#fff;border:1px solid var(--border);border-radius:12px;
+            box-shadow:0 6px 24px rgba(15,23,42,.14);padding:12px;width:210px;z-index:50;}
+  .controls h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);}
+  .controls .hint{font-size:11px;color:var(--muted);line-height:1.4;}
+
+  .log{position:fixed;left:0;right:0;bottom:0;height:140px;background:#0f172a;color:#e2e8f0;
+       font-family:ui-monospace,Menlo,monospace;font-size:11.5px;overflow-y:auto;padding:8px 14px;z-index:40;}
+  .log .ln{padding:1px 0;} .log .t{color:#475569;} .log .switch-l{color:#60a5fa;} .log .info{color:#94a3b8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="switch" id="switcher"></div>
+  <div class="callout" id="callout"></div>
+
+  <!-- project-detail layout mock -->
+  <div class="pd-head">
+    <span class="title">Acme Warehouse Extension</span>
+    <span class="code">PRJ-CLMC-ACME-001</span>
+    <span class="pill ongoing">On-going</span>
+  </div>
+
+  <!-- lifecycle accordion -->
+  <div class="lc">
+    <div class="lc-bar" onclick="toggleLc()">
+      <div class="lc-track">
+        <span class="lc-node done"></span><span class="lc-line done"></span>
+        <span class="lc-node done"></span><span class="lc-line done"></span>
+        <span class="lc-node done"></span><span class="lc-line done"></span>
+        <span class="lc-node cur"></span><span class="lc-line"></span>
+        <span class="lc-node"></span>
+      </div>
+      <span style="font-size:11.5px;color:var(--muted);">Mobilized → <b>On-going</b></span>
+      <span class="lc-caret" id="lcCaret">▸</span>
+    </div>
+    <div class="lc-body" id="lcBody" style="display:none;"></div>
+  </div>
+
+  <!-- 2-col Info | Financial -->
+  <div class="grid">
+    <div class="card">
+      <div class="card-h">Project Info</div>
+      <div class="card-b">
+        <div class="inforow"><span class="k">Client</span><span class="v">Acme Logistics Corp</span></div>
+        <div class="inforow"><span class="k">Project Manager</span><span class="v">R. Santos</span></div>
+        <div class="inforow"><span class="k">Start Date</span><span class="v">2026-02-10</span></div>
+        <div class="inforow"><span class="k">Target Completion</span><span class="v">2026-11-30</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">Financial</div>
+      <div class="card-b" id="financialBody"></div>
+    </div>
+  </div>
+
+  <!-- bottom row -->
+  <div id="bottomRow"></div>
+  <div class="card">
+    <div class="card-h">Project Journal</div>
+    <div class="card-b" style="font-size:12px;color:var(--muted);">Activity Feed · Progress Updates · Issues</div>
+  </div>
+</div>
+
+<div class="controls">
+  <h4>Spike Controls</h4>
+  <div class="hint">Switch where the Variation Orders module lives in the real project-detail layout. Watch the Financial card's height and whether the contract-value story stays together.</div>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const ORIGINAL=4200000, REVISED=4605000, DELTA=405000;
+const peso = n => '₱' + Math.round(n).toLocaleString('en-PH');
+const peso2 = n => '₱'+(n/1000000).toFixed(3).replace(/0+$/,'').replace(/\.$/,'')+'M';
+
+// tranche amounts under Model C (freeze billed + rebase remaining) — working assumption from 038
+const TR = [
+  {label:'Mobilization', amt:840000, locked:true},
+  {label:'Progress Billing 1', amt:1411875},
+  {label:'Progress Billing 2', amt:1411875},
+  {label:'Final / Retention', amt:941250, ret:true},
+];
+
+const OPTIONS = {
+  fin:{key:'fin', name:'Inside Financial card', tone:'meh',
+       desc:'Contract value, tranches, billing and VOs all live in one money place — but the Financial card already carries the finance bar + tranches + billing footer + (soon) DLP. Adding the ledger here makes it the tallest, busiest card on the page.'},
+  lc:{key:'lc', name:'In Lifecycle accordion', tone:'meh',
+      desc:'VOs are a construction-phase activity, so they sit under the On-going node of the lifecycle command-center. Fits the mental model — but the financial impact is hidden behind a collapsed accordion, away from the money.'},
+  card:{key:'card', name:'Dedicated VO card', tone:'good',
+        desc:'A "Variation Orders" card in the bottom row, peer to the Journal. Room for the full ledger + revised-sum headline; one clear home. Cost: the contract-value delta is one card away from the Financial card (mitigated by echoing the revised sum in the finance bar).'},
+};
+let current='fin', lcOpen=false;
+
+function voModule(bare){
+  return `<div class="vomod ${bare?'bare':''}">
+    <div class="vh"><span class="ttl">Variation Orders</span><span class="cnt">3 approved · 1 pending</span></div>
+    <div class="vorev">
+      <span class="o">${peso2(ORIGINAL)}</span><span class="arrow">→</span>
+      <span class="r">${peso(REVISED)}</span><span class="d">Δ +${peso(DELTA)}</span>
+    </div>
+    <div class="voli"><span class="no">VO-002</span><span>Upgrade roofing to insulated panel</span><span class="amt up">+₱320,000</span></div>
+    <div class="voli"><span class="no">VO-003</span><span>Omit perimeter landscaping</span><span class="amt down">−₱95,000</span></div>
+    <div class="voli"><span class="no">VO-004</span><span class="pend">Extend mezzanine slab · For Approval</span><span class="amt up">+₱260,000</span></div>
+    <div class="vobtn"><button class="btn primary">＋ New VO</button><button class="btn ghost">Manage ledger →</button></div>
+  </div>`;
+}
+
+function financeBarHtml(){
+  return `<div class="fbar">
+    <div class="head">
+      <div><div class="ccl">Contract Cost ${current==='card'?'<span style="color:#1a73e8;">(revised)</span>':''}</div>
+        <div class="ccv">${peso(current==='fin'?ORIGINAL:REVISED)}</div></div>
+      <div style="text-align:right;"><div class="ccl">Cash Collected</div>
+        <div style="font-size:14px;font-weight:700;color:var(--primary);">${peso(840000)}</div></div>
+    </div>
+    <div class="track"><div class="seg" style="width:18%;"></div></div>
+    <div class="lbls"><span>${peso(840000)} collected (18%)</span><span>${peso(REVISED-840000)} outstanding</span></div>
+  </div>`;
+}
+
+function tranchesHtml(){
+  return `<div class="sec-title"><span>Collection Tranches</span><span style="font-weight:500;text-transform:none;color:var(--faint);">on revised ${peso2(REVISED)}</span></div>`+
+    TR.map(t=>`<div class="trow"><span>${t.label}${t.ret?'<span class="ret-tag">◆ Retention</span>':''}${t.locked?' <span style="font-size:9.5px;color:var(--green);">✓ collected</span>':''}</span><span style="font-weight:700;">${peso(t.amt)}</span></div>`).join('');
+}
+
+function render(){
+  document.getElementById('switcher').innerHTML = Object.values(OPTIONS).map(o=>`
+    <button class="${o.key===current?'active':''}" onclick="pick('${o.key}')">
+      <div class="k">PLACEMENT</div><div class="n">${o.name}</div></button>`).join('');
+  const o=OPTIONS[current];
+  const c=document.getElementById('callout'); c.className='callout '+o.tone;
+  c.innerHTML=`<div class="h">${o.name}</div>${o.desc}`;
+
+  // financial card body
+  let fin = financeBarHtml() + tranchesHtml();
+  if(current==='fin'){ fin += `<div class="sec-title">Variation Orders</div>` + voModule(true); }
+  document.getElementById('financialBody').innerHTML = fin;
+
+  // lifecycle body
+  const lcBody=document.getElementById('lcBody');
+  if(current==='lc'){
+    lcBody.innerHTML = `<div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">On-going · construction phase activity</div>`+voModule(false);
+    if(!lcOpen){ lcOpen=true; lcBody.style.display='block'; document.getElementById('lcCaret').textContent='▾'; }
+  } else {
+    lcBody.innerHTML = `<div class="ghosthint">On-going stage actions (mark milestone, progress update, mark complete…)</div>`;
+  }
+
+  // bottom row card
+  document.getElementById('bottomRow').innerHTML = current==='card'
+    ? `<div class="card"><div class="card-h"><span>Variation Orders</span><span style="font-size:11px;font-weight:500;color:var(--faint);">contract-value changes</span></div><div class="card-b">${voModule(true)}</div></div>`
+    : '';
+
+  log('info', `placement = ${o.name}`);
+}
+function pick(k){ current=k; log('switch-l','→ '+OPTIONS[k].name); render(); }
+function toggleLc(){ lcOpen=!lcOpen; document.getElementById('lcBody').style.display=lcOpen?'block':'none'; document.getElementById('lcCaret').textContent=lcOpen?'▾':'▸'; }
+
+function log(type,msg){ const el=document.getElementById('log'); const t=new Date().toLocaleTimeString('en-US',{hour12:false});
+  el.insertAdjacentHTML('afterbegin',`<div class="ln"><span class="t">${t}</span> <span class="${type}">${msg}</span></div>`); }
+
+log('info','spike 040 ready — VO module placed in the real project-detail layout');
+render();
+</script>
+</body>
+</html>
