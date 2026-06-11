@@ -3837,6 +3837,13 @@
 .lc-desc     { font-size: 12.5px; color: #475569; line-height: 1.65; margin-bottom: 14px; }
 .action-row  { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 .action-note { font-size: 11px; color: #64748b; }
+
+/* Phase 102 (#1) — two-column open gate body (docs left, action/DLP right) */
+.lc-gate-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 18px; align-items: start; }
+.lc-gate-grid > div { min-width: 0; }
+.lc-gate-docs  { display: flex; flex-direction: column; gap: 9px; }
+.lc-gate-action > .action-row:first-child { margin-top: 0; }
+@media (max-width: 768px) { .lc-gate-grid { grid-template-columns: 1fr; } }
 .gate-warn   { display: flex; align-items: center; gap: 7px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 11px; font-size: 11.5px; color: #92400e; margin-bottom: 10px; }
 
 .az          { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 11px 13px; margin-bottom: 9px; }
