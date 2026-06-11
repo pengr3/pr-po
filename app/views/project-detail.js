@@ -881,6 +881,28 @@ function renderTrancheLifecycleRows() {
 }
 
 /* ========================================
+   Phase 102 Plan 03 — DLP state machine + computed fields (Spike 036, D-16)
+   ======================================== */
+
+// Single source of truth for DLP display state (D-16 contract, verbatim).
+function getDlpState(project) {
+    if (!project || !project.dlp_months || project.project_status !== 'Completed') return 'active';
+    if (project.retention_released_at) return 'released';
+    if (Date.now() > new Date(project.dlp_expires_at).getTime()) return 'expired';
+    return 'in-dlp';
+}
+
+// Compute dlp_expires_at (YYYY-MM-DD) + retention_amount from gate inputs (D-13).
+function computeDlpFields(startDateStr, months, contractCost, retentionPct) {
+    const start = new Date(startDateStr);
+    const exp = new Date(start.getTime());
+    exp.setMonth(exp.getMonth() + (parseInt(months) || 0));
+    const dlp_expires_at = exp.toISOString().slice(0, 10);
+    const retention_amount = Math.round((parseFloat(contractCost) || 0) * (parseFloat(retentionPct) || 0) / 100);
+    return { dlp_expires_at, retention_amount };
+}
+
+/* ========================================
    Phase 102 — Inline tranche editor (Spike 035)
    Add/edit/label/percentage tranches; flag one retention tranche.
    Writes collection_tranches to projects/{docId} on Save.
@@ -2477,6 +2499,31 @@ function buildLifecycleBody(project, currentUser) {
             ${!can ? `<div class="gate-warn">⚠️ ${escapeHTML(note)}</div>` : ''}
             ${buildAttachZone(project, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
             ${buildAttachZone(project, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
+            ${(project.collection_tranches || []).some(t => t.is_retention) ? `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:11px 13px;margin-bottom:12px;">
+                <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Defect Liability Period</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">Retention %</label>
+                        <input type="number" id="gateDlpRetPct" min="0" max="100" step="0.01" value="${(() => { const r = (project.collection_tranches || []).find(t => t.is_retention); return r ? (parseFloat(r.percentage) || 10) : 10; })()}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Months</label>
+                        <select id="gateDlpMonths" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                            <option value="3">3</option>
+                            <option value="6">6</option>
+                            <option value="12" selected>12</option>
+                            <option value="18">18</option>
+                            <option value="24">24</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Start Date</label>
+                        <input type="date" id="gateDlpStart" value="${new Date().toISOString().slice(0, 10)}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                    </div>
+                </div>
+                <div style="font-size:11px;color:#92400e;margin-top:7px;">DLP is required because this project has a retention tranche. Captured when you mark the project Completed.</div>
+            </div>` : ''}
             <div class="action-row">
                 <button class="btn btn-primary" ${(!can || !canDo) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
                 <span class="action-note">${!canDo ? 'Requires project assignment' : !can ? escapeHTML(note) : ''}</span>
@@ -3628,8 +3675,25 @@ function attachWindowFunctions() {
         const cu = window.getCurrentUser?.();
         if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Permission denied — you must be assigned to this project.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        // Phase 102 Plan 03 — capture DLP fields ONLY when a retention tranche exists (D-13/D-14).
+        const payload = { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() };
+        const retTranche = (currentProject.collection_tranches || []).find(t => t.is_retention);
+        if (retTranche) {
+            const retPct = parseFloat(document.getElementById('gateDlpRetPct')?.value) || (parseFloat(retTranche.percentage) || 10);
+            const months = parseInt(document.getElementById('gateDlpMonths')?.value) || 12;
+            const startDate = document.getElementById('gateDlpStart')?.value || new Date().toISOString().slice(0, 10);
+            const { dlp_expires_at, retention_amount } = computeDlpFields(startDate, months, parseFloat(currentProject.contract_cost) || 0, retPct);
+            Object.assign(payload, {
+                dlp_months: months,
+                dlp_start_date: startDate,
+                dlp_expires_at: dlp_expires_at,
+                retention_percentage: retPct,
+                retention_amount: retention_amount,
+                retention_released_at: null,
+            });
+        }
         try {
-            await updateDoc(doc(db, 'projects', projectId), { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() });
+            await updateDoc(doc(db, 'projects', projectId), payload);
             await addProjectAuditEntry(projectId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
             await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.', 'error'); }
