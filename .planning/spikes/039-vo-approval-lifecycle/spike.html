@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 039 — VO Approval Lifecycle</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --text:#1e293b; --muted:#64748b; --faint:#94a3b8;
+    --border:#e2e8f0; --bg:#f1f5f9;
+    --green:#059669; --green-bg:#dcfce7; --green-bd:#bbf7d0;
+    --red:#ef4444; --red-bg:#fee2e2; --red-bd:#fecaca;
+    --amber:#f59e0b; --amber-bg:#fef3c7; --amber-bd:#fde68a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--text);padding:24px 16px 220px;}
+  .wrap{max-width:680px;margin:0 auto;}
+  .appbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .appbar .title{font-size:15px;font-weight:700;}
+  .appbar .code{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;}
+  .pill.ongoing{background:#dbeafe;color:#1e40af;}
+
+  .revbar{background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:14px;
+          display:flex;justify-content:space-between;align-items:center;font-size:13px;}
+  .revbar b{font-size:17px;}
+  .revbar .arrow{color:var(--faint);}
+  .revbar .moved{color:var(--green);font-weight:700;}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;}
+  .card-h{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+  .card-h .vono{font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:13px;color:var(--primary-dark);}
+  .card-h .amt{font-weight:800;font-size:15px;color:var(--green);}
+  .card-b{padding:16px;}
+  .vodesc{font-size:14px;font-weight:600;margin-bottom:4px;}
+  .vometa{font-size:12px;color:var(--muted);margin-bottom:16px;}
+
+  /* stepper */
+  .stepper{display:flex;align-items:center;margin-bottom:18px;}
+  .step{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;}
+  .step .dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+             font-size:12px;font-weight:800;background:#fff;border:2px solid var(--border);color:var(--faint);}
+  .step .lbl{font-size:10.5px;margin-top:5px;color:var(--faint);font-weight:600;text-align:center;width:74px;}
+  .step.done .dot{background:var(--green);border-color:var(--green);color:#fff;}
+  .step.done .lbl{color:var(--green);}
+  .step.current .dot{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 0 0 4px #dbeafe;}
+  .step.current .lbl{color:var(--primary);}
+  .step.rejected .dot{background:var(--red);border-color:var(--red);color:#fff;}
+  .step.rejected .lbl{color:var(--red);}
+  .seg{flex:1 1 auto;height:2px;background:var(--border);margin:0 -6px 22px;}
+  .seg.done{background:var(--green);}
+
+  /* attach zone (mirrors 028/029 attach pattern) */
+  .attach{border:1.5px dashed var(--border);border-radius:10px;padding:13px;margin-bottom:14px;background:#fafbfc;}
+  .attach .ah{font-size:12px;font-weight:700;margin-bottom:8px;}
+  .attach .req{color:var(--red);}
+  .attach .modes{display:flex;gap:6px;margin-bottom:9px;}
+  .attach .modes button{font-size:12px;padding:5px 11px;border:1px solid var(--border);background:#fff;border-radius:7px;cursor:pointer;}
+  .attach .modes button.on{border-color:var(--primary);color:var(--primary);background:#f5f9ff;font-weight:600;}
+  .attach input{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;}
+  .attached{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--green);background:var(--green-bg);
+            border:1px solid var(--green-bd);border-radius:8px;padding:8px 11px;}
+  .attached .x{margin-left:auto;cursor:pointer;color:var(--muted);border:none;background:none;font-size:15px;}
+
+  .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .btn{border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn.primary{background:var(--primary);color:#fff;}
+  .btn.primary:hover{background:var(--primary-dark);}
+  .btn.approve{background:var(--green);color:#fff;}
+  .btn.reject{background:#fff;border:1px solid var(--red-bd);color:var(--red);}
+  .btn.ghost{background:#fff;border:1px solid var(--border);color:var(--text);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .gatehint{font-size:12px;color:var(--amber);}
+  .resultbox{font-size:13px;border-radius:8px;padding:11px 13px;}
+  .resultbox.approved{background:var(--green-bg);border:1px solid var(--green-bd);color:#065f46;}
+  .resultbox.rejected{background:var(--red-bg);border:1px solid var(--red-bd);color:#991b1b;}
+
+  /* journal audit strip (mirrors Phase 101 project journal feed) */
+  .journal{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .journal .card-h{font-size:13px;font-weight:700;}
+  .feed{padding:6px 16px 14px;}
+  .entry{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px;}
+  .entry:last-child{border-bottom:none;}
+  .entry .ic{flex:0 0 22px;height:22px;border-radius:50%;background:#eef2f7;display:flex;align-items:center;justify-content:center;font-size:11px;}
+  .entry.cost .ic{background:var(--green-bg);}
+  .entry .body .msg{line-height:1.4;}
+  .entry .body .meta{font-size:11px;color:var(--faint);margin-top:2px;}
+  .entry .body .sys{font-size:9.5px;font-weight:700;color:#7c3aed;background:#f3e8ff;padding:1px 6px;border-radius:5px;margin-left:6px;}
+
+  .controls{position:fixed;left:16px;bottom:150px;background:#fff;border:1px solid var(--border);border-radius:12px;
+            box-shadow:0 6px 24px rgba(15,23,42,.14);padding:12px;width:210px;z-index:50;}
+  .controls h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);}
+  .controls button{width:100%;margin-top:6px;}
+  .controls .hint{font-size:11px;color:var(--muted);line-height:1.4;margin-bottom:4px;}
+
+  .log{position:fixed;left:0;right:0;bottom:0;height:140px;background:#0f172a;color:#e2e8f0;
+       font-family:ui-monospace,Menlo,monospace;font-size:11.5px;overflow-y:auto;padding:8px 14px;z-index:40;}
+  .log .ln{padding:1px 0;white-space:pre-wrap;}
+  .log .t{color:#475569;} .log .gate{color:#fbbf24;} .log .ok{color:#34d399;} .log .info{color:#60a5fa;} .log .no{color:#f87171;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="appbar">
+    <span class="title">Acme Warehouse Extension</span>
+    <span class="code">PRJ-CLMC-ACME-001</span>
+    <span class="pill ongoing">On-going</span>
+  </div>
+
+  <div class="revbar">
+    <span>Revised Contract Sum <span class="arrow">·</span> 3 VOs already approved</span>
+    <span><b id="revVal"></b> <span id="revMoved"></span></span>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <span class="vono">VO-004</span>
+      <span class="amt">+₱260,000</span>
+    </div>
+    <div class="card-b">
+      <div class="vodesc">Extend mezzanine slab</div>
+      <div class="vometa">Addition · raised by Site Engineer · ref. RFI-022</div>
+
+      <div class="stepper" id="stepper"></div>
+
+      <div id="attachWrap"></div>
+      <div id="actionWrap"></div>
+    </div>
+  </div>
+
+  <div class="journal">
+    <div class="card-h">Project Journal — Activity Feed</div>
+    <div class="feed" id="feed"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <h4>Spike Controls</h4>
+  <div class="hint">Walk the VO through its lifecycle. The Revised Sum moves <b>only</b> when it reaches Approved. Approval is gated on an attached document.</div>
+  <button class="btn ghost" onclick="reset('draft')">↺ Reset to Draft</button>
+  <button class="btn ghost" onclick="jump('approved')">⏩ Jump to Approved</button>
+  <button class="btn ghost" onclick="jump('rejected')">⏩ Jump to Rejected</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const BASE_REVISED = 4605000;   // 3 VOs already approved (Spike 037)
+const VO_AMOUNT = 260000;       // VO-004 addition
+const STEPS = [
+  { key:'draft',    lbl:'Draft' },
+  { key:'pending',  lbl:'For Approval' },
+  { key:'approved', lbl:'Approved' },
+];
+let state = 'draft';
+let attachment = null;     // {kind:'link'|'file', value}
+let attachMode = 'link';
+let feed = [];
+let rejectReason = '';
+
+const peso = n => '₱' + Math.round(n).toLocaleString('en-PH');
+const now = () => new Date().toLocaleString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});
+
+function revisedNow(){ return state==='approved' ? BASE_REVISED + VO_AMOUNT : BASE_REVISED; }
+
+function renderRev(){
+  document.getElementById('revVal').textContent = peso(revisedNow());
+  document.getElementById('revMoved').innerHTML = state==='approved'
+    ? `<span class="moved">▲ +${peso(VO_AMOUNT)}</span>` : '';
+}
+
+function renderStepper(){
+  if(state==='rejected'){
+    document.getElementById('stepper').innerHTML =
+      `<div class="step done"><div class="dot">✓</div><div class="lbl">Draft</div></div>`+
+      `<div class="seg done"></div>`+
+      `<div class="step done"><div class="dot">✓</div><div class="lbl">For Approval</div></div>`+
+      `<div class="seg"></div>`+
+      `<div class="step rejected"><div class="dot">✕</div><div class="lbl">Rejected</div></div>`;
+    return;
+  }
+  const idx = STEPS.findIndex(s=>s.key===state);
+  let html='';
+  STEPS.forEach((s,i)=>{
+    const cls = i<idx?'done':(i===idx?'current':'');
+    const mark = i<idx?'✓':(i+1);
+    html += `<div class="step ${cls}"><div class="dot">${mark}</div><div class="lbl">${s.lbl}</div></div>`;
+    if(i<STEPS.length-1) html += `<div class="seg ${i<idx?'done':''}"></div>`;
+  });
+  document.getElementById('stepper').innerHTML = html;
+}
+
+function renderAttach(){
+  const wrap = document.getElementById('attachWrap');
+  if(state==='approved' || state==='rejected'){
+    wrap.innerHTML = attachment
+      ? `<div class="attached" style="margin-bottom:14px;">📎 ${attachment.kind==='link'?'Link':'File'}: <b>${escapeHtml(attachment.value)}</b></div>` : '';
+    return;
+  }
+  if(attachment){
+    wrap.innerHTML = `<div class="attach"><div class="ah">Supporting document</div>
+      <div class="attached">📎 ${attachment.kind==='link'?'Link':'File'}: <b>${escapeHtml(attachment.value)}</b>
+        <button class="x" onclick="clearAttach()">×</button></div></div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="attach">
+    <div class="ah">Supporting document ${state==='pending'?'<span class="req">— required to approve</span>':'<span style="color:var(--faint);font-weight:500;">(client approval / cost breakdown)</span>'}</div>
+    <div class="modes">
+      <button class="${attachMode==='link'?'on':''}" onclick="setMode('link')">🔗 Link</button>
+      <button class="${attachMode==='file'?'on':''}" onclick="setMode('file')">📄 File</button>
+    </div>
+    <input id="attachInput" placeholder="${attachMode==='link'?'https://drive.google.com/…':'Choose / name the file e.g. VO-004-client-approval.pdf'}">
+    <button class="btn ghost" style="margin-top:8px;" onclick="doAttach()">Attach</button>
+  </div>`;
+}
+
+function renderActions(){
+  const wrap = document.getElementById('actionWrap');
+  if(state==='draft'){
+    wrap.innerHTML = `<div class="actions"><button class="btn primary" onclick="submit()">Submit for Approval →</button></div>`;
+  } else if(state==='pending'){
+    const gated = !attachment;
+    wrap.innerHTML = `<div class="actions">
+      <button class="btn approve" ${gated?'disabled':''} onclick="approve()">✓ Approve</button>
+      <button class="btn reject" onclick="reject()">✕ Reject</button>
+      ${gated?'<span class="gatehint">⚠ Attach a supporting document to enable Approve</span>':''}
+    </div>`;
+  } else if(state==='approved'){
+    wrap.innerHTML = `<div class="resultbox approved">✓ <b>Approved</b> by Ops Admin · ${now()} · contract revised to ${peso(BASE_REVISED+VO_AMOUNT)}</div>`;
+  } else {
+    wrap.innerHTML = `<div class="resultbox rejected">✕ <b>Rejected</b> by Ops Admin · ${now()}${rejectReason?` · reason: ${escapeHtml(rejectReason)}`:''} · revised sum unchanged</div>`;
+  }
+}
+
+function renderFeed(){
+  document.getElementById('feed').innerHTML = feed.length ? feed.map(e=>`
+    <div class="entry ${e.cost?'cost':''}">
+      <div class="ic">${e.icon}</div>
+      <div class="body"><div class="msg">${e.msg}<span class="sys">SYSTEM</span></div><div class="meta">${e.time}</div></div>
+    </div>`).join('') : `<div style="font-size:12px;color:var(--faint);padding:8px 0;">No activity yet.</div>`;
+}
+
+function addEntry(msg, icon='◆', cost=false){ feed.unshift({ msg, icon, cost, time:now() }); renderFeed(); }
+
+function render(){ renderRev(); renderStepper(); renderAttach(); renderActions(); }
+
+// ---- actions ----
+function setMode(m){ attachMode=m; renderAttach(); }
+function doAttach(){
+  const v = document.getElementById('attachInput').value.trim();
+  if(!v){ log('no','✗ enter a link or filename'); return; }
+  attachment = { kind:attachMode, value:v };
+  addEntry(`Document attached to VO-004: <b>${escapeHtml(v)}</b>`, '📎');
+  log('info', `attached ${attachMode}: ${v}`);
+  render();
+}
+function clearAttach(){ attachment=null; log('info','attachment removed'); render(); }
+
+function submit(){
+  state='pending';
+  addEntry(`VO-004 submitted for approval — Extend mezzanine slab (+${peso(VO_AMOUNT)})`, '↑');
+  log('info','VO-004 → For Approval');
+  render();
+}
+function approve(){
+  if(!attachment){ log('gate','✗ blocked — approval requires an attached document'); return; }
+  state='approved';
+  addEntry(`VO-004 approved — contract revised <b>${peso(BASE_REVISED)} → ${peso(BASE_REVISED+VO_AMOUNT)}</b> (+${peso(VO_AMOUNT)})`, '₱', true);
+  log('ok',`VO-004 APPROVED — revised ${peso(BASE_REVISED)} → ${peso(BASE_REVISED+VO_AMOUNT)}`);
+  render();
+}
+function reject(){
+  const r = prompt('Rejection reason (required):','Client deferred — not in this phase');
+  if(r===null || !r.trim()){ log('no','✗ rejection needs a reason'); return; }
+  rejectReason = r.trim();
+  state='rejected';
+  addEntry(`VO-004 rejected — reason: ${escapeHtml(rejectReason)} · revised sum unchanged`, '✕');
+  log('no',`VO-004 REJECTED — ${rejectReason}`);
+  render();
+}
+
+function reset(s){
+  state=s; attachment=null; rejectReason=''; feed=[];
+  addEntry('VO-004 created (Draft) — Extend mezzanine slab (+'+peso(VO_AMOUNT)+')','＋');
+  log('info','reset to Draft');
+  render();
+}
+function jump(s){
+  if(s==='approved'){ attachment={kind:'file',value:'VO-004-client-approval.pdf'}; }
+  state=s; rejectReason = s==='rejected'?'(demo) client deferred':'';
+  feed=[];
+  addEntry('VO-004 created (Draft)','＋');
+  addEntry('VO-004 submitted for approval','↑');
+  if(s==='approved'){ addEntry('Document attached: VO-004-client-approval.pdf','📎');
+    addEntry(`VO-004 approved — contract revised <b>${peso(BASE_REVISED)} → ${peso(BASE_REVISED+VO_AMOUNT)}</b>`,'₱',true); }
+  if(s==='rejected'){ addEntry('VO-004 rejected — reason: '+rejectReason,'✕'); }
+  log('info','jumped to '+s);
+  render();
+}
+
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function log(type,msg){
+  const el=document.getElementById('log');
+  const t=new Date().toLocaleTimeString('en-US',{hour12:false});
+  el.insertAdjacentHTML('afterbegin',`<div class="ln"><span class="t">${t}</span> <span class="${type}">${msg}</span></div>`);
+}
+
+reset('draft');
+log('info','spike 039 ready — base revised '+peso(BASE_REVISED)+' (3 VOs approved); VO-004 +'+peso(VO_AMOUNT)+' pending');
+</script>
+</body>
+</html>
