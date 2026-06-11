@@ -687,6 +687,9 @@ function renderProjectDetail() {
                             <button class="btn btn-sm btn-secondary" onclick="window.openFullBreakdown()" style="font-size:0.7rem;padding:0.2rem 0.6rem;white-space:nowrap;">Full Breakdown →</button>
                         </div>
 
+                        <!-- Phase 102 Plan 03 — DLP-aware finance bar (headline) -->
+                        <div style="margin-bottom:0.6rem;">${renderDlpFinanceBar(currentProject)}</div>
+
                         <!-- Budget group -->
                         <div style="font-size:0.65rem;font-weight:700;color:#1a73e8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Budget</div>
                         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-bottom:0.4rem;">
@@ -861,6 +864,7 @@ function computeTrancheLifecycle(tranche, idx, billingReqs, collectibleDocs) {
 function renderTrancheLifecycleRows() {
     const tranches = Array.isArray(currentProject?.collection_tranches) ? currentProject.collection_tranches : [];
     if (tranches.length === 0) return '';
+    const dlpState = getDlpState(currentProject);
     const rows = tranches.map((tranche, i) => {
         const lc = computeTrancheLifecycle(tranche, i, currentBillingRequests, currentCollectibleDocs);
         const br = currentBillingRequests.find(r => r.tranche_index === i);
@@ -872,9 +876,13 @@ function renderTrancheLifecycleRows() {
         const badgeStyle = isNotFiled
             ? `border:1px dashed ${lc.badgeColor};background:transparent;color:${lc.badgeColor};`
             : `border:none;background:${lc.badgeColor};color:#fff;`;
+        // Phase 102 Plan 03 — additive DLP state tag on the retention tranche row.
+        const dlpTag = (tranche.is_retention && dlpState !== 'active')
+            ? `<span class="coll-tag ${dlpState === 'expired' ? 'tag-overdue' : dlpState === 'released' ? 'tag-released' : 'tag-holding'}">${dlpState === 'expired' ? 'OVERDUE' : dlpState === 'released' ? 'Released' : 'In DLP'}</span>`
+            : '';
         return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;padding:0.25rem 0;border-top:1px solid #f1f5f9;opacity:${lc.opacity};">
             <div style="font-size:0.66rem;color:#475569;font-weight:600;">${escapeHTML(tranche.label || ('Tranche ' + (i + 1)))}${reason}${note}</div>
-            <span style="font-size:0.58rem;font-weight:700;${badgeStyle}border-radius:999px;padding:0.1rem 0.5rem;white-space:nowrap;">${escapeHTML(lc.badgeLabel)}</span>
+            <div style="display:flex;align-items:center;gap:0.3rem;">${dlpTag}<span style="font-size:0.58rem;font-weight:700;${badgeStyle}border-radius:999px;padding:0.1rem 0.5rem;white-space:nowrap;">${escapeHTML(lc.badgeLabel)}</span></div>
         </div>`;
     }).join('');
     return `<div style="margin-top:0.4rem;">${rows}</div>`;
@@ -900,6 +908,82 @@ function computeDlpFields(startDateStr, months, contractCost, retentionPct) {
     const dlp_expires_at = exp.toISOString().slice(0, 10);
     const retention_amount = Math.round((parseFloat(contractCost) || 0) * (parseFloat(retentionPct) || 0) / 100);
     return { dlp_expires_at, retention_amount };
+}
+
+// Phase 102 Plan 03 — DLP-aware finance bar (4 states, Spike 036).
+// Plan 01 CSS provides the semantic .finance-bar / .bar-seg / .dlp-strip classes;
+// the inner header/track/labels structure is inlined here (Plan 03 touches JS only).
+function renderDlpFinanceBar(project) {
+    const state = getDlpState(project);
+    const contract = parseFloat(project?.contract_cost) || 0;
+    const docs = Array.isArray(currentCollectibleDocs) ? currentCollectibleDocs : [];
+    const collected = docs.reduce((s, c) => s + (c.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0), 0);
+    const retentionAmt = parseFloat(project?.retention_amount) || 0;
+    const pct = (v) => contract > 0 ? Math.max(0, Math.min(100, (v / contract) * 100)) : 0;
+    const fmtDays = (ms) => Math.max(0, Math.ceil(Math.abs(ms) / 86400000));
+    const expMs = project?.dlp_expires_at ? new Date(project.dlp_expires_at).getTime() : 0;
+
+    const header = (subLabel, subVal, subColor) => `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+            <div>
+                <div style="font-size:12px;color:#94a3b8;font-weight:500;margin-bottom:2px;">Contract Cost</div>
+                <div style="font-size:20px;font-weight:800;color:#1e293b;">${formatCurrency(contract)}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">${escapeHTML(subLabel)}</div>
+                <div style="font-size:15px;font-weight:700;color:${subColor};">${subVal}</div>
+            </div>
+        </div>`;
+    const track = (segs) => `<div style="height:10px;background:#e2e8f0;border-radius:5px;overflow:hidden;display:flex;margin-bottom:8px;">${segs}</div>`;
+    const labels = (l, r) => `<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;"><span>${l}</span><span>${r}</span></div>`;
+
+    if (state === 'in-dlp') {
+        const cp = pct(collected), rp = pct(retentionAmt);
+        return `<div class="finance-bar state-amber">
+            ${header('Retention Held', formatCurrency(retentionAmt), '#f59e0b')}
+            ${track(`<div class="bar-seg collected" style="width:${cp}%"></div><div class="bar-seg retention" style="width:${rp}%;background:#f59e0b;"></div>`)}
+            ${labels(`${formatCurrency(collected)} collected · ${formatCurrency(retentionAmt)} retention held`, `DLP expires ${escapeHTML(project.dlp_expires_at || '—')}`)}
+            <div class="dlp-strip amber">
+                <span>◑ In Defect Liability Period — retention held until DLP expires</span>
+                <span class="dlp-strip-right">${fmtDays(expMs - Date.now())} days remaining</span>
+            </div>
+        </div>`;
+    }
+    if (state === 'expired') {
+        const cp = pct(collected), rp = pct(retentionAmt);
+        return `<div class="finance-bar state-red">
+            ${header('Retention Overdue', formatCurrency(retentionAmt), '#ef4444')}
+            ${track(`<div class="bar-seg collected" style="width:${cp}%"></div><div class="bar-seg retention" style="width:${rp}%;background:#ef4444;"></div>`)}
+            ${labels(`${formatCurrency(collected)} collected · Retention ${formatCurrency(retentionAmt)} overdue`, `DLP expired ${escapeHTML(project.dlp_expires_at || '—')}`)}
+            <div class="dlp-strip red">
+                <span>⚠ DLP period expired — retention release overdue</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span class="dlp-strip-right">Expired ${fmtDays(Date.now() - expMs)} days ago</span>
+                    <!-- Plan 04: Record Release button injects here -->
+                </div>
+            </div>
+        </div>`;
+    }
+    if (state === 'released') {
+        return `<div class="finance-bar state-green">
+            ${header('Fully Collected', formatCurrency(contract), '#059669')}
+            ${track(`<div class="bar-seg collected" style="width:100%"></div>`)}
+            ${labels(`${formatCurrency(contract)} collected (100%)`, `Project fully settled ✓`)}
+            <div class="dlp-strip green">
+                <span>✓ Retention released — project fully collected</span>
+                <span class="dlp-strip-right">Released ${escapeHTML(project.retention_released_at ? String(project.retention_released_at) : '—')}</span>
+            </div>
+        </div>`;
+    }
+    // active (default) — utilization bar, no DLP strip
+    const cp = pct(collected);
+    return `<div class="finance-bar">
+        ${header('Cash Collected', formatCurrency(collected), '#1a73e8')}
+        ${track(`<div class="bar-seg collected" style="width:${cp}%"></div>`)}
+        ${labels(`${formatCurrency(collected)} collected (${Math.round(cp)}%)`, `${formatCurrency(Math.max(0, contract - collected))} outstanding`)}
+    </div>`;
 }
 
 /* ========================================
