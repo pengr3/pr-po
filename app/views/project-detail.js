@@ -2559,18 +2559,12 @@ function buildLifecycleBody(project, currentUser) {
         const has = !!(project.inspection_report_url || null);
         const canDo = _canAdvanceProjectStatus(project, currentUser, 'For Proposal');
         return wrap('Gate 1 — Inspection Report', `
-            <div class="lc-gate-grid">
-                <div class="lc-gate-docs">
-                    ${buildAttachZone(project, 'inspection', 'Inspection Report', 'Inspection_Report_Final.pdf')}
-                </div>
-                <div class="lc-gate-action">
-                    <div class="lc-desc">Attach the site inspection report before advancing. The Advance button unlocks once the inspection report is on file.</div>
-                    ${!has ? '<div class="gate-warn">⚠️ Inspection report required to advance</div>' : ''}
-                    <div class="action-row">
-                        <button class="btn btn-primary" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcAdvanceToForProposal('${escapeHTML(project.id)}')">→ Advance to For Proposal</button>
-                        <span class="action-note">${!has ? 'Attach document to enable' : canDo ? 'Ready to advance' : 'Requires admin or project assignment'}</span>
-                    </div>
-                </div>
+            <div class="lc-desc">Attach the site inspection report before advancing. The Advance button unlocks once the inspection report is on file.</div>
+            ${!has ? '<div class="gate-warn">⚠️ Inspection report required to advance</div>' : ''}
+            ${buildAttachZone(project, 'inspection', 'Inspection Report', 'Inspection_Report_Final.pdf')}
+            <div class="action-row">
+                <button class="btn btn-primary" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcAdvanceToForProposal('${escapeHTML(project.id)}')">→ Advance to For Proposal</button>
+                <span class="action-note">${!has ? 'Attach document to enable' : canDo ? 'Ready to advance' : 'Requires admin or project assignment'}</span>
             </div>`);
     }
     if (status === 'For Proposal') {
@@ -2586,18 +2580,12 @@ function buildLifecycleBody(project, currentUser) {
         const has = !!(project.ntp_document_url || null);
         const canDo = _canAdvanceProjectStatus(project, currentUser, 'For Mobilization');
         return wrap('Gate 2 — Notice to Proceed / PO', `
-            <div class="lc-gate-grid">
-                <div class="lc-gate-docs">
-                    ${buildAttachZone(project, 'ntp', 'Notice to Proceed / Purchase Order', 'Notice_to_Proceed.pdf')}
-                </div>
-                <div class="lc-gate-action">
-                    <div class="lc-desc">Attach the client's formal work authorization (NTP or PO) before mobilizing.</div>
-                    ${!has ? '<div class="gate-warn">⚠️ NTP or PO required to start mobilization</div>' : ''}
-                    <div class="action-row">
-                        <button class="btn btn-orange" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcStartMobilization('${escapeHTML(project.id)}')">🚀 Start Mobilization</button>
-                        <span class="action-note">${!has ? 'Attach NTP or PO to enable' : canDo ? 'Ready to mobilize' : 'Requires admin or project assignment'}</span>
-                    </div>
-                </div>
+            <div class="lc-desc">Attach the client's formal work authorization (NTP or PO) before mobilizing.</div>
+            ${!has ? '<div class="gate-warn">⚠️ NTP or PO required to start mobilization</div>' : ''}
+            ${buildAttachZone(project, 'ntp', 'Notice to Proceed / Purchase Order', 'Notice_to_Proceed.pdf')}
+            <div class="action-row">
+                <button class="btn btn-orange" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcStartMobilization('${escapeHTML(project.id)}')">🚀 Start Mobilization</button>
+                <span class="action-note">${!has ? 'Attach NTP or PO to enable' : canDo ? 'Ready to mobilize' : 'Requires admin or project assignment'}</span>
             </div>`);
     }
     if (status === 'For Mobilization') {
@@ -2619,45 +2607,39 @@ function buildLifecycleBody(project, currentUser) {
         const startedAt = escapeHTML(project.project_started_at || '—');
         const canDo = _canAdvanceProjectStatus(project, currentUser, 'Completed');
         return wrap('Gate 4 — Completion', `
-            <div class="lc-gate-grid">
-                <div class="lc-gate-docs">
-                    ${buildAttachZone(project, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
-                    ${buildAttachZone(project, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
-                </div>
-                <div class="lc-gate-action">
-                    <div class="lc-desc">Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.</div>
-                    <div style="font-size:11px;color:#475569;margin-bottom:10px;">Started: <code>${startedAt}</code></div>
-                    ${!can ? `<div class="gate-warn">⚠️ ${escapeHTML(note)}</div>` : ''}
-                    ${(project.collection_tranches || []).some(t => t.is_retention) ? `
-                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:11px 13px;margin-bottom:12px;">
-                        <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Defect Liability Period</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-                            <div>
-                                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">Retention %</label>
-                                <input type="number" id="gateDlpRetPct" min="0" max="100" step="0.01" value="${(() => { const r = (project.collection_tranches || []).find(t => t.is_retention); return r ? (parseFloat(r.percentage) || 10) : 10; })()}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
-                            </div>
-                            <div>
-                                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Months</label>
-                                <select id="gateDlpMonths" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
-                                    <option value="3">3</option>
-                                    <option value="6">6</option>
-                                    <option value="12" selected>12</option>
-                                    <option value="18">18</option>
-                                    <option value="24">24</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Start Date</label>
-                                <input type="date" id="gateDlpStart" value="${new Date().toISOString().slice(0, 10)}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
-                            </div>
-                        </div>
-                        <div style="font-size:11px;color:#92400e;margin-top:7px;">DLP is required because this project has a retention tranche. Captured when you mark the project Completed.</div>
-                    </div>` : ''}
-                    <div class="action-row">
-                        <button class="btn btn-primary" ${(!can || !canDo) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
-                        <span class="action-note">${!canDo ? 'Requires project assignment' : !can ? escapeHTML(note) : ''}</span>
+            <div class="lc-desc">Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.</div>
+            <div style="font-size:11px;color:#475569;margin-bottom:10px;">Started: <code>${startedAt}</code></div>
+            ${!can ? `<div class="gate-warn">⚠️ ${escapeHTML(note)}</div>` : ''}
+            ${buildAttachZone(project, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
+            ${buildAttachZone(project, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
+            ${(project.collection_tranches || []).some(t => t.is_retention) ? `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:11px 13px;margin-bottom:12px;">
+                <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Defect Liability Period</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">Retention %</label>
+                        <input type="number" id="gateDlpRetPct" min="0" max="100" step="0.01" value="${(() => { const r = (project.collection_tranches || []).find(t => t.is_retention); return r ? (parseFloat(r.percentage) || 10) : 10; })()}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Months</label>
+                        <select id="gateDlpMonths" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                            <option value="3">3</option>
+                            <option value="6">6</option>
+                            <option value="12" selected>12</option>
+                            <option value="18">18</option>
+                            <option value="24">24</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Start Date</label>
+                        <input type="date" id="gateDlpStart" value="${new Date().toISOString().slice(0, 10)}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
                     </div>
                 </div>
+                <div style="font-size:11px;color:#92400e;margin-top:7px;">DLP is required because this project has a retention tranche. Captured when you mark the project Completed.</div>
+            </div>` : ''}
+            <div class="action-row">
+                <button class="btn btn-primary" ${(!can || !canDo) ? 'disabled' : ''} onclick="window.lcMarkProjectComplete('${escapeHTML(project.id)}')">✅ Mark as Completed</button>
+                <span class="action-note">${!canDo ? 'Requires project assignment' : !can ? escapeHTML(note) : ''}</span>
             </div>`);
     }
     if (status === 'Completed') {
