@@ -1,6 +1,9 @@
 # Spike Manifest
 
-## Idea (current series: 034–036)
+## Idea (current series: 037–040)
+Variation Orders (VOs / change orders). A project starts with a fixed contract (`contract_cost`); during construction, scope changes add or subtract value. Today the **only** way to reflect this is to blindly overwrite `contract_cost` — which silently re-bases every `collection_tranches` peso amount and `retention_amount` (all derived as `contract_cost × % / 100`), with no record of why, no +/- breakdown, no approval, and no supporting document. This series explores: a VO ledger + a derived **Revised Contract Sum** (037); the core financial fork of how approved VOs hit %-based tranche payments — auto-rebase vs separate VO billing vs freeze-billed+rebase-remaining (038, user chose "build the comparison"); a VO approval lifecycle with attachment gate + audit trail reusing the 028/029 + journal patterns (039); and where the VO surface lives in the real project-detail layout without overloading the financial card (040).
+
+## Idea (prior series: 034–036)
 DLP (Defect Liability Period) and retention tracking. Two gaps identified: (1) no entry point for DLP data — at project creation it's unknown; (2) `collection_tranches` can only be set at project creation, not while the project is ongoing. Spike 034 compares three DLP entry placements (on the tranche / at completion gate / standalone card). Spike 035 builds an inline tranche editor in project-detail accessible while On-going, with DLP fields on the retention tranche. Spike 036 validates the 3-state finance bar display (amber in-DLP / red expired / green released) in both project-detail and the portfolio view.
 
 ## Idea (prior series: 033)
@@ -43,6 +46,10 @@ Add an update notification feature to the CLMC Engineering SPA — when a new ve
 
 | # | Name | Type | Validates | Verdict | Tags |
 |---|------|------|-----------|---------|------|
+| 037 | vo-ledger-revised-sum | standard | Given an original contract_cost, when additive/omissive VOs are entered into a ledger, then contract value reads "Original → Revised (Δ ±)" and only Approved VOs move the revised sum (pending shown as projected) | PENDING | variation-order, contract, ledger, revised-sum, project-detail, finance |
+| 038 | tranche-rebasing-model | comparison | Given approved VOs change the revised sum, when tranches are %-based, then compare A (auto-rebase all) / B (VO billed separately) / C (freeze billed + rebase remaining) against an already-billed Mobilization tranche | PENDING | variation-order, tranche, billing, rebasing, finance, comparison |
+| 039 | vo-approval-lifecycle | standard | Given a proposed VO, when it moves Draft → For Approval → Approved/Rejected with a supporting doc attached, then only Approved VOs move the revised sum and each transition emits a journal audit entry | PENDING | variation-order, lifecycle, approval, attachment, audit, journal |
+| 040 | vo-surface-in-detail | standard | Given the VO ledger + revised-sum + approval actions, when placed in the real project-detail layout (financial card / lifecycle accordion / dedicated card), then placement feels natural without overloading the financial card | PENDING | variation-order, project-detail, layout, placement, ux, integration |
 | 034 | dlp-entry-placement | comparison | Given DLP details become known only post-award, when comparing tranche editor / completion gate / standalone card, then one placement feels natural without adding overhead | PENDING | dlp, retention, tranche, ux, project-detail |
 | 035 | tranche-editor-in-detail | standard | Given a project with no tranches while On-going, when PM/Finance opens project-detail, then they can add/edit collection_tranches inline without leaving the page | PENDING | tranche, project-detail, finance, dlp, inline-edit |
 | 036 | dlp-states-finance-bar | standard | Given a completed project with DLP fields, when DLP state is active/expired/released, then finance bar and portfolio view show amber/red/green correctly | PENDING | dlp, retention, finance-bar, portfolio, display |
