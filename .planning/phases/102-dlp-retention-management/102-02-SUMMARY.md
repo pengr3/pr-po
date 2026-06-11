@@ -63,7 +63,7 @@ metrics:
 ## Checkpoint Reached
 
 **Type:** human-verify
-**Status:** Awaiting browser UAT
+**Status:** ✅ APPROVED — browser UAT passed 2026-06-12 (operator "approved"). Advancing to Plan 03.
 
 ## Deviations from Plan
 
