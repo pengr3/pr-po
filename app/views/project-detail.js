@@ -533,6 +533,8 @@ export async function destroy() {
     delete window.recalcTrancheTotal;
     delete window.saveTrancheEditor;
     delete window.cancelTrancheEditor;
+    // Phase 102 Plan 04 — Record Release cleanup
+    delete window.recordRetentionRelease;
     editorTranches = [];
     trancheEditorOpen = false;
     document.getElementById('billingRequestModal')?.remove();
@@ -966,6 +968,11 @@ function renderDlpFinanceBar(project) {
         </div>`;
     const track = (segs) => `<div style="height:10px;background:#e2e8f0;border-radius:5px;overflow:hidden;display:flex;margin-bottom:8px;">${segs}</div>`;
     const labels = (l, r) => `<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;"><span>${l}</span><span>${r}</span></div>`;
+    // Phase 102 Plan 04 — Finance-only Record Release button (rendered in in-dlp + expired DLP strips)
+    const isFinance = (window.getCurrentUser?.()?.role === 'finance');
+    const releaseBtn = isFinance
+        ? `<button class="release-btn" onclick="window.recordRetentionRelease('${escapeHTML(project?.id || '')}')">Record Release</button>`
+        : '';
 
     if (state === 'in-dlp') {
         const cp = pct(collected), rp = pct(retentionAmt);
@@ -975,7 +982,10 @@ function renderDlpFinanceBar(project) {
             ${labels(`${formatCurrency(collected)} collected · ${formatCurrency(retentionAmt)} retention held`, `DLP expires ${escapeHTML(project.dlp_expires_at || '—')}`)}
             <div class="dlp-strip amber">
                 <span>◑ In Defect Liability Period — retention held until DLP expires</span>
-                <span class="dlp-strip-right">${fmtDays(expMs - Date.now())} days remaining</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span class="dlp-strip-right">${fmtDays(expMs - Date.now())} days remaining</span>
+                    ${releaseBtn}
+                </div>
             </div>
         </div>`;
     }
@@ -989,7 +999,7 @@ function renderDlpFinanceBar(project) {
                 <span>⚠ DLP period expired — retention release overdue</span>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <span class="dlp-strip-right">Expired ${fmtDays(Date.now() - expMs)} days ago</span>
-                    <!-- Plan 04: Record Release button injects here -->
+                    ${releaseBtn}
                 </div>
             </div>
         </div>`;
@@ -3810,6 +3820,19 @@ function attachWindowFunctions() {
             await addProjectAuditEntry(projectId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
             await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.', 'error'); }
+    };
+    // Phase 102 Plan 04 — Finance-only Record Release (direct write of retention_released_at; D-03/D-15/D-21)
+    window.recordRetentionRelease = async function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        const cu = window.getCurrentUser?.();
+        if (cu?.role !== 'finance') { showToast('Only Finance can record a retention release.', 'error'); return; }
+        if (!confirm('Record the retention release for this project? This marks the withheld retention as released and closes the DLP.')) return;
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'projects', projectId), { retention_released_at: now, updated_at: serverTimestamp() });
+            await addProjectAuditEntry(projectId, 'RETENTION_RELEASED', cu?.uid, cu?.full_name, 'retention_released_at: ' + now);
+            await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Retention released by ${cu?.full_name || 'Unknown'}` });
+        } catch (err) { console.error('[ProjectDetail] recordRetentionRelease failed:', err); showToast('Failed to record retention release.', 'error'); }
     };
 }
 
