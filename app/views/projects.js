@@ -898,6 +898,20 @@ async function loadProjects() {
 }
 
 // Render projects table
+// Phase 102 Plan 05 — DLP state machine mirroring the D-16 contract from project-detail.js.
+// Drives the portfolio-table 4-state DLP visuals (left-accent border + status tag).
+// NOTE: project-detail's copy gained an extra isRetentionCollected()->'released' short-circuit
+// (commit 9229c21) that needs per-project collectible payment records. The portfolio table is
+// render-only and does NOT load collectible docs (Plan 05 must-have: no new listener), so that
+// auto-detect branch is intentionally omitted here. retention_released_at — set by Finance via
+// Plan 04's Record Release — is the canonical 'released' signal honored by both surfaces.
+function getDlpState(project) {
+    if (!project || !project.dlp_months || project.project_status !== 'Completed') return 'active';
+    if (project.retention_released_at) return 'released';
+    if (Date.now() > new Date(project.dlp_expires_at || null).getTime()) return 'expired';
+    return 'in-dlp';
+}
+
 function renderProjectsTable() {
     const tbody = document.getElementById('projectsTableBody');
     if (!tbody) return;
@@ -928,11 +942,21 @@ function renderProjectsTable() {
         const codeDisplay = project.project_code || '—';
         // Phase 78 D-06: deep link uses project_code if available, otherwise Firestore doc ID
         const detailParam = project.project_code || project.id;
+        // Phase 102 Plan 05 — portfolio DLP visuals (left-accent border + status tag), derived once per row
+        const dlpState = getDlpState(project);
+        const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
+        const dlpTag = dlpState === 'in-dlp'
+            ? '<span class="portfolio-dlp-tag" style="background:#fef3c7;color:#92400e;">◑ In DLP</span>'
+            : dlpState === 'expired'
+            ? '<span class="portfolio-dlp-tag" style="background:#fee2e2;color:#991b1b;">⚠ Retention Overdue</span>'
+            : dlpState === 'released'
+            ? '<span class="portfolio-dlp-tag" style="background:#dcfce7;color:#166534;">✓ Fully Collected</span>'
+            : '';
 
         return `
             <tr onclick="window.location.hash = '#/projects/detail/${escapeHTML(detailParam)}'"
                 style="cursor: pointer;"
-                class="clickable-row">
+                class="clickable-row ${dlpClass}">
                 <td><strong>${escapeHTML(codeDisplay)}</strong></td>
                 <td>${escapeHTML(project.project_name)}</td>
                 <td>${escapeHTML(clientName)}</td>
@@ -942,7 +966,7 @@ function renderProjectsTable() {
                         return `<span style="color: #94a3b8; font-style: italic;">${escapeHTML(v)} (legacy)</span>`;
                     }
                     return escapeHTML(v);
-                })()}</td>
+                })()}${dlpTag ? `<div style="margin-top:4px;">${dlpTag}</div>` : ''}</td>
                 <td>
                     <span class="status-badge clickable-badge ${project.active ? 'approved' : 'rejected'}"
                           ${showEditControls ? `onclick="event.stopPropagation(); toggleProjectActive('${escapeHTML(project.id)}', ${project.active})" title="Click to ${project.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
