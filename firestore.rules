@@ -221,6 +221,7 @@ service cloud.firestore {
         isRole('operations_user') &&
         request.auth.uid in resource.data.personnel_user_ids &&
         // Phase 100 — lifecycle fields: doc attachments + gate timestamps
+        // Phase 102 Plan 04 — DLP capture fields (assigned ops user marking completion writes these in the same update)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'project_status', 'updated_at',
           'inspection_report_url', 'inspection_report_kind', 'inspection_report_filename',
@@ -228,8 +229,14 @@ service cloud.firestore {
           'mobilization_started_at', 'project_started_at',
           'completion_report_url', 'completion_report_kind', 'completion_report_filename',
           'certificate_of_completion_url', 'certificate_of_completion_kind', 'certificate_of_completion_filename',
-          'project_completed_at'
+          'project_completed_at',
+          'dlp_months', 'dlp_start_date', 'dlp_expires_at',
+          'retention_percentage', 'retention_amount', 'retention_released_at'
         ])
+      ) || (
+        // Phase 102 Plan 04 — Finance records the retention release (field-masked; allowed even on a code-locked project)
+        hasRole(['finance']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retention_released_at', 'updated_at'])
       );
 
       // Delete: super_admin, operations_admin
