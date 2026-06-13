@@ -4,7 +4,7 @@
    personnel assignment pills, and expense stub
    ======================================== */
 
-import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count, addDoc, serverTimestamp } from '../firebase.js';
+import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
@@ -35,6 +35,21 @@ let billingSelectedType = 'progress';
 // Distinct name from currentServiceCollectibles (the AGGREGATE object above).
 let currentCollectibleDocs = [];
 let collectiblesListenerUnsub = null;
+
+// Phase 104 — Activity Journal state (mirror project-detail.js Phase 101)
+let journalActivityUnsub = null;
+let journalProgressUnsub = null;
+let journalIssuesUnsub = null;
+let journalActivityEntries = [];
+let journalProgressUpdates = [];
+let journalIssues = [];
+let _activeJournalTab = 'activity';
+let journalIssueFilter = 'all';
+let journalProgressFormOpen = false;
+let journalIssueFormOpen = false;
+let journalResolvingIssueId = null;
+let journalSelectedTag = 'update';
+let journalEditingProgressId = null;
 
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
@@ -164,6 +179,8 @@ export async function init(activeTab = null, param = null) {
             // Phase 99.1 — own billing-requests + raw collectibles listeners (idempotent, scoped to service_code)
             ensureServiceBillingRequestsListener();
             ensureServiceCollectiblesListener();
+            // Phase 104 — attach the journal listeners only on visible statuses (D-11)
+            if (['For Mobilization', 'On-going', 'Completed'].includes(currentService?.project_status)) ensureServiceJournalListeners();
 
             await refreshServiceExpense(true);
             // Note: refreshServiceExpense() calls renderServiceDetail() on success.
@@ -234,6 +251,24 @@ export async function destroy() {
     collectiblesListenerUnsub = null;
     currentCollectibleDocs = [];
 
+    // Phase 104 — Activity Journal listener teardown + UI-state reset
+    if (journalActivityUnsub) { try { journalActivityUnsub(); } catch (e) { /* swallow */ } }
+    journalActivityUnsub = null;
+    journalActivityEntries = [];
+    if (journalProgressUnsub) { try { journalProgressUnsub(); } catch (e) { /* swallow */ } }
+    journalProgressUnsub = null;
+    journalProgressUpdates = [];
+    if (journalIssuesUnsub) { try { journalIssuesUnsub(); } catch (e) { /* swallow */ } }
+    journalIssuesUnsub = null;
+    journalIssues = [];
+    _activeJournalTab = 'activity';
+    journalIssueFilter = 'all';
+    journalProgressFormOpen = false;
+    journalIssueFormOpen = false;
+    journalResolvingIssueId = null;
+    journalSelectedTag = 'update';
+    journalEditingProgressId = null;
+
     currentService = null;
     currentServiceDocId = null;
     serviceParam = null;
@@ -264,6 +299,10 @@ export async function destroy() {
     delete window._validateBillingForm;
     document.getElementById('billingRequestModal')?.remove();
     delete window.openServiceFullBreakdown;
+    // Phase 104 — Activity Journal window-fn teardown (Task 1: 3 handlers)
+    delete window.switchJournalTab;
+    delete window.selectJournalTag;
+    delete window.postActivityEntry;
 }
 
 // Phase 99.1 (Phase 99 port) — idempotent attach of the own billing-requests listener.
@@ -867,6 +906,7 @@ function renderServiceDetail() {
             </div>
 
             ${proposalCardHtml}
+            ${_buildServiceJournalPanelHtml(currentService)}
         </div>
     `;
 
@@ -1710,6 +1750,268 @@ async function loadProposalCard(parentDocId, parentCollection) {
     }
 }
 
+// ============================================================
+// Phase 104 — Activity Journal (mirror project-detail.js Phase 101)
+// ============================================================
+
+// Shared audit primitive consumed by Plan 03 gates + Plan 04 Record Release.
+async function addServiceAuditEntry(serviceDocId, action, actorId, actorName, comment) {
+    try {
+        await addDoc(collection(db, 'services', serviceDocId, 'audit_log'), {
+            action, actor_id: actorId || '', actor_name: actorName || 'Unknown',
+            comment: comment || '', created_at: serverTimestamp(),
+        });
+    } catch (err) { console.error('[ServiceDetail] addServiceAuditEntry failed:', err); }
+}
+
+// Shared write primitive for all journal activity entries — returns boolean for the D-14 landmine.
+async function _addServiceActivityEntry(serviceDocId, { type, text, is_system = false }) {
+    try {
+        const cu = window.getCurrentUser?.();
+        await addDoc(collection(db, 'services', serviceDocId, 'activity_entries'), {
+            type, text, is_system,
+            created_by_uid: cu?.uid ?? '',
+            created_by_name: cu?.full_name || cu?.email || 'Unknown',
+            created_at: serverTimestamp(),
+        });
+        return true;   // Phase 103.1 D-03 — entry persisted; caller may refresh the activity clock
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] _addServiceActivityEntry failed:', err);
+        return false;  // swallowed; caller must NOT refresh the clock
+    }
+}
+
+// Statuses where the journal panel is shown / writeable (mirror project-detail.js:2829-2830; services use the same project_status field)
+const JOURNAL_WRITE_STATUSES = ['For Mobilization', 'On-going'];
+const JOURNAL_VISIBLE_STATUSES = [...JOURNAL_WRITE_STATUSES, 'Completed'];
+
+function _avatarColor(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const palette = ['#1a73e8', '#9333ea', '#059669', '#ef4444', '#f59e0b', '#0ea5e9', '#7c3aed'];
+    return palette[Math.abs(hash) % palette.length];
+}
+
+function _avatarInitials(name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase() || '?';
+}
+
+function selectJournalTag(tag) {
+    journalSelectedTag = tag;
+    ['update', 'milestone', 'issue', 'client'].forEach(t => {
+        const btn = document.querySelector(`.journal-tag-pill.${t}`);
+        if (btn) btn.classList.toggle('selected', t === tag);
+    });
+}
+
+// Build the full journal panel HTML for a service. Returns '' when the panel should be hidden (D-11).
+// KEEP literal CSS classes + the element id projectJournalPanel verbatim — global classes (Pattern 5).
+function _buildServiceJournalPanelHtml(service) {
+    const isVisible = JOURNAL_VISIBLE_STATUSES.includes(service.project_status);
+    if (!isVisible) return '';
+
+    const isReadOnly = service.project_status === 'Completed';
+
+    const tabs = ['activity', 'progress', 'issues'];
+    const tabLabels = { activity: 'Activity Feed', progress: 'Progress Updates', issues: 'Issues' };
+    const tabCounts = {
+        activity: journalActivityEntries.length,
+        progress: journalProgressUpdates.length,
+        issues: journalIssues.length,
+    };
+
+    const tabBarHtml = `<div class="journal-ap-tabs">${
+        tabs.map(t => `<button
+            id="journalTabBtn-${t}"
+            class="journal-tab-btn${_activeJournalTab === t ? ' active' : ''}"
+            onclick="window.switchJournalTab('${t}')"
+        >${tabLabels[t]}<span class="journal-tab-badge">${tabCounts[t]}</span></button>`).join('')
+    }</div>`;
+
+    const composerHtml = !isReadOnly ? `
+        <div class="journal-feed-composer">
+            <textarea id="journalComposerText" placeholder="Add a note, update, or observation…" rows="2"></textarea>
+            <div class="journal-composer-footer">
+                <div class="journal-tag-row">
+                    <button class="journal-tag-pill update${journalSelectedTag === 'update' ? ' selected' : ''}" onclick="window.selectJournalTag('update')">Update</button>
+                    <button class="journal-tag-pill milestone${journalSelectedTag === 'milestone' ? ' selected' : ''}" onclick="window.selectJournalTag('milestone')">Milestone</button>
+                    <button class="journal-tag-pill issue${journalSelectedTag === 'issue' ? ' selected' : ''}" onclick="window.selectJournalTag('issue')">Issue</button>
+                    <button class="journal-tag-pill client${journalSelectedTag === 'client' ? ' selected' : ''}" onclick="window.selectJournalTag('client')">Client Comm.</button>
+                </div>
+                <button class="journal-post-btn" onclick="window.postActivityEntry()">Post</button>
+            </div>
+        </div>` : '';
+
+    const feedHtml = `<div class="journal-feed-list">${
+        journalActivityEntries.length === 0
+            ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No entries yet.</div>'
+            : journalActivityEntries.map(e => _renderFeedEntry(e)).join('')
+    }</div>`;
+
+    const activityPanelHtml = `<div id="journalTab-activity" class="journal-tab-panel${_activeJournalTab === 'activity' ? ' visible' : ''}">
+        ${composerHtml}
+        ${feedHtml}
+    </div>`;
+
+    const progressPanelHtml = `<div id="journalTab-progress" class="journal-tab-panel${_activeJournalTab === 'progress' ? ' visible' : ''}">
+        <!-- SVC-JOURNAL-PROGRESS-BODY (wired in Task 2) -->
+        <div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">Loading…</div>
+    </div>`;
+
+    const issuesPanelHtml = `<div id="journalTab-issues" class="journal-tab-panel${_activeJournalTab === 'issues' ? ' visible' : ''}">
+        <!-- SVC-JOURNAL-ISSUES-BODY (wired in Task 2) -->
+        <div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">Loading…</div>
+    </div>`;
+
+    let daysRunningHtml = '';
+    if (service.project_status === 'On-going' && service.project_started_at) {
+        const startMs = new Date(service.project_started_at).getTime();
+        if (!isNaN(startMs)) {
+            const days = Math.max(0, Math.floor((Date.now() - startMs) / (1000 * 60 * 60 * 24)));
+            const startDateStr = new Date(startMs).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+            daysRunningHtml = `<span class="journal-days-running">Started ${startDateStr} · ${days} day${days !== 1 ? 's' : ''} running</span>`;
+        }
+    }
+
+    return `<div id="projectJournalPanel" class="project-journal-panel${isReadOnly ? ' project-journal-panel--readonly' : ''}">
+        <div class="journal-ap-header">
+            <div class="journal-ap-header-left">
+                <span style="font-size:16px">📋</span>
+                <h3 style="font-size:14px;font-weight:700;margin:0;">On-going Activity</h3>
+            </div>
+            ${daysRunningHtml}
+        </div>
+        ${tabBarHtml}
+        <div class="journal-ap-body">
+            ${activityPanelHtml}
+            ${progressPanelHtml}
+            ${issuesPanelHtml}
+        </div>
+    </div>`;
+}
+
+// Render a single activity feed entry row (handles live Timestamp + optimistic {seconds}).
+function _renderFeedEntry(entry) {
+    const ts = entry.created_at?.seconds
+        ? new Date(entry.created_at.seconds * 1000)
+        : (entry.created_at?.toDate ? entry.created_at.toDate() : new Date());
+    const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const tagType = entry.type || 'update';
+    const tagLabel = { update: 'UPDATE', milestone: 'MILESTONE', issue: 'ISSUE', client: 'CLIENT', system: 'SYSTEM', edit: 'EDIT' }[tagType] || escapeHTML(tagType).toUpperCase();
+    const isSystem = entry.is_system || tagType === 'system' || tagType === 'edit';
+    const badgeType = (tagType === 'edit') ? 'system' : tagType;
+
+    if (isSystem) {
+        return `<div class="journal-feed-entry">
+            <div class="journal-feed-avatar" style="background:#94a3b8;font-size:10px;">SYS</div>
+            <div class="journal-feed-right">
+                <div class="journal-feed-meta">
+                    <span class="journal-feed-system">System</span>
+                    <span class="journal-feed-tag-badge journal-badge-${escapeHTML(badgeType)}">${tagLabel}</span>
+                    <span class="journal-feed-time">${escapeHTML(timeStr)}</span>
+                </div>
+                <div class="journal-feed-text">${escapeHTML(entry.text || '')}</div>
+            </div>
+        </div>`;
+    }
+
+    const authorName = entry.created_by_name || 'Unknown';
+    const avatarBg = _avatarColor(authorName);
+    const initials = _avatarInitials(authorName);
+    return `<div class="journal-feed-entry">
+        <div class="journal-feed-avatar" style="background:${avatarBg};">${escapeHTML(initials)}</div>
+        <div class="journal-feed-right">
+            <div class="journal-feed-meta">
+                <span class="journal-feed-author">${escapeHTML(authorName)}</span>
+                <span class="journal-feed-tag-badge journal-badge-${escapeHTML(tagType)}">${tagLabel}</span>
+                <span class="journal-feed-time">${escapeHTML(timeStr)}</span>
+            </div>
+            <div class="journal-feed-text">${escapeHTML(entry.text || '')}</div>
+        </div>
+    </div>`;
+}
+
+// In-place re-render of the journal panel only (scoped replaceWith on #projectJournalPanel — no full page rebuild).
+function _renderServiceJournalPanelInPlace() {
+    const el = document.getElementById('projectJournalPanel');
+    if (!el || !currentService) return;
+    const html = _buildServiceJournalPanelHtml(currentService);
+    if (!html) { el.remove(); return; }
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    el.replaceWith(tmp.firstElementChild);
+}
+
+// DOM-only tab switcher — all three listeners already running; no new subscriptions.
+function switchJournalTab(tab) {
+    _activeJournalTab = tab;
+    ['activity', 'progress', 'issues'].forEach(t => {
+        const panel = document.getElementById('journalTab-' + t);
+        const btn = document.getElementById('journalTabBtn-' + t);
+        if (panel) panel.classList.toggle('visible', t === tab);
+        if (btn) btn.classList.toggle('active', t === tab);
+    });
+}
+
+// Post a new Activity Feed entry (optimistic append, then persist; D-14 success-only bump).
+async function postActivityEntry() {
+    const textEl = document.getElementById('journalComposerText');
+    const type = journalSelectedTag || 'update';
+    const text = (textEl?.value || '').trim();
+    if (!text) { showToast('Enter a note before posting.', 'error'); return; }
+
+    const cu = window.getCurrentUser?.();
+    journalActivityEntries.unshift({
+        id: '_optimistic', type, text, is_system: false,
+        created_by_name: cu?.full_name || cu?.email || 'Unknown',
+        created_at: { seconds: Date.now() / 1000 }
+    });
+    _renderServiceJournalPanelInPlace();
+    if (textEl) textEl.value = '';
+
+    try {
+        const ok = await _addServiceActivityEntry(currentServiceDocId, { type, text, is_system: false });
+        if (ok) {
+            // Phase 104 D-14 — fire-and-forget, NOT awaited, NOT batched, success-path-only.
+            updateDoc(doc(db, 'services', currentServiceDocId), { last_activity_at: serverTimestamp() })
+                .catch(err => console.debug('[ServiceDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
+        }
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] postActivityEntry failed:', err);
+        showToast('Failed to post entry. Please try again.', 'error');
+    }
+}
+
+// Idempotent attach of all three journal subcollection listeners (mirror project ensureJournalListeners).
+function ensureServiceJournalListeners() {
+    if (!currentServiceDocId) return;
+    const serviceDocId = currentServiceDocId;
+
+    if (!journalActivityUnsub) {
+        journalActivityUnsub = onSnapshot(
+            query(collection(db, 'services', serviceDocId, 'activity_entries'), orderBy('created_at', 'desc'), limit(50)),
+            (snap) => { journalActivityEntries = []; snap.forEach(d => journalActivityEntries.push({ id: d.id, ...d.data() })); _renderServiceJournalPanelInPlace(); },
+            (err) => { console.error('[ServiceDetail/Journal] activity_entries snapshot error:', err); }
+        );
+    }
+    if (!journalProgressUnsub) {
+        journalProgressUnsub = onSnapshot(
+            query(collection(db, 'services', serviceDocId, 'progress_updates'), orderBy('created_at', 'desc'), limit(50)),
+            (snap) => { journalProgressUpdates = []; snap.forEach(d => journalProgressUpdates.push({ id: d.id, ...d.data() })); _renderServiceJournalPanelInPlace(); },
+            (err) => { console.error('[ServiceDetail/Journal] progress_updates snapshot error:', err); }
+        );
+    }
+    if (!journalIssuesUnsub) {
+        journalIssuesUnsub = onSnapshot(
+            query(collection(db, 'services', serviceDocId, 'issues'), orderBy('created_at', 'desc'), limit(50)),
+            (snap) => { journalIssues = []; snap.forEach(d => journalIssues.push({ id: d.id, ...d.data() })); _renderServiceJournalPanelInPlace(); },
+            (err) => { console.error('[ServiceDetail/Journal] issues snapshot error:', err); }
+        );
+    }
+}
+
 // Attach window functions
 function attachWindowFunctions() {
     window.saveServiceField = saveServiceField;
@@ -1745,4 +2047,8 @@ function attachWindowFunctions() {
     window._onBillingTrancheChange = _onBillingTrancheChange;
     window._selectBillingType = _selectBillingType;
     window._validateBillingForm = _validateBillingForm;
+    // Phase 104 — Activity Journal (Task 1: 3 handlers)
+    window.switchJournalTab = switchJournalTab;
+    window.selectJournalTag = selectJournalTag;
+    window.postActivityEntry = postActivityEntry;
 }
