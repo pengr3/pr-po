@@ -39,7 +39,7 @@
 - [x] 104-04-PLAN.md — service-detail.js DLP: `getDlpState`/`isRetentionCollected` + 4-state finance bar + inline tranche editor (Ret? toggle) in the Financial card + Finance-only `recordServiceRetentionRelease`; service-doc DLP fields `|| null` [D-07/D-08/D-09/D-15] [Wave 4]
 - [x] 104-05-PLAN.md — procurement.js PO-Delivered service auto-entry (join on `service_code`) + services.js one-time On-going two-tier signal on `last_activity_at`; recurring conservative [D-12/D-13] [Wave 2, parallel with 02]
 **Deferred:** Service Plan / Gantt → Phase 105 (separate; needs a service task data model).
-**Status**: ◆ EXECUTED 2026-06-13 — 5/5 plans code-complete (inline sequential on v3.3). VERIFICATION `human_needed` (zero-build SPA → all `node --check`/grep gates pass; functional behavior browser-gated). **NOT marked complete until UAT.** 12 browser-UAT items in `104-HUMAN-UAT.md`. **2 blocking gates remain: (1) `firebase deploy --only firestore:rules --project dev`; (2) browser UAT.** On approval → phase complete. On failure → `/gsd-plan-phase 104 --gaps`. Prod rules deploy joins the standing v3.3 → main debt (87.4/99/100/101/102/103.1 + now 104).
+**Status**: ✅ COMPLETE 2026-06-13 — 5/5 plans, inline sequential on v3.3. DEV rules deployed; **12/12 browser UAT approved**. VERIFICATION `passed`. `service-detail.js` now at functional parity with `project-detail.js` (lifecycle accordion + activity journal + DLP/retention). All `node --check`/grep gates green; firestore.rules braces 77/77; 33/33 window fns symmetric. **Carry:** prod `firebase deploy --only firestore:rules` rides the standing v3.3 → main debt (87.4/99/100/101/102/103.1 + now 104).
 
 ---
 

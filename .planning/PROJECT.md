@@ -14,6 +14,8 @@ Projects tab must work — it's the foundation where project name and code origi
 
 **Active milestone:** v4.0 — Procurement → Full Management Portal (started 2026-04-28).
 
+**v4.0 progress (Phase 104 complete, 2026-06-13):** `service-detail.js` now has full functional parity with `project-detail.js` — the lifecycle accordion (8-stage track + 4 document gates replacing the manual status dropdown), the 3-tab activity journal (Activity Feed · Progress Updates · Issues) backed by service subcollections, and the DLP/retention surfaces (4-state finance bar + inline tranche editor + Finance-only Record Release) all ported. One-time services gained a two-tier "gone quiet" On-going signal; PO-Delivered now posts to the owning service's journal.
+
 See `.planning/MILESTONES.md` for full milestone history and `.planning/changelogs/v3.2.md` for the user-facing release notes.
 
 ## Current Milestone: v4.0 Procurement → Full Management Portal

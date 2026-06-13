@@ -1,48 +1,40 @@
 ---
-status: human_needed
+status: passed
 phase: 104-service-detail-parity
 verified: 2026-06-13
-score: "5/5 plans code-complete · 15/15 must-have truths static-verified · functional behavior browser-gated"
+score: "5/5 plans · 15/15 must-have truths static-verified · 12/12 browser UAT approved"
 requirements: []
 ---
 
 # Phase 104 — Service Detail Parity (Lifecycle · Journal · DLP) — Verification
 
-## Verdict: human_needed
+## Verdict: passed
 
-All 5 plans are code-complete and every static/automated gate passes. This is a **zero-build SPA** whose only automated gates are `node --check` + structural grep (CLAUDE.md: "No build, test, or lint commands"). The behavioral truths (Firestore writes, rule enforcement, live UI) are inherently **browser-gated** and require the DEV rules deploy + browser UAT — captured in `104-HUMAN-UAT.md`.
+All 5 plans code-complete; every static/automated gate passes; the **DEV rules deploy succeeded** and **all 12 browser-UAT items were approved by the operator on 2026-06-13**. `service-detail.js` now reaches functional parity with `project-detail.js` for the three subsystems services previously lacked (lifecycle accordion, activity journal, DLP/retention).
 
 ## Automated gates (all PASS)
 
 | Gate | Result |
 |------|--------|
-| `node --check app/views/service-detail.js` | PASS |
-| `node --check app/views/procurement.js` | PASS |
-| `node --check app/views/services.js` | PASS |
+| `node --check` (service-detail.js, procurement.js, services.js) | PASS |
 | `firestore.rules` brace balance | 77/77 (69 baseline + 8 from 4 new service subcollection blocks) |
 | Phase-104 window fns register↔teardown symmetry | 33/33 (15 journal + 9 lifecycle + 9 editor/release), name-by-name |
-| Duplicate function / const-let definitions in service-detail.js | none |
-| Stray `currentProject` / `db,'projects'` / project-side fn names in service-detail.js | 0 (rename map fully applied) |
-| All per-task `<acceptance_criteria>` across 5 plans | PASS (logged in each SUMMARY) |
-| Rules unit test (`test/firestore.test.js`) | NOT RUN — Firestore emulator requires Java (absent on this machine). Rules validated structurally + verbatim-mirror of the proven projects blocks; **compile-checked server-side at the DEV deploy gate**. |
+| Duplicate function / const-let defs · stray currentProject/projects refs | none / 0 (rename map clean) |
+| Per-task `<acceptance_criteria>` across 5 plans | PASS |
+| `firestore.rules` server-side compile | PASS (DEV deploy succeeded) |
+| Rules unit test (`test/firestore.test.js`) | NOT RUN locally — Firestore emulator needs Java (absent); rules compile-verified via the DEV deploy instead |
 
-## Must-have coverage (per plan, static)
+## Human verification (browser UAT — APPROVED)
 
-- **104-01 (rules, D-15/D-04/D-10):** 4 service subcollection blocks (audit_log + activity_entries + progress_updates + issues) + Finance field-masked Record-Release branch under `match /services/{serviceId}`; services-doc field additions need no allow-list change (role-only rule confirmed). ✔ static
-- **104-02 (journal, D-10/D-11/D-12/D-14):** status-gated 3-tab panel, shared `_addServiceActivityEntry`/`addServiceAuditEntry`, 3 listeners, D-14 fire-and-forget bumps (×5), D-12 cost-delta auto-entry. ✔ static
-- **104-03 (lifecycle, D-01..D-07/D-12/D-14):** 8-stage accordion + 4 gates (status_changed_at + audit + activity + bump each), Completion services_admin-only (D-04), DLP capture gated on retention (D-07), dropdown→read-only pill (D-02), D-06 proposal-funnel stamp re-verified intact, `computeDlpFields` owned here. ✔ static
-- **104-04 (DLP, D-07/D-08/D-09/D-15):** `getDlpState`/`isRetentionCollected` (|| null), 4-state finance bar, inline tranche editor + Ret? toggle, Finance-only `recordServiceRetentionRelease`; no services.js change (D-09). ✔ static
-- **104-05 (D-12/D-13):** procurement.js PO-Delivered service branch (joins `service_code`), services.js two-tier one-time On-going signal on `last_activity_at`; recurring conservative. ✔ static
+All 12 items in `104-HUMAN-UAT.md` passed against `clmc-procurement-dev` after the DEV rules deploy:
+lifecycle accordion + read-only pill (both service types), gate advancement + disabled-until-doc + Completion `services_admin`-only, audit/activity/last_activity_at writes, Completion DLP capture gated on retention, Draft renders cleanly, journal visibility gate (hidden/writeable/read-only), post/progress/issue + resolve-with-notes + cost-change auto-entry, 4-state DLP bar, inline tranche editor + Ret? + 100% guard, Finance-only Record Release, PO-Delivered → service journal (service_code join), one-time On-going two-tier signal with recurring conservative.
 
-## Human verification required
+## Carry-forward (not blocking 104)
 
-See `104-HUMAN-UAT.md`. Two blocking prerequisites and the functional UAT items must be exercised in a browser against `clmc-procurement-dev`:
-
-1. **DEV rules deploy** (Plan 01 Task 2 gate) — `firebase deploy --only firestore:rules --project dev`. Without it, every journal/audit/Record-Release write is DENIED.
-2. **Browser UAT** of the lifecycle accordion, journal panel, DLP bar/editor/Record-Release, PO-Delivered service entry, and the one-time On-going signal.
-
-On UAT approval → phase marked complete. On any failure → `/gsd-plan-phase 104 --gaps`.
+- **Prod rules deploy** — `firebase deploy --only firestore:rules` rides the standing v3.3 → main merge debt (87.4 / 99 / 100 / 101 / 102 / 103.1 + now 104).
+- **Lifecycle copy wording** — descriptive text mirrors the project verbatim ("Project"); reword to "Service" is an optional trivial follow-up.
+- **T-104-09 (accepted residual)** — Completion-gate role enforcement is UI-advisory (role-only services rule); server-side completion-role masking deferred.
 
 ---
 *Phase: 104-service-detail-parity*
-*Verified: 2026-06-13 (static); functional verdict human_needed*
+*Verified: 2026-06-13 — passed (static gates + 12/12 browser UAT approved)*
