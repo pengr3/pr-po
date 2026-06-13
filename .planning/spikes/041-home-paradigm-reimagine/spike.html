@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 041 — Home Paradigm Reimagine</title>
+<style>
+  /* ===== CLMC design tokens (from project design system) ===== */
+  :root{
+    --blue:#1a73e8; --blue-dark:#1557b0; --blue-tint:#f0f6ff;
+    --green:#059669; --green-tint:#ecfdf5;
+    --warn:#f59e0b; --warn-tint:#fffbeb;
+    --danger:#ef4444; --danger-tint:#fef2f2;
+    --ink:#1e293b; --ink2:#475569; --muted:#64748b; --faint:#94a3b8;
+    --line:#e5e7eb; --line2:#e2e8f0; --bg:#f6f8fb; --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); padding-bottom:60px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===== Mock app top-nav ===== */
+  .topnav{
+    background:#fff; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:1.5rem;
+    padding:0 1.5rem; height:56px; position:sticky; top:0; z-index:20;
+    box-shadow:0 1px 3px rgba(15,23,42,.04);
+  }
+  .topnav .brand{font-weight:700; font-size:1.05rem; display:flex; align-items:center; gap:.45rem;}
+  .topnav .navlink{color:var(--muted); font-size:.875rem; text-decoration:none; padding:.4rem .1rem;}
+  .topnav .navlink.active{color:var(--blue); font-weight:600;}
+  .topnav .spacer{flex:1;}
+  .topnav .bell{position:relative; color:var(--muted); font-size:1.1rem;}
+  .topnav .bell .dot{position:absolute; top:-3px; right:-5px; width:8px; height:8px; background:var(--danger); border-radius:50%; border:2px solid #fff;}
+  .topnav .avatar{width:30px; height:30px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:600;}
+
+  /* ===== Variant switcher ===== */
+  .switcher{
+    background:#0f172a; color:#cbd5e1; padding:.6rem 1.5rem;
+    display:flex; gap:.4rem; align-items:center; flex-wrap:wrap;
+    position:sticky; top:56px; z-index:19;
+  }
+  .switcher .sw-label{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:#64748b; margin-right:.4rem;}
+  .sw-btn{
+    background:#1e293b; color:#cbd5e1; border:1px solid #334155;
+    border-radius:7px; padding:.4rem .8rem; cursor:pointer; font-size:.82rem; font-weight:600;
+    transition:all .15s;
+  }
+  .sw-btn:hover{background:#334155; color:#fff;}
+  .sw-btn.active{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .sw-pitch{color:#94a3b8; font-size:.78rem; margin-left:auto; font-style:italic; max-width:46%; text-align:right;}
+
+  /* ===== Stage shell ===== */
+  .stage{max-width:1080px; margin:0 auto; padding:1.5rem;}
+  .home-region{min-height:340px;}
+
+  /* generic card */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px;}
+  .card-pad{padding:1.25rem 1.4rem;}
+
+  /* ===== Shared: greeting strip ===== */
+  .greet{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.1rem; flex-wrap:wrap; gap:.5rem;}
+  .greet h1{font-size:1.4rem; margin:0; font-weight:700;}
+  .greet .role-chip{font-size:.78rem; color:var(--blue); background:var(--blue-tint); border:1px solid #d6e4ff; padding:.25rem .7rem; border-radius:999px; font-weight:600;}
+  .greet .sub{color:var(--muted); font-size:.9rem;}
+
+  /* section label */
+  .sec-label{font-size:.74rem; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:700; margin:0 0 .7rem;}
+
+  /* ===== A · Action Center ===== */
+  .ac-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:.85rem;}
+  .ac-tile{
+    background:#fff; border:1px solid var(--line); border-left:4px solid var(--blue);
+    border-radius:11px; padding:1rem 1.1rem; cursor:pointer; transition:all .15s;
+    display:flex; flex-direction:column; gap:.2rem; position:relative;
+  }
+  .ac-tile:hover{transform:translateY(-2px); box-shadow:0 8px 20px rgba(15,23,42,.09);}
+  .ac-tile.warn{border-left-color:var(--warn);}
+  .ac-tile.danger{border-left-color:var(--danger);}
+  .ac-tile .n{font-size:1.9rem; font-weight:800; line-height:1; color:var(--ink);}
+  .ac-tile .n .unit{font-size:.95rem; font-weight:600; color:var(--muted); margin-left:.2rem;}
+  .ac-tile .lab{font-size:.9rem; color:var(--ink2); font-weight:600;}
+  .ac-tile .go{font-size:.78rem; color:var(--blue); margin-top:.35rem; opacity:0; transition:opacity .15s;}
+  .ac-tile:hover .go{opacity:1;}
+  .ac-tile .badge{position:absolute; top:.7rem; right:.8rem; font-size:.95rem;}
+
+  /* empty state */
+  .calm{
+    background:linear-gradient(135deg,var(--green-tint),#fff);
+    border:1px solid #bbf7d0; border-radius:12px; padding:2rem; text-align:center;
+  }
+  .calm .big{font-size:2.4rem;}
+  .calm h3{margin:.4rem 0 .2rem; color:#047857;}
+  .calm p{margin:0; color:var(--ink2); font-size:.9rem;}
+
+  /* ===== B · Business Pulse ===== */
+  .pulse-list{display:flex; flex-direction:column;}
+  .pulse-row{
+    display:flex; gap:.85rem; padding:.8rem .2rem; border-bottom:1px solid #f1f5f9;
+    cursor:pointer; align-items:flex-start; transition:background .12s;
+  }
+  .pulse-row:hover{background:#f8fafc;}
+  .pulse-row.mine{background:var(--blue-tint);}
+  .pulse-row.mine:hover{background:#e6f0ff;}
+  .pulse-dot{width:10px; height:10px; border-radius:50%; margin-top:.32rem; flex-shrink:0;}
+  .pulse-main{flex:1;}
+  .pulse-text{font-size:.92rem; color:var(--ink); line-height:1.35;}
+  .pulse-text b{font-weight:700;}
+  .pulse-meta{font-size:.78rem; color:var(--muted); margin-top:.15rem;}
+  .pulse-time{font-size:.76rem; color:var(--faint); white-space:nowrap; margin-top:.32rem;}
+  .pulse-mine-tag{font-size:.68rem; color:var(--blue); font-weight:700; background:#dbeafe; padding:.05rem .4rem; border-radius:4px; margin-left:.4rem;}
+  .pulse-daydiv{font-size:.72rem; color:var(--faint); text-transform:uppercase; letter-spacing:.07em; font-weight:700; padding:.9rem .2rem .3rem;}
+
+  /* ===== C · Portfolio Map ===== */
+  .pm-summary{display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;}
+  .pm-stat{background:#fff; border:1px solid var(--line); border-radius:10px; padding:.7rem 1rem; flex:1; min-width:150px;}
+  .pm-stat .v{font-size:1.25rem; font-weight:800;}
+  .pm-stat .l{font-size:.76rem; color:var(--muted); margin-top:.1rem;}
+  .pm-pipe{display:grid; grid-template-columns:repeat(6,1fr); gap:.6rem; align-items:start;}
+  .pm-col{background:#fff; border:1px solid var(--line); border-radius:10px; padding:.6rem .5rem; min-height:120px;}
+  .pm-col-head{font-size:.72rem; font-weight:700; color:var(--ink2); text-align:center; padding-bottom:.5rem; border-bottom:1px solid #f1f5f9; margin-bottom:.5rem;}
+  .pm-col-head .cnt{display:inline-block; background:#f1f5f9; color:var(--muted); border-radius:999px; padding:0 .4rem; font-size:.7rem; margin-left:.2rem;}
+  .pm-node{
+    display:block; width:100%; text-align:left; background:#f8fafc; border:1px solid var(--line2);
+    border-left:3px solid var(--blue); border-radius:7px; padding:.4rem .5rem; margin-bottom:.4rem;
+    cursor:pointer; font-size:.76rem; transition:all .12s;
+  }
+  .pm-node:hover{background:#fff; transform:translateX(2px); box-shadow:0 3px 8px rgba(15,23,42,.08);}
+  .pm-node.stuck{border-left-color:var(--warn); background:var(--warn-tint);}
+  .pm-node.overdue{border-left-color:var(--danger); background:var(--danger-tint);}
+  .pm-node .nm{font-weight:700; color:var(--ink); display:block; line-height:1.2;}
+  .pm-node .ag{color:var(--muted); font-size:.7rem;}
+  .pm-node .flag{font-size:.68rem; font-weight:700;}
+  .pm-flag-stuck{color:#b45309;} .pm-flag-over{color:#b91c1c;}
+
+  /* ===== D · Daily Briefing ===== */
+  .br-card{
+    background:linear-gradient(160deg,#ffffff 0%,#f7faff 100%);
+    border:1px solid var(--line); border-radius:16px; padding:1.7rem 1.9rem; box-shadow:0 4px 18px rgba(15,23,42,.05);
+  }
+  .br-hi{font-size:1.55rem; font-weight:700; margin:0 0 .25rem;}
+  .br-lede{font-size:1.02rem; color:var(--ink2); margin:0 0 1.3rem;}
+  .br-lede .em{color:var(--danger); font-weight:700;}
+  .br-lede .ok{color:var(--green); font-weight:700;}
+  .br-bullets{list-style:none; padding:0; margin:0 0 1.4rem;}
+  .br-bullets li{
+    display:flex; gap:.7rem; align-items:flex-start; padding:.6rem .8rem; margin-bottom:.5rem;
+    background:#fff; border:1px solid var(--line); border-radius:10px; border-left:4px solid var(--muted);
+  }
+  .br-bullets li.danger{border-left-color:var(--danger);}
+  .br-bullets li.warn{border-left-color:var(--warn);}
+  .br-bullets li.ok{border-left-color:var(--green);}
+  .br-bullets .ic{font-size:1rem; margin-top:.05rem;}
+  .br-bullets .bt{font-size:.93rem; color:var(--ink); line-height:1.4;}
+  .br-bullets .bt b{font-weight:700;}
+  .br-actions{display:flex; gap:.6rem; flex-wrap:wrap;}
+  .br-numbers{display:flex; gap:1.4rem; flex-wrap:wrap; margin:0 0 1.4rem; padding:.9rem 1rem; background:#fff; border:1px solid var(--line); border-radius:10px;}
+  .br-num .v{font-size:1.15rem; font-weight:800;}
+  .br-num .l{font-size:.74rem; color:var(--muted);}
+
+  /* buttons */
+  .btn{border:none; border-radius:8px; padding:.5rem .95rem; font-size:.85rem; font-weight:600; cursor:pointer;}
+  .btn-primary{background:var(--blue); color:#fff;}
+  .btn-primary:hover{background:var(--blue-dark);}
+  .btn-ghost{background:#fff; color:var(--blue); border:1px solid #cdddfb;}
+  .btn-danger{background:var(--danger); color:#fff;}
+
+  /* ===== Secondary nav strip (the genuinely-useful doors, condensed) ===== */
+  .doorstrip{display:flex; gap:.5rem; margin-top:1.6rem; flex-wrap:wrap;}
+  .door{flex:1; min-width:120px; background:#fff; border:1px solid var(--line); border-radius:9px; padding:.6rem .8rem; cursor:pointer; font-size:.82rem; color:var(--ink2); display:flex; align-items:center; gap:.5rem; transition:all .12s;}
+  .door:hover{border-color:var(--blue); color:var(--blue);}
+
+  /* ===== Demo controls ===== */
+  .controls{
+    position:fixed; bottom:14px; left:14px; z-index:50; background:#0f172a; color:#e2e8f0;
+    border-radius:12px; padding:.85rem 1rem; width:248px; box-shadow:0 10px 30px rgba(0,0,0,.3); font-size:.8rem;
+  }
+  .controls h4{margin:0 0 .6rem; font-size:.7rem; letter-spacing:.09em; text-transform:uppercase; color:#64748b;}
+  .controls label{display:block; color:#94a3b8; font-size:.7rem; margin:.55rem 0 .2rem;}
+  .controls select,.controls input{width:100%; background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:6px; padding:.35rem .5rem; font-size:.8rem;}
+  .seg{display:flex; gap:.3rem; margin-top:.3rem;}
+  .seg button{flex:1; background:#1e293b; color:#94a3b8; border:1px solid #334155; border-radius:6px; padding:.35rem; font-size:.74rem; cursor:pointer;}
+  .seg button.on{background:var(--blue); color:#fff; border-color:var(--blue);}
+
+  /* ===== Event log ===== */
+  .log{
+    position:fixed; bottom:14px; right:14px; z-index:50; width:330px; max-height:240px; overflow:auto;
+    background:#0f172a; color:#cbd5e1; border-radius:12px; padding:.7rem .85rem; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.7rem; box-shadow:0 10px 30px rgba(0,0,0,.3);
+  }
+  .log h4{margin:0 0 .4rem; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#64748b; font-family:-apple-system,sans-serif;}
+  .log .ln{padding:.12rem 0; border-bottom:1px solid #1e293b; line-height:1.4;}
+  .log .t{color:#475569;}
+  .log .nav{color:#34d399;} .log .ev{color:#94a3b8;} .log .sw{color:#60a5fa;} .log .role{color:#fbbf24;}
+  .log .tgt{color:#fcd34d;}
+</style>
+</head>
+<body>
+
+<!-- mock top-nav -->
+<div class="topnav">
+  <span class="brand">🏗️ CLMC</span>
+  <a class="navlink active" href="javascript:void(0)">Home</a>
+  <a class="navlink" href="javascript:void(0)">Clients</a>
+  <a class="navlink" href="javascript:void(0)">Projects</a>
+  <a class="navlink" href="javascript:void(0)">Services</a>
+  <a class="navlink" href="javascript:void(0)">Procurement</a>
+  <a class="navlink" href="javascript:void(0)">Finance</a>
+  <span class="spacer"></span>
+  <span class="bell">🔔<span class="dot"></span></span>
+  <span class="avatar" id="navAvatar">R</span>
+</div>
+
+<!-- variant switcher -->
+<div class="switcher">
+  <span class="sw-label">Home as…</span>
+  <button class="sw-btn active" data-v="A" onclick="setVariant('A')">Action Center</button>
+  <button class="sw-btn" data-v="B" onclick="setVariant('B')">Business Pulse</button>
+  <button class="sw-btn" data-v="C" onclick="setVariant('C')">Portfolio Map</button>
+  <button class="sw-btn" data-v="D" onclick="setVariant('D')">Daily Briefing</button>
+  <span class="sw-pitch" id="swPitch"></span>
+</div>
+
+<div class="stage">
+  <div class="home-region" id="homeRegion"></div>
+
+  <!-- the genuinely-useful doors stay, condensed, beneath every paradigm -->
+  <div class="doorstrip">
+    <div class="door" onclick="nav('#/clients','door: Clients')">📋 Clients</div>
+    <div class="door" onclick="nav('#/projects','door: Projects')">🏗️ Projects</div>
+    <div class="door" onclick="nav('#/services','door: Services')">🔧 Services</div>
+    <div class="door" onclick="nav('#/procurement','door: Procurement')">🛒 Procurement</div>
+    <div class="door" onclick="nav('#/finance','door: Finance')">💰 Finance</div>
+  </div>
+</div>
+
+<!-- demo controls -->
+<div class="controls">
+  <h4>Demo controls</h4>
+  <label>Your name</label>
+  <input id="ctlName" value="Reng" oninput="setName(this.value)">
+  <label>Role</label>
+  <select id="ctlRole" onchange="setRole(this.value)">
+    <option value="super_admin">Super Admin</option>
+    <option value="management" selected>Management</option>
+    <option value="finance">Finance</option>
+    <option value="procurement">Procurement</option>
+    <option value="operations_admin">Operations Admin</option>
+    <option value="operations_user">Operations User</option>
+    <option value="services_admin">Services Admin</option>
+    <option value="services_user">Services User</option>
+  </select>
+  <label>Day state</label>
+  <div class="seg">
+    <button id="dsBusy" class="on" onclick="setDay('busy')">Busy day</button>
+    <button id="dsCalm" onclick="setDay('calm')">All caught up</button>
+  </div>
+</div>
+
+<!-- event log -->
+<div class="log" id="log"><h4>Event log</h4></div>
+
+<script>
+/* ============================================================
+   SHARED MOCK DATASET  — one CLMC business state, reused by all
+   four paradigms so you compare interactions, not numbers.
+   ============================================================ */
+const PESO = n => '₱' + Number(n).toLocaleString('en-PH');
+
+const ROLE_LABEL = {
+  super_admin:'Super Admin', management:'Management', finance:'Finance', procurement:'Procurement',
+  operations_admin:'Operations Admin', operations_user:'Operations User',
+  services_admin:'Services Admin', services_user:'Services User'
+};
+
+/* 6-stage lifecycle used by the Portfolio Map (collapsed from the 10-status model) */
+const STAGES = [
+  {key:'inspection', label:'Inspection'},
+  {key:'proposal',   label:'Proposal'},
+  {key:'review',     label:'Client Review'},
+  {key:'mobilize',   label:'Mobilization'},
+  {key:'ongoing',    label:'On-going'},
+  {key:'completed',  label:'Completed'},
+];
+
+/* 14 active projects/services across the pipeline */
+const PROJECTS = [
+  {code:'PRJ-CHRC-09', name:'City Hall Retrofit',          client:'LGU Pasig',   dept:'projects', stage:'inspection', age:3,  state:'ok'},
+  {code:'SVC-AIRC-21', name:'Aircon PM — Tower B',          client:'Ortigas Land',dept:'services', stage:'inspection', age:6,  state:'ok'},
+  {code:'PRJ-BGC-14',  name:'BGC Fit-out Phase 2',          client:'Federal Land',dept:'projects', stage:'proposal',   age:9,  state:'ok'},
+  {code:'PRJ-NUVA-02', name:'Nuvali Clubhouse MEP',         client:'Ayala Land',  dept:'projects', stage:'proposal',   age:21, state:'stuck'},
+  {code:'SVC-GENS-07', name:'Genset Overhaul Contract',     client:'SM Prime',    dept:'services', stage:'proposal',   age:4,  state:'ok'},
+  {code:'PRJ-CITY-11', name:'City Hall Annex — Electrical',  client:'LGU Makati',  dept:'projects', stage:'review',     age:7,  state:'ok'},
+  {code:'PRJ-METRO-7', name:'Metro Line 7 — Station Fit-out',client:'DOTr',        dept:'projects', stage:'mobilize',   age:12, state:'overdue'},
+  {code:'PRJ-ACME-01', name:'Acme Warehouse Extension',     client:'Acme Corp',   dept:'projects', stage:'ongoing',    age:34, state:'dlp'},
+  {code:'PRJ-SUBIC-3', name:'Subic Cold Storage',           client:'ICTSI',       dept:'projects', stage:'ongoing',    age:18, state:'ok'},
+  {code:'SVC-FIRE-05', name:'Fire Suppression Service',     client:'Robinsons',   dept:'services', stage:'ongoing',    age:25, state:'overdue'},
+  {code:'PRJ-CEBU-08', name:'Cebu Data Center MEP',         client:'PLDT',        dept:'projects', stage:'ongoing',    age:11, state:'ok'},
+  {code:'SVC-HVAC-12', name:'HVAC Retro-commissioning',     client:'Megaworld',   dept:'services', stage:'ongoing',    age:5,  state:'ok'},
+  {code:'PRJ-CLARK-1', name:'Clark Logistics Hub',          client:'LIPAD',       dept:'projects', stage:'completed',  age:8,  state:'ok'},
+  {code:'PRJ-QC-04',   name:'QC Hospital Wing — Phase 1',    client:'LGU QC',      dept:'projects', stage:'completed',  age:40, state:'ok'},
+];
+
+/* finance roll-up (derived-ish, hardcoded for the mock) */
+const FIN = { inFlight:12400000, outstanding:2100000, overdue:340000, overdueCount:5 };
+
+/* Activity stream — newest first. target = real deep-link intent the row would route to. */
+const ACTIVITY = [
+  {day:'today', time:'9:14',  type:'status',  dept:'projects', text:'<b>Metro Line 7</b> advanced to <b>On-going</b>', meta:'by J. Cruz · Operations',  target:'#/projects/detail/PRJ-METRO-7'},
+  {day:'today', time:'8:50',  type:'approve', dept:'finance',  text:'<b>PR-2026-014</b> approved', meta:'by Finance · ₱128,400',                       target:'#/finance/approvals/PR-2026-014'},
+  {day:'today', time:'8:32',  type:'cash',    dept:'finance',  text:'<b>₱840,000</b> collected on <b>Acme Warehouse</b>', meta:'Mobilization tranche', target:'#/finance/collectibles/PRJ-ACME-01'},
+  {day:'today', time:'8:05',  type:'proposal',dept:'projects', text:'Proposal submitted — <b>City Hall Retrofit</b>', meta:'by R. Santos · awaiting Management', target:'#/?tab=proposals'},
+  {day:'today', time:'7:58',  type:'issue',   dept:'services', text:'Issue logged on <b>Fire Suppression Service</b>', meta:'Site Issue · client access blocked', target:'#/services/detail/SVC-FIRE-05'},
+  {day:'yest',  time:'17:22', type:'po',      dept:'procurement', text:'<b>PO-2026-031</b> delivered — 12 items', meta:'Supplier: MetroSteel',          target:'#/procurement/records/PO-2026-031'},
+  {day:'yest',  time:'15:40', type:'vo',      dept:'projects', text:'Variation Order <b>+₱260,000</b> approved — <b>Acme</b>', meta:'VO-004 · revised sum ₱4.6M', target:'#/projects/detail/PRJ-ACME-01'},
+  {day:'yest',  time:'14:10', type:'status',  dept:'projects', text:'<b>City Hall Annex</b> moved to <b>Client Review</b>', meta:'by Operations Admin',        target:'#/projects/detail/PRJ-CITY-11'},
+  {day:'yest',  time:'11:03', type:'mrf',     dept:'procurement', text:'<b>MRF-2026-058</b> submitted', meta:'Subic Cold Storage · 9 line items',      target:'#/procurement/mrfs/MRF-2026-058'},
+];
+const ACT_DOT = {status:'#1a73e8', approve:'#059669', cash:'#059669', proposal:'#8b5cf6', issue:'#ef4444', po:'#0ea5e9', vo:'#f59e0b', mrf:'#64748b'};
+/* which dept an activity belongs to → used to highlight "yours" per role */
+const ROLE_DEPTS = {
+  super_admin:['projects','services','finance','procurement'],
+  management:['projects','services'],
+  finance:['finance'],
+  procurement:['procurement'],
+  operations_admin:['projects'], operations_user:['projects'],
+  services_admin:['services'], services_user:['services'],
+};
+
+/* Action Center responsibility tiles per role (busy day). calm day filters to count 0 → removed. */
+const ACTIONS = {
+  finance: [
+    {n:5, lab:'Overdue collectibles', sub:'₱340k', tone:'danger', target:'#/finance/collectibles/overdue'},
+    {n:3, lab:'PRs to approve',                   tone:'warn',   target:'#/finance/approvals/pending'},
+    {n:2, lab:'Payables due this week',           tone:'normal', target:'#/finance/payables'},
+  ],
+  procurement: [
+    {n:4, lab:'MRFs to process',                  tone:'warn',   target:'#/procurement/mrfs'},
+    {n:7, lab:'POs in flight',                    tone:'normal', target:'#/procurement/records'},
+    {n:1, lab:'RFP awaiting quote',               tone:'normal', target:'#/procurement/records?rfp=open'},
+  ],
+  management: [
+    {n:2, lab:'Proposals to approve',             tone:'warn',   target:'#/?tab=proposals'},
+    {n:2, lab:'Projects at risk',   sub:'stuck/overdue', tone:'danger', target:'#/projects?filter=at-risk'},
+  ],
+  super_admin: [
+    {n:2, lab:'Proposals to approve',             tone:'warn',   target:'#/?tab=proposals'},
+    {n:2, lab:'Projects at risk',                 tone:'danger', target:'#/projects?filter=at-risk'},
+    {n:1, lab:'Role config change pending',       tone:'normal', target:'#/admin'},
+  ],
+  operations_admin: [
+    {n:1, lab:'New project to assign',            tone:'warn',   target:'#/projects?filter=unassigned'},
+    {n:3, lab:'Plans to update',                  tone:'normal', target:'#/projects'},
+    {n:2, lab:'Overdue tasks (dept)',             tone:'danger', target:'#/projects?filter=overdue'},
+  ],
+  services_admin: [
+    {n:2, lab:'Service plans to update',          tone:'normal', target:'#/services'},
+    {n:1, lab:'Overdue task (dept)',              tone:'danger', target:'#/services?filter=overdue'},
+  ],
+  operations_user: [
+    {n:2, lab:'Your overdue tasks',               tone:'danger', target:'#/projects?mine=1&filter=overdue'},
+    {n:1, lab:'Progress update due',              tone:'warn',   target:'#/projects/detail/PRJ-SUBIC-3'},
+  ],
+  services_user: [
+    {n:1, lab:'Your assigned task',               tone:'normal', target:'#/services/detail/SVC-HVAC-12'},
+  ],
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let S = { variant:'A', role:'management', name:'Reng', day:'busy' };
+const PITCH = {
+  A:'“What needs YOU.” Role-derived queues. The 028 baseline — a smarter widget.',
+  B:'“The business, breathing.” A live feed of every move. Open it and see motion.',
+  C:'“The whole book of work.” Every project on the pipeline — what’s stuck, at a glance.',
+  D:'“What matters today.” A synthesized briefing. The anti-dashboard.',
+};
+
+/* ============================================================
+   LOG
+   ============================================================ */
+function logLine(cls, label, target){
+  const box = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('en-US',{hour12:false});
+  const tgt = target ? ` → <span class="tgt">${target}</span>` : '';
+  const ln = document.createElement('div');
+  ln.className='ln';
+  ln.innerHTML = `<span class="t">${t}</span> <span class="${cls}">${label}</span>${tgt}`;
+  box.appendChild(ln); box.scrollTop = box.scrollHeight;
+}
+function nav(target, label){ logLine('nav', '▸ '+(label||'navigate'), target); }
+
+/* ============================================================
+   RENDERERS
+   ============================================================ */
+function greetingTime(){ return 'Friday, Jun 13'; }
+function helloWord(){ const h=new Date().getHours(); return h<12?'Good morning':h<18?'Good afternoon':'Good evening'; }
+
+function renderGreet(extraSub){
+  return `<div class="greet">
+    <div>
+      <h1>${helloWord()}, ${esc(S.name)}.</h1>
+      ${extraSub?`<div class="sub">${extraSub}</div>`:''}
+    </div>
+    <span class="role-chip">▸ ${ROLE_LABEL[S.role]}</span>
+  </div>`;
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- A · Action Center ---------- */
+function renderActionCenter(){
+  let tiles = (ACTIONS[S.role]||[]).slice();
+  if (S.day==='calm') tiles = tiles.filter(t=>t.tone==='normal'); // urgent stuff cleared
+  const body = tiles.length===0
+    ? `<div class="calm"><div class="big">✓</div><h3>All caught up</h3>
+         <p>Nothing needs you right now. Most days on an internal tool look like this —
+         which is exactly why a pure action grid can feel empty.</p></div>`
+    : `<div class="ac-grid">${tiles.map(t=>`
+        <div class="ac-tile ${t.tone}" onclick="nav('${t.target}','tile: ${esc(t.lab)}')">
+          <span class="badge">${t.tone==='danger'?'⚠':t.tone==='warn'?'●':''}</span>
+          <span class="n">${t.n}${t.sub?`<span class="unit"> · ${t.sub}</span>`:''}</span>
+          <span class="lab">${t.lab}</span>
+          <span class="go">Open, pre-filtered →</span>
+        </div>`).join('')}</div>`;
+  return renderGreet('Here is what needs your attention.') +
+    `<p class="sec-label">What needs you</p>` + body;
+}
+
+/* ---------- B · Business Pulse ---------- */
+function renderPulse(){
+  const mineDepts = ROLE_DEPTS[S.role]||[];
+  let items = ACTIVITY.slice();
+  if (S.day==='calm') items = items.filter(a=>a.day!=='today' || a.type==='status'); // quiet morning
+  let last=null, html='';
+  items.forEach(a=>{
+    if(a.day!==last){ html+=`<div class="pulse-daydiv">${a.day==='today'?'Today':'Yesterday'}</div>`; last=a.day; }
+    const mine = mineDepts.includes(a.dept);
+    html+=`<div class="pulse-row ${mine?'mine':''}" onclick="nav('${a.target}','pulse: ${a.type}')">
+      <span class="pulse-dot" style="background:${ACT_DOT[a.type]}"></span>
+      <div class="pulse-main">
+        <div class="pulse-text">${a.text}${mine?'<span class="pulse-mine-tag">YOURS</span>':''}</div>
+        <div class="pulse-meta">${a.meta}</div>
+      </div>
+      <span class="pulse-time">${a.time}</span>
+    </div>`;
+  });
+  const sub = S.day==='calm' ? 'A quiet morning — the feed still shows the last moves, never blank.'
+                             : 'Everything that moved across the business, newest first.';
+  return renderGreet(sub) +
+    `<p class="sec-label">The business right now</p>
+     <div class="card card-pad"><div class="pulse-list">${html}</div></div>`;
+}
+
+/* ---------- C · Portfolio Map ---------- */
+function renderPortfolio(){
+  const scoped = (S.role==='operations_user'||S.role==='services_user');
+  const dept = S.role.startsWith('services')?'services':S.role.startsWith('operations')?'projects':null;
+  let pool = PROJECTS.slice();
+  if (dept) pool = pool.filter(p=>p.dept===dept);
+  const cols = STAGES.map(st=>{
+    const inStage = pool.filter(p=>p.stage===st.key);
+    const nodes = inStage.map(p=>{
+      const isOver = p.state==='overdue', isStuck=p.state==='stuck', isDlp=p.state==='dlp';
+      const cls = isOver?'overdue':isStuck?'stuck':'';
+      let flag='';
+      if(S.day==='busy'){
+        if(isOver)  flag=`<span class="flag pm-flag-over">⚠ overdue ${p.age}d in stage</span>`;
+        else if(isStuck) flag=`<span class="flag pm-flag-stuck">stuck ${p.age}d</span>`;
+        else if(isDlp)   flag=`<span class="flag pm-flag-stuck">DLP expires 4d</span>`;
+        else flag=`<span class="ag">${p.age}d in stage</span>`;
+      } else flag=`<span class="ag">${p.age}d in stage</span>`;
+      return `<button class="pm-node ${S.day==='busy'?cls:''}" onclick="nav('${'#/'+(p.dept)+'/detail/'+p.code}','node: ${p.code}')">
+        <span class="nm">${p.code}</span>${esc(p.name)}<br>${flag}</button>`;
+    }).join('');
+    return `<div class="pm-col">
+      <div class="pm-col-head">${st.label}<span class="cnt">${inStage.length}</span></div>
+      ${nodes||'<div style="text-align:center;color:#cbd5e1;font-size:.72rem;padding:.5rem 0;">—</div>'}
+    </div>`;
+  }).join('');
+
+  const summary = `<div class="pm-summary">
+    <div class="pm-stat"><div class="v">${pool.length}</div><div class="l">Active in book of work</div></div>
+    <div class="pm-stat"><div class="v">${PESO(FIN.inFlight)}</div><div class="l">Contract value in flight</div></div>
+    <div class="pm-stat"><div class="v" style="color:var(--warn)">${PESO(FIN.outstanding)}</div><div class="l">Outstanding to collect</div></div>
+    <div class="pm-stat"><div class="v" style="color:var(--danger)">${PESO(FIN.overdue)}</div><div class="l">Overdue (${FIN.overdueCount})</div></div>
+  </div>`;
+  const sub = scoped ? 'Your assigned work, on the pipeline. (Admins see the whole department.)'
+                     : 'Every project & service on the lifecycle — click any node to open it.';
+  return renderGreet(sub) +
+    `<p class="sec-label">Book of work</p>` + summary +
+    `<div class="pm-pipe">${cols}</div>`;
+}
+
+/* ---------- D · Daily Briefing ---------- */
+function buildBriefing(){
+  // synthesize from the same data the other paradigms use
+  const r=S.role;
+  let bullets=[], actions=[], numbers=[];
+  const add=(tone,ic,text)=>bullets.push({tone,ic,text});
+
+  if(S.day==='calm'){
+    return {
+      lede:`<span class="ok">Nothing urgent today</span> — you're all caught up. Here's the state of things.`,
+      bullets:[
+        {tone:'ok',ic:'✓',text:`No overdue items in your queue.`},
+        {tone:'',ic:'📊',text:`<b>${PROJECTS.filter(p=>p.stage==='ongoing').length}</b> projects on-going, all on track.`},
+      ],
+      numbers:[{v:PESO(FIN.outstanding),l:'Outstanding'},{v:PROJECTS.length,l:'Active'}],
+      actions:[{label:'Browse projects →',target:'#/projects'}]
+    };
+  }
+
+  // busy day — tailor by role
+  if(r==='finance'){
+    add('danger','💸',`Cash: <b>${PESO(FIN.outstanding)}</b> outstanding — <b>${PESO(FIN.overdue)}</b> is <b>OVERDUE</b> across ${FIN.overdueCount} collectibles.`);
+    add('warn','📝',`<b>3</b> PRs waiting on your approval.`);
+    add('','💰',`<b>2</b> payables fall due this week.`);
+    actions=[{label:'Review overdue →',target:'#/finance/collectibles/overdue'},{label:'Approve PRs →',target:'#/finance/approvals/pending'}];
+    numbers=[{v:PESO(FIN.overdue),l:'Overdue'},{v:'3',l:'PRs to approve'},{v:'2',l:'Payables due'}];
+  } else if(r==='procurement'){
+    add('warn','📦',`<b>4</b> MRFs need processing into PRs.`);
+    add('','🚚',`<b>7</b> POs in flight; <b>PO-2026-031</b> delivered yesterday.`);
+    add('','📄',`<b>1</b> RFP awaiting supplier quote.`);
+    actions=[{label:'Process MRFs →',target:'#/procurement/mrfs'},{label:'Track POs →',target:'#/procurement/records'}];
+    numbers=[{v:'4',l:'MRFs'},{v:'7',l:'POs in flight'}];
+  } else if(r==='management'||r==='super_admin'){
+    add('warn','✍️',`<b>2</b> proposals await your approval — oldest is <b>Nuvali Clubhouse</b> (21d).`);
+    add('danger','🚨',`<b>2</b> projects at risk: <b>Metro Line 7</b> overdue 12d in Mobilization, <b>Fire Suppression</b> has an open site issue.`);
+    add('','💸',`Cash: <b>${PESO(FIN.outstanding)}</b> outstanding (${PESO(FIN.overdue)} overdue).`);
+    actions=[{label:'Review proposals →',target:'#/?tab=proposals'},{label:'See at-risk →',target:'#/projects?filter=at-risk'}];
+    numbers=[{v:'2',l:'Proposals'},{v:'2',l:'At risk'},{v:PESO(FIN.outstanding),l:'Outstanding'}];
+  } else if(r==='operations_admin'){
+    add('danger','🚨',`<b>Metro Line 7</b> is overdue 12d in Mobilization — needs a push.`);
+    add('warn','📌',`<b>1</b> new project to assign; <b>3</b> plans need updating.`);
+    add('','🧾',`<b>Acme</b> VO +₱260k approved yesterday — revised sum now ₱4.6M.`);
+    actions=[{label:'Open Metro Line 7 →',target:'#/projects/detail/PRJ-METRO-7'},{label:'Assign new →',target:'#/projects?filter=unassigned'}];
+    numbers=[{v:'5',l:'On-going'},{v:'2',l:'Overdue tasks'}];
+  } else if(r==='services_admin'){
+    add('danger','🚨',`<b>Fire Suppression Service</b> has an open site issue (client access blocked).`);
+    add('','🛠️',`<b>2</b> service plans need updating.`);
+    actions=[{label:'Open issue →',target:'#/services/detail/SVC-FIRE-05'}];
+    numbers=[{v:'4',l:'Services active'},{v:'1',l:'Open issue'}];
+  } else if(r==='operations_user'){
+    add('danger','⏰',`You have <b>2</b> overdue tasks on <b>Subic Cold Storage</b>.`);
+    add('warn','📈',`Progress update due on <b>Subic Cold Storage</b>.`);
+    actions=[{label:'Open my tasks →',target:'#/projects?mine=1&filter=overdue'}];
+    numbers=[{v:'2',l:'Overdue tasks'}];
+  } else { // services_user
+    add('','🛠️',`<b>1</b> assigned task on <b>HVAC Retro-commissioning</b> — on track.`);
+    actions=[{label:'Open my task →',target:'#/services/detail/SVC-HVAC-12'}];
+    numbers=[{v:'1',l:'Assigned'}];
+  }
+  const urgent = bullets.filter(b=>b.tone==='danger'||b.tone==='warn').length;
+  const lede = urgent>0
+    ? `<span class="em">${urgent}</span> ${urgent===1?'thing needs':'things need'} you today.`
+    : `Here's what's on your plate.`;
+  return {lede, bullets, numbers, actions};
+}
+function renderBriefing(){
+  const b = buildBriefing();
+  return `<div class="br-card">
+    <h2 class="br-hi">${helloWord()}, ${esc(S.name)}.</h2>
+    <p class="br-lede">${b.lede} <span style="color:var(--faint);font-size:.85rem;">· ${greetingTime()}</span></p>
+    ${b.numbers.length?`<div class="br-numbers">${b.numbers.map(n=>`<div class="br-num"><div class="v">${n.v}</div><div class="l">${n.l}</div></div>`).join('')}</div>`:''}
+    <ul class="br-bullets">
+      ${b.bullets.map(x=>`<li class="${x.tone}"><span class="ic">${x.ic}</span><span class="bt">${x.text}</span></li>`).join('')}
+    </ul>
+    <div class="br-actions">
+      ${b.actions.map(a=>`<button class="btn btn-primary" onclick="nav('${a.target}','briefing: ${esc(a.label)}')">${a.label}</button>`).join('')}
+      <button class="btn btn-ghost" onclick="setVariant('C')">See full map</button>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   MOUNT + CONTROLS
+   ============================================================ */
+function renderHome(){
+  const r=document.getElementById('homeRegion');
+  if(S.variant==='A') r.innerHTML=renderActionCenter();
+  else if(S.variant==='B') r.innerHTML=renderPulse();
+  else if(S.variant==='C') r.innerHTML=renderPortfolio();
+  else r.innerHTML=renderBriefing();
+  document.getElementById('swPitch').textContent=PITCH[S.variant];
+}
+function setVariant(v){
+  S.variant=v;
+  document.querySelectorAll('.sw-btn').forEach(b=>b.classList.toggle('active',b.dataset.v===v));
+  logLine('sw','switch home → '+({A:'Action Center',B:'Business Pulse',C:'Portfolio Map',D:'Daily Briefing'}[v]));
+  renderHome();
+}
+function setRole(role){
+  S.role=role; document.getElementById('navAvatar').textContent=(S.name[0]||'R').toUpperCase();
+  logLine('role','role → '+ROLE_LABEL[role]);
+  renderHome();
+}
+function setName(n){ S.name=n||'there'; document.getElementById('navAvatar').textContent=(S.name[0]||'R').toUpperCase(); renderHome(); }
+function setDay(d){
+  S.day=d;
+  document.getElementById('dsBusy').classList.toggle('on',d==='busy');
+  document.getElementById('dsCalm').classList.toggle('on',d==='calm');
+  logLine('ev','day state → '+(d==='busy'?'Busy day':'All caught up'));
+  renderHome();
+}
+
+/* boot */
+logLine('ev','spike 041 loaded · role=Management · busy day');
+renderHome();
+</script>
+</body>
+</html>
