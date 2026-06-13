@@ -532,8 +532,11 @@ service cloud.firestore {
       allow create: if hasRole(['super_admin', 'services_admin']);
 
       // Update: super_admin and services_admin unrestricted; services_user scoped to assigned services
+      // Phase 104 D-15 — Finance records the retention release (field-masked; mirrors projects:238-242)
       allow update: if hasRole(['super_admin', 'services_admin']) ||
-                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+                       (hasRole(['finance']) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retention_released_at', 'updated_at']));
 
       // Delete: super_admin and services_admin only
       allow delete: if hasRole(['super_admin', 'services_admin']);
@@ -544,6 +547,43 @@ service cloud.firestore {
         allow create: if hasRole(['super_admin', 'services_admin', 'services_user']);
         allow update: if false;
         allow delete: if false;
+      }
+
+      // audit_log subcollection (Phase 104 — append-only service lifecycle audit trail; mirrors projects:268-276)
+      match /audit_log/{entryId} {
+        allow read: if isActiveUser();
+        // Create: admin roles OR services_user assigned to this service (mirrors lifecycle gate permissions)
+        allow create: if hasRole(['super_admin', 'services_admin']) ||
+                         (isRole('services_user') && request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // activity_entries subcollection (Phase 104 — append-only journal entries; mirrors projects:282-287)
+      match /activity_entries/{entryId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if false;
+        allow delete: if hasRole(['super_admin', 'services_admin']);
+      }
+
+      // progress_updates subcollection (Phase 104 — structured periodic check-ins; mirrors projects:293-301)
+      match /progress_updates/{updateId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser() && (
+          hasRole(['super_admin', 'services_admin']) ||
+          request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids
+        );
+        allow delete: if hasRole(['super_admin', 'services_admin']);
+      }
+
+      // issues subcollection (Phase 104 — categorized punch list with open/resolved state; mirrors projects:306-311)
+      match /issues/{issueId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser();  // open↔resolved transitions
+        allow delete: if hasRole(['super_admin', 'services_admin']);
       }
     }
 
