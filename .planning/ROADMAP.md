@@ -17,8 +17,8 @@
 - [ ] Tame services On-going-quiet (no journal; recurring quiet by design) [D-05 — pending nod]
 - [ ] (opt) DLP "expiring soon" watch (both views) [D-06 — pending include/defer]
 **Plans**: 4 plans / 3 waves (gsd-planner + gsd-plan-checker, 2026-06-13). Plan-checker: 1 blocker + 1 warning found and fixed in revision; all 13 reqs (SC-1..7, D-01..06) covered.
-- [ ] 103.1-01-PLAN.md — `status_changed_at` spine: proposals.js::_applyProposalStateTransition (proposal funnel, projects+services) + 4 lifecycle gates + manual status (saveField/saveServiceField); firestore.rules +status_changed_at +last_activity_at; threat_model; blocking `firebase deploy --only firestore:rules --project dev` [Wave 1]
-- [ ] 103.1-02-PLAN.md — `last_activity_at` (projects): fire-and-forget bump on the 3 journal handlers; postActivityEntry gated on success boolean [Wave 2]
-- [ ] 103.1-03-PLAN.md — projects.js two-tier funnel matrix + On-going 7/14 on last_activity_at + DLP-soon + scoped ambient subtext; blocking browser UAT [Wave 2]
-- [ ] 103.1-04-PLAN.md — services.js mirror + D-05 conservative On-going + DLP-soon; blocking browser UAT [Wave 3]
-**Status**: ✅ PLANNED 2026-06-13 — verified (1 blocker + 1 warning fixed). **Touches `firestore.rules`** (2 allow-list fields) → dev deploy for UAT + joins prod-rules-deploy debt. NO new portfolio listener. Cash/collection-risk signal deferred. Next: `/gsd-execute-phase 103.1` (inline-sequential per v3.3 precedent).
+- [x] 103.1-01-PLAN.md — `status_changed_at` spine (proposal funnel + 4 gates + manual status) + firestore.rules +status_changed_at/+last_activity_at + dev deploy [Wave 1] ✅ `d8aa4d1`+`ab6540c`
+- [x] 103.1-02-PLAN.md — `last_activity_at` (projects): fire-and-forget bump on the 3 journal handlers; postActivityEntry success-gated [Wave 2] ✅ `4e90171`
+- [x] 103.1-03-PLAN.md — projects.js two-tier funnel matrix + On-going 7/14 on last_activity_at + DLP-soon + scoped ambient [Wave 2] ✅ `ef4957e`
+- [x] 103.1-04-PLAN.md — services.js mirror + D-05 conservative On-going + DLP-soon [Wave 3] ✅ `af4d503`
+**Status**: ✅ COMPLETE 2026-06-13 — 4/4 plans / 3 waves, inline sequential on v3.3. VERIFICATION passed; all 3 human gates approved (dev rules deploy + projects UAT + services UAT). Dev seed: `scripts/seed-dev-projects.js`. **Prod `firebase deploy --only firestore:rules` still pending at v3.3 → main merge** (carries the 103.1 allow-list + standing 87.4/99/100/101/102 debt). NO new portfolio listener. Cash/collection-risk signal deferred to a future billing-aware phase.
