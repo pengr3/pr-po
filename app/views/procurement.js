@@ -7984,6 +7984,30 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
                                 });
                             }
                         }
+
+                        // Phase 104 D-12: also post to the owning SERVICE's activity_entries (services join on service_code).
+                        // mrfData is already fetched above. An MRF belongs to either a project OR a service — the two branches
+                        // are mutually exclusive in practice but both run defensively (own try/catch, never block status update).
+                        try {
+                            const serviceCode = mrfData?.service_code;
+                            if (serviceCode) {
+                                const svcQ = query(collection(db, 'services'), where('service_code', '==', serviceCode));
+                                const svcSnap = await getDocs(svcQ);
+                                if (!svcSnap.empty) {
+                                    const serviceDocId = svcSnap.docs[0].id;
+                                    await addDoc(collection(db, 'services', serviceDocId, 'activity_entries'), {
+                                        type: 'system',
+                                        is_system: true,
+                                        text: `PO ${escapeHTML(poDataFresh.po_id || poId)} from ${escapeHTML(poDataFresh.supplier_name || 'Unknown Supplier')} marked Delivered`,
+                                        created_by_uid: window.getCurrentUser?.()?.uid ?? '',
+                                        created_by_name: window.getCurrentUser?.()?.full_name || 'System',
+                                        created_at: serverTimestamp(),
+                                    });
+                                }
+                            }
+                        } catch (svcJournalErr) {
+                            console.error('[Procurement] Phase 104 PO Delivered SERVICE journal entry failed:', svcJournalErr);
+                        }
                     }
                 }
             } catch (journalErr) {
