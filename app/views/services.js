@@ -9,7 +9,6 @@ import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, wher
 import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
-import { skeletonTableRows } from '../components.js';
 import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
 
 // Global state
@@ -23,11 +22,9 @@ let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
 
-// Filtering and sorting state
+// Filtering state
 let allServices = [];           // Unfiltered data from Firebase
 let filteredServices = [];      // Filtered subset for display
-let sortColumn = 'created_at';  // Default sort column
-let sortDirection = 'desc';     // Most recent first
 
 // Module-level active tab - persists across re-renders
 let currentActiveTab = 'services';
@@ -97,12 +94,12 @@ function attachWindowFunctions() {
     window.saveServiceEdit = saveServiceEdit;
     window.deleteService = deleteService;
     window.toggleServiceActive = toggleServiceActive;
-    window.changeServicesPage = changeServicesPage;
     window.applyServiceFilters = applyServiceFilters;
     window.handleServiceScorecardClick = handleServiceScorecardClick;
     window.debouncedServiceFilter = debouncedServiceFilter;
-    window.sortServices = sortServices;
     window.exportServicesCSV = exportServicesCSV;
+    window.vmSwitchService = vmSwitchService;               // Phase 103 — service view-mode toggle
+    window.toggleServiceStageGroup = toggleServiceStageGroup; // Phase 103 — Browse All group collapse
     window.selectServicePersonnel = selectServicePersonnel;
     window.removeServicePersonnel = removeServicePersonnel;
     window.filterServicePersonnelDropdown = filterServicePersonnelDropdown;
@@ -276,34 +273,13 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
-                <!-- Services Table -->
-                <div class="table-scroll-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th onclick="window.sortServices('service_code')" style="cursor: pointer; user-select: none;">
-                                Code <span class="sort-indicator" data-col="service_code"></span>
-                            </th>
-                            <th onclick="window.sortServices('service_name')" style="cursor: pointer; user-select: none;">
-                                Name <span class="sort-indicator" data-col="service_name"></span>
-                            </th>
-                            <th onclick="window.sortServices('client_code')" style="cursor: pointer; user-select: none;">
-                                Client <span class="sort-indicator" data-col="client_code"></span>
-                            </th>
-                            <th onclick="window.sortServices('project_status')" style="cursor: pointer; user-select: none;">
-                                Status <span class="sort-indicator" data-col="project_status"></span>
-                            </th>
-                            <th onclick="window.sortServices('active')" style="cursor: pointer; user-select: none;">
-                                Active <span class="sort-indicator" data-col="active"></span>
-                            </th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="servicesTableBody">
-                        ${skeletonTableRows(7, 5)}
-                    </tbody>
-                </table>
+                <!-- Phase 103 — Portfolio view-mode toggle + dual render containers (replaces flat table) -->
+                <div class="vm-toggle">
+                    <button class="vm-btn" id="vm-feed-svc" onclick="window.vmSwitchService('feed')">🔥 Priority Feed</button>
+                    <button class="vm-btn" id="vm-browse-svc" onclick="window.vmSwitchService('browse')">≡ Browse All</button>
                 </div>
+                <div id="pdb-feed-svc" class="pdb-mode"></div>
+                <div id="pdb-browse-svc" class="pdb-mode" style="display:none;"></div>
             </div>
         </div>
     `;
@@ -318,9 +294,9 @@ export async function init(activeTab = null) {
 
     attachWindowFunctions();
 
-    // Listen for permission changes and re-render table
+    // Listen for permission changes and re-render the portfolio (Feed + Browse All)
     const permissionChangeHandler = () => {
-        renderServicesTable();
+        renderServicePortfolio();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
 
@@ -411,8 +387,6 @@ export async function destroy() {
     currentPage = 1;
     allServices = [];
     filteredServices = [];
-    sortColumn = 'created_at';
-    sortDirection = 'desc';
     currentActiveTab = 'services';
 
     // Clean up personnel pill state
@@ -436,11 +410,11 @@ export async function destroy() {
     delete window.saveServiceEdit;
     delete window.deleteService;
     delete window.toggleServiceActive;
-    delete window.changeServicesPage;
     delete window.applyServiceFilters;
     delete window.debouncedServiceFilter;
-    delete window.sortServices;
     delete window.exportServicesCSV;
+    delete window.vmSwitchService;               // Phase 103
+    delete window.toggleServiceStageGroup;       // Phase 103
     delete window.selectServicePersonnel;
     delete window.removeServicePersonnel;
     delete window.filterServicePersonnelDropdown;
@@ -680,7 +654,7 @@ function toggleAddServiceForm() {
     } else {
         form.style.display = 'none';
         editingService = null;
-        renderServicesTable();
+        renderServicePortfolio();
     }
 }
 
@@ -865,50 +839,10 @@ function applyServiceFilters() {
         return matchesSearch && matchesProjectStatus && matchesClient;
     });
 
-    // Reset pagination when filters change
-    currentPage = 1;
-
-    // Apply current sort
-    sortFilteredServices();
-
-    renderServicesTable();
+    // Phase 103: the new renderers impose their own ordering (Feed partitions by urgency,
+    // Browse All groups by stage), so no global sort of filteredServices is needed (W-3).
+    renderServicePortfolio();
     renderServiceScorecards(scopedServicesForTab);
-}
-
-// Sort filtered services
-function sortFilteredServices() {
-    filteredServices.sort((a, b) => {
-        let aVal = a[sortColumn];
-        let bVal = b[sortColumn];
-
-        // Handle null/undefined (sort to end)
-        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
-
-        // Handle dates
-        if (sortColumn === 'created_at' || sortColumn === 'updated_at') {
-            aVal = new Date(aVal);
-            bVal = new Date(bVal);
-        }
-
-        // Handle booleans
-        if (sortColumn === 'active') {
-            // Active first when descending, inactive first when ascending
-            return sortDirection === 'asc'
-                ? (aVal === bVal ? 0 : aVal ? 1 : -1)
-                : (aVal === bVal ? 0 : aVal ? -1 : 1);
-        }
-
-        // String comparison
-        if (typeof aVal === 'string') {
-            return sortDirection === 'asc'
-                ? aVal.localeCompare(bVal)
-                : bVal.localeCompare(aVal);
-        }
-
-        // Numeric/date comparison
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    });
 }
 
 // Phase 92.2: rebuildServiceStatusFilterOptions() removed — the status filter
@@ -918,40 +852,6 @@ function sortFilteredServices() {
 
 // Create debounced filter
 const debouncedServiceFilter = debounce(applyServiceFilters, 300);
-
-// Sort services by column
-function sortServices(column) {
-    // Toggle direction if clicking same column
-    if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortColumn = column;
-        sortDirection = 'asc'; // Default to ascending on new column
-    }
-
-    // Reset pagination
-    currentPage = 1;
-
-    // Sort the filtered data
-    sortFilteredServices();
-
-    // Re-render table with updated headers
-    renderServicesTable();
-}
-
-// Update sort indicators
-function updateServiceSortIndicators() {
-    document.querySelectorAll('.sort-indicator').forEach(indicator => {
-        const col = indicator.dataset.col;
-        if (col === sortColumn) {
-            indicator.textContent = sortDirection === 'asc' ? ' ↑' : ' ↓';
-            indicator.style.color = '#1a73e8';
-        } else {
-            indicator.textContent = ' ⇅';
-            indicator.style.color = '#94a3b8';
-        }
-    });
-}
 
 // Load services with real-time listener
 async function loadServices() {
@@ -1139,75 +1039,110 @@ function setServiceCollapseState(key, collapsed) {
     localStorage.setItem('browse-collapse-services', JSON.stringify(saved));
 }
 
-// Render services table
-function renderServicesTable() {
-    const tbody = document.getElementById('servicesTableBody');
-    if (!tbody) return;
+// Phase 103 — service view-mode toggle: swap Feed / Browse containers, persist choice (D-04).
+function vmSwitchService(mode) {
+    const feed = document.getElementById('pdb-feed-svc');
+    const browse = document.getElementById('pdb-browse-svc');
+    if (!feed || !browse) return;
+    feed.style.display   = mode === 'feed'   ? 'block' : 'none';
+    browse.style.display = mode === 'browse' ? 'block' : 'none';
+    document.getElementById('vm-feed-svc')?.classList.toggle('vm-on', mode === 'feed');
+    document.getElementById('vm-browse-svc')?.classList.toggle('vm-on', mode === 'browse');
+    localStorage.setItem('services-view-mode', mode);
+    if (mode === 'browse') renderServiceBrowseAll();
+}
 
-    if (filteredServices.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No services found matching filters.</td></tr>';
-        const paginationDiv = document.getElementById('servicesPagination');
-        if (paginationDiv) paginationDiv.style.display = 'none';
-        return;
-    }
+// Phase 103 — portfolio dispatcher: applyServiceFilters() calls this instead of the flat-table
+// renderer. Renders BOTH modes from filteredServices (already sub-tab + scope + filter narrowed),
+// then restores the persisted mode (first-time default Feed — D-04).
+function renderServicePortfolio() {
+    renderServiceFeed();
+    renderServiceBrowseAll();
+    const saved = localStorage.getItem('services-view-mode') || 'feed';
+    vmSwitchService(saved);
+}
 
-    // Pagination
-    const totalPages = Math.ceil(filteredServices.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredServices.length);
-    const pageItems = filteredServices.slice(startIndex, endIndex);
+// Phase 103 — shared service row builder for BOTH Feed and Browse rows (mirror of projects buildFeedRow).
+// Derives the signal on demand if the row was not pre-tagged by computeServiceUrgencySignals.
+function buildServiceRow(s) {
+    const signal = s.signal || getServiceSignal(s, Date.now());
+    const level = signal.level;
+    const dlpState = getDlpState(s);
+    const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
+    const detailParam = s.service_code || s.id;
+    const codeDisplay = s.service_code || '—';
+    const client = clientsData.find(c => c.id === s.client_id);
+    const clientName = client ? client.company_name : (s.client_code || '—');
+    const statusRaw = s.project_status || '';
+    const statusDisplay = (statusRaw && !UNIFIED_STATUS_OPTIONS.includes(statusRaw))
+        ? `<span style="color:#94a3b8;font-style:italic;">${escapeHTML(statusRaw)} (legacy)</span>`
+        : escapeHTML(statusRaw);
+    return `
+        <div class="feed-row tier-${level} ${dlpClass}"
+             onclick="window.location.hash = '#/services/detail/${escapeHTML(detailParam)}'">
+            <div class="feed-row-main">
+                <div class="feed-row-title">${escapeHTML(codeDisplay)}${s.service_name ? ' — ' + escapeHTML(s.service_name) : ''}</div>
+                <div class="feed-row-sub">${escapeHTML(clientName)} · ${statusDisplay}</div>
+            </div>
+            <div class="feed-row-signal tier-${level}">${escapeHTML(signal.text)}${signal.hint ? `<div class="feed-row-hint">${escapeHTML(signal.hint)}</div>` : ''}</div>
+            <div class="feed-row-fin">${renderServiceFinancial(s)}</div>
+        </div>`;
+}
 
-    // Check edit permission for action buttons
-    const canEdit = window.canEditTab?.('services');
-    const showEditControls = canEdit !== false;
-
-    // Check role for delete permission (only super_admin and services_admin)
-    const user = window.getCurrentUser?.();
-    const canDeleteService = user?.role === 'super_admin' || user?.role === 'services_admin';
-
-    tbody.innerHTML = pageItems.map(service => {
-        // Find client name
-        const client = clientsData.find(c => c.id === service.client_id);
-        const clientName = client ? client.company_name : service.client_code;
-
+// Phase 103 — service Priority Feed over filteredServices (the sub-tab is the OUTER filter — D-01).
+function renderServiceFeed() {
+    const el = document.getElementById('pdb-feed-svc');
+    if (!el) return;
+    const { urgent, watch, ok } = computeServiceUrgencySignals(filteredServices);
+    const sections = [
+        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent, hideWhenEmpty: true },
+        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,  hideWhenEmpty: true },
+        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: ok,     hideWhenEmpty: false }
+    ];
+    el.innerHTML = sections.map(sec => {
+        if (sec.hideWhenEmpty && sec.rows.length === 0) return '';
+        const body = sec.rows.length
+            ? sec.rows.map(buildServiceRow).join('')
+            : '<div class="feed-empty">Nothing here</div>';
         return `
-            <tr onclick="window.location.hash = '#/services/detail/${escapeHTML(service.service_code)}'"
-                style="cursor: pointer;"
-                class="clickable-row">
-                <td><strong>${escapeHTML(service.service_code || '')}</strong></td>
-                <td>${escapeHTML(service.service_name || '')}</td>
-                <td>${escapeHTML(clientName || '')}</td>
-                <td>${(() => {
-                        const v = service.project_status || '';
-                        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
-                            return `<span style="color: #94a3b8; font-style: italic;">${escapeHTML(v)} (legacy)</span>`;
-                        }
-                        return escapeHTML(v);
-                    })()}</td>
-                <td>
-                    <span class="status-badge clickable-badge ${service.active ? 'approved' : 'rejected'}"
-                          ${showEditControls ? `onclick="event.stopPropagation(); window.toggleServiceActive('${escapeHTML(service.id)}', ${service.active})" title="Click to ${service.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
-                        ${service.active ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-                ${showEditControls ? `
-                    <td style="white-space: nowrap;" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm btn-primary" onclick="window.editService('${escapeHTML(service.id)}')">Edit</button>
-                        ${canDeleteService ? `<button class="btn btn-sm btn-danger" onclick="window.deleteService('${escapeHTML(service.id)}', '${(service.service_name || '').replace(/'/g, "\\'")}')">Delete</button>` : ''}
-                    </td>
-                ` : `
-                    <td class="actions-cell" onclick="event.stopPropagation()">
-                        <span class="view-only-badge">View Only</span>
-                    </td>
-                `}
-            </tr>
-        `;
+            <div class="feed-section tier-${sec.tier}">
+                <div class="feed-section-header">${sec.icon} ${sec.label}
+                    <span class="feed-section-count">${sec.rows.length}</span>
+                </div>
+                ${body}
+            </div>`;
+    }).join('') || '<div class="feed-empty">No services match the current filters.</div>';
+}
+
+// Phase 103 D-03 — service Browse All: 7 collapsible stage groups (incl. leading Draft) over the
+// SAME filteredServices pool as the Feed. Rows reuse buildServiceRow → identical to Feed rows.
+function renderServiceBrowseAll() {
+    const el = document.getElementById('pdb-browse-svc');
+    if (!el) return;
+    el.innerHTML = SERVICE_STAGE_GROUPS.map(group => {
+        const rows = filteredServices
+            .filter(s => group.statuses.includes(s.project_status))
+            .sort((a, b) => (a.service_code || a.service_name || '').localeCompare(b.service_code || b.service_name || ''));
+        const collapsed = getServiceCollapseState(group.key);
+        const body = rows.length
+            ? rows.map(buildServiceRow).join('')
+            : '<div class="stage-group-empty">No services in this stage</div>';
+        return `
+            <div class="stage-group${collapsed ? ' collapsed' : ''}">
+                <div class="stage-group-header" onclick="window.toggleServiceStageGroup('${group.key}')">
+                    <span class="stage-group-color" style="background:${group.color}"></span>
+                    <span class="stage-group-chevron">▾</span>
+                    ${escapeHTML(group.label)}
+                    <span class="stage-group-count">${rows.length}</span>
+                </div>
+                <div class="stage-group-body">${body}</div>
+            </div>`;
     }).join('');
+}
 
-    updateServicePaginationControls(totalPages, startIndex, endIndex, filteredServices.length);
-
-    // Update sort indicators
-    updateServiceSortIndicators();
+function toggleServiceStageGroup(key) {
+    setServiceCollapseState(key, !getServiceCollapseState(key));
+    renderServiceBrowseAll();
 }
 
 // Edit service
@@ -1515,65 +1450,3 @@ async function toggleServiceActive(serviceId, currentStatus) {
     }
 }
 
-// Change page
-function changeServicesPage(direction) {
-    const totalPages = Math.ceil(filteredServices.length / itemsPerPage);
-
-    if (direction === 'prev' && currentPage > 1) {
-        currentPage--;
-    } else if (direction === 'next' && currentPage < totalPages) {
-        currentPage++;
-    } else if (typeof direction === 'number') {
-        currentPage = direction;
-    }
-
-    renderServicesTable();
-}
-
-// Update pagination controls
-function updateServicePaginationControls(totalPages, startIndex, endIndex, totalItems) {
-    let paginationDiv = document.getElementById('servicesPagination');
-
-    if (!paginationDiv) {
-        paginationDiv = document.createElement('div');
-        paginationDiv.id = 'servicesPagination';
-        paginationDiv.className = 'pagination-container';
-
-        const section = document.querySelector('.container');
-        const table = section?.querySelector('table');
-        if (table && table.parentNode) {
-            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
-        }
-    }
-
-    let paginationHTML = `
-        <div class="pagination-info">
-            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> services
-        </div>
-        <div class="pagination-controls">
-            <button class="pagination-btn" onclick="changeServicesPage('prev')" ${currentPage === 1 ? 'disabled' : ''}>
-                &larr; Previous
-            </button>
-    `;
-
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            paginationHTML += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="changeServicesPage(${i})">
-                    ${i}
-                </button>
-            `;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-            paginationHTML += '<span class="pagination-ellipsis">...</span>';
-        }
-    }
-
-    paginationHTML += `
-            <button class="pagination-btn" onclick="changeServicesPage('next')" ${currentPage === totalPages ? 'disabled' : ''}>
-                Next &rarr;
-            </button>
-        </div>
-    `;
-
-    paginationDiv.innerHTML = paginationHTML;
-}
