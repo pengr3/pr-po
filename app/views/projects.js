@@ -48,6 +48,34 @@ const URGENCY_THRESHOLDS = {
     MOBILIZATION_DAYS: 3          // For Mobilization
 };
 
+// Phase 103 D-03 — Browse All stage groups (every UNIFIED_STATUS_OPTIONS value maps to exactly one).
+// Inline hex spine colors (NO var(--*) — not defined in this codebase).
+const STAGE_GROUPS = [
+    { key: 'ongoing',     label: 'On-going',                statuses: ['On-going'],                                         color: '#1a73e8' },
+    { key: 'contracted',  label: 'Contracted & Mobilizing', statuses: ['Client Approved', 'For Mobilization'],             color: '#f59e0b' },
+    { key: 'proposal',    label: 'Proposal Stage',          statuses: ['For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision'], color: '#7c3aed' },
+    { key: 'inspection',  label: 'For Inspection',          statuses: ['For Inspection'],                                  color: '#94a3b8' },
+    { key: 'completed',   label: 'Completed',               statuses: ['Completed'],                                       color: '#059669' },
+    { key: 'loss',        label: 'Loss',                    statuses: ['Loss'],                                            color: '#64748b' }
+];
+
+// Phase 103 D-03 — Browse All collapse persistence. Completed AND Loss default-collapsed (terminal).
+function getCollapseState(key) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('browse-collapse') || '{}'); } catch (_) {}
+    return saved[key] ?? (key === 'completed' || key === 'loss');
+}
+function setCollapseState(key, collapsed) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('browse-collapse') || '{}'); } catch (_) {}
+    saved[key] = collapsed;
+    localStorage.setItem('browse-collapse', JSON.stringify(saved));
+}
+function toggleStageGroup(key) {
+    setCollapseState(key, !getCollapseState(key));
+    renderBrowseAll();
+}
+
 // Debounce utility function
 function debounce(callback, wait) {
     let timeout;
@@ -87,6 +115,7 @@ function attachWindowFunctions() {
     window.recalculateTranches = (scopeKey) => recalculateTranches(scopeKey);
     window.handleScorecardClick = handleScorecardClick;
     window.vmSwitch = vmSwitch;   // Phase 103 — portfolio view-mode toggle
+    window.toggleStageGroup = toggleStageGroup;   // Phase 103 — Browse All group collapse
 }
 
 // Render view HTML
@@ -360,6 +389,7 @@ export async function destroy() {
     delete window.debouncedFilter;
     delete window.exportProjectsCSV;
     delete window.vmSwitch;   // Phase 103
+    delete window.toggleStageGroup;   // Phase 103
     delete window.selectPersonnel;
     delete window.removePersonnel;
     delete window.filterPersonnelDropdown;
