@@ -16,4 +16,9 @@
 - [ ] Two-tier funnel matrix + scoped ambient day-counts — fills the 3 silent statuses (For Proposal, Internal Approval, Client Approved) + retunes the existing ones; Internal Approval is the loudest/shortest-fuse; On-Track funnel rows show "In {stage} · {d}d" subtext [D-04]
 - [ ] Tame services On-going-quiet (no journal; recurring quiet by design) [D-05 — pending nod]
 - [ ] (opt) DLP "expiring soon" watch (both views) [D-06 — pending include/defer]
-**Status**: Scope near-ready (`103.1-CONTEXT.md`, D-04 deep-dived + resolved 2026-06-13: status_changed_at spine · two-tier matrix · scoped ambient subtext). Pending: confirm D-05/D-06 + sanity-check fuse lengths → `/gsd-plan-phase 103.1`. **Touches `firestore.rules`** (2 allow-list fields) → dev deploy for UAT + joins prod-rules-deploy debt. NO new portfolio listener. Cash/collection-risk signal explicitly deferred.
+**Plans**: 4 plans / 3 waves (gsd-planner + gsd-plan-checker, 2026-06-13). Plan-checker: 1 blocker + 1 warning found and fixed in revision; all 13 reqs (SC-1..7, D-01..06) covered.
+- [ ] 103.1-01-PLAN.md — `status_changed_at` spine: proposals.js::_applyProposalStateTransition (proposal funnel, projects+services) + 4 lifecycle gates + manual status (saveField/saveServiceField); firestore.rules +status_changed_at +last_activity_at; threat_model; blocking `firebase deploy --only firestore:rules --project dev` [Wave 1]
+- [ ] 103.1-02-PLAN.md — `last_activity_at` (projects): fire-and-forget bump on the 3 journal handlers; postActivityEntry gated on success boolean [Wave 2]
+- [ ] 103.1-03-PLAN.md — projects.js two-tier funnel matrix + On-going 7/14 on last_activity_at + DLP-soon + scoped ambient subtext; blocking browser UAT [Wave 2]
+- [ ] 103.1-04-PLAN.md — services.js mirror + D-05 conservative On-going + DLP-soon; blocking browser UAT [Wave 3]
+**Status**: ✅ PLANNED 2026-06-13 — verified (1 blocker + 1 warning fixed). **Touches `firestore.rules`** (2 allow-list fields) → dev deploy for UAT + joins prod-rules-deploy debt. NO new portfolio listener. Cash/collection-risk signal deferred. Next: `/gsd-execute-phase 103.1` (inline-sequential per v3.3 precedent).
