@@ -1672,10 +1672,9 @@ async function saveField(fieldName, newValue) {
 
     try {
         const projectRef = doc(db, 'projects', currentProject.id);
-        await updateDoc(projectRef, {
-            [fieldName]: valueToSave,
-            updated_at: new Date().toISOString()
-        });
+        const _savePayload = { [fieldName]: valueToSave, updated_at: new Date().toISOString() };
+        if (fieldName === 'project_status') _savePayload.status_changed_at = new Date().toISOString();  // Phase 103.1 D-02 — stage clock on manual status change only
+        await updateDoc(projectRef, _savePayload);
         // Record edit history (fire-and-forget)
         recordEditHistory(currentProject.id, 'update', [
             { field: fieldName, old_value: oldValue ?? null, new_value: valueToSave }
@@ -3764,7 +3763,7 @@ function attachWindowFunctions() {
         const cu = window.getCurrentUser?.();
         if (!_canAdvanceProjectStatus(currentProject, cu, 'For Proposal')) { showToast('Permission denied.', 'error'); return; }
         try {
-            await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Proposal', updated_at: serverTimestamp() });
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Proposal', status_changed_at: serverTimestamp(), updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'ADVANCED_TO_FOR_PROPOSAL', cu?.uid, cu?.full_name, '');
             await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Status advanced to For Proposal by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcAdvanceToForProposal failed:', err); showToast('Failed to advance status.', 'error'); }
@@ -3776,7 +3775,7 @@ function attachWindowFunctions() {
         if (!_canAdvanceProjectStatus(currentProject, cu, 'For Mobilization')) { showToast('Permission denied.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         try {
-            await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Mobilization', mobilization_started_at: now, updated_at: serverTimestamp() });
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'For Mobilization', status_changed_at: serverTimestamp(), mobilization_started_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'MOBILIZATION_STARTED', cu?.uid, cu?.full_name, 'mobilization_started_at: ' + now);
             await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Mobilization started by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcStartMobilization failed:', err); showToast('Failed to start mobilization.', 'error'); }
@@ -3787,7 +3786,7 @@ function attachWindowFunctions() {
         if (!_canAdvanceProjectStatus(currentProject, cu, 'On-going')) { showToast('Permission denied.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         try {
-            await updateDoc(doc(db, 'projects', projectId), { project_status: 'On-going', project_started_at: now, updated_at: serverTimestamp() });
+            await updateDoc(doc(db, 'projects', projectId), { project_status: 'On-going', status_changed_at: serverTimestamp(), project_started_at: now, updated_at: serverTimestamp() });
             await addProjectAuditEntry(projectId, 'PROJECT_STARTED', cu?.uid, cu?.full_name, 'project_started_at: ' + now);
             await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project started by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcStartProject failed:', err); showToast('Failed to start project.', 'error'); }
@@ -3799,7 +3798,7 @@ function attachWindowFunctions() {
         if (!_canAdvanceProjectStatus(currentProject, cu, 'Completed')) { showToast('Permission denied — you must be assigned to this project.', 'error'); return; }
         const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
         // Phase 102 Plan 03 — capture DLP fields ONLY when a retention tranche exists (D-13/D-14).
-        const payload = { project_status: 'Completed', project_completed_at: now, updated_at: serverTimestamp() };
+        const payload = { project_status: 'Completed', status_changed_at: serverTimestamp(), project_completed_at: now, updated_at: serverTimestamp() };
         const retTranche = (currentProject.collection_tranches || []).find(t => t.is_retention);
         if (retTranche) {
             const retPct = parseFloat(document.getElementById('gateDlpRetPct')?.value) || (parseFloat(retTranche.percentage) || 10);

@@ -285,6 +285,7 @@ export async function _applyProposalStateTransition({ proposal, newStatus, newPr
     if (newProjectStatus && proposal.project_id) {
         batch.update(doc(db, parentCollection, proposal.project_id), {
             project_status: newProjectStatus,
+            status_changed_at: new Date().toISOString(),   // Phase 103.1 D-02 — stage-duration spine (covers projects + services)
             updated_at: new Date().toISOString()  // projects/services collection convention (project-detail.js line 804)
         });
     }
