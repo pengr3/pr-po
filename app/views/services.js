@@ -50,13 +50,17 @@ const UNIFIED_STATUS_OPTIONS = [
 // Phase 92.2: Scorecard strip excludes 'Draft' (Draft services are proposals; not surfaced as a status filter)
 const SCORECARD_STATUS_OPTIONS = UNIFIED_STATUS_OPTIONS.filter(s => s !== 'Draft');
 
-// Phase 103 D-07 — urgency thresholds (days). Mirror of projects.js (named constants, tunable).
+// Phase 103.1 D-04 — two-tier urgency thresholds (days). Mirror of projects.js (operator-confirmed).
 const URGENCY_THRESHOLDS = {
-    PROPOSAL_STALE_DAYS: 14,      // Proposal Under Client Review
-    INSPECTION_OVERDUE_DAYS: 30,  // For Inspection
-    ONGOING_QUIET_DAYS: 7,        // On-going with no activity
-    REVISION_DAYS: 5,             // For Revision
-    MOBILIZATION_DAYS: 3          // For Mobilization
+    FOR_PROPOSAL_WATCH: 2,        FOR_PROPOSAL_URGENT: 5,         // For Proposal
+    INTERNAL_APPROVAL_WATCH: 2,   INTERNAL_APPROVAL_URGENT: 5,    // Proposal for Internal Approval
+    CLIENT_REVIEW_WATCH: 7,       CLIENT_REVIEW_URGENT: 14,       // Proposal Under Client Review
+    FOR_REVISION_WATCH: 2,        FOR_REVISION_URGENT: 3,         // For Revision
+    CLIENT_APPROVED_WATCH: 3,     CLIENT_APPROVED_URGENT: 7,      // Client Approved
+    MOBILIZATION_WATCH: 3,        MOBILIZATION_URGENT: 10,        // For Mobilization
+    FOR_INSPECTION_WATCH: 2,      FOR_INSPECTION_URGENT: 5,       // For Inspection
+    ONGOING_QUIET_WATCH: 7,       ONGOING_QUIET_URGENT: 14,       // On-going (D-05: services watch-only cap)
+    DLP_SOON_DAYS: 14             // DLP expiring soon watch (D-06)
 };
 
 // Phase 103 D-03 — Browse All stage groups for services. Mirror of projects.js PLUS a leading
@@ -911,6 +915,12 @@ function normalizeUpdatedAt(v) {
     return isNaN(t) ? null : t;
 }
 
+// Phase 103.1 D-02 — stage-duration clock: status_changed_at ?? updated_at ?? created_at.
+function stageDaysInStageService(s, now) {
+    const ms = normalizeUpdatedAt(s.status_changed_at) ?? normalizeUpdatedAt(s.updated_at) ?? normalizeUpdatedAt(s.created_at);
+    return ms == null ? null : (now - ms) / 86400000;
+}
+
 // Phase 103 D-05 — mirrored render-only DLP state (no isRetentionCollected branch; no new listener).
 // Returns 'active' when dlp_months absent or status !== 'Completed', so sparse-DLP services are safe.
 function getDlpState(service) {
@@ -930,37 +940,88 @@ function getServiceDefaultOkSignal(s) {
     }
 }
 
-// Phase 103 D-07/D-08 — urgency signal for a service. Mirrors getProjectSignal exactly (CONTEXT:
-// "default reuse project signals unchanged" — no recurring-specific special-casing).
+// Phase 103.1 D-04 — two-tier urgency signal, mirror of projects.js getProjectSignal. ONLY the On-going
+// branch diverges (D-05 conservative): services have no activity clock, so On-going is watch-only.
 function getServiceSignal(s, now) {
     const status = s.project_status;
-    const ms = normalizeUpdatedAt(s.updated_at);
-    const d = ms == null ? null : (now - ms) / 86400000;   // days; null → skip staleness checks
     const dlp = getDlpState(s);
 
-    // Needs Attention (urgent)
+    // (1) DLP expired — highest urgent
     if (dlp === 'expired')
         return { level: 'urgent', text: 'Retention release overdue', hint: 'DLP expired — retention not yet released' };
-    if (d != null && status === 'Proposal Under Client Review' && d > URGENCY_THRESHOLDS.PROPOSAL_STALE_DAYS)
-        return { level: 'urgent', text: `Proposal stale — ${Math.round(d)}d`, hint: "Client hasn't responded" };
-    if (d != null && status === 'For Inspection' && d > URGENCY_THRESHOLDS.INSPECTION_OVERDUE_DAYS)
-        return { level: 'urgent', text: `Inspection overdue — ${Math.round(d)}d`, hint: 'No progress since assigned' };
-    if (d != null && status === 'On-going' && d > URGENCY_THRESHOLDS.ONGOING_QUIET_DAYS)
-        return { level: 'urgent', text: `No activity in ${Math.round(d)} days`, hint: 'On-going service has gone quiet' };
 
-    // Worth Watching (watch)
-    if (d != null && status === 'For Revision' && d > URGENCY_THRESHOLDS.REVISION_DAYS)
-        return { level: 'watch', text: `Revision requested — ${Math.round(d)}d`, hint: 'Expected turnaround 3-5 days' };
-    if (d != null && status === 'For Mobilization' && d > URGENCY_THRESHOLDS.MOBILIZATION_DAYS)
-        return { level: 'watch', text: 'Contract signed, not mobilized', hint: `${Math.round(d)}d since For Mobilization` };
-    // Forward hook (inert this phase — billed% not computable without a listener):
-    // const billedPct = computeServiceBillingPct(s);
-    // if (billedPct != null && billedPct >= 86 && billedPct < 100)
-    //     return { level: 'watch', text: `${billedPct}% billed — final billing due`, hint: 'Last tranche not yet requested' };
+    // (2) On-going — D-05 CONSERVATIVE: watch only (never urgent), 14d, one-time only.
+    //     Recurring services are quiet by design → always On Track (suppressed). No activity clock;
+    //     reads updated_at (services have no journal/activity-recency timestamp).
+    if (status === 'On-going') {
+        if (s.service_type !== 'recurring') {
+            const ms = normalizeUpdatedAt(s.updated_at);
+            const d = ms == null ? null : (now - ms) / 86400000;
+            if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_URGENT)   // 14d → still WATCH (capped, never urgent)
+                return { level: 'watch', text: `Quiet for ${Math.round(d)} days`, hint: 'One-time service untouched' };
+        }
+        if (dlp === 'in-dlp') return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+        return { level: 'ok', text: getServiceDefaultOkSignal(s), hint: '' };
+    }
 
-    // On Track (ok)
-    if (dlp === 'in-dlp')
+    // (3) Stage-duration funnel statuses — two-tier on status_changed_at (MIRROR Plan 03 FUNNEL map verbatim)
+    const d = stageDaysInStageService(s, now);
+    const FUNNEL = {
+        'For Proposal': {
+            watch: URGENCY_THRESHOLDS.FOR_PROPOSAL_WATCH, urgent: URGENCY_THRESHOLDS.FOR_PROPOSAL_URGENT,
+            watchText: dd => ({ text: `Proposal not yet sent — ${dd}d`, hint: 'Client awaiting our quote' }),
+            urgentText: dd => ({ text: `Proposal stalled — ${dd}d`, hint: `No proposal sent in ${dd} days` })
+        },
+        'Proposal for Internal Approval': {
+            watch: URGENCY_THRESHOLDS.INTERNAL_APPROVAL_WATCH, urgent: URGENCY_THRESHOLDS.INTERNAL_APPROVAL_URGENT,
+            watchText: dd => ({ text: `Awaiting internal sign-off — ${dd}d`, hint: 'Proposal ready, pending approval' }),
+            urgentText: dd => ({ text: `Sign-off overdue — ${dd}d`, hint: 'Finished proposal blocked internally' })
+        },
+        'Proposal Under Client Review': {
+            watch: URGENCY_THRESHOLDS.CLIENT_REVIEW_WATCH, urgent: URGENCY_THRESHOLDS.CLIENT_REVIEW_URGENT,
+            watchText: dd => ({ text: `Awaiting client response — ${dd}d`, hint: 'Client reviewing the proposal' }),
+            urgentText: dd => ({ text: `Proposal stale — ${dd}d`, hint: "Client hasn't responded" })
+        },
+        'For Revision': {
+            watch: URGENCY_THRESHOLDS.FOR_REVISION_WATCH, urgent: URGENCY_THRESHOLDS.FOR_REVISION_URGENT,
+            watchText: dd => ({ text: `Revision requested — ${dd}d`, hint: 'Tight turnaround expected' }),
+            urgentText: dd => ({ text: `Revision overdue — ${dd}d`, hint: 'Revision turnaround exceeded' })
+        },
+        'Client Approved': {
+            watch: URGENCY_THRESHOLDS.CLIENT_APPROVED_WATCH, urgent: URGENCY_THRESHOLDS.CLIENT_APPROVED_URGENT,
+            watchText: dd => ({ text: `Won — not yet mobilized — ${dd}d`, hint: 'Client expects kickoff' }),
+            urgentText: dd => ({ text: `Kickoff overdue — ${dd}d`, hint: `Won work idle ${dd} days` })
+        },
+        'For Mobilization': {
+            watch: URGENCY_THRESHOLDS.MOBILIZATION_WATCH, urgent: URGENCY_THRESHOLDS.MOBILIZATION_URGENT,
+            watchText: dd => ({ text: 'Contract signed, not mobilized', hint: `${dd}d since For Mobilization` }),
+            urgentText: dd => ({ text: `Mobilization overdue — ${dd}d`, hint: 'Not mobilized after sign-off' })
+        },
+        'For Inspection': {
+            watch: URGENCY_THRESHOLDS.FOR_INSPECTION_WATCH, urgent: URGENCY_THRESHOLDS.FOR_INSPECTION_URGENT,
+            watchText: dd => ({ text: `Inspection pending — ${dd}d`, hint: 'Chase inspection' }),
+            urgentText: dd => ({ text: `Inspection overdue — ${dd}d`, hint: 'No progress since assigned' })
+        }
+    };
+    const cfg = FUNNEL[status];
+    if (cfg && d != null) {
+        const dd = Math.round(d);
+        if (d > cfg.urgent) return { level: 'urgent', ...cfg.urgentText(dd) };
+        if (d > cfg.watch)  return { level: 'watch', ...cfg.watchText(dd) };
+    }
+
+    // (4) DLP-soon watch (D-06) — mirror Plan 03
+    if (dlp === 'in-dlp') {
+        const exp = normalizeUpdatedAt(s.dlp_expires_at);
+        if (exp != null) {
+            const daysToExpiry = (exp - now) / 86400000;
+            if (daysToExpiry >= 0 && daysToExpiry <= URGENCY_THRESHOLDS.DLP_SOON_DAYS)
+                return { level: 'watch', text: `Retention release due in ${Math.ceil(daysToExpiry)}d`, hint: 'Finance lead time before overdue' };
+        }
         return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+    }
+
+    // (5) On Track
     return { level: 'ok', text: getServiceDefaultOkSignal(s), hint: '' };
 }
 
@@ -1062,11 +1123,31 @@ function renderServicePortfolio() {
     vmSwitchService(saved);
 }
 
+// Phase 103.1 D-04 — scoped ambient day-count for on-track stage-duration service rows (mirror of projects).
+// "In {stage} · {d}d". Stage-duration statuses ONLY — never On-going and never terminal Completed/Loss.
+function getServiceStageAmbient(s, now = Date.now()) {
+    const STAGE_LABEL = {
+        'For Proposal': 'proposal stage',
+        'Proposal for Internal Approval': 'internal approval',
+        'Proposal Under Client Review': 'client review',
+        'For Revision': 'revision',
+        'Client Approved': 'won · awaiting kickoff',
+        'For Mobilization': 'mobilization',
+        'For Inspection': 'inspection'
+    };
+    const label = STAGE_LABEL[s.project_status];
+    if (!label) return '';
+    const d = stageDaysInStageService(s, now);
+    if (d == null) return '';
+    return `In ${label} · ${Math.round(d)}d`;
+}
+
 // Phase 103 — shared service row builder for BOTH Feed and Browse rows (mirror of projects buildFeedRow).
 // Derives the signal on demand if the row was not pre-tagged by computeServiceUrgencySignals.
 function buildServiceRow(s) {
     const signal = s.signal || getServiceSignal(s, Date.now());
     const level = signal.level;
+    const ambient = (signal.level === 'ok') ? getServiceStageAmbient(s) : '';   // Phase 103.1 D-04 — scoped ambient subtext
     const dlpState = getDlpState(s);
     const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
     const detailParam = s.service_code || s.id;
@@ -1083,6 +1164,7 @@ function buildServiceRow(s) {
             <div class="feed-row-main">
                 <div class="feed-row-title">${escapeHTML(codeDisplay)}${s.service_name ? ' — ' + escapeHTML(s.service_name) : ''}</div>
                 <div class="feed-row-sub">${escapeHTML(clientName)} · ${statusDisplay}</div>
+                ${ambient ? `<div class="feed-row-ambient" style="color:#94a3b8;font-size:12px;margin-top:2px;">${escapeHTML(ambient)}</div>` : ''}
             </div>
             <div class="feed-row-signal tier-${level}">${escapeHTML(signal.text)}${signal.hint ? `<div class="feed-row-hint">${escapeHTML(signal.hint)}</div>` : ''}</div>
             <div class="feed-row-fin">${renderServiceFinancial(s)}</div>
