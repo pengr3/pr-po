@@ -10,10 +10,10 @@
 ---
 
 ## Phase 103.1 — Priority Feed Signal Accuracy
-**Goal**: Make the Phase 103 Priority Feed trustworthy. The urgency rests on "days since `updated_at`", which (verified) is the wrong clock — the On-going "gone quiet" 🔴 fires on healthy projects because journal/progress/issue writes go to subcollections and never bump the parent doc; and 3 statuses get no signal at all.
-- [ ] Fix On-going false-quiet (projects) — denormalize `last_activity_at` (journal handlers stamp the parent; signal reads `last_activity_at ?? updated_at`; +1 `firestore.rules` allow-list field) [D-02]
-- [ ] For Mobilization accuracy (projects) — use existing `mobilization_started_at` [D-03]
-- [ ] Fill silent statuses (both views) — For Proposal / Proposal for Internal Approval / Client Approved [D-04]
-- [ ] Tame services On-going-quiet (no journal/timestamps; recurring is quiet by design) [D-05]
-- [ ] (opt) DLP "expiring soon" watch (both views) [D-06]
-**Status**: DRAFT scope (`103.1-CONTEXT.md`, 2026-06-13) — pending operator review of open decisions (D-04 tiers, D-05 services treatment, D-06 include?). Next: confirm → `/gsd-plan-phase 103.1`. **Touches `firestore.rules`** (one allow-list field) → dev deploy for UAT + joins prod-rules-deploy debt. NO new portfolio listener. Cash/collection-risk signal explicitly deferred to a separate phase.
+**Goal**: Make the Phase 103 Priority Feed trustworthy. Its urgency rests on "days since `updated_at`", which (verified) is the wrong clock — corruptible by edits, blind to real activity, and absent for 3 statuses. Fix: two purpose-built clocks + a coherent two-tier funnel matrix.
+- [ ] **`status_changed_at` spine** (both views) — stamp on every status transition (gates + proposal-modal + service-detail + status dropdown); all stage-duration signals read `status_changed_at ?? updated_at`; +1 `firestore.rules` allow-list field. Makes the existing For Inspection / Client Review / For Revision signals accurate too [D-01/D-02]
+- [ ] `last_activity_at` for On-going (projects) — journal handlers fire-and-forget stamp the parent; +1 rules field [D-03]
+- [ ] Two-tier funnel matrix + scoped ambient day-counts — fills the 3 silent statuses (For Proposal, Internal Approval, Client Approved) + retunes the existing ones; Internal Approval is the loudest/shortest-fuse; On-Track funnel rows show "In {stage} · {d}d" subtext [D-04]
+- [ ] Tame services On-going-quiet (no journal; recurring quiet by design) [D-05 — pending nod]
+- [ ] (opt) DLP "expiring soon" watch (both views) [D-06 — pending include/defer]
+**Status**: Scope near-ready (`103.1-CONTEXT.md`, D-04 deep-dived + resolved 2026-06-13: status_changed_at spine · two-tier matrix · scoped ambient subtext). Pending: confirm D-05/D-06 + sanity-check fuse lengths → `/gsd-plan-phase 103.1`. **Touches `firestore.rules`** (2 allow-list fields) → dev deploy for UAT + joins prod-rules-deploy debt. NO new portfolio listener. Cash/collection-risk signal explicitly deferred.
