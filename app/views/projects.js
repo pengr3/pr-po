@@ -39,13 +39,18 @@ const UNIFIED_STATUS_OPTIONS = [
     'Loss'
 ];
 
-// Phase 103 D-07 — urgency thresholds (days). Named constants for post-launch tuning.
+// Phase 103.1 D-04 — two-tier urgency thresholds (days). Each funnel stage has its own watch AND
+// urgent trip-point, read against status_changed_at. Operator-confirmed 2026-06-13. Tunable.
 const URGENCY_THRESHOLDS = {
-    PROPOSAL_STALE_DAYS: 14,      // Proposal Under Client Review
-    INSPECTION_OVERDUE_DAYS: 30,  // For Inspection
-    ONGOING_QUIET_DAYS: 7,        // On-going with no activity
-    REVISION_DAYS: 5,             // For Revision
-    MOBILIZATION_DAYS: 3          // For Mobilization
+    FOR_PROPOSAL_WATCH: 2,        FOR_PROPOSAL_URGENT: 5,         // For Proposal
+    INTERNAL_APPROVAL_WATCH: 2,   INTERNAL_APPROVAL_URGENT: 5,    // Proposal for Internal Approval
+    CLIENT_REVIEW_WATCH: 7,       CLIENT_REVIEW_URGENT: 14,       // Proposal Under Client Review
+    FOR_REVISION_WATCH: 2,        FOR_REVISION_URGENT: 3,         // For Revision
+    CLIENT_APPROVED_WATCH: 3,     CLIENT_APPROVED_URGENT: 7,      // Client Approved
+    MOBILIZATION_WATCH: 3,        MOBILIZATION_URGENT: 10,        // For Mobilization
+    FOR_INSPECTION_WATCH: 2,      FOR_INSPECTION_URGENT: 5,       // For Inspection
+    ONGOING_QUIET_WATCH: 7,       ONGOING_QUIET_URGENT: 14,       // On-going (activity clock, D-03)
+    DLP_SOON_DAYS: 14             // DLP expiring soon watch (D-06)
 };
 
 // Phase 103 D-03 — Browse All stage groups (every UNIFIED_STATUS_OPTIONS value maps to exactly one).
@@ -868,6 +873,13 @@ function normalizeUpdatedAt(v) {
     return isNaN(t) ? null : t;
 }
 
+// Phase 103.1 D-02 — stage-duration clock: time since the current stage began.
+// status_changed_at ?? updated_at ?? created_at; legacy docs degrade until their next transition.
+function stageDaysInStage(p, now) {
+    const ms = normalizeUpdatedAt(p.status_changed_at) ?? normalizeUpdatedAt(p.updated_at) ?? normalizeUpdatedAt(p.created_at);
+    return ms == null ? null : (now - ms) / 86400000;
+}
+
 // Phase 103 D-07 — a status-appropriate "On Track" phrase for the default ok signal.
 function getDefaultOkSignal(p) {
     switch (p.project_status) {
@@ -878,37 +890,86 @@ function getDefaultOkSignal(p) {
     }
 }
 
-// Phase 103 D-07/D-08 — urgency signal for a project. Returns { level, text, hint }.
-// "Days in stage" approximated by days since updated_at (the only signal stored, D-08).
+// Phase 103.1 D-04 — two-tier urgency signal. Stage-duration statuses read status_changed_at; On-going
+// reads last_activity_at (D-03); DLP-soon watch (D-06). Returns { level, text, hint }.
 function getProjectSignal(p, now) {
     const status = p.project_status;
-    const ms = normalizeUpdatedAt(p.updated_at);
-    const d = ms == null ? null : (now - ms) / 86400000;   // days; null → skip staleness checks
     const dlp = getDlpState(p);
 
-    // Needs Attention (urgent)
+    // (1) DLP expired — highest urgent (unchanged from Phase 103)
     if (dlp === 'expired')
         return { level: 'urgent', text: 'Retention release overdue', hint: 'DLP expired — retention not yet released' };
-    if (d != null && status === 'Proposal Under Client Review' && d > URGENCY_THRESHOLDS.PROPOSAL_STALE_DAYS)
-        return { level: 'urgent', text: `Proposal stale — ${Math.round(d)}d`, hint: "Client hasn't responded" };
-    if (d != null && status === 'For Inspection' && d > URGENCY_THRESHOLDS.INSPECTION_OVERDUE_DAYS)
-        return { level: 'urgent', text: `Inspection overdue — ${Math.round(d)}d`, hint: 'No progress since assigned' };
-    if (d != null && status === 'On-going' && d > URGENCY_THRESHOLDS.ONGOING_QUIET_DAYS)
-        return { level: 'urgent', text: `No activity in ${Math.round(d)} days`, hint: 'On-going project has gone quiet' };
 
-    // Worth Watching (watch)
-    if (d != null && status === 'For Revision' && d > URGENCY_THRESHOLDS.REVISION_DAYS)
-        return { level: 'watch', text: `Revision requested — ${Math.round(d)}d`, hint: 'Expected turnaround 3-5 days' };
-    if (d != null && status === 'For Mobilization' && d > URGENCY_THRESHOLDS.MOBILIZATION_DAYS)
-        return { level: 'watch', text: 'Contract signed, not mobilized', hint: `${Math.round(d)}d since For Mobilization` };
-    // Forward hook (inert this phase — billed% not computable without a listener; see computeBillingPct / D-07):
-    // const billedPct = computeBillingPct(p);
-    // if (billedPct != null && billedPct >= 86 && billedPct < 100)
-    //     return { level: 'watch', text: `${billedPct}% billed — final billing due`, hint: 'Last tranche not yet requested' };
+    // (2) On-going — activity-recency clock (D-03), two-tier 7d/14d on last_activity_at ?? updated_at
+    if (status === 'On-going') {
+        const ms = normalizeUpdatedAt(p.last_activity_at) ?? normalizeUpdatedAt(p.updated_at);
+        const d = ms == null ? null : (now - ms) / 86400000;
+        if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_URGENT)
+            return { level: 'urgent', text: `No activity in ${Math.round(d)} days`, hint: 'On-going project has gone quiet' };
+        if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_WATCH)
+            return { level: 'watch', text: `Quiet for ${Math.round(d)} days`, hint: 'No journal activity recently' };
+        if (dlp === 'in-dlp') return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+        return { level: 'ok', text: getDefaultOkSignal(p), hint: '' };
+    }
 
-    // On Track (ok)
-    if (dlp === 'in-dlp')
+    // (3) Stage-duration funnel statuses — two-tier on status_changed_at
+    const d = stageDaysInStage(p, now);
+    const FUNNEL = {
+        'For Proposal': {
+            watch: URGENCY_THRESHOLDS.FOR_PROPOSAL_WATCH, urgent: URGENCY_THRESHOLDS.FOR_PROPOSAL_URGENT,
+            watchText: dd => ({ text: `Proposal not yet sent — ${dd}d`, hint: 'Client awaiting our quote' }),
+            urgentText: dd => ({ text: `Proposal stalled — ${dd}d`, hint: `No proposal sent in ${dd} days` })
+        },
+        'Proposal for Internal Approval': {
+            watch: URGENCY_THRESHOLDS.INTERNAL_APPROVAL_WATCH, urgent: URGENCY_THRESHOLDS.INTERNAL_APPROVAL_URGENT,
+            watchText: dd => ({ text: `Awaiting internal sign-off — ${dd}d`, hint: 'Proposal ready, pending approval' }),
+            urgentText: dd => ({ text: `Sign-off overdue — ${dd}d`, hint: 'Finished proposal blocked internally' })
+        },
+        'Proposal Under Client Review': {
+            watch: URGENCY_THRESHOLDS.CLIENT_REVIEW_WATCH, urgent: URGENCY_THRESHOLDS.CLIENT_REVIEW_URGENT,
+            watchText: dd => ({ text: `Awaiting client response — ${dd}d`, hint: 'Client reviewing the proposal' }),
+            urgentText: dd => ({ text: `Proposal stale — ${dd}d`, hint: "Client hasn't responded" })
+        },
+        'For Revision': {
+            watch: URGENCY_THRESHOLDS.FOR_REVISION_WATCH, urgent: URGENCY_THRESHOLDS.FOR_REVISION_URGENT,
+            watchText: dd => ({ text: `Revision requested — ${dd}d`, hint: 'Tight turnaround expected' }),
+            urgentText: dd => ({ text: `Revision overdue — ${dd}d`, hint: 'Revision turnaround exceeded' })
+        },
+        'Client Approved': {
+            watch: URGENCY_THRESHOLDS.CLIENT_APPROVED_WATCH, urgent: URGENCY_THRESHOLDS.CLIENT_APPROVED_URGENT,
+            watchText: dd => ({ text: `Won — not yet mobilized — ${dd}d`, hint: 'Client expects kickoff' }),
+            urgentText: dd => ({ text: `Kickoff overdue — ${dd}d`, hint: `Won work idle ${dd} days` })
+        },
+        'For Mobilization': {
+            watch: URGENCY_THRESHOLDS.MOBILIZATION_WATCH, urgent: URGENCY_THRESHOLDS.MOBILIZATION_URGENT,
+            watchText: dd => ({ text: 'Contract signed, not mobilized', hint: `${dd}d since For Mobilization` }),
+            urgentText: dd => ({ text: `Mobilization overdue — ${dd}d`, hint: 'Not mobilized after sign-off' })
+        },
+        'For Inspection': {
+            watch: URGENCY_THRESHOLDS.FOR_INSPECTION_WATCH, urgent: URGENCY_THRESHOLDS.FOR_INSPECTION_URGENT,
+            watchText: dd => ({ text: `Inspection pending — ${dd}d`, hint: 'Chase inspection' }),
+            urgentText: dd => ({ text: `Inspection overdue — ${dd}d`, hint: 'No progress since assigned' })
+        }
+    };
+    const cfg = FUNNEL[status];
+    if (cfg && d != null) {
+        const dd = Math.round(d);
+        if (d > cfg.urgent) return { level: 'urgent', ...cfg.urgentText(dd) };
+        if (d > cfg.watch)  return { level: 'watch', ...cfg.watchText(dd) };
+    }
+
+    // (4) DLP-soon watch (D-06) — in-dlp and dlp_expires_at within DLP_SOON_DAYS
+    if (dlp === 'in-dlp') {
+        const exp = normalizeUpdatedAt(p.dlp_expires_at);
+        if (exp != null) {
+            const daysToExpiry = (exp - now) / 86400000;
+            if (daysToExpiry >= 0 && daysToExpiry <= URGENCY_THRESHOLDS.DLP_SOON_DAYS)
+                return { level: 'watch', text: `Retention release due in ${Math.ceil(daysToExpiry)}d`, hint: 'Finance lead time before overdue' };
+        }
         return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+    }
+
+    // (5) On Track
     return { level: 'ok', text: getDefaultOkSignal(p), hint: '' };
 }
 
@@ -1024,11 +1085,31 @@ function renderPriorityFeed() {
     }).join('') || '<div class="feed-empty">No projects match the current filters.</div>';
 }
 
+// Phase 103.1 D-04 — scoped ambient day-count for on-track stage-duration rows. "In {stage} · {d}d".
+// Stage-duration statuses ONLY — never On-going (activity clock) and never terminal Completed/Loss.
+function getStageAmbient(p, now = Date.now()) {
+    const STAGE_LABEL = {
+        'For Proposal': 'proposal stage',
+        'Proposal for Internal Approval': 'internal approval',
+        'Proposal Under Client Review': 'client review',
+        'For Revision': 'revision',
+        'Client Approved': 'won · awaiting kickoff',
+        'For Mobilization': 'mobilization',
+        'For Inspection': 'inspection'
+    };
+    const label = STAGE_LABEL[p.project_status];
+    if (!label) return '';
+    const d = stageDaysInStage(p, now);
+    if (d == null) return '';
+    return `In ${label} · ${Math.round(d)}d`;
+}
+
 // Phase 103 — shared row builder for BOTH Feed rows and Browse All rows (Plan 03 reuses this).
 // Derives the signal on demand if the row was not pre-tagged by computeUrgencySignals (Browse path).
 function buildFeedRow(p) {
     const signal = p.signal || getProjectSignal(p, Date.now());
     const level = signal.level;
+    const ambient = (signal.level === 'ok') ? getStageAmbient(p) : '';   // Phase 103.1 D-04 — scoped ambient subtext
     const dlpState = getDlpState(p);
     const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
     const detailParam = p.project_code || p.id;
@@ -1045,6 +1126,7 @@ function buildFeedRow(p) {
             <div class="feed-row-main">
                 <div class="feed-row-title">${escapeHTML(codeDisplay)}${p.project_name ? ' — ' + escapeHTML(p.project_name) : ''}</div>
                 <div class="feed-row-sub">${escapeHTML(clientName)} · ${statusDisplay}</div>
+                ${ambient ? `<div class="feed-row-ambient" style="color:#94a3b8;font-size:12px;margin-top:2px;">${escapeHTML(ambient)}</div>` : ''}
             </div>
             <div class="feed-row-signal tier-${level}">${escapeHTML(signal.text)}${signal.hint ? `<div class="feed-row-hint">${escapeHTML(signal.hint)}</div>` : ''}</div>
             <div class="feed-row-fin">${renderFinancial(p)}</div>
