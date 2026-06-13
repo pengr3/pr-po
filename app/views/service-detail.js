@@ -55,6 +55,10 @@ let journalEditingProgressId = null;
 let _lcOpen = false;
 let _lcAttachPending = false;
 
+// Phase 104 — inline tranche editor state (mirror project-detail.js Phase 102)
+let editorTranches = [];
+let trancheEditorOpen = false;
+
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
@@ -848,6 +852,8 @@ function renderServiceDetail() {
                         </div>
                     </div>
 
+                    ${renderServiceDlpFinanceBar()}
+
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="margin-bottom: 0.25rem;">Budget ${currentService.budget ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentService.budget)}</small>` : ''}</label>
@@ -914,6 +920,11 @@ function renderServiceDetail() {
                             </div>
                         </div>
                     </div>
+                    <div class="tranche-section-header" style="display:flex;align-items:center;justify-content:space-between;margin-top:1.25rem;margin-bottom:0.5rem;">
+                        <h4 style="margin:0;font-size:0.95rem;font-weight:600;color:#1e293b;">Collection Tranches</h4>
+                        <button class="edit-tranches-btn" onclick="window.toggleTrancheEditor()">⚙ Edit Tranches</button>
+                    </div>
+                    <div id="trancheEditorHost">${renderTrancheDisplay()}${renderTrancheEditor()}</div>
                     ${renderServiceTrancheLifecycle()}
                 </div>
             </div>
@@ -1788,6 +1799,281 @@ async function loadProposalCard(parentDocId, parentCollection) {
             el.innerHTML = `<div class="proposal-inline-card"><p style="color:#ef4444;font-size:0.875rem;margin:0;">Could not load proposal.</p></div>`;
         }
     }
+}
+
+// ============================================================
+// Phase 104 — DLP / retention finance bar + inline tranche editor (mirror project-detail.js Phase 102)
+// ============================================================
+
+// A collected retention tranche (non-voided payments >= amount_requested) reads as released.
+function isRetentionCollected(service, collectibleDocs) {
+    const retIdx = (service?.collection_tranches || []).findIndex(t => t.is_retention);
+    if (retIdx < 0) return false;
+    const docs = Array.isArray(collectibleDocs) ? collectibleDocs
+        : (Array.isArray(currentCollectibleDocs) ? currentCollectibleDocs : []);
+    const coll = docs.find(c => c.tranche_index === retIdx);
+    if (!coll) return false;
+    const req = parseFloat(coll.amount_requested) || 0;
+    const paid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    return req > 0 && paid >= req;
+}
+
+// Single source of truth for DLP display state — all DLP fields read || null (D-08 legacy safety).
+function getDlpState(service, collectibleDocs) {
+    if (!service || !(service.dlp_months || null) || service.project_status !== 'Completed') return 'active';
+    if (service.retention_released_at || null) return 'released';
+    if (isRetentionCollected(service, collectibleDocs)) return 'released';
+    if (Date.now() > new Date(service.dlp_expires_at).getTime()) return 'expired';
+    return 'in-dlp';
+}
+
+// 4-state DLP-aware finance bar (active / in-dlp / expired / released). Reads currentService + currentCollectibleDocs.
+function renderServiceDlpFinanceBar() {
+    const service = currentService;
+    if (!service) return '';
+    const state = getDlpState(currentService, currentCollectibleDocs);
+    const contract = parseFloat(service?.contract_cost) || 0;
+    const docs = Array.isArray(currentCollectibleDocs) ? currentCollectibleDocs : [];
+    const collected = docs.reduce((s, c) => s + (c.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0), 0);
+    const retentionAmt = parseFloat(service?.retention_amount || null) || 0;
+    const pct = (v) => contract > 0 ? Math.max(0, Math.min(100, (v / contract) * 100)) : 0;
+    const fmtDays = (ms) => Math.max(0, Math.ceil(Math.abs(ms) / 86400000));
+    const expMs = (service?.dlp_expires_at || null) ? new Date(service.dlp_expires_at).getTime() : 0;
+
+    const header = (subLabel, subVal, subColor) => `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">
+            <div>
+                <div style="font-size:12px;color:#94a3b8;font-weight:500;margin-bottom:2px;">Contract Cost</div>
+                <div style="font-size:20px;font-weight:800;color:#1e293b;">${formatCurrency(contract)}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:#94a3b8;margin-bottom:2px;">${escapeHTML(subLabel)}</div>
+                <div style="font-size:15px;font-weight:700;color:${subColor};">${subVal}</div>
+            </div>
+        </div>`;
+    const track = (segs) => `<div style="height:10px;background:#e2e8f0;border-radius:5px;overflow:hidden;display:flex;margin-bottom:8px;">${segs}</div>`;
+    const labels = (l, r) => `<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;"><span>${l}</span><span>${r}</span></div>`;
+    const isFinance = (window.getCurrentUser?.()?.role === 'finance');
+    const releaseBtn = isFinance
+        ? `<button class="release-btn" onclick="window.recordServiceRetentionRelease('${escapeHTML(currentServiceDocId || '')}')">Record Release</button>`
+        : '';
+
+    if (state === 'in-dlp') {
+        const cp = pct(collected), rp = pct(retentionAmt);
+        return `<div class="finance-bar state-amber">
+            ${header('Retention Held', formatCurrency(retentionAmt), '#f59e0b')}
+            ${track(`<div class="bar-seg collected" style="width:${cp}%"></div><div class="bar-seg retention" style="width:${rp}%;background:#f59e0b;"></div>`)}
+            ${labels(`${formatCurrency(collected)} collected · ${formatCurrency(retentionAmt)} retention held`, `DLP expires ${escapeHTML(service.dlp_expires_at || '—')}`)}
+            <div class="dlp-strip amber">
+                <span>◑ In Defect Liability Period — retention held until DLP expires</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span class="dlp-strip-right">${fmtDays(expMs - Date.now())} days remaining</span>
+                    ${releaseBtn}
+                </div>
+            </div>
+        </div>`;
+    }
+    if (state === 'expired') {
+        const cp = pct(collected), rp = pct(retentionAmt);
+        return `<div class="finance-bar state-red">
+            ${header('Retention Overdue', formatCurrency(retentionAmt), '#ef4444')}
+            ${track(`<div class="bar-seg collected" style="width:${cp}%"></div><div class="bar-seg retention" style="width:${rp}%;background:#ef4444;"></div>`)}
+            ${labels(`${formatCurrency(collected)} collected · Retention ${formatCurrency(retentionAmt)} overdue`, `DLP expired ${escapeHTML(service.dlp_expires_at || '—')}`)}
+            <div class="dlp-strip red">
+                <span>⚠ DLP period expired — retention release overdue</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span class="dlp-strip-right">Expired ${fmtDays(Date.now() - expMs)} days ago</span>
+                    ${releaseBtn}
+                </div>
+            </div>
+        </div>`;
+    }
+    if (state === 'released') {
+        const cp = pct(collected);
+        return `<div class="finance-bar state-green">
+            ${header('Cash Collected', formatCurrency(collected), '#059669')}
+            ${track(`<div class="bar-seg collected" style="width:${cp}%"></div>`)}
+            ${labels(`${formatCurrency(collected)} collected (${Math.round(cp)}%)`, `Retention recovered ✓`)}
+            <div class="dlp-strip green">
+                <span>✓ Retention released — no longer held</span>
+                <span class="dlp-strip-right">${service.retention_released_at ? 'Released ' + escapeHTML(String(service.retention_released_at)) : 'Collected in full'}</span>
+            </div>
+        </div>`;
+    }
+    // active (default) — utilization bar, no DLP strip
+    const cp = pct(collected);
+    return `<div class="finance-bar">
+        ${header('Cash Collected', formatCurrency(collected), '#1a73e8')}
+        ${track(`<div class="bar-seg collected" style="width:${cp}%"></div>`)}
+        ${labels(`${formatCurrency(collected)} collected (${Math.round(cp)}%)`, `${formatCurrency(Math.max(0, contract - collected))} outstanding`)}
+    </div>`;
+}
+
+// Read-only tranche display (empty state = Set Up CTA, otherwise list).
+function renderTrancheDisplay() {
+    const tranches = Array.isArray(currentService?.collection_tranches) ? currentService.collection_tranches : [];
+    const contractCost = parseFloat(currentService?.contract_cost) || 0;
+    if (tranches.length === 0) {
+        return `<div class="setup-cta">
+            <p>No collection tranches set — billing can't be linked to milestones.</p>
+            <button onclick="window.toggleTrancheEditor()">⚙ Set Up Tranches</button>
+        </div>`;
+    }
+    const rows = tranches.map((t) => {
+        const amt = contractCost * (parseFloat(t.percentage) || 0) / 100;
+        return `<div class="tranche-display-row">
+            <div class="td-left">
+                <span class="td-name">${escapeHTML(t.label || '(unnamed)')}</span>
+                ${t.is_retention ? '<span class="ret-tag">◆ Retention</span>' : ''}
+            </div>
+            <div class="td-right">
+                <span class="td-amount">${formatCurrency(amt)}</span>
+                <span class="td-pct">${parseFloat(t.percentage) || 0}%</span>
+            </div>
+        </div>`;
+    }).join('');
+    return `<div class="tranche-display">${rows}</div>`;
+}
+
+// Inline editor (hidden unless trancheEditorOpen).
+function renderTrancheEditor() {
+    const wrapperClass = 'tranche-editor' + (trancheEditorOpen ? ' visible' : '');
+    const rows = editorTranches.map((t, i) => {
+        const isRet = !!t.is_retention;
+        return `<div class="editor-row${isRet ? ' retention-row' : ''}" id="erow-${i}">
+            <input type="text" value="${escapeHTML(t.label || '')}" placeholder="Tranche label (e.g. Mobilization)"
+                oninput="window.updateEditorTrancheLabel(${i}, this.value)">
+            <div style="display:flex;align-items:center;gap:4px;">
+                <input type="number" value="${parseFloat(t.percentage) || 0}" min="0" max="100" style="width:60px;"
+                    oninput="window.updateEditorTranchePercentage(${i}, this.value)">
+                <span class="pct-suffix">%</span>
+            </div>
+            <button class="ret-toggle${isRet ? ' on' : ''}" onclick="window.toggleTrancheRetention(${i})">
+                ${isRet ? '◆ Ret.' : 'Ret?'}
+            </button>
+            <button class="remove-btn" onclick="window.removeEditorTrancheRow(${i})"${editorTranches.length <= 1 ? ' disabled' : ''}>×</button>
+        </div>`;
+    }).join('');
+    return `<div class="${wrapperClass}">
+        <div class="editor-header">Edit Collection Tranches</div>
+        <div class="editor-list">${rows}</div>
+        <div class="total-row">
+            <span>Total: <span id="trancheTotalVal" class="total-val total-err">0%</span></span>
+            <div class="total-progress"><div id="trancheTotalBar" style="height:100%;width:0%;background:#1a73e8;border-radius:4px;transition:width 0.2s,background 0.2s;"></div></div>
+        </div>
+        <button class="add-btn" onclick="window.addEditorTrancheRow()">+ Add Tranche</button>
+        <div class="editor-actions">
+            <button class="btn-cancel" onclick="window.cancelTrancheEditor()">Cancel</button>
+            <button class="btn-save" onclick="window.saveTrancheEditor()">Save</button>
+        </div>
+    </div>`;
+}
+
+function renderTrancheEditorHost() {
+    const host = document.getElementById('trancheEditorHost');
+    if (!host) return;
+    host.innerHTML = renderTrancheDisplay() + renderTrancheEditor();
+    if (trancheEditorOpen) recalcTrancheTotal();
+}
+
+function toggleTrancheEditor() {
+    const cu = window.getCurrentUser?.();
+    if (!_canAdvanceServiceStatus(currentService, cu, 'On-going')) {
+        showToast('Permission denied — only service admins or assigned services users can edit tranches.', 'error');
+        return;
+    }
+    trancheEditorOpen = !trancheEditorOpen;
+    if (trancheEditorOpen) {
+        const existing = Array.isArray(currentService?.collection_tranches) ? currentService.collection_tranches : [];
+        editorTranches = existing.map(t => ({
+            label: t.label || '',
+            percentage: parseFloat(t.percentage) || 0,
+            is_retention: !!t.is_retention,
+        }));
+        if (editorTranches.length === 0) {
+            editorTranches.push({ label: '', percentage: 0, is_retention: false });
+        }
+    }
+    renderTrancheEditorHost();
+    const editBtn = document.querySelector('.edit-tranches-btn');
+    if (editBtn) editBtn.classList.toggle('active', trancheEditorOpen);
+}
+
+function updateEditorTrancheLabel(i, value) {
+    if (editorTranches[i]) editorTranches[i].label = value;
+}
+function updateEditorTranchePercentage(i, value) {
+    if (editorTranches[i]) editorTranches[i].percentage = +value;
+    recalcTrancheTotal();
+}
+function addEditorTrancheRow() {
+    editorTranches.push({ label: '', percentage: 0, is_retention: false });
+    renderTrancheEditorHost();
+}
+function removeEditorTrancheRow(i) {
+    editorTranches.splice(i, 1);
+    renderTrancheEditorHost();
+}
+function toggleTrancheRetention(i) {
+    const wasOn = editorTranches[i].is_retention;
+    editorTranches.forEach((t, j) => { t.is_retention = j === i && !wasOn; });
+    renderTrancheEditorHost();
+}
+function recalcTrancheTotal() {
+    const total = editorTranches.reduce((s, t) => s + (+t.percentage || 0), 0);
+    const valEl = document.getElementById('trancheTotalVal');
+    const barEl = document.getElementById('trancheTotalBar');
+    if (valEl) {
+        valEl.textContent = total + '%';
+        valEl.className = 'total-val ' + (total === 100 ? 'total-ok' : 'total-err');
+    }
+    if (barEl) {
+        barEl.style.width = Math.min(100, total) + '%';
+        barEl.style.background = total === 100 ? '#059669' : total > 100 ? '#ef4444' : '#1a73e8';
+    }
+}
+
+// Save the editor — writes collection_tranches to the service doc (no DLP fields).
+async function saveTrancheEditor() {
+    const total = editorTranches.reduce((s, t) => s + (+t.percentage || 0), 0);
+    if (total !== 100) {
+        showToast('Tranches must total exactly 100% before saving.', 'error');
+        return;
+    }
+    const unlabelled = editorTranches.filter(t => !t.label.trim());
+    if (unlabelled.length > 0) {
+        showToast('All tranches must have labels before saving.', 'error');
+        return;
+    }
+    const finalTranches = editorTranches.map(t => ({
+        label: t.label.trim(),
+        percentage: +t.percentage,
+        is_retention: !!t.is_retention,
+    }));
+    try {
+        await updateDoc(doc(db, 'services', currentServiceDocId), {
+            collection_tranches: finalTranches,
+            updated_at: serverTimestamp(),
+        });
+        trancheEditorOpen = false;
+        editorTranches = [];
+        showToast('Collection tranches saved.', 'success');
+    } catch (err) {
+        console.error('[ServiceDetail] saveTrancheEditor failed:', err);
+        showToast('Failed to save tranches. Please try again.', 'error');
+    }
+}
+
+function cancelTrancheEditor() {
+    trancheEditorOpen = false;
+    editorTranches = [];
+    renderTrancheEditorHost();
+    const editBtn = document.querySelector('.edit-tranches-btn');
+    if (editBtn) editBtn.classList.remove('active');
 }
 
 // ============================================================
