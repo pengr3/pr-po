@@ -343,6 +343,18 @@ export async function destroy() {
     delete window.lcMarkServiceComplete;
     _lcOpen = false;
     _lcAttachPending = false;
+    // Phase 104 — tranche editor + Record Release window-fn teardown (9 handlers) + state reset
+    delete window.toggleTrancheEditor;
+    delete window.updateEditorTrancheLabel;
+    delete window.updateEditorTranchePercentage;
+    delete window.addEditorTrancheRow;
+    delete window.removeEditorTrancheRow;
+    delete window.toggleTrancheRetention;
+    delete window.saveTrancheEditor;
+    delete window.cancelTrancheEditor;
+    delete window.recordServiceRetentionRelease;
+    editorTranches = [];
+    trancheEditorOpen = false;
 }
 
 // Phase 99.1 (Phase 99 port) — idempotent attach of the own billing-requests listener.
@@ -3416,5 +3428,26 @@ function attachWindowFunctions() {
             await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
             updateDoc(doc(db, 'services', serviceDocId), { last_activity_at: serverTimestamp() }).catch(err => console.debug('[ServiceDetail] last_activity_at bump non-blocking:', err?.code || err));
         } catch (err) { console.error('[ServiceDetail] lcMarkServiceComplete failed:', err); showToast('Failed to mark service complete.', 'error'); }
+    };
+    // Phase 104 — inline tranche editor (8 handlers) + Finance Record Release
+    window.toggleTrancheEditor = toggleTrancheEditor;
+    window.updateEditorTrancheLabel = updateEditorTrancheLabel;
+    window.updateEditorTranchePercentage = updateEditorTranchePercentage;
+    window.addEditorTrancheRow = addEditorTrancheRow;
+    window.removeEditorTrancheRow = removeEditorTrancheRow;
+    window.toggleTrancheRetention = toggleTrancheRetention;
+    window.saveTrancheEditor = saveTrancheEditor;
+    window.cancelTrancheEditor = cancelTrancheEditor;
+    window.recordServiceRetentionRelease = async function(serviceDocId) {
+        if (!currentService || currentServiceDocId !== serviceDocId) return;
+        const cu = window.getCurrentUser?.();
+        if (cu?.role !== 'finance') { showToast('Only Finance can record a retention release.', 'error'); return; }
+        if (!confirm('Record the retention release for this service? This marks the withheld retention as released and closes the DLP.')) return;
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'services', serviceDocId), { retention_released_at: now, updated_at: serverTimestamp() });
+            await addServiceAuditEntry(serviceDocId, 'RETENTION_RELEASED', cu?.uid, cu?.full_name, 'retention_released_at: ' + now);
+            await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Retention released by ${cu?.full_name || 'Unknown'}` });
+        } catch (err) { console.error('[ServiceDetail] recordServiceRetentionRelease failed:', err); showToast('Failed to record retention release.', 'error'); }
     };
 }
