@@ -7,7 +7,6 @@ import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, wher
 import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
-import { skeletonTableRows } from '../components.js';
 import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
 
 // Global state
@@ -21,11 +20,9 @@ let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
 
-// Filtering and sorting state
+// Filtering state
 let allProjects = [];           // Unfiltered data from Firebase
 let filteredProjects = [];      // Filtered subset for display
-let sortColumn = 'created_at';  // Default sort column
-let sortDirection = 'desc';     // Most recent first (PROJ-15)
 let activeStatusFilter = null;
 
 // Status options
@@ -73,10 +70,8 @@ function attachWindowFunctions() {
     window.saveEdit = saveEdit;
     window.deleteProject = deleteProject;
     window.toggleProjectActive = toggleProjectActive;
-    window.changeProjectsPage = changeProjectsPage;
     window.applyFilters = applyFilters;
     window.debouncedFilter = debouncedFilter;
-    window.sortProjects = sortProjects;
     window.exportProjectsCSV = exportProjectsCSV;
     window.selectPersonnel = selectPersonnel;
     window.removePersonnel = removePersonnel;
@@ -91,6 +86,7 @@ function attachWindowFunctions() {
     window.removeTranche = (button, scopeKey) => removeTranche(button, scopeKey);
     window.recalculateTranches = (scopeKey) => recalculateTranches(scopeKey);
     window.handleScorecardClick = handleScorecardClick;
+    window.vmSwitch = vmSwitch;   // Phase 103 — portfolio view-mode toggle
 }
 
 // Render view HTML
@@ -229,34 +225,13 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
-                <!-- Projects Table -->
-                <div class="table-scroll-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th onclick="window.sortProjects('project_code')" style="cursor: pointer; user-select: none;">
-                                Code <span class="sort-indicator" data-col="project_code"></span>
-                            </th>
-                            <th onclick="window.sortProjects('project_name')" style="cursor: pointer; user-select: none;">
-                                Name <span class="sort-indicator" data-col="project_name"></span>
-                            </th>
-                            <th onclick="window.sortProjects('client_code')" style="cursor: pointer; user-select: none;">
-                                Client <span class="sort-indicator" data-col="client_code"></span>
-                            </th>
-                            <th onclick="window.sortProjects('project_status')" style="cursor: pointer; user-select: none;">
-                                Status <span class="sort-indicator" data-col="project_status"></span>
-                            </th>
-                            <th onclick="window.sortProjects('active')" style="cursor: pointer; user-select: none;">
-                                Active <span class="sort-indicator" data-col="active"></span>
-                            </th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="projectsTableBody">
-                        ${skeletonTableRows(6, 5)}
-                    </tbody>
-                </table>
+                <!-- Phase 103 — Portfolio view-mode toggle + dual render containers (replaces flat table) -->
+                <div class="vm-toggle">
+                    <button class="vm-btn" id="vm-feed" onclick="window.vmSwitch('feed')">🔥 Priority Feed</button>
+                    <button class="vm-btn" id="vm-browse" onclick="window.vmSwitch('browse')">≡ Browse All</button>
                 </div>
+                <div id="pdb-feed" class="pdb-mode"></div>
+                <div id="pdb-browse" class="pdb-mode" style="display:none;"></div>
             </div>
         </div>
     `;
@@ -266,9 +241,9 @@ export function render(activeTab = null) {
 export async function init(activeTab = null) {
     attachWindowFunctions();
 
-    // Listen for permission changes and re-render table
+    // Listen for permission changes and re-render the portfolio (Feed + Browse All)
     const permissionChangeHandler = () => {
-        renderProjectsTable();
+        renderPortfolio();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
 
@@ -360,8 +335,6 @@ export async function destroy() {
     currentPage = 1;
     allProjects = [];
     filteredProjects = [];
-    sortColumn = 'created_at';
-    sortDirection = 'desc';
 
     // Clean up personnel pill state
     if (window._personnelClickOutside) {
@@ -383,11 +356,10 @@ export async function destroy() {
     delete window.saveEdit;
     delete window.deleteProject;
     delete window.toggleProjectActive;
-    delete window.changeProjectsPage;
     delete window.applyFilters;
     delete window.debouncedFilter;
-    delete window.sortProjects;
     delete window.exportProjectsCSV;
+    delete window.vmSwitch;   // Phase 103
     delete window.selectPersonnel;
     delete window.removePersonnel;
     delete window.filterPersonnelDropdown;
@@ -627,7 +599,7 @@ function toggleAddProjectForm() {
     } else {
         form.style.display = 'none';
         editingProject = null;
-        renderProjectsTable();
+        renderPortfolio();
     }
 }
 
@@ -804,88 +776,14 @@ function applyFilters() {
         return matchesSearch && matchesProjectStatus && matchesClient;
     });
 
-    // Reset pagination when filters change
-    currentPage = 1;
-
-    // Apply current sort
-    sortFilteredProjects();
-
-    renderProjectsTable();
+    // Phase 103: the new renderers impose their own ordering (Feed partitions by urgency,
+    // Browse All groups by stage), so no global sort of filteredProjects is needed (W-3).
+    renderPortfolio();
     renderScorecards(scopedProjects);
-}
-
-// Sort filtered projects
-function sortFilteredProjects() {
-    filteredProjects.sort((a, b) => {
-        let aVal = a[sortColumn];
-        let bVal = b[sortColumn];
-
-        // Handle null/undefined (sort to end)
-        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
-
-        // Handle dates
-        if (sortColumn === 'created_at' || sortColumn === 'updated_at') {
-            aVal = new Date(aVal);
-            bVal = new Date(bVal);
-        }
-
-        // Handle booleans
-        if (sortColumn === 'active') {
-            // Active first when descending, inactive first when ascending
-            return sortDirection === 'asc'
-                ? (aVal === bVal ? 0 : aVal ? 1 : -1)
-                : (aVal === bVal ? 0 : aVal ? -1 : 1);
-        }
-
-        // String comparison
-        if (typeof aVal === 'string') {
-            return sortDirection === 'asc'
-                ? aVal.localeCompare(bVal)
-                : bVal.localeCompare(aVal);
-        }
-
-        // Numeric/date comparison
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    });
 }
 
 // Create debounced filter
 const debouncedFilter = debounce(applyFilters, 300);
-
-// Sort projects by column
-function sortProjects(column) {
-    // Toggle direction if clicking same column
-    if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortColumn = column;
-        sortDirection = 'asc'; // Default to ascending on new column
-    }
-
-    // Reset pagination (per RESEARCH.md Pitfall 3)
-    currentPage = 1;
-
-    // Sort the filtered data
-    sortFilteredProjects();
-
-    // Re-render table with updated headers
-    renderProjectsTable();
-}
-
-// Update sort indicators
-function updateSortIndicators() {
-    document.querySelectorAll('.sort-indicator').forEach(indicator => {
-        const col = indicator.dataset.col;
-        if (col === sortColumn) {
-            indicator.textContent = sortDirection === 'asc' ? ' ↑' : ' ↓';
-            indicator.style.color = '#1a73e8';
-        } else {
-            indicator.textContent = ' ⇅';
-            indicator.style.color = '#94a3b8';
-        }
-    });
-}
 
 // Load projects with real-time listener
 async function loadProjects() {
@@ -1047,85 +945,86 @@ function renderFinancial(project) {
     return `<div class="fin-pre"><div class="fin-pre-amount">—</div><div class="fin-pre-label">Pre-contract</div></div>`;
 }
 
-function renderProjectsTable() {
-    const tbody = document.getElementById('projectsTableBody');
-    if (!tbody) return;
+// Phase 103 — view-mode toggle: swap the Priority Feed / Browse All containers, persist choice (D-04).
+function vmSwitch(mode) {
+    const feed = document.getElementById('pdb-feed');
+    const browse = document.getElementById('pdb-browse');
+    if (!feed || !browse) return;
+    feed.style.display   = mode === 'feed'   ? 'block' : 'none';
+    browse.style.display = mode === 'browse' ? 'block' : 'none';
+    document.getElementById('vm-feed')?.classList.toggle('vm-on', mode === 'feed');
+    document.getElementById('vm-browse')?.classList.toggle('vm-on', mode === 'browse');
+    localStorage.setItem('projects-view-mode', mode);
+    if (mode === 'browse') renderBrowseAll();   // Plan 03 supplies the real impl; placeholder until then
+}
 
-    if (filteredProjects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">No projects found matching filters.</td></tr>';
-        const paginationDiv = document.getElementById('projectsPagination');
-        if (paginationDiv) paginationDiv.style.display = 'none';
-        return;
-    }
+// Phase 103 — portfolio dispatcher: applyFilters() calls this instead of the old flat-table renderer.
+// Renders BOTH modes from filteredProjects, then restores the persisted mode (default Feed for
+// first-time users — D-04).
+function renderPortfolio() {
+    renderPriorityFeed();
+    renderBrowseAll();   // placeholder until Plan 03 replaces it
+    const saved = localStorage.getItem('projects-view-mode') || 'feed';
+    vmSwitch(saved);
+}
 
-    // Pagination
-    const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredProjects.length);
-    const pageItems = filteredProjects.slice(startIndex, endIndex);
-
-    // Check edit permission for action buttons
-    const canEdit = window.canEditTab?.('projects');
-    const showEditControls = canEdit !== false;
-
-    tbody.innerHTML = pageItems.map(project => {
-        // Find client name
-        const client = clientsData.find(c => c.id === project.client_id);
-        // Phase 78 D-09: clientless projects render em-dash in Client column
-        const clientName = client ? client.company_name : (project.client_code || '—');
-        // Phase 78 D-09: clientless projects render em-dash in Code column
-        const codeDisplay = project.project_code || '—';
-        // Phase 78 D-06: deep link uses project_code if available, otherwise Firestore doc ID
-        const detailParam = project.project_code || project.id;
-        // Phase 102 Plan 05 — portfolio DLP visuals (left-accent border + status tag), derived once per row
-        const dlpState = getDlpState(project);
-        const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
-        const dlpTag = dlpState === 'in-dlp'
-            ? '<span class="portfolio-dlp-tag" style="background:#fef3c7;color:#92400e;">◑ In DLP</span>'
-            : dlpState === 'expired'
-            ? '<span class="portfolio-dlp-tag" style="background:#fee2e2;color:#991b1b;">⚠ Retention Overdue</span>'
-            : dlpState === 'released'
-            ? '<span class="portfolio-dlp-tag" style="background:#dcfce7;color:#166534;">✓ Fully Collected</span>'
-            : '';
-
+// Phase 103 — Priority Feed (Option D, default). Three urgency sections over filteredProjects.
+// Confirm-in-plan resolution: HIDE empty Needs Attention / Worth Watching; ALWAYS show On Track.
+function renderPriorityFeed() {
+    const el = document.getElementById('pdb-feed');
+    if (!el) return;
+    const { urgent, watch, ok } = computeUrgencySignals(filteredProjects);
+    const sections = [
+        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent, hideWhenEmpty: true },
+        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,  hideWhenEmpty: true },
+        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: ok,     hideWhenEmpty: false }
+    ];
+    el.innerHTML = sections.map(sec => {
+        if (sec.hideWhenEmpty && sec.rows.length === 0) return '';
+        const body = sec.rows.length
+            ? sec.rows.map(buildFeedRow).join('')
+            : '<div class="feed-empty">Nothing here</div>';
         return `
-            <tr onclick="window.location.hash = '#/projects/detail/${escapeHTML(detailParam)}'"
-                style="cursor: pointer;"
-                class="clickable-row ${dlpClass}">
-                <td><strong>${escapeHTML(codeDisplay)}</strong></td>
-                <td>${escapeHTML(project.project_name)}</td>
-                <td>${escapeHTML(clientName)}</td>
-                <td>${(() => {
-                    const v = project.project_status || '';
-                    if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
-                        return `<span style="color: #94a3b8; font-style: italic;">${escapeHTML(v)} (legacy)</span>`;
-                    }
-                    return escapeHTML(v);
-                })()}${dlpTag ? `<div style="margin-top:4px;">${dlpTag}</div>` : ''}</td>
-                <td>
-                    <span class="status-badge clickable-badge ${project.active ? 'approved' : 'rejected'}"
-                          ${showEditControls ? `onclick="event.stopPropagation(); toggleProjectActive('${escapeHTML(project.id)}', ${project.active})" title="Click to ${project.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
-                        ${project.active ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-                ${showEditControls ? `
-                    <td style="white-space: nowrap;" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm btn-primary" onclick="editProject('${escapeHTML(project.id)}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${escapeHTML(project.id)}', '${(project.project_name || '').replace(/'/g, "\\'")}')">Delete</button>
-                    </td>
-                ` : `
-                    <td class="actions-cell" onclick="event.stopPropagation()">
-                        <span class="view-only-badge">View Only</span>
-                    </td>
-                `}
-            </tr>
-        `;
-    }).join('');
+            <div class="feed-section tier-${sec.tier}">
+                <div class="feed-section-header">${sec.icon} ${sec.label}
+                    <span class="feed-section-count">${sec.rows.length}</span>
+                </div>
+                ${body}
+            </div>`;
+    }).join('') || '<div class="feed-empty">No projects match the current filters.</div>';
+}
 
-    updatePaginationControls(totalPages, startIndex, endIndex, filteredProjects.length);
+// Phase 103 — shared row builder for BOTH Feed rows and Browse All rows (Plan 03 reuses this).
+// Derives the signal on demand if the row was not pre-tagged by computeUrgencySignals (Browse path).
+function buildFeedRow(p) {
+    const signal = p.signal || getProjectSignal(p, Date.now());
+    const level = signal.level;
+    const dlpState = getDlpState(p);
+    const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
+    const detailParam = p.project_code || p.id;
+    const codeDisplay = p.project_code || '—';
+    const client = clientsData.find(c => c.id === p.client_id);
+    const clientName = client ? client.company_name : (p.client_code || '—');
+    const statusRaw = p.project_status || '';
+    const statusDisplay = (statusRaw && !UNIFIED_STATUS_OPTIONS.includes(statusRaw))
+        ? `<span style="color:#94a3b8;font-style:italic;">${escapeHTML(statusRaw)} (legacy)</span>`
+        : escapeHTML(statusRaw);
+    return `
+        <div class="feed-row tier-${level} ${dlpClass}"
+             onclick="window.location.hash = '#/projects/detail/${escapeHTML(detailParam)}'">
+            <div class="feed-row-main">
+                <div class="feed-row-title">${escapeHTML(codeDisplay)}${p.project_name ? ' — ' + escapeHTML(p.project_name) : ''}</div>
+                <div class="feed-row-sub">${escapeHTML(clientName)} · ${statusDisplay}</div>
+            </div>
+            <div class="feed-row-signal tier-${level}">${escapeHTML(signal.text)}${signal.hint ? `<div class="feed-row-hint">${escapeHTML(signal.hint)}</div>` : ''}</div>
+            <div class="feed-row-fin">${renderFinancial(p)}</div>
+        </div>`;
+}
 
-    // Update sort indicators
-    updateSortIndicators();
+// Plan 03: Browse All (stage-grouped collapsible) renderer goes here — replaces this placeholder.
+function renderBrowseAll() {
+    const el = document.getElementById('pdb-browse');
+    if (el) el.innerHTML = '<div style="padding:1rem;color:#94a3b8;">Browse All — implemented in Plan 03.</div>';
 }
 
 // Edit project
@@ -1416,64 +1315,3 @@ async function toggleProjectActive(projectId, currentStatus) {
 }
 
 // Change page
-function changeProjectsPage(direction) {
-    const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
-
-    if (direction === 'prev' && currentPage > 1) {
-        currentPage--;
-    } else if (direction === 'next' && currentPage < totalPages) {
-        currentPage++;
-    } else if (typeof direction === 'number') {
-        currentPage = direction;
-    }
-
-    renderProjectsTable();
-}
-
-// Update pagination controls
-function updatePaginationControls(totalPages, startIndex, endIndex, totalItems) {
-    let paginationDiv = document.getElementById('projectsPagination');
-
-    if (!paginationDiv) {
-        paginationDiv = document.createElement('div');
-        paginationDiv.id = 'projectsPagination';
-        paginationDiv.className = 'pagination-container';
-
-        const section = document.querySelector('.container');
-        const table = section?.querySelector('table');
-        if (table && table.parentNode) {
-            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
-        }
-    }
-
-    let paginationHTML = `
-        <div class="pagination-info">
-            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> projects
-        </div>
-        <div class="pagination-controls">
-            <button class="pagination-btn" onclick="changeProjectsPage('prev')" ${currentPage === 1 ? 'disabled' : ''}>
-                ← Previous
-            </button>
-    `;
-
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            paginationHTML += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="changeProjectsPage(${i})">
-                    ${i}
-                </button>
-            `;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-            paginationHTML += '<span class="pagination-ellipsis">...</span>';
-        }
-    }
-
-    paginationHTML += `
-            <button class="pagination-btn" onclick="changeProjectsPage('next')" ${currentPage === totalPages ? 'disabled' : ''}>
-                Next →
-            </button>
-        </div>
-    `;
-
-    paginationDiv.innerHTML = paginationHTML;
-}
