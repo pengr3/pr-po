@@ -3030,9 +3030,17 @@ async function postActivityEntry() {
     if (textEl) textEl.value = '';
 
     try {
-        await _addActivityEntry(currentProject.id, { type, text, is_system: false });
+        const ok = await _addActivityEntry(currentProject.id, { type, text, is_system: false });
         // onSnapshot fires shortly after and rebuilds journalActivityEntries from Firestore,
         // replacing the _optimistic placeholder with the real persisted doc (array-replace).
+        if (ok) {
+            // Phase 103.1 D-03 — refresh the On-going activity clock, success-path-only (_addActivityEntry
+            // swallows + returns false on a failed addDoc, so the clock never refreshes on a silent failure).
+            // Fire-and-forget, NOT batched with the addDoc: a non-team active user's parent write is correctly
+            // denied — that denial must not roll back or surface on the journal entry.
+            updateDoc(doc(db, 'projects', currentProject.id), { last_activity_at: serverTimestamp() })
+                .catch(err => console.debug('[ProjectDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
+        }
     } catch (err) {
         console.error('[ProjectDetail/Journal] postActivityEntry failed:', err);
         showToast('Failed to post entry. Please try again.', 'error');
@@ -3053,8 +3061,10 @@ async function _addActivityEntry(projectId, { type, text, is_system = false }) {
             created_by_name: cu?.full_name || cu?.email || 'Unknown',
             created_at: serverTimestamp(),
         });
+        return true;   // Phase 103.1 D-03 — signals the caller the entry actually persisted
     } catch (err) {
         console.error('[ProjectDetail/Journal] _addActivityEntry failed:', err);
+        return false;  // Phase 103.1 D-03 — swallowed failure; caller must NOT refresh the activity clock
     }
 }
 
@@ -3208,6 +3218,11 @@ async function submitProgressUpdate() {
             created_by_name: cu?.full_name || cu?.email || 'Unknown',
             created_at: serverTimestamp(),
         });
+        // Phase 103.1 D-03 — refresh the On-going activity clock (success-path-only: a failed addDoc above
+        // threw past this). Fire-and-forget, NOT batched: a non-team active user's parent write is correctly
+        // denied and must not roll back the journal entry.
+        updateDoc(doc(db, 'projects', currentProject.id), { last_activity_at: serverTimestamp() })
+            .catch(err => console.debug('[ProjectDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
         journalProgressFormOpen = false;
         showToast('Progress update submitted.', 'success');
         // Clear fields
@@ -3400,6 +3415,11 @@ async function submitNewIssue() {
             created_by_name: cu?.full_name || cu?.email || 'Unknown',
             created_at: serverTimestamp(),
         });
+        // Phase 103.1 D-03 — refresh the On-going activity clock (success-path-only: a failed addDoc above
+        // threw past this). Fire-and-forget, NOT batched: a non-team active user's parent write is correctly
+        // denied and must not roll back the journal entry.
+        updateDoc(doc(db, 'projects', currentProject.id), { last_activity_at: serverTimestamp() })
+            .catch(err => console.debug('[ProjectDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
         journalIssueFormOpen = false;
         showToast('Issue logged.', 'success');
         if (titleEl) titleEl.value = '';
