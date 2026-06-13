@@ -1238,6 +1238,15 @@ async function saveServiceField(fieldName, newValue) {
                 actor_name: window.getCurrentUser?.()?.full_name || 'System'
             }).catch(err => console.error('[ServiceDetail] NOTIF-19 cost-change notification failed:', err));
         }
+        // Phase 104 D-12: auto-post contract/budget cost-change system Feed entry (fire-and-forget, never block saveServiceField)
+        if (isCostChange) {
+            const cuCostDelta = window.getCurrentUser?.();
+            _addServiceActivityEntry(currentServiceDocId, {
+                type: 'system',
+                is_system: true,
+                text: `${notifCostFieldLabel} changed: ${notifCostOldDisplay} → ${notifCostNewDisplay} by ${cuCostDelta?.full_name || 'Unknown'}`
+            }).catch(err => console.error('[ServiceDetail/Journal] cost-change auto-entry failed:', err));
+        }
         return true;
     } catch (error) {
         console.error('[ServiceDetail] Save failed:', error);
