@@ -303,6 +303,19 @@ export async function destroy() {
     delete window.switchJournalTab;
     delete window.selectJournalTag;
     delete window.postActivityEntry;
+    // Phase 104 — Activity Journal window-fn teardown (Task 2: 12 handlers)
+    delete window.submitProgressUpdate;
+    delete window.editProgressUpdate;
+    delete window.cancelEditProgressUpdate;
+    delete window.saveEditProgressUpdate;
+    delete window.setIssueFilter;
+    delete window.submitNewIssue;
+    delete window.resolveIssue;
+    delete window.reopenIssue;
+    delete window.toggleProgressForm;
+    delete window.toggleIssueForm;
+    delete window.showResolveForm;
+    delete window.cancelResolveForm;
 }
 
 // Phase 99.1 (Phase 99 port) — idempotent attach of the own billing-requests listener.
@@ -1856,13 +1869,11 @@ function _buildServiceJournalPanelHtml(service) {
     </div>`;
 
     const progressPanelHtml = `<div id="journalTab-progress" class="journal-tab-panel${_activeJournalTab === 'progress' ? ' visible' : ''}">
-        <!-- SVC-JOURNAL-PROGRESS-BODY (wired in Task 2) -->
-        <div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">Loading…</div>
+        ${_buildProgressTabHtml(service, isReadOnly)}
     </div>`;
 
     const issuesPanelHtml = `<div id="journalTab-issues" class="journal-tab-panel${_activeJournalTab === 'issues' ? ' visible' : ''}">
-        <!-- SVC-JOURNAL-ISSUES-BODY (wired in Task 2) -->
-        <div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">Loading…</div>
+        ${_buildIssuesTabHtml(service, isReadOnly)}
     </div>`;
 
     let daysRunningHtml = '';
@@ -1984,6 +1995,481 @@ async function postActivityEntry() {
     }
 }
 
+// --- Phase 104 Plan 02 Task 2: Progress Updates tab ---
+
+function _renderProgressCard(u, isReadOnly) {
+    const ts = u.created_at?.seconds
+        ? new Date(u.created_at.seconds * 1000)
+        : (u.created_at?.toDate ? u.created_at.toDate() : new Date());
+    const dateStr = ts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+    const timeStr = ts.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+    const pct = Number(u.pct_complete) || 0;
+    const barColor = pct < 30 ? '#f59e0b' : '#1a73e8';
+    const isEditing = journalEditingProgressId === u.id;
+    const eid = escapeHTML(u.id);
+
+    if (isEditing) {
+        const sv = (s) => escapeHTML(s || '').replace(/"/g, '&quot;');
+        return `<div class="journal-pu-card">
+            <div class="journal-form-row">
+                <label>Overall % Complete</label>
+                <div class="journal-pct-row">
+                    <input type="range" id="journalEditPct-${eid}" min="0" max="100" value="${pct}" class="journal-pct-slider" oninput="document.getElementById('journalEditPctVal-${eid}').textContent=this.value+'%'" />
+                    <span class="journal-pct-value" id="journalEditPctVal-${eid}">${pct}%</span>
+                </div>
+            </div>
+            <div class="journal-form-row">
+                <label>Summary / What was done <span style="color:#ef4444">*</span></label>
+                <textarea id="journalEditSummary-${eid}" rows="2">${sv(u.summary)}</textarea>
+            </div>
+            <div class="journal-form-row">
+                <label>Blockers / Issues</label>
+                <textarea id="journalEditBlockers-${eid}" rows="2">${sv(u.blockers)}</textarea>
+            </div>
+            <div class="journal-form-row">
+                <label>Next Milestone</label>
+                <input type="text" id="journalEditNext-${eid}" value="${sv(u.next_milestone)}" />
+            </div>
+            <div class="journal-form-actions">
+                <button class="journal-cancel-btn" onclick="window.cancelEditProgressUpdate()">Cancel</button>
+                <button class="journal-post-btn" onclick="window.saveEditProgressUpdate('${eid}')">Save Changes</button>
+            </div>
+        </div>`;
+    }
+
+    const editBtn = !isReadOnly
+        ? `<button class="journal-cancel-btn" style="font-size:11px;padding:3px 9px;" onclick="window.editProgressUpdate('${eid}')">Edit</button>`
+        : '';
+    return `<div class="journal-pu-card">
+        <div class="journal-pu-card-header">
+            <div>
+                <div class="journal-pu-card-title">Week of ${escapeHTML(dateStr)}</div>
+                <div class="journal-pu-card-meta">Submitted by ${escapeHTML(u.created_by_name || 'Unknown')} · ${escapeHTML(timeStr)}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                ${editBtn}
+                <div class="journal-pu-pct-num" style="color:${barColor}">${pct}%</div>
+            </div>
+        </div>
+        <div class="journal-pu-pct-bar"><div class="journal-pu-pct-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        <div class="journal-pu-fields">
+            <div class="journal-pu-field">
+                <div class="journal-pu-field-label">Summary</div>
+                <div class="journal-pu-field-val">${escapeHTML(u.summary || '—')}</div>
+            </div>
+            <div class="journal-pu-field">
+                <div class="journal-pu-field-label">Blockers</div>
+                <div class="journal-pu-field-val${u.blockers ? ' journal-pu-field-val--blockers' : ''}">${escapeHTML(u.blockers || 'None')}</div>
+            </div>
+            ${u.next_milestone ? `<div class="journal-pu-field journal-pu-field--full">
+                <div class="journal-pu-field-label">Next Milestone</div>
+                <div class="journal-pu-field-val">${escapeHTML(u.next_milestone)}</div>
+            </div>` : ''}
+        </div>
+        ${(u.edit_history?.length) ? (() => {
+            const last = u.edit_history[u.edit_history.length - 1];
+            const editTs = last.edited_at?.seconds
+                ? new Date(last.edited_at.seconds * 1000)
+                : (last.edited_at?.toDate ? last.edited_at.toDate() : null);
+            const editStr = editTs
+                ? editTs.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
+                : '';
+            return `<div style="font-size:11px;color:#94a3b8;margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;">Edited by ${escapeHTML(last.edited_by_name || 'Unknown')}${editStr ? ' · ' + escapeHTML(editStr) : ''}</div>`;
+        })() : ''}
+    </div>`;
+}
+
+function _buildProgressTabHtml(service, isReadOnly) {
+    const formHtml = !isReadOnly ? `
+        <div style="margin-bottom:14px">
+            <button class="journal-new-btn" onclick="window.toggleProgressForm()">${journalProgressFormOpen ? '✕ Cancel' : '+ New Progress Update'}</button>
+        </div>
+        <div class="journal-pu-form"${journalProgressFormOpen ? '' : ' style="display:none"'}>
+            <div class="journal-form-row">
+                <label>Overall % Complete</label>
+                <div class="journal-pct-row">
+                    <input type="range" id="journalProgPct" min="0" max="100" value="0" class="journal-pct-slider" oninput="document.getElementById('journalProgPctVal').textContent=this.value+'%'" />
+                    <span class="journal-pct-value" id="journalProgPctVal">0%</span>
+                </div>
+            </div>
+            <div class="journal-form-row">
+                <label>Summary / What was done <span style="color:#ef4444">*</span></label>
+                <textarea id="journalProgSummary" placeholder="e.g. Completed conduit roughing-in for Levels B2–G." rows="2"></textarea>
+            </div>
+            <div class="journal-form-row">
+                <label>Blockers / Issues</label>
+                <textarea id="journalProgBlockers" placeholder="e.g. Awaiting delivery — ETA Jun 15." rows="2"></textarea>
+            </div>
+            <div class="journal-form-row">
+                <label>Next Milestone</label>
+                <input type="text" id="journalProgNext" placeholder="e.g. Complete panel board wiring by Jun 20" />
+            </div>
+            <div class="journal-form-actions">
+                <button class="journal-cancel-btn" onclick="window.toggleProgressForm()">Cancel</button>
+                <button class="journal-post-btn" onclick="window.submitProgressUpdate()">Save Update</button>
+            </div>
+        </div>` : '';
+
+    const historyHtml = journalProgressUpdates.length === 0
+        ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No progress updates yet.</div>'
+        : journalProgressUpdates.map(u => _renderProgressCard(u, isReadOnly)).join('');
+
+    return `${formHtml}<div class="journal-pu-history">${historyHtml}</div>`;
+}
+
+async function submitProgressUpdate() {
+    const pctEl = document.getElementById('journalProgPct');
+    const summaryEl = document.getElementById('journalProgSummary');
+    const blockersEl = document.getElementById('journalProgBlockers');
+    const nextEl = document.getElementById('journalProgNext');
+
+    const summary = (summaryEl?.value || '').trim();
+    if (!summary) { showToast('Add a progress summary.', 'error'); return; }
+
+    const pct = Math.max(0, Math.min(100, parseInt(pctEl?.value || '0', 10) || 0));
+    const blockers = (blockersEl?.value || '').trim();
+    const next_milestone = (nextEl?.value || '').trim();
+
+    const cu = window.getCurrentUser?.();
+    try {
+        await addDoc(collection(db, 'services', currentServiceDocId, 'progress_updates'), {
+            pct_complete: pct,
+            summary,
+            blockers,
+            next_milestone,
+            created_by_uid: cu?.uid ?? '',
+            created_by_name: cu?.full_name || cu?.email || 'Unknown',
+            created_at: serverTimestamp(),
+        });
+        // Phase 104 D-14 — fire-and-forget, NOT batched, success-path-only.
+        updateDoc(doc(db, 'services', currentServiceDocId), { last_activity_at: serverTimestamp() })
+            .catch(err => console.debug('[ServiceDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
+        journalProgressFormOpen = false;
+        showToast('Progress update submitted.', 'success');
+        if (pctEl) { pctEl.value = '0'; const pv = document.getElementById('journalProgPctVal'); if (pv) pv.textContent = '0%'; }
+        if (summaryEl) summaryEl.value = '';
+        if (blockersEl) blockersEl.value = '';
+        if (nextEl) nextEl.value = '';
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] submitProgressUpdate failed:', err);
+        showToast('Failed to submit progress update. Please try again.', 'error');
+    }
+}
+
+// --- Phase 104 Plan 02 Task 2: Issues tab ---
+
+function _issueSeqNum(issueId) {
+    const sorted = [...journalIssues].sort((a, b) => {
+        const aS = a.created_at?.seconds ?? 0;
+        const bS = b.created_at?.seconds ?? 0;
+        return aS - bS;
+    });
+    const idx = sorted.findIndex(i => i.id === issueId);
+    if (idx === -1) return issueId.slice(-4);
+    return idx + 1;
+}
+
+const ISSUE_TYPE_LABELS = {
+    delay: 'Delay',
+    change_order: 'Change Order',
+    site_issue: 'Site Issue',
+    client_request: 'Client Request',
+};
+const ISSUE_TYPE_DOT_CLASS = { delay: 'delay', change_order: 'change', site_issue: 'site', client_request: 'client' };
+const ISSUE_TYPE_BADGE_CLASS = { delay: 'delay', change_order: 'change', site_issue: 'site', client_request: 'client-req' };
+
+function _renderIssueRow(issue, isReadOnly) {
+    const typeLabel = ISSUE_TYPE_LABELS[issue.issue_type] || escapeHTML(issue.issue_type || '');
+    const isResolved = issue.status === 'resolved';
+    const dotClass = ISSUE_TYPE_DOT_CLASS[issue.issue_type] || 'delay';
+    const badgeClass = ISSUE_TYPE_BADGE_CLASS[issue.issue_type] || 'delay';
+
+    const ts = issue.created_at?.seconds
+        ? new Date(issue.created_at.seconds * 1000)
+        : (issue.created_at?.toDate ? issue.created_at.toDate() : new Date());
+    const loggedStr = ts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+    let resolvedDateStr = '';
+    if (isResolved && issue.resolved_at) {
+        const rts = issue.resolved_at?.seconds
+            ? new Date(issue.resolved_at.seconds * 1000)
+            : (issue.resolved_at?.toDate ? issue.resolved_at.toDate() : null);
+        if (rts) resolvedDateStr = ` · Resolved ${rts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}`;
+    }
+
+    const isResolvingThis = !isReadOnly && !isResolved && journalResolvingIssueId === issue.id;
+
+    let actionBtn = '';
+    if (!isReadOnly) {
+        if (isResolved) {
+            actionBtn = `<button class="journal-cancel-btn" style="margin-left:auto;" onclick="window.reopenIssue('${escapeHTML(issue.id)}')">Re-open</button>`;
+        } else if (!isResolvingThis) {
+            actionBtn = `<button class="journal-post-btn" style="margin-left:auto;background:#f59e0b;" onclick="window.showResolveForm('${escapeHTML(issue.id)}')">Mark Resolved</button>`;
+        }
+    }
+
+    const resolutionBlock = isResolved && issue.resolution_notes ? `
+        <div class="journal-resolution-notes"><span style="font-weight:600;">Resolution:</span> ${escapeHTML(issue.resolution_notes)}</div>` : '';
+
+    const resolveFormHtml = isResolvingThis ? `
+        <div class="journal-resolve-form">
+            <textarea id="journalResolveNotes" placeholder="Resolution notes (required)" rows="2"></textarea>
+            <div class="journal-form-actions" style="margin-top:8px;">
+                <button class="journal-cancel-btn" onclick="window.cancelResolveForm()">Cancel</button>
+                <button class="journal-post-btn" onclick="window.resolveIssue('${escapeHTML(issue.id)}')">Submit Resolution</button>
+            </div>
+        </div>` : '';
+
+    return `<div class="journal-issue-card${isResolved ? ' resolved' : ''}">
+        <div class="journal-issue-left">
+            <div class="journal-issue-type-dot journal-dot-${escapeHTML(dotClass)}"></div>
+        </div>
+        <div class="journal-issue-right">
+            <div class="journal-issue-title">${escapeHTML(issue.title || '')}</div>
+            ${issue.description ? `<div class="journal-issue-desc">${escapeHTML(issue.description)}</div>` : ''}
+            <div class="journal-issue-footer">
+                <span class="journal-issue-type-badge journal-badge-${escapeHTML(badgeClass)}">${typeLabel.toUpperCase()}</span>
+                ${isResolved ? `<span class="journal-issue-type-badge journal-badge-resolved">✓ RESOLVED</span>` : ''}
+                <span class="journal-issue-date">Logged ${escapeHTML(loggedStr)}${escapeHTML(resolvedDateStr)}</span>
+                ${actionBtn}
+            </div>
+            ${resolutionBlock}
+            ${resolveFormHtml}
+        </div>
+    </div>`;
+}
+
+function _buildIssuesTabHtml(service, isReadOnly) {
+    const openCount = journalIssues.filter(i => i.status === 'open').length;
+    const resolvedCount = journalIssues.filter(i => i.status === 'resolved').length;
+    const totalCount = journalIssues.length;
+
+    const filterChips = [
+        { key: 'all', label: `All (${totalCount})` },
+        { key: 'open', label: `Open (${openCount})` },
+        { key: 'resolved', label: `Resolved (${resolvedCount})` },
+    ].map(f =>
+        `<button class="journal-filter-chip${journalIssueFilter === f.key ? ' active' : ''}" onclick="window.setIssueFilter('${f.key}')">${f.label}</button>`
+    ).join('');
+
+    const toolbarHtml = `<div class="journal-issue-toolbar">
+        <div class="journal-filter-chips">${filterChips}</div>
+        ${!isReadOnly ? `<button class="journal-new-btn" style="margin-bottom:0;" onclick="window.toggleIssueForm()">${journalIssueFormOpen ? '✕ Cancel' : '+ Log Issue'}</button>` : ''}
+    </div>`;
+
+    const formHtml = !isReadOnly ? `
+        <div class="journal-issue-form${journalIssueFormOpen ? ' visible' : ''}">
+            <div class="journal-form-row">
+                <label>Issue Type</label>
+                <select id="journalIssueType">
+                    <option value="delay">Delay</option>
+                    <option value="change_order">Change Order</option>
+                    <option value="site_issue">Site Issue</option>
+                    <option value="client_request">Client Request</option>
+                </select>
+            </div>
+            <div class="journal-form-row">
+                <label>Title <span style="color:#ef4444">*</span></label>
+                <input type="text" id="journalIssueTitle" placeholder="Short description of the issue" />
+            </div>
+            <div class="journal-form-row">
+                <label>Details</label>
+                <textarea id="journalIssueDesc" placeholder="What happened? Impact? Action taken?" rows="2"></textarea>
+            </div>
+            <div class="journal-form-actions">
+                <button class="journal-cancel-btn" onclick="window.toggleIssueForm()">Cancel</button>
+                <button class="journal-post-btn" style="background:#ef4444;" onclick="window.submitNewIssue()">Log Issue</button>
+            </div>
+        </div>` : '';
+
+    const filtered = journalIssues.filter(i => {
+        if (journalIssueFilter === 'open') return i.status === 'open';
+        if (journalIssueFilter === 'resolved') return i.status === 'resolved';
+        return true;
+    });
+
+    const listHtml = filtered.length === 0
+        ? '<div style="color:#94a3b8;font-size:0.82rem;padding:0.5rem 0;">No issues logged yet.</div>'
+        : filtered.map(i => _renderIssueRow(i, isReadOnly)).join('');
+
+    return `${toolbarHtml}${formHtml}<div class="journal-issue-list">${listHtml}</div>`;
+}
+
+function setIssueFilter(f) {
+    journalIssueFilter = f;
+    _renderServiceJournalPanelInPlace();
+}
+
+async function submitNewIssue() {
+    const typeEl = document.getElementById('journalIssueType');
+    const titleEl = document.getElementById('journalIssueTitle');
+    const descEl = document.getElementById('journalIssueDesc');
+
+    const title = (titleEl?.value || '').trim();
+    if (!title) { showToast('Add an issue title.', 'error'); return; }
+
+    const issue_type = typeEl?.value || 'delay';
+    const description = (descEl?.value || '').trim();
+
+    const cu = window.getCurrentUser?.();
+    try {
+        await addDoc(collection(db, 'services', currentServiceDocId, 'issues'), {
+            issue_type,
+            title,
+            description,
+            status: 'open',
+            resolution_notes: null,
+            resolved_at: null,
+            resolved_by_uid: null,
+            created_by_uid: cu?.uid ?? '',
+            created_by_name: cu?.full_name || cu?.email || 'Unknown',
+            created_at: serverTimestamp(),
+        });
+        // Phase 104 D-14 — fire-and-forget, NOT batched, success-path-only.
+        updateDoc(doc(db, 'services', currentServiceDocId), { last_activity_at: serverTimestamp() })
+            .catch(err => console.debug('[ServiceDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
+        journalIssueFormOpen = false;
+        showToast('Issue logged.', 'success');
+        if (titleEl) titleEl.value = '';
+        if (descEl) descEl.value = '';
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] submitNewIssue failed:', err);
+        showToast('Failed to log issue. Please try again.', 'error');
+    }
+}
+
+async function resolveIssue(issueId) {
+    const notesEl = document.getElementById('journalResolveNotes');
+    const notes = (notesEl?.value || '').trim();
+    if (!notes) { showToast('Resolution notes are required.', 'error'); return; }
+
+    const cu = window.getCurrentUser?.();
+    try {
+        await updateDoc(doc(db, 'services', currentServiceDocId, 'issues', issueId), {
+            status: 'resolved',
+            resolution_notes: notes,
+            resolved_at: serverTimestamp(),
+            resolved_by_uid: cu?.uid ?? '',
+        });
+        const issue = journalIssues.find(i => i.id === issueId);
+        if (issue) {
+            const issueNum = _issueSeqNum(issueId);
+            await _addServiceActivityEntry(currentServiceDocId, {
+                type: 'system',
+                is_system: true,
+                text: `Issue #${issueNum} (${escapeHTML(issue.issue_type)} — ${escapeHTML(issue.title)}) resolved by ${cu?.full_name || 'Unknown'}`,
+            });
+        }
+        // Phase 104 D-14 — fire-and-forget, NOT batched, success-path-only.
+        updateDoc(doc(db, 'services', currentServiceDocId), { last_activity_at: serverTimestamp() })
+            .catch(err => console.debug('[ServiceDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
+        journalResolvingIssueId = null;
+        showToast('Issue resolved.', 'success');
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] resolveIssue failed:', err);
+        showToast('Failed to resolve issue. Please try again.', 'error');
+    }
+}
+
+async function reopenIssue(issueId) {
+    const cu = window.getCurrentUser?.();
+    try {
+        await updateDoc(doc(db, 'services', currentServiceDocId, 'issues', issueId), {
+            status: 'open',
+            resolution_notes: null,
+            resolved_at: null,
+            resolved_by_uid: null,
+        });
+        const issueNum = _issueSeqNum(issueId);
+        await _addServiceActivityEntry(currentServiceDocId, {
+            type: 'system',
+            is_system: true,
+            text: `Issue #${issueNum} re-opened by ${cu?.full_name || 'Unknown'}`,
+        });
+        // Phase 104 D-14 — fire-and-forget, NOT batched, success-path-only.
+        updateDoc(doc(db, 'services', currentServiceDocId), { last_activity_at: serverTimestamp() })
+            .catch(err => console.debug('[ServiceDetail/Journal] last_activity_at bump denied/failed (non-blocking):', err?.code || err));
+        showToast('Issue re-opened.', 'success');
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] reopenIssue failed:', err);
+        showToast('Failed to re-open issue. Please try again.', 'error');
+    }
+}
+
+function editProgressUpdate(id) {
+    journalEditingProgressId = id;
+    _renderServiceJournalPanelInPlace();
+}
+
+function cancelEditProgressUpdate() {
+    journalEditingProgressId = null;
+    _renderServiceJournalPanelInPlace();
+}
+
+async function saveEditProgressUpdate(id) {
+    const pctEl = document.getElementById('journalEditPct-' + id);
+    const summaryEl = document.getElementById('journalEditSummary-' + id);
+    const blockersEl = document.getElementById('journalEditBlockers-' + id);
+    const nextEl = document.getElementById('journalEditNext-' + id);
+
+    const summary = (summaryEl?.value || '').trim();
+    if (!summary) { showToast('Summary is required.', 'error'); return; }
+
+    const pct = Math.max(0, Math.min(100, parseInt(pctEl?.value || '0', 10) || 0));
+    const blockers = (blockersEl?.value || '').trim();
+    const next_milestone = (nextEl?.value || '').trim();
+
+    const cu = window.getCurrentUser?.();
+    const puRef = doc(db, 'services', currentServiceDocId, 'progress_updates', id);
+
+    try {
+        const prevSnap = await getDoc(puRef);
+        const prev = prevSnap.exists() ? prevSnap.data() : {};
+        const historyEntry = {
+            edited_by_uid: cu?.uid ?? '',
+            edited_by_name: cu?.full_name || cu?.email || 'Unknown',
+            edited_at: new Date(),
+            prev_pct_complete: prev.pct_complete ?? 0,
+            prev_summary: prev.summary ?? '',
+            prev_blockers: prev.blockers ?? '',
+            prev_next_milestone: prev.next_milestone ?? '',
+        };
+        await updateDoc(puRef, {
+            pct_complete: pct,
+            summary,
+            blockers,
+            next_milestone,
+            edit_history: arrayUnion(historyEntry),
+        });
+        journalEditingProgressId = null;
+        _renderServiceJournalPanelInPlace();
+        showToast('Progress update saved.', 'success');
+    } catch (err) {
+        console.error('[ServiceDetail/Journal] saveEditProgressUpdate failed:', err);
+        showToast('Failed to save. Please try again.', 'error');
+    }
+}
+
+function toggleProgressForm() {
+    journalProgressFormOpen = !journalProgressFormOpen;
+    _renderServiceJournalPanelInPlace();
+}
+
+function toggleIssueForm() {
+    journalIssueFormOpen = !journalIssueFormOpen;
+    _renderServiceJournalPanelInPlace();
+}
+
+function showResolveForm(issueId) {
+    journalResolvingIssueId = issueId;
+    _renderServiceJournalPanelInPlace();
+}
+
+function cancelResolveForm() {
+    journalResolvingIssueId = null;
+    _renderServiceJournalPanelInPlace();
+}
+
 // Idempotent attach of all three journal subcollection listeners (mirror project ensureJournalListeners).
 function ensureServiceJournalListeners() {
     if (!currentServiceDocId) return;
@@ -2051,4 +2537,17 @@ function attachWindowFunctions() {
     window.switchJournalTab = switchJournalTab;
     window.selectJournalTag = selectJournalTag;
     window.postActivityEntry = postActivityEntry;
+    // Phase 104 — Activity Journal (Task 2: 12 handlers)
+    window.submitProgressUpdate = submitProgressUpdate;
+    window.editProgressUpdate = editProgressUpdate;
+    window.cancelEditProgressUpdate = cancelEditProgressUpdate;
+    window.saveEditProgressUpdate = saveEditProgressUpdate;
+    window.setIssueFilter = setIssueFilter;
+    window.submitNewIssue = submitNewIssue;
+    window.resolveIssue = resolveIssue;
+    window.reopenIssue = reopenIssue;
+    window.toggleProgressForm = toggleProgressForm;
+    window.toggleIssueForm = toggleIssueForm;
+    window.showResolveForm = showResolveForm;
+    window.cancelResolveForm = cancelResolveForm;
 }
