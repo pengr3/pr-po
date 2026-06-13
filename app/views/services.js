@@ -955,10 +955,13 @@ function getServiceSignal(s, now) {
     //     reads updated_at (services have no journal/activity-recency timestamp).
     if (status === 'On-going') {
         if (s.service_type !== 'recurring') {
-            const ms = normalizeUpdatedAt(s.updated_at);
+            // Phase 104 D-13 — one-time services now have an activity clock (journal writes populate last_activity_at).
+            const ms = normalizeUpdatedAt(s.last_activity_at) ?? normalizeUpdatedAt(s.updated_at);
             const d = ms == null ? null : (now - ms) / 86400000;
-            if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_URGENT)   // 14d → still WATCH (capped, never urgent)
-                return { level: 'watch', text: `Quiet for ${Math.round(d)} days`, hint: 'One-time service untouched' };
+            if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_URGENT)
+                return { level: 'urgent', text: `No activity in ${Math.round(d)} days`, hint: 'On-going service has gone quiet' };
+            if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_WATCH)
+                return { level: 'watch', text: `Quiet for ${Math.round(d)} days`, hint: 'No journal activity recently' };
         }
         if (dlp === 'in-dlp') return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
         return { level: 'ok', text: getServiceDefaultOkSignal(s), hint: '' };
