@@ -6,7 +6,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML } from '../utils.js';
+import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
 import { skeletonTableRows } from '../components.js';
@@ -52,6 +52,28 @@ const UNIFIED_STATUS_OPTIONS = [
 
 // Phase 92.2: Scorecard strip excludes 'Draft' (Draft services are proposals; not surfaced as a status filter)
 const SCORECARD_STATUS_OPTIONS = UNIFIED_STATUS_OPTIONS.filter(s => s !== 'Draft');
+
+// Phase 103 D-07 — urgency thresholds (days). Mirror of projects.js (named constants, tunable).
+const URGENCY_THRESHOLDS = {
+    PROPOSAL_STALE_DAYS: 14,      // Proposal Under Client Review
+    INSPECTION_OVERDUE_DAYS: 30,  // For Inspection
+    ONGOING_QUIET_DAYS: 7,        // On-going with no activity
+    REVISION_DAYS: 5,             // For Revision
+    MOBILIZATION_DAYS: 3          // For Mobilization
+};
+
+// Phase 103 D-03 — Browse All stage groups for services. Mirror of projects.js PLUS a leading
+// 'Draft' group so all 11 services statuses (incl. Phase 88 Draft) map to exactly one group.
+// Inline hex spine colors (NO var(--*)).
+const SERVICE_STAGE_GROUPS = [
+    { key: 'draft',       label: 'Draft',                   statuses: ['Draft'],                                          color: '#94a3b8' },
+    { key: 'ongoing',     label: 'On-going',                statuses: ['On-going'],                                       color: '#1a73e8' },
+    { key: 'contracted',  label: 'Contracted & Mobilizing', statuses: ['Client Approved', 'For Mobilization'],           color: '#f59e0b' },
+    { key: 'proposal',    label: 'Proposal Stage',          statuses: ['For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision'], color: '#7c3aed' },
+    { key: 'inspection',  label: 'For Inspection',          statuses: ['For Inspection'],                                color: '#94a3b8' },
+    { key: 'completed',   label: 'Completed',               statuses: ['Completed'],                                      color: '#059669' },
+    { key: 'loss',        label: 'Loss',                    statuses: ['Loss'],                                           color: '#64748b' }
+];
 
 // Debounce utility function
 function debounce(callback, wait) {
@@ -967,6 +989,154 @@ async function loadServices() {
     } catch (error) {
         console.error('[Services] Error loading services:', error);
     }
+}
+
+/* ========================================
+   Phase 103 — Portfolio redesign helpers (Plan 04, mirror of projects.js Plans 02+03)
+   Shared computation layer for the service Priority Feed + Browse All. Renders within the
+   active service_type sub-tab pool (filteredServices is already sub-tab + scope + filter narrowed).
+   ======================================== */
+
+// Phase 103 D-08 — updated_at is written as ISO string AND Firestore Timestamp; normalize both.
+// Returns epoch-ms number, or null when missing/unparseable (caller degrades to On Track).
+function normalizeUpdatedAt(v) {
+    if (v == null) return null;
+    if (typeof v === 'object') {
+        if (typeof v.toDate === 'function') { const d = v.toDate(); return isNaN(d) ? null : d.getTime(); }
+        if (typeof v.seconds === 'number') return v.seconds * 1000;
+        return null;
+    }
+    if (typeof v === 'number') return isNaN(v) ? null : v;
+    const t = new Date(v).getTime();
+    return isNaN(t) ? null : t;
+}
+
+// Phase 103 D-05 — mirrored render-only DLP state (no isRetentionCollected branch; no new listener).
+// Returns 'active' when dlp_months absent or status !== 'Completed', so sparse-DLP services are safe.
+function getDlpState(service) {
+    if (!service || !service.dlp_months || service.project_status !== 'Completed') return 'active';
+    if (service.retention_released_at) return 'released';
+    if (Date.now() > new Date(service.dlp_expires_at || null).getTime()) return 'expired';
+    return 'in-dlp';
+}
+
+// Phase 103 D-07 — a status-appropriate "On Track" phrase for the default ok signal.
+function getServiceDefaultOkSignal(s) {
+    switch (s.project_status) {
+        case 'On-going':   return 'On track';
+        case 'Completed':  return getDlpState(s) === 'released' ? 'Fully collected' : 'Completed';
+        case 'Loss':       return 'Lost engagement';
+        default:           return s.project_status || '—';
+    }
+}
+
+// Phase 103 D-07/D-08 — urgency signal for a service. Mirrors getProjectSignal exactly (CONTEXT:
+// "default reuse project signals unchanged" — no recurring-specific special-casing).
+function getServiceSignal(s, now) {
+    const status = s.project_status;
+    const ms = normalizeUpdatedAt(s.updated_at);
+    const d = ms == null ? null : (now - ms) / 86400000;   // days; null → skip staleness checks
+    const dlp = getDlpState(s);
+
+    // Needs Attention (urgent)
+    if (dlp === 'expired')
+        return { level: 'urgent', text: 'Retention release overdue', hint: 'DLP expired — retention not yet released' };
+    if (d != null && status === 'Proposal Under Client Review' && d > URGENCY_THRESHOLDS.PROPOSAL_STALE_DAYS)
+        return { level: 'urgent', text: `Proposal stale — ${Math.round(d)}d`, hint: "Client hasn't responded" };
+    if (d != null && status === 'For Inspection' && d > URGENCY_THRESHOLDS.INSPECTION_OVERDUE_DAYS)
+        return { level: 'urgent', text: `Inspection overdue — ${Math.round(d)}d`, hint: 'No progress since assigned' };
+    if (d != null && status === 'On-going' && d > URGENCY_THRESHOLDS.ONGOING_QUIET_DAYS)
+        return { level: 'urgent', text: `No activity in ${Math.round(d)} days`, hint: 'On-going service has gone quiet' };
+
+    // Worth Watching (watch)
+    if (d != null && status === 'For Revision' && d > URGENCY_THRESHOLDS.REVISION_DAYS)
+        return { level: 'watch', text: `Revision requested — ${Math.round(d)}d`, hint: 'Expected turnaround 3-5 days' };
+    if (d != null && status === 'For Mobilization' && d > URGENCY_THRESHOLDS.MOBILIZATION_DAYS)
+        return { level: 'watch', text: 'Contract signed, not mobilized', hint: `${Math.round(d)}d since For Mobilization` };
+    // Forward hook (inert this phase — billed% not computable without a listener):
+    // const billedPct = computeServiceBillingPct(s);
+    // if (billedPct != null && billedPct >= 86 && billedPct < 100)
+    //     return { level: 'watch', text: `${billedPct}% billed — final billing due`, hint: 'Last tranche not yet requested' };
+
+    // On Track (ok)
+    if (dlp === 'in-dlp')
+        return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+    return { level: 'ok', text: getServiceDefaultOkSignal(s), hint: '' };
+}
+
+// Phase 103 — partition a service list into { urgent, watch, ok }, each row carrying its signal.
+function computeServiceUrgencySignals(services) {
+    const now = Date.now();
+    const urgent = [], watch = [], ok = [];
+    for (const s of services) {
+        const signal = getServiceSignal(s, now);
+        if (signal.level === 'urgent') urgent.push({ ...s, signal });
+        else if (signal.level === 'watch') watch.push({ ...s, signal });
+        else ok.push({ ...s, signal });
+    }
+    return { urgent, watch, ok };
+}
+
+// Phase 103 CONSTRAINT — billed% is NOT computable at render time (no billed data without a
+// listener; D-05). Returns null so renderServiceFinancial shows tranche structure without a
+// misleading filled bar. Mirror of projects.js computeBillingPct.
+function computeServiceBillingPct(service) {
+    return null;
+}
+
+// Phase 103 D-06 — stage-aware finance cell (4 display states). Mirror of projects.js renderFinancial.
+function renderServiceFinancial(service) {
+    const status = service.project_status;
+    const pre = ['For Inspection', 'For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision'];
+    const contracted = ['Client Approved', 'For Mobilization'];
+
+    if (pre.includes(status)) {
+        const val = service.budget ? `Est. ₱${formatCurrency(service.budget)}` : '—';
+        return `<div class="fin-pre"><div class="fin-pre-amount">${val}</div><div class="fin-pre-label">Pre-contract</div></div>`;
+    }
+    if (contracted.includes(status)) {
+        return `<div class="fin-ready"><div class="fin-ready-amount">₱${formatCurrency(service.contract_cost)}</div><div class="fin-ready-label">Contract signed · billing not started</div></div>`;
+    }
+    if (status === 'On-going') {
+        const trancheCount = (service.collection_tranches || []).length;
+        const sub = trancheCount > 0 ? `${trancheCount} tranches defined` : 'Billing in progress';
+        const pct = computeServiceBillingPct(service);   // null this phase → empty track (no fake %)
+        const fillW = pct == null ? 0 : pct;
+        return `<div class="fin-active">
+            <div class="fin-active-top"><span>₱${formatCurrency(service.contract_cost)}</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-blue" style="width:${fillW}%"></div></div>
+            <div class="fin-active-sub">${sub}</div></div>`;
+    }
+    if (status === 'Completed') {
+        const dlpState = getDlpState(service);
+        const amount = `<div class="fin-done-amount" style="margin-top:4px;">₱${formatCurrency(service.contract_cost)}</div>`;
+        if (dlpState === 'in-dlp')
+            return `<div class="fin-done"><span class="portfolio-dlp-tag" style="background:#fef3c7;color:#92400e;">◑ In DLP</span>${amount}</div>`;
+        if (dlpState === 'expired')
+            return `<div class="fin-done"><span class="portfolio-dlp-tag" style="background:#fee2e2;color:#991b1b;">⚠ Retention Overdue</span>${amount}</div>`;
+        if (dlpState === 'released')
+            return `<div class="fin-done"><span class="portfolio-dlp-tag" style="background:#dcfce7;color:#166534;">✓ Fully Collected</span>${amount}</div>`;
+        return `<div class="fin-done"><div class="fin-done-amount">₱${formatCurrency(service.contract_cost)}</div><div class="fin-done-label">Fully billed · 100% ✓</div></div>`;
+    }
+    if (status === 'Loss') {
+        return `<div class="fin-loss"><div class="fin-loss-label">Lost engagement</div></div>`;
+    }
+    // Draft and any legacy/other status → pre-contract placeholder
+    return `<div class="fin-pre"><div class="fin-pre-amount">—</div><div class="fin-pre-label">Pre-contract</div></div>`;
+}
+
+// Phase 103 D-03 — Browse All collapse persistence (services key, separate from projects).
+// Completed, Loss AND Draft default-collapsed.
+function getServiceCollapseState(key) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('browse-collapse-services') || '{}'); } catch (_) {}
+    return saved[key] ?? (key === 'completed' || key === 'loss' || key === 'draft');
+}
+function setServiceCollapseState(key, collapsed) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('browse-collapse-services') || '{}'); } catch (_) {}
+    saved[key] = collapsed;
+    localStorage.setItem('browse-collapse-services', JSON.stringify(saved));
 }
 
 // Render services table
