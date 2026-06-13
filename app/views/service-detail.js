@@ -51,6 +51,10 @@ let journalResolvingIssueId = null;
 let journalSelectedTag = 'update';
 let journalEditingProgressId = null;
 
+// Phase 104 — Lifecycle accordion state (mirror project-detail.js Phase 100)
+let _lcOpen = false;
+let _lcAttachPending = false;
+
 const UNIFIED_STATUS_OPTIONS = [
     'For Inspection',
     'For Proposal',
@@ -726,6 +730,8 @@ function renderServiceDetail() {
                 </div>
             ` : ''}
 
+            ${renderServiceLifecycleCard(currentService, user)}
+
             <!-- Active Toggle Badge (Above Cards) -->
             <div style="margin-bottom: 1.5rem;">
                 <div style="display: inline-flex; align-items: center; gap: 0.75rem;">
@@ -900,20 +906,10 @@ function renderServiceDetail() {
 
                     <div class="form-group" style="margin-bottom: 0;">
                         <label style="margin-bottom: 0.25rem;">Status</label>
-                        <select data-field="project_status"
-                                onchange="window.saveServiceField('project_status', this.value)"
-                                ${!showEditControls ? 'disabled' : ''}>
-                            ${(() => {
-                                const current = currentService.project_status || '';
-                                const isLegacy = current && !UNIFIED_STATUS_OPTIONS.includes(current);
-                                const legacyOption = isLegacy
-                                    ? `<option value="${escapeHTML(current)}" selected style="color: #94a3b8; font-style: italic;">${escapeHTML(current)} (legacy)</option>`
-                                    : '';
-                                return legacyOption + UNIFIED_STATUS_OPTIONS.map(s =>
-                                    `<option value="${s}" ${current === s ? 'selected' : ''}>${s}</option>`
-                                ).join('');
-                            })()}
-                        </select>
+                        <div>
+                            <span id="hdrServiceStatusBadge" class="hdr-status" style="background:${_getServiceStatusColor(currentService.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;display:inline-block;">${escapeHTML(currentService.project_status || '—')}</span>
+                            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.45rem;">Status is advanced via the Lifecycle accordion above.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -938,6 +934,9 @@ function renderServiceDetail() {
             if (field) field.focus();
         }
     }
+
+    // Phase 104 — if the lifecycle accordion is open, repopulate its body (renderServiceLifecycleCard leaves #lcBody empty)
+    if (_lcOpen) buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
 }
 
 // Personnel pill rendering helper
@@ -1769,6 +1768,393 @@ async function loadProposalCard(parentDocId, parentCollection) {
         if (el) {
             el.innerHTML = `<div class="proposal-inline-card"><p style="color:#ef4444;font-size:0.875rem;margin:0;">Could not load proposal.</p></div>`;
         }
+    }
+}
+
+// ============================================================
+// Phase 104 — Lifecycle accordion (mirror project-detail.js Phase 100)
+// ============================================================
+
+const LC_STAGES = [
+    { status: 'For Inspection',                 emoji: '🔍', label: 'For\nInspection',    gated: true  },
+    { status: 'For Proposal',                   emoji: '📋', label: 'For\nProposal',      gated: false },
+    { status: 'Proposal for Internal Approval', emoji: '🏢', label: 'Internal\nApproval', gated: false },
+    { status: 'Proposal Under Client Review',   emoji: '👤', label: 'Client\nReview',     gated: false },
+    { status: 'Client Approved',                emoji: '🎉', label: 'Client\nApproved',   gated: true  },
+    { status: 'For Mobilization',               emoji: '🚚', label: 'For\nMobilization',  gated: true  },
+    { status: 'On-going',                       emoji: '⚙️', label: 'On-going',           gated: true  },
+    { status: 'Completed',                      emoji: '🏁', label: 'Completed',          gated: false },
+];
+
+function _getServiceStatusColor(status) {
+    const map = {
+        'For Inspection':                 '#64748b',
+        'For Proposal':                   '#1a73e8',
+        'Proposal for Internal Approval': '#f59e0b',
+        'Proposal Under Client Review':   '#f59e0b',
+        'For Revision':                   '#ef4444',
+        'Client Approved':                '#059669',
+        'For Mobilization':               '#0ea5e9',
+        'On-going':                       '#0ea5e9',
+        'Completed':                      '#16a34a',
+        'Loss':                           '#7f1d1d',
+    };
+    return map[status] || '#64748b';
+}
+
+// D-04 — Completion gate is services_admin-only; assigned services_user drives every OTHER gate.
+function _canAdvanceServiceStatus(service, currentUser, targetStatus) {
+    if (!currentUser || !service) return false;
+    const role = currentUser.role || '';
+    if (['super_admin', 'services_admin'].includes(role)) return true;
+    if (targetStatus === 'Completed') return false;
+    if (role === 'services_user') {
+        const ids = Array.isArray(service.personnel_user_ids) ? service.personnel_user_ids : [];
+        return ids.includes(currentUser.uid);
+    }
+    return false;
+}
+
+// Compute dlp_expires_at (YYYY-MM-DD) + retention_amount from gate inputs (Plan 03 owns this; Plan 04 reuses).
+function computeDlpFields(startDateStr, months, contractCost, retentionPct) {
+    const start = new Date(startDateStr);
+    const exp = new Date(start.getTime());
+    exp.setMonth(exp.getMonth() + (parseInt(months) || 0));
+    const dlp_expires_at = exp.toISOString().slice(0, 10);
+    const retention_amount = Math.round((parseFloat(contractCost) || 0) * (parseFloat(retentionPct) || 0) / 100);
+    return { dlp_expires_at, retention_amount };
+}
+
+const LC_DOC_KEYS = {
+    inspection: { prefix: 'inspection_report',         L: 'I' },
+    ntp:        { prefix: 'ntp_document',              L: 'N' },
+    completion: { prefix: 'completion_report',         L: 'C' },
+    coc:        { prefix: 'certificate_of_completion', L: 'O' },
+};
+
+function buildAttachZone(service, which, label, simFilename) {
+    const dk = LC_DOC_KEYS[which];
+    if (!dk) return '';
+    const hasDoc = !!(service[dk.prefix + '_url'] || null);
+    const L = dk.L;
+    if (hasDoc) {
+        const kind = service[dk.prefix + '_kind'] || 'link';
+        const name = escapeHTML(service[dk.prefix + '_filename'] || service[dk.prefix + '_url'] || '');
+        const url = escapeHTML(service[dk.prefix + '_url'] || '');
+        const icon = kind === 'file' ? '📄' : '🔗';
+        return `<div class="az az-ok">
+            <div class="az-doc">
+                <span class="az-doc-icon">${icon}</span>
+                <div class="az-doc-info">
+                    <div class="az-doc-name">${name}</div>
+                    <div class="az-doc-kind">${kind}</div>
+                </div>
+                <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;font-size:11px;cursor:pointer;" onclick="window.lcRemoveServiceDoc('${which}')">✕ Remove</button>
+            </div>
+        </div>`;
+    }
+    return `<div class="az">
+        <div class="az-lbl">${escapeHTML(label)}</div>
+        <div class="az-row">
+            <input class="az-input" id="az${L}Link" type="url" placeholder="https://drive.google.com/...">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachLink('${which}')">Attach</button>
+        </div>
+    </div>`;
+}
+
+function buildPATrack(service) {
+    const POST_APPROVAL = [
+        { label: 'Client\nApproved',  status: 'Client Approved'  },
+        { label: 'For\nMobilization', status: 'For Mobilization' },
+        { label: 'On-going',          status: 'On-going'         },
+        { label: 'Completed',         status: 'Completed'        },
+    ];
+    const status = service.project_status || '';
+    let curIdx = POST_APPROVAL.findIndex(p => p.status === status);
+    if (status === 'Loss') curIdx = -1;
+    let html = '<div class="pa-track">';
+    POST_APPROVAL.forEach((p, i) => {
+        const isDone = i < curIdx;
+        const isActive = i === curIdx;
+        const dotCls = isDone ? 'pa-done' : isActive ? 'pa-active' : 'pa-future';
+        const lblCls = isDone ? 'pa-done' : isActive ? 'pa-active' : '';
+        const lblLines = p.label.split('\n').join('<br>');
+        html += `<div class="pa-stage">
+            <div class="pa-dot ${dotCls}">${isDone ? '✓' : i + 1}</div>
+            <div class="pa-lbl ${lblCls}">${lblLines}</div>
+        </div>`;
+        if (i < POST_APPROVAL.length - 1) {
+            html += `<div class="pa-line ${isDone ? 'pa-done' : ''}"></div>`;
+        }
+    });
+    return html + '</div>';
+}
+
+function buildDocRollup(service) {
+    const DOC_SLOTS = [
+        { key:'inspection', stage:'Gate 1 · For Inspection',  label:'Inspection Report',    prefix:'inspection_report' },
+        { key:'ntp',        stage:'Gate 2 · Client Approved', label:'NTP / Purchase Order',  prefix:'ntp_document' },
+        { key:'completion', stage:'Gate 4 · Completion',      label:'Completion Report',     prefix:'completion_report' },
+        { key:'coc',        stage:'Gate 4 · Completion',      label:'Cert. of Completion',   prefix:'certificate_of_completion' },
+    ];
+    const filled = DOC_SLOTS.filter(s => service[s.prefix + '_url'] || null).length;
+    let html = `<div class="doc-rollup">
+        <div class="doc-rollup-hdr">
+            <span class="doc-rollup-title">Documents on File</span>
+            <span class="doc-rollup-count">${filled} / 4</span>
+        </div>`;
+    DOC_SLOTS.forEach(s => {
+        const url = service[s.prefix + '_url'] || null;
+        const kind = service[s.prefix + '_kind'] || null;
+        const fname = service[s.prefix + '_filename'] || null;
+        const empty = !url;
+        const icon = kind === 'file' ? '📄' : url ? '🔗' : '📎';
+        const display = fname || url || '— not yet attached';
+        html += `<div class="doc-slot${empty ? ' ds-empty' : ''}">
+            <span class="ds-icon">${icon}</span>
+            <div class="ds-info">
+                <div class="ds-stage">${escapeHTML(s.label)}</div>
+                <div class="ds-name${empty ? ' none' : ''}">${escapeHTML(display)}</div>
+            </div>
+            ${!empty ? `<a class="ds-link" href="${escapeHTML(url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}
+        </div>`;
+    });
+    return html + '</div>';
+}
+
+function buildServiceLifecycleBody(service, currentUser) {
+    const status = service.project_status || 'For Inspection';
+    function wrap(gateTitle, inner, showRollup = true) {
+        return `<div class="gate-label">${gateTitle}</div>${inner}${showRollup ? buildDocRollup(service) : ''}`;
+    }
+
+    if (status === 'For Inspection') {
+        const has = !!(service.inspection_report_url || null);
+        const canDo = _canAdvanceServiceStatus(service, currentUser, 'For Proposal');
+        return wrap('Gate 1 — Inspection Report', `
+            <div class="lc-desc">Attach the site inspection report before advancing. The Advance button unlocks once the inspection report is on file.</div>
+            ${!has ? '<div class="gate-warn">⚠️ Inspection report required to advance</div>' : ''}
+            ${buildAttachZone(service, 'inspection', 'Inspection Report', 'Inspection_Report_Final.pdf')}
+            <div class="action-row">
+                <button class="btn btn-primary" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcAdvanceServiceToForProposal('${escapeHTML(service.id)}')">→ Advance to For Proposal</button>
+                <span class="action-note">${!has ? 'Attach document to enable' : canDo ? 'Ready to advance' : 'Requires admin or service assignment'}</span>
+            </div>`);
+    }
+    if (status === 'For Proposal') {
+        return wrap('Proposal Stage', `<div class="built"><div class="built-title">✅ Already implemented — no changes needed</div><div class="built-desc">Full proposal flow lives in proposals.js + proposal-modal.js. Use the Proposal card below to create / submit / approve.</div></div>`, false);
+    }
+    if (status === 'Proposal for Internal Approval') {
+        return wrap('Internal Approval Review', `<div class="built"><div class="built-title">✅ approveProposal() / rejectProposal() — already implemented</div><div class="built-desc">Services Admin uses the Proposal card to approve or reject.</div></div>`, false);
+    }
+    if (status === 'Proposal Under Client Review' || status === 'For Revision') {
+        return wrap('Client Review', `<div class="built"><div class="built-title">✅ markClientApproved() / requestRevision() / recordLoss() — already implemented</div><div class="built-desc">Client outcomes are managed via the Proposal card below.</div></div>`, false);
+    }
+    if (status === 'Client Approved') {
+        const has = !!(service.ntp_document_url || null);
+        const canDo = _canAdvanceServiceStatus(service, currentUser, 'For Mobilization');
+        return wrap('Gate 2 — Notice to Proceed / PO', `
+            <div class="lc-desc">Attach the client's formal work authorization (NTP or PO) before mobilizing.</div>
+            ${!has ? '<div class="gate-warn">⚠️ NTP or PO required to start mobilization</div>' : ''}
+            ${buildAttachZone(service, 'ntp', 'Notice to Proceed / Purchase Order', 'Notice_to_Proceed.pdf')}
+            <div class="action-row">
+                <button class="btn btn-orange" ${(has && canDo) ? '' : 'disabled'} onclick="window.lcStartServiceMobilization('${escapeHTML(service.id)}')">🚀 Start Mobilization</button>
+                <span class="action-note">${!has ? 'Attach NTP or PO to enable' : canDo ? 'Ready to mobilize' : 'Requires admin or service assignment'}</span>
+            </div>`);
+    }
+    if (status === 'For Mobilization') {
+        const mobilizedAt = escapeHTML(service.mobilization_started_at || '—');
+        const canDo = _canAdvanceServiceStatus(service, currentUser, 'On-going');
+        return wrap('Gate 3 — Start Project', `
+            <div class="lc-desc">Resources are mobilizing. Click Start Project when site execution is ready. No document gate.</div>
+            <div style="font-size:11px;color:#475569;margin-bottom:12px;">Mobilized: <code>${mobilizedAt}</code></div>
+            <div class="action-row">
+                <button class="btn btn-primary" ${canDo ? '' : 'disabled'} onclick="window.lcStartService('${escapeHTML(service.id)}')">▶ Start Project</button>
+                <span class="action-note">${canDo ? 'Records official project start date' : 'Requires admin or service assignment'}</span>
+            </div>`);
+    }
+    if (status === 'On-going') {
+        const hasR = !!(service.completion_report_url || null);
+        const hasC = !!(service.certificate_of_completion_url || null);
+        const can = hasR && hasC;
+        const note = !hasR && !hasC ? 'Both documents required' : !hasR ? 'Still needed: Completion Report' : 'Still needed: Certificate of Completion';
+        const startedAt = escapeHTML(service.project_started_at || '—');
+        const canDo = _canAdvanceServiceStatus(service, currentUser, 'Completed');
+        return wrap('Gate 4 — Completion', `
+            <div class="lc-desc">Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.</div>
+            <div style="font-size:11px;color:#475569;margin-bottom:10px;">Started: <code>${startedAt}</code></div>
+            ${!can ? `<div class="gate-warn">⚠️ ${escapeHTML(note)}</div>` : ''}
+            ${buildAttachZone(service, 'completion', 'Completion Report', 'Project_Completion_Report.pdf')}
+            ${buildAttachZone(service, 'coc', 'Certificate of Completion (COC)', 'Certificate_of_Completion.pdf')}
+            ${(service.collection_tranches || []).some(t => t.is_retention) ? `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:11px 13px;margin-bottom:12px;">
+                <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Defect Liability Period</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">Retention %</label>
+                        <input type="number" id="gateDlpRetPct" min="0" max="100" step="0.01" value="${(() => { const r = (service.collection_tranches || []).find(t => t.is_retention); return r ? (parseFloat(r.percentage) || 10) : 10; })()}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Months</label>
+                        <select id="gateDlpMonths" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                            <option value="3">3</option>
+                            <option value="6">6</option>
+                            <option value="12" selected>12</option>
+                            <option value="18">18</option>
+                            <option value="24">24</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:#475569;font-weight:600;display:block;margin-bottom:3px;">DLP Start Date</label>
+                        <input type="date" id="gateDlpStart" value="${new Date().toISOString().slice(0, 10)}" style="width:100%;padding:5px 7px;border:1px solid #fde68a;border-radius:5px;font-size:13px;">
+                    </div>
+                </div>
+                <div style="font-size:11px;color:#92400e;margin-top:7px;">DLP is required because this project has a retention tranche. Captured when you mark the project Completed.</div>
+            </div>` : ''}
+            <div class="action-row">
+                <button class="btn btn-primary" ${(!can || !canDo) ? 'disabled' : ''} onclick="window.lcMarkServiceComplete('${escapeHTML(service.id)}')">✅ Mark as Completed</button>
+                <span class="action-note">${!canDo ? 'Requires service assignment' : !can ? escapeHTML(note) : ''}</span>
+            </div>`);
+    }
+    if (status === 'Completed') {
+        const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
+        return wrap('Project Closed', `
+            <div class="comp-grid">
+                ${cell('NTP / PO', service.ntp_document_filename || service.ntp_document_url)}
+                ${cell('Mobilized', service.mobilization_started_at)}
+                ${cell('Project Started', service.project_started_at)}
+                ${cell('Completed At', service.project_completed_at)}
+                ${cell('Completion Report', service.completion_report_filename || service.completion_report_url)}
+                ${cell('Cert. of Completion', service.certificate_of_completion_filename || service.certificate_of_completion_url)}
+            </div>
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
+    }
+    if (status === 'Loss') {
+        return wrap('Project Lost', `<div class="built"><div class="built-title">✅ recordLoss() — already implemented</div><div class="built-desc">Loss was recorded via the proposal workflow. No further project-status actions.</div></div>`, false);
+    }
+    return `<div style="padding:12px;font-size:12px;color:#64748b;">No lifecycle action for current status.</div>${buildDocRollup(service)}`;
+}
+
+function buildServiceLifecycleBodyInPlace(service, currentUser) {
+    if (!service) return;
+    const body = document.getElementById('lcBody');
+    if (body) body.innerHTML = buildServiceLifecycleBody(service, currentUser);
+    const track = document.getElementById('lcTrack');
+    if (track) track.innerHTML = buildServiceLifecycleTrack(service);
+    updateServiceLifecycleBadge(service);
+}
+
+function buildServiceLifecycleTrack(service) {
+    const status = service.project_status || 'For Inspection';
+    let curIdx;
+    if (status === 'Loss') {
+        curIdx = -1;
+    } else if (status === 'For Revision') {
+        curIdx = LC_STAGES.findIndex(sg => sg.status === 'Proposal Under Client Review');
+    } else {
+        curIdx = LC_STAGES.findIndex(sg => sg.status === status);
+    }
+
+    let html = '';
+    LC_STAGES.forEach((sg, i) => {
+        const isPast = i < curIdx;
+        const isCurrent = i === curIdx;
+        const isRevNode = isCurrent && status === 'For Revision';
+        const isLossNode = isCurrent && status === 'Loss';
+
+        const nodeClass = isPast ? 's-done-node' : isRevNode ? 's-revision-node' : isCurrent ? 's-current-node' : '';
+        const circClass = isPast ? 's-done' : isRevNode ? 's-revision' : isLossNode ? 's-loss' : isCurrent ? 's-current' : 's-future';
+
+        let chipCls, chipTxt;
+        if (isPast) { chipCls = 'chip-done'; chipTxt = 'DONE'; }
+        else if (isRevNode) { chipCls = 'chip-revision'; chipTxt = 'REVISION'; }
+        else if (isCurrent) { chipCls = 'chip-here'; chipTxt = '← HERE'; }
+        else if (sg.status === 'Completed') { chipCls = 'chip-end'; chipTxt = 'END'; }
+        else if (sg.gated) { chipCls = 'chip-gap'; chipTxt = 'GATE'; }
+        else { chipCls = 'chip-end'; chipTxt = '—'; }
+
+        const labelLines = sg.label.split('\n').join('<br>');
+        html += `<div class="stage-node ${nodeClass}">
+            <div class="stage-circle ${circClass}">
+                ${sg.emoji}
+                ${isPast ? '<div class="stage-check">✓</div>' : ''}
+            </div>
+            <div class="stage-label">${labelLines}</div>
+            <div class="stage-chip ${chipCls}">${chipTxt}</div>
+        </div>`;
+
+        if (i < LC_STAGES.length - 1) {
+            html += `<div class="connector ${isPast ? 'done' : ''}"></div>`;
+        }
+    });
+
+    if (status === 'Loss') {
+        html += `<div style="margin-left:10px;padding:4px 10px;background:#fee2e2;border:1.5px solid #ef4444;border-radius:8px;font-size:11px;font-weight:700;color:#991b1b;">✗ LOSS</div>`;
+    }
+    return html;
+}
+
+function renderServiceLifecycleCard(service, currentUser) {
+    const status = service.project_status || 'For Inspection';
+    const isActive = ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status);
+    const isComplete = status === 'Completed';
+    const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
+    const color = _getServiceStatusColor(status);
+    return `<div class="lc-accordion ${isActive ? 'lc-active' : ''} ${isComplete ? 'lc-complete' : ''} ${_lcOpen ? 'open' : ''}" id="lcAccordion">
+        <div class="lc-card-header" onclick="window.toggleServiceLifecycleAccordion()">
+            <div class="lc-header-left">
+                <span class="lc-card-title">Project Lifecycle</span>
+                <span class="lc-cur-badge" id="lcCurBadge" style="background:${color}1a;color:${color};border:1px solid ${color}44;">&#9679; ${escapeHTML(status)}</span>
+            </div>
+            <div class="lc-header-right">
+                ${gated && !_lcOpen ? '<span id="lcActionHint" style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>' : ''}
+                <span class="lc-chevron">&#9660;</span>
+            </div>
+        </div>
+        <div class="lc-track-wrap"><div class="lc-track" id="lcTrack">${buildServiceLifecycleTrack(service)}</div></div>
+        <div class="lc-body" id="lcBody"><!-- filled on open / in-place rebuild --></div>
+    </div>`;
+}
+
+function updateServiceLifecycleBadge(service) {
+    if (!service) return;
+    const status = service.project_status || 'For Inspection';
+    const color = _getServiceStatusColor(status);
+    const badge = document.getElementById('lcCurBadge');
+    if (badge) {
+        badge.style.background = `${color}1a`;
+        badge.style.color = color;
+        badge.style.border = `1px solid ${color}44`;
+        badge.textContent = `● ${status}`;
+    }
+    const hdrBadge = document.getElementById('hdrServiceStatusBadge');
+    if (hdrBadge) {
+        hdrBadge.style.background = color;
+        hdrBadge.textContent = status;
+    }
+    const accordion = document.getElementById('lcAccordion');
+    if (accordion) {
+        accordion.classList.toggle('lc-active', ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status));
+        accordion.classList.toggle('lc-complete', status === 'Completed');
+    }
+    const hintSpan = document.getElementById('lcActionHint');
+    const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
+    if (gated && !_lcOpen) {
+        if (!hintSpan) {
+            const right = document.querySelector('#lcAccordion .lc-header-right');
+            if (right) right.insertAdjacentHTML('afterbegin', '<span id="lcActionHint" style="font-size:11px;color:#f59e0b;">Action needed &#8595;</span>');
+        }
+    } else if (hintSpan) {
+        hintSpan.remove();
+    }
+}
+
+function toggleServiceLifecycleAccordion() {
+    _lcOpen = !_lcOpen;
+    const accordion = document.getElementById('lcAccordion');
+    if (accordion) accordion.classList.toggle('open', _lcOpen);
+    updateServiceLifecycleBadge(currentService);
+    if (_lcOpen) {
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
     }
 }
 
