@@ -186,6 +186,13 @@ export async function init(activeTab = null, param = null) {
             // Phase 104 — attach the journal listeners only on visible statuses (D-11)
             if (['For Mobilization', 'On-going', 'Completed'].includes(currentService?.project_status)) ensureServiceJournalListeners();
 
+            // Phase 104 — attach-triggered snapshot: rebuild only the accordion body in place (no full re-render / flicker)
+            if (_lcAttachPending) {
+                _lcAttachPending = false;
+                buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+                return;
+            }
+
             await refreshServiceExpense(true);
             // Note: refreshServiceExpense() calls renderServiceDetail() on success.
             // On error it catches silently — currentServiceExpense retains last known values.
@@ -320,6 +327,18 @@ export async function destroy() {
     delete window.toggleIssueForm;
     delete window.showResolveForm;
     delete window.cancelResolveForm;
+    // Phase 104 — Lifecycle accordion window-fn teardown (9 handlers) + state reset
+    delete window.toggleServiceLifecycleAccordion;
+    delete window.lcServiceAttachLink;
+    delete window.lcServiceAttachFile;
+    delete window.lcRemoveServiceDoc;
+    delete window.lcServiceSwitchTab;
+    delete window.lcAdvanceServiceToForProposal;
+    delete window.lcStartServiceMobilization;
+    delete window.lcStartService;
+    delete window.lcMarkServiceComplete;
+    _lcOpen = false;
+    _lcAttachPending = false;
 }
 
 // Phase 99.1 (Phase 99 port) — idempotent attach of the own billing-requests listener.
@@ -2158,6 +2177,14 @@ function toggleServiceLifecycleAccordion() {
     }
 }
 
+// Doc-attach write helper — sets _lcAttachPending so the resulting snapshot rebuilds in place (no flicker).
+async function _attachDocumentToService(serviceDocId, fields) {
+    _lcAttachPending = true;
+    await updateDoc(doc(db, 'services', serviceDocId), { ...fields, updated_at: serverTimestamp() });
+    const cu = window.getCurrentUser?.();
+    await addServiceAuditEntry(serviceDocId, 'DOCUMENT_ATTACHED', cu?.uid, cu?.full_name, JSON.stringify(Object.keys(fields)));
+}
+
 // ============================================================
 // Phase 104 — Activity Journal (mirror project-detail.js Phase 101)
 // ============================================================
@@ -2945,4 +2972,163 @@ function attachWindowFunctions() {
     window.toggleIssueForm = toggleIssueForm;
     window.showResolveForm = showResolveForm;
     window.cancelResolveForm = cancelResolveForm;
+    // Phase 104 — Lifecycle accordion (9 handlers)
+    window.toggleServiceLifecycleAccordion = toggleServiceLifecycleAccordion;
+    window.lcServiceAttachLink = async function(which) {
+        const dk = LC_DOC_KEYS[which];
+        if (!dk || !currentService) return;
+        const el = document.getElementById('az' + dk.L + 'Link');
+        const url = el ? el.value.trim() : '';
+        if (!url || !/^https?:\/\//i.test(url)) {
+            if (el) { el.style.borderColor = '#ef4444'; setTimeout(() => { el.style.borderColor = ''; }, 1400); }
+            showToast('Please enter a valid https:// link.', 'error');
+            return;
+        }
+        const prev = {
+            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+        };
+        currentService[dk.prefix + '_url'] = url;
+        currentService[dk.prefix + '_kind'] = 'link';
+        currentService[dk.prefix + '_filename'] = null;
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        try {
+            await _attachDocumentToService(currentServiceDocId, {
+                [dk.prefix + '_url']: url,
+                [dk.prefix + '_kind']: 'link',
+                [dk.prefix + '_filename']: null,
+            });
+        } catch (err) {
+            Object.assign(currentService, prev);
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+            showToast('Failed to save document. Please try again.', 'error');
+        }
+    };
+    window.lcServiceAttachFile = async function(which, filename) {
+        const dk = LC_DOC_KEYS[which];
+        if (!dk || !currentService) return;
+        const prev = {
+            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+        };
+        currentService[dk.prefix + '_url'] = filename;
+        currentService[dk.prefix + '_kind'] = 'file';
+        currentService[dk.prefix + '_filename'] = filename;
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        try {
+            await _attachDocumentToService(currentServiceDocId, {
+                [dk.prefix + '_url']: filename,
+                [dk.prefix + '_kind']: 'file',
+                [dk.prefix + '_filename']: filename,
+            });
+        } catch (err) {
+            Object.assign(currentService, prev);
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+            showToast('Failed to save document. Please try again.', 'error');
+        }
+    };
+    window.lcRemoveServiceDoc = async function(which) {
+        const dk = LC_DOC_KEYS[which];
+        if (!dk || !currentService) return;
+        const prev = {
+            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+        };
+        currentService[dk.prefix + '_url'] = null;
+        currentService[dk.prefix + '_kind'] = null;
+        currentService[dk.prefix + '_filename'] = null;
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        try {
+            await _attachDocumentToService(currentServiceDocId, {
+                [dk.prefix + '_url']: null,
+                [dk.prefix + '_kind']: null,
+                [dk.prefix + '_filename']: null,
+            });
+        } catch (err) {
+            Object.assign(currentService, prev);
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+            showToast('Failed to remove document. Please try again.', 'error');
+        }
+    };
+    window.lcServiceSwitchTab = function(L, tab) {
+        const lp = document.getElementById('az' + L + 'LinkP');
+        const fp = document.getElementById('az' + L + 'FileP');
+        const lt = document.getElementById('az' + L + 'TabL');
+        const ft = document.getElementById('az' + L + 'TabF');
+        if (lp) lp.style.display = tab === 'link' ? '' : 'none';
+        if (fp) fp.style.display = tab === 'file' ? '' : 'none';
+        if (lt) lt.classList.toggle('active', tab === 'link');
+        if (ft) ft.classList.toggle('active', tab === 'file');
+    };
+    // Phase 104 — lifecycle gate transitions (each: status+status_changed_at, audit, activity, D-14 bump)
+    window.lcAdvanceServiceToForProposal = async function(serviceDocId) {
+        if (!currentService || currentServiceDocId !== serviceDocId) return;
+        if (!currentService.inspection_report_url) { showToast('Inspection report required.', 'error'); return; }
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceServiceStatus(currentService, cu, 'For Proposal')) { showToast('Permission denied.', 'error'); return; }
+        try {
+            await updateDoc(doc(db, 'services', serviceDocId), { project_status: 'For Proposal', status_changed_at: serverTimestamp(), updated_at: serverTimestamp() });
+            await addServiceAuditEntry(serviceDocId, 'ADVANCED_TO_FOR_PROPOSAL', cu?.uid, cu?.full_name, '');
+            await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Status advanced to For Proposal by ${cu?.full_name || 'Unknown'}` });
+            updateDoc(doc(db, 'services', serviceDocId), { last_activity_at: serverTimestamp() }).catch(err => console.debug('[ServiceDetail] last_activity_at bump non-blocking:', err?.code || err));
+        } catch (err) { console.error('[ServiceDetail] lcAdvanceServiceToForProposal failed:', err); showToast('Failed to advance status.', 'error'); }
+    };
+    window.lcStartServiceMobilization = async function(serviceDocId) {
+        if (!currentService || currentServiceDocId !== serviceDocId) return;
+        if (!currentService.ntp_document_url) { showToast('NTP or PO required.', 'error'); return; }
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceServiceStatus(currentService, cu, 'For Mobilization')) { showToast('Permission denied.', 'error'); return; }
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'services', serviceDocId), { project_status: 'For Mobilization', status_changed_at: serverTimestamp(), mobilization_started_at: now, updated_at: serverTimestamp() });
+            await addServiceAuditEntry(serviceDocId, 'MOBILIZATION_STARTED', cu?.uid, cu?.full_name, 'mobilization_started_at: ' + now);
+            await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Mobilization started by ${cu?.full_name || 'Unknown'}` });
+            updateDoc(doc(db, 'services', serviceDocId), { last_activity_at: serverTimestamp() }).catch(err => console.debug('[ServiceDetail] last_activity_at bump non-blocking:', err?.code || err));
+        } catch (err) { console.error('[ServiceDetail] lcStartServiceMobilization failed:', err); showToast('Failed to start mobilization.', 'error'); }
+    };
+    window.lcStartService = async function(serviceDocId) {
+        if (!currentService || currentServiceDocId !== serviceDocId) return;
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceServiceStatus(currentService, cu, 'On-going')) { showToast('Permission denied.', 'error'); return; }
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        try {
+            await updateDoc(doc(db, 'services', serviceDocId), { project_status: 'On-going', status_changed_at: serverTimestamp(), project_started_at: now, updated_at: serverTimestamp() });
+            await addServiceAuditEntry(serviceDocId, 'PROJECT_STARTED', cu?.uid, cu?.full_name, 'project_started_at: ' + now);
+            await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Project started by ${cu?.full_name || 'Unknown'}` });
+            updateDoc(doc(db, 'services', serviceDocId), { last_activity_at: serverTimestamp() }).catch(err => console.debug('[ServiceDetail] last_activity_at bump non-blocking:', err?.code || err));
+        } catch (err) { console.error('[ServiceDetail] lcStartService failed:', err); showToast('Failed to start project.', 'error'); }
+    };
+    window.lcMarkServiceComplete = async function(serviceDocId) {
+        if (!currentService || currentServiceDocId !== serviceDocId) return;
+        if (!currentService.completion_report_url || !currentService.certificate_of_completion_url) { showToast('Both Completion Report and COC required.', 'error'); return; }
+        const cu = window.getCurrentUser?.();
+        if (!_canAdvanceServiceStatus(currentService, cu, 'Completed')) { showToast('Permission denied — services admin required to mark Completed.', 'error'); return; }
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        // D-07 — capture DLP fields ONLY when a retention tranche exists.
+        const payload = { project_status: 'Completed', status_changed_at: serverTimestamp(), project_completed_at: now, updated_at: serverTimestamp() };
+        const retTranche = (currentService.collection_tranches || []).find(t => t.is_retention);
+        if (retTranche) {
+            const retPct = parseFloat(document.getElementById('gateDlpRetPct')?.value) || (parseFloat(retTranche.percentage) || 10);
+            const months = parseInt(document.getElementById('gateDlpMonths')?.value) || 12;
+            const startDate = document.getElementById('gateDlpStart')?.value || new Date().toISOString().slice(0, 10);
+            const { dlp_expires_at, retention_amount } = computeDlpFields(startDate, months, parseFloat(currentService.contract_cost) || 0, retPct);
+            Object.assign(payload, {
+                dlp_months: months,
+                dlp_start_date: startDate,
+                dlp_expires_at: dlp_expires_at,
+                retention_percentage: retPct,
+                retention_amount: retention_amount,
+                retention_released_at: null,
+            });
+        }
+        try {
+            await updateDoc(doc(db, 'services', serviceDocId), payload);
+            await addServiceAuditEntry(serviceDocId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
+            await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
+            updateDoc(doc(db, 'services', serviceDocId), { last_activity_at: serverTimestamp() }).catch(err => console.debug('[ServiceDetail] last_activity_at bump non-blocking:', err?.code || err));
+        } catch (err) { console.error('[ServiceDetail] lcMarkServiceComplete failed:', err); showToast('Failed to mark service complete.', 'error'); }
+    };
 }
