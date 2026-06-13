@@ -22,3 +22,27 @@
 - [x] 103.1-03-PLAN.md — projects.js two-tier funnel matrix + On-going 7/14 on last_activity_at + DLP-soon + scoped ambient [Wave 2] ✅ `ef4957e`
 - [x] 103.1-04-PLAN.md — services.js mirror + D-05 conservative On-going + DLP-soon [Wave 3] ✅ `af4d503`
 **Status**: ✅ COMPLETE 2026-06-13 — 4/4 plans / 3 waves, inline sequential on v3.3. VERIFICATION passed; all 3 human gates approved (dev rules deploy + projects UAT + services UAT). Dev seed: `scripts/seed-dev-projects.js`. **Prod `firebase deploy --only firestore:rules` still pending at v3.3 → main merge** (carries the 103.1 allow-list + standing 87.4/99/100/101/102 debt). NO new portfolio listener. Cash/collection-risk signal deferred to a future billing-aware phase.
+
+---
+
+## Phase 104 — Service Detail Parity (Lifecycle · Journal · DLP)
+**Goal**: Bring `service-detail.js` to functional parity with the overhauled `project-detail.js` for the three detail-page subsystems services currently lack. Full flow per surface (UI + submit + listeners + Finance/back-office side), not display-only. Project-side origins: Phase 100 (lifecycle), Phase 101 (journal), Phase 102 (DLP). The other detail features (info card, financial summary, personnel, collection tranches, billing-request modal, proposal inline card, edit history, status dropdown, CSV export) are already at parity.
+**Scope (locked in `/gsd-discuss-phase 104` — D-01..D-15 in 104-CONTEXT.md):**
+- [ ] **Lifecycle accordion** (D-01..D-07) — full 8-stage track + 4 doc gates for BOTH service types; replaces the manual `project_status` dropdown; Completion gate `services_admin`-only; Draft handled by the existing proposal-card fall-through; gates stamp `status_changed_at` + audit + activity + `last_activity_at`.
+- [ ] **Activity Journal** (D-10..D-12, D-14) — 3-tab panel (Activity feed · Progress updates · Issues) on services; new `services/{id}/activity_entries|progress_updates|issues` subcollections; status-gated; fire-and-forget `last_activity_at` bump; PO-Delivered auto-entry.
+- [ ] **DLP / retention** (D-07..D-09, D-15) — inline tranche editor + Ret? toggle + Completion-gate DLP capture + 4-state finance bar + Finance-only Record Release on `service-detail.js`; DLP fields on the service doc; detail-page only (portfolio done in 103).
+- [ ] **Cross-cutting** (D-13) — one-time On-going priority-feed signal upgraded to two-tier on `last_activity_at`; recurring stays conservative. firestore.rules service subcollection + Finance branch (D-15).
+**Plans**: 5 plans / 4 waves (gsd-planner 2026-06-13). Copy-then-adapt parity (Phase-26 pattern); all analogs verified in 104-PATTERNS.md. CSS unchanged (Phase 100/101/102 classes reused verbatim). The three service-detail.js subsystems share one file → sequential (Waves 2→3→4); cross-cutting independent-file work parallelizes in Wave 2.
+- [ ] 104-01-PLAN.md — `firestore.rules`: 3 service journal subcollection blocks + `audit_log` block + Finance Record-Release branch under `match /services/{serviceId}` + DEV deploy. Foundation for all journal/DLP writes [D-15/D-04/D-10] [Wave 1]
+- [ ] 104-02-PLAN.md — service-detail.js Activity Journal: `orderBy`/`limit` imports, shared write primitives (`_addServiceActivityEntry` boolean + `addServiceAuditEntry`), 3 onSnapshot listeners, status-gated 3-tab panel, post/progress/issue handlers, D-14 fire-and-forget bump [D-10/D-11/D-12/D-14] [Wave 2]
+- [ ] 104-03-PLAN.md — service-detail.js Lifecycle accordion: LC_STAGES + track/card/badge/toggle + attach zone + 10 body branches (incl. DLP fieldset + Draft fall-through) + `_canAdvanceServiceStatus` (Completion services_admin-only) + 4 gate transitions (status_changed_at + audit + activity + bump) + dropdown→pill; adds `computeDlpFields` [D-01..D-07/D-12/D-14] [Wave 3]
+- [ ] 104-04-PLAN.md — service-detail.js DLP: `getDlpState`/`isRetentionCollected` + 4-state finance bar + inline tranche editor (Ret? toggle) in the Financial card + Finance-only `recordServiceRetentionRelease`; service-doc DLP fields `|| null` [D-07/D-08/D-09/D-15] [Wave 4]
+- [ ] 104-05-PLAN.md — procurement.js PO-Delivered service auto-entry (join on `service_code`) + services.js one-time On-going two-tier signal on `last_activity_at`; recurring conservative [D-12/D-13] [Wave 2, parallel with 02]
+**Deferred:** Service Plan / Gantt → Phase 105 (separate; needs a service task data model).
+**Status**: 🔲 PLANNED 2026-06-13 — 5 plans / 4 waves. Next: `/clear` → `/gsd-execute-phase 104`. Prod rules deploy joins the standing v3.3 → main debt.
+
+---
+
+## Phase 105 — Service Plan (Gantt) Parity
+**Goal**: Mirror the project plan / Gantt subsystem (`project-plan.js`, ~4,800 lines; Phases 86 → 86.12) to services. Largest parity piece — requires a new service task data model (services have no `project_tasks` equivalent today) and a `#/services/{code}/plan` route.
+**Status**: 🔲 DEFERRED — placeholder; scope after Phase 104 ships. Plan via `/gsd-discuss-phase 105` → `/gsd-plan-phase 105` when prioritized.
