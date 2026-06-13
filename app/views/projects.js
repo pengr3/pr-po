@@ -1051,10 +1051,32 @@ function buildFeedRow(p) {
         </div>`;
 }
 
-// Plan 03: Browse All (stage-grouped collapsible) renderer goes here — replaces this placeholder.
+// Phase 103 D-03 — Browse All (Option B): stage-grouped collapsible list over the SAME filtered pool
+// as the Feed (filteredProjects → all client/search/scorecard/Phase-7 filters already applied, SC-7).
+// Rows reuse buildFeedRow so they look identical to Feed rows (DLP accent + stage-aware finance).
+// Always renders all 6 groups (the browse skeleton); empty groups show a placeholder line.
 function renderBrowseAll() {
     const el = document.getElementById('pdb-browse');
-    if (el) el.innerHTML = '<div style="padding:1rem;color:#94a3b8;">Browse All — implemented in Plan 03.</div>';
+    if (!el) return;
+    el.innerHTML = STAGE_GROUPS.map(group => {
+        const rows = filteredProjects
+            .filter(p => group.statuses.includes(p.project_status))
+            .sort((a, b) => (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || ''));
+        const collapsed = getCollapseState(group.key);
+        const body = rows.length
+            ? rows.map(buildFeedRow).join('')
+            : '<div class="stage-group-empty">No projects in this stage</div>';
+        return `
+            <div class="stage-group${collapsed ? ' collapsed' : ''}">
+                <div class="stage-group-header" onclick="window.toggleStageGroup('${group.key}')">
+                    <span class="stage-group-color" style="background:${group.color}"></span>
+                    <span class="stage-group-chevron">▾</span>
+                    ${escapeHTML(group.label)}
+                    <span class="stage-group-count">${rows.length}</span>
+                </div>
+                <div class="stage-group-body">${body}</div>
+            </div>`;
+    }).join('');
 }
 
 // Edit project
