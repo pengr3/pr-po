@@ -224,6 +224,8 @@ service cloud.firestore {
         // Phase 102 Plan 04 — DLP capture fields (assigned ops user marking completion writes these in the same update)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'project_status', 'updated_at',
+          // Phase 103.1 D-02/D-03 — stage-duration + activity-recency clocks (denormalized feed signals)
+          'status_changed_at', 'last_activity_at',
           'inspection_report_url', 'inspection_report_kind', 'inspection_report_filename',
           'ntp_document_url', 'ntp_document_kind', 'ntp_document_filename',
           'mobilization_started_at', 'project_started_at',

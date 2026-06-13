@@ -1149,10 +1149,9 @@ async function saveServiceField(fieldName, newValue) {
 
     try {
         const serviceRef = doc(db, 'services', currentServiceDocId);
-        await updateDoc(serviceRef, {
-            [fieldName]: valueToSave,
-            updated_at: new Date().toISOString()
-        });
+        const _svcPayload = { [fieldName]: valueToSave, updated_at: new Date().toISOString() };
+        if (fieldName === 'project_status') _svcPayload.status_changed_at = new Date().toISOString();  // Phase 103.1 D-02 — stage clock on manual status change only
+        await updateDoc(serviceRef, _svcPayload);
 
         // Record edit history (fire-and-forget)
         recordEditHistory(currentServiceDocId, 'update', [
