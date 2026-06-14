@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 029 — Responsibility Map</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --success:#059669; --warning:#f59e0b; --danger:#ef4444;
+    --border:#e5e7eb; --text:#1e293b; --text-2:#475569; --text-3:#64748b;
+    --gray-50:#f8fafc; --gray-100:#f1f5f9;
+    --shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    color:var(--text); background:#eef1f5; padding-bottom:170px; font-size:14px;}
+
+  .appnav{position:sticky; top:0; z-index:40; height:52px; background:#fff;
+    border-bottom:1px solid var(--border); display:flex; align-items:center; gap:1rem; padding:0 1.25rem;}
+  .appnav .logo{font-weight:700; font-size:1rem;}
+  .appnav .sub{font-size:.8rem; color:var(--text-3);}
+
+  /* role switcher */
+  .roles{position:sticky; top:52px; z-index:30; background:#0f172a; color:#cbd5e1;
+    display:flex; align-items:center; gap:.4rem; padding:.6rem 1.25rem; flex-wrap:wrap;}
+  .roles .lbl{font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; font-weight:700;
+    color:#94a3b8; margin-right:.4rem;}
+  .role-btn{background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:8px;
+    padding:.35rem .7rem; font-size:.78rem; font-weight:600; cursor:pointer;}
+  .role-btn:hover{background:#334155;}
+  .role-btn.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .role-btn.bug::after{content:' ⚠'; color:#fbbf24;}
+
+  .page{max-width:1280px; margin:0 auto; padding:1.25rem 1.25rem 2rem;}
+  .role-head{display:flex; align-items:baseline; gap:.6rem; margin-bottom:.25rem;}
+  .role-head h1{font-size:1.4rem; margin:0;}
+  .role-head .rid{font-family:'SF Mono','Consolas',monospace; font-size:.82rem; color:var(--text-3);
+    background:var(--gray-100); padding:2px 8px; border-radius:6px;}
+  .role-head .verdict{margin-left:auto; font-size:.8rem; font-weight:700; padding:3px 10px; border-radius:999px;}
+  .verdict.ok{background:#ecfdf5; color:var(--success); border:1px solid #a7f3d0;}
+  .verdict.warn{background:#fffbeb; color:#b45309; border:1px solid #fde68a;}
+
+  .cols{display:grid; grid-template-columns:0.85fr 1.15fr 1fr; gap:1rem; margin-top:1rem; align-items:start;}
+  .col{background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); overflow:hidden;}
+  .col-head{padding:.7rem .9rem; border-bottom:1px solid var(--border); font-weight:700; font-size:.82rem;
+    display:flex; align-items:center; gap:.4rem;}
+  .col-head .tag{font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    padding:2px 6px; border-radius:5px;}
+  .tag-truth{background:#eef2ff; color:#4338ca;}
+  .tag-new{background:#ecfdf5; color:var(--success);}
+  .tag-old{background:#fef2f2; color:#b91c1c;}
+  .col-body{padding:.8rem .9rem;}
+
+  /* permission truth grid */
+  .perm-row{display:flex; align-items:center; justify-content:space-between; padding:.3rem 0;
+    border-bottom:1px solid var(--gray-100); font-size:.82rem;}
+  .perm-row:last-child{border-bottom:none;}
+  .perm-tab{color:var(--text-2); font-family:'SF Mono','Consolas',monospace; font-size:.76rem;}
+  .perm-badges{display:flex; gap:.3rem;}
+  .pb{font-size:.62rem; font-weight:700; padding:2px 7px; border-radius:5px; letter-spacing:.03em;}
+  .pb.on{background:#ecfdf5; color:var(--success);}
+  .pb.off{background:#f3f4f6; color:#9ca3af;}
+  .pb.edit-on{background:#1a73e8; color:#fff;}
+  .owns-mark{color:var(--primary); font-weight:700; margin-left:.3rem;}
+
+  /* derived tiles */
+  .tile{text-align:left; background:var(--gray-50); border:1px solid var(--border);
+    border-left:4px solid var(--primary); border-radius:10px; padding:.6rem .75rem; margin-bottom:.5rem;}
+  .tile--warning{border-left-color:var(--warning);} .tile--danger{border-left-color:var(--danger);}
+  .tile-top{display:flex; align-items:center; gap:.45rem;}
+  .tile-count{font-size:1.15rem; font-weight:800; font-family:'SF Mono','Consolas',monospace;}
+  .tile-name{font-weight:700; font-size:.88rem;}
+  .tile-why{font-size:.72rem; color:var(--text-3); margin-top:.25rem; font-family:'SF Mono','Consolas',monospace;}
+  .tile-why .override{color:#b45309; font-weight:700;}
+  .empty-note{background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:.7rem .8rem;
+    font-size:.82rem; color:#92400e; line-height:1.5;}
+
+  /* old/current behavior */
+  .kv{display:flex; justify-content:space-between; padding:.32rem 0; border-bottom:1px solid var(--gray-100); font-size:.82rem;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--text-3);}
+  .kv .v{font-weight:700; font-family:'SF Mono','Consolas',monospace;}
+  .v.true{color:var(--success);} .v.false{color:#9ca3af;}
+  .v.bug{color:var(--danger);}
+  .bug-callout{margin-top:.7rem; background:#fef2f2; border:1px solid #fecaca; border-radius:10px;
+    padding:.6rem .75rem; font-size:.78rem; color:#991b1b; line-height:1.5;}
+
+  /* findings */
+  .findings{margin-top:1.25rem; background:#fff; border:1px solid var(--border); border-radius:12px;
+    box-shadow:var(--shadow); overflow:hidden;}
+  .findings-head{padding:.75rem .95rem; border-bottom:1px solid var(--border); font-weight:700;
+    display:flex; align-items:center; gap:.5rem;}
+  .findings-head .count{font-size:.72rem; color:#fff; background:var(--danger); border-radius:999px; padding:1px 8px;}
+  .finding{display:flex; gap:.6rem; padding:.65rem .95rem; border-bottom:1px solid var(--gray-100); font-size:.84rem; line-height:1.5;}
+  .finding:last-child{border-bottom:none;}
+  .finding .sev{flex-shrink:0; font-size:.62rem; font-weight:700; text-transform:uppercase; padding:2px 7px;
+    border-radius:5px; height:fit-content;}
+  .sev-bug{background:#fef2f2; color:#b91c1c;} .sev-gap{background:#fffbeb; color:#b45309;}
+  .sev-info{background:#eff6ff; color:#1d4ed8;}
+  .finding code{background:var(--gray-100); padding:1px 5px; border-radius:4px; font-size:.78rem;}
+
+  /* log */
+  .logpane{position:fixed; right:1rem; bottom:1rem; z-index:50; width:430px; max-width:42vw;
+    background:#0f172a; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.2); overflow:hidden;
+    font-family:'SF Mono','Consolas',monospace;}
+  .logpane-head{display:flex; justify-content:space-between; align-items:center; padding:.5rem .8rem;
+    background:#1e293b; color:#94a3b8; font-size:.7rem; font-weight:700;}
+  .logpane-head button{background:none; border:1px solid #334155; color:#94a3b8; border-radius:6px; padding:2px 8px; cursor:pointer;}
+  .logpane-body{max-height:110px; overflow-y:auto; padding:.5rem .8rem; font-size:.7rem; line-height:1.7;}
+  .log-ts{color:#475569;} .log-role{color:#60a5fa;} .log-find{color:#fbbf24;}
+
+  @media(max-width:980px){ .cols{grid-template-columns:1fr;} .logpane{position:static; width:auto; max-width:100%; margin:1rem;} body{padding-bottom:1rem;} }
+</style>
+</head>
+<body>
+  <div class="appnav">
+    <span class="logo">🧭 Spike 029</span>
+    <span class="sub">Responsibility Map — derive "what needs me" from <code>role_templates</code>, not hardcoded role names</span>
+  </div>
+
+  <div class="roles" id="roleBar"><span class="lbl">Logged-in role</span></div>
+
+  <div class="page">
+    <div class="role-head">
+      <h1 id="roleName">—</h1>
+      <span class="rid" id="roleId">—</span>
+      <span class="verdict" id="roleVerdict"></span>
+    </div>
+    <div style="font-size:.85rem; color:var(--text-3);" id="roleTagline"></div>
+
+    <div class="cols">
+      <div class="col">
+        <div class="col-head"><span class="tag tag-truth">Source of truth</span> role_templates · tabs</div>
+        <div class="col-body" id="colTruth"></div>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="tag tag-new">Proposed</span> Derived "what needs me"</div>
+        <div class="col-body" id="colDerived"></div>
+      </div>
+      <div class="col">
+        <div class="col-head"><span class="tag tag-old">Today</span> Current hardcoded behavior (home.js)</div>
+        <div class="col-body" id="colCurrent"></div>
+      </div>
+    </div>
+
+    <div class="findings">
+      <div class="findings-head">Structural findings across all 7 roles <span class="count" id="findCount">0</span></div>
+      <div id="findingsBody"></div>
+    </div>
+  </div>
+
+  <div class="logpane">
+    <div class="logpane-head"><span>EVENT LOG</span><button onclick="document.getElementById('logBody').innerHTML=''">Clear</button></div>
+    <div class="logpane-body" id="logBody"></div>
+  </div>
+
+<script>
+/* =========================================================
+   Spike 029 — Responsibility Map
+   Ports the REAL data so the drift is provable, not hypothetical:
+     • ROLE_TEMPLATES  — verbatim from app/seed-roles.js
+     • CURRENT_* fns    — verbatim ports of app/views/home.js role logic
+   Then derives "what needs me" from role_templates and diffs it
+   against what the hardcoded code does today.
+   ========================================================= */
+
+/* ---- (1) Source of truth: verbatim from seed-roles.js ---- */
+const ROLE_TEMPLATES = {
+  super_admin:     mk('Super Admin',     {dashboard:[1,1],clients:[1,1],projects:[1,1],services:[1,1],mrf_form:[1,1],procurement:[1,1],finance:[1,1],role_config:[1,1],procurement_request:[1,1],procurement_mrfs:[1,1],procurement_suppliers:[1,1],procurement_records:[1,1]}),
+  operations_admin:mk('Operations Admin',{dashboard:[1,0],clients:[1,1],projects:[1,1],services:[1,1],mrf_form:[1,1],procurement:[1,1],finance:[1,0],role_config:[0,0],procurement_request:[1,1],procurement_mrfs:[1,1],procurement_suppliers:[1,1],procurement_records:[1,1]}),
+  operations_user: mk('Operations User', {dashboard:[1,0],clients:[1,0],projects:[1,1],services:[1,0],mrf_form:[1,1],procurement:[1,0],finance:[0,0],role_config:[0,0],procurement_request:[1,1],procurement_mrfs:[1,0],procurement_suppliers:[1,0],procurement_records:[1,0]}),
+  services_admin:  mk('Services Admin',  {dashboard:[1,0],clients:[1,1],projects:[1,1],services:[1,1],mrf_form:[1,1],procurement:[1,1],finance:[1,0],role_config:[0,0],procurement_request:[1,1],procurement_mrfs:[1,1],procurement_suppliers:[1,1],procurement_records:[1,1]}),
+  services_user:   mk('Services User',   {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,1],mrf_form:[1,1],procurement:[1,0],finance:[0,0],role_config:[0,0],procurement_request:[1,1],procurement_mrfs:[1,0],procurement_suppliers:[1,0],procurement_records:[1,0]}),
+  finance:         mk('Finance',         {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,0],mrf_form:[0,0],procurement:[0,0],finance:[1,1],role_config:[0,0],procurement_request:[0,0],procurement_mrfs:[0,0],procurement_suppliers:[0,0],procurement_records:[0,0]}),
+  procurement:     mk('Procurement',     {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,0],mrf_form:[0,0],procurement:[1,1],finance:[0,0],role_config:[0,0],procurement_request:[0,0],procurement_mrfs:[1,1],procurement_suppliers:[1,1],procurement_records:[1,1]}),
+};
+function mk(name, tabSpec){
+  const tabs={}; for(const k in tabSpec){ tabs[k]={access:!!tabSpec[k][0], edit:!!tabSpec[k][1]}; }
+  return { role_name:name, permissions:{ tabs } };
+}
+const ROLE_ORDER = ['super_admin','operations_admin','operations_user','services_admin','services_user','finance','procurement'];
+
+/* ---- (2) The action queues an Action Center would surface ----
+   Derivation rule: responsibility = role has edit:true on owningTab.
+   override: a hardcoded list for cross-cutting actions that aren't a single tab. */
+const ACTION_QUEUES = [
+  { key:'pr_approval',       name:'PRs to review',         icon:'🧾', tone:'warning', owningTab:'finance' },
+  { key:'tr_approval',       name:'TRs to review',         icon:'🚚', tone:'warning', owningTab:'finance' },
+  { key:'collectibles',      name:'Overdue collectibles',  icon:'💰', tone:'danger',  owningTab:'finance' },
+  { key:'proposal_approval', name:'Proposal approvals',    icon:'📋', tone:'warning', owningTab:null, override:['super_admin','operations_admin'] },
+  { key:'mrf_processing',    name:'MRFs to process',       icon:'📦', tone:'warning', owningTab:'procurement_mrfs' },
+  { key:'po_tracking',       name:'POs in-flight',         icon:'📦', tone:'primary', owningTab:'procurement_records' },
+  { key:'project_health',    name:'Projects at risk',      icon:'🏗️', tone:'danger',  owningTab:'projects' },
+];
+// mock counts purely so the tiles read like the real Action Center
+const MOCK_COUNT = { pr_approval:2, tr_approval:1, collectibles:5, proposal_approval:3, mrf_processing:4, po_tracking:8, project_health:1 };
+
+function whatNeedsMe(roleId){
+  const tabs = ROLE_TEMPLATES[roleId].permissions.tabs;
+  return ACTION_QUEUES.filter(q =>
+    q.override ? q.override.includes(roleId) : (tabs[q.owningTab] && tabs[q.owningTab].edit === true)
+  );
+}
+
+/* ---- (3) Verbatim ports of home.js role logic (the "today" column) ---- */
+function CURRENT_getDashboardMode(role){
+  if (['operations_admin','operations_user'].includes(role)) return 'projects';
+  if (['services_admin','services_user'].includes(role)) return 'services';
+  return 'both';
+}
+function CURRENT_getHomeSubTabConfig(role){
+  if (['finance','procurement_staff'].includes(role)) return { showSubNav:false, canEngagements:false, canProposals:false, canApproveQueue:false };
+  const canEngagements = ['super_admin','operations_admin','services_admin'].includes(role);
+  const canProposals = true;
+  const canApproveQueue = ['super_admin','operations_admin'].includes(role);
+  return { showSubNav:true, canEngagements, canProposals, canApproveQueue };
+}
+
+/* ---- Render ---- */
+let state = { role:'finance' };
+
+function renderTruth(roleId){
+  const tabs = ROLE_TEMPLATES[roleId].permissions.tabs;
+  const ownedTabs = new Set(ACTION_QUEUES.filter(q=>!q.override).map(q=>q.owningTab));
+  const rows = Object.keys(tabs).map(tab=>{
+    const t = tabs[tab];
+    const owns = ownedTabs.has(tab) && t.edit;
+    return `<div class="perm-row">
+      <span class="perm-tab">${tab}${owns?'<span class="owns-mark">◆ acts</span>':''}</span>
+      <span class="perm-badges">
+        <span class="pb ${t.access?'on':'off'}">${t.access?'view':'—'}</span>
+        <span class="pb ${t.edit?'edit-on':'off'}">${t.edit?'edit':'—'}</span>
+      </span>
+    </div>`;
+  }).join('');
+  document.getElementById('colTruth').innerHTML = rows;
+}
+
+function renderDerived(roleId){
+  const queues = whatNeedsMe(roleId);
+  const el = document.getElementById('colDerived');
+  if (queues.length === 0){
+    el.innerHTML = `<div class="empty-note"><b>No action queues.</b> This role owns nothing actionable
+      (a pure doer, not an approver). The Action Center would always read <b>"all caught up"</b> for them
+      → fall back to the Ops Pulse / shortcuts hero instead of a dead action strip.</div>`;
+    return;
+  }
+  el.innerHTML = queues.map(q=>{
+    const why = q.override
+      ? `<span class="override">OVERRIDE</span> hardcoded approver list`
+      : `${q.owningTab}.edit === true`;
+    return `<div class="tile tile--${q.tone}">
+      <div class="tile-top">
+        <span class="tile-count">${MOCK_COUNT[q.key]??'•'}</span>
+        <span class="tile-name">${q.name}</span>
+      </div>
+      <div class="tile-why">↳ ${why}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCurrent(roleId){
+  const mode = CURRENT_getDashboardMode(roleId);
+  const cfg = CURRENT_getHomeSubTabConfig(roleId);
+  const bool = (v)=>`<span class="v ${v?'true':'false'}">${v}</span>`;
+
+  // Detect the procurement_staff drift effect:
+  // intent was "procurement sees no sub-nav", but the code checks 'procurement_staff' (non-existent id),
+  // so a real 'procurement' user falls through and wrongly gets the Proposals sub-tab.
+  const procBug = (roleId === 'procurement' && cfg.showSubNav === true);
+
+  document.getElementById('colCurrent').innerHTML = `
+    <div class="kv"><span class="k">getDashboardMode()</span><span class="v">'${mode}'</span></div>
+    <div class="kv"><span class="k">showSubNav</span>${procBug?`<span class="v bug">${cfg.showSubNav} ✗</span>`:bool(cfg.showSubNav)}</div>
+    <div class="kv"><span class="k">canEngagements</span>${bool(cfg.canEngagements)}</div>
+    <div class="kv"><span class="k">canProposals (see)</span>${procBug?`<span class="v bug">${cfg.canProposals} ✗</span>`:bool(cfg.canProposals)}</div>
+    <div class="kv"><span class="k">canApproveQueue</span>${bool(cfg.canApproveQueue)}</div>
+    ${procBug ? `<div class="bug-callout"><b>⚠ Live bug.</b> home.js excludes <code>'procurement_staff'</code>,
+      but this role's id is <code>'procurement'</code> — so the exclusion never fires and a Procurement user
+      <b>wrongly sees the Proposals sub-tab</b>. The derived column doesn't have this class of bug because it
+      reads the role's real permissions, not a hardcoded name.</div>` : ''}`;
+}
+
+function renderRole(roleId){
+  state.role = roleId;
+  const tpl = ROLE_TEMPLATES[roleId];
+  document.getElementById('roleName').textContent = tpl.role_name;
+  document.getElementById('roleId').textContent = `role_id: ${roleId}`;
+
+  const queues = whatNeedsMe(roleId);
+  const procBug = (roleId === 'procurement');
+  const vEl = document.getElementById('roleVerdict');
+  if (procBug){ vEl.className='verdict warn'; vEl.textContent='⚠ current code has a drift bug'; }
+  else if (queues.length===0){ vEl.className='verdict warn'; vEl.textContent='derives cleanly · empty action set'; }
+  else { vEl.className='verdict ok'; vEl.textContent='derives cleanly ✓'; }
+
+  document.getElementById('roleTagline').textContent =
+    `${queues.length} action queue(s) derived from permissions` +
+    (queues.some(q=>q.override) ? ' · includes 1 override (proposal approval is not a tab)' : '');
+
+  renderTruth(roleId); renderDerived(roleId); renderCurrent(roleId);
+
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active', b.dataset.r===roleId));
+  log(`role → ${roleId} · derived ${queues.length} queue(s)${procBug?' · ⚠ drift bug present':''}`, 'role');
+}
+
+/* ---- Findings (computed across all roles) ---- */
+function computeFindings(){
+  const f = [];
+  // 1. procurement_staff drift
+  const realRoleIds = Object.keys(ROLE_TEMPLATES);
+  ['procurement_staff'].forEach(name=>{
+    if (!realRoleIds.includes(name)){
+      f.push({sev:'bug', html:`home.js role logic references <code>'${name}'</code>, which is <b>not a real role_template</b> (canonical id is <code>'procurement'</code>). Effect: the intended exclusion silently never fires → Procurement users wrongly see the Proposals sub-tab. <b>Fix is free</b> once logic derives from role_templates.`});
+    }
+  });
+  // 2. proposal approval is an override, not derivable
+  f.push({sev:'gap', html:`<code>proposal_approval</code> can't be derived from a tab — it's gated to <code>['super_admin','operations_admin']</code> in code. Keep it as the <b>one explicit override</b> in the responsibility map. Everything else derives from <code>edit:true</code>.`});
+  // 3. services_admin can SEE proposals but not approve
+  f.push({sev:'info', html:`<code>services_admin</code> can view proposals but is <b>not</b> in the approver override → the Action Center must <b>not</b> show them a "proposals to approve" tile (it'd be a lie). An informational "your proposals' status" tile is fine, but it's not an action.`});
+  // 4. empty action sets
+  const empties = ROLE_ORDER.filter(r=>whatNeedsMe(r).length===0);
+  if (empties.length){
+    f.push({sev:'info', html:`Roles with <b>zero action queues</b>: ${empties.map(r=>`<code>${r}</code>`).join(', ')}. For them the Action Center always reads "all caught up" → give them the Pulse/shortcuts fallback hero, not a dead action strip.`});
+  }
+  // 5. finance match check (sanity: confirms the derivation matches the user's stated model)
+  const finQ = whatNeedsMe('finance').map(q=>q.key);
+  const expectFin = ['pr_approval','tr_approval','collectibles'];
+  const finOk = expectFin.every(k=>finQ.includes(k)) && finQ.length===expectFin.length;
+  f.push({sev: finOk?'info':'gap', html:`Sanity vs your stated model ("PR + Collectible → Finance"): derived Finance queues = ${finQ.map(k=>`<code>${k}</code>`).join(', ')} → <b>${finOk?'matches ✓':'MISMATCH — revisit rule'}</b>.`});
+
+  const body = document.getElementById('findingsBody');
+  body.innerHTML = f.map(x=>`<div class="finding">
+    <span class="sev sev-${x.sev}">${x.sev==='bug'?'BUG':x.sev==='gap'?'OVERRIDE':'NOTE'}</span>
+    <span>${x.html}</span></div>`).join('');
+  document.getElementById('findCount').textContent = f.filter(x=>x.sev==='bug').length + ' bug';
+  log(`findings computed: ${f.filter(x=>x.sev==='bug').length} bug, ${f.length} total`, 'find');
+}
+
+/* ---- log ---- */
+function nowTs(){ try{ return new Date().toLocaleTimeString('en-US',{hour12:false}); }catch(e){ return '--:--:--'; } }
+function log(msg,kind){
+  const b=document.getElementById('logBody'); const d=document.createElement('div');
+  const c = kind==='role'?'log-role':kind==='find'?'log-find':'';
+  d.innerHTML=`<span class="log-ts">${nowTs()}</span> <span class="${c}">${msg}</span>`;
+  b.insertBefore(d, b.firstChild);
+}
+
+/* ---- boot ---- */
+(function(){
+  const bar=document.getElementById('roleBar');
+  ROLE_ORDER.forEach(r=>{
+    const btn=document.createElement('button');
+    btn.className='role-btn'+(r==='procurement'?' bug':'');
+    btn.dataset.r=r; btn.textContent=ROLE_TEMPLATES[r].role_name;
+    btn.onclick=()=>renderRole(r);
+    bar.appendChild(btn);
+  });
+  computeFindings();
+  renderRole('finance'); // start on Finance — the role your responsibility model is anchored on
+  log('spike 029 ready — flip roles; watch Derived vs Current; Procurement (⚠) shows the live drift', 'role');
+})();
+</script>
+</body>
+</html>

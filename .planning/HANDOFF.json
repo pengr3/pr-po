@@ -1,38 +1,42 @@
 {
   "version": "1.0",
-  "timestamp": "2026-06-10T11:13:34.652Z",
-  "phase": "102",
-  "phase_name": "dlp-retention-management",
-  "phase_dir": ".planning/phases/102-dlp-retention-management",
-  "plan": 2,
-  "task": 2,
-  "total_tasks": 2,
+  "timestamp": "2026-06-14T18:00:31Z",
+  "phase": "104",
+  "phase_name": "service-detail-parity",
+  "phase_dir": ".planning/phases/104-service-detail-parity",
+  "plan": 5,
+  "task": null,
+  "total_tasks": 5,
   "status": "paused",
+  "context": "between-phases",
   "completed_tasks": [
-    {"id": 1, "name": "Editor state + render/compute/save functions (9 fns)", "status": "done", "commit": "1a68b1b"},
-    {"id": 2, "name": "Wire editor host into Financial card + register 7 window functions", "status": "done", "commit": "011b4b4"},
-    {"id": 3, "name": "Follow-up fix: route tranche editor oninput through window setters", "status": "done", "commit": "bec56ee"}
+    {"id": 1, "name": "104-01 service journal/audit firestore rules + Finance Record-Release branch", "status": "done", "commit": "0ed3d93"},
+    {"id": 2, "name": "104-02 service Activity Journal (write primitives, feed, 3 listeners, cost-delta auto-entry)", "status": "done", "commit": "dddea54"},
+    {"id": 3, "name": "104-03 service lifecycle accordion + 4 gate transitions", "status": "done", "commit": "28e02e4"},
+    {"id": 4, "name": "104-04 service DLP/retention — 4-state finance bar, inline tranche editor, Finance Record Release", "status": "done", "commit": "f5b2db4"},
+    {"id": 5, "name": "104-05 PO-Delivered service auto-entry + one-time On-going signal", "status": "done", "commit": "d39d668"}
   ],
   "remaining_tasks": [
-    {"id": 4, "name": "102-02 browser UAT (7-step checklist) — human-verify gate", "status": "not_started"},
-    {"id": 5, "name": "Plan 03 (DLP fields / retention) — blocked on 102-02 UAT approval", "status": "not_started"},
-    {"id": 6, "name": "Plan 04", "status": "not_started"},
-    {"id": 7, "name": "Plan 05", "status": "not_started"}
+    {"id": 6, "name": "Phase 105 — Service Plan (Gantt) Parity — DEFERRED placeholder; scope after 104 ships. Plan via /gsd-discuss-phase 105 -> /gsd-plan-phase 105 when prioritized", "status": "not_started"},
+    {"id": 7, "name": "Triage exploration spikes 028 (home hero), 029 (responsibility map), 030 (deep-link intent), 031 (role-system target), 102 (lifecycle card layout) into roadmap phases", "status": "not_started"}
   ],
-  "blockers": [
-    {"description": "102-02 is at a blocking human-verify checkpoint — Plans 03-05 cannot start until operator runs browser UAT and types 'approved'", "type": "human_action", "workaround": "none — zero-build SPA requires manual browser UAT"}
-  ],
+  "blockers": [],
   "human_actions_pending": [
-    {"action": "Run 102-02 browser UAT: python -m http.server 8000, open On-going project #/projects/detail/{code}, walk 7-step checklist (CTA states, inline expand, RED/GREEN total bar, one-retention toggle, save+persist, validation block, zero console errors)", "context": "Blocking gate before Plan 03", "blocking": true},
-    {"action": "OPTIONAL: commit 7 untracked debug record .md files in .planning/debug/ + the records-refresh-uses-stale-cache.md deletion", "context": "Code fixes already committed; only the debug session notes are uncommitted", "blocking": false},
-    {"action": "DEPLOY DEBT (carried): firebase deploy --only firestore:rules after v3.3->main merge (Phase 87.4/99/100/101 rules)", "context": "Phase 100 Gate transitions + Phase 101 journal subcollection rules need prod deploy", "blocking": false}
+    {"action": "DEPLOY DEBT (carried across phases): firebase deploy --only firestore:rules --project <prod> after v3.3->main merge", "context": "Rules from Phase 87.4/99/100/101/104 (gate transitions, journal + service journal/audit subcollections) need prod deploy. UAT runs on clmc-procurement-dev; CLI active project is PROD per memory firebase-dev-prod-deploy", "blocking": false},
+    {"action": "Decide next work: prioritize Phase 105 (Gantt parity, needs a service task data model) OR promote one of the untracked spikes (028-031, 102) into a phase", "context": "Phase 104 is the last completed roadmap phase; no phase is currently in progress", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Inline expand editor (not modal), trancheEditorOpen state + renderTrancheEditorHost() in-place re-render", "rationale": "Matches Phase 100 lifecycle-accordion precedent", "phase": "102"},
-    {"decision": "saveTrancheEditor writes collection_tranches ONLY — no DLP fields (dlp_months/dlp_start_date/retention_percentage)", "rationale": "D-10 — DLP fields belong to Plan 03, not the tranche editor", "phase": "102"},
-    {"decision": "toggleTrancheEditor gated by _canAdvanceProjectStatus(project, user, 'On-going')", "rationale": "Same role predicate as Phase 100 gate functions", "phase": "102"}
+    {"decision": "Phase 104 executed inline-sequential on v3.3 (copy-then-adapt parity, Phase-26 pattern); CSS reused verbatim from Phase 100/101/102", "rationale": "Three service-detail.js subsystems share one file -> sequential waves; analogs pre-verified in 104-PATTERNS.md", "phase": "104"},
+    {"decision": "Service Plan / Gantt explicitly deferred out of 104 into Phase 105", "rationale": "Needs a separate service task data model not yet designed", "phase": "104"},
+    {"decision": "Commit scope for this pause: HANDOFF files + valuable planning artifacts (spikes 028-031, 102-lifecycle-card-layout, 104-PATTERNS.md) only; throwaway root files and stale 86.9 leftovers left uncommitted", "rationale": "User-confirmed scope before push", "phase": "104"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Operator runs 102-02 browser UAT (7-step checklist). On 'approved' -> advance to Plan 03. On failure -> /gsd-plan-phase 102 --gaps.",
-  "context_notes": "Session reconstructed after an accidental tab close. Verified: ALL code is committed (HEAD bec56ee, clean working tree for code). Plan 02 inline tranche editor is code-complete with all automated checks passing (node --check, 7/7 window fn symmetry, #trancheEditorHost present, no DLP fields in save). Nothing was lost on tab close. Only uncommitted items are debug record .md notes (untracked, fixes already committed) and unrelated seed/script files. Phase 102 = DLP & retention management, 5 plans / 4 waves, executing inline sequential on v3.3 (inline execution per Phase 98+ precedent)."
+  "uncommitted_files": [
+    ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md (stale May-11 orphan; phase 86.9 closed)",
+    ".planning/debug/86.9-row-misalign-DEBUG.md (stale May-11 orphan)",
+    "debug-diag-86.9.js (throwaway diagnostic, repo root)",
+    ".review-prompt-104.md / .review-prompt-104-final.md (throwaway generated review prompts, repo root)",
+    ".claude/worktrees/ (tooling scratch)"
+  ],
+  "next_action": "v3.3 is being pushed to origin (was 71 commits ahead). On resume: decide between planning Phase 105 (Gantt parity) and promoting a spike; nothing is mid-task.",
+  "context_notes": "Pause taken at a clean between-phases checkpoint, NOT mid-task. Phase 104 (service detail parity: lifecycle, journal, DLP) is fully complete — 12/12 UAT approved, VERIFICATION passed (HEAD f26dd12). Working tree had only untracked planning artifacts + leftovers; no in-progress code edits. The prior HANDOFF.json (Phase 102) was stale and is replaced by this one. Branch v3.3 was 71 commits ahead of origin/v3.3 and is being pushed now as a backup. The five untracked exploration spikes (028 home-hero, 029 responsibility-map, 030 deep-link-intent, 031 role-system-target, 102 lifecycle-card-layout) are unrouted ideation — they have no roadmap phase yet."
 }

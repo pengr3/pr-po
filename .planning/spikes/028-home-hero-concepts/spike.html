@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 028 — Home Hero Concepts</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --success:#059669; --warning:#f59e0b; --danger:#ef4444;
+    --border:#e5e7eb; --border-2:#e2e8f0;
+    --text:#1e293b; --text-2:#475569; --text-3:#64748b;
+    --gray-50:#f8fafc; --gray-100:#f1f5f9;
+    --shadow:0 4px 16px rgba(0,0,0,.08);
+    --shadow-lg:0 12px 32px rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text); background:#eef1f5; padding-bottom:170px;
+  }
+
+  /* ---- App nav mock (context) ---- */
+  .appnav{
+    position:sticky; top:0; z-index:40; height:56px; background:#fff;
+    border-bottom:1px solid var(--border); display:flex; align-items:center;
+    gap:1.25rem; padding:0 1.5rem; box-shadow:0 1px 3px rgba(0,0,0,.04);
+  }
+  .appnav .logo{font-weight:700; color:var(--text); font-size:1.05rem;}
+  .appnav .navlinks{display:flex; gap:1rem; font-size:.875rem; color:var(--text-3);}
+  .appnav .navlinks span{cursor:default;}
+  .appnav .spacer{flex:1;}
+  .appnav .bell{position:relative; font-size:1.15rem;}
+  .appnav .bell-badge{position:absolute; top:-4px; right:-6px; background:var(--danger);
+    color:#fff; font-size:.6rem; font-weight:700; border-radius:9px; padding:1px 5px;}
+
+  /* ---- Variant switcher ---- */
+  .switcher{
+    position:sticky; top:56px; z-index:30; background:#0f172a; color:#cbd5e1;
+    display:flex; align-items:center; gap:.5rem; padding:.6rem 1.5rem; flex-wrap:wrap;
+  }
+  .switcher .sw-title{font-size:.7rem; text-transform:uppercase; letter-spacing:.08em;
+    font-weight:700; color:#94a3b8; margin-right:.5rem;}
+  .sw-btn{
+    background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:8px;
+    padding:.4rem .85rem; font-size:.82rem; font-weight:600; cursor:pointer; transition:all .15s;
+  }
+  .sw-btn:hover{background:#334155;}
+  .sw-btn.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .sw-pitch{width:100%; font-size:.8rem; color:#94a3b8; padding-top:.4rem; line-height:1.4;}
+  .sw-pitch b{color:#e2e8f0;}
+
+  /* ---- Page body ---- */
+  .page{max-width:1200px; margin:0 auto; padding:1.75rem 1.5rem 2rem;}
+
+  /* ===== HERO BANDS ===== */
+  .hero-band{border-radius:16px; margin-bottom:1.75rem; box-shadow:var(--shadow); overflow:hidden;}
+
+  /* A — Brand Banner */
+  .hero-band--brand{
+    background:linear-gradient(135deg,#1a73e8 0%,#1557b0 100%);
+    color:#fff; text-align:center; padding:3.25rem 2rem; position:relative;
+  }
+  .hero-band--brand::after{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(circle at 20% 20%, rgba(255,255,255,.12), transparent 40%),
+               radial-gradient(circle at 85% 80%, rgba(255,255,255,.10), transparent 45%);
+    pointer-events:none;
+  }
+  .brand-logo{font-size:3rem; margin-bottom:.4rem;}
+  .brand-name{font-size:2.4rem; font-weight:800; letter-spacing:.04em; margin:0 0 .35rem;}
+  .brand-tagline{font-size:1.05rem; opacity:.9; margin:0 0 1.25rem; font-weight:400;}
+  .brand-greeting{font-size:1rem; opacity:.95; margin:0; font-weight:500;
+    display:inline-block; background:rgba(255,255,255,.15); padding:.45rem 1.1rem; border-radius:999px;}
+
+  /* B — Action Center */
+  .hero-band--action{background:#fff; padding:1.6rem 1.75rem 1.85rem;}
+  .hero-greet-row{margin-bottom:1.25rem;}
+  .hero-greet{font-size:1.55rem; font-weight:700; margin:0 0 .2rem; color:var(--text);}
+  .hero-sub{font-size:.9rem; color:var(--text-3); margin:0;}
+  .action-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.9rem;}
+  .action-tile{
+    text-align:left; background:var(--gray-50); border:1px solid var(--border);
+    border-left:4px solid var(--primary); border-radius:12px; padding:1rem 1.1rem;
+    cursor:pointer; transition:all .18s; font:inherit; color:inherit; position:relative;
+  }
+  .action-tile:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg); background:#fff;}
+  .action-tile--warning{border-left-color:var(--warning);}
+  .action-tile--danger{border-left-color:var(--danger);}
+  .action-tile--success{border-left-color:var(--success);}
+  .action-tile-icon{font-size:1.2rem; margin-bottom:.4rem;}
+  .action-tile-count{font-size:2rem; font-weight:800; line-height:1; color:var(--text);
+    font-family:'SF Mono','Roboto Mono','Consolas',monospace;}
+  .action-tile-label{font-size:.92rem; font-weight:600; color:var(--text); margin-top:.35rem;}
+  .action-tile-sub{font-size:.78rem; color:var(--text-3); margin-top:.15rem;}
+  .caught-up{grid-column:1/-1; text-align:center; padding:2rem; color:var(--success);
+    font-size:1.05rem; font-weight:600; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:12px;}
+
+  /* C — Operations Pulse */
+  .hero-band--pulse{
+    background:linear-gradient(135deg,#0b2545 0%,#13315c 55%,#1557b0 100%);
+    color:#fff; padding:1.6rem 2rem 1.9rem;
+  }
+  .pulse-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:1.3rem;}
+  .pulse-title{font-size:.95rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#bfdbfe;}
+  .pulse-date{font-size:.85rem; color:#93c5fd;}
+  .pulse-kpis{display:flex; align-items:stretch; gap:0; flex-wrap:wrap;}
+  .pulse-kpi{flex:1; min-width:150px; padding:0 1.25rem; text-align:center;}
+  .pulse-kpi:first-child{padding-left:0;}
+  .pulse-kpi-value{font-size:2.5rem; font-weight:800; line-height:1.05;
+    font-family:'SF Mono','Roboto Mono','Consolas',monospace;}
+  .pulse-kpi-value--primary{color:#fff;}
+  .pulse-kpi-value--warning{color:#fbbf24;}
+  .pulse-kpi-value--danger{color:#f87171;}
+  .pulse-kpi-value--success{color:#34d399;}
+  .pulse-kpi-label{font-size:.8rem; color:#cbd5e1; margin-top:.45rem; letter-spacing:.02em;}
+  .pulse-sep{width:1px; background:rgba(255,255,255,.18); margin:.3rem 0;}
+
+  /* D — Hybrid */
+  .hero-band--hybrid{background:#fff; padding:1.5rem 1.75rem 1.6rem; border:1px solid var(--border); border-left:5px solid var(--primary);}
+  .hybrid-top{display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:.5rem;}
+  .hybrid-greet{font-size:1.5rem; font-weight:700; margin:0; color:var(--text);}
+  .hybrid-date{font-size:.85rem; color:var(--text-3);}
+  .hybrid-pulse{font-size:.92rem; color:var(--text-2); margin:.7rem 0 .9rem; line-height:1.5;}
+  .hybrid-pulse b{color:var(--text); font-weight:700;}
+  .hybrid-pulse .dot{color:#cbd5e1; margin:0 .35rem;}
+  .hybrid-attention{display:flex; align-items:center; gap:.85rem; flex-wrap:wrap;
+    background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:.7rem 1rem;}
+  .hybrid-attention.calm{background:#ecfdf5; border-color:#a7f3d0;}
+  .hybrid-attention-text{font-size:.92rem; color:#92400e; font-weight:500;}
+  .hybrid-attention.calm .hybrid-attention-text{color:var(--success);}
+  .hybrid-attention .spacer{flex:1;}
+
+  .btn{border:none; border-radius:8px; padding:.45rem 1rem; font-size:.85rem; font-weight:600;
+    cursor:pointer; transition:all .15s;}
+  .btn-primary{background:var(--primary); color:#fff;}
+  .btn-primary:hover{background:var(--primary-dark);}
+
+  /* ---- Constant: nav cards (kept across all variants) ---- */
+  .section-label{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em;
+    font-weight:700; color:var(--text-3); margin:.25rem 0 .85rem;}
+  .dept-cards{display:flex; flex-direction:column; gap:1rem;}
+  .dept-row{display:grid; gap:1rem;}
+  .dept-row--top{grid-template-columns:repeat(3,1fr);}
+  .dept-row--bottom{grid-template-columns:repeat(2,1fr); max-width:calc((100% - 4rem)*2/3 + 2rem); margin:0 auto;}
+  .nav-card{background:#fff; border-radius:12px; padding:1.25rem; text-align:center;
+    box-shadow:var(--shadow); transition:all .25s; cursor:pointer; border:2px solid transparent;}
+  .nav-card:hover{transform:translateY(-6px); box-shadow:var(--shadow-lg); border-color:var(--primary);}
+  .nav-card-icon{font-size:2.25rem; margin-bottom:.5rem;}
+  .nav-card h3{font-size:1.05rem; margin:0 0 .35rem; color:var(--text);}
+  .nav-card p{font-size:.82rem; color:var(--text-3); margin:0; line-height:1.5;}
+
+  /* ---- Controls overlay (bottom-left) ---- */
+  .controls{position:fixed; left:1rem; bottom:1rem; z-index:50; width:262px;
+    background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-lg);
+    font-size:.82rem;}
+  .controls-head{padding:.6rem .85rem; border-bottom:1px solid var(--border); font-weight:700;
+    color:var(--text); display:flex; justify-content:space-between; align-items:center;}
+  .controls-head .tag{font-size:.62rem; background:var(--gray-100); color:var(--text-3);
+    padding:2px 6px; border-radius:6px; font-weight:600;}
+  .controls-body{padding:.75rem .85rem; display:flex; flex-direction:column; gap:.65rem;}
+  .ctrl-field{display:flex; flex-direction:column; gap:.25rem;}
+  .ctrl-field label{font-size:.7rem; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text-3); font-weight:700;}
+  .ctrl-field select, .ctrl-field input{padding:.4rem .5rem; border:1px solid var(--border);
+    border-radius:7px; font:inherit; font-size:.82rem; color:var(--text);}
+  .seg{display:flex; gap:.25rem;}
+  .seg button{flex:1; padding:.35rem; border:1px solid var(--border); background:#fff;
+    border-radius:7px; font-size:.74rem; font-weight:600; cursor:pointer; color:var(--text-2);}
+  .seg button.on{background:var(--primary); color:#fff; border-color:var(--primary);}
+
+  /* ---- Log pane (bottom-right) ---- */
+  .logpane{position:fixed; right:1rem; bottom:1rem; z-index:50; width:430px; max-width:42vw;
+    background:#0f172a; border-radius:12px; box-shadow:var(--shadow-lg); overflow:hidden;
+    font-family:'SF Mono','Roboto Mono','Consolas',monospace;}
+  .logpane-head{display:flex; justify-content:space-between; align-items:center;
+    padding:.5rem .8rem; background:#1e293b; color:#94a3b8; font-size:.72rem; font-weight:700;
+    letter-spacing:.05em;}
+  .logpane-head button{background:none; border:1px solid #334155; color:#94a3b8;
+    border-radius:6px; padding:2px 8px; font-size:.7rem; cursor:pointer;}
+  .logpane-body{max-height:120px; overflow-y:auto; padding:.5rem .8rem; font-size:.72rem; line-height:1.7;}
+  .log-line{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .log-ts{color:#475569;}
+  .log-nav{color:#34d399;}
+  .log-variant{color:#60a5fa;}
+  .log-role{color:#94a3b8;}
+  .log-state{color:#fbbf24;}
+
+  @media(max-width:820px){
+    .controls,.logpane{position:static; width:auto; max-width:100%; margin:1rem 1.5rem;}
+    body{padding-bottom:1rem;}
+    .dept-row--top,.dept-row--bottom{grid-template-columns:1fr; max-width:100%;}
+  }
+</style>
+</head>
+<body>
+
+  <!-- App nav mock -->
+  <div class="appnav">
+    <span class="logo">🏗️ CLMC</span>
+    <div class="navlinks">
+      <span>Home</span><span>Clients</span><span>Projects</span><span>Services</span><span>Procurement</span><span>Finance</span>
+    </div>
+    <div class="spacer"></div>
+    <span class="bell">🔔<span class="bell-badge">4</span></span>
+  </div>
+
+  <!-- Variant switcher -->
+  <div class="switcher">
+    <span class="sw-title">Hero concept</span>
+    <button class="sw-btn" data-v="A" onclick="setVariant('A')">A · Brand Banner</button>
+    <button class="sw-btn" data-v="B" onclick="setVariant('B')">B · Action Center</button>
+    <button class="sw-btn" data-v="C" onclick="setVariant('C')">C · Ops Pulse</button>
+    <button class="sw-btn" data-v="D" onclick="setVariant('D')">D · Hybrid</button>
+    <div class="sw-pitch" id="swPitch"></div>
+  </div>
+
+  <!-- Page -->
+  <div class="page">
+    <div id="heroMount"></div>
+
+    <div class="section-label">Departments</div>
+    <div class="dept-cards">
+      <div class="dept-row dept-row--top">
+        <div class="nav-card" onclick="navTo('#/clients')"><div class="nav-card-icon">📋</div><h3>Clients</h3><p>Records, contacts, engagement history</p></div>
+        <div class="nav-card" onclick="navTo('#/projects')"><div class="nav-card-icon">🏗️</div><h3>Projects</h3><p>Budgets, Gantt schedules, financials</p></div>
+        <div class="nav-card" onclick="navTo('#/services')"><div class="nav-card-icon">🔧</div><h3>Services</h3><p>Recurring contracts and work tracking</p></div>
+      </div>
+      <div class="dept-row dept-row--bottom">
+        <div class="nav-card" onclick="navTo('#/procurement')"><div class="nav-card-icon">🛒</div><h3>Procurement</h3><p>MRFs, suppliers, orders, RFPs</p></div>
+        <div class="nav-card" onclick="navTo('#/finance')"><div class="nav-card-icon">💰</div><h3>Finance</h3><p>PRs, payables, collectibles, RFPs</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="controls-head">Demo Controls <span class="tag">spike 028</span></div>
+    <div class="controls-body">
+      <div class="ctrl-field">
+        <label>Your name (greeting)</label>
+        <input id="ctrlName" value="Reuel" oninput="state.name=this.value; render()">
+      </div>
+      <div class="ctrl-field">
+        <label>Logged-in role</label>
+        <select id="ctrlRole" onchange="state.role=this.value; logRole(); render()">
+          <option value="super_admin">Super Admin</option>
+          <option value="operations_admin">Operations Admin</option>
+          <option value="finance">Finance</option>
+          <option value="services_admin">Services Admin</option>
+          <option value="procurement_staff">Procurement Staff</option>
+        </select>
+      </div>
+      <div class="ctrl-field">
+        <label>Time of day</label>
+        <div class="seg" id="segTod">
+          <button data-tod="morning" class="on" onclick="setTod('morning')">Morning</button>
+          <button data-tod="afternoon" onclick="setTod('afternoon')">Noon</button>
+          <button data-tod="evening" onclick="setTod('evening')">Eve</button>
+        </div>
+      </div>
+      <div class="ctrl-field">
+        <label>Day state</label>
+        <div class="seg" id="segState">
+          <button data-st="busy" class="on" onclick="setDayState('busy')">Busy day</button>
+          <button data-st="quiet" onclick="setDayState('quiet')">All caught up</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log pane -->
+  <div class="logpane">
+    <div class="logpane-head"><span>EVENT LOG</span><button onclick="clearLog()">Clear</button></div>
+    <div class="logpane-body" id="logBody"></div>
+  </div>
+
+<script>
+/* =========================================================
+   Spike 028 — Home Hero Concepts
+   Four hero directions for the CLMC landing page, switchable live.
+   All numbers are MOCK. In production they come from the same
+   Firestore listeners home.js already runs (mrfs/prs/pos/proposals/
+   collectibles) + getCurrentUser().full_name for the greeting.
+   ========================================================= */
+
+const state = { variant:'B', role:'super_admin', name:'Reuel', tod:'morning', day:'busy' };
+
+const ROLE_LABEL = {
+  super_admin:'Super Admin', operations_admin:'Operations Admin',
+  finance:'Finance', services_admin:'Services Admin', procurement_staff:'Procurement Staff'
+};
+
+const PITCH = {
+  A:'<b>Pretty, on-brand, time-aware</b> — but it does no work. The honest "we tried the banner" exhibit to show the bosses.',
+  B:'<b>Turns the landing page into a daily launchpad.</b> Every tile is a real, role-aware deep link to whatever needs you.',
+  C:'<b>Executive-grade health band.</b> Reads as a hero, but is actually an at-a-glance operations dashboard.',
+  D:'<b>Greeting polish + condensed pulse + one attention callout.</b> Boss-friendly surface, operator-friendly substance.'
+};
+
+// Pulse KPIs (always-on health) per role
+const PULSE = {
+  super_admin:[
+    {value:'12',label:'Active Projects',tone:'primary'},
+    {value:'₱4.2M',label:'Pipeline Value',tone:'primary'},
+    {value:'₱880K',label:'Outstanding',tone:'warning'},
+    {value:'8',label:'In-flight Procurement',tone:'primary'},
+  ],
+  operations_admin:[
+    {value:'9',label:'Active Projects',tone:'primary'},
+    {value:'₱3.1M',label:'Pipeline Value',tone:'primary'},
+    {value:'1',label:'Project at Risk',tone:'danger'},
+    {value:'4',label:'Pending MRFs',tone:'primary'},
+  ],
+  finance:[
+    {value:'₱880K',label:'Outstanding',tone:'warning'},
+    {value:'₱340K',label:'Overdue',tone:'danger'},
+    {value:'2',label:'PRs to Review',tone:'primary'},
+    {value:'8',label:'POs In-flight',tone:'primary'},
+  ],
+  services_admin:[
+    {value:'5',label:'Active Services',tone:'primary'},
+    {value:'₱1.1M',label:'Pipeline Value',tone:'primary'},
+    {value:'1',label:'Renewal Due',tone:'warning'},
+    {value:'3',label:'Pending MRFs',tone:'primary'},
+  ],
+  procurement_staff:[
+    {value:'4',label:'MRFs to Process',tone:'warning'},
+    {value:'8',label:'POs In-flight',tone:'primary'},
+    {value:'2',label:'Open RFPs',tone:'primary'},
+    {value:'15',label:'Suppliers',tone:'primary'},
+  ],
+};
+
+// Action tiles ("needs you") per role
+const ACTIONS = {
+  super_admin:[
+    {count:3,label:'Proposal approvals',sub:'awaiting your decision',tone:'warning',icon:'📋',hash:'#/ → proposals queue'},
+    {count:5,label:'Overdue collectibles',sub:'past due date',tone:'danger',icon:'💰',hash:'#/finance/collectibles?filter=overdue'},
+    {count:2,label:'PRs to review',sub:'pending finance',tone:'primary',icon:'🧾',hash:'#/finance/approvals'},
+    {count:1,label:'Project at risk',sub:'behind schedule',tone:'danger',icon:'🏗️',hash:'#/projects?filter=at-risk'},
+  ],
+  operations_admin:[
+    {count:3,label:'Proposal approvals',sub:'awaiting your decision',tone:'warning',icon:'📋',hash:'#/ → proposals queue'},
+    {count:1,label:'Project at risk',sub:'behind schedule',tone:'danger',icon:'🏗️',hash:'#/projects?filter=at-risk'},
+    {count:4,label:'Pending MRFs',sub:'project requests',tone:'primary',icon:'📦',hash:'#/procurement/mrfs'},
+  ],
+  finance:[
+    {count:2,label:'PRs to review',sub:'pending approval',tone:'warning',icon:'🧾',hash:'#/finance/approvals'},
+    {count:1,label:'TR to review',sub:'pending approval',tone:'warning',icon:'🚚',hash:'#/finance/approvals'},
+    {count:5,label:'Overdue collectibles',sub:'past due date',tone:'danger',icon:'💰',hash:'#/finance/collectibles?filter=overdue'},
+    {count:8,label:'POs in-flight',sub:'awaiting delivery',tone:'primary',icon:'📦',hash:'#/finance/pos'},
+  ],
+  services_admin:[
+    {count:2,label:'Service proposals',sub:'awaiting your decision',tone:'warning',icon:'📋',hash:'#/ → proposals queue'},
+    {count:1,label:'Contract renewal',sub:'due this month',tone:'warning',icon:'🔧',hash:'#/services'},
+    {count:3,label:'Pending MRFs',sub:'service requests',tone:'primary',icon:'📦',hash:'#/procurement/mrfs'},
+  ],
+  procurement_staff:[
+    {count:4,label:'MRFs to process',sub:'need PR/PO',tone:'warning',icon:'📦',hash:'#/procurement/mrfs'},
+    {count:8,label:'POs in-flight',sub:'track delivery',tone:'primary',icon:'🚚',hash:'#/procurement/records'},
+    {count:2,label:'Open RFPs',sub:'awaiting quotes',tone:'primary',icon:'🧾',hash:'#/procurement/records'},
+  ],
+};
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const greetWord = t => t==='morning'?'Good morning':t==='afternoon'?'Good afternoon':'Good evening';
+const greetEmoji = t => t==='morning'?'☀️':t==='afternoon'?'⛅':'🌙';
+
+function dateStr(){
+  try{
+    return new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  }catch(e){ return 'Today'; }
+}
+
+function ctx(){
+  const actions = state.day==='quiet' ? [] : (ACTIONS[state.role] || []);
+  return {
+    name: state.name || 'there',
+    role: state.role,
+    greeting: greetWord(state.tod),
+    emoji: greetEmoji(state.tod),
+    date: dateStr(),
+    pulse: PULSE[state.role] || [],
+    actions,
+    calm: actions.length === 0
+  };
+}
+
+/* ---------- Variant renderers ---------- */
+
+function renderA(c){
+  return `
+  <div class="hero-band hero-band--brand">
+    <div class="brand-logo">🏗️</div>
+    <h1 class="brand-name">CLMC ENGINEERING</h1>
+    <p class="brand-tagline">Building Excellence, Managed Well</p>
+    <p class="brand-greeting">${c.greeting}, ${esc(c.name)} ${c.emoji}</p>
+  </div>`;
+}
+
+function actionTile(t){
+  return `
+    <button class="action-tile action-tile--${t.tone}" onclick="navTo('${esc(t.hash)}')">
+      <div class="action-tile-icon">${t.icon}</div>
+      <div class="action-tile-count">${t.count}</div>
+      <div class="action-tile-label">${esc(t.label)}</div>
+      <div class="action-tile-sub">${esc(t.sub)} →</div>
+    </button>`;
+}
+
+function renderB(c){
+  const tiles = c.calm
+    ? `<div class="caught-up">✓ You're all caught up — nothing needs your attention right now.</div>`
+    : c.actions.map(actionTile).join('');
+  return `
+  <div class="hero-band hero-band--action">
+    <div class="hero-greet-row">
+      <h1 class="hero-greet">${c.greeting}, ${esc(c.name)} ${c.emoji}</h1>
+      <p class="hero-sub">Here's what needs you today · ${c.date} · ${ROLE_LABEL[c.role]}</p>
+    </div>
+    <div class="action-tiles">${tiles}</div>
+  </div>`;
+}
+
+function renderC(c){
+  const kpis = c.pulse.map(k =>
+    `<div class="pulse-kpi">
+       <div class="pulse-kpi-value pulse-kpi-value--${k.tone}">${esc(k.value)}</div>
+       <div class="pulse-kpi-label">${esc(k.label)}</div>
+     </div>`
+  ).join('<div class="pulse-sep"></div>');
+  return `
+  <div class="hero-band hero-band--pulse">
+    <div class="pulse-head">
+      <span class="pulse-title">CLMC · Operations Pulse</span>
+      <span class="pulse-date">${c.greeting}, ${esc(c.name)} · ${c.date}</span>
+    </div>
+    <div class="pulse-kpis">${kpis}</div>
+  </div>`;
+}
+
+function renderD(c){
+  const condensed = c.pulse.slice(0,3)
+    .map(k => `<b>${esc(k.value)}</b> ${esc(k.label).toLowerCase()}`)
+    .join('<span class="dot">·</span>');
+
+  let attention;
+  if (c.calm){
+    attention = `
+      <div class="hybrid-attention calm">
+        <span class="hybrid-attention-text">✓ You're all caught up — nothing needs you right now.</span>
+      </div>`;
+  } else {
+    const top = c.actions.slice(0,3)
+      .map(a => `${a.count} ${a.label.toLowerCase()}`).join(' · ');
+    const first = c.actions[0];
+    attention = `
+      <div class="hybrid-attention">
+        <span class="hybrid-attention-text">⚠ Needs you: ${esc(top)}</span>
+        <span class="spacer"></span>
+        <button class="btn btn-primary" onclick="navTo('${esc(first.hash)}')">Review →</button>
+      </div>`;
+  }
+  return `
+  <div class="hero-band hero-band--hybrid">
+    <div class="hybrid-top">
+      <h1 class="hybrid-greet">🏗️ ${c.greeting}, ${esc(c.name)}</h1>
+      <span class="hybrid-date">${c.emoji} ${c.date}</span>
+    </div>
+    <div class="hybrid-pulse">${condensed}</div>
+    ${attention}
+  </div>`;
+}
+
+const RENDERERS = { A:renderA, B:renderB, C:renderC, D:renderD };
+
+/* ---------- Wiring ---------- */
+
+function render(){
+  const c = ctx();
+  document.getElementById('heroMount').innerHTML = RENDERERS[state.variant](c);
+  document.getElementById('swPitch').innerHTML = PITCH[state.variant];
+  document.querySelectorAll('.sw-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.v === state.variant));
+}
+
+function setVariant(v){
+  state.variant = v;
+  log(`variant → ${v} (${({A:'Brand Banner',B:'Action Center',C:'Ops Pulse',D:'Hybrid'})[v]})`, 'variant');
+  render();
+}
+function setTod(t){
+  state.tod = t;
+  document.querySelectorAll('#segTod button').forEach(b => b.classList.toggle('on', b.dataset.tod===t));
+  render();
+}
+function setDayState(s){
+  state.day = s;
+  document.querySelectorAll('#segState button').forEach(b => b.classList.toggle('on', b.dataset.st===s));
+  log(`day state → ${s==='quiet'?'all caught up (empty state)':'busy day'}`, 'state');
+  render();
+}
+function logRole(){ log(`role → ${ROLE_LABEL[state.role]}`, 'role'); }
+
+/* ---------- Log pane ---------- */
+function nowTs(){ try{ return new Date().toLocaleTimeString('en-US',{hour12:false}); }catch(e){ return '--:--:--'; } }
+function log(msg, kind){
+  const body = document.getElementById('logBody');
+  const cls = kind==='nav'?'log-nav':kind==='variant'?'log-variant':kind==='role'?'log-role':kind==='state'?'log-state':'';
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-ts">${nowTs()}</span> <span class="${cls}">${esc(msg)}</span>`;
+  body.insertBefore(line, body.firstChild);
+}
+function navTo(hash){ log(`navigate → ${hash}`, 'nav'); }
+function clearLog(){ document.getElementById('logBody').innerHTML=''; }
+
+/* ---------- Boot ---------- */
+log('spike 028 ready — switch concepts, roles, and day-state to compare', 'variant');
+render();
+</script>
+</body>
+</html>
