@@ -749,10 +749,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 20260531-mbl | Phase 86.12 UAT follow-up — multi-baseline selector + Set/Clear toggle in project-plan.js. loadBaseline → loadBaselines (all docs, ordered desc), _baselines[] + _activeBaselineId state, #baselineSelect + #baselineToggleBtn toolbar, toggleBaseline/selectBaseline/clearBaseline window functions. Clear hides overlay without deleting Firestore docs. | 2026-06-01 | 0d39f80 | UAT approved 2026-06-01 | [20260531-mbl-multi-baseline-selector-toggle](.planning/quick/20260531-mbl-multi-baseline-selector-toggle/) |
 | 20260601-bnm | Phase 86.12 polish — prompt user for baseline name when clicking Set Baseline; default Baseline N, Cancel aborts, empty falls back, 60-char cap. saveBaseline() only — no rules/schema changes. | 2026-06-01 | cfcc620 | Awaiting browser UAT | [20260601-bnm-baseline-naming](.planning/quick/20260601-bnm-baseline-naming/) |
 | 260602-q50 | Phase 97.2 UAT follow-up: iteration indicator on load, save overwrite vs save-as, delete baseline | 2026-06-02 | feeb81c | Awaiting browser UAT | [260602-q50-phase-97-2-uat-follow-up-iteration-indic](.planning/quick/260602-q50-phase-97-2-uat-follow-up-iteration-indic/) |
+| 260615-eo0 | Apply Projects Financial-Summary card layout to Services for Phase 104 parity (grouped tinted card-grid: Budget/Payables/Collectibles) | 2026-06-15 | f090fe8 | Awaiting browser UAT | [260615-eo0-apply-projects-financial-summary-card-la](.planning/quick/260615-eo0-apply-projects-financial-summary-card-la/) |
 
 ## Session Continuity
 
-Last activity: 2026-06-10
+Last activity: 2026-06-15 - Completed quick task 260615-eo0: Services Financial-Summary card-grid parity (Phase 104)
 Last session: 2026-06-13T09:26:05.877Z
 Stopped at: Phase 104 context gathered
 Resume file: .planning/phases/104-service-detail-parity/104-CONTEXT.md
