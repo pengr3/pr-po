@@ -45,4 +45,9 @@
 
 ## Phase 105 — Service Plan (Gantt) Parity
 **Goal**: Mirror the project plan / Gantt subsystem (`project-plan.js`, ~4,800 lines; Phases 86 → 86.12) to services. Largest parity piece — requires a new service task data model (services have no `project_tasks` equivalent today) and a `#/services/{code}/plan` route.
-**Status**: 🔲 DEFERRED — placeholder; scope after Phase 104 ships. Plan via `/gsd-discuss-phase 105` → `/gsd-plan-phase 105` when prioritized.
+**Plans**: 3 plans / 3 waves
+Plans:
+- [ ] 105-01-PLAN.md — firestore.rules `match /service_tasks/{taskId}` two-tier block (mirror project_tasks, services roles) + `app/service-task-id.js` `generateServiceTaskId` (TASK-{service_code}-{seq}) + dev rules deploy [D-01/D-02/D-03/D-06] [Wave 1]
+- [ ] 105-02-PLAN.md — `app/views/service-plan.js` copy-adapt of project-plan.js (id swap; remove deferred baseline 86.12 + iterations 97) + router `#/services/{code}/plan` wiring [D-01/D-03/D-04/D-05] [Wave 2, dep 01]
+- [ ] 105-03-PLAN.md — service-detail.js "Service Plan" summary card + live service_tasks listener (teardown in init re-init + destroy) + Open Plan CTA (clientless-disabled) [D-01/D-05] [Wave 3, dep 02]
+**Status**: 🔲 PLANNED 2026-06-15 — 3 plans / 3 waves. Copy-then-adapt parity phase (D-01): project plan subsystem stays byte-untouched. W1 rules+ID foundation → W2 service-plan.js view+route (first service_tasks write) → W3 service-detail card. Deferred to 105.1: baseline snapshot + iterations/save-game (D-05). DEV `firebase deploy --only firestore:rules` for UAT; prod deploy rides standing v3.3→main debt.
