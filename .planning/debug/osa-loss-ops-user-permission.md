@@ -9,6 +9,15 @@ fix: "Added 'loss_reason' to the projects ops_user hasOnly() allowlist AND the p
 files_changed: [firestore.rules]
 ---
 
+## UPDATE 2026-06-15 (3) — error persisted on dev AFTER both rule fixes → NOT a rules issue
+- Verified via `firebase_get_security_rules` (firestore): the DEPLOYED dev ruleset contains the `loss_reason` additions (grep: ≥2 occurrences). Rules on clmc-procurement-dev are correct.
+- User confirmed testing on localhost:8000 → dev DB (where fixes are live), yet same permission error.
+- DECISIVE new evidence: console shows `[Router] Unauthenticated access blocked: /projects` + repeated `Tracking Prevention blocked access to storage` (Edge).
+- ROOT CAUSE (revised): the browser session is UNAUTHENTICATED — Edge Tracking Prevention blocks the storage Firebase Auth uses to persist/refresh the token, so `request.auth == null` server-side → every write denied regardless of rules. Reads still render from `persistentLocalCache` (firebase.js), masking the logged-out state.
+- REMEDIATION (no code): disable Tracking Prevention for localhost (or set Edge to Basic / add Firebase auth-domain exceptions), hard-refresh, re-login; or test in Chrome. Then retry Loss.
+- The two firestore.rules field-mask fixes remain correct + necessary (they were genuine latent gaps) and stay; they're just not the cause of THIS persisting error.
+- Status: awaiting user re-test after re-auth. PROD rules deploy still pending.
+
 ## UPDATE 2026-06-15 — second blocker (PATH A)
 First deploy (projects ops_user + loss_reason) fixed PATH B but the SAME error
 persisted → the test project has an OPEN proposal, so submitProjectLoss takes
