@@ -164,7 +164,7 @@ export async function init(activeTab = null, param = null) {
 
     showLoading(true);
     try {
-        // 1. Load the project doc by project_code
+        // 1. Load the service doc by service_code
         const projSnap = await getDocs(query(collection(db, 'services'), where('service_code', '==', serviceCode)));
         if (projSnap.empty) {
             const surface = document.getElementById('planViewSurface');
@@ -178,7 +178,7 @@ export async function init(activeTab = null, param = null) {
         const titleEl = document.getElementById('planTitle');
         if (titleEl) titleEl.textContent = `Plan — ${currentService.service_name || serviceCode}`;
 
-        // 2. Clientless block (D-19) — projects without project_code (Phase 78 deferred-issuance)
+        // 2. Codeless block (D-19) — services without service_code (deferred-issuance)
         if (!currentService.service_code) {
             const tree = document.getElementById('taskGridRail');
             if (tree) {
@@ -191,7 +191,7 @@ export async function init(activeTab = null, param = null) {
             return;
         }
 
-        // 3. Subscribe to project_tasks (project-scoped at JS query layer per D-18)
+        // 3. Subscribe to service_tasks (service-scoped at JS query layer per D-18)
         // __snapshotCount is module-scoped; destroy() resets it alongside __lastViolationFingerprint
         // so the first-snapshot toast suppression and the dedupe fingerprint stay in sync.
         __snapshotCount = 0;
@@ -1131,13 +1131,13 @@ async function handleNewRowCommit(input) {
     if (!input.value.trim()) return;          // re-entry guard
     const name = input.value.trim();
     input.value = '';                          // clear synchronously before any async work
-    if (!currentService?.project_code) {
+    if (!currentService?.service_code) {
         showToast(`This service doesn't have a service code yet.`, 'warning');
         return;
     }
 
     // Derive next task_id from local tasks array (no Firestore round-trip).
-    // Format mirrors generateServiceTaskId(): TASK-{project_code}-{maxSeq+1}.
+    // Format mirrors generateServiceTaskId(): TASK-{service_code}-{maxSeq+1}.
     // Local state is kept fresh by onSnapshot; rapid consecutive Enters see each other's
     // optimistic appends, so seq numbers stay monotonic without server queries.
     const maxSeq = tasks.reduce((m, t) => {
@@ -1425,7 +1425,7 @@ async function gridOutdentTask(taskId) {
 async function gridInsertRowAbove(taskId) {
     const t = tasks.find(x => x.task_id === taskId);
     if (!t) return;
-    if (!currentService?.project_code) {
+    if (!currentService?.service_code) {
         showToast(`This service doesn't have a service code yet.`, 'warning');
         return;
     }
@@ -1559,7 +1559,7 @@ function gridCopyRows(taskIds) {
 // indent level as afterTaskId. Children of copied tasks keep their relative nesting.
 async function gridPasteRows(afterTaskId) {
     if (_clipboardTasks.length === 0) return;
-    if (!currentService?.project_code) {
+    if (!currentService?.service_code) {
         showToast(`This service doesn't have a service code yet.`, 'warning');
         return;
     }
@@ -3564,7 +3564,7 @@ async function applyFsAutoSchedule(successorId, predecessorId) {
 function exportGanttPDF() {
     document.getElementById('gantt-print-frame')?.remove();
     const dateStr = new Date().toLocaleString();
-    const projectName = currentService?.project_name || serviceCode || 'Project';
+    const projectName = currentService?.service_name || serviceCode || 'Service';
 
     // Build task summary table rows in tree display order (depth-first, matches live grid)
     const tableRows = flattenTreeDepthFirst(tasks).map(t => {
