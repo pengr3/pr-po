@@ -393,11 +393,19 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted (tracks their MRFs); services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user list is unrestricted (mirrors the mrfs/pos/transport_requests collections).
+      // renderPRPORecords() runs a per-MRF-row PR fetch query(collection(db,'prs'),
+      // where('mrf_id','==', mrf.mrf_id)) at procurement.js:5797 with no service_code constraint.
+      // Firestore authorizes list queries by their CONSTRAINTS, not the returned docs, so an unscoped
+      // query is denied wholesale when the rule requires isAssignedToService(service_code) — this spammed
+      // "Error fetching PRs for MRF-XXXX" once per MRF row (procurement.js:5824, in its own try/catch so
+      // it did not abort the render). PR metadata is not sensitive, services_user can already 'get' any
+      // single PR doc, and the client re-scopes records by assigned services. WRITES remain blocked for
+      // services_user (see create/update/delete below).
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: super_admin, operations_admin, procurement
@@ -417,11 +425,18 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted; services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user list is unrestricted (mirrors the mrfs collection). loadPRPORecords()
+      // runs an unscoped getDocs(collection(db,'pos')) at procurement.js:5420 to build the PO
+      // scoreboards, with no service_code constraint. Firestore authorizes list queries by their
+      // CONSTRAINTS, not the returned docs, so an unscoped query is denied wholesale when the rule
+      // requires isAssignedToService(service_code) — which aborted the entire MRF Records render
+      // (the getDocs had no inner try/catch, so it hit the catch at procurement.js:5441). PO metadata
+      // is not sensitive, services_user can already 'get' any single PO doc, and the client re-scopes
+      // records by assigned services. WRITES remain blocked for services_user (see below).
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: super_admin, finance (Finance issues POs after approving PRs)
@@ -441,11 +456,18 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user list is unrestricted (mirrors the mrfs/pos collections). The procurement
+      // view runs collection-wide TR queries that omit a service_code constraint — e.g. the Rejected
+      // TR listener query(transport_requests, where('finance_status','==','Rejected')) at
+      // procurement.js:3033, started unconditionally in init(). Firestore authorizes list queries by
+      // their CONSTRAINTS, not the returned docs, so an unscoped query is denied wholesale when the
+      // rule requires isAssignedToService(service_code). TR metadata is not sensitive, services_user
+      // can already 'get' any single TR doc, and the client re-scopes results by assigned services.
+      // WRITES remain blocked for services_user (see update/delete below).
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: super_admin, dept admins, dept users, procurement
