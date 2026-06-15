@@ -866,10 +866,14 @@ function renderServiceDetail() {
 
                     ${renderServiceDlpFinanceBar()}
 
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Budget ${currentService.budget ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentService.budget)}</small>` : ''}</label>
+                    <!-- Phase 104 parity (quick 260615-eo0) — grouped, tinted card-grid mirroring project-detail.js:704-771 -->
+                    <!-- Budget group -->
+                    <div style="font-size:0.65rem;font-weight:700;color:#1a73e8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Budget</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-bottom:0.4rem;">
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Budget ${currentService.budget ? `<small style="color: #94a3b8; font-weight: normal; text-transform: none; letter-spacing: 0;">PHP ${formatCurrency(currentService.budget)}</small>` : ''}</label>
                             <input type="number"
+                                   class="detail-field"
                                    data-field="budget"
                                    value="${currentService.budget || ''}"
                                    onblur="window.saveServiceField('budget', this.value)"
@@ -878,9 +882,10 @@ function renderServiceDetail() {
                                    step="0.01"
                                    ${!showEditControls ? 'disabled' : ''}>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Contract Cost ${currentService.contract_cost ? `<small style="color: #64748b; font-weight: normal;">PHP ${formatCurrency(currentService.contract_cost)}</small>` : ''}</label>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Contract Cost ${currentService.contract_cost ? `<small style="color: #94a3b8; font-weight: normal; text-transform: none; letter-spacing: 0;">PHP ${formatCurrency(currentService.contract_cost)}</small>` : ''}</label>
                             <input type="number"
+                                   class="detail-field"
                                    data-field="contract_cost"
                                    value="${currentService.contract_cost || ''}"
                                    onblur="window.saveServiceField('contract_cost', this.value)"
@@ -889,47 +894,51 @@ function renderServiceDetail() {
                                    step="0.01"
                                    ${!showEditControls ? 'disabled' : ''}>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Projected Cost</label>
-                            <div style="font-weight: 600; color: #1e293b; font-size: 1.125rem;">
+                        <div style="background:#f0f7ff;border-radius:5px;padding:0.3rem 0.5rem;">
+                            <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Projected Cost</div>
+                            <div style="font-weight:700;color:#1e293b;font-size:0.85rem;">
                                 ${(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) > 0 ? formatCurrency(currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal) : '—'}
                             </div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Budget</label>
+                        <div style="background:#f0f7ff;border-radius:5px;padding:0.3rem 0.5rem;">
+                            <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Remaining Budget</div>
                             ${(() => {
                                 const budget = parseFloat(currentService.budget || 0);
                                 const total = currentServiceExpense.prTotal + currentServiceExpense.poTotal + currentServiceExpense.rfpFeesTotal;
                                 const remaining = budget - total;
                                 const color = remaining >= 0 ? '#059669' : '#ef4444';
                                 return budget > 0
-                                    ? `<div style="font-weight: 600; color: ${color}; font-size: 1.125rem;">${formatCurrency(remaining)}</div>`
-                                    : `<div style="font-weight: 600; color: #64748b; font-size: 1.125rem;">—</div>`;
+                                    ? `<div style="font-weight:700;color:${color};font-size:0.85rem;">${formatCurrency(remaining)}</div>`
+                                    : `<div style="font-weight:700;color:#94a3b8;font-size:0.85rem;">—</div>`;
                             })()}
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Paid</label>
-                            <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
-                                ${formatCurrency(currentServiceExpense.totalPaid)}
-                            </div>
+                    </div>
+
+                    <!-- Payables group -->
+                    <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+                    <div style="font-size:0.65rem;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Payables</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;margin-bottom:0.4rem;">
+                        <div style="background:#fff5f5;border-radius:5px;padding:0.3rem 0.5rem;">
+                            <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Paid</div>
+                            <div style="font-weight:700;color:#059669;font-size:0.85rem;">${formatCurrency(currentServiceExpense.totalPaid)}</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Remaining Payable</label>
-                            <div style="font-weight: 600; color: ${currentServiceExpense.remainingPayable > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
-                                ${formatCurrency(currentServiceExpense.remainingPayable)}
-                            </div>
+                        <div style="background:#fff5f5;border-radius:5px;padding:0.3rem 0.5rem;">
+                            <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Remaining Payable</div>
+                            <div style="font-weight:700;color:${currentServiceExpense.remainingPayable > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentServiceExpense.remainingPayable)}</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Collected</label>
-                            <div style="font-weight: 600; color: #059669; font-size: 1.125rem;">
-                                ${formatCurrency(currentServiceCollectibles.totalCollected)}
-                            </div>
+                    </div>
+
+                    <!-- Collectibles group -->
+                    <div style="border-top:1px solid #f1f5f9;margin:0.4rem 0;"></div>
+                    <div style="font-size:0.65rem;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.35rem;">Collectibles</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;">
+                        <div style="background:#f0fdf4;border-radius:5px;padding:0.3rem 0.5rem;">
+                            <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Collected</div>
+                            <div style="font-weight:700;color:#059669;font-size:0.85rem;">${formatCurrency(currentServiceCollectibles.totalCollected)}</div>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Outstanding</label>
-                            <div style="font-weight: 600; color: ${currentServiceCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'}; font-size: 1.125rem;">
-                                ${formatCurrency(currentServiceCollectibles.remainingCollectible)}
-                            </div>
+                        <div style="background:#f0fdf4;border-radius:5px;padding:0.3rem 0.5rem;">
+                            <div style="font-size:0.65rem;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.1rem;">Outstanding</div>
+                            <div style="font-weight:700;color:${currentServiceCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentServiceCollectibles.remainingCollectible)}</div>
                         </div>
                     </div>
                     <div class="tranche-section-header" style="display:flex;align-items:center;justify-content:space-between;margin-top:1.25rem;margin-bottom:0.5rem;">
