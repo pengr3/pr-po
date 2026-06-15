@@ -10,33 +10,33 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 
 ### Project Management — Gantt & Tasks (PM)
 
-- [ ] **PM-01**: User can create tasks within a project with name, description, start date, end date, and assigned personnel
-- [ ] **PM-02**: User can create task hierarchy — a task may contain subtasks (parent/child relationship), and parent task progress is rolled up from subtasks
-- [ ] **PM-03**: User can set task dependencies (Finish-to-Start: Task B starts after Task A completes)
-- [ ] **PM-04**: User can view all project tasks as an interactive Gantt chart (timeline visualization with bars representing task spans)
-- [ ] **PM-05**: User can update task progress as a percentage complete (0–100) from both the task list and the Gantt view
-- [ ] **PM-06**: User can mark any task as a milestone — Gantt displays milestones with a distinct visual marker (e.g. diamond)
-- [ ] **PM-07**: System auto-calculates project overall progress from task progress weighted by duration; visible on the project detail page
-- [ ] **PM-08**: User can edit task dates inline from the Gantt view (drag bar edges to resize, drag bar body to reschedule)
-- [ ] **PM-09**: User can filter the Gantt view by date range and assigned personnel
-- [ ] **PM-10**: System persists project tasks in Firestore (`project_tasks` collection) with project_id, task_id, parent_task_id, name, description, start_date, end_date, progress, is_milestone, dependencies array, assignees array
+- [x] **PM-01**: User can create tasks within a project with name, description, start date, end date, and assigned personnel
+- [x] **PM-02**: User can create task hierarchy — a task may contain subtasks (parent/child relationship), and parent task progress is rolled up from subtasks
+- [x] **PM-03**: User can set task dependencies (Finish-to-Start: Task B starts after Task A completes)
+- [x] **PM-04**: User can view all project tasks as an interactive Gantt chart (timeline visualization with bars representing task spans)
+- [x] **PM-05**: User can update task progress as a percentage complete (0–100) from both the task list and the Gantt view
+- [x] **PM-06**: User can mark any task as a milestone — Gantt displays milestones with a distinct visual marker (e.g. diamond)
+- [x] **PM-07**: System auto-calculates project overall progress from task progress weighted by duration; visible on the project detail page
+- [x] **PM-08**: User can edit task dates inline from the Gantt view (drag bar edges to resize, drag bar body to reschedule)
+- [x] **PM-09**: User can filter the Gantt view by date range and assigned personnel
+- [x] **PM-10**: System persists project tasks in Firestore (`project_tasks` collection) with project_id, task_id, parent_task_id, name, description, start_date, end_date, progress, is_milestone, dependencies array, assignees array
 - [x] **PM-11**: Firebase Security Rules enforce role-based read/write on `project_tasks` (assigned personnel + project admins read; admins + assignees write progress) — Phase 86-01
 
 ### Notification System — In-App (NOTIF)
 
-- [ ] **NOTIF-01**: User sees a bell icon in the top navigation showing an unread notification count badge
-- [ ] **NOTIF-02**: User can click the bell to open a notification dropdown listing recent notifications (last 10) with type, message, source link, and time
-- [ ] **NOTIF-03**: User can click a notification in the dropdown or history page to navigate to its source record (deep link)
-- [ ] **NOTIF-04**: User can mark an individual notification as read
-- [ ] **NOTIF-05**: User can mark all notifications as read in one click
-- [ ] **NOTIF-06**: User can open a full notification history page (paginated, 20/page) with all notifications including read items
-- [ ] **NOTIF-07**: System creates a notification for the requestor when their MRF is approved or rejected
-- [ ] **NOTIF-08**: System creates notifications for Finance users when a PR/TR or RFP requires their review
-- [ ] **NOTIF-09**: System creates notifications for designated approvers when a proposal is submitted for internal approval
-- [ ] **NOTIF-10**: System creates a notification for the proposal submitter when approval status changes (approved/rejected)
-- [ ] **NOTIF-11**: System creates notifications for assigned personnel when a project's status changes (e.g. → Client Approved, → On-going, → Completed)
-- [ ] **NOTIF-12**: System creates a notification for Super Admin users when a new account registration is pending approval
-- [ ] **NOTIF-13**: System persists notifications in Firestore (`notifications` collection) with user_id (recipient), type, message, link, read flag, created_at; Security Rules ensure each user only reads/writes their own notifications
+- [x] **NOTIF-01**: User sees a bell icon in the top navigation showing an unread notification count badge
+- [x] **NOTIF-02**: User can click the bell to open a notification dropdown listing recent notifications (last 10) with type, message, source link, and time
+- [x] **NOTIF-03**: User can click a notification in the dropdown or history page to navigate to its source record (deep link)
+- [x] **NOTIF-04**: User can mark an individual notification as read
+- [x] **NOTIF-05**: User can mark all notifications as read in one click
+- [x] **NOTIF-06**: User can open a full notification history page (paginated, 20/page) with all notifications including read items
+- [x] **NOTIF-07**: System creates a notification for the requestor when their MRF is approved or rejected
+- [x] **NOTIF-08**: System creates notifications for Finance users when a PR/TR or RFP requires their review
+- [x] **NOTIF-09**: System creates notifications for designated approvers when a proposal is submitted for internal approval
+- [x] **NOTIF-10**: System creates a notification for the proposal submitter when approval status changes (approved/rejected)
+- [x] **NOTIF-11**: System creates notifications for assigned personnel when a project's status changes (e.g. → Client Approved, → On-going, → Completed)
+- [x] **NOTIF-12**: System creates a notification for Super Admin users when a new account registration is pending approval
+- [x] **NOTIF-13**: System persists notifications in Firestore (`notifications` collection) with user_id (recipient), type, message, link, read flag, created_at; Security Rules ensure each user only reads/writes their own notifications
 - [x] **NOTIF-14**: System creates a notification for all active procurement-role users when a new MRF is submitted (broadcast — message references MRF ID and project) — completed Phase 84.1 Plan 01 (2026-05-02)
 - [x] **NOTIF-15**: System creates a notification for the procurement user who created a PR when Finance approves or rejects that PR (recipient = PR `created_by`; message references PR ID and decision) — completed Phase 84.1 Plan 01 retroactive Task 3 (commit f5d9940, 2026-05-02); UAT-validated
 - [x] **NOTIF-16**: System creates a notification for the procurement user who created an RFP when that RFP is marked Paid (recipient = RFP `created_by`; message references RFP ID and PO ID) — completed Phase 84.1 Plan 01 retroactive Task 3 (commit f5d9940, 2026-05-02); UAT-validated
@@ -59,27 +59,27 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 
 ### Proposal Tracking — Full Lifecycle (PROP)
 
-- [ ] **PROP-01**: User can create a proposal record linked to a project with title, description, amount, target client, and version number (v1)
-- [ ] **PROP-02**: User can submit a proposal for internal approval — project status advances to "Proposal for Internal Approval" automatically
-- [ ] **PROP-03**: Designated approvers (Operations Admin / Super Admin) can approve or reject a proposal with mandatory comments — approval advances project to "Proposal Under Client Review", rejection moves it back to "For Revision"
-- [ ] **PROP-04**: System maintains a per-proposal audit trail of all approval decisions (actor, timestamp, action, comment) viewable in the proposal detail
-- [ ] **PROP-05**: User can upload proposal document files (PDF/docx) to Firebase Storage, attached to the proposal record
-- [ ] **PROP-06**: User can upload new versions of a proposal document — prior versions remain accessible, version number auto-increments
-- [ ] **PROP-07**: User can mark a proposal as sent to client and record the send date (system also captures it as an audit-trail entry)
-- [ ] **PROP-08**: User can log client communications on a proposal — entries include date, type (sent / feedback received / revision requested), description, optional attachment
-- [ ] **PROP-09**: User can mark a proposal as Client Approved (advances project to "Client Approved" / "For Mobilization") or Loss (advances project to "Loss")
-- [ ] **PROP-10**: User can view all proposals in a dedicated dashboard inside the Management Tab — grouped by stage, with age-in-stage indicators for items needing attention
-- [ ] **PROP-11**: System persists proposal records in Firestore (`proposals` collection) and proposal documents in Firebase Storage; Security Rules restrict proposal create/edit to Operations Admin + Super Admin, approve/reject to Operations Admin + Super Admin
+- [x] **PROP-01**: User can create a proposal record linked to a project with title, description, amount, target client, and version number (v1)
+- [x] **PROP-02**: User can submit a proposal for internal approval — project status advances to "Proposal for Internal Approval" automatically
+- [x] **PROP-03**: Designated approvers (Operations Admin / Super Admin) can approve or reject a proposal with mandatory comments — approval advances project to "Proposal Under Client Review", rejection moves it back to "For Revision"
+- [x] **PROP-04**: System maintains a per-proposal audit trail of all approval decisions (actor, timestamp, action, comment) viewable in the proposal detail
+- [x] **PROP-05**: User can upload proposal document files (PDF/docx) to Firebase Storage, attached to the proposal record
+- [x] **PROP-06**: User can upload new versions of a proposal document — prior versions remain accessible, version number auto-increments
+- [x] **PROP-07**: User can mark a proposal as sent to client and record the send date (system also captures it as an audit-trail entry)
+- [x] **PROP-08**: User can log client communications on a proposal — entries include date, type (sent / feedback received / revision requested), description, optional attachment
+- [x] **PROP-09**: User can mark a proposal as Client Approved (advances project to "Client Approved" / "For Mobilization") or Loss (advances project to "Loss")
+- [x] **PROP-10**: User can view all proposals in a dedicated dashboard inside the Management Tab — grouped by stage, with age-in-stage indicators for items needing attention
+- [x] **PROP-11**: System persists proposal records in Firestore (`proposals` collection) and proposal documents in Firebase Storage; Security Rules restrict proposal create/edit to Operations Admin + Super Admin, approve/reject to Operations Admin + Super Admin
 
 ### Management Tab — Super Admin Hub (MGMT)
 
-- [ ] **MGMT-01**: Super Admin sees a "Management" tab in the main navigation
-- [ ] **MGMT-02**: Non-Super-Admin users do not see the Management tab — navigation hidden, route blocked at the router level, Firebase Security Rules deny direct collection access
-- [ ] **MGMT-03**: Management tab includes a "Proposal Approval Queue" section showing all proposals currently awaiting internal approval, sorted by oldest-first
-- [ ] **MGMT-04**: Super Admin can take approval actions (approve / reject with comments) directly from the queue (mirrors PROP-03 behaviour from the queue context)
-- [ ] **MGMT-05**: Management tab includes a "Create Engagement" form that auto-routes the new record to either the `projects` collection or the `services` collection (one-time vs recurring) based on the engagement type the user selects
-- [ ] **MGMT-06**: Create Engagement form captures: engagement type (project / one-time service / recurring service), client (optional, supports clientless creation), name, budget, contract cost, initial assigned personnel — and writes a record in the appropriate collection following existing schema
-- [ ] **MGMT-07**: Firebase Security Rules deny all Management Tab back-end operations (proposal queue actions, create-engagement writes) for non-super_admin users
+- [x] **MGMT-01**: Super Admin sees a "Management" tab in the main navigation
+- [x] **MGMT-02**: Non-Super-Admin users do not see the Management tab — navigation hidden, route blocked at the router level, Firebase Security Rules deny direct collection access
+- [x] **MGMT-03**: Management tab includes a "Proposal Approval Queue" section showing all proposals currently awaiting internal approval, sorted by oldest-first
+- [x] **MGMT-04**: Super Admin can take approval actions (approve / reject with comments) directly from the queue (mirrors PROP-03 behaviour from the queue context)
+- [x] **MGMT-05**: Management tab includes a "Create Engagement" form that auto-routes the new record to either the `projects` collection or the `services` collection (one-time vs recurring) based on the engagement type the user selects
+- [x] **MGMT-06**: Create Engagement form captures: engagement type (project / one-time service / recurring service), client (optional, supports clientless creation), name, budget, contract cost, initial assigned personnel — and writes a record in the appropriate collection following existing schema
+- [x] **MGMT-07**: Firebase Security Rules deny all Management Tab back-end operations (proposal queue actions, create-engagement writes) for non-super_admin users
 
 ## Future Requirements
 
@@ -128,32 +128,36 @@ This milestone transforms CLMC from a procurement-focused tool into a full manag
 
 Every active v4.0 requirement is mapped to exactly one phase. 51 requirements total → 51 mappings.
 
+> **Status column updated 2026-06-16** from the v4.0 milestone audit (`.planning/v4.0-MILESTONE-AUDIT.md`). All 51 are delivered in code (0 unsatisfied/orphaned). "Satisfied" = a passing verification/UAT gate exists; "Delivered — verification gap" = code + SUMMARY confirmed but the foundational phase never closed a passing VERIFICATION/UAT (Phase 86 UAT abandoned, Phase 87 UAT pending) — these need browser UAT or a formal accept-with-rationale before the milestone closes clean.
+>
+> **Label drift (behavior delivered, SUMMARY labels swapped vs spec):** PROP-02's submit-for-approval auto-advance is implemented under Phase 87-03's plan; PROP-09's Client-Approved/Loss actions under 87-03 (`submitClientApproved`/`submitLoss`). IDs are covered; only the 87-02/87-05 SUMMARY label bindings drifted.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PM-01 | Phase 86 | Pending |
-| PM-02 | Phase 86 | Pending |
-| PM-03 | Phase 86 | Pending |
-| PM-04 | Phase 86 | Pending |
-| PM-05 | Phase 86 | Pending |
-| PM-06 | Phase 86 | Pending |
-| PM-07 | Phase 86 | Pending |
-| PM-08 | Phase 86 | Pending |
-| PM-09 | Phase 86 | Pending |
-| PM-10 | Phase 86 | Pending |
+| PM-01 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-02 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-03 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-04 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-05 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-06 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-07 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-08 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-09 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
+| PM-10 | Phase 86 | Delivered — verification gap (Phase 86 UAT abandoned); v4.0 audit 2026-06-16 |
 | PM-11 | Phase 86 | 86-01 |
-| NOTIF-01 | Phase 83 | Pending |
-| NOTIF-02 | Phase 83 | Pending |
-| NOTIF-03 | Phase 83 | Pending |
-| NOTIF-04 | Phase 83 | Pending |
-| NOTIF-05 | Phase 83 | Pending |
-| NOTIF-06 | Phase 83 | Pending |
-| NOTIF-07 | Phase 84 | Pending |
-| NOTIF-08 | Phase 84 | Pending |
-| NOTIF-09 | Phase 87 | Pending |
-| NOTIF-10 | Phase 87 | Pending |
-| NOTIF-11 | Phase 84 | Pending |
-| NOTIF-12 | Phase 84 | Pending |
-| NOTIF-13 | Phase 83 | Pending |
+| NOTIF-01 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
+| NOTIF-02 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
+| NOTIF-03 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
+| NOTIF-04 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
+| NOTIF-05 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
+| NOTIF-06 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
+| NOTIF-07 | Phase 84 | Satisfied — Phase 84 UAT 8/8 (v4.0 audit 2026-06-16) |
+| NOTIF-08 | Phase 84 | Satisfied — Phase 84 UAT 8/8 (v4.0 audit 2026-06-16) |
+| NOTIF-09 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| NOTIF-10 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| NOTIF-11 | Phase 84 | Satisfied — Phase 84 UAT 8/8 (v4.0 audit 2026-06-16) |
+| NOTIF-12 | Phase 84 | Satisfied — Phase 84 UAT 8/8 (v4.0 audit 2026-06-16) |
+| NOTIF-13 | Phase 83 | Satisfied — Phase 83 UAT 11/11 (v4.0 audit 2026-06-16) |
 | NOTIF-14 | Phase 84.1 | Validated (Plan 01, 2026-05-02) |
 | NOTIF-15 | Phase 84.1 | Validated (Plan 01 retroactive Task 3, 2026-05-02) |
 | NOTIF-16 | Phase 84.1 | Validated (Plan 01 retroactive Task 3, 2026-05-02) |
@@ -170,24 +174,24 @@ Every active v4.0 requirement is mapped to exactly one phase. 51 requirements to
 | COLL-07 | Phase 85 | Validated (Plans 07 + 08, 2026-05-02) |
 | COLL-08 | Phase 85 | Validated (Plan 06, 2026-05-02 — filter-aware 13-column CSV export with T-85.6-01 CSV-injection mitigation) |
 | COLL-09 | Phase 85 | Validated (Plan 01 firestore.rules + Plan 06 denormalized doc shape Pattern 21, 2026-05-02) |
-| PROP-01 | Phase 87 | Pending |
-| PROP-02 | Phase 87 | Pending |
-| PROP-03 | Phase 87 | Pending |
-| PROP-04 | Phase 87 | Pending |
-| PROP-05 | Phase 87 | Pending |
-| PROP-06 | Phase 87 | Pending |
-| PROP-07 | Phase 87 | Pending |
-| PROP-08 | Phase 87 | Pending |
-| PROP-09 | Phase 87 | Pending |
-| PROP-10 | Phase 87 | Pending |
-| PROP-11 | Phase 87 | Pending |
-| MGMT-01 | Phase 88 | Pending |
-| MGMT-02 | Phase 88 | Pending |
-| MGMT-03 | Phase 89 | Pending |
-| MGMT-04 | Phase 89 | Pending |
-| MGMT-05 | Phase 88 | Pending |
-| MGMT-06 | Phase 88 | Pending |
-| MGMT-07 | Phase 88 | Pending |
+| PROP-01 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-02 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-03 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-04 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-05 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-06 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-07 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-08 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-09 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-10 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| PROP-11 | Phase 87 | Delivered — verification gap (Phase 87 UAT pending); NOTIF wiring fixed 79cafce1; v4.0 audit 2026-06-16 |
+| MGMT-01 | Phase 88 | Satisfied — Phase 88 VERIFICATION (v4.0 audit 2026-06-16) |
+| MGMT-02 | Phase 88 | Satisfied — Phase 88 VERIFICATION (v4.0 audit 2026-06-16) |
+| MGMT-03 | Phase 89 | Satisfied — Phase 89 VERIFICATION (v4.0 audit 2026-06-16) |
+| MGMT-04 | Phase 89 | Satisfied — Phase 89 VERIFICATION (v4.0 audit 2026-06-16) |
+| MGMT-05 | Phase 88 | Satisfied — Phase 88 VERIFICATION (v4.0 audit 2026-06-16) |
+| MGMT-06 | Phase 88 | Satisfied — Phase 88 VERIFICATION (v4.0 audit 2026-06-16) |
+| MGMT-07 | Phase 88 | Satisfied — Phase 88 VERIFICATION (v4.0 audit 2026-06-16) |
 
 **Coverage by phase:**
 
