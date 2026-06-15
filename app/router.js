@@ -12,6 +12,7 @@ const routePermissionMap = {
     '/projects': 'projects',
     '/project-detail': 'projects',  // Detail view uses projects permission
     '/project-plan': 'projects',  // Phase 86 — same gate as project-detail (PM-11 enforced at firestore.rules layer)
+    '/service-plan': 'services',  // Phase 105 — same gate as service-detail (rules enforce at firestore.rules layer)
     '/services': 'services',
     '/service-detail': 'services',  // Detail view uses services permission
     '/procurement': 'procurement',
@@ -71,6 +72,11 @@ const routes = {
         name: 'Project Plan',
         load: () => import('./views/project-plan.js'),
         title: 'Project Plan | CLMC Procurement'
+    },
+    '/service-plan': {
+        name: 'Service Plan',
+        load: () => import('./views/service-plan.js'),
+        title: 'Service Plan | CLMC Procurement'
     },
     '/services': {
         name: 'Services',
@@ -401,6 +407,12 @@ function handleHashChange() {
         return;
     }
 
+    // Phase 105 — handle plan route: #/services/CODE/plan -> navigate to /service-plan with param=CODE
+    if (path === '/services' && tab && subpath === 'plan') {
+        navigate('/service-plan', null, tab);
+        return;
+    }
+
     // Phase 91 — #/mrf-form is retired; redirect to #/procurement/request
     if (path === '/mrf-form') {
         navigate('/procurement', 'request');
@@ -441,6 +453,9 @@ export function handleInitialRoute() {
     } else if (path === '/projects' && tab && subpath === 'plan') {
         // Phase 86 — initial-load branch for #/projects/CODE/plan
         navigate('/project-plan', null, tab);
+    } else if (path === '/services' && tab && subpath === 'plan') {
+        // Phase 105 — initial-load branch for #/services/CODE/plan
+        navigate('/service-plan', null, tab);
     } else if (path === '/mrf-form') {
         // Phase 91 — #/mrf-form is retired; redirect to #/procurement/request
         navigate('/procurement', 'request');
