@@ -3913,6 +3913,105 @@ function attachWindowFunctions() {
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
     };
+    // OSA-LOSS-01 — dual-path submitProjectLoss writer
+    window.submitProjectLoss = async function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        // Defense in depth: re-check gate
+        const cu = window.getCurrentUser?.();
+        const _uid = cu?.uid;
+        const _role = cu?.role || '';
+        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+        const _assignedRoles = ['operations_user', 'services_user'];
+        const _personnel = currentProject.personnel_user_ids || [];
+        const _canDrive = _adminRoles.includes(_role)
+            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
+        const _status = currentProject.project_status || 'For Inspection';
+        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+            showToast('Permission denied.', 'error');
+            return;
+        }
+        // Validate reason — 10-char minimum (mirrors proposal-modal.js ~L1230)
+        const reason = (document.getElementById('projectLossReason')?.value || '').trim();
+        if (reason.length < 10) {
+            const errEl = document.getElementById('projectLossReasonError');
+            if (errEl) {
+                errEl.textContent = 'Loss Reason is required (minimum 10 characters).';
+                errEl.style.display = 'block';
+            }
+            return;
+        }
+        showLoading(true);
+        try {
+            // Detect open proposal: status NOT in { 'client_approved', 'loss' }
+            const propSnap = await getDocs(query(collection(db, 'proposals'), where('project_id', '==', projectId)));
+            const openProposalDoc = propSnap.docs.find(d => {
+                const s = d.data().status;
+                return s !== 'client_approved' && s !== 'loss';
+            });
+
+            if (openProposalDoc) {
+                // PATH A — open proposal exists: use canonical batch transition (atomic project + proposal update)
+                const proposal = { id: openProposalDoc.id, ...openProposalDoc.data() };
+                await _applyProposalStateTransition({
+                    proposal,
+                    newStatus: 'loss',
+                    newProjectStatus: 'Loss',
+                    auditAction: 'LOSS_RECORDED',
+                    auditComment: reason,
+                    extraProposalFields: { loss_reason: reason }
+                });
+                // _applyProposalStateTransition writes project_status/status_changed_at/updated_at
+                // but NOT loss_reason to the project doc — add it now for direct-stage parity
+                await updateDoc(doc(db, 'projects', projectId), { loss_reason: reason, updated_at: new Date().toISOString() });
+                // Refresh proposal card to reflect loss state
+                loadProposalCard(projectId, currentProject.parent_collection || 'projects');
+            } else {
+                // PATH B — no open proposal: write project doc directly in one atomic updateDoc
+                const oldStatus = currentProject.project_status ?? null;
+                await updateDoc(doc(db, 'projects', projectId), {
+                    project_status: 'Loss',
+                    loss_reason: reason,
+                    status_changed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+                // Mirror saveField project_status side-effects (fire-and-forget)
+                recordEditHistory(projectId, 'update', [{ field: 'project_status', old_value: oldStatus, new_value: 'Loss' }])
+                    .catch(err => console.error('[ProjectDetail] submitProjectLoss recordEditHistory failed:', err));
+                // NOTIF-11: notify assigned personnel of status change to Loss
+                const recipients = (currentProject.personnel_user_ids || []).filter(Boolean);
+                if (recipients.length > 0) {
+                    const projectLink = currentProject.project_code
+                        ? `#/projects/detail/${currentProject.project_code}`
+                        : '#/projects';
+                    createNotificationForUsers({
+                        user_ids: recipients,
+                        type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                        message: `Project "${currentProject.project_name}" status changed to: Loss`,
+                        link: projectLink,
+                        source_collection: 'projects',
+                        source_id: currentProject.project_code || projectId,
+                        object_name: currentProject.project_name || '',
+                        actor_name: cu?.full_name || 'System'
+                    }).catch(err => console.error('[ProjectDetail] submitProjectLoss NOTIF-11 failed:', err));
+                }
+            }
+
+            // Both paths: audit entry + activity feed entry
+            addProjectAuditEntry(projectId, 'LOSS_RECORDED', cu?.uid, cu?.full_name, reason)
+                .catch(err => console.error('[ProjectDetail] submitProjectLoss audit entry failed:', err));
+            _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project marked as Loss by ${cu?.full_name || 'Unknown'}` })
+                .catch(err => console.error('[ProjectDetail] submitProjectLoss activity entry failed:', err));
+
+            document.getElementById('projectLossModal')?.remove();
+            showToast('Project marked as Loss.', 'success');
+            // onSnapshot listener re-renders the detail page automatically
+        } catch (err) {
+            console.error('[ProjectDetail] submitProjectLoss failed:', err);
+            showToast(err?.message || 'Failed to record loss. Please try again.', 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
     // Phase 102 Plan 04 — Finance-only Record Release (direct write of retention_released_at; D-03/D-15/D-21)
     window.recordRetentionRelease = async function(projectId) {
         if (!currentProject || currentProject.id !== projectId) return;
