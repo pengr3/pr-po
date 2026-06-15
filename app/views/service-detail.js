@@ -1796,6 +1796,23 @@ async function confirmProposalInlineSubmit(proposalDocId) {
                 auditAction: 'SUBMITTED',
                 auditComment: null
             });
+            // NOTIF-09 (C1) — fan-out to approvers, parity with proposal-modal submitProposalForApproval
+            try {
+                const _actorName = window.getCurrentUser?.()?.full_name || 'Unknown';
+                await createNotificationForRoles({
+                    roles: ['super_admin', 'operations_admin'],
+                    type: NOTIFICATION_TYPES.PROPOSAL_SUBMITTED,
+                    message: `Proposal ${proposal.title} submitted for approval by ${_actorName}`,
+                    link: `#/`,
+                    source_collection: 'proposals',
+                    source_id: proposal.proposal_id,
+                    object_name: proposal.title,
+                    actor_name: _actorName,
+                    excludeActor: true
+                });
+            } catch (notifErr) {
+                console.error('[ServiceDetail] NOTIF-09 (inline submit) failed:', notifErr);
+            }
             document.getElementById('proposal-inline-submit-modal')?.remove();
             showToast('Proposal submitted for approval.', 'success');
             if (currentServiceDocId) {

@@ -53,6 +53,7 @@ import {
 import {
     createNotification,
     createNotificationForRoles,
+    createNotificationForUsers,
     NOTIFICATION_TYPES
 } from './notifications.js';
 
@@ -991,7 +992,7 @@ async function submitProposalForApproval(proposalDocId) {
                 roles: ['super_admin', 'operations_admin'],
                 type: NOTIFICATION_TYPES.PROPOSAL_SUBMITTED,
                 message: `Proposal ${proposal.title} submitted for approval by ${actorName}`,
-                link: `#/proposals?id=${proposal.proposal_id}`,
+                link: `#/`,  // B1: #/proposals route retired (Phase 87.1 D-02) — proposal surfaces are home sub-tabs
                 source_collection: 'proposals',
                 source_id: proposal.proposal_id,
                 object_name: proposal.title,
@@ -1160,7 +1161,7 @@ async function submitProposalApproval(proposalDocId, mode) {
                     user_id: proposal.created_by,
                     type: NOTIFICATION_TYPES.PROPOSAL_DECIDED,
                     message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
-                    link: `#/proposals?id=${proposal.proposal_id}`,
+                    link: `#/`,  // B1: #/proposals route retired (Phase 87.1 D-02) — proposal surfaces are home sub-tabs
                     source_collection: 'proposals',
                     source_id: proposal.proposal_id,
                     object_name: proposal.title,
@@ -1220,6 +1221,34 @@ async function openLossModal(proposalDocId) {
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
+// NOTIF-11 (audit gap B2) — when a proposal transition drives the parent project/
+// service into a status the NOTIF-11 whitelist covers (Client Approved / Loss here),
+// notify the parent's assigned personnel — mirroring the saveField + Mark-as-Loss
+// NOTIF-11 paths so proposal-driven status changes reach personnel too. Fire-and-forget.
+const NOTIF11_STATUS_WHITELIST = ['Client Approved', 'For Mobilization', 'On-going', 'Completed', 'Loss'];
+async function _notifyParentStatusChange(proposal, newProjectStatus) {
+    if (!NOTIF11_STATUS_WHITELIST.includes(newProjectStatus)) return;
+    // Parent doc (carrying personnel_user_ids) is cached while the detail modal is open.
+    const parent = (_parentDocCache?.doc && _parentDocCache.doc.id === proposal.project_id)
+        ? _parentDocCache.doc : null;
+    const recipients = (parent?.personnel_user_ids || []).filter(Boolean);
+    if (recipients.length === 0) return;
+    const isService = (proposal.parent_collection || 'projects') === 'services';
+    const name = (isService ? parent.service_name : parent.project_name) || proposal.project_name || (isService ? 'Service' : 'Project');
+    const code = (isService ? parent.service_code : parent.project_code) || proposal.project_code;
+    const base = isService ? 'services' : 'projects';
+    await createNotificationForUsers({
+        user_ids: recipients,
+        type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+        message: `${isService ? 'Service' : 'Project'} "${name}" status changed to: ${newProjectStatus}`,
+        link: code ? `#/${base}/detail/${code}` : `#/${base}`,
+        source_collection: base,
+        source_id: code || proposal.project_id,
+        object_name: name,
+        actor_name: window.getCurrentUser?.()?.full_name || 'System'
+    });
+}
+
 async function submitLoss(proposalDocId) {
     const proposal = await _fetchProposalDoc(proposalDocId);
     if (!proposal) { showToast('Proposal not found.', 'error'); return; }
@@ -1245,6 +1274,9 @@ async function submitLoss(proposalDocId) {
             auditComment: reason,         // mirror loss_reason into audit comment
             extraProposalFields: { loss_reason: reason }
         });
+        // NOTIF-11 (B2) — proposal-driven Loss notifies assigned personnel
+        _notifyParentStatusChange(proposal, 'Loss')
+            .catch(err => console.error('[ProposalModal] NOTIF-11 (loss) failed:', err));
 
         const sub = document.getElementById('proposalLossModal');
         if (sub) sub.remove();
@@ -1378,6 +1410,9 @@ async function submitClientApproved(proposalDocId) {
             auditAction: 'CLIENT_APPROVED',
             auditComment: null
         });
+        // NOTIF-11 (B2) — proposal-driven Client Approved notifies assigned personnel
+        _notifyParentStatusChange(proposal, 'Client Approved')
+            .catch(err => console.error('[ProposalModal] NOTIF-11 (client approved) failed:', err));
 
         const sub = document.getElementById('proposalClientApprovedModal');
         if (sub) sub.remove();
