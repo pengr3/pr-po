@@ -1,5 +1,40 @@
 # Project Milestones: CLMC Procurement System
 
+## v4.0 Procurement → Full Management Portal (Shipped: 2026-06-16)
+
+**Delivered:** Transformed CLMC from a procurement tool into a full management portal across five capability areas — native Gantt-based project management, in-app notifications, manual collectibles tracking, end-to-end proposal lifecycle, and a Super-Admin management hub — plus a large UX/polish layer and full project↔service parity.
+
+**Phases completed:** 83–105 (53 phases, ~189 plans)
+
+**Key accomplishments:**
+
+- **Project Management (Gantt/Tasks):** native interactive Gantt on `project_tasks`/`service_tasks` — task hierarchy, Finish-to-Start dependencies, milestones, drag-resize/reschedule, % progress with duration-weighted rollup, baseline snapshots, plan iterations, PDF export; service-plan parity at `#/services/{code}/plan` (Phases 86, 86.1–86.12, 97, 105)
+- **In-app Notifications:** bell/badge/dropdown + paginated history, `notifications` collection, trigger fan-outs across MRF/PR/TR/PO/proposal/registration events with deep-links and per-user security (Phases 83, 83.1, 84, 84.1, 94, 95)
+- **Collectibles Tracking:** Finance sub-tab with filters + CSV, `collectibles` collection with auto-derived status, per-tranche billing-request flow, detail-page financial cards (Phases 85, 99, 99.1–99.3)
+- **Proposal Lifecycle:** `proposals` collection, internal-approval workflow with audit trail, client communication log, document attachments, bidirectional project/service status integration via `_applyProposalStateTransition` (Phases 87, 87.1–87.4, 89, 93.x, 96)
+- **Management hub (Super-Admin):** proposal approval queue + create-engagement form auto-routing to projects/services, realized as role-gated Home sub-tabs (Phases 88, 89)
+- **Portfolio + parity layer:** priority-feed/browse-all portfolio redesign, DLP & retention management, project journal (activity/progress/issues), navigation restructuring, scorecards, RFP fees, auth-page polish, and full service-detail parity with project-detail (Phases 90–104)
+
+**Stats:**
+
+- 53 phases, ~189 plans (phases 83 through 105)
+- ~49 days from milestone start to ship (2026-04-28 → 2026-06-16)
+- 51/51 active requirements delivered (PM×11, NOTIF×20, COLL×9, PROP×11, MGMT×7)
+- New collections: `notifications`, `project_tasks`, `service_tasks`, `collectibles`, `proposals`, `billing_requests` + journal subcollections (activity_entries / progress_updates / issues / audit_log)
+- Audit verdict: `tech_debt` — no code blockers. Two integration blockers (B1 proposal-notif dead links, B2 NOTIF-11 on proposal transitions) found, fixed, and UAT-passed at close; 86/87 verification gap + B3 (Management-as-Home-sub-tabs) formally accepted. See `milestones/v4.0-MILESTONE-AUDIT.md`.
+- Shipped via PR #75 (v3.3 → main, merge `34f65e36`); prod `firestore.rules` deployed + confirmed live.
+
+**Known carry-overs (tracked for v4.1+):**
+
+- Phase 105.1 — service baseline-snapshot + plan-iterations parity (deferred)
+- 86/87 foundational VERIFICATION gates never formally closed (accepted with downstream-production rationale, audit §7.1/7.2)
+- B3 — Management capabilities live as Home sub-tabs vs a discrete Management tab (accepted, audit §7.3); MGMT-FUT-01 may revisit
+- v3.2 deferred items still open: Phase 68.1 (subcon scorecard), Phase 70 rework (cancel-PR approval flow)
+
+**What's next:** No active milestone. Run `/gsd-new-milestone` to plan the next version.
+
+---
+
 ## v3.2 Supplier Search, Proof of Procurement & Payables Tracking (Shipped: 2026-04-28)
 
 **Delivered:** Supplier search, proof-of-procurement document links, full Request-for-Payment / Payables Tracking workflow with cancel + delivery-fee support, Financial Breakdown modal with Payables tab, MRF/Finance mobile card layouts, clientless project creation with deferred code issuance, home dashboard Chart.js visualizations, unified 10-option project/service status, layout fixes for 1366×768 laptops, and a delete cleanup button for rejected MRFs.

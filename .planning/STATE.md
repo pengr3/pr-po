@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: milestone
-status: milestone_complete
-stopped_at: Milestone complete (Phase 105 was final phase)
-last_updated: 2026-06-15T08:02:43.134Z
-last_activity: 2026-06-15
+status: milestone_shipped
+stopped_at: v4.0 shipped 2026-06-16 (merged v3.3 → main PR #75; prod rules live; archived). Run /gsd-new-milestone for next.
+last_updated: 2026-06-16T00:00:00.000Z
+last_activity: 2026-06-16
 progress:
   total_phases: 57
   completed_phases: 53
@@ -18,10 +18,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-28 after v4.0 milestone start)
+See: .planning/PROJECT.md (updated 2026-06-16 after v4.0 ship)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Milestone complete
+**Current focus:** v4.0 shipped — planning next milestone (`/gsd-new-milestone`)
 
 ## Current Position
 

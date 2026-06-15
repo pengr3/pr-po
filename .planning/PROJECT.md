@@ -10,15 +10,13 @@ Projects tab must work — it's the foundation where project name and code origi
 
 ## Current State
 
-**Latest shipped:** v3.2 Supplier Search, Proof of Procurement & Payables Tracking (2026-04-28) — 28 phases, 55 plans, 107/107 requirements satisfied. Major additions: full RFP / Payables Tracking workflow, proof-of-procurement document links, Financial Breakdown modal with Payables tab, Finance + MRF mobile card layouts, clientless project creation, home dashboard Chart.js visualizations, unified 10-option project/service status, and Delete-Rejected-MRFs cleanup.
+**Latest shipped:** v4.0 Procurement → Full Management Portal (2026-06-16) — 53 phases, ~189 plans (phases 83–105), 51/51 active requirements delivered. Transformed CLMC from a procurement tool into a full management portal across five capability areas: native Gantt-based **Project Management** (`project_tasks`/`service_tasks`, dependencies, milestones, duration-weighted progress, baselines, iterations, PDF export, service parity), in-app **Notifications** (bell/dropdown/history + event triggers), manual **Collectibles Tracking** (auto-derived status, billing requests), end-to-end **Proposal Lifecycle** (internal approval, audit trail, client log, project/service status integration), and a Super-Admin **Management hub** (approval queue + create-engagement). Plus portfolio redesign, DLP/retention, project journal, and full project↔service parity. Audit verdict `tech_debt` (no code blockers; 86/87 verification gap + B3 formally accepted). Shipped via PR #75 (v3.3 → main, merge `34f65e36`); prod `firestore.rules` deployed + live.
 
-**Active milestone:** v4.0 — Procurement → Full Management Portal (started 2026-04-28).
+**Active milestone:** none — v4.0 shipped. Run `/gsd-new-milestone` to define the next version (phase numbering continues from 106).
 
-**v4.0 progress (Phase 105 complete, 2026-06-15):** Services reached plan/Gantt parity with projects. New `service_tasks` Firestore collection (two-tier write gates mirroring `project_tasks`) + `generateServiceTaskId` per-service sequential IDs; a full editable `service-plan.js` Gantt surface (copy-adapt of the ~4,800-line `project-plan.js`: critical path, predecessors, milestones, drag-resize/reschedule, copy/paste, multi-select, search, PDF export) at `#/services/{service_code}/plan`; and a Service Plan summary card on `service-detail.js` (live `service_tasks` listener, health/overdue stats, "Open Plan" CTA, 2-col proposal+plan bottom-row layout matching project-detail). The two collection-backed subsystems (baseline 86.12 + iterations 97) were intentionally deferred to a future 105.1. Prod firestore rules deploy rides the standing v3.3→main merge debt (dev rules deployed).
+**Carry-overs to v4.1+:** Phase 105.1 (service baseline + plan iterations); v3.2 deferreds Phase 68.1 (subcon scorecard) + Phase 70 rework (cancel-PR approval flow).
 
-**Prior (Phase 104 complete, 2026-06-13):** `service-detail.js` reached full functional parity with `project-detail.js` — lifecycle accordion, 3-tab activity journal, and DLP/retention surfaces all ported.
-
-See `.planning/MILESTONES.md` for full milestone history and `.planning/changelogs/v3.2.md` for the user-facing release notes.
+See `.planning/MILESTONES.md` for full milestone history and `.planning/milestones/v4.0-MILESTONE-AUDIT.md` for the v4.0 audit + acceptances.
 
 ## Current Milestone: v4.0 Procurement → Full Management Portal
 
@@ -605,4 +603,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-15 — Phase 105 (Service Plan / Gantt Parity) complete. 3/3 plans, verification 14/14, all browser UAT approved. New service_tasks model + editable service Gantt (#/services/{code}/plan) + Service Plan card on service-detail. Three UAT/review fixes applied: incomplete project→service identifier swap in write guards (f4fdc3a), 2-col bottom-row layout parity (1712450), and code-review CR-01 unclosed divs + string leaks (2b7d4cd). Baseline + iterations subsystems deferred to 105.1. Prod rules deploy rides v3.3→main debt.*
+*Last updated: 2026-06-16 — v4.0 Procurement → Full Management Portal SHIPPED (phases 83–105, 51/51 requirements). Merged v3.3 → main (PR #75, `34f65e36`); prod firestore.rules deployed + confirmed live. Audit `tech_debt`: B1/B2/C1 integration blockers fixed + UAT-passed; 86/87 verification gap + B3 (Management-as-Home-sub-tabs) formally accepted (audit §7). Milestone archived to .planning/milestones/v4.0-*. Next: /gsd-new-milestone (phase numbering continues from 106).*
