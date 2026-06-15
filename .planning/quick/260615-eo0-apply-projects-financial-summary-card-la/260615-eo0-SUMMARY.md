@@ -4,7 +4,7 @@ description: Apply Projects Financial-Summary card layout to Services for Phase 
 date: 2026-06-15
 branch: v3.3
 status: complete
-commit: f090fe8
+commit: f090fe8, 686c35e
 files_modified:
   - app/views/service-detail.js
 ---
@@ -45,6 +45,18 @@ Brought the **Services** detail page Financial Summary to visual parity with **P
 - Presentational only — no schema, rules, or data changes. **Browser spot-check recommended**
   (zero-build SPA): open a service detail page and confirm the Financial Summary now shows the
   grouped tinted card grid identical to a project's.
+
+## Follow-up — page-level card layout (commit 686c35e)
+
+First pass (`f090fe8`) fixed only the *internal* Financial Summary tile styling. Side-by-side
+review showed the actual disparity was the **page-level card structure**: `project-detail.js:644–645`
+lays Project Information and Financial Summary **side-by-side in a `display:grid; 1fr 1fr` wrapper**,
+while `service-detail.js` stacked the cards full-width.
+
+Fix: wrapped Card 1 (Service Information) + Card 2 (Financial Summary) in the identical 2-column
+grid (`gap:0.75rem`), dropped each card's individual `margin-bottom`. Card 3 (Status & Assignment)
+remains full-width below — Projects deleted its status card, so this is the closest parity.
+`node --check` PASS; grid wrapper open/close balanced.
 
 ## Notes
 
