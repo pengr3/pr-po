@@ -376,6 +376,10 @@ export async function destroy() {
     delete window.lcStartServiceMobilization;
     delete window.lcStartService;
     delete window.lcMarkServiceComplete;
+    // PVD-LOSS-01 — Mark as Loss teardown
+    delete window.openServiceLossModal;
+    delete window.submitServiceLoss;
+    document.getElementById('serviceLossModal')?.remove();
     _lcOpen = false;
     _lcAttachPending = false;
     // Phase 104 — tranche editor + Record Release window-fn teardown (9 handlers) + state reset
@@ -2485,6 +2489,14 @@ function renderServiceLifecycleCard(service, currentUser) {
     const isComplete = status === 'Completed';
     const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
     const color = _getServiceStatusColor(status);
+    // PVD-LOSS-01: compute canDrive gate (mirrors loadProposalCard shape exactly)
+    const uid = currentUser?.uid;
+    const role = currentUser?.role || '';
+    const adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+    const assignedRoles = ['operations_user', 'services_user'];
+    const canDrive = adminRoles.includes(role)
+        || (assignedRoles.includes(role) && uid && (service.personnel_user_ids || []).includes(uid));
+    const showLossBtn = !['Loss', 'Completed'].includes(status) && canDrive;
     return `<div class="lc-accordion ${isActive ? 'lc-active' : ''} ${isComplete ? 'lc-complete' : ''} ${_lcOpen ? 'open' : ''}" id="lcAccordion">
         <div class="lc-card-header" onclick="window.toggleServiceLifecycleAccordion()">
             <div class="lc-header-left">
@@ -2498,6 +2510,9 @@ function renderServiceLifecycleCard(service, currentUser) {
         </div>
         <div class="lc-track-wrap"><div class="lc-track" id="lcTrack">${buildServiceLifecycleTrack(service)}</div></div>
         <div class="lc-body" id="lcBody"><!-- filled on open / in-place rebuild --></div>
+        ${showLossBtn ? `<div class="lc-footer" style="padding:0.75rem 1rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;">
+            <button class="btn btn-danger" onclick="window.openServiceLossModal('${escapeHTML(service.id)}')">Mark as Loss</button>
+        </div>` : ''}
     </div>`;
 }
 
@@ -3502,6 +3517,144 @@ function attachWindowFunctions() {
             await _addServiceActivityEntry(serviceDocId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
             updateDoc(doc(db, 'services', serviceDocId), { last_activity_at: serverTimestamp() }).catch(err => console.debug('[ServiceDetail] last_activity_at bump non-blocking:', err?.code || err));
         } catch (err) { console.error('[ServiceDetail] lcMarkServiceComplete failed:', err); showToast('Failed to mark service complete.', 'error'); }
+    };
+    // PVD-LOSS-01 — stage-agnostic Mark as Loss modal opener
+    window.openServiceLossModal = function(serviceId) {
+        if (!currentService || currentService.id !== serviceId) return;
+        // Defense in depth: re-check gate (button is gated at render time, but window fn must not trust DOM)
+        const cu = window.getCurrentUser?.();
+        const _uid = cu?.uid;
+        const _role = cu?.role || '';
+        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+        const _assignedRoles = ['operations_user', 'services_user'];
+        const _personnel = currentService.personnel_user_ids || [];
+        const _canDrive = _adminRoles.includes(_role)
+            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
+        const _status = currentService.project_status || 'For Inspection';
+        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+            showToast('Permission denied.', 'error');
+            return;
+        }
+        document.getElementById('serviceLossModal')?.remove();
+        const html = `
+        <div id="serviceLossModal" class="modal" style="display:flex;z-index:1001;">
+            <div class="modal-content" style="max-width:480px;margin:auto;">
+                <div class="modal-header">
+                    <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Mark as Loss</h2>
+                    <button class="modal-close" aria-label="Close" onclick="document.getElementById('serviceLossModal').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:1.5rem;">
+                    <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">This will permanently mark the service as Loss. This action cannot be undone.</p>
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Loss Reason <span style="color:#ef4444;">*</span></label>
+                    <textarea id="serviceLossReason" rows="3" placeholder="Describe why this service was lost (client decision, budget, competitor, etc.)" style="width:100%;min-height:96px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                    <div id="serviceLossReasonError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                    <button class="btn btn-outline" onclick="document.getElementById('serviceLossModal').remove()">Cancel</button>
+                    <button class="btn btn-danger" onclick="window.submitServiceLoss('${escapeHTML(serviceId)}')">Confirm Loss</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    };
+    // PVD-LOSS-01 — dual-path submitServiceLoss writer
+    window.submitServiceLoss = async function(serviceId) {
+        if (!currentService || currentService.id !== serviceId) return;
+        // Defense in depth: re-check gate
+        const cu = window.getCurrentUser?.();
+        const _uid = cu?.uid;
+        const _role = cu?.role || '';
+        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+        const _assignedRoles = ['operations_user', 'services_user'];
+        const _personnel = currentService.personnel_user_ids || [];
+        const _canDrive = _adminRoles.includes(_role)
+            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
+        const _status = currentService.project_status || 'For Inspection';
+        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+            showToast('Permission denied.', 'error');
+            return;
+        }
+        // Validate reason — 10-char minimum
+        const reason = (document.getElementById('serviceLossReason')?.value || '').trim();
+        if (reason.length < 10) {
+            const errEl = document.getElementById('serviceLossReasonError');
+            if (errEl) {
+                errEl.textContent = 'Loss Reason is required (minimum 10 characters).';
+                errEl.style.display = 'block';
+            }
+            return;
+        }
+        showLoading(true);
+        try {
+            // Detect open proposal: status NOT in { 'client_approved', 'loss' }
+            const propSnap = await getDocs(query(collection(db, 'proposals'), where('project_id', '==', serviceId)));
+            const openProposalDoc = propSnap.docs.find(d => {
+                const s = d.data().status;
+                return s !== 'client_approved' && s !== 'loss';
+            });
+
+            if (openProposalDoc) {
+                // PATH A — open proposal exists: use canonical batch transition (atomic service + proposal update)
+                const proposal = { id: openProposalDoc.id, ...openProposalDoc.data() };
+                await _applyProposalStateTransition({
+                    proposal,
+                    newStatus: 'loss',
+                    newProjectStatus: 'Loss',
+                    auditAction: 'LOSS_RECORDED',
+                    auditComment: reason,
+                    extraProposalFields: { loss_reason: reason }
+                });
+                // _applyProposalStateTransition writes project_status/status_changed_at/updated_at
+                // but NOT loss_reason to the service doc — add it now for direct-stage parity
+                await updateDoc(doc(db, 'services', serviceId), { loss_reason: reason, updated_at: new Date().toISOString() });
+                // Refresh proposal card to reflect loss state
+                loadProposalCard(serviceId, currentService.parent_collection || 'services');
+            } else {
+                // PATH B — no open proposal: write service doc directly in one atomic updateDoc
+                const oldStatus = currentService.project_status ?? null;
+                await updateDoc(doc(db, 'services', serviceId), {
+                    project_status: 'Loss',
+                    loss_reason: reason,
+                    status_changed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+                // Mirror saveServiceField project_status side-effects (fire-and-forget)
+                recordEditHistory(serviceId, 'update', [{ field: 'project_status', old_value: oldStatus, new_value: 'Loss' }], 'services')
+                    .catch(err => console.error('[ServiceDetail] submitServiceLoss recordEditHistory failed:', err));
+                // NOTIF-11: notify assigned personnel of status change to Loss
+                const recipients = (currentService.personnel_user_ids || []).filter(Boolean);
+                if (recipients.length > 0) {
+                    const serviceLink = currentService.service_code
+                        ? `#/services/detail/${currentService.service_code}`
+                        : '#/services';
+                    createNotificationForUsers({
+                        user_ids: recipients,
+                        type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                        message: `Service "${currentService.service_name}" status changed to: Loss`,
+                        link: serviceLink,
+                        source_collection: 'services',
+                        source_id: currentService.service_code || serviceId,
+                        object_name: currentService.service_name || '',
+                        actor_name: cu?.full_name || 'System'
+                    }).catch(err => console.error('[ServiceDetail] submitServiceLoss NOTIF-11 failed:', err));
+                }
+            }
+
+            // Both paths: audit entry + activity feed entry
+            addServiceAuditEntry(serviceId, 'LOSS_RECORDED', cu?.uid, cu?.full_name, reason)
+                .catch(err => console.error('[ServiceDetail] submitServiceLoss audit entry failed:', err));
+            _addServiceActivityEntry(serviceId, { type: 'system', is_system: true, text: `Service marked as Loss by ${cu?.full_name || 'Unknown'}` })
+                .catch(err => console.error('[ServiceDetail] submitServiceLoss activity entry failed:', err));
+
+            document.getElementById('serviceLossModal')?.remove();
+            showToast('Service marked as Loss.', 'success');
+            // onSnapshot listener re-renders the detail page automatically
+        } catch (err) {
+            console.error('[ServiceDetail] submitServiceLoss failed:', err);
+            showToast(err?.message || 'Failed to record loss. Please try again.', 'error');
+        } finally {
+            showLoading(false);
+        }
     };
     // Phase 104 — inline tranche editor (8 handlers) + Finance Record Release
     window.toggleTrancheEditor = toggleTrancheEditor;
