@@ -629,7 +629,14 @@ function renderProjectDetail() {
                 <span style="color:#cbd5e1;">·</span>
                 <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;">${escapeHTML(currentProject.project_code || '—')}</span>
                 <span style="color:#cbd5e1;">·</span>
-                <span id="hdrStatusBadge" class="hdr-status" style="background:${_getProjectStatusColor(currentProject.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(currentProject.project_status || '—')}</span>
+                ${showEditControls ? (() => {
+                    const _curStatus = currentProject.project_status || '';
+                    const _isLegacy = _curStatus && !UNIFIED_STATUS_OPTIONS.includes(_curStatus);
+                    const _opts = UNIFIED_STATUS_OPTIONS.map(s => `<option value="${escapeHTML(s)}"${(!_isLegacy && s === _curStatus) ? ' selected' : ''}>${escapeHTML(s)}</option>`).join('');
+                    const _legacyOpt = _isLegacy ? `<option value="${escapeHTML(_curStatus)}" selected>${escapeHTML(_curStatus)} (legacy)</option>` : '';
+                    const _emptyOpt = !_curStatus ? `<option value="" disabled selected>—</option>` : '';
+                    return `<select id="hdrStatusSelect" onchange="window.saveField('project_status', this.value)" style="font-size:0.82rem;padding:0.3rem 0.5rem;border-radius:8px;border:1px solid #cbd5e1;background:white;color:#1e293b;font-weight:600;cursor:pointer;">${_emptyOpt}${_legacyOpt}${_opts}</select>`;
+                })() : `<span id="hdrStatusBadge" class="hdr-status" style="background:${_getProjectStatusColor(currentProject.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(currentProject.project_status || '—')}</span>`}
                 <span style="flex:1;"></span>
                 <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space:nowrap;">Edit History</button>
                 <button class="btn btn-sm btn-secondary" onclick="window.exportProjectExpenseCSV()"
@@ -2764,10 +2771,15 @@ function updateLifecycleBadge(project) {
         badge.style.border = `1px solid ${color}44`;
         badge.textContent = `● ${status}`;
     }
-    const hdrBadge = document.getElementById('hdrStatusBadge');
-    if (hdrBadge) {
-        hdrBadge.style.background = color;
-        hdrBadge.textContent = status;
+    const hdrSelect = document.getElementById('hdrStatusSelect');
+    if (hdrSelect) {
+        hdrSelect.value = status;
+    } else {
+        const hdrBadge = document.getElementById('hdrStatusBadge');
+        if (hdrBadge) {
+            hdrBadge.style.background = color;
+            hdrBadge.textContent = status;
+        }
     }
     const accordion = document.getElementById('lcAccordion');
     if (accordion) {
