@@ -835,7 +835,19 @@ function renderServiceDetail() {
                 <span style="color:#cbd5e1;">·</span>
                 <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;">${escapeHTML(currentService.service_code || '—')}</span>
                 <span style="color:#cbd5e1;">·</span>
-                <span id="hdrServiceStatusBadge" class="hdr-status" style="background:${_getServiceStatusColor(currentService.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(currentService.project_status || '—')}</span>
+                ${(() => {
+                    const _curStatus = currentService.project_status || '';
+                    const _isLegacy = _curStatus && !UNIFIED_STATUS_OPTIONS.includes(_curStatus);
+                    // The status dropdown is a remediation escape-hatch for LEGACY data ONLY.
+                    // Canonical-status services keep the read-only badge and advance through the
+                    // proper lifecycle gates; once a legacy service is re-staged it falls back here.
+                    if (showEditControls && _isLegacy) {
+                        const _opts = UNIFIED_STATUS_OPTIONS.map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
+                        const _legacyOpt = `<option value="${escapeHTML(_curStatus)}" selected>${escapeHTML(_curStatus)} (legacy)</option>`;
+                        return `<select id="hdrServiceStatusSelect" onchange="window.saveServiceField('project_status', this.value)" style="font-size:0.82rem;padding:0.3rem 0.5rem;border-radius:8px;border:1px solid #cbd5e1;background:white;color:#1e293b;font-weight:600;cursor:pointer;">${_legacyOpt}${_opts}</select>`;
+                    }
+                    return `<span id="hdrServiceStatusBadge" class="hdr-status" style="background:${_getServiceStatusColor(_curStatus)};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(_curStatus || '—')}</span>`;
+                })()}
                 <span style="flex:1;"></span>
                 <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space:nowrap;">Edit History</button>
                 <button class="btn btn-sm btn-secondary" onclick="window.exportServiceExpenseCSV()"
@@ -2500,10 +2512,15 @@ function updateServiceLifecycleBadge(service) {
         badge.style.border = `1px solid ${color}44`;
         badge.textContent = `● ${status}`;
     }
-    const hdrBadge = document.getElementById('hdrServiceStatusBadge');
-    if (hdrBadge) {
-        hdrBadge.style.background = color;
-        hdrBadge.textContent = status;
+    const hdrSelect = document.getElementById('hdrServiceStatusSelect');
+    if (hdrSelect) {
+        hdrSelect.value = status;
+    } else {
+        const hdrBadge = document.getElementById('hdrServiceStatusBadge');
+        if (hdrBadge) {
+            hdrBadge.style.background = color;
+            hdrBadge.textContent = status;
+        }
     }
     const accordion = document.getElementById('lcAccordion');
     if (accordion) {
