@@ -1,6 +1,6 @@
 ---
 slug: osa-loss-ops-user-permission
-status: fixed-pending-prod-deploy
+status: resolved-on-dev-pending-uat-and-prod
 trigger: "submitProjectLoss fails with FirebaseError: Missing or insufficient permissions for an operations_user assigned to the project; user expects assigned project members to be able to mark Loss"
 created: 2026-06-15
 updated: 2026-06-15
@@ -8,6 +8,23 @@ root_cause: "loss_reason missing from BOTH ops/services-user field-masks: (1) pr
 fix: "Added 'loss_reason' to the projects ops_user hasOnly() allowlist AND the proposals BRANCH 2 ops/services field-mask in firestore.rules; validated + deployed to clmc-procurement-dev (two deploys). PROD (clmc-procurement) deploy pending user confirmation."
 files_changed: [firestore.rules]
 ---
+
+## UPDATE 2026-06-15 (5) — TRUE ROOT CAUSE: MCP deploy was a no-op; rules never went live
+- Fetched the LIVE dev ruleset and grepped: `loss_reason` appeared ONLY in comments, NEVER inside any `hasOnly([...])` — i.e. NONE of my field-mask edits were actually deployed, despite three `firebase_deploy` (MCP) calls all returning {status:success}.
+- The local firestore.rules was correct the whole time (loss_reason at L229 projects + L902 proposals). The rule logic was never the persisting problem after the first commit — the edits simply weren't live.
+- FIX: deployed via the Firebase CLI instead — `firebase deploy --only firestore:rules --project clmc-procurement-dev`. CLI output: "rules file firestore.rules compiled successfully" + "released rules firestore.rules to cloud.firestore".
+- VERIFIED: re-fetched live rules; `loss_reason` now present in BOTH hasOnly() masks (projects ops_user + proposals BRANCH 2).
+- LESSON: the firebase MCP `firebase_deploy` tool silently did NOT push the edited firestore.rules on this setup (reported success, live rules unchanged). Use the Firebase CLI for rules deploys here.
+- Awaiting user UAT on dev (should now pass for ops_user, both PATH A and B). PROD deploy still pending: `firebase deploy --only firestore:rules --project clmc-procurement` (use CLI, NOT MCP).
+
+## UPDATE 2026-06-15 (4) — auth OK; isolated to PATH A (open proposal)
+- `window.auth.currentUser` returned a real UserImpl (uid vqVHvwRP8...) → NOT logged out. Reverted hypothesis (3). The router "Unauthenticated" line was stale/timing noise.
+- super_admin marks Loss fine (admin rule branch, no personnel check) → confirms the issue is the ops_user write branches specifically.
+- Inspected data: ops_user vqVHvwRP8... IS in personnel_user_ids of ALL their assigned projects (incl. all 5 legacy). assigned_project_codes also lists them. So assignment is fully present in BOTH representations.
+- PROOF PATH B works: zz-legacy-test-005 = Loss WITH loss_reason="adasd..." (a real Mark-as-Loss button write by ops_user, after the projects rule fix). zz-legacy-test-001/004 = Loss but NO loss_reason → set via the legacy status DROPDOWN (saveField), not the button.
+- Open proposals exist for: CLMC-CLMC-2026001 (pending_client), CLMC-DEV-001 (draft), CLMC-LEGACY-001 (draft) → these force PATH A. No project has yet been marked Loss via PATH A by the ops_user.
+- Verified _applyProposalStateTransition writes proposal keys {status, current_status_since, audit_log, updated_at, loss_reason} + project keys {project_status, status_changed_at, updated_at}. ALL keys are in the deployed dev field-masks (projects ops_user + proposals BRANCH 2, both patched with loss_reason). Assignment get()s resolve to personnel that include the uid. Rule analysis says PATH A SHOULD now pass.
+- HYPOTHESIS: user's failing tests predate the proposals-rule (2nd) deploy, OR stale cache. NEXT: hard-refresh + retest Mark-as-Loss on CLMC-CLMC-2026001 (forces PATH A). If still failing, instrument the catch in submitProjectLoss (localhost = edit+refresh, no deploy) to log path + denied doc.
 
 ## UPDATE 2026-06-15 (3) — error persisted on dev AFTER both rule fixes → NOT a rules issue
 - Verified via `firebase_get_security_rules` (firestore): the DEPLOYED dev ruleset contains the `loss_reason` additions (grep: ≥2 occurrences). Rules on clmc-procurement-dev are correct.
