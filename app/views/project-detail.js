@@ -629,14 +629,19 @@ function renderProjectDetail() {
                 <span style="color:#cbd5e1;">·</span>
                 <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;">${escapeHTML(currentProject.project_code || '—')}</span>
                 <span style="color:#cbd5e1;">·</span>
-                ${showEditControls ? (() => {
+                ${(() => {
                     const _curStatus = currentProject.project_status || '';
                     const _isLegacy = _curStatus && !UNIFIED_STATUS_OPTIONS.includes(_curStatus);
-                    const _opts = UNIFIED_STATUS_OPTIONS.map(s => `<option value="${escapeHTML(s)}"${(!_isLegacy && s === _curStatus) ? ' selected' : ''}>${escapeHTML(s)}</option>`).join('');
-                    const _legacyOpt = _isLegacy ? `<option value="${escapeHTML(_curStatus)}" selected>${escapeHTML(_curStatus)} (legacy)</option>` : '';
-                    const _emptyOpt = !_curStatus ? `<option value="" disabled selected>—</option>` : '';
-                    return `<select id="hdrStatusSelect" onchange="window.saveField('project_status', this.value)" style="font-size:0.82rem;padding:0.3rem 0.5rem;border-radius:8px;border:1px solid #cbd5e1;background:white;color:#1e293b;font-weight:600;cursor:pointer;">${_emptyOpt}${_legacyOpt}${_opts}</select>`;
-                })() : `<span id="hdrStatusBadge" class="hdr-status" style="background:${_getProjectStatusColor(currentProject.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(currentProject.project_status || '—')}</span>`}
+                    // The status dropdown is a remediation escape-hatch for LEGACY data ONLY.
+                    // Canonical-status projects keep the read-only badge and advance through the
+                    // proper lifecycle gates; once a legacy project is re-staged it falls back here.
+                    if (showEditControls && _isLegacy) {
+                        const _opts = UNIFIED_STATUS_OPTIONS.map(s => `<option value="${escapeHTML(s)}">${escapeHTML(s)}</option>`).join('');
+                        const _legacyOpt = `<option value="${escapeHTML(_curStatus)}" selected>${escapeHTML(_curStatus)} (legacy)</option>`;
+                        return `<select id="hdrStatusSelect" onchange="window.saveField('project_status', this.value)" style="font-size:0.82rem;padding:0.3rem 0.5rem;border-radius:8px;border:1px solid #cbd5e1;background:white;color:#1e293b;font-weight:600;cursor:pointer;">${_legacyOpt}${_opts}</select>`;
+                    }
+                    return `<span id="hdrStatusBadge" class="hdr-status" style="background:${_getProjectStatusColor(_curStatus)};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(_curStatus || '—')}</span>`;
+                })()}
                 <span style="flex:1;"></span>
                 <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space:nowrap;">Edit History</button>
                 <button class="btn btn-sm btn-secondary" onclick="window.exportProjectExpenseCSV()"
