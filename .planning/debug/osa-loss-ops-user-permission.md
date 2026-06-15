@@ -4,10 +4,21 @@ status: fixed-pending-prod-deploy
 trigger: "submitProjectLoss fails with FirebaseError: Missing or insufficient permissions for an operations_user assigned to the project; user expects assigned project members to be able to mark Loss"
 created: 2026-06-15
 updated: 2026-06-15
-root_cause: "loss_reason missing from operations_user field-mask in projects allow update rule"
-fix: "Added 'loss_reason' to the ops_user hasOnly() allowlist in firestore.rules; validated + deployed to clmc-procurement-dev. PROD (clmc-procurement) deploy pending user confirmation."
+root_cause: "loss_reason missing from BOTH ops/services-user field-masks: (1) projects allow-update, (2) proposals allow-update BRANCH 2. PATH B trips on (1); PATH A (open proposal) trips on (2) because _applyProposalStateTransition's batch writes loss_reason onto the proposal doc."
+fix: "Added 'loss_reason' to the projects ops_user hasOnly() allowlist AND the proposals BRANCH 2 ops/services field-mask in firestore.rules; validated + deployed to clmc-procurement-dev (two deploys). PROD (clmc-procurement) deploy pending user confirmation."
 files_changed: [firestore.rules]
 ---
+
+## UPDATE 2026-06-15 — second blocker (PATH A)
+First deploy (projects ops_user + loss_reason) fixed PATH B but the SAME error
+persisted → the test project has an OPEN proposal, so submitProjectLoss takes
+PATH A. `_applyProposalStateTransition` runs a writeBatch that updates the
+PROPOSAL doc with `loss_reason` (extraProposalFields). The proposals BRANCH 2
+field-mask (firestore.rules:902, 14-key allow-list for assigned ops/services
+users) omitted `loss_reason` → batch denied atomically → permission error.
+Latent in the proposal-card loss flow too (only ever exercised by admins, who
+use BRANCH 1 with no field-mask). Added `loss_reason` to the BRANCH 2 list and
+redeployed to dev.
 
 # Debug: Mark-as-Loss denied for assigned operations_user
 

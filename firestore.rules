@@ -899,7 +899,7 @@ service cloud.firestore {
             // BRANCH 2 — Attached operations_user / services_user, expanded field-mask
             //            (Phase 87.2 D-16 / D-17 / D-18; expanded Phase 87.3 D-09).
             // Field-mask: 14-key allow-list (5 original status/log keys + 9 editable content keys).
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at', 'title', 'description', 'amount', 'target_client_id', 'target_client_name', 'version', 'attachment_kind', 'attachment_url', 'attachment_filename'])
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at', 'title', 'description', 'amount', 'target_client_id', 'target_client_name', 'version', 'attachment_kind', 'attachment_url', 'attachment_filename', 'loss_reason'])
             // Same created_at + created_by immutability as BRANCH 1.
             && request.resource.data.created_by == resource.data.created_by
             && request.resource.data.created_at == resource.data.created_at
