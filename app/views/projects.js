@@ -1204,6 +1204,9 @@ function renderBrowseAll() {
             ? filteredProjects.filter(p => isLegacyStatus(p.project_status))
             : filteredProjects.filter(p => group.statuses.includes(p.project_status))
         ).sort((a, b) => (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || ''));
+        // Legacy is an exception group: hide the whole accordion when empty (the fixed
+        // canonical stage groups still render their "No projects in this stage" placeholder).
+        if (group.key === 'legacy' && rows.length === 0) return '';
         const collapsed = getCollapseState(group.key);
         const body = rows.length
             ? rows.map(buildFeedRow).join('')

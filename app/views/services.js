@@ -1236,6 +1236,9 @@ function renderServiceBrowseAll() {
             ? filteredServices.filter(s => isLegacyStatus(s.project_status))
             : filteredServices.filter(s => group.statuses.includes(s.project_status))
         ).sort((a, b) => (a.service_code || a.service_name || '').localeCompare(b.service_code || b.service_name || ''));
+        // Legacy is an exception group: hide the whole accordion when empty (the fixed
+        // canonical stage groups still render their "No services in this stage" placeholder).
+        if (group.key === 'legacy' && rows.length === 0) return '';
         const collapsed = getServiceCollapseState(group.key);
         const body = rows.length
             ? rows.map(buildServiceRow).join('')
