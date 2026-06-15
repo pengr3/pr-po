@@ -13,6 +13,9 @@ import { doc, onSnapshot } from './firebase.js';
 // Current user's permissions loaded from their role template
 let currentPermissions = null;
 
+// Current user's role id — tracked for the super_admin safety bypass below
+let currentRole = null;
+
 // Cleanup function for role template listener
 let roleTemplateUnsubscribe = null;
 
@@ -34,6 +37,10 @@ export function getCurrentPermissions() {
  * @returns {boolean|undefined} True if has access, false if denied, undefined if not loaded yet
  */
 export function hasTabAccess(tabId) {
+    // super_admin is never locked out — defense-in-depth so a missing/new permission key
+    // (e.g. an un-migrated role_templates doc) can't strand the highest-privilege role.
+    // This governs UI gating only; Firestore security rules remain the real authority.
+    if (currentRole === 'super_admin') return true;
     // Return undefined if permissions not loaded yet OR malformed OR no tabId (allows router to defer check)
     if (!currentPermissions || !currentPermissions.tabs || !tabId) return undefined;
     return currentPermissions.tabs[tabId]?.access || false;
@@ -45,6 +52,8 @@ export function hasTabAccess(tabId) {
  * @returns {boolean|undefined} True if can edit, false if view-only, undefined if not loaded yet
  */
 export function canEditTab(tabId) {
+    // super_admin always has edit — see hasTabAccess() for rationale.
+    if (currentRole === 'super_admin') return true;
     // Return undefined if permissions not loaded yet OR malformed
     if (!currentPermissions || !currentPermissions.tabs) return undefined;
     return currentPermissions.tabs[tabId]?.edit || false;
@@ -70,8 +79,12 @@ export async function initPermissionsObserver(user) {
     // If user has no role assigned, set permissions to null
     if (!user.role) {
         currentPermissions = null;
+        currentRole = null;
         return;
     }
+
+    // Track role for the super_admin safety bypass (see hasTabAccess/canEditTab)
+    currentRole = user.role;
 
     // Create real-time listener on role template document
     const roleDocRef = doc(db, 'role_templates', user.role);
@@ -117,6 +130,7 @@ export function destroyPermissionsObserver() {
         roleTemplateUnsubscribe = null;
     }
     currentPermissions = null;
+    currentRole = null;
 }
 
 /* ========================================
