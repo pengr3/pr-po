@@ -2747,22 +2747,29 @@ function buildLifecycleTrack(project) {
     return html;
 }
 
+// OSA-LOSS-01 — single source of truth for "who may drive a Mark-as-Loss on a PROJECT".
+// MUST stay aligned with the deployed firestore.rules write authorization: the projects
+// update rule (super_admin/operations_admin admin branch + assigned operations_user
+// field-masked branch) AND the proposals update rule (same set) both govern the loss write.
+// Showing the button to any role outside this set produces a raw PERMISSION_DENIED.
+const LOSS_ADMIN_ROLES = ['super_admin', 'operations_admin'];
+const LOSS_ASSIGNED_ROLES = ['operations_user'];
+let _lossSubmitInFlight = false;  // double-submit guard (module scope; reset in finally)
+function canDriveProjectLoss(project, currentUser) {
+    const uid = currentUser?.uid;
+    const role = currentUser?.role || '';
+    return LOSS_ADMIN_ROLES.includes(role)
+        || (LOSS_ASSIGNED_ROLES.includes(role) && uid && (project?.personnel_user_ids || []).includes(uid));
+}
+
 function renderLifecycleCard(project, currentUser) {
     const status = project.project_status || 'For Inspection';
     const isActive = ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status);
     const isComplete = status === 'Completed';
     const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
     const color = _getProjectStatusColor(status);
-    // OSA-LOSS-01: compute canDrive gate (mirrors loadProposalCard shape exactly)
-    const uid = currentUser?.uid;
-    const role = currentUser?.role || '';
-    const adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-    const assignedRoles = ['operations_user', 'services_user'];
-    const parentPersonnel = project.personnel_user_ids || [];
-    const canDrive = adminRoles.includes(role)
-        || (assignedRoles.includes(role) && uid && parentPersonnel.includes(uid));
-    const terminalStatuses = ['Loss', 'Completed'];
-    const showLossBtn = !terminalStatuses.includes(status) && canDrive;
+    // OSA-LOSS-01: gate the Mark-as-Loss button to roles the deployed rules authorize.
+    const showLossBtn = !['Loss', 'Completed'].includes(status) && canDriveProjectLoss(project, currentUser);
     return `<div class="lc-accordion ${isActive ? 'lc-active' : ''} ${isComplete ? 'lc-complete' : ''} ${_lcOpen ? 'open' : ''}" id="lcAccordion">
         <div class="lc-card-header" onclick="window.toggleLifecycleAccordion()">
             <div class="lc-header-left">
@@ -3879,15 +3886,8 @@ function attachWindowFunctions() {
         if (!currentProject || currentProject.id !== projectId) return;
         // Defense in depth: re-check gate (button is gated at render time, but window fn must not trust DOM)
         const cu = window.getCurrentUser?.();
-        const _uid = cu?.uid;
-        const _role = cu?.role || '';
-        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-        const _assignedRoles = ['operations_user', 'services_user'];
-        const _personnel = currentProject.personnel_user_ids || [];
-        const _canDrive = _adminRoles.includes(_role)
-            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
         const _status = currentProject.project_status || 'For Inspection';
-        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+        if (['Loss', 'Completed'].includes(_status) || !canDriveProjectLoss(currentProject, cu)) {
             showToast('Permission denied.', 'error');
             return;
         }
@@ -3916,17 +3916,11 @@ function attachWindowFunctions() {
     // OSA-LOSS-01 — dual-path submitProjectLoss writer
     window.submitProjectLoss = async function(projectId) {
         if (!currentProject || currentProject.id !== projectId) return;
+        if (_lossSubmitInFlight) return;  // OSA-LOSS-01 — double-submit guard
         // Defense in depth: re-check gate
         const cu = window.getCurrentUser?.();
-        const _uid = cu?.uid;
-        const _role = cu?.role || '';
-        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-        const _assignedRoles = ['operations_user', 'services_user'];
-        const _personnel = currentProject.personnel_user_ids || [];
-        const _canDrive = _adminRoles.includes(_role)
-            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
         const _status = currentProject.project_status || 'For Inspection';
-        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+        if (['Loss', 'Completed'].includes(_status) || !canDriveProjectLoss(currentProject, cu)) {
             showToast('Permission denied.', 'error');
             return;
         }
@@ -3940,6 +3934,8 @@ function attachWindowFunctions() {
             }
             return;
         }
+        const oldStatus = currentProject.project_status ?? null;
+        _lossSubmitInFlight = true;
         showLoading(true);
         try {
             // Detect open proposal: status NOT in { 'client_approved', 'loss' }
@@ -3958,42 +3954,41 @@ function attachWindowFunctions() {
                     newProjectStatus: 'Loss',
                     auditAction: 'LOSS_RECORDED',
                     auditComment: reason,
-                    extraProposalFields: { loss_reason: reason }
+                    extraProposalFields: { loss_reason: reason },
+                    // Fold loss_reason into the SAME batch → atomic project-doc write (no follow-up updateDoc)
+                    extraProjectFields: { loss_reason: reason }
                 });
-                // _applyProposalStateTransition writes project_status/status_changed_at/updated_at
-                // but NOT loss_reason to the project doc — add it now for direct-stage parity
-                await updateDoc(doc(db, 'projects', projectId), { loss_reason: reason, updated_at: new Date().toISOString() });
                 // Refresh proposal card to reflect loss state
                 loadProposalCard(projectId, currentProject.parent_collection || 'projects');
             } else {
                 // PATH B — no open proposal: write project doc directly in one atomic updateDoc
-                const oldStatus = currentProject.project_status ?? null;
                 await updateDoc(doc(db, 'projects', projectId), {
                     project_status: 'Loss',
                     loss_reason: reason,
                     status_changed_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 });
-                // Mirror saveField project_status side-effects (fire-and-forget)
-                recordEditHistory(projectId, 'update', [{ field: 'project_status', old_value: oldStatus, new_value: 'Loss' }])
-                    .catch(err => console.error('[ProjectDetail] submitProjectLoss recordEditHistory failed:', err));
-                // NOTIF-11: notify assigned personnel of status change to Loss
-                const recipients = (currentProject.personnel_user_ids || []).filter(Boolean);
-                if (recipients.length > 0) {
-                    const projectLink = currentProject.project_code
-                        ? `#/projects/detail/${currentProject.project_code}`
-                        : '#/projects';
-                    createNotificationForUsers({
-                        user_ids: recipients,
-                        type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
-                        message: `Project "${currentProject.project_name}" status changed to: Loss`,
-                        link: projectLink,
-                        source_collection: 'projects',
-                        source_id: currentProject.project_code || projectId,
-                        object_name: currentProject.project_name || '',
-                        actor_name: cu?.full_name || 'System'
-                    }).catch(err => console.error('[ProjectDetail] submitProjectLoss NOTIF-11 failed:', err));
-                }
+            }
+
+            // Both paths — mirror saveField project_status side-effects (fire-and-forget).
+            recordEditHistory(projectId, 'update', [{ field: 'project_status', old_value: oldStatus, new_value: 'Loss' }])
+                .catch(err => console.error('[ProjectDetail] submitProjectLoss recordEditHistory failed:', err));
+            // NOTIF-11: notify assigned personnel of status change to Loss (both paths, for parity)
+            const recipients = (currentProject.personnel_user_ids || []).filter(Boolean);
+            if (recipients.length > 0) {
+                const projectLink = currentProject.project_code
+                    ? `#/projects/detail/${currentProject.project_code}`
+                    : '#/projects';
+                createNotificationForUsers({
+                    user_ids: recipients,
+                    type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                    message: `Project "${currentProject.project_name}" status changed to: Loss`,
+                    link: projectLink,
+                    source_collection: 'projects',
+                    source_id: currentProject.project_code || projectId,
+                    object_name: currentProject.project_name || '',
+                    actor_name: cu?.full_name || 'System'
+                }).catch(err => console.error('[ProjectDetail] submitProjectLoss NOTIF-11 failed:', err));
             }
 
             // Both paths: audit entry + activity feed entry
@@ -4007,9 +4002,11 @@ function attachWindowFunctions() {
             // onSnapshot listener re-renders the detail page automatically
         } catch (err) {
             console.error('[ProjectDetail] submitProjectLoss failed:', err);
-            showToast(err?.message || 'Failed to record loss. Please try again.', 'error');
+            const _denied = err?.code === 'permission-denied' || /insufficient permissions/i.test(err?.message || '');
+            showToast(_denied ? 'You do not have permission to mark this as Loss.' : (err?.message || 'Failed to record loss. Please try again.'), 'error');
         } finally {
             showLoading(false);
+            _lossSubmitInFlight = false;
         }
     };
     // Phase 102 Plan 04 — Finance-only Record Release (direct write of retention_released_at; D-03/D-15/D-21)

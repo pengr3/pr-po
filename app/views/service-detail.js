@@ -2483,20 +2483,31 @@ function buildServiceLifecycleTrack(service) {
     return html;
 }
 
+// PVD-LOSS-01 — single source of truth for "who may drive a Mark-as-Loss on a SERVICE".
+// MUST stay aligned with the deployed firestore.rules: the services update rule
+// (super_admin/services_admin admin + assigned services_user) governs the service-doc write.
+// CAVEAT: services_admin can drive a no-proposal (PATH B) Loss, but a service WITH an open
+// proposal (PATH A) additionally needs proposal-write rights, which the proposals update rule
+// grants only to super_admin/operations_admin/assigned services_user — so a services_admin
+// PATH A Loss fails CLEANLY (atomic batch, friendly toast) until that rule is widened (rules+deploy).
+const LOSS_ADMIN_ROLES = ['super_admin', 'services_admin'];
+const LOSS_ASSIGNED_ROLES = ['services_user'];
+let _lossSubmitInFlight = false;  // double-submit guard (module scope; reset in finally)
+function canDriveServiceLoss(service, currentUser) {
+    const uid = currentUser?.uid;
+    const role = currentUser?.role || '';
+    return LOSS_ADMIN_ROLES.includes(role)
+        || (LOSS_ASSIGNED_ROLES.includes(role) && uid && (service?.personnel_user_ids || []).includes(uid));
+}
+
 function renderServiceLifecycleCard(service, currentUser) {
     const status = service.project_status || 'For Inspection';
     const isActive = ['For Inspection','Client Approved','For Mobilization','On-going','For Revision'].includes(status);
     const isComplete = status === 'Completed';
     const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
     const color = _getServiceStatusColor(status);
-    // PVD-LOSS-01: compute canDrive gate (mirrors loadProposalCard shape exactly)
-    const uid = currentUser?.uid;
-    const role = currentUser?.role || '';
-    const adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-    const assignedRoles = ['operations_user', 'services_user'];
-    const canDrive = adminRoles.includes(role)
-        || (assignedRoles.includes(role) && uid && (service.personnel_user_ids || []).includes(uid));
-    const showLossBtn = !['Loss', 'Completed'].includes(status) && canDrive;
+    // PVD-LOSS-01: gate the Mark-as-Loss button to roles the deployed rules authorize.
+    const showLossBtn = !['Loss', 'Completed'].includes(status) && canDriveServiceLoss(service, currentUser);
     return `<div class="lc-accordion ${isActive ? 'lc-active' : ''} ${isComplete ? 'lc-complete' : ''} ${_lcOpen ? 'open' : ''}" id="lcAccordion">
         <div class="lc-card-header" onclick="window.toggleServiceLifecycleAccordion()">
             <div class="lc-header-left">
@@ -3523,15 +3534,8 @@ function attachWindowFunctions() {
         if (!currentService || currentService.id !== serviceId) return;
         // Defense in depth: re-check gate (button is gated at render time, but window fn must not trust DOM)
         const cu = window.getCurrentUser?.();
-        const _uid = cu?.uid;
-        const _role = cu?.role || '';
-        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-        const _assignedRoles = ['operations_user', 'services_user'];
-        const _personnel = currentService.personnel_user_ids || [];
-        const _canDrive = _adminRoles.includes(_role)
-            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
         const _status = currentService.project_status || 'For Inspection';
-        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+        if (['Loss', 'Completed'].includes(_status) || !canDriveServiceLoss(currentService, cu)) {
             showToast('Permission denied.', 'error');
             return;
         }
@@ -3560,17 +3564,11 @@ function attachWindowFunctions() {
     // PVD-LOSS-01 — dual-path submitServiceLoss writer
     window.submitServiceLoss = async function(serviceId) {
         if (!currentService || currentService.id !== serviceId) return;
+        if (_lossSubmitInFlight) return;  // PVD-LOSS-01 — double-submit guard
         // Defense in depth: re-check gate
         const cu = window.getCurrentUser?.();
-        const _uid = cu?.uid;
-        const _role = cu?.role || '';
-        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-        const _assignedRoles = ['operations_user', 'services_user'];
-        const _personnel = currentService.personnel_user_ids || [];
-        const _canDrive = _adminRoles.includes(_role)
-            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
         const _status = currentService.project_status || 'For Inspection';
-        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+        if (['Loss', 'Completed'].includes(_status) || !canDriveServiceLoss(currentService, cu)) {
             showToast('Permission denied.', 'error');
             return;
         }
@@ -3584,6 +3582,8 @@ function attachWindowFunctions() {
             }
             return;
         }
+        const oldStatus = currentService.project_status ?? null;
+        _lossSubmitInFlight = true;
         showLoading(true);
         try {
             // Detect open proposal: status NOT in { 'client_approved', 'loss' }
@@ -3602,42 +3602,41 @@ function attachWindowFunctions() {
                     newProjectStatus: 'Loss',
                     auditAction: 'LOSS_RECORDED',
                     auditComment: reason,
-                    extraProposalFields: { loss_reason: reason }
+                    extraProposalFields: { loss_reason: reason },
+                    // Fold loss_reason into the SAME batch → atomic service-doc write (no follow-up updateDoc)
+                    extraProjectFields: { loss_reason: reason }
                 });
-                // _applyProposalStateTransition writes project_status/status_changed_at/updated_at
-                // but NOT loss_reason to the service doc — add it now for direct-stage parity
-                await updateDoc(doc(db, 'services', serviceId), { loss_reason: reason, updated_at: new Date().toISOString() });
                 // Refresh proposal card to reflect loss state
                 loadProposalCard(serviceId, currentService.parent_collection || 'services');
             } else {
                 // PATH B — no open proposal: write service doc directly in one atomic updateDoc
-                const oldStatus = currentService.project_status ?? null;
                 await updateDoc(doc(db, 'services', serviceId), {
                     project_status: 'Loss',
                     loss_reason: reason,
                     status_changed_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 });
-                // Mirror saveServiceField project_status side-effects (fire-and-forget)
-                recordEditHistory(serviceId, 'update', [{ field: 'project_status', old_value: oldStatus, new_value: 'Loss' }], 'services')
-                    .catch(err => console.error('[ServiceDetail] submitServiceLoss recordEditHistory failed:', err));
-                // NOTIF-11: notify assigned personnel of status change to Loss
-                const recipients = (currentService.personnel_user_ids || []).filter(Boolean);
-                if (recipients.length > 0) {
-                    const serviceLink = currentService.service_code
-                        ? `#/services/detail/${currentService.service_code}`
-                        : '#/services';
-                    createNotificationForUsers({
-                        user_ids: recipients,
-                        type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
-                        message: `Service "${currentService.service_name}" status changed to: Loss`,
-                        link: serviceLink,
-                        source_collection: 'services',
-                        source_id: currentService.service_code || serviceId,
-                        object_name: currentService.service_name || '',
-                        actor_name: cu?.full_name || 'System'
-                    }).catch(err => console.error('[ServiceDetail] submitServiceLoss NOTIF-11 failed:', err));
-                }
+            }
+
+            // Both paths — mirror saveServiceField project_status side-effects (fire-and-forget).
+            recordEditHistory(serviceId, 'update', [{ field: 'project_status', old_value: oldStatus, new_value: 'Loss' }], 'services')
+                .catch(err => console.error('[ServiceDetail] submitServiceLoss recordEditHistory failed:', err));
+            // NOTIF-11: notify assigned personnel of status change to Loss (both paths, for parity)
+            const recipients = (currentService.personnel_user_ids || []).filter(Boolean);
+            if (recipients.length > 0) {
+                const serviceLink = currentService.service_code
+                    ? `#/services/detail/${currentService.service_code}`
+                    : '#/services';
+                createNotificationForUsers({
+                    user_ids: recipients,
+                    type: NOTIFICATION_TYPES.PROJECT_STATUS_CHANGED,
+                    message: `Service "${currentService.service_name}" status changed to: Loss`,
+                    link: serviceLink,
+                    source_collection: 'services',
+                    source_id: currentService.service_code || serviceId,
+                    object_name: currentService.service_name || '',
+                    actor_name: cu?.full_name || 'System'
+                }).catch(err => console.error('[ServiceDetail] submitServiceLoss NOTIF-11 failed:', err));
             }
 
             // Both paths: audit entry + activity feed entry
@@ -3651,9 +3650,11 @@ function attachWindowFunctions() {
             // onSnapshot listener re-renders the detail page automatically
         } catch (err) {
             console.error('[ServiceDetail] submitServiceLoss failed:', err);
-            showToast(err?.message || 'Failed to record loss. Please try again.', 'error');
+            const _denied = err?.code === 'permission-denied' || /insufficient permissions/i.test(err?.message || '');
+            showToast(_denied ? 'You do not have permission to mark this as Loss.' : (err?.message || 'Failed to record loss. Please try again.'), 'error');
         } finally {
             showLoading(false);
+            _lossSubmitInFlight = false;
         }
     };
     // Phase 104 — inline tranche editor (8 handlers) + Finance Record Release

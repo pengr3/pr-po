@@ -242,7 +242,7 @@ export function renderStageGroupCard(label, proposals) {
  * @param {object} [args.extraProposalFields]  - extra top-level fields (e.g. {loss_reason: 'xyz'})
  * @returns {Promise<object>} the new audit entry written
  */
-export async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields }) {
+export async function _applyProposalStateTransition({ proposal, newStatus, newProjectStatus, auditAction, auditComment, extraProposalFields, extraProjectFields }) {
     if (!proposal || !proposal.id) throw new Error('_applyProposalStateTransition: proposal with id required');
     if (!auditAction) throw new Error('_applyProposalStateTransition: auditAction required');
 
@@ -283,11 +283,18 @@ export async function _applyProposalStateTransition({ proposal, newStatus, newPr
     // legacy proposals that pre-date services-proposal support.
     const parentCollection = proposal.parent_collection || 'projects';
     if (newProjectStatus && proposal.project_id) {
-        batch.update(doc(db, parentCollection, proposal.project_id), {
+        const projectPayload = {
             project_status: newProjectStatus,
             status_changed_at: new Date().toISOString(),   // Phase 103.1 D-02 — stage-duration spine (covers projects + services)
             updated_at: new Date().toISOString()  // projects/services collection convention (project-detail.js line 804)
-        });
+        };
+        // Quick 260616 — fold caller extras (e.g. loss_reason) into the SAME batched parent-doc
+        // write so the transition is atomic; removes the separate follow-up updateDoc that could
+        // leave project_status=Loss with no loss_reason if it failed mid-flight.
+        if (extraProjectFields && typeof extraProjectFields === 'object') {
+            Object.assign(projectPayload, extraProjectFields);
+        }
+        batch.update(doc(db, parentCollection, proposal.project_id), projectPayload);
     }
 
     await batch.commit();
