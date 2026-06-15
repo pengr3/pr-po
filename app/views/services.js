@@ -50,6 +50,11 @@ const UNIFIED_STATUS_OPTIONS = [
 // Phase 92.2: Scorecard strip excludes 'Draft' (Draft services are proposals; not surfaced as a status filter)
 const SCORECARD_STATUS_OPTIONS = UNIFIED_STATUS_OPTIONS.filter(s => s !== 'Draft');
 
+// Predicate: true for non-empty project_status values that fall outside UNIFIED_STATUS_OPTIONS.
+// 'Draft' is canonical in services (included above), so it is NOT legacy.
+// Empty/missing statuses are NOT legacy — they must NOT be pulled into the Legacy bucket.
+const isLegacyStatus = (s) => !!s && !UNIFIED_STATUS_OPTIONS.includes(s);
+
 // Phase 103.1 D-04 — two-tier urgency thresholds (days). Mirror of projects.js (operator-confirmed).
 const URGENCY_THRESHOLDS = {
     FOR_PROPOSAL_WATCH: 2,        FOR_PROPOSAL_URGENT: 5,         // For Proposal
@@ -863,9 +868,23 @@ async function loadServices() {
         // ASSIGN-04: services_user may only read their assigned services.
         // An unscoped collection query would include docs they're not assigned to,
         // which Firestore's per-document list rule would deny for the entire query.
+        const currentUser = window.getCurrentUser?.();
+        const role = currentUser?.role;
         const assignedCodes = getAssignedServiceCodes();
         let servicesQuery;
-        if (assignedCodes !== null) {
+        if (role === 'operations_user') {
+            // operations_user: scoped by the firestore.rules services.list per-doc predicate
+            // (request.auth.uid in resource.data.personnel_user_ids). An unscoped query would
+            // be denied for the whole list, so we must filter to assigned services here. Every
+            // doc returned by array-contains satisfies the rule predicate.
+            const uid = currentUser?.uid;
+            if (!uid) {
+                allServices = [];
+                applyServiceFilters();
+                return;
+            }
+            servicesQuery = query(collection(db, 'services'), where('personnel_user_ids', 'array-contains', uid));
+        } else if (assignedCodes !== null) {
             // services_user: scope query to assigned service_codes only
             if (assignedCodes.length === 0) {
                 allServices = [];
@@ -1094,7 +1113,7 @@ function renderServiceFinancial(service) {
 function getServiceCollapseState(key) {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem('browse-collapse-services') || '{}'); } catch (_) {}
-    return saved[key] ?? (key === 'completed' || key === 'loss' || key === 'draft');
+    return saved[key] ?? (key === 'completed' || key === 'loss' || key === 'draft' || key === 'legacy');
 }
 function setServiceCollapseState(key, collapsed) {
     let saved = {};
@@ -1179,10 +1198,14 @@ function renderServiceFeed() {
     const el = document.getElementById('pdb-feed-svc');
     if (!el) return;
     const { urgent, watch, ok } = computeServiceUrgencySignals(filteredServices);
+    // Pull legacy-status rows out of the ok bucket so they don't mislabel as On Track.
+    const legacy = ok.filter(s => isLegacyStatus(s.project_status));
+    const okClean = ok.filter(s => !isLegacyStatus(s.project_status));
     const sections = [
-        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent, hideWhenEmpty: true },
-        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,  hideWhenEmpty: true },
-        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: ok,     hideWhenEmpty: false }
+        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent,  hideWhenEmpty: true },
+        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,   hideWhenEmpty: true },
+        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: okClean, hideWhenEmpty: false },
+        { tier: 'legacy', label: 'Legacy',          icon: '🗂️', rows: legacy,  hideWhenEmpty: true }
     ];
     el.innerHTML = sections.map(sec => {
         if (sec.hideWhenEmpty && sec.rows.length === 0) return '';
@@ -1201,13 +1224,18 @@ function renderServiceFeed() {
 
 // Phase 103 D-03 — service Browse All: 7 collapsible stage groups (incl. leading Draft) over the
 // SAME filteredServices pool as the Feed. Rows reuse buildServiceRow → identical to Feed rows.
+// Legacy group constant — mid-grey (#6b7280), distinct from the draft/inspection groups (#94a3b8).
+// Membership is predicate-based (isLegacyStatus), not a fixed statuses[] list.
+const SERVICE_LEGACY_GROUP = { key: 'legacy', label: 'Legacy / Unmapped', color: '#6b7280' };
+
 function renderServiceBrowseAll() {
     const el = document.getElementById('pdb-browse-svc');
     if (!el) return;
-    el.innerHTML = SERVICE_STAGE_GROUPS.map(group => {
-        const rows = filteredServices
-            .filter(s => group.statuses.includes(s.project_status))
-            .sort((a, b) => (a.service_code || a.service_name || '').localeCompare(b.service_code || b.service_name || ''));
+    el.innerHTML = [...SERVICE_STAGE_GROUPS, SERVICE_LEGACY_GROUP].map(group => {
+        const rows = (group.key === 'legacy'
+            ? filteredServices.filter(s => isLegacyStatus(s.project_status))
+            : filteredServices.filter(s => group.statuses.includes(s.project_status))
+        ).sort((a, b) => (a.service_code || a.service_name || '').localeCompare(b.service_code || b.service_name || ''));
         const collapsed = getServiceCollapseState(group.key);
         const body = rows.length
             ? rows.map(buildServiceRow).join('')
